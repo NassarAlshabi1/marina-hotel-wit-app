@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:workmanager/workmanager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:workmanager/workmanager.dart';
+
 import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
 
@@ -14,7 +14,6 @@ class AutoBackupTask {
     try {
       await Workmanager().initialize(
         callbackDispatcher,
-        isInDebugMode: kDebugMode,
       );
       debugPrint('✅ تم تهيئة AutoBackupTask');
     } catch (e) {

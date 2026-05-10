@@ -1,15 +1,11 @@
 import 'package:appwrite/models.dart' as models;
-import 'appwrite_service.dart';
+
 import 'appwrite_error_handler.dart';
 import 'appwrite_logger.dart';
+import 'appwrite_service.dart';
 
 /// نتيجة عملية Batch
 class BatchResult<T> {
-  final int total;
-  final int successful;
-  final int failed;
-  final List<T> successfulItems;
-  final Map<String, String> errors;
 
   BatchResult({
     required this.total,
@@ -18,6 +14,11 @@ class BatchResult<T> {
     required this.successfulItems,
     required this.errors,
   });
+  final int total;
+  final int successful;
+  final int failed;
+  final List<T> successfulItems;
+  final Map<String, String> errors;
 
   bool get isFullSuccess => failed == 0;
   bool get isPartialSuccess => successful > 0 && failed > 0;
@@ -33,10 +34,10 @@ class BatchResult<T> {
 ///
 /// توفر طرق لتنفيذ عمليات متعددة بشكل متوازي
 class BatchOperationsService {
-  static final BatchOperationsService _instance =
-      BatchOperationsService._internal();
   factory BatchOperationsService() => _instance;
   BatchOperationsService._internal();
+  static final BatchOperationsService _instance =
+      BatchOperationsService._internal();
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
@@ -147,7 +148,7 @@ class BatchOperationsService {
           try {
             final doc = await _appwriteService.createDocument(
               collectionId: collectionId,
-              documentId: data['localUuid'] ?? 'unique()',
+              documentId: (data['localUuid'] as String?) ?? 'unique()',
               data: data,
             );
             return {'index': index, 'success': true, 'document': doc};
@@ -175,7 +176,7 @@ class BatchOperationsService {
         try {
           final doc = await _appwriteService.createDocument(
             collectionId: collectionId,
-            documentId: documents[i]['localUuid'] ?? 'unique()',
+            documentId: (documents[i]['localUuid'] as String?) ?? 'unique()',
             data: documents[i],
           );
           successfulItems.add(doc);
@@ -283,7 +284,7 @@ class BatchOperationsService {
   /// تنفيذ عمليات مختلطة (إنشاء، تحديث، حذف)
   ///
   /// [operations] - قائمة العمليات
-  Future<Map<String, BatchResult>> executeMixedOperations({
+  Future<Map<String, BatchResult<dynamic>>> executeMixedOperations({
     required List<BatchOperation> operations,
     bool parallel = true,
   }) async {
@@ -292,7 +293,7 @@ class BatchOperationsService {
       tag: 'BATCH',
     );
 
-    final results = <String, BatchResult>{};
+    final results = <String, BatchResult<dynamic>>{};
 
     if (parallel) {
       final futures = operations.map((op) => op.execute());
@@ -314,26 +315,26 @@ class BatchOperationsService {
 /// عملية Batch
 abstract class BatchOperation {
   String get name;
-  Future<BatchResult> execute();
+  Future<BatchResult<dynamic>> execute();
 }
 
 /// عملية حذف Batch
 class BatchDeleteOperation extends BatchOperation {
-  final String databaseId;
-  final String collectionId;
-  final List<String> documentIds;
 
   BatchDeleteOperation({
     required this.databaseId,
     required this.collectionId,
     required this.documentIds,
   });
+  final String databaseId;
+  final String collectionId;
+  final List<String> documentIds;
 
   @override
   String get name => 'delete_${collectionId}_${documentIds.length}';
 
   @override
-  Future<BatchResult> execute() {
+  Future<BatchResult<dynamic>> execute() {
     return BatchOperationsService().deleteDocuments(
       databaseId: databaseId,
       collectionId: collectionId,
@@ -344,21 +345,21 @@ class BatchDeleteOperation extends BatchOperation {
 
 /// عملية إنشاء Batch
 class BatchCreateOperation extends BatchOperation {
-  final String databaseId;
-  final String collectionId;
-  final List<Map<String, dynamic>> documents;
 
   BatchCreateOperation({
     required this.databaseId,
     required this.collectionId,
     required this.documents,
   });
+  final String databaseId;
+  final String collectionId;
+  final List<Map<String, dynamic>> documents;
 
   @override
   String get name => 'create_${collectionId}_${documents.length}';
 
   @override
-  Future<BatchResult> execute() {
+  Future<BatchResult<dynamic>> execute() {
     return BatchOperationsService().createDocuments(
       databaseId: databaseId,
       collectionId: collectionId,

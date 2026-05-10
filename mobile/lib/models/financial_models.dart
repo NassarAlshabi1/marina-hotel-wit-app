@@ -1,9 +1,4 @@
 class AppliedAdjustment {
-  final String uuid;
-  final String type;
-  final int amount;
-  final String? reason;
-  final String? appliedBy;
 
   const AppliedAdjustment({
     required this.uuid,
@@ -12,6 +7,21 @@ class AppliedAdjustment {
     this.reason,
     this.appliedBy,
   });
+
+  factory AppliedAdjustment.fromJson(Map<String, dynamic> json) {
+    return AppliedAdjustment(
+      uuid: (json['uuid'] as String?) ?? '',
+      type: (json['type'] as String?) ?? '',
+      amount: (json['amount'] as num?)?.toInt() ?? 0,
+      reason: json['reason'] as String?,
+      appliedBy: json['appliedBy'] as String?,
+    );
+  }
+  final String uuid;
+  final String type;
+  final int amount;
+  final String? reason;
+  final String? appliedBy;
 
   Map<String, dynamic> toJson() => {
     'uuid': uuid,
@@ -23,13 +33,6 @@ class AppliedAdjustment {
 }
 
 class NightlyBreakdown {
-  final String hotelDayKey;
-  final DateTime nightStart;
-  final DateTime nightEnd;
-  final int baseRate;
-  final int adjustmentAmount;
-  final int finalRate;
-  final List<AppliedAdjustment> appliedAdjustments;
 
   const NightlyBreakdown({
     required this.hotelDayKey,
@@ -40,16 +43,43 @@ class NightlyBreakdown {
     required this.finalRate,
     required this.appliedAdjustments,
   });
+
+  factory NightlyBreakdown.fromJson(Map<String, dynamic> json) {
+    return NightlyBreakdown(
+      hotelDayKey: (json['hotelDayKey'] as String?) ?? '',
+      nightStart: _parseDateTime(json['nightStart']),
+      nightEnd: _parseDateTime(json['nightEnd']),
+      baseRate: (json['baseRate'] as num?)?.toInt() ?? 0,
+      adjustmentAmount: (json['adjustmentAmount'] as num?)?.toInt() ?? 0,
+      finalRate: (json['finalRate'] as num?)?.toInt() ?? 0,
+      appliedAdjustments: (json['appliedAdjustments'] as List<dynamic>?)
+              ?.map((e) => AppliedAdjustment.fromJson(
+                  Map<String, dynamic>.from(e as Map),),)
+              .toList() ??
+          [],
+    );
+  }
+  final String hotelDayKey;
+  final DateTime nightStart;
+  final DateTime nightEnd;
+  final int baseRate;
+  final int adjustmentAmount;
+  final int finalRate;
+  final List<AppliedAdjustment> appliedAdjustments;
+
+  Map<String, dynamic> toJson() => {
+    'hotelDayKey': hotelDayKey,
+    'nightStart': nightStart.toIso8601String(),
+    'nightEnd': nightEnd.toIso8601String(),
+    'baseRate': baseRate,
+    'adjustmentAmount': adjustmentAmount,
+    'finalRate': finalRate,
+    'appliedAdjustments':
+        appliedAdjustments.map((a) => a.toJson()).toList(),
+  };
 }
 
 class FinancialSummary {
-  final int subtotal;
-  final int totalAdjustments;
-  final int totalDue;
-  final int totalPaid;
-  final int remainingBalance;
-  final int totalNights;
-  final bool isFullyPaid;
 
   const FinancialSummary({
     required this.subtotal,
@@ -60,4 +90,53 @@ class FinancialSummary {
     required this.totalNights,
     required this.isFullyPaid,
   });
+
+  factory FinancialSummary.fromJson(Map<String, dynamic> json) {
+    return FinancialSummary(
+      subtotal: (json['subtotal'] as num?)?.toInt() ?? 0,
+      totalAdjustments:
+          (json['totalAdjustments'] as num?)?.toInt() ?? 0,
+      totalDue: (json['totalDue'] as num?)?.toInt() ?? 0,
+      totalPaid: (json['totalPaid'] as num?)?.toInt() ?? 0,
+      remainingBalance:
+          (json['remainingBalance'] as num?)?.toInt() ?? 0,
+      totalNights: (json['totalNights'] as num?)?.toInt() ?? 0,
+      isFullyPaid: (json['isFullyPaid'] as bool?) ?? false,
+    );
+  }
+  final int subtotal;
+  final int totalAdjustments;
+  final int totalDue;
+  final int totalPaid;
+  final int remainingBalance;
+  final int totalNights;
+  final bool isFullyPaid;
+
+  Map<String, dynamic> toJson() => {
+    'subtotal': subtotal,
+    'totalAdjustments': totalAdjustments,
+    'totalDue': totalDue,
+    'totalPaid': totalPaid,
+    'remainingBalance': remainingBalance,
+    'totalNights': totalNights,
+    'isFullyPaid': isFullyPaid,
+  };
+}
+
+/// مساعد لتحليل التواريخ من JSON (يدعم String و DateTime)
+DateTime _parseDateTime(dynamic value) {
+  if (value == null) {
+    return DateTime(1970);
+  }
+  if (value is DateTime) {
+    return value;
+  }
+  if (value is String) {
+    try {
+      return DateTime.parse(value);
+    } catch (_) {
+      return DateTime(1970);
+    }
+  }
+  return DateTime(1970);
 }

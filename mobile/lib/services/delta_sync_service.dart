@@ -297,7 +297,9 @@ class DeltaSyncService {
 
         for (final row in sample) {
           final uuid = config.localUuid(row);
-          if (uuid.isEmpty) continue;
+          if (uuid.isEmpty) {
+            continue;
+          }
 
           final mirrorRow = tableMirror[uuid];
           if (mirrorRow == null) {
@@ -348,7 +350,9 @@ class DeltaSyncService {
         final rows = await config.fetchAll();
         for (final row in rows) {
           final uuid = config.localUuid(row);
-          if (uuid.isEmpty) continue;
+          if (uuid.isEmpty) {
+            continue;
+          }
 
           final sanitized = _preparePayload(config.toJson(row));
           sanitized['local_uuid'] = uuid;
@@ -580,18 +584,41 @@ int _normalizeTimestamp(int value) {
   return value < 1000000000000 ? value * 1000 : value;
 }
 
+/// حقول الطوابع الزمنية التي تحتاج تحويل من ثوانٍ إلى مللي ثانية
+const _timestampFieldNames = {
+  'created_at',
+  'updated_at',
+  'deleted_at',
+  'last_modified',
+  'created_at_epoch',
+  'updated_at_epoch',
+  'last_modified_epoch',
+  'night_start',
+  'night_end',
+  'alert_until',
+  'transaction_time',
+  'sync_timestamp',
+  'payment_time',
+  'check_in_time',
+  'check_out_time',
+};
+
 Map<String, dynamic> _preparePayload(Map<String, dynamic> source) {
   final result = <String, dynamic>{};
   source.forEach((key, value) {
     final newKey = _toSnakeCase(key);
-    result[newKey] = _normalizeValue(value);
+    result[newKey] = _normalizeValue(value, newKey);
   });
   return result;
 }
 
-dynamic _normalizeValue(dynamic value) {
+dynamic _normalizeValue(dynamic value, [String? fieldName]) {
   if (value is int) {
-    return _normalizeTimestamp(value);
+    // ✅ إصلاح: تحويل الطوابع الزمنية فقط، وليس كل الأعداد الصحيحة
+    if (fieldName != null && _timestampFieldNames.contains(fieldName)) {
+      return _normalizeTimestamp(value);
+    }
+    return value;
   } else if (value is num) {
     return value;
   } else if (value is Map<String, dynamic>) {
@@ -602,7 +629,7 @@ dynamic _normalizeValue(dynamic value) {
         return _preparePayload(item);
       }
       if (item is int) {
-        return _normalizeTimestamp(item);
+        return item; // لا تحويل أعداد داخل القوائم أيضاً
       }
       return item;
     }).toList();

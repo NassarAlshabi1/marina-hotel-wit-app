@@ -35,6 +35,19 @@ class StatusUtils {
     'provisional',
   }.map(_normalize).toSet();
 
+  /// القائمة الخام للحالات النشطة (قبل التطبيع) - لاستخدامها في استعلامات SQL
+  static const List<String> activeBookingStatuses = [
+    'محجوزة',
+    'محجوز',
+    'نشط',
+    'active',
+    'confirmed',
+    'قيد الحجز',
+    'in_progress',
+    'مؤقت',
+    'provisional',
+  ];
+
   static final Set<String> _provisionalStatuses = {
     'مؤقت',
     'provisional',

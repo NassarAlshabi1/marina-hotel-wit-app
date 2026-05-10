@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -49,11 +51,19 @@ class _CreateDebtFromBookingScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('إنشاء دين من حجز')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          return;
+        }
+        _showDiscardDialog(context);
+      },
+      child: Scaffold(
+        appBar: AppBar(title: const Text('إنشاء دين من حجز')),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildBookingSelector(),
@@ -78,6 +88,7 @@ class _CreateDebtFromBookingScreenState
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -110,7 +121,7 @@ class _CreateDebtFromBookingScreenState
                 const Text('اختر الحجز', style: _titleStyle),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Booking>(
-                  value: _selectedBooking,
+                  initialValue: _selectedBooking,
                   isExpanded: true,
                   style: _fieldStyle.copyWith(color: dropdownColor),
                   decoration: const InputDecoration(
@@ -291,7 +302,9 @@ class _CreateDebtFromBookingScreenState
   }
 
   Future<void> _computeDebt() async {
-    if (_selectedBooking == null) return;
+    if (_selectedBooking == null) {
+      return;
+    }
 
     setState(() => _isComputing = true);
 
@@ -411,7 +424,9 @@ class _CreateDebtFromBookingScreenState
   }
 
   Future<void> _createDebt() async {
-    if (_selectedBooking == null || _debtData == null) return;
+    if (_selectedBooking == null || _debtData == null) {
+      return;
+    }
 
     final amount = CurrencyFormatter.parseAmount(_amountController.text);
     if (amount == null || amount <= 0) {
@@ -469,21 +484,53 @@ class _CreateDebtFromBookingScreenState
   DateTime _resolveCheckout(Booking booking) {
     if (booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty) {
       final actual = DateTime.tryParse(booking.actualCheckout!);
-      if (actual != null) return actual;
+      if (actual != null) {
+        return actual;
+      }
     }
     if (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty) {
       final checkout = DateTime.tryParse(booking.checkoutDate!);
-      if (checkout != null) return checkout;
+      if (checkout != null) {
+        return checkout;
+      }
     }
     return DateTime.now();
+  }
+
+  bool get _hasUnsavedChanges =>
+      _selectedBooking != null ||
+      _debtData != null ||
+      _amountController.text.isNotEmpty ||
+      _notesController.text.isNotEmpty;
+
+  void _showDiscardDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تأكيد'),
+          content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('لا'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).pop();
+              },
+              child: const Text('نعم'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
 class _DebtData {
-  final int nights;
-  final double roomRate;
-  final double total;
-  final double paid;
 
   const _DebtData({
     required this.nights,
@@ -491,6 +538,10 @@ class _DebtData {
     required this.total,
     required this.paid,
   });
+  final int nights;
+  final double roomRate;
+  final double total;
+  final double paid;
 
-  double get remaining => (total - paid).clamp(0, total);
+  double get remaining => (total - paid).clamp(0, total).toDouble();
 }

@@ -1,24 +1,26 @@
 import 'dart:async';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../providers/repository_providers.dart';
 import '../utils/time.dart';
 import 'api_service.dart';
-import 'local_db.dart';
-import 'daos/outbox_dao.dart';
-import 'daos/rooms_dao.dart';
-import 'daos/bookings_dao.dart';
 import 'daos/booking_notes_dao.dart';
+import 'daos/bookings_dao.dart';
+import 'daos/cash_transactions_dao.dart';
 import 'daos/employees_dao.dart';
 import 'daos/expenses_dao.dart';
-import 'daos/cash_transactions_dao.dart';
+import 'daos/outbox_dao.dart';
 import 'daos/payments_dao.dart';
-import '../providers/repository_providers.dart';
-import 'sync_performance_optimizer.dart';
+import 'daos/rooms_dao.dart';
 import 'delta_sync_service.dart';
+import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
-import 'package:flutter/material.dart';
-import 'sync_mutex.dart';
 import 'sync_config.dart';
+import 'sync_mutex.dart';
+import 'sync_performance_optimizer.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
 
@@ -118,7 +120,7 @@ class SyncService {
       }
 
       final results = List<Map<String, dynamic>>.from(
-        response['data']['results'],
+        response['data']['results'] as List,
       );
       await db.transaction(() async {
         var allSucceeded = true;
@@ -162,7 +164,7 @@ class SyncService {
         final state = await (db.select(
           db.syncState,
         )..where((t) => t.id.equals(1))).getSingleOrNull();
-        await (db.into(db.syncState)).insertOnConflictUpdate(
+        await db.into(db.syncState).insertOnConflictUpdate(
           SyncStateCompanion(
             id: const d.Value(1),
             lastServerTs: d.Value(state?.lastServerTs ?? 0),
@@ -199,10 +201,12 @@ class SyncService {
     final res = await ApiService.I
         .syncPull(since)
         .timeout(Duration(seconds: pullTimeoutSeconds));
-    if (res['success'] != true) return;
-    final data = List<Map<String, dynamic>>.from(res['data']['data']);
+    if (res['success'] != true) {
+      return;
+    }
+    final data = List<Map<String, dynamic>>.from(res['data']['data'] as List);
 
-    const Map<String, int> _entityPriority = {
+    const Map<String, int> entityPriority = {
       'rooms': 0,
       'employees': 1,
       'cash_transactions': 1,
@@ -214,11 +218,11 @@ class SyncService {
       'debts': 5,
       'hotel_day_ledger': 6,
     };
-    int _priority(String entity) => _entityPriority[entity] ?? 10;
+    int priority(String entity) => entityPriority[entity] ?? 10;
     data.sort((a, b) {
       final ea = (a['entity'] as String?) ?? '';
       final eb = (b['entity'] as String?) ?? '';
-      return _priority(ea).compareTo(_priority(eb));
+      return priority(ea).compareTo(priority(eb));
     });
 
     await db.transaction(() async {
@@ -233,7 +237,9 @@ class SyncService {
             ? Map<String, dynamic>.from(rawData)
             : <String, dynamic>{};
 
-        if (serverTs > maxTs) maxTs = serverTs;
+        if (serverTs > maxTs) {
+          maxTs = serverTs;
+        }
 
         try {
           await _applyIncoming(entity, op, serverId, serverTs, item);
@@ -245,7 +251,7 @@ class SyncService {
       }
 
       final now = Time.nowEpoch();
-      await (db.into(db.syncState)).insertOnConflictUpdate(
+      await db.into(db.syncState).insertOnConflictUpdate(
         SyncStateCompanion(
           id: const d.Value(1),
           lastServerTs: d.Value(maxTs),
@@ -264,7 +270,9 @@ class SyncService {
     dynamic serverId,
   ) async {
     final sid = _asInt(serverId);
-    if (sid == null) return;
+    if (sid == null) {
+      return;
+    }
 
     switch (entity) {
       case 'rooms':
@@ -281,7 +289,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'bookings':
         final row = await (db.select(
           db.bookings,
@@ -297,7 +304,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'booking_notes':
         final rowN = await (db.select(
           db.bookingNotes,
@@ -312,7 +318,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'employees':
         final rowE = await (db.select(
           db.employees,
@@ -327,7 +332,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'expenses':
         final rowX = await (db.select(
           db.expenses,
@@ -342,7 +346,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'cash_transactions':
         final rowC = await (db.select(
           db.cashTransactions,
@@ -357,7 +360,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'payments':
         final rowP = await (db.select(
           db.payments,
@@ -373,7 +375,6 @@ class SyncService {
             ),
           );
         }
-        break;
       case 'debts':
         final rowD = await (db.select(
           db.debts,
@@ -386,7 +387,6 @@ class SyncService {
             ),
           );
         }
-        break;
     }
   }
 
@@ -400,7 +400,9 @@ class SyncService {
     switch (entity) {
       case 'rooms':
         final rn = _asString(data['room_number']);
-        if (rn == null || rn.isEmpty) return;
+        if (rn == null || rn.isEmpty) {
+          return;
+        }
         final local = await (db.select(
           db.rooms,
         )..where((t) => t.roomNumber.equals(rn))).getSingleOrNull();
@@ -410,16 +412,16 @@ class SyncService {
               rn,
               RoomsCompanion(
                 type: data['type'] != null
-                    ? d.Value(data['type'])
+                    ? d.Value(data['type'] as String)
                     : const d.Value.absent(),
                 price: data['price'] != null
                     ? d.Value((data['price'] as num).toDouble())
                     : const d.Value.absent(),
                 status: data['status'] != null
-                    ? d.Value(data['status'])
+                    ? d.Value(data['status'] as String)
                     : const d.Value.absent(),
                 imageUrl: data['image_url'] != null
-                    ? d.Value(data['image_url'])
+                    ? d.Value(data['image_url'] as String?)
                     : const d.Value.absent(),
                 serverId: d.Value(_asInt(serverId)),
                 origin: const d.Value('server'),
@@ -431,10 +433,10 @@ class SyncService {
           await roomsDao.insertOne(
             RoomsCompanion(
               roomNumber: d.Value(rn),
-              type: d.Value(data['type'] ?? ''),
+              type: d.Value(data['type'] as String? ?? ''),
               price: d.Value((data['price'] as num?)?.toDouble() ?? 0),
-              status: d.Value(data['status'] ?? 'شاغرة'),
-              imageUrl: d.Value(data['image_url']),
+              status: d.Value(data['status'] as String? ?? 'شاغرة'),
+              imageUrl: d.Value(data['image_url'] as String?),
               serverId: d.Value(serverId is int ? serverId : null),
             ),
             originIsServer: true,
@@ -443,7 +445,6 @@ class SyncService {
         if (op == 'delete' || data['deleted_at'] != null) {
           await roomsDao.softDelete(rn, originIsServer: true);
         }
-        break;
       case 'bookings':
         final sbid = data['booking_id'] as int?;
         Booking? local;
@@ -466,19 +467,53 @@ class SyncService {
                     ? d.Value(room)
                     : const d.Value.absent(),
                 guestName: data['guest_name'] != null
-                    ? d.Value(data['guest_name'])
+                    ? d.Value(data['guest_name'] as String)
                     : const d.Value.absent(),
                 guestPhone: data['guest_phone'] != null
-                    ? d.Value(data['guest_phone'])
+                    ? d.Value(data['guest_phone'] as String)
+                    : const d.Value.absent(),
+                guestIdType: data['guest_id_type'] != null
+                    ? d.Value(data['guest_id_type'] as String)
+                    : const d.Value.absent(),
+                guestIdNumber: data['guest_id_number'] != null
+                    ? d.Value(data['guest_id_number'] as String)
+                    : const d.Value.absent(),
+                guestIdIssueDate: data['guest_id_issue_date'] != null
+                    ? d.Value(data['guest_id_issue_date'] as String)
+                    : const d.Value.absent(),
+                guestIdIssuePlace: data['guest_id_issue_place'] != null
+                    ? d.Value(data['guest_id_issue_place'] as String)
+                    : const d.Value.absent(),
+                guestNationality: data['guest_nationality'] != null
+                    ? d.Value(data['guest_nationality'] as String)
+                    : const d.Value.absent(),
+                guestEmail: data['guest_email'] != null
+                    ? d.Value(data['guest_email'] as String?)
+                    : const d.Value.absent(),
+                guestAddress: data['guest_address'] != null
+                    ? d.Value(data['guest_address'] as String?)
                     : const d.Value.absent(),
                 checkinDate: data['checkin_date'] != null
-                    ? d.Value(data['checkin_date'])
+                    ? d.Value(data['checkin_date'] as String)
                     : const d.Value.absent(),
-                checkoutDate: d.Value(data['checkout_date']),
+                checkoutDate: data['checkout_date'] != null
+                    ? d.Value(data['checkout_date'] as String)
+                    : const d.Value.absent(),
+                actualCheckout: data['actual_checkout'] != null
+                    ? d.Value(data['actual_checkout'] as String)
+                    : const d.Value.absent(),
                 status: data['status'] != null
-                    ? d.Value(data['status'])
+                    ? d.Value(data['status'] as String)
                     : const d.Value.absent(),
-                notes: d.Value(data['notes']),
+                notes: data['notes'] != null
+                    ? d.Value(data['notes'] as String?)
+                    : const d.Value.absent(),
+                expectedNights: data['expected_nights'] != null
+                    ? d.Value(_asInt(data['expected_nights'])!)
+                    : const d.Value.absent(),
+                calculatedNights: data['calculated_nights'] != null
+                    ? d.Value(_asInt(data['calculated_nights'])!)
+                    : const d.Value.absent(),
                 origin: const d.Value('server'),
               ),
               originIsServer: true,
@@ -489,15 +524,26 @@ class SyncService {
             BookingsCompanion(
               serverBookingId: d.Value(sbid),
               roomNumber: d.Value(room ?? ''),
-              guestName: d.Value(data['guest_name'] ?? ''),
-              guestPhone: d.Value(data['guest_phone'] ?? ''),
-              guestNationality: d.Value(data['guest_nationality'] ?? ''),
-              guestEmail: d.Value(data['guest_email']),
-              guestAddress: d.Value(data['guest_address']),
-              checkinDate: d.Value(data['checkin_date'] ?? Time.nowIso()),
-              checkoutDate: d.Value(data['checkout_date']),
-              status: d.Value(data['status'] ?? 'محجوزة'),
-              notes: d.Value(data['notes']),
+              guestName: d.Value(data['guest_name'] as String? ?? ''),
+              guestPhone: d.Value(data['guest_phone'] as String? ?? ''),
+              guestIdType: d.Value(data['guest_id_type'] as String? ?? 'بطاقة شخصية'),
+              guestIdNumber: d.Value(data['guest_id_number'] as String? ?? ''),
+              guestIdIssueDate: d.Value(data['guest_id_issue_date'] as String?),
+              guestIdIssuePlace: d.Value(data['guest_id_issue_place'] as String?),
+              guestNationality: d.Value(data['guest_nationality'] as String? ?? ''),
+              guestEmail: d.Value(data['guest_email'] as String?),
+              guestAddress: d.Value(data['guest_address'] as String?),
+              checkinDate: d.Value(data['checkin_date'] as String? ?? Time.nowIso()),
+              checkoutDate: d.Value(data['checkout_date'] as String?),
+              actualCheckout: d.Value(data['actual_checkout'] as String?),
+              status: d.Value(data['status'] as String? ?? 'محجوزة'),
+              notes: d.Value(data['notes'] as String?),
+              expectedNights: d.Value(
+                _asInt(data['expected_nights']) ?? 1,
+              ),
+              calculatedNights: d.Value(
+                _asInt(data['calculated_nights']) ?? 1,
+              ),
               serverId: d.Value(sbid),
             ),
             originIsServer: true,
@@ -513,7 +559,6 @@ class SyncService {
             await bookingsDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'booking_notes':
         final nid = data['note_id'] as int?;
         BookingNote? ln;
@@ -528,9 +573,9 @@ class SyncService {
               ln.id,
               BookingNotesCompanion(
                 bookingId: d.Value(ln.bookingId),
-                noteText: d.Value(data['note_text'] ?? ln.noteText),
-                alertType: d.Value(data['alert_type'] ?? ln.alertType),
-                alertUntil: d.Value(data['alert_until']),
+                noteText: d.Value(data['note_text'] as String? ?? ln.noteText),
+                alertType: d.Value(data['alert_type'] as String? ?? ln.alertType),
+                alertUntil: d.Value(data['alert_until'] as String?),
                 isActive: d.Value((data['is_active'] as num? ?? 1).toInt()),
                 serverId: d.Value(nid),
                 origin: const d.Value('server'),
@@ -542,9 +587,9 @@ class SyncService {
           await notesDao.insertOne(
             BookingNotesCompanion(
               bookingId: d.Value(data['booking_id'] as int? ?? 0),
-              noteText: d.Value(data['note_text'] ?? ''),
-              alertType: d.Value(data['alert_type'] ?? 'low'),
-              alertUntil: d.Value(data['alert_until']),
+              noteText: d.Value(data['note_text'] as String? ?? ''),
+              alertType: d.Value(data['alert_type'] as String? ?? 'low'),
+              alertUntil: d.Value(data['alert_until'] as String?),
               isActive: d.Value((data['is_active'] as num? ?? 1).toInt()),
               serverId: d.Value(nid),
             ),
@@ -561,7 +606,6 @@ class SyncService {
             await notesDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'employees':
         final sid = data['id'] as int?;
         Employee? le;
@@ -575,11 +619,11 @@ class SyncService {
             await employeesDao.updateById(
               le.id,
               EmployeesCompanion(
-                name: d.Value(data['name'] ?? le.name),
+                name: d.Value(data['name'] as String? ?? le.name),
                 basicSalary: d.Value(
                   (data['basic_salary'] as num?)?.toDouble() ?? le.basicSalary,
                 ),
-                status: d.Value(data['status'] ?? le.status),
+                status: d.Value(data['status'] as String? ?? le.status),
                 serverId: d.Value(sid),
                 origin: const d.Value('server'),
               ),
@@ -589,11 +633,11 @@ class SyncService {
         } else {
           await employeesDao.insertOne(
             EmployeesCompanion(
-              name: d.Value(data['name'] ?? ''),
+              name: d.Value(data['name'] as String? ?? ''),
               basicSalary: d.Value(
                 (data['basic_salary'] as num?)?.toDouble() ?? 0,
               ),
-              status: d.Value(data['status'] ?? 'active'),
+              status: d.Value(data['status'] as String? ?? 'active'),
               serverId: d.Value(sid),
             ),
             originIsServer: true,
@@ -609,7 +653,6 @@ class SyncService {
             await employeesDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'expenses':
         final xid = data['id'] as int?;
         Expense? lx;
@@ -623,13 +666,13 @@ class SyncService {
             await expensesDao.updateById(
               lx.id,
               ExpensesCompanion(
-                expenseType: d.Value(data['expense_type'] ?? lx.expenseType),
+                expenseType: d.Value(data['expense_type'] as String? ?? lx.expenseType),
                 relatedId: d.Value((data['related_id'] as num?)?.toInt()),
-                description: d.Value(data['description'] ?? lx.description),
+                description: d.Value(data['description'] as String? ?? lx.description),
                 amount: d.Value(
                   (data['amount'] as num?)?.toDouble() ?? lx.amount,
                 ),
-                date: d.Value(data['date'] ?? lx.date),
+                date: d.Value(data['date'] as String? ?? lx.date),
                 serverId: d.Value(xid),
                 origin: const d.Value('server'),
               ),
@@ -639,12 +682,12 @@ class SyncService {
         } else {
           await expensesDao.insertOne(
             ExpensesCompanion(
-              expenseType: d.Value(data['expense_type'] ?? 'other'),
+              expenseType: d.Value(data['expense_type'] as String? ?? 'other'),
               relatedId: d.Value(data['related_id'] as int?),
-              description: d.Value(data['description'] ?? ''),
+              description: d.Value(data['description'] as String? ?? ''),
               amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0),
               date: d.Value(
-                data['date'] ?? Time.safeIsoToDateString(Time.nowIso()),
+                data['date'] as String? ?? Time.safeIsoToDateString(Time.nowIso()),
               ),
               serverId: d.Value(xid),
             ),
@@ -661,7 +704,6 @@ class SyncService {
             await expensesDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'cash_transactions':
         final cid = data['id'] as int?;
         final lc = cid != null
@@ -676,16 +718,16 @@ class SyncService {
               CashTransactionsCompanion(
                 registerId: d.Value((data['register_id'] as num?)?.toInt()),
                 transactionType: d.Value(
-                  data['transaction_type'] ?? lc.transactionType,
+                  data['transaction_type'] as String? ?? lc.transactionType,
                 ),
                 amount: d.Value(
                   (data['amount'] as num?)?.toDouble() ?? lc.amount,
                 ),
-                referenceType: d.Value(data['reference_type']),
+                referenceType: d.Value(data['reference_type'] as String?),
                 referenceId: d.Value((data['reference_id'] as num?)?.toInt()),
-                description: d.Value(data['description']),
+                description: d.Value(data['description'] as String?),
                 transactionTime: d.Value(
-                  data['transaction_time'] ?? lc.transactionTime,
+                  data['transaction_time'] as String? ?? lc.transactionTime,
                 ),
                 serverId: d.Value(cid),
                 origin: const d.Value('server'),
@@ -697,13 +739,13 @@ class SyncService {
           await cashDao.insertOne(
             CashTransactionsCompanion(
               registerId: d.Value((data['register_id'] as num?)?.toInt()),
-              transactionType: d.Value(data['transaction_type'] ?? 'income'),
+              transactionType: d.Value(data['transaction_type'] as String? ?? 'income'),
               amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0),
-              referenceType: d.Value(data['reference_type']),
+              referenceType: d.Value(data['reference_type'] as String?),
               referenceId: d.Value((data['reference_id'] as num?)?.toInt()),
-              description: d.Value(data['description']),
+              description: d.Value(data['description'] as String?),
               transactionTime: d.Value(
-                data['transaction_time'] ?? Time.nowIso(),
+                data['transaction_time'] as String? ?? Time.nowIso(),
               ),
               serverId: d.Value(cid),
             ),
@@ -720,7 +762,6 @@ class SyncService {
             await cashDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'payments':
         final pid = data['payment_id'] as int?;
         final lp = pid != null
@@ -739,12 +780,12 @@ class SyncService {
                 amount: d.Value(
                   (data['amount'] as num?)?.toDouble() ?? lp.amount,
                 ),
-                paymentDate: d.Value(data['payment_date'] ?? lp.paymentDate),
+                paymentDate: d.Value(data['payment_date'] as String? ?? lp.paymentDate),
                 notes: d.Value(data['notes'] as String?),
                 paymentMethod: d.Value(
-                  data['payment_method'] ?? lp.paymentMethod,
+                  data['payment_method'] as String? ?? lp.paymentMethod,
                 ),
-                revenueType: d.Value(data['revenue_type'] ?? lp.revenueType),
+                revenueType: d.Value(data['revenue_type'] as String? ?? lp.revenueType),
                 cashTransactionServerId: d.Value(
                   (data['cash_transaction_id'] as num?)?.toInt(),
                 ),
@@ -761,10 +802,10 @@ class SyncService {
               serverBookingId: d.Value((data['booking_id'] as num?)?.toInt()),
               roomNumber: d.Value(data['room_number'] as String?),
               amount: d.Value((data['amount'] as num?)?.toDouble() ?? 0),
-              paymentDate: d.Value(data['payment_date'] ?? Time.nowIso()),
+              paymentDate: d.Value(data['payment_date'] as String? ?? Time.nowIso()),
               notes: d.Value(data['notes'] as String?),
-              paymentMethod: d.Value(data['payment_method'] ?? 'نقدي'),
-              revenueType: d.Value(data['revenue_type'] ?? 'room'),
+              paymentMethod: d.Value(data['payment_method'] as String? ?? 'نقدي'),
+              revenueType: d.Value(data['revenue_type'] as String? ?? 'room'),
               cashTransactionServerId: d.Value(
                 (data['cash_transaction_id'] as num?)?.toInt(),
               ),
@@ -783,13 +824,10 @@ class SyncService {
             await paymentsDao.softDelete(target.id, originIsServer: true);
           }
         }
-        break;
       case 'booking_nights':
         await _applyBookingNight(op, serverTs, data);
-        break;
       case 'hotel_day_ledger':
         await _applyHotelDayLedger(op, serverTs, data);
-        break;
     }
   }
 
@@ -1038,11 +1076,15 @@ class SyncService {
   }
 
   Future<void> _ensureRoomExists(String roomNumber) async {
-    if (roomNumber.isEmpty) return;
+    if (roomNumber.isEmpty) {
+      return;
+    }
     final existing = await (db.select(
       db.rooms,
     )..where((t) => t.roomNumber.equals(roomNumber))).getSingleOrNull();
-    if (existing != null) return;
+    if (existing != null) {
+      return;
+    }
     await roomsDao.insertOne(
       RoomsCompanion(
         roomNumber: d.Value(roomNumber),
@@ -1056,25 +1098,47 @@ class SyncService {
 }
 
 int? _asInt(dynamic value) {
-  if (value == null) return null;
-  if (value is int) return value;
-  if (value is num) return value.toInt();
-  if (value is String) return int.tryParse(value);
+  if (value == null) {
+    return null;
+  }
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value);
+  }
   return null;
 }
 
 double? _asDouble(dynamic value) {
-  if (value == null) return null;
-  if (value is double) return value;
-  if (value is num) return value.toDouble();
-  if (value is String) return double.tryParse(value);
+  if (value == null) {
+    return null;
+  }
+  if (value is double) {
+    return value;
+  }
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value);
+  }
   return null;
 }
 
 bool? _asBool(dynamic value) {
-  if (value == null) return null;
-  if (value is bool) return value;
-  if (value is num) return value != 0;
+  if (value == null) {
+    return null;
+  }
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    return value != 0;
+  }
   if (value is String) {
     final normalized = value.toLowerCase();
     if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
@@ -1088,7 +1152,9 @@ bool? _asBool(dynamic value) {
 }
 
 String? _asString(dynamic value) {
-  if (value == null) return null;
+  if (value == null) {
+    return null;
+  }
   return value.toString();
 }
 
@@ -1102,7 +1168,9 @@ int _normalizeTimestampField(dynamic value, {int? fallback}) {
 
 String _isoFromData(dynamic value, int secondsFallback) {
   final iso = _asString(value);
-  if (iso != null && iso.isNotEmpty) return iso;
+  if (iso != null && iso.isNotEmpty) {
+    return iso;
+  }
   return _secondsToIso(secondsFallback);
 }
 

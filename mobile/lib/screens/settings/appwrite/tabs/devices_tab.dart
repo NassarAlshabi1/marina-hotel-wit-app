@@ -55,7 +55,7 @@ class AppwriteDevicesTab extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(UIConstants.spacingLG),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.blue.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -74,7 +74,7 @@ class AppwriteDevicesTab extends ConsumerWidget {
                 const SizedBox(height: UIConstants.spacingMD),
                 InfoRow(
                   label: 'اسم الجهاز',
-                  value: device?.deviceName.isNotEmpty == true
+                  value: device?.deviceName.isNotEmpty ?? false
                       ? device!.deviceName
                       : 'غير معروف',
                   icon: Icons.phone_android,
@@ -94,8 +94,8 @@ class AppwriteDevicesTab extends ConsumerWidget {
               ],
             );
           },
-          loading: () => Column(
-            children: const [
+          loading: () => const Column(
+            children: [
               SizedBox(height: 16),
               CircularProgressIndicator(),
               SizedBox(height: 16),
@@ -103,10 +103,10 @@ class AppwriteDevicesTab extends ConsumerWidget {
               SizedBox(height: 16),
             ],
           ),
-          error: (error, _) => Column(
+          error: (error, _) => const Column(
             children: [
-              const Icon(Icons.error, color: Colors.red, size: 32),
-              const SizedBox(height: 8),
+              Icon(Icons.error, color: Colors.red, size: 32),
+              SizedBox(height: 8),
               Text('تعذر تحميل معلومات الجهاز'),
             ],
           ),
@@ -150,12 +150,12 @@ class AppwriteDevicesTab extends ConsumerWidget {
     final lastActive = device.lastActive ?? device.lastSeen;
 
     return Card(
-      margin: EdgeInsets.only(bottom: UIConstants.spacingSM),
+      margin: const EdgeInsets.only(bottom: UIConstants.spacingSM),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),
           decoration: BoxDecoration(
-            color: (isActive ? Colors.green : Colors.grey).withOpacity(0.1),
+            color: (isActive ? Colors.green : Colors.grey).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(UIConstants.radiusMD),
           ),
           child: Icon(
@@ -220,7 +220,9 @@ class AppwriteDevicesTab extends ConsumerWidget {
   }
 
   AppwriteDevice? _findDevice(List<AppwriteDevice> devices, String? deviceId) {
-    if (deviceId == null) return null;
+    if (deviceId == null) {
+      return null;
+    }
     for (final device in devices) {
       if (device.id == deviceId) {
         return device;

@@ -1,33 +1,36 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/app_logger.dart';
 import 'appwrite_sync_manager.dart';
-import 'appwrite_service.dart';
-import 'appwrite_config.dart';
 
 /// خدمة Firebase Cloud Messaging
 /// تُستخدم لإرسال إشعارات push بين الأجهزة عند حدوث تغييرات في Appwrite
 class FcmService {
-  static final FcmService _instance = FcmService._internal();
   factory FcmService() => _instance;
   FcmService._internal();
+  static final FcmService _instance = FcmService._internal();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   String? _currentToken;
   bool _isInitialized = false;
+  StreamSubscription<String>? _tokenRefreshSubscription; // اشتراك تحديث التوكن — يجب إلغاؤه
+  StreamSubscription<RemoteMessage>? _onMessageSubscription;
+  StreamSubscription<RemoteMessage>? _onMessageOpenedAppSubscription;
 
   /// تهيئة FCM — تُستدعى من main.dart بعد تثبيت Appwrite
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
 
     try {
-      // 1. إعداد Firebase (إذا لم يتم بعد)
-      await Firebase.initializeApp();
+      // 1. Firebase تم تهيئته بالفعل في main.dart
+      // لا حاجة لاستدعاء Firebase.initializeApp() هنا
 
       // 2. طلب إذن الإشعارات
       await _requestPermission();
@@ -42,24 +45,26 @@ class FcmService {
         await prefs.setString('fcm_token', _currentToken!);
       }
 
-      // 5. الاستماع لتغيير التوكن
-      _messaging.onTokenRefresh.listen((newToken) async {
+      // 5. الاستماع لتغيير التوكن — حفظ الاشتراك لإلغائه عند التنظيف
+      _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((newToken) async {
         debugPrint('🔄 FCM token refreshed');
         _currentToken = newToken;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('fcm_token', newToken);
 
-        // تحديث التوكن في Appwrite
-        await _updateFcmTokenOnServer(newToken);
+        // تحديث التوكن في Appwrite عبر SyncManager (المُحقن)
+        final syncManager = _getSyncManager();
+        if (syncManager != null) {
+          await syncManager.setFcmToken(newToken);
+        }
       });
 
       // 6. الاستماع للرسائل الواردة
       _setupMessageHandlers();
 
-      // 7. تحديث التوكن على السيرفر عند فتح التطبيق
-      if (_currentToken != null) {
-        await _updateFcmTokenOnServer(_currentToken!);
-      }
+      // 7. ملاحظة: تحديث التوكن على السيرفر يتم عبر
+      //    AppwriteSyncManager.setFcmToken() في _initializeFcm() في main.dart
+      //    لتجنب تكرار الطلب
 
       _isInitialized = true;
       debugPrint('✅ FCM Service initialized');
@@ -73,17 +78,12 @@ class FcmService {
   Future<void> _requestPermission() async {
     if (Platform.isIOS) {
       await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
+        
       );
     } else if (Platform.isAndroid) {
       // Android 13+ يحتاج إذن صريح
       await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
+        
       );
     }
 
@@ -101,7 +101,7 @@ class FcmService {
       } else {
         // Android: استخدم APNs sandbox key للتطوير والتحميل المباشر للإنتاج
         token = await _messaging.getToken(
-          vapidKey: null,
+          
         );
       }
       return token;
@@ -114,13 +114,13 @@ class FcmService {
   /// إعداد معالجات الرسائل الواردة
   void _setupMessageHandlers() {
     // --- رسالة في المقدمة (التطبيق مفتوح) ---
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    _onMessageSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('📩 FCM: foreground message received');
       _handleIncomingMessage(message);
     });
 
     // --- المستخدم ضغط على الإشعار ---
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    _onMessageOpenedAppSubscription = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint('📩 FCM: notification tapped');
       _handleIncomingMessage(message);
     });
@@ -171,38 +171,19 @@ class FcmService {
       final realtime = _getRealtimeSync();
       realtime?.hasRemoteChanges.value = true;
       realtime?.pendingRemoteChangesCount.value++;
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.warning('فشل تشغيل المزامنة عبر FCM', tag: 'FCM', error: e, stackTrace: st);
+    }
 
     // سحب التغييرات
     try {
       final syncManager = _getSyncManager();
       if (syncManager != null) {
-        await syncManager.sync(push: false, pull: true);
+        await syncManager.sync(push: false);
         debugPrint('✅ FCM: pull completed');
       }
     } catch (e) {
       debugPrint('⚠️ FCM: pull error: $e');
-    }
-  }
-
-  /// تحديث توكن FCM على سيرفر Appwrite
-  Future<void> _updateFcmTokenOnServer(String token) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final deviceId = prefs.getString('appwrite_device_id');
-      if (deviceId == null || deviceId.isEmpty) return;
-
-      await AppwriteService().updateDocument(
-        collectionId: AppwriteConfig.devicesCollectionId,
-        documentId: deviceId,
-        data: {
-          'fcmToken': token,
-          'fcmTokenUpdatedAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        },
-      );
-      debugPrint('✅ FCM token updated on server for device: $deviceId');
-    } catch (e) {
-      debugPrint('⚠️ Failed to update FCM token on server: $e');
     }
   }
 
@@ -250,4 +231,22 @@ class FcmService {
 
   /// هل تم التهيئة
   bool get isInitialized => _isInitialized;
+
+  /// تنظيف الموارد — إلغاء اشتراك تحديث التوكن
+  void dispose() {
+    _tokenRefreshSubscription?.cancel();
+    _onMessageSubscription?.cancel();
+    _onMessageOpenedAppSubscription?.cancel();
+    _tokenRefreshSubscription = null;
+    _onMessageSubscription = null;
+    _onMessageOpenedAppSubscription = null;
+    _currentToken = null;
+    _isInitialized = false;
+    debugPrint('🛑 FCM Service disposed');
+  }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    _instance.dispose();
+  }
 }

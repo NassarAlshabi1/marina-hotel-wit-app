@@ -40,14 +40,11 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
           onSelected: (value) async {
             switch (value) {
               case 'export':
-                _exportLogs();
-                break;
+                unawaited(_exportLogs());
               case 'share':
-                _shareLogs(filteredLogs);
-                break;
+                unawaited(_shareLogs(filteredLogs));
               case 'clear':
-                _clearLogs();
-                break;
+                unawaited(_clearLogs());
             }
           },
           itemBuilder: (context) => [
@@ -209,7 +206,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
         setState(() => _filterLevel = selected ? level : null);
       },
       backgroundColor: Colors.white,
-      selectedColor: color.withOpacity(0.2),
+      selectedColor: color.withValues(alpha: 0.2),
       checkmarkColor: color,
       labelStyle: TextStyle(
         color: isSelected ? color : Colors.black87,
@@ -375,7 +372,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   }
 
   void _showLogDetails(LogEntry log) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
@@ -535,11 +532,11 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
         content: const Text('هل تريد مسح جميع السجلات؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('مسح'),
           ),
@@ -547,7 +544,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       ref.read(appwriteLoggerProvider).clearLogs();
       setState(() {});
       if (mounted) {

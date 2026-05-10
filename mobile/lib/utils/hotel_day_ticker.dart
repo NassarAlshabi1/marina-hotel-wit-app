@@ -9,7 +9,7 @@ import 'dart:async';
 ///
 /// ### في StatefulWidget (طريقة مباشرة):
 /// ```dart
-/// StreamSubscription? _tickerSub;
+/// StreamSubscription<void>? _tickerSub;
 ///
 /// @override
 /// void initState() {
@@ -71,7 +71,9 @@ class HotelDayTicker {
   }
 
   void _ensureStarted() {
-    if (_controller != null && !_controller!.isClosed) return;
+    if (_controller != null && !_controller!.isClosed) {
+      return;
+    }
     _controller = StreamController<void>.broadcast();
     _scheduleNext();
   }

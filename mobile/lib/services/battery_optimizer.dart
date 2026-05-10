@@ -18,12 +18,6 @@ enum BatteryOptimizationLevel {
 
 /// إعدادات المزامنة بناءً على مستوى البطارية
 class BatterySyncSettings {
-  final Duration syncInterval;
-  final int batchSize;
-  final bool syncOnBattery;
-  final int minBatteryPercentage;
-  final bool reduceAnimations;
-  final bool compressData;
 
   const BatterySyncSettings({
     required this.syncInterval,
@@ -33,6 +27,25 @@ class BatterySyncSettings {
     required this.reduceAnimations,
     required this.compressData,
   });
+
+  factory BatterySyncSettings.fromLevel(BatteryOptimizationLevel level) {
+    switch (level) {
+      case BatteryOptimizationLevel.none:
+        return none;
+      case BatteryOptimizationLevel.light:
+        return light;
+      case BatteryOptimizationLevel.moderate:
+        return moderate;
+      case BatteryOptimizationLevel.aggressive:
+        return aggressive;
+    }
+  }
+  final Duration syncInterval;
+  final int batchSize;
+  final bool syncOnBattery;
+  final int minBatteryPercentage;
+  final bool reduceAnimations;
+  final bool compressData;
 
   static const BatterySyncSettings none = BatterySyncSettings(
     syncInterval: Duration(minutes: 5),
@@ -69,43 +82,31 @@ class BatterySyncSettings {
     reduceAnimations: true,
     compressData: true,
   );
-
-  factory BatterySyncSettings.fromLevel(BatteryOptimizationLevel level) {
-    switch (level) {
-      case BatteryOptimizationLevel.none:
-        return none;
-      case BatteryOptimizationLevel.light:
-        return light;
-      case BatteryOptimizationLevel.moderate:
-        return moderate;
-      case BatteryOptimizationLevel.aggressive:
-        return aggressive;
-    }
-  }
 }
 
 /// خدمة تحسين استهلاك البطارية
 class BatteryOptimizer extends ChangeNotifier {
-  static final BatteryOptimizer _instance = BatteryOptimizer._internal();
   factory BatteryOptimizer() => _instance;
   BatteryOptimizer._internal();
+  static final BatteryOptimizer _instance = BatteryOptimizer._internal();
 
   final Battery _battery = Battery();
   final Connectivity _connectivity = Connectivity();
 
   BatteryState _batteryState = BatteryState.unknown;
   int _batteryLevel = 100;
-  ConnectivityResult _connectionState = ConnectivityResult.none;
+  List<ConnectivityResult> _connectionState = [ConnectivityResult.none];
   BatteryOptimizationLevel _optimizationLevel = BatteryOptimizationLevel.light;
   bool _isMonitoring = false;
   bool _isCharging = false;
   StreamSubscription<BatteryState>? _batterySubscription;
-  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  Timer? _batteryLevelTimer; // مؤقت فحص مستوى البطارية الدوري
 
   // Getters
   BatteryState get batteryState => _batteryState;
   int get batteryLevel => _batteryLevel;
-  ConnectivityResult get connectionState => _connectionState;
+  List<ConnectivityResult> get connectionState => _connectionState;
   BatteryOptimizationLevel get optimizationLevel => _optimizationLevel;
   bool get isCharging => _isCharging;
   bool get shouldSync => _shouldSync();
@@ -136,7 +137,9 @@ class BatteryOptimizer extends ChangeNotifier {
 
   /// بدء مراقبة البطارية والاتصال
   Future<void> startMonitoring() async {
-    if (_isMonitoring) return;
+    if (_isMonitoring) {
+      return;
+    }
 
     _isMonitoring = true;
 
@@ -153,8 +156,8 @@ class BatteryOptimizer extends ChangeNotifier {
       );
     });
 
-    // مراقبة مستوى البطارية
-    Timer.periodic(const Duration(minutes: 1), (_) async {
+    // مراقبة مستوى البطارية — حفظ المؤقت في حقل لإلغائه لاحقاً
+    _batteryLevelTimer = Timer.periodic(const Duration(minutes: 1), (_) async {
       final newLevel = await _battery.batteryLevel;
       if (newLevel != _batteryLevel) {
         _batteryLevel = newLevel;
@@ -175,13 +178,15 @@ class BatteryOptimizer extends ChangeNotifier {
     });
   }
 
-  /// إيقاف المراقبة
+  /// إيقاف المراقبة وإلغاء جميع الاشتراكات والمؤقتات
   void stopMonitoring() {
     _isMonitoring = false;
     _batterySubscription?.cancel();
     _connectivitySubscription?.cancel();
+    _batteryLevelTimer?.cancel(); // إلغاء مؤقت فحص البطارية
     _batterySubscription = null;
     _connectivitySubscription = null;
+    _batteryLevelTimer = null;
   }
 
   /// تحديث مستوى التحسين بناءً على حالة البطارية
@@ -230,7 +235,7 @@ class BatteryOptimizer extends ChangeNotifier {
     }
 
     // التحقق من الاتصال
-    if (_connectionState == ConnectivityResult.none) {
+    if (_connectionState.contains(ConnectivityResult.none) && !_connectionState.any((r) => r != ConnectivityResult.none)) {
       return false;
     }
 
@@ -256,22 +261,44 @@ class BatteryOptimizer extends ChangeNotifier {
 
   /// الحصول على لون حالة البطارية
   Color getBatteryStatusColor() {
-    if (_isCharging) return Colors.green;
-    if (_batteryLevel <= 10) return Colors.red;
-    if (_batteryLevel <= 20) return Colors.orange;
-    if (_batteryLevel <= 40) return Colors.yellow.shade700;
+    if (_isCharging) {
+      return Colors.green;
+    }
+    if (_batteryLevel <= 10) {
+      return Colors.red;
+    }
+    if (_batteryLevel <= 20) {
+      return Colors.orange;
+    }
+    if (_batteryLevel <= 40) {
+      return Colors.yellow.shade700;
+    }
     return Colors.green;
   }
 
   /// الحصول على أيقونة حالة البطارية
   IconData getBatteryIcon() {
-    if (_isCharging) return Icons.battery_charging_full;
-    if (_batteryLevel <= 10) return Icons.battery_alert;
-    if (_batteryLevel <= 20) return Icons.battery_20;
-    if (_batteryLevel <= 30) return Icons.battery_30;
-    if (_batteryLevel <= 50) return Icons.battery_50;
-    if (_batteryLevel <= 60) return Icons.battery_60;
-    if (_batteryLevel <= 80) return Icons.battery_80;
+    if (_isCharging) {
+      return Icons.battery_charging_full;
+    }
+    if (_batteryLevel <= 10) {
+      return Icons.battery_alert;
+    }
+    if (_batteryLevel <= 20) {
+      return Icons.battery_0_bar;
+    }
+    if (_batteryLevel <= 30) {
+      return Icons.battery_1_bar;
+    }
+    if (_batteryLevel <= 50) {
+      return Icons.battery_3_bar;
+    }
+    if (_batteryLevel <= 60) {
+      return Icons.battery_4_bar;
+    }
+    if (_batteryLevel <= 80) {
+      return Icons.battery_5_bar;
+    }
     return Icons.battery_full;
   }
 
@@ -301,7 +328,7 @@ class BatteryOptimizer extends ChangeNotifier {
       recommendations.add('⚡ وضع توفير البطارية مفعل تلقائياً');
     }
 
-    if (_connectionState == ConnectivityResult.mobile) {
+    if (_connectionState.contains(ConnectivityResult.mobile)) {
       recommendations.add('📶 جاري استخدام بيانات الجوال - قد تستهلك رسوم إضافية');
     }
 
@@ -317,6 +344,11 @@ class BatteryOptimizer extends ChangeNotifier {
     stopMonitoring();
     super.dispose();
   }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    _instance.dispose();
+  }
 }
 
 /// Extension للتحقق من جاهزية المزامنة
@@ -326,7 +358,9 @@ extension BatteryOptimizerExtension on BatteryOptimizer {
 
   /// الحصول على فترة انتظار المزامنة القادمة
   Duration? get nextSyncDelay {
-    if (shouldSync) return Duration.zero;
+    if (shouldSync) {
+      return Duration.zero;
+    }
 
     // حساب الوقت المتوقع للشحن
     if (_batteryLevel < 20 && !_isCharging) {

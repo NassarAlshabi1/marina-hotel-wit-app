@@ -1,8 +1,9 @@
 // ignore_for_file: avoid_print
 
-import 'dart:io';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:http/http.dart' as http;
 
 /// Script لإضافة الحقول الجديدة إلى Appwrite Cloud
 ///
@@ -76,7 +77,7 @@ Future<void> main(List<String> args) async {
     }
 
     // انتظار قليلاً قبل إضافة الحقل الثاني
-    await Future.delayed(const Duration(seconds: 2));
+    await Future<void>.delayed(const Duration(seconds: 2));
 
     // 2. إضافة حقل discountStartDate
     print('\n2️⃣ إضافة حقل discountStartDate...');

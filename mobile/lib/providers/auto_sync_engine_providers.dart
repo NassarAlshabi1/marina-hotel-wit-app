@@ -34,21 +34,21 @@ final autoSyncEngineStatusProvider = FutureProvider<Map<String, dynamic>>((
   ref,
 ) async {
   final engine = ref.watch(autoSyncEngineProvider);
-  return await engine.getEngineStatus();
+  return engine.getEngineStatus();
 });
 
 final conflictStatisticsProvider = FutureProvider<Map<String, dynamic>>((
   ref,
 ) async {
   final resolver = ref.watch(conflictResolverProvider);
-  return await resolver.getConflictStatistics();
+  return resolver.getConflictStatistics();
 });
 
 final conflictHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
 ) async {
   final resolver = ref.watch(conflictResolverProvider);
-  return await resolver.getConflictHistory(limit: 50);
+  return resolver.getConflictHistory(limit: 50);
 });
 
 class AutoSyncEngineController
@@ -144,13 +144,21 @@ final lastSyncTimeProvider = Provider<DateTime?>((ref) {
   );
 });
 
-final syncHealthProvider = Provider<String>((ref) {
+/// ✅ إصلاح: إعادة تسمية من syncHealthProvider لتجنب التعارض مع
+/// StreamProvider<SyncHealthSnapshot> في repository_providers.dart
+final autoSyncHealthSummaryProvider = Provider<String>((ref) {
   final engineState = ref.watch(autoSyncEngineStateProvider);
   return engineState.when(
     data: (state) {
-      if (!state.isRunning) return '🔴 متوقف';
-      if (!state.hasNetworkConnection) return '📴 بدون شبكة';
-      if (!state.isSignedIn) return '🔓 غير مسجل';
+      if (!state.isRunning) {
+        return '🔴 متوقف';
+      }
+      if (!state.hasNetworkConnection) {
+        return '📴 بدون شبكة';
+      }
+      if (!state.isSignedIn) {
+        return '🔓 غير مسجل';
+      }
       if (state.failedAttempts > 0) {
         return '⚠️ محاولات فاشلة: ${state.failedAttempts}';
       }

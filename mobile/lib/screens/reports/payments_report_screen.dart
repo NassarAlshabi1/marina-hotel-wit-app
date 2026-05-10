@@ -4,15 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
-import '../../providers/core_providers.dart' as coreProviders;
+import '../../providers/repository_providers.dart';
+import '../../services/booking_derived_fields_service.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/report_pdf_builder.dart';
+import '../../widgets/report_date_filter.dart';
 
 class PaymentsReportScreen extends ConsumerStatefulWidget {
   const PaymentsReportScreen({super.key});
@@ -25,6 +27,7 @@ class PaymentsReportScreen extends ConsumerStatefulWidget {
 class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd HH:mm');
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
+  final _filterController = DateFilterController();
 
   // ignore: unused_element
   String _formatNumber(num value) => _currencyFmt.format(value);
@@ -39,7 +42,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   final List<String> _availableRooms = [];
 
   double _totalPaid = 0;
-  double _totalRemaining = 0;
+  double _totalOtherPaid = 0;
 
   String _formatBookingCode(int bookingId) =>
       bookingId.toString().padLeft(6, '0');
@@ -54,19 +57,23 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<void> _initializeDefaults() async {
-    final now = DateTime.now();
-    _fromDate = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(const Duration(days: 30));
-    _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    // الافتراضي: من بداية اليوم إلى نهاية اليوم التالي
+    final range = DateFilterController.getDefaultHotelDayRange();
+    _fromDate = range.from;
+    _toDate = range.to;
     await _loadRooms();
+    // تحديث القيم المحسوبة (totalDueCached, totalPaidCached, remainingBalanceCached)
+    // لضمان دقة المجاميع في التقرير
+    try {
+      final db = ref.read(databaseProvider);
+      final derivedService = BookingDerivedFieldsService(db);
+      await derivedService.refreshAllActiveBookings();
+    } catch (_) {}
     await _fetchReport();
   }
 
   Future<void> _loadRooms() async {
-    final db = ref.read(coreProviders.dbProvider);
+    final db = ref.read(databaseProvider);
     final rooms = await db.select(db.rooms).get();
     setState(() {
       _availableRooms
@@ -79,41 +86,22 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     });
   }
 
-  Future<void> _pickDate({required bool isFrom}) async {
-    final initialDate = isFrom
-        ? (_fromDate ?? DateTime.now())
-        : (_toDate ?? DateTime.now());
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() {
-        if (isFrom) {
-          _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
-        } else {
-          _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
-        }
-      });
-    }
-  }
-
   Future<void> _fetchReport() async {
-    if (_loading) return;
+    if (_loading) {
+      return;
+    }
     setState(() {
       _loading = true;
     });
     try {
-      final db = ref.read(coreProviders.dbProvider);
+      final db = ref.read(databaseProvider);
       final result = await _loadPaymentsReport(db);
       setState(() {
         _rows
           ..clear()
           ..addAll(result.rows);
         _totalPaid = result.totalPaid;
-        _totalRemaining = result.totalRemaining;
+        _totalOtherPaid = result.totalOtherPaid;
       });
     } finally {
       if (mounted) {
@@ -127,19 +115,28 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
-    final fromStr = _fromDate != null
-        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
-        : null;
-    final toStr = _toDate != null
-        ? DateFormat('yyyy-MM-dd').format(_toDate!)
-        : null;
-    final payments = await paymentsDao.listForReport(
+
+    // الهندسة الدقيقة: تقرير الدخل يستخدم نطاقاً زمنياً يبدأ من 14:00 في تاريخ البداية
+    // وينتهي في 13:59:59 في تاريخ النهاية.
+    final hotelStart = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day, 14);
+    final hotelEnd = DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 13, 59, 59);
+    
+    final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelStart);
+    final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelEnd);
+
+    // استخدام list() مع نفس الفلاتر الصارمة لتقرير الدخل
+    final payments = await paymentsDao.list(
       from: fromStr,
       to: toStr,
-      roomNumber: _selectedRoom,
+      excludeVoided: true,
+      excludePendingBalance: true,
     );
+    // فلترة حسب الغرفة في الذاكرة إذا تم اختيار غرفة محددة
+    final filteredPayments = _selectedRoom != null && _selectedRoom!.isNotEmpty
+        ? payments.where((p) => p.roomNumber == _selectedRoom).toList()
+        : payments;
 
-    final bookingIds = payments
+    final bookingIds = filteredPayments
         .map((p) => p.bookingLocalId)
         .whereType<int>()
         .toSet();
@@ -151,36 +148,50 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final bookingMap = {for (final b in bookings) b.id: b};
 
     final roomNumbers = <String>{};
-    for (final payment in payments) {
+    for (final payment in filteredPayments) {
       final room = payment.roomNumber;
-      if (room != null) roomNumbers.add(room);
+      if (room != null) {
+        roomNumbers.add(room);
+      }
       final bookingRoom = bookingMap[payment.bookingLocalId]?.roomNumber;
-      if (bookingRoom != null) roomNumbers.add(bookingRoom);
+      if (bookingRoom != null) {
+        roomNumbers.add(bookingRoom);
+      }
     }
-    final rooms = roomNumbers.isEmpty
-        ? <Room>[]
-        : await (db.select(
-            db.rooms,
-          )..where((tbl) => tbl.roomNumber.isIn(roomNumbers.toList()))).get();
-    final roomsMap = {for (final r in rooms) r.roomNumber: r};
+    // rooms لم تعد مطلوبة للحساب لأننا نستخدم القيم المحسوبة من الحجز مباشرة
 
     final rows = <_PaymentReportRow>[];
-    double totalPaid = 0;
+    double totalRoomPaid = 0;
+    double totalOtherPaid = 0;
     final relevantBookingIds = <int>{};
 
-    for (final payment in payments) {
+    for (final payment in filteredPayments) {
+      final paymentDate = _parseDateTime(payment.paymentDate);
+      
+      // التحقق الهندسي: هل التاريخ يقع فعلياً ضمن النطاق الفندقي؟
+      // (نفس منطق isWithinRange في تقرير الدخل)
+      if (paymentDate.isBefore(hotelStart) || paymentDate.isAfter(hotelEnd)) {
+        continue;
+      }
+
       final booking = bookingMap[payment.bookingLocalId];
       final roomNumber =
           booking?.roomNumber ?? payment.roomNumber ?? 'غير محدد';
       final payerName = booking?.guestName ?? payment.revenueType;
-      final paymentDate = _parseDateTime(payment.paymentDate);
       final bookingCode = booking != null
           ? _formatBookingCode(booking.id)
           : null;
-      totalPaid += payment.amount;
+          
+      if (_isRoomPayment(payment.revenueType)) {
+        totalRoomPaid += payment.amount;
+      } else {
+        totalOtherPaid += payment.amount;
+      }
+      
       if (booking != null) {
         relevantBookingIds.add(booking.id);
       }
+      
       rows.add(
         _PaymentReportRow(
           paymentDate: paymentDate,
@@ -195,35 +206,19 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       );
     }
 
+    // حساب إجمالي المستحق والمتبقي باستخدام القيم المحسوبة الموثوقة من الحجز
+    // (totalDueCached محسوب من تعديلات الأسعار + الخصومات الفعلية)
+    // (remainingBalanceCached = totalDueCached - totalPaidCached)
+    double totalDue = 0;
     double totalRemaining = 0;
     if (relevantBookingIds.isNotEmpty) {
-      final bookingTotals = <int, double>{};
       for (final bookingId in relevantBookingIds) {
         final booking = bookingMap[bookingId];
-        if (booking == null) continue;
-        final room = roomsMap[booking.roomNumber];
-        final nights = booking.expectedNights > 0 ? booking.expectedNights : 1;
-        final pricePerNight = room?.price ?? 0;
-        final discount = booking.discount;
-        final total = (nights * pricePerNight) - discount;
-        bookingTotals[bookingId] = total > 0 ? total : 0;
-      }
-
-      final allPaymentsForBookings =
-          await (db.select(db.payments)..where(
-                (tbl) => tbl.bookingLocalId.isIn(relevantBookingIds.toList()),
-              ))
-              .get();
-      final paidByBooking = <int, double>{};
-      for (final p in allPaymentsForBookings) {
-        final id = p.bookingLocalId;
-        if (id == null) continue;
-        paidByBooking[id] = (paidByBooking[id] ?? 0) + p.amount;
-      }
-
-      for (final entry in bookingTotals.entries) {
-        final paid = paidByBooking[entry.key] ?? 0;
-        final remaining = entry.value - paid;
+        if (booking == null) {
+          continue;
+        }
+        totalDue += booking.totalDueCached;
+        final remaining = booking.remainingBalanceCached;
         if (remaining > 0) {
           totalRemaining += remaining;
         }
@@ -232,22 +227,18 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
     return _PaymentsReportResult(
       rows: rows,
-      totalPaid: totalPaid,
+      totalPaid: totalRoomPaid,
+      totalOtherPaid: totalOtherPaid,
       totalRemaining: totalRemaining,
+      totalDue: totalDue,
     );
   }
 
   Future<void> _exportPdf() async {
-    if (_rows.isEmpty) return;
-    final fonts = await EnhancedPdfUtils.loadArabicFonts();
-    final doc = pw.Document();
-    final fromLabel = _fromDate != null
-        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
-        : 'غير محدد';
-    final toLabel = _toDate != null
-        ? DateFormat('yyyy-MM-dd').format(_toDate!)
-        : 'غير محدد';
-    final selectedRoomLabel = _selectedRoom?.isNotEmpty == true
+    if (_rows.isEmpty) {
+      return;
+    }
+    final selectedRoomLabel = _selectedRoom?.isNotEmpty ?? false
         ? _selectedRoom!
         : '';
 
@@ -273,139 +264,62 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       ],
     ];
 
-    pw.Widget buildReportHeader() {
-      final periodLabel = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
-      return pw.Container(
-        width: double.infinity,
-        decoration: const pw.BoxDecoration(color: PdfColors.primary),
-        padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.center,
-          children: [
-            pw.Text(
-              'فندق مارينا بلازا',
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 22,
-                color: PdfColors.textWhite,
-              ),
-            ),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              'مدفوعات النزلاء',
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 20,
-                color: PdfColors.textWhite,
-              ),
-            ),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              periodLabel,
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 12,
-                color: PdfColors.textWhite,
-              ),
-              textAlign: pw.TextAlign.center,
-            ),
-            if (selectedRoomLabel.isNotEmpty) ...[
-              pw.SizedBox(height: 4),
+    await ReportPdfBuilder.buildAndShare(ReportPdfConfig(
+      title: 'مدفوعات النزلاء',
+      fromDate: _fromDate,
+      toDate: _toDate,
+      extraHeaderLine:
+          selectedRoomLabel.isNotEmpty ? 'الغرفة: $selectedRoomLabel' : null,
+      buildContent: (fonts) => [
+        pw.SizedBox(height: 20),
+        EnhancedPdfUtils.buildProfessionalTable(
+          headers: [
+            'م',
+            'رقم الحجز',
+            'اسم النزيل',
+            'الغرفة',
+            'طريقة الدفع',
+            'التاريخ',
+            'المبلغ',
+          ],
+          data: dataRows,
+          fonts: fonts,
+          headerColor: PdfColors.primary,
+          alternateRowColor: PdfColors.backgroundLight,
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          width: double.infinity,
+          padding: const pw.EdgeInsets.all(16),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.backgroundLight,
+            border: pw.Border.all(color: PdfColors.primary, width: 0.5),
+          ),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.end,
+            children: [
               pw.Text(
-                'الغرفة: $selectedRoomLabel',
+                'الإجمالي الكلي: ',
                 style: pw.TextStyle(
-                  font: fonts.regular,
+                  font: fonts.bold,
                   fontSize: 12,
-                  color: PdfColors.textWhite,
+                  color: PdfColors.textDark,
+                ),
+              ),
+              pw.Text(
+                EnhancedPdfUtils.formatNumber(_totalPaid),
+                style: pw.TextStyle(
+                  font: fonts.bold,
+                  fontSize: 14,
+                  color: PdfColors.secondary,
                 ),
               ),
             ],
-          ],
-        ),
-      );
-    }
-
-    pw.Widget buildPaymentsTable() {
-      return EnhancedPdfUtils.buildProfessionalTable(
-        headers: [
-          'م',
-          'رقم الحجز',
-          'اسم النزيل',
-          'الغرفة',
-          'طريقة الدفع',
-          'التاريخ',
-          'المبلغ',
-        ],
-        data: dataRows,
-        fonts: fonts,
-        headerColor: PdfColors.primary,
-        alternateRowColor: PdfColors.backgroundLight,
-      );
-    }
-
-    pw.Widget buildTotalsFooter() {
-      return pw.Container(
-        width: double.infinity,
-        padding: const pw.EdgeInsets.all(16),
-        decoration: pw.BoxDecoration(
-          color: PdfColors.backgroundLight,
-          border: pw.Border.all(color: PdfColors.primary, width: 0.5),
-        ),
-        child: pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.end,
-          children: [
-            pw.Text(
-              'الإجمالي الكلي: ',
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 12,
-                color: PdfColors.textDark,
-              ),
-            ),
-            pw.Text(
-              EnhancedPdfUtils.formatNumber(_totalPaid),
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 14,
-                color: PdfColors.secondary,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    doc.addPage(
-      pw.MultiPage(
-        textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
-        footer: (context) => pw.Align(
-          alignment: pw.Alignment.center,
-          child: pw.Text(
-            'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: pw.TextStyle(font: fonts.regular, fontSize: 10),
           ),
         ),
-        build: (context) => [
-          buildReportHeader(),
-          pw.SizedBox(height: 20),
-          buildPaymentsTable(),
-          pw.SizedBox(height: 12),
-          buildTotalsFooter(),
-        ],
-      ),
-    );
-
-    String generateFileName(String title) {
-      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
-      final sanitizedTitle = title.replaceAll(RegExp(r'\s+'), '-');
-      return '$sanitizedTitle-$timestamp.pdf';
-    }
-
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: generateFileName('مدفوعات النزلاء'),
-    );
+      ],
+      fileName: ReportPdfBuilder.generateFileName('مدفوعات النزلاء'),
+    ),);
   }
 
   @override
@@ -424,25 +338,25 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // فلتر التاريخ المشترك
+            ReportDateFilterWidget(
+              controller: _filterController,
+              onDateRangeChanged: (range) {
+                setState(() {
+                  _fromDate = range.from;
+                  _toDate = range.to;
+                });
+                _fetchReport();
+              },
+            ),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                _buildDateSelector(
-                  label: 'من',
-                  value: _fromDate,
-                  onPressed: () => _pickDate(isFrom: true),
-                ),
-                _buildDateSelector(
-                  label: 'إلى',
-                  value: _toDate,
-                  onPressed: () => _pickDate(isFrom: false),
-                ),
                 SizedBox(
                   width: 140,
                   child: DropdownButtonFormField<String?>(
-                    value: _selectedRoom,
-                    isDense: true,
+                    initialValue: _selectedRoom,
                     decoration: const InputDecoration(
                       labelText: 'الغرفة',
                       isDense: true,
@@ -451,7 +365,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
                     items: [
                       DropdownMenuItem<String?>(
-                        value: null,
                         child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
                       ),
                       ..._availableRooms.map(
@@ -465,6 +378,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                       setState(() {
                         _selectedRoom = value;
                       });
+                      _fetchReport();
                     },
                   ),
                 ),
@@ -582,35 +496,39 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Widget _buildSummary() {
+    final totalAll = _totalPaid + _totalOtherPaid;
     return Card(
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              child: _buildSummaryTile(
-                'المدفوع',
-                _currencyFmt.format(_totalPaid),
-                Colors.green,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSummaryTile(
+                    'مدفوعات الغرفة',
+                    _currencyFmt.format(_totalPaid),
+                    Colors.green,
+                  ),
+                ),
+                Container(width: 1, height: 28, color: Colors.grey.shade200),
+                Expanded(
+                  child: _buildSummaryTile(
+                    'مدفوعات أخرى',
+                    _currencyFmt.format(_totalOtherPaid),
+                    Colors.teal,
+                  ),
+                ),
+              ],
             ),
-            Container(width: 1, height: 28, color: Colors.grey.shade200),
-            Expanded(
-              child: _buildSummaryTile(
-                'المتبقي',
-                _currencyFmt.format(_totalRemaining),
-                Colors.red,
-              ),
-            ),
-            Container(width: 1, height: 28, color: Colors.grey.shade200),
-            Expanded(
-              child: _buildSummaryTile(
-                'السجلات',
-                _rows.length.toString(),
-                Colors.blue,
-              ),
+            const Divider(height: 16),
+            _buildSummaryTile(
+              'إجمالي المدفوعات (الدخل)',
+              _currencyFmt.format(totalAll),
+              Colors.indigo,
+              isLarge: true,
             ),
           ],
         ),
@@ -635,37 +553,38 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     return value;
   }
 
-  Widget _buildSummaryTile(String label, String value, Color color) {
+  /// هل الدفعة تُحسب ضمن رسوم الغرفة؟
+  /// يجب أن يتطابق هذا المنطق مع _getTotalPayments في
+  /// EnhancedBookingCalculationService لضمان تناسق المجاميع.
+  static bool _isRoomPayment(String? revenueType) {
+    if (revenueType == null || revenueType.isEmpty) {
+      return true;
+    }
+    final r = revenueType.toLowerCase();
+    return r == 'room' || r == 'غرفة' || r == 'إقامة';
+  }
+
+  Widget _buildSummaryTile(String label, String value, Color color, {bool isLarge = false}) {
     return Column(
       children: [
         Text(
           value,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color),
+          style: TextStyle(
+            fontWeight: FontWeight.bold, 
+            fontSize: isLarge ? 18 : 13, 
+            color: color,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: const TextStyle(fontSize: 10, color: Colors.grey),
+          style: TextStyle(
+            fontSize: isLarge ? 12 : 10, 
+            color: isLarge ? Colors.black87 : Colors.grey,
+            fontWeight: isLarge ? FontWeight.bold : FontWeight.normal,
+          ),
         ),
       ],
-    );
-  }
-
-  Widget _buildDateSelector({
-    required String label,
-    required DateTime? value,
-    required VoidCallback onPressed,
-  }) {
-    final text = value != null
-        ? DateFormat('yyyy-MM-dd').format(value)
-        : '—';
-    return OutlinedButton(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        textStyle: const TextStyle(fontSize: 11),
-      ),
-      child: Text('$label: $text'),
     );
   }
 
@@ -707,10 +626,14 @@ class _PaymentsReportResult {
   _PaymentsReportResult({
     required this.rows,
     required this.totalPaid,
+    required this.totalOtherPaid,
     required this.totalRemaining,
+    required this.totalDue,
   });
 
   final List<_PaymentReportRow> rows;
   final double totalPaid;
+  final double totalOtherPaid;
   final double totalRemaining;
+  final double totalDue;
 }

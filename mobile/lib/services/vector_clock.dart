@@ -4,12 +4,12 @@ import 'dart:convert';
 class VectorClock {
   VectorClock(this.clocks);
 
-  final Map<String, int> clocks;
-
   factory VectorClock.empty() => VectorClock({});
 
   factory VectorClock.fromJson(String json) {
-    if (json.isEmpty) return VectorClock.empty();
+    if (json.isEmpty) {
+      return VectorClock.empty();
+    }
     try {
       final map = jsonDecode(json) as Map<String, dynamic>;
       return VectorClock(map.map((k, v) => MapEntry(k, v as int)));
@@ -17,6 +17,8 @@ class VectorClock {
       return VectorClock.empty();
     }
   }
+
+  final Map<String, int> clocks;
 
   String toJson() => jsonEncode(clocks);
 
@@ -56,9 +58,15 @@ class VectorClock {
       }
     }
 
-    if (!thisBefore && !thisAfter) return 'equal';
-    if (thisBefore && !thisAfter) return 'before';
-    if (!thisBefore && thisAfter) return 'after';
+    if (!thisBefore && !thisAfter) {
+      return 'equal';
+    }
+    if (thisBefore && !thisAfter) {
+      return 'before';
+    }
+    if (!thisBefore && thisAfter) {
+      return 'after';
+    }
     return 'concurrent';
   }
 
@@ -75,27 +83,37 @@ class VectorClock {
       identical(this, other) ||
       other is VectorClock &&
           runtimeType == other.runtimeType &&
-          const MapEquality().equals(clocks, other.clocks);
+          const MapEquality<String, dynamic>().equals(clocks, other.clocks);
 
   @override
-  int get hashCode => const MapEquality().hash(clocks);
+  int get hashCode => const MapEquality<String, dynamic>().hash(clocks);
 }
 
 class MapEquality<K, V> {
   const MapEquality();
 
   bool equals(Map<K, V>? a, Map<K, V>? b) {
-    if (identical(a, b)) return true;
-    if (a == null || b == null) return false;
-    if (a.length != b.length) return false;
+    if (identical(a, b)) {
+      return true;
+    }
+    if (a == null || b == null) {
+      return false;
+    }
+    if (a.length != b.length) {
+      return false;
+    }
     for (final key in a.keys) {
-      if (!b.containsKey(key) || a[key] != b[key]) return false;
+      if (!b.containsKey(key) || a[key] != b[key]) {
+        return false;
+      }
     }
     return true;
   }
 
   int hash(Map<K, V>? map) {
-    if (map == null) return 0;
+    if (map == null) {
+      return 0;
+    }
     int hash = 0;
     for (final entry in map.entries) {
       hash ^= entry.key.hashCode;

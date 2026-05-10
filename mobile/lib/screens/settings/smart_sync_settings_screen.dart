@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../providers/repository_providers.dart';
 import '../../services/smart_sync_manager.dart';
 import '../../services/sync_guardian.dart';
-import '../../providers/repository_providers.dart';
 import 'sync_health_dashboard_screen.dart';
 
 class SmartSyncSettingsScreen extends ConsumerStatefulWidget {
@@ -33,6 +34,7 @@ class _SmartSyncSettingsScreenState
 
       ref.invalidate(smartSyncStatusProvider);
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -44,6 +46,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير حالة المزامنة: $e'),
@@ -64,6 +67,7 @@ class _SmartSyncSettingsScreenState
 
       ref.invalidate(smartSyncStatusProvider);
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('⏰ تم تغيير فترة المزامنة إلى $minutes دقائق'),
@@ -71,6 +75,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير فترة المزامنة: $e'),
@@ -91,13 +96,15 @@ class _SmartSyncSettingsScreenState
 
       ref.invalidate(smartSyncStatusProvider);
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('🤝 تم تغيير استراتيجية حل التضارب'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير استراتيجية التضارب: $e'),
@@ -118,6 +125,7 @@ class _SmartSyncSettingsScreenState
 
       ref.invalidate(smartSyncStatusProvider);
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🔄 تمت المزامنة اليدوية بنجاح'),
@@ -125,6 +133,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ فشلت المزامنة اليدوية: $e'),
@@ -142,6 +151,7 @@ class _SmartSyncSettingsScreenState
       final guardian = ref.read(syncGuardianProvider);
       await guardian.forceSync();
       ref.invalidate(syncHealthProvider);
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('⚡ تم تشغيل مزامنة WorkManager فوراً'),
@@ -149,6 +159,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ تعذر تشغيل مزامنة WorkManager: $e'),
@@ -165,6 +176,7 @@ class _SmartSyncSettingsScreenState
       final guardian = ref.read(syncGuardianProvider);
       await guardian.setDevicePriority(enabled ? 200 : 100);
       ref.invalidate(syncHealthProvider);
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -176,6 +188,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ تعذر تغيير أولوية الجهاز: $e'),
@@ -530,7 +543,7 @@ class _SmartSyncSettingsScreenState
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
-              value: _intervalOptions.contains(currentInterval)
+              initialValue: _intervalOptions.contains(currentInterval)
                   ? currentInterval
                   : _intervalOptions.first,
               decoration: const InputDecoration(
@@ -548,7 +561,9 @@ class _SmartSyncSettingsScreenState
               onChanged: _isLoading
                   ? null
                   : (value) {
-                      if (value != null) _changeSyncInterval(value);
+                      if (value != null) {
+                        _changeSyncInterval(value);
+                      }
                     },
             ),
           ],
@@ -580,7 +595,7 @@ class _SmartSyncSettingsScreenState
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<ConflictResolution>(
-              value: currentEnum,
+              initialValue: currentEnum,
               decoration: const InputDecoration(
                 labelText: 'استراتيجية حل التضارب',
                 prefixIcon: Icon(Icons.merge_type),
@@ -596,7 +611,9 @@ class _SmartSyncSettingsScreenState
               onChanged: _isLoading
                   ? null
                   : (value) {
-                      if (value != null) _changeConflictResolution(value);
+                      if (value != null) {
+                        _changeConflictResolution(value);
+                      }
                     },
             ),
             const SizedBox(height: 8),
@@ -616,29 +633,26 @@ class _SmartSyncSettingsScreenState
         explanation =
             '💡 البيانات الأحدث تاريخياً ستحل محل الأقدم. هذا الخيار آمن ومُوصى به.';
         color = Colors.green;
-        break;
       case ConflictResolution.manualResolve:
         explanation =
             '⚠️ سيتم إيقاف المزامنة التلقائية وطلب تدخلك لحل التضارب يدوياً.';
         color = Colors.orange;
-        break;
       case ConflictResolution.devicePriority:
         explanation =
             '📱 الجهاز الرئيسي له الأولوية. يتطلب تحديد الجهاز الرئيسي مسبقاً.';
         color = Colors.blue;
-        break;
     }
 
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         explanation,
-        style: TextStyle(fontSize: 11, color: color.withOpacity(0.8)),
+        style: TextStyle(fontSize: 11, color: color.withValues(alpha: 0.8)),
       ),
     );
   }
@@ -701,9 +715,9 @@ class _SmartSyncSettingsScreenState
         ),
         subtitle: const Text('إحصائيات وتشخيص متقدم للنظام'),
         trailing: const Icon(Icons.chevron_left),
-        onTap: () => Navigator.push(
+        onTap: () => Navigator.push<void>(
           context,
-          MaterialPageRoute(builder: (_) => const SyncHealthDashboardScreen()),
+          MaterialPageRoute<void>(builder: (_) => const SyncHealthDashboardScreen()),
         ),
       ),
     );
@@ -750,9 +764,9 @@ class _SmartSyncSettingsScreenState
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.green.withOpacity(0.3)),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
               child: const Text(
                 '💡 نصيحة: استخدم فترة فحص قصيرة (1-5 دقائق) للمزامنة السريعة، أو فترة أطول (15-30 دقيقة) لتوفير البطارية.',

@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../services/auto_backup_manager.dart' show AutoBackupManager;
-import 'backup_provider.dart'; // استيراد Provider الموجود
 import 'appwrite_providers.dart'; // AppwriteService + connectionStatus
 import 'repository_providers.dart'; // databaseProvider
 
@@ -13,7 +13,7 @@ final autoBackupManagerProvider = Provider<AutoBackupManager>((ref) {
 final autoBackupStatusProvider =
     FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
       final manager = ref.watch(autoBackupManagerProvider);
-      return await manager.getStatus();
+      return manager.getStatus();
     });
 
 /// Provider لتهيئة النسخ التلقائي (مع تهيئة DeltaSync دائماً)

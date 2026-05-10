@@ -1,7 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'local_db.dart';
+
 import 'database_health_checker.dart';
+import 'local_db.dart';
 
 class SafeDatabaseOperations {
   static final _healthChecker = DatabaseHealthChecker.instance;
@@ -19,7 +21,7 @@ class SafeDatabaseOperations {
       // التحقق من حالة الاستعادة
       if (DatabaseManager.isRestoring) {
         debugPrint('⏸️ Operation $opName paused: database is being restored');
-        await Future.delayed(const Duration(milliseconds: 100));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
         if (DatabaseManager.isRestoring) {
           throw StateError(
             'Database is being restored. Please try again later.',
@@ -117,13 +119,15 @@ class SafeDatabaseOperations {
       bool isClosed = false;
 
       void setupStream() {
-        if (isClosed) return;
+        if (isClosed) {
+          return;
+        }
 
         try {
           // التحقق من حالة الاستعادة
           if (DatabaseManager.isRestoring) {
             debugPrint('⏸️ Stream $opName paused: database is being restored');
-            Future.delayed(const Duration(milliseconds: 200), () {
+            Future<void>.delayed(const Duration(milliseconds: 200), () {
               if (!isClosed && !DatabaseManager.isRestoring) {
                 setupStream();
               }
@@ -156,7 +160,7 @@ class SafeDatabaseOperations {
                 controller.add(data);
               }
             },
-            onError: (error, stackTrace) {
+            onError: (Object error, StackTrace stackTrace) {
               final errorStr = error.toString();
               if (errorStr.contains('connection was closed') ||
                   errorStr.contains('isolate channel') ||
@@ -173,7 +177,7 @@ class SafeDatabaseOperations {
                   debugPrint(
                     '⏸️ Database is being restored, will retry after restore completes',
                   );
-                  Future.delayed(const Duration(seconds: 1), () {
+                  Future<void>.delayed(const Duration(seconds: 1), () {
                     if (!isClosed && !DatabaseManager.isRestoring) {
                       setupStream();
                     }
@@ -181,7 +185,7 @@ class SafeDatabaseOperations {
                   return;
                 }
 
-                Future.delayed(const Duration(milliseconds: 500), () async {
+                Future<void>.delayed(const Duration(milliseconds: 500), () async {
                   try {
                     debugPrint(
                       '🔄 Attempting to reopen database for stream...',
@@ -225,7 +229,7 @@ class SafeDatabaseOperations {
   }
 
   static Future<bool> isConnectionHealthy() async {
-    return await _healthChecker.ensureHealthy();
+    return _healthChecker.ensureHealthy();
   }
 
   static Stream<DatabaseHealth> watchHealth() {

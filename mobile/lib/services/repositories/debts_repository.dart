@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
-import '../local_db.dart';
+
+import '../auto_backup_manager.dart';
+import '../crashlytics_service.dart';
 import '../daos/debts_dao.dart';
 import '../daos/outbox_dao.dart';
-import '../auto_backup_manager.dart';
+import '../local_db.dart';
 
 class DebtsRepository {
   DebtsRepository(this.db) : dao = DebtsDao(db, OutboxDao(db));
@@ -38,6 +42,7 @@ class DebtsRepository {
     String? pledgeType,
     String? note,
   }) async {
+    try {
     final remaining = (totalAmount - paidAmount)
         .clamp(0, double.infinity)
         .toDouble();
@@ -60,12 +65,23 @@ class DebtsRepository {
         note: d.Value(note),
       ),
     );
-    AutoBackupManager.instance.onDataChange(
+    unawaited(AutoBackupManager.instance.onDataChange(
       'debts',
       'INSERT',
       recordData: {'guest_name': guestName},
-    );
+    ),);
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'DebtsRepository',
+        action: 'create',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.fatal,
+        extra: {'guestName': guestName, 'totalAmount': '$totalAmount'},
+      );
+      rethrow;
+    }
   }
 
   Future<int> update({
@@ -85,6 +101,7 @@ class DebtsRepository {
     String? pledgeType,
     String? note,
   }) async {
+    try {
     final existing = await dao.getById(id);
     if (existing == null) {
       return 0;
@@ -94,6 +111,8 @@ class DebtsRepository {
     final remaining =
         remainingAmount ??
         (newTotal - newPaid).clamp(0, double.infinity).toDouble();
+    // ✅ حساب تلقائي لـ isSettled بناءً على المبلغ المتبقي
+    final shouldSettle = remaining <= 0;
     final result = await dao.updateById(
       id,
       DebtsCompanion(
@@ -127,7 +146,7 @@ class DebtsRepository {
             : const d.Value.absent(),
         isSettled: isSettled != null
             ? d.Value(isSettled)
-            : const d.Value.absent(),
+            : d.Value(shouldSettle ? 1 : 0),
         pledge: pledge != null ? d.Value(pledge) : const d.Value.absent(),
         pledgeType: pledgeType != null
             ? d.Value(pledgeType)
@@ -136,25 +155,46 @@ class DebtsRepository {
       ),
     );
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
         'debts',
         'UPDATE',
         recordData: {'id': id},
-      );
+      ),);
     }
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'DebtsRepository',
+        action: 'update',
+        error: e,
+        stackTrace: stack,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
   }
 
   Future<int> delete(int id) async {
+    try {
     final result = await dao.softDelete(id);
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
         'debts',
         'DELETE',
         recordData: {'id': id},
-      );
+      ),);
     }
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'DebtsRepository',
+        action: 'delete',
+        error: e,
+        stackTrace: stack,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
   }
 
   Future<void> clearAll() => dao.clearAllData();
@@ -170,6 +210,6 @@ class DebtsRepository {
       return;
     }
     final list = List<Map<String, dynamic>>.from(payload['data'] as List);
-    await dao.importFromJson(list, clearExisting: false);
+    await dao.importFromJson(list);
   }
 }

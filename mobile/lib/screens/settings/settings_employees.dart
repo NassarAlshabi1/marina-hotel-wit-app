@@ -1,12 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../services/salary_entitlement_service.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../employees/salary_entitlements_screen.dart';
-import '../../services/salary_entitlement_service.dart';
 
 class SettingsEmployeesScreen extends ConsumerWidget {
   const SettingsEmployeesScreen({super.key});
@@ -19,9 +22,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       title: 'إدارة الموظفين',
       actions: [
         IconButton(
-          onPressed: () => Navigator.push(
+          onPressed: () => Navigator.push<void>(
             context,
-            MaterialPageRoute(builder: (_) => const SalaryEntitlementsScreen()),
+            MaterialPageRoute<void>(builder: (_) => const SalaryEntitlementsScreen()),
           ),
           icon: const Icon(Icons.account_balance_wallet),
           tooltip: 'استحقاقات الرواتب',
@@ -84,13 +87,18 @@ class SettingsEmployeesScreen extends ConsumerWidget {
 
               // قائمة الموظفين
               Expanded(
-                child: ListView.builder(
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(employeesListProvider);
+                  },
+                  child: ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: employees.length,
                   itemBuilder: (context, index) {
                     final employee = employees[index];
                     return _buildEmployeeCard(context, ref, employee);
                   },
+                  ),
                 ),
               ),
             ],
@@ -181,9 +189,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -197,7 +205,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: color.withOpacity(0.8)),
+            style: TextStyle(fontSize: 12, color: color.withValues(alpha: 0.8)),
           ),
         ],
       ),
@@ -224,7 +232,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   backgroundColor: isActive ? Colors.green : Colors.red,
-                  child: Icon(Icons.person, color: Colors.white, size: 24),
+                  child: const Icon(Icons.person, color: Colors.white, size: 24),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -255,12 +263,11 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   ),
                   decoration: BoxDecoration(
                     color: isActive
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.red.withOpacity(0.1),
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isActive ? Colors.green : Colors.red,
-                      width: 1,
                     ),
                   ),
                   child: Text(
@@ -422,7 +429,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
     String status = employee?.status ?? 'نشط';
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -489,7 +496,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: status,
+                  initialValue: status,
                   decoration: const InputDecoration(
                     labelText: 'الحالة',
                     border: OutlineInputBorder(),
@@ -542,7 +549,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       status: status,
                     );
                   }
+                  // ignore: use_build_context_synchronously
                   Navigator.pop(context);
+                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -554,6 +563,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   );
                 } catch (e) {
                   ScaffoldMessenger.of(
+                    // ignore: use_build_context_synchronously
                     context,
                   ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
                 }
@@ -566,23 +576,27 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
   }
 
-  void _showEmployeeEntitlement(BuildContext context, Employee employee) async {
+  Future<void> _showEmployeeEntitlement(BuildContext context, Employee employee) async {
     final service = SalaryEntitlementService(DatabaseManager.instance);
 
-    showDialog(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
+    ),);
 
     try {
       final entitlement = await service.calculateEmployeeEntitlement(employee);
-      if (context.mounted) Navigator.pop(context);
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
 
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        return;
+      }
 
       final isPositive = entitlement.netEntitlement >= 0;
-      showDialog(
+      unawaited(showDialog<void>(
         context: context,
         builder: (context) => Directionality(
           textDirection: TextDirection.rtl,
@@ -640,9 +654,11 @@ class SettingsEmployeesScreen extends ConsumerWidget {
             ],
           ),
         ),
-      );
+      ),);
     } catch (e) {
-      if (context.mounted) Navigator.pop(context);
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -685,7 +701,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -740,7 +756,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
   }
 
-  void _toggleEmployeeStatus(
+  Future<void> _toggleEmployeeStatus(
     BuildContext context,
     WidgetRef ref,
     Employee employee,
@@ -759,6 +775,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         status: newStatus,
       );
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم ${newStatus == 'نشط' ? 'تفعيل' : 'إيقاف'} الموظف'),
@@ -766,6 +783,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       );
     } catch (e) {
       ScaffoldMessenger.of(
+        // ignore: use_build_context_synchronously
         context,
       ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
     }

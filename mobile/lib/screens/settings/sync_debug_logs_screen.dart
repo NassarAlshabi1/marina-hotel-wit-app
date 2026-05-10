@@ -32,7 +32,9 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
   }
 
   Future<void> _withBusy(Future<void> Function() action) async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     setState(() => _isBusy = true);
     try {
       await action();
@@ -70,7 +72,9 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
 
   void _copyAllLogs() {
     final text = DebugLogs.entries.join('\n');
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      return;
+    }
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(
       context,
@@ -166,22 +170,22 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _buildStatusRow('معرف الجهاز', status['device_id'] ?? '---'),
+                  _buildStatusRow('معرف الجهاز', (status['device_id'] ?? '---') as String),
                   _buildStatusRow(
                     'تفعيل المزامنة',
-                    (status['enabled'] ?? false) ? 'مفعل' : 'معطل',
+                    (status['enabled'] as bool? ?? false) ? 'مفعل' : 'معطل',
                   ),
                   _buildStatusRow(
                     'تسجيل الدخول',
-                    (status['signed_in'] ?? false) ? 'متصل' : 'غير متصل',
+                    (status['signed_in'] as bool? ?? false) ? 'متصل' : 'غير متصل',
                   ),
                   _buildStatusRow(
                     'المراقبة الدورية',
-                    (status['monitoring_active'] ?? false) ? 'نشطة' : 'متوقفة',
+                    (status['monitoring_active'] as bool? ?? false) ? 'نشطة' : 'متوقفة',
                   ),
                   _buildStatusRow(
                     'آخر فحص',
-                    status['last_sync_check'] ?? '---',
+                    (status['last_sync_check'] ?? '---') as String,
                   ),
                 ],
               ),

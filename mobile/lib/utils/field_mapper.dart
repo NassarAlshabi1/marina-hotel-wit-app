@@ -202,7 +202,9 @@ class FieldMapper {
   static final Map<String, Map<String, String>> _phpToFlutter = {};
 
   static void _buildReverseMap() {
-    if (_phpToFlutter.isNotEmpty) return;
+    if (_phpToFlutter.isNotEmpty) {
+      return;
+    }
     for (final entity in _flutterToPhp.keys) {
       _phpToFlutter[entity] = {};
       for (final entry in _flutterToPhp[entity]!.entries) {
@@ -257,15 +259,23 @@ class FieldMapper {
     List<dynamic> phpList,
   ) {
     return phpList
-        .map((m) => toFlutterMap(entity, Map<String, dynamic>.from(m)))
+        .map((m) => toFlutterMap(entity, Map<String, dynamic>.from(m as Map)))
         .toList();
   }
 
   static dynamic _convertValueToPhp(dynamic value) {
-    if (value == null) return null;
-    if (value is bool) return value ? 1 : 0;
-    if (value is DateTime) return value.toIso8601String();
-    if (value is List) return value.map(_convertValueToPhp).toList();
+    if (value == null) {
+      return null;
+    }
+    if (value is bool) {
+      return value ? 1 : 0;
+    }
+    if (value is DateTime) {
+      return value.toIso8601String();
+    }
+    if (value is List) {
+      return value.map(_convertValueToPhp).toList();
+    }
     if (value is Map) {
       return value.map((k, v) => MapEntry(k, _convertValueToPhp(v)));
     }
@@ -273,7 +283,9 @@ class FieldMapper {
   }
 
   static dynamic _convertValueToFlutter(dynamic value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     if (value is int && (value == 0 || value == 1)) {
       return value;
     }
@@ -287,7 +299,9 @@ class FieldMapper {
         }
       }
     }
-    if (value is List) return value.map(_convertValueToFlutter).toList();
+    if (value is List) {
+      return value.map(_convertValueToFlutter).toList();
+    }
     if (value is Map) {
       return value.map((k, v) => MapEntry(k, _convertValueToFlutter(v)));
     }
@@ -296,14 +310,14 @@ class FieldMapper {
 
   static String _camelToSnake(String input) {
     return input.replaceAllMapped(
-      RegExp(r'[A-Z]'),
+      RegExp('[A-Z]'),
       (match) => '_${match.group(0)!.toLowerCase()}',
     );
   }
 
   static String _snakeToCamel(String input) {
     return input.replaceAllMapped(
-      RegExp(r'_([a-z])'),
+      RegExp('_([a-z])'),
       (match) => match.group(1)!.toUpperCase(),
     );
   }
@@ -432,17 +446,21 @@ class FieldMapper {
 }
 
 class FieldMappingException implements Exception {
+
+  FieldMappingException(this.message, {this.entity, this.field});
   final String message;
   final String? entity;
   final String? field;
 
-  FieldMappingException(this.message, {this.entity, this.field});
-
   @override
   String toString() {
     var msg = 'FieldMappingException: $message';
-    if (entity != null) msg += ' (entity: $entity)';
-    if (field != null) msg += ' (field: $field)';
+    if (entity != null) {
+      msg += ' (entity: $entity)';
+    }
+    if (field != null) {
+      msg += ' (field: $field)';
+    }
     return msg;
   }
 }

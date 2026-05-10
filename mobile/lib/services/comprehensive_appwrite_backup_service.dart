@@ -2,27 +2,29 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:file_picker/file_picker.dart';
+
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+
 import 'appwrite_config.dart';
+import 'appwrite_logger.dart';
 import 'appwrite_service.dart';
 import 'local_db.dart';
-import 'appwrite_logger.dart';
 
 /// خدمة النسخ الاحتياطي والاستعادة الشاملة لـ Appwrite
 /// تتيح هذه الخدمة تصدير جميع البيانات من قاعدة البيانات المحلية إلى ملف JSON
 /// واستيرادها إلى Appwrite (Overwrite أو Merge)
 class ComprehensiveAppwriteBackupService {
-  static final ComprehensiveAppwriteBackupService _instance =
-      ComprehensiveAppwriteBackupService._internal();
 
   factory ComprehensiveAppwriteBackupService() => _instance;
 
   ComprehensiveAppwriteBackupService._internal();
+  static final ComprehensiveAppwriteBackupService _instance =
+      ComprehensiveAppwriteBackupService._internal();
 
   final AppwriteService _appwriteService = AppwriteService();
   final AppwriteLogger _logger = AppwriteLogger();
@@ -53,121 +55,155 @@ class ComprehensiveAppwriteBackupService {
   Future<File?> exportFullBackup(
     AppDatabase db, {
     String? deviceId,
-    Function(String, double)? onProgress,
+    void Function(String, double)? onProgress,
   }) async {
     try {
       final timestamp = DateTime.now().toUtc();
       final collectionsData = <String, List<Map<String, dynamic>>>{};
 
       // 1. Rooms
-      if (onProgress != null) onProgress('تصدير الغرف...', 0.1);
+      if (onProgress != null) {
+        onProgress('تصدير الغرف...', 0.1);
+      }
       final rooms = await db.select(db.rooms).get();
       collectionsData[AppwriteConfig.roomsCollectionId] = rooms
           .map((e) => e.toJson())
           .toList();
 
       // 2. Bookings
-      if (onProgress != null) onProgress('تصدير الحجوزات...', 0.2);
+      if (onProgress != null) {
+        onProgress('تصدير الحجوزات...', 0.2);
+      }
       final bookings = await db.select(db.bookings).get();
       collectionsData[AppwriteConfig.bookingsCollectionId] = bookings
           .map((e) => e.toJson())
           .toList();
 
       // 3. Payments
-      if (onProgress != null) onProgress('تصدير المدفوعات...', 0.3);
+      if (onProgress != null) {
+        onProgress('تصدير المدفوعات...', 0.3);
+      }
       final payments = await db.select(db.payments).get();
       collectionsData[AppwriteConfig.paymentsCollectionId] = payments
           .map((e) => e.toJson())
           .toList();
 
       // 4. Expenses
-      if (onProgress != null) onProgress('تصدير المصروفات...', 0.4);
+      if (onProgress != null) {
+        onProgress('تصدير المصروفات...', 0.4);
+      }
       final expenses = await db.select(db.expenses).get();
       collectionsData[AppwriteConfig.expensesCollectionId] = expenses
           .map((e) => e.toJson())
           .toList();
 
       // 5. Employees
-      if (onProgress != null) onProgress('تصدير الموظفين...', 0.5);
+      if (onProgress != null) {
+        onProgress('تصدير الموظفين...', 0.5);
+      }
       final employees = await db.select(db.employees).get();
       collectionsData[AppwriteConfig.employeesCollectionId] = employees
           .map((e) => e.toJson())
           .toList();
 
       // 6. Debts
-      if (onProgress != null) onProgress('تصدير الديون...', 0.6);
+      if (onProgress != null) {
+        onProgress('تصدير الديون...', 0.6);
+      }
       final debts = await db.select(db.debts).get();
       collectionsData[AppwriteConfig.debtsCollectionId] = debts
           .map((e) => e.toJson())
           .toList();
 
       // 7. Booking Notes
-      if (onProgress != null) onProgress('تصدير ملاحظات الحجوزات...', 0.7);
+      if (onProgress != null) {
+        onProgress('تصدير ملاحظات الحجوزات...', 0.7);
+      }
       final bookingNotes = await db.select(db.bookingNotes).get();
       collectionsData[AppwriteConfig.bookingNotesCollectionId] = bookingNotes
           .map((e) => e.toJson())
           .toList();
 
       // 8. Cash Transactions
-      if (onProgress != null) onProgress('تصدير المعاملات النقدية...', 0.75);
+      if (onProgress != null) {
+        onProgress('تصدير المعاملات النقدية...', 0.75);
+      }
       final cashTransactions = await db.select(db.cashTransactions).get();
       collectionsData[AppwriteConfig.cashTransactionsCollectionId] =
           cashTransactions.map((e) => e.toJson()).toList();
 
       // 9. Shift Notes
-      if (onProgress != null) onProgress('تصدير ملاحظات النوبة...', 0.8);
+      if (onProgress != null) {
+        onProgress('تصدير ملاحظات النوبة...', 0.8);
+      }
       final shiftNotes = await db.select(db.shiftNotes).get();
       collectionsData[AppwriteConfig.shiftNotesCollectionId] = shiftNotes
           .map((e) => e.toJson())
           .toList();
 
       // 10. Booking Nights
-      if (onProgress != null) onProgress('تصدير ليالي الحجوزات...', 0.85);
+      if (onProgress != null) {
+        onProgress('تصدير ليالي الحجوزات...', 0.85);
+      }
       final bookingNights = await db.select(db.bookingNights).get();
       collectionsData[AppwriteConfig.bookingNightsCollectionId] = bookingNights
           .map((e) => e.toJson())
           .toList();
 
       // 11. Salary Cycles
-      if (onProgress != null) onProgress('تصدير دورات الرواتب...', 0.9);
+      if (onProgress != null) {
+        onProgress('تصدير دورات الرواتب...', 0.9);
+      }
       final salaryCycles = await db.select(db.salaryCycles).get();
       collectionsData[AppwriteConfig.salaryCyclesCollectionId] = salaryCycles
           .map((e) => e.toJson())
           .toList();
 
       // 12. Salary Payments
-      if (onProgress != null) onProgress('تصدير دفعات الرواتب...', 0.95);
+      if (onProgress != null) {
+        onProgress('تصدير دفعات الرواتب...', 0.95);
+      }
       final salaryPayments = await db.select(db.salaryPayments).get();
       collectionsData[AppwriteConfig.salaryPaymentsCollectionId] =
           salaryPayments.map((e) => e.toJson()).toList();
 
       // 13. Hotel Day Ledger
-      if (onProgress != null) onProgress('تصدير دفتر اليومية...', 0.88);
+      if (onProgress != null) {
+        onProgress('تصدير دفتر اليومية...', 0.88);
+      }
       final ledger = await db.select(db.hotelDayLedger).get();
       collectionsData[AppwriteConfig.hotelDayLedgerCollectionId] = ledger
           .map((e) => e.toJson())
           .toList();
 
       // 14. Price Adjustments
-      if (onProgress != null) onProgress('تصدير تعديلات الأسعار...', 0.91);
+      if (onProgress != null) {
+        onProgress('تصدير تعديلات الأسعار...', 0.91);
+      }
       final priceAdjustments = await db.select(db.priceAdjustments).get();
       collectionsData[AppwriteConfig.priceAdjustmentsCollectionId] =
           priceAdjustments.map((e) => e.toJson()).toList();
 
       // 15. Booking Price Adjustments
-      if (onProgress != null) onProgress('تصدير تعديلات أسعار الحجوزات...', 0.93);
+      if (onProgress != null) {
+        onProgress('تصدير تعديلات أسعار الحجوزات...', 0.93);
+      }
       final bookingPriceAdj = await db.select(db.bookingPriceAdjustments).get();
       collectionsData[AppwriteConfig.bookingPriceAdjustmentsCollectionId] =
           bookingPriceAdj.map((e) => e.toJson()).toList();
 
       // 16. Audit Logs
-      if (onProgress != null) onProgress('تصدير سجلات التدقيق...', 0.95);
+      if (onProgress != null) {
+        onProgress('تصدير سجلات التدقيق...', 0.95);
+      }
       final auditLogs = await db.select(db.auditLogs).get();
       collectionsData[AppwriteConfig.auditLogsCollectionId] =
           auditLogs.map((e) => e.toJson()).toList();
 
       // 17. Payment Voids
-      if (onProgress != null) onProgress('تصدير إلغاءات الدفع...', 0.98);
+      if (onProgress != null) {
+        onProgress('تصدير إلغاءات الدفع...', 0.98);
+      }
       final paymentVoids = await db.select(db.paymentVoids).get();
       collectionsData[AppwriteConfig.paymentVoidsCollectionId] =
           paymentVoids.map((e) => e.toJson()).toList();
@@ -197,7 +233,9 @@ class ComprehensiveAppwriteBackupService {
 
       await file.writeAsString(jsonEncode(payload));
 
-      if (onProgress != null) onProgress('تم إنشاء ملف النسخة الاحتياطية', 1.0);
+      if (onProgress != null) {
+        onProgress('تم إنشاء ملف النسخة الاحتياطية', 1.0);
+      }
 
       return file;
     } catch (e, stack) {
@@ -210,11 +248,13 @@ class ComprehensiveAppwriteBackupService {
   Future<void> restoreToAppwrite(
     File backupFile, {
     bool clearExisting = false,
-    Function(String, double)? onProgress,
+    void Function(String, double)? onProgress,
   }) async {
     try {
       // قراءة الملف
-      if (onProgress != null) onProgress('قراءة ملف النسخة الاحتياطية...', 0.0);
+      if (onProgress != null) {
+        onProgress('قراءة ملف النسخة الاحتياطية...', 0.0);
+      }
       final content = await backupFile.readAsString();
       final data = jsonDecode(content) as Map<String, dynamic>;
 
@@ -225,7 +265,9 @@ class ComprehensiveAppwriteBackupService {
 
       int totalItems = 0;
       collections.forEach((key, value) {
-        if (value is List) totalItems += value.length;
+        if (value is List) {
+          totalItems += value.length;
+        }
       });
 
       int processedItems = 0;
@@ -255,9 +297,9 @@ class ComprehensiveAppwriteBackupService {
             // استخراج المعرفات
             String? documentId;
             if (docData.containsKey('localUuid')) {
-              documentId = docData['localUuid'];
+              documentId = docData['localUuid'] as String?;
             } else if (docData.containsKey('\$id')) {
-              documentId = docData['\$id'];
+              documentId = docData['\$id'] as String?;
             } else {
               documentId = ID.unique();
             }
@@ -301,7 +343,9 @@ class ComprehensiveAppwriteBackupService {
         }
       }
 
-      if (onProgress != null) onProgress('تمت عملية الرفع بنجاح', 1.0);
+      if (onProgress != null) {
+        onProgress('تمت عملية الرفع بنجاح', 1.0);
+      }
     } catch (e, stack) {
       _logger.error(
         'Error restoring backup to Appwrite',

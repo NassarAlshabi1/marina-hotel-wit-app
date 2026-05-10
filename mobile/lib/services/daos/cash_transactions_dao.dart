@@ -19,7 +19,9 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
   }) async {
     final q = select(cashTransactions);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     if (type != null && type.isNotEmpty) {
       q.where((t) => t.transactionType.equals(type));
     }
@@ -48,7 +50,9 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
             t.referenceType.equals(referenceType) &
             t.referenceId.equals(referenceId),
       );
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     q.orderBy([
       (t) =>
           OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc),
@@ -58,7 +62,9 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
 
   Stream<List<CashTransaction>> watchList({bool includeDeleted = false}) {
     final q = select(cashTransactions);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     return q.watch();
   }
 
@@ -73,7 +79,9 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
   )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   Future<CashTransaction?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
-    if (parsedServerId == null) return Future.value(null);
+    if (parsedServerId == null) {
+      return Future.value();
+    }
     return (select(
       cashTransactions,
     )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
@@ -116,7 +124,9 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -147,7 +157,9 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getByLocalUuid(localUuid);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -177,12 +189,16 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
   }) async {
     return db.transaction(() async {
       final parsedServerId = _parseServerId(serverId);
-      if (parsedServerId == null) return 0;
+      if (parsedServerId == null) {
+        return 0;
+      }
       final now = Time.nowEpoch();
       final existing = await (select(
         cashTransactions,
       )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
@@ -213,7 +229,9 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final rows =
           await (update(cashTransactions)..where((t) => t.id.equals(id))).write(
             CashTransactionsCompanion(
@@ -300,9 +318,13 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
   }
 
   int? _parseServerId(String? value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     final trimmed = value.trim();
-    if (trimmed.isEmpty) return null;
+    if (trimmed.isEmpty) {
+      return null;
+    }
     return int.tryParse(trimmed);
   }
 
@@ -310,7 +332,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
 
   /// تصدير جميع معاملات النقدية إلى JSON
   Future<List<Map<String, dynamic>>> exportToJson() async {
-    final transactionsList = await list(includeDeleted: false);
+    final transactionsList = await list();
     return transactionsList.map((transaction) => transaction.toJson()).toList();
   }
 

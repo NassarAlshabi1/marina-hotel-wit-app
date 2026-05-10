@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
-import '../../providers/repository_providers.dart';
-import '../../models/shift_note_adapter.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../models/shift_note_adapter.dart';
+import '../../providers/repository_providers.dart';
 
 /// شاشة الملاحظات البسيطة
 class NotesScreen extends ConsumerStatefulWidget {
@@ -98,7 +101,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
-          data: (notes) => _buildNotesList(notes),
+          data: _buildNotesList,
         );
       },
     );
@@ -111,7 +114,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
-          data: (notes) => _buildNotesList(notes),
+          data: _buildNotesList,
         );
       },
     );
@@ -124,7 +127,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         return notesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('خطأ: $e')),
-          data: (notes) => _buildNotesList(notes),
+          data: _buildNotesList,
         );
       },
     );
@@ -144,22 +147,25 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       );
     }
 
-    return ListView.builder(
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      child: ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: notes.length,
       itemBuilder: (context, index) {
         final note = notes[index];
         return _buildNoteCard(note);
       },
+      ),
     );
   }
 
   Widget _buildNoteCard(ShiftNote note) {
-    final priorityColor = note.priority == 'high'
-        ? Colors.red
-        : note.priority == 'medium'
-        ? Colors.orange
-        : Colors.green;
+    final priorityColor = switch (note.priority) {
+      NotePriority.high => Colors.red,
+      NotePriority.medium => Colors.orange,
+      NotePriority.low => Colors.green,
+    };
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -213,20 +219,21 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     );
   }
 
-  void _handleNoteAction(String action, ShiftNote note) async {
+  Future<void> _handleNoteAction(String action, ShiftNote note) async {
     final repo = ref.read(simpleNotesRepoProvider);
 
     switch (action) {
       case 'read':
-        await repo.markAsRead(note.id);
-        _refreshData();
-        break;
+        try {
+          await repo.markAsRead(note.id);
+          unawaited(_refreshData());
+        } catch (e) {
+          debugPrint('❌ خطأ في تحديد الملاحظة كمقروءة: $e');
+        }
       case 'edit':
         _editNote(note);
-        break;
       case 'delete':
-        _deleteNote(note);
-        break;
+        unawaited(_deleteNote(note));
     }
   }
 
@@ -238,7 +245,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     _showNoteDialog(note: note);
   }
 
-  void _deleteNote(ShiftNote note) async {
+  Future<void> _deleteNote(ShiftNote note) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -246,11 +253,11 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         content: const Text('هل تريد حذف هذه الملاحظة؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('حذف'),
           ),
@@ -258,21 +265,31 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       ),
     );
 
-    if (confirmed == true) {
-      await ref.read(simpleNotesRepoProvider).deleteNote(note.id);
-      _refreshData();
+    if (confirmed ?? false) {
+      try {
+        await ref.read(simpleNotesRepoProvider).deleteNote(note.id);
+        unawaited(_refreshData());
+      } catch (e) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل حذف الملاحظة: $e'),
+            backgroundColor: Colors.red.shade900,
+          ),
+        );
+      }
     }
   }
 
   void _showNoteDialog({ShiftNote? note}) {
     final titleController = TextEditingController(text: note?.title ?? '');
     final contentController = TextEditingController(text: note?.content ?? '');
-    // ignore: prefer_final_locals
-    String priority = note?.priority.name ?? 'medium';
-    // ignore: prefer_final_locals
-    String shiftType = note?.shiftType.name ?? 'all';
+    var priority = note?.priority.name ?? 'medium';
+    final shiftType = note?.shiftType.name ?? 'all';
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -299,7 +316,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: priority,
+                initialValue: priority,
                 decoration: const InputDecoration(
                   labelText: 'الأولوية',
                   border: OutlineInputBorder(),
@@ -340,7 +357,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     );
   }
 
-  void _saveNote(
+  Future<void> _saveNote(
     ShiftNote? note,
     String title,
     String content,
@@ -349,30 +366,42 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   ) async {
     final repo = ref.read(simpleNotesRepoProvider);
 
-    if (note == null) {
-      // إضافة جديدة
-      await repo.addNote(
-        title: title,
-        content: content,
-        priority: priority,
-        shiftType: shiftType,
-      );
-    } else {
-      // تحديث موجود
-      await repo.updateNote(
-        note.id,
-        title: title,
-        content: content,
-        priority: priority,
-        shiftType: shiftType,
+    try {
+      if (note == null) {
+        // إضافة جديدة
+        await repo.addNote(
+          title: title,
+          content: content,
+          priority: priority,
+          shiftType: shiftType,
+        );
+      } else {
+        // تحديث موجود
+        await repo.updateNote(
+          note.id,
+          title: title,
+          content: content,
+          priority: priority,
+          shiftType: shiftType,
+        );
+      }
+
+      markDataChanged();
+      unawaited(_refreshData());
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حفظ الملاحظة: $e'),
+          backgroundColor: Colors.red.shade900,
+        ),
       );
     }
-
-    markDataChanged();
-    _refreshData();
   }
 
-  void _refreshData() {
+  Future<void> _refreshData() async {
     ref.invalidate(allSimpleNotesProvider);
     ref.invalidate(unreadSimpleNotesProvider);
     ref.invalidate(highPrioritySimpleNotesProvider);

@@ -7,12 +7,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// مُحسِّن أداء المزامنة
 /// يراقب حالة الاتصال ويحسن أداء المزامنة بناءً على نوع الشبكة
 class SyncPerformanceOptimizer {
-  static final SyncPerformanceOptimizer _instance =
-      SyncPerformanceOptimizer._internal();
 
   factory SyncPerformanceOptimizer() => _instance;
 
   SyncPerformanceOptimizer._internal();
+  static final SyncPerformanceOptimizer _instance =
+      SyncPerformanceOptimizer._internal();
 
   // إضافة static getter instance للوصول للـ singleton
   static SyncPerformanceOptimizer get instance => _instance;
@@ -49,7 +49,9 @@ class SyncPerformanceOptimizer {
 
   /// تهيئة مراقب الاتصال
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
 
     try {
       // فحص حالة الاتصال الحالية
@@ -60,7 +62,7 @@ class SyncPerformanceOptimizer {
       // الاشتراك في تغييرات حالة الاتصال
       _connectivitySubscription = connectivity.onConnectivityChanged.listen(
         _updateConnectivityStatus,
-        onError: (error) {
+        onError: (Object error) {
           debugPrint('❌ خطأ في مراقبة الاتصال: $error');
         },
       );
@@ -116,32 +118,29 @@ class SyncPerformanceOptimizer {
 
   /// الحصول على وصف نوع الاتصال
   String _getConnectionTypeString(List<ConnectivityResult> results) {
-    if (results.isEmpty) return 'لا يوجد اتصال';
+    if (results.isEmpty) {
+      return 'لا يوجد اتصال';
+    }
 
     final List<String> types = [];
-    for (var result in results) {
+    for (final result in results) {
       switch (result) {
         case ConnectivityResult.wifi:
           types.add('WiFi');
-          break;
         case ConnectivityResult.mobile:
           types.add('بيانات الهاتف');
-          break;
         case ConnectivityResult.ethernet:
           types.add('إيثرنت');
-          break;
         case ConnectivityResult.vpn:
           types.add('VPN');
-          break;
         case ConnectivityResult.bluetooth:
           types.add('بلوتوث');
-          break;
+        case ConnectivityResult.satellite:
+          types.add('قمر صناعي');
         case ConnectivityResult.other:
           types.add('أخرى');
-          break;
         case ConnectivityResult.none:
           types.add('لا يوجد اتصال');
-          break;
       }
     }
     return types.join(' + ');
@@ -176,7 +175,7 @@ class SyncPerformanceOptimizer {
     // التحقق من الحد الأدنى للفترة بين المزامنة
     if (_lastSyncTime != null) {
       final settings = getCurrentPerformanceSettings();
-      final minInterval = Duration(seconds: settings['syncInterval']);
+      final minInterval = Duration(seconds: settings['syncInterval'] as int);
       final timeSinceLastSync = DateTime.now().difference(_lastSyncTime!);
 
       if (timeSinceLastSync < minInterval) {
@@ -189,8 +188,16 @@ class SyncPerformanceOptimizer {
 
     // التحقق من عدد المحاولات الفاشلة
     final settings = getCurrentPerformanceSettings();
-    if (_syncAttempts >= settings['retryAttempts']) {
-      debugPrint('⏭️ تم تخطي المزامنة: تم الوصول للحد الأقصى للمحاولات');
+    if (_syncAttempts >= (settings['retryAttempts'] as num)) {
+      // ✅ إصلاح: بدلاً من التخطي الدائم، نتحقق من مرور فترة cooldown
+      const cooldownMinutes = 30;
+      if (_lastSyncTime != null &&
+          DateTime.now().difference(_lastSyncTime!).inMinutes >= cooldownMinutes) {
+        debugPrint('🔄 انتهت فترة cooldown - إعادة تعيين المحاولات والمحاولة مجدداً');
+        _syncAttempts = 0;
+        return false;
+      }
+      debugPrint('⏭️ تم تخطي المزامنة: تم الوصول للحد الأقصى للمحاولات (cooldown $cooldownMinutes دقيقة)');
       return true;
     }
 
@@ -340,14 +347,16 @@ class SyncPerformanceOptimizer {
 
   /// التحقق من تفعيل WiFi Only
   Future<bool> isWifiOnlyEnabled() async {
-    return await _isWifiOnlyEnabled();
+    return _isWifiOnlyEnabled();
   }
 
   /// حساب الفترة المحسنة للمزامنة بناءً على الأداء
   Future<int> calculateOptimizedInterval(int baseInterval) async {
     try {
       final isAdaptive = await isAdaptiveIntervalEnabled();
-      if (!isAdaptive) return baseInterval;
+      if (!isAdaptive) {
+        return baseInterval;
+      }
 
       // تحسين الفترة حسب حالة الشبكة وعدد الفشل
       int optimizedInterval = baseInterval;
@@ -362,7 +371,7 @@ class SyncPerformanceOptimizer {
 
       // زيادة الفترة مع كل فشل متتالي
       if (_syncAttempts > 0) {
-        optimizedInterval += (_syncAttempts * 30); // إضافة 30 ثانية لكل فشل
+        optimizedInterval += _syncAttempts * 30; // إضافة 30 ثانية لكل فشل
       }
 
       debugPrint(
@@ -393,5 +402,10 @@ class SyncPerformanceOptimizer {
     _connectivitySubscription = null;
     _isInitialized = false;
     debugPrint('🧹 تم تنظيف موارد مُحسِّن أداء المزامنة');
+  }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    _instance.dispose();
   }
 }

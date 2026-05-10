@@ -182,7 +182,7 @@ class SchemaComparisonScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            ...fields.map((field) => _buildFieldRow(field)),
+            ...fields.map(_buildFieldRow),
           ],
         ),
       ),
@@ -278,7 +278,7 @@ class SchemaComparisonScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            ...examples.map((ex) => _buildNamingRow(ex)),
+            ...examples.map(_buildNamingRow),
           ],
         ),
       ),
@@ -387,9 +387,9 @@ class SchemaComparisonScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -486,7 +486,7 @@ class SchemaComparisonScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            ...fixes.map((fix) => _buildFixRow(fix)),
+            ...fixes.map(_buildFixRow),
             const Divider(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -516,7 +516,7 @@ class SchemaComparisonScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: fix.color.withOpacity(0.1),
+        color: fix.color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -648,7 +648,7 @@ class SchemaComparisonScreen extends StatelessWidget {
   }
 
   void _showInfoDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('معلومات المقارنة'),
@@ -681,11 +681,6 @@ class SchemaComparisonScreen extends StatelessWidget {
 }
 
 class _FieldComparison {
-  final String name;
-  final String localType;
-  final String appwriteType;
-  final bool matches;
-  final String? note;
 
   _FieldComparison(
     this.name,
@@ -694,22 +689,22 @@ class _FieldComparison {
     this.matches, {
     this.note,
   });
+  final String name;
+  final String localType;
+  final String appwriteType;
+  final bool matches;
+  final String? note;
 }
 
 class _NamingExample {
+
+  _NamingExample(this.sqlName, this.dartName, this.note);
   final String sqlName;
   final String dartName;
   final String note;
-
-  _NamingExample(this.sqlName, this.dartName, this.note);
 }
 
 class _FixSummary {
-  final String problem;
-  final String solution;
-  final int filesModified;
-  final IconData icon;
-  final Color color;
 
   _FixSummary(
     this.problem,
@@ -718,4 +713,9 @@ class _FixSummary {
     this.icon,
     this.color,
   );
+  final String problem;
+  final String solution;
+  final int filesModified;
+  final IconData icon;
+  final Color color;
 }

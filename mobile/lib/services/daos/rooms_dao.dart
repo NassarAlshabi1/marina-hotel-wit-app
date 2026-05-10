@@ -20,18 +20,24 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
     int? offset,
   }) async {
     final q = select(rooms);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.roomNumber.like(s) | t.type.like(s) | t.status.like(s));
     }
-    if (limit != null) q.limit(limit, offset: offset ?? 0);
+    if (limit != null) {
+      q.limit(limit, offset: offset ?? 0);
+    }
     return q.get();
   }
 
   Stream<List<Room>> watchList({String? search, bool includeDeleted = false}) {
     final q = select(rooms);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.roomNumber.like(s) | t.type.like(s) | t.status.like(s));
@@ -70,7 +76,6 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
           entity: 'rooms',
           op: 'create',
           localUuid: uu,
-          serverId: null,
           payload: _payloadFromRoom(comp),
           clientTs: now,
         );
@@ -87,10 +92,13 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
+        version: Value(existing.version + 1),
       );
       final rows = await (update(
         rooms,
@@ -117,10 +125,13 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getByNumber(roomNumber);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
+        version: Value(existing.version + 1),
       );
       final rows = await (update(
         rooms,
@@ -146,7 +157,9 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getByNumber(roomNumber);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final rows =
           await (update(
             rooms,
@@ -173,11 +186,21 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
 
   Map<String, dynamic> _payloadFromRoom(RoomsCompanion comp, {Room? base}) {
     final map = <String, dynamic>{};
-    if (comp.roomNumber.present) map['room_number'] = comp.roomNumber.value;
-    if (comp.type.present) map['type'] = comp.type.value;
-    if (comp.price.present) map['price'] = comp.price.value;
-    if (comp.status.present) map['status'] = comp.status.value;
-    if (comp.imageUrl.present) map['image_url'] = comp.imageUrl.value;
+    if (comp.roomNumber.present) {
+      map['room_number'] = comp.roomNumber.value;
+    }
+    if (comp.type.present) {
+      map['type'] = comp.type.value;
+    }
+    if (comp.price.present) {
+      map['price'] = comp.price.value;
+    }
+    if (comp.status.present) {
+      map['status'] = comp.status.value;
+    }
+    if (comp.imageUrl.present) {
+      map['image_url'] = comp.imageUrl.value;
+    }
     return map;
   }
 
@@ -185,7 +208,7 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
 
   /// تصدير جميع الغرف إلى JSON
   Future<List<Map<String, dynamic>>> exportToJson() async {
-    final roomsList = await list(includeDeleted: false);
+    final roomsList = await list();
     return roomsList.map((room) => room.toJson()).toList();
   }
 

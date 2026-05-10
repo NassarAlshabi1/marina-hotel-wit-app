@@ -13,14 +13,15 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart';
+import 'conflict_resolver.dart';
 import 'daos/outbox_dao.dart';
 import 'google_drive_sync_service.dart';
 import 'local_db.dart';
-import 'sync_safety_layer.dart';
-import 'sync_mutex.dart';
-import 'sync_enums.dart';
 import 'sync_config.dart';
-import 'conflict_resolver.dart';
+import 'sync_conflict_event_bus.dart';
+import 'sync_enums.dart';
+import 'sync_mutex.dart';
+import 'sync_safety_layer.dart';
 import 'vector_clock.dart';
 
 /// واجهة اختيارية لإرسال إشعارات FCM عند اكتمال الرفع
@@ -40,6 +41,13 @@ class _SyncJob {
 
 /// مدير المزامنة الرئيسي المسؤول عن دمج البيانات ورفعها إلى Google Drive
 class SyncManager {
+
+  SyncManager({
+    required this.db,
+    required this.driveService,
+    this.triggerDispatcher,
+  }) : _statusController = StreamController<SyncStatus>.broadcast(),
+       _auditDao = SyncAuditDao(db);
   static SyncManager? _instance;
 
   static SyncManager get instance {
@@ -53,13 +61,6 @@ class SyncManager {
   static void configureSingleton(SyncManager manager) {
     _instance ??= manager;
   }
-
-  SyncManager({
-    required this.db,
-    required this.driveService,
-    this.triggerDispatcher,
-  }) : _statusController = StreamController<SyncStatus>.broadcast(),
-       _auditDao = SyncAuditDao(db);
 
   final AppDatabase db;
   final GoogleDriveSyncService driveService;
@@ -207,7 +208,7 @@ class SyncManager {
     _outboxWatchSub = OutboxDao(db).watchCount().listen((_) {
       _outboxDebounceTimer?.cancel();
       _outboxDebounceTimer = Timer(debounce, () {
-        unawaited(smartSync(force: false));
+        unawaited(smartSync());
       });
     });
   }
@@ -466,7 +467,9 @@ class SyncManager {
             )
             .get();
 
-        if (batch.isEmpty) break;
+        if (batch.isEmpty) {
+          break;
+        }
 
         final mappedBatch = batch
             .map((row) => Map<String, dynamic>.from(row.data))
@@ -688,7 +691,7 @@ class SyncManager {
 
     for (final table in allTableNames) {
       final remoteList = (remoteTables[table] ?? [])
-          .map((row) => Map<String, dynamic>.from(row))
+          .map(Map<String, dynamic>.from)
           .toList();
       final localList = (localTables[table] as List<dynamic>? ?? [])
           .map((row) => Map<String, dynamic>.from(row as Map))
@@ -772,9 +775,23 @@ class SyncManager {
           if (localUpdatedTs.isAfter(remoteUpdatedTs)) {
             winner = localRow;
             operation = 'update';
+            // إشعار: تغيير السيرفر تم تجاهله (المحلي أحدث)
+            SyncConflictEventBus.instance.emitSimple(
+              table: table,
+              localUuid: key,
+              winnerSide: 'local',
+              reason: 'البيانات المحلية أحدث من السيرفر',
+            );
           } else if (remoteUpdatedTs.isAfter(localUpdatedTs)) {
             winner = remoteRow;
             operation = 'remote';
+            // إشعار: البيانات المحلية تم تجاهلها (السيرفر أحدث)
+            SyncConflictEventBus.instance.emitSimple(
+              table: table,
+              localUuid: key,
+              winnerSide: 'remote',
+              reason: 'بيانات السيرفر أحدث من المحلية',
+            );
           } else {
             final equality = const DeepCollectionEquality().equals(
               remoteRow,
@@ -809,7 +826,9 @@ class SyncManager {
                 if (remoteVc != null && remoteVc.isNotEmpty) {
                   remoteVectorClock = VectorClock.fromJson(remoteVc);
                 }
-              } catch (_) {}
+              } catch (e) {
+                debugPrint('⚠️ VectorClock parse error for $table/$key: $e');
+              }
 
               final context = ConflictContext(
                 table: table,
@@ -850,6 +869,14 @@ class SyncManager {
 
               debugPrint(
                 '🔀 تعارض [$table/$key]: استراتيجية ${resolution.strategy.name}',
+              );
+
+              // إشعار: تضارب تم حله تلقائياً
+              SyncConflictEventBus.instance.emitSimple(
+                table: table,
+                localUuid: key,
+                winnerSide: isLocalWinner ? 'local' : 'remote',
+                reason: 'تضارب حقيقي - استراتيجية ${resolution.strategy.name}',
               );
             }
           }
@@ -1010,26 +1037,5 @@ class SyncManager {
     if (!_statusController.isClosed) {
       await _statusController.close();
     }
-  }
-}
-
-/// A [Sink] that accumulates all data added to it in a list.
-class AccumulatorSink<T> implements Sink<T> {
-  bool _isClosed = false;
-  final List<T> _events = [];
-
-  List<T> get events => List.unmodifiable(_events);
-
-  @override
-  void add(T data) {
-    if (_isClosed) {
-      throw StateError('Cannot add to a closed sink.');
-    }
-    _events.add(data);
-  }
-
-  @override
-  void close() {
-    _isClosed = true;
   }
 }

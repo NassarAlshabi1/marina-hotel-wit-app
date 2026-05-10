@@ -54,7 +54,9 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
   }
 
   Future<void> _saveSettings() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -78,7 +80,9 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -102,7 +106,9 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isTesting = false);
+      if (mounted) {
+        setState(() => _isTesting = false);
+      }
     }
   }
 
@@ -150,7 +156,7 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
         ],
       ),
     );
-    if (confirm == true) {
+    if (confirm ?? false) {
       await ApiConfigService.instance.removeServer(server.id);
       setState(() {});
     }
@@ -210,17 +216,14 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
         statusColor = Colors.green;
         statusText = 'متصل';
         statusIcon = Icons.check_circle;
-        break;
       case PhpApiStatus.connecting:
         statusColor = Colors.orange;
         statusText = 'جاري الاتصال...';
         statusIcon = Icons.sync;
-        break;
       case PhpApiStatus.error:
         statusColor = Colors.red;
         statusText = 'خطأ في الاتصال';
         statusIcon = Icons.error;
-        break;
       default:
         statusColor = Colors.grey;
         statusText = 'غير متصل';
@@ -275,7 +278,9 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
               ),
               keyboardType: TextInputType.url,
               validator: (v) {
-                if (v == null || v.isEmpty) return 'الرابط مطلوب';
+                if (v == null || v.isEmpty) {
+                  return 'الرابط مطلوب';
+                }
                 if (!v.startsWith('http://') && !v.startsWith('https://')) {
                   return 'يجب أن يبدأ الرابط بـ http:// أو https://';
                 }
@@ -541,7 +546,9 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
 
   Widget _buildRequestLogCard(ThemeData theme) {
     final logs = PhpApiService.instance.requestLog;
-    if (logs.isEmpty) return const SizedBox.shrink();
+    if (logs.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Card(
       child: ExpansionTile(
@@ -599,15 +606,15 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
 }
 
 class _AddServerDialog extends StatelessWidget {
-  final TextEditingController urlController;
-  final TextEditingController apiKeyController;
-  final TextEditingController nameController;
 
   const _AddServerDialog({
     required this.urlController,
     required this.apiKeyController,
     required this.nameController,
   });
+  final TextEditingController urlController;
+  final TextEditingController apiKeyController;
+  final TextEditingController nameController;
 
   @override
   Widget build(BuildContext context) {
@@ -638,7 +645,9 @@ class _AddServerDialog extends StatelessWidget {
         ),
         FilledButton(
           onPressed: () {
-            if (nameController.text.trim().isEmpty) return;
+            if (nameController.text.trim().isEmpty) {
+              return;
+            }
             final server = ServerInfo(
               id: const Uuid().v4(),
               name: nameController.text.trim(),
@@ -648,7 +657,7 @@ class _AddServerDialog extends StatelessWidget {
                   : apiKeyController.text.trim(),
               addedAt: DateTime.now(),
             );
-            Navigator.pop(context, server);
+            Navigator.pop<ServerInfo>(context, server);
           },
           child: const Text('إضافة'),
         ),

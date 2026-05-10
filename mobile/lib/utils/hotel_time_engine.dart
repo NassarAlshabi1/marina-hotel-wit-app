@@ -23,6 +23,31 @@ class HotelTimeEngine {
   /// ساعة بداية اليوم الفندقي (14:00)
   static const int boundaryHour = 14;
 
+  /// دالة لتحديد بداية ونهاية اليوم الفندقي لتاريخ معين.
+  /// اليوم الفندقي يبدأ الساعة 14:00 وينتهي في اليوم التالي الساعة 13:59:59.
+  static Map<String, DateTime> getHotelDayRange(DateTime date) {
+    DateTime hotelDayStart;
+    DateTime hotelDayEnd;
+
+    // إذا كان الوقت الحالي قبل الساعة 14:00
+    if (date.hour < boundaryHour) {
+      // اليوم الفندقي بدأ أمس الساعة 14:00
+      hotelDayStart = DateTime(date.year, date.month, date.day - 1, boundaryHour);
+      // وينتهي اليوم الساعة 13:59:59
+      hotelDayEnd = DateTime(date.year, date.month, date.day, boundaryHour - 1, 59, 59, 999);
+    } else { // إذا كان الوقت الحالي بعد أو يساوي الساعة 14:00
+      // اليوم الفندقي بدأ اليوم الساعة 14:00
+      hotelDayStart = DateTime(date.year, date.month, date.day, boundaryHour);
+      // وينتهي غداً الساعة 13:59:59
+      hotelDayEnd = DateTime(date.year, date.month, date.day + 1, boundaryHour - 1, 59, 59, 999);
+    }
+
+    return {
+      'start': hotelDayStart,
+      'end': hotelDayEnd,
+    };
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // تحويل التاريخ إلى يوم فندقي
   // ═══════════════════════════════════════════════════════════════
@@ -94,7 +119,6 @@ class HotelTimeEngine {
     return Time.nightsWithCutoff(
       checkIn,
       checkout: checkOut,
-      cutoffHour: boundaryHour,
     );
   }
 
@@ -157,7 +181,9 @@ class HotelTimeEngine {
     double discount = 0,
     String discountType = 'per_night',
   }) {
-    if (days <= 0 || roomPrice <= 0) return 0;
+    if (days <= 0 || roomPrice <= 0) {
+      return 0;
+    }
 
     double total = days * roomPrice;
 
@@ -183,8 +209,12 @@ class HotelTimeEngine {
     required String status,
     required String? checkoutDate,
   }) {
-    if (status != 'نشط') return false;
-    if (checkoutDate == null || checkoutDate.isEmpty) return false;
+    if (status != 'نشط') {
+      return false;
+    }
+    if (checkoutDate == null || checkoutDate.isEmpty) {
+      return false;
+    }
 
     try {
       final checkout = DateTime.parse(
@@ -263,9 +293,7 @@ class HotelTimeEngine {
     Map<String, dynamic> payload,
   ) {
     final result = Map<String, dynamic>.from(payload);
-    for (final field in bookingComputedFields) {
-      result.remove(field);
-    }
+    bookingComputedFields.forEach(result.remove);
     return result;
   }
 }

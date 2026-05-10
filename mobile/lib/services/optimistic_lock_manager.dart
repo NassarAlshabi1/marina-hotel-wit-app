@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart';
-import 'local_db.dart';
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
+
+import 'local_db.dart';
 
 class OptimisticLockException implements Exception {
   OptimisticLockException(
@@ -131,8 +132,8 @@ class OptimisticLockManager {
             d.Variable.withInt(newVersion),
           ],
         );
-      } catch (_) {
-        // Ignore rollback failure to avoid masking the original error.
+      } catch (e) {
+        debugPrint('⚠️ Version rollback failed after optimistic lock conflict: $e');
       }
       rethrow;
     }

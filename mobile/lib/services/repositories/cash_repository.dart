@@ -1,7 +1,9 @@
 import 'package:drift/drift.dart' as d;
-import '../local_db.dart';
-import '../daos/outbox_dao.dart';
+
+import '../crashlytics_service.dart';
 import '../daos/cash_transactions_dao.dart';
+import '../daos/outbox_dao.dart';
+import '../local_db.dart';
 
 class CashRepository {
   CashRepository(this.db)
@@ -33,18 +35,32 @@ class CashRepository {
     String? description,
     required String transactionTime,
     int? createdBy,
-  }) => dao.insertOne(
-    CashTransactionsCompanion(
-      registerId: d.Value(registerId),
-      transactionType: d.Value(type),
-      amount: d.Value(amount),
-      referenceType: d.Value(referenceType),
-      referenceId: d.Value(referenceId),
-      description: d.Value(description),
-      transactionTime: d.Value(transactionTime),
-      createdBy: d.Value(createdBy),
-    ),
-  );
+  }) async {
+    try {
+    return await dao.insertOne(
+      CashTransactionsCompanion(
+        registerId: d.Value(registerId),
+        transactionType: d.Value(type),
+        amount: d.Value(amount),
+        referenceType: d.Value(referenceType),
+        referenceId: d.Value(referenceId),
+        description: d.Value(description),
+        transactionTime: d.Value(transactionTime),
+        createdBy: d.Value(createdBy),
+      ),
+    );
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'CashRepository',
+        action: 'create',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.fatal,
+        extra: {'type': type, 'amount': '$amount'},
+      );
+      rethrow;
+    }
+  }
 
   Future<int> update(
     int id, {
@@ -56,25 +72,52 @@ class CashRepository {
     String? description,
     String? transactionTime,
     int? createdBy,
-  }) => dao.updateById(
-    id,
-    CashTransactionsCompanion(
-      registerId: d.Value(registerId),
-      transactionType: type != null ? d.Value(type) : const d.Value.absent(),
-      amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-      referenceType: d.Value(referenceType),
-      referenceId: d.Value(referenceId),
-      description: description != null
-          ? d.Value(description)
-          : const d.Value.absent(),
-      transactionTime: transactionTime != null
-          ? d.Value(transactionTime)
-          : const d.Value.absent(),
-      createdBy: d.Value(createdBy),
-    ),
-  );
+  }) async {
+    try {
+    return await dao.updateById(
+      id,
+      CashTransactionsCompanion(
+        // ✅ استخدام Value.absent() بدلاً من Value(null) لمنع مسح الحقول
+        registerId: registerId != null ? d.Value(registerId) : const d.Value.absent(),
+        transactionType: type != null ? d.Value(type) : const d.Value.absent(),
+        amount: amount != null ? d.Value(amount) : const d.Value.absent(),
+        referenceType: referenceType != null ? d.Value(referenceType) : const d.Value.absent(),
+        referenceId: referenceId != null ? d.Value(referenceId) : const d.Value.absent(),
+        description: description != null
+            ? d.Value(description)
+            : const d.Value.absent(),
+        transactionTime: transactionTime != null
+            ? d.Value(transactionTime)
+            : const d.Value.absent(),
+        createdBy: createdBy != null ? d.Value(createdBy) : const d.Value.absent(),
+      ),
+    );
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'CashRepository',
+        action: 'update',
+        error: e,
+        stackTrace: stack,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
+  }
 
-  Future<int> delete(int id) => dao.softDelete(id);
+  Future<int> delete(int id) async {
+    try {
+    return await dao.softDelete(id);
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'CashRepository',
+        action: 'delete',
+        error: e,
+        stackTrace: stack,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
+  }
 
   // دوال النسخ الاحتياطي
 
@@ -94,8 +137,7 @@ class CashRepository {
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
       await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data']),
-        clearExisting: false,
+        List<Map<String, dynamic>>.from(data['data'] as List),
       );
     }
   }
@@ -107,6 +149,6 @@ class CashRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 }

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
-import '../../services/appwrite_config_manager.dart';
 import '../../services/appwrite_config.dart';
+import '../../services/appwrite_config_manager.dart';
 import '../../utils/snackbar_helper.dart';
 
 class AppwriteConnectionSettingsScreen extends ConsumerStatefulWidget {
@@ -69,7 +70,9 @@ class _AppwriteConnectionSettingsScreenState
   }
 
   Future<void> _saveConfig() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _isSaving = true);
 
@@ -111,7 +114,7 @@ class _AppwriteConnectionSettingsScreenState
   }
 
   void _showRestartDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Row(
@@ -144,11 +147,11 @@ class _AppwriteConnectionSettingsScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             child: const Text('إعادة تعيين'),
           ),
@@ -156,7 +159,9 @@ class _AppwriteConnectionSettingsScreenState
       ),
     );
 
-    if (confirm != true) return;
+    if (confirm != true) {
+      return;
+    }
 
     await AppwriteConfigManager.resetToDefaults();
 
@@ -191,7 +196,7 @@ class _AppwriteConnectionSettingsScreenState
     setState(() => _isTesting = true);
 
     try {
-      await Future.delayed(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 2));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -391,8 +396,12 @@ class _AppwriteConnectionSettingsScreenState
   }
 
   String _maskApiKey(String value) {
-    if (value.isEmpty) return 'غير مضبوط';
-    if (value.length <= 6) return '••••••';
+    if (value.isEmpty) {
+      return 'غير مضبوط';
+    }
+    if (value.length <= 6) {
+      return '••••••';
+    }
     final tail = value.substring(value.length - 4);
     return '••••••$tail';
   }

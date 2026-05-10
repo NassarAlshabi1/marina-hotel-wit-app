@@ -41,6 +41,13 @@ class SyncConstants {
     milliseconds: 1000,
   );
 
+  /// الفترة الزمنية الدنيا بين سحبين تلقائيين عند فتح التطبيق
+  /// إذا مرت أقل من هذه المدة منذ آخر سحب تلقائي، يتم تخطي السحب
+  static const Duration appOpenSyncInterval = Duration(hours: 1);
+
+  /// مفتاح SharedPreferences لحفظ وقت آخر سحب تلقائي عند فتح التطبيق
+  static const String lastAppOpenPullKey = 'last_app_open_pull_epoch_ms';
+
   static const int googleDriveDefaultShardBytes = 4 * 1024 * 1024;
   static const int estimatedBytesPerDeltaChange = 500;
 }

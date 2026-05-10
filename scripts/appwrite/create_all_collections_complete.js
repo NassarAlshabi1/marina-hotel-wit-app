@@ -339,6 +339,39 @@ const collections = [
         ]
     },
     {
+        id: 'blacklist',
+        name: 'Blacklist',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'name', type: 'string', size: 200, required: true },
+            { key: 'nationality', type: 'string', size: 100, required: false },
+            { key: 'nationalId', type: 'string', size: 100, required: false },
+            { key: 'phone', type: 'string', size: 30, required: false },
+            { key: 'reason', type: 'string', size: 500, required: false },
+            { key: 'notes', type: 'string', size: 1000, required: false },
+            { key: 'reportedBy', type: 'string', size: 50, required: false, default: 'police' },
+            { key: 'active', type: 'boolean', required: false, default: true },
+            { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'string', size: 50, required: true },
+            { key: 'updatedAt', type: 'string', size: 50, required: false },
+            { key: 'deletedAt', type: 'string', size: 50, required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+            { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+            { key: 'deletedAtIso', type: 'string', size: 30, required: false },
+            { key: 'origin', type: 'string', size: 20, required: false },
+            { key: 'deviceId', type: 'string', size: 100, required: false },
+            { key: 'syncTimestamp', type: 'integer', required: false },
+        ],
+        indexes: [
+            { key: 'idx_bl_uuid', type: 'unique', attributes: ['localUuid'] },
+            { key: 'idx_bl_name', type: 'key', attributes: ['name'] },
+            { key: 'idx_bl_nid', type: 'key', attributes: ['nationalId'] },
+            { key: 'idx_bl_phone', type: 'key', attributes: ['phone'] },
+            { key: 'idx_bl_active', type: 'key', attributes: ['active'] },
+        ]
+    },
+    {
         id: 'devices',
         name: 'Devices',
         attributes: [

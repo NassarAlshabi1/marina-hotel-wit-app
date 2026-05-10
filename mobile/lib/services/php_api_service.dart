@@ -1,19 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'api_config_service.dart';
+
 import '../utils/field_mapper.dart';
+import 'api_config_service.dart';
 
 enum PhpApiStatus { disconnected, connecting, connected, error }
 
 class PhpApiResult<T> {
-  final bool success;
-  final T? data;
-  final String? message;
-  final int? statusCode;
-  final Map<String, dynamic>? errors;
 
   const PhpApiResult({
     required this.success,
@@ -39,16 +36,21 @@ class PhpApiResult<T> {
       errors: errors,
     );
   }
+  final bool success;
+  final T? data;
+  final String? message;
+  final int? statusCode;
+  final Map<String, dynamic>? errors;
 }
 
 class PhpApiService {
+  factory PhpApiService() => instance;
   PhpApiService._internal() {
     _initializeDio();
     ApiConfigService.instance.configNotifier.addListener(_onConfigChanged);
   }
 
   static final PhpApiService instance = PhpApiService._internal();
-  factory PhpApiService() => instance;
 
   late Dio _dio;
   static const _storage = FlutterSecureStorage();
@@ -115,12 +117,12 @@ class PhpApiService {
     handler.next(options);
   }
 
-  void _onResponse(Response response, ResponseInterceptorHandler handler) {
+  void _onResponse(Response<void> response, ResponseInterceptorHandler handler) {
     _logRequest(
       'RESPONSE',
       response.requestOptions.method,
       response.requestOptions.path,
-      response.data,
+      null,
       statusCode: response.statusCode,
     );
     handler.next(response);
@@ -143,11 +145,11 @@ class PhpApiService {
     }
 
     if (statusCode == 429 || statusCode >= 500) {
-      await Future.delayed(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 2));
       try {
         final response = await _retryRequest(e.requestOptions);
         return handler.resolve(response);
-      } catch (_) {}
+      } catch (e) { debugPrint('API retry failed: $e'); }
     }
 
     handler.next(e);
@@ -169,14 +171,14 @@ class PhpApiService {
       'path': path,
       'data': data?.toString().substring(
         0,
-        (data.toString().length).clamp(0, 500),
+        data.toString().length.clamp(0, 500),
       ),
       'statusCode': statusCode,
       'timestamp': DateTime.now().toIso8601String(),
     });
   }
 
-  Future<Response<dynamic>> _retryRequest(RequestOptions options) async {
+  Future<Response<void>> _retryRequest(RequestOptions options) async {
     final opts = Options(method: options.method, headers: options.headers);
     return _dio.request<dynamic>(
       options.path,
@@ -197,7 +199,7 @@ class PhpApiService {
   ) async {
     _updateStatus(PhpApiStatus.connecting);
     try {
-      final response = await _dio.post(
+      final response = await _dio.post<dynamic>(
         '/auth/login.php',
         data: jsonEncode({'username': username, 'password': password}),
       );
@@ -224,7 +226,7 @@ class PhpApiService {
 
       _updateStatus(PhpApiStatus.error);
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل تسجيل الدخول',
+        (response.data['message'] as String?) ?? 'فشل تسجيل الدخول',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -246,7 +248,7 @@ class PhpApiService {
   Future<PhpApiResult<bool>> testConnection() async {
     _updateStatus(PhpApiStatus.connecting);
     try {
-      final response = await _dio.get('/auth/ping.php');
+      final response = await _dio.get<dynamic>('/auth/ping.php');
       if (response.statusCode == 200 && response.data['success'] == true) {
         _updateStatus(PhpApiStatus.connected);
         return PhpApiResult.success(true, message: 'الاتصال ناجح');
@@ -261,10 +263,10 @@ class PhpApiService {
 
   Future<PhpApiResult<Map<String, dynamic>>> getServerInfo() async {
     try {
-      final response = await _dio.get('/info.php');
+      final response = await _dio.get<dynamic>('/info.php');
       if (response.statusCode == 200) {
         return PhpApiResult.success(
-          Map<String, dynamic>.from(response.data),
+          Map<String, dynamic>.from(response.data as Map),
           message: 'تم جلب معلومات السيرفر',
         );
       }
@@ -292,7 +294,7 @@ class PhpApiService {
         ...?extraParams,
       };
 
-      final response = await _dio.get(
+      final response = await _dio.get<dynamic>(
         '/$endpoint.php',
         queryParameters: queryParams,
       );
@@ -304,7 +306,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل جلب البيانات',
+        (response.data['message'] as String?) ?? 'فشل جلب البيانات',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -318,7 +320,7 @@ class PhpApiService {
   ) async {
     try {
       final endpoint = FieldMapper.getEndpoint(entity);
-      final response = await _dio.get('/$endpoint.php/$id');
+      final response = await _dio.get<dynamic>('/$endpoint.php/$id');
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         final rawData = response.data['data'] as Map<String, dynamic>;
@@ -327,7 +329,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'العنصر غير موجود',
+        (response.data['message'] as String?) ?? 'العنصر غير موجود',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -351,7 +353,7 @@ class PhpApiService {
         );
       }
 
-      final response = await _dio.post(
+      final response = await _dio.post<dynamic>(
         '/$endpoint.php',
         data: jsonEncode(phpData),
       );
@@ -365,7 +367,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل إنشاء العنصر',
+        (response.data['message'] as String?) ?? 'فشل إنشاء العنصر',
         statusCode: response.statusCode,
         errors: response.data['errors'] as Map<String, dynamic>?,
       );
@@ -383,7 +385,7 @@ class PhpApiService {
       final endpoint = FieldMapper.getEndpoint(entity);
       final phpData = FieldMapper.prepareForUpdate(entity, data);
 
-      final response = await _dio.put(
+      final response = await _dio.put<dynamic>(
         '/$endpoint.php/$id',
         data: jsonEncode(phpData),
       );
@@ -395,7 +397,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل تحديث العنصر',
+        (response.data['message'] as String?) ?? 'فشل تحديث العنصر',
         statusCode: response.statusCode,
         errors: response.data['errors'] as Map<String, dynamic>?,
       );
@@ -407,14 +409,14 @@ class PhpApiService {
   Future<PhpApiResult<bool>> delete(String entity, dynamic id) async {
     try {
       final endpoint = FieldMapper.getEndpoint(entity);
-      final response = await _dio.delete('/$endpoint.php/$id');
+      final response = await _dio.delete<dynamic>('/$endpoint.php/$id');
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         return PhpApiResult.success(true, message: 'تم الحذف بنجاح');
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل حذف العنصر',
+        (response.data['message'] as String?) ?? 'فشل حذف العنصر',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -437,20 +439,20 @@ class PhpApiService {
         };
       }).toList();
 
-      final response = await _dio.post(
+      final response = await _dio.post<dynamic>(
         '/sync/push.php',
         data: jsonEncode({'changes': processedChanges}),
       );
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         return PhpApiResult.success(
-          Map<String, dynamic>.from(response.data),
+          Map<String, dynamic>.from(response.data as Map),
           message: 'تمت المزامنة بنجاح',
         );
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل دفع التغييرات',
+        (response.data['message'] as String?) ?? 'فشل دفع التغييرات',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -460,7 +462,7 @@ class PhpApiService {
 
   Future<PhpApiResult<Map<String, dynamic>>> syncPull(int since) async {
     try {
-      final response = await _dio.get(
+      final response = await _dio.get<dynamic>(
         '/sync/pull.php',
         queryParameters: {'since': since},
       );
@@ -484,7 +486,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل سحب البيانات',
+        (response.data['message'] as String?) ?? 'فشل سحب البيانات',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -503,7 +505,7 @@ class PhpApiService {
         ...?extraFields,
       });
 
-      final response = await _dio.post('/$endpoint', data: formData);
+      final response = await _dio.post<dynamic>('/$endpoint', data: formData);
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         final url = response.data['data']['url'] as String?;
@@ -513,7 +515,7 @@ class PhpApiService {
       }
 
       return PhpApiResult.error(
-        response.data['message'] ?? 'فشل رفع الصورة',
+        (response.data['message'] as String?) ?? 'فشل رفع الصورة',
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
@@ -528,31 +530,28 @@ class PhpApiService {
     Map<String, dynamic>? queryParams,
   }) async {
     try {
-      Response response;
+      Response<void> response;
 
       switch (method.toUpperCase()) {
         case 'POST':
-          response = await _dio.post(
+          response = await _dio.post<dynamic>(
             endpoint,
             data: data != null ? jsonEncode(data) : null,
             queryParameters: queryParams,
           );
-          break;
         case 'PUT':
-          response = await _dio.put(
+          response = await _dio.put<dynamic>(
             endpoint,
             data: data != null ? jsonEncode(data) : null,
             queryParameters: queryParams,
           );
-          break;
         case 'DELETE':
-          response = await _dio.delete(endpoint, queryParameters: queryParams);
-          break;
+          response = await _dio.delete<dynamic>(endpoint, queryParameters: queryParams);
         default:
-          response = await _dio.get(endpoint, queryParameters: queryParams);
+          response = await _dio.get<dynamic>(endpoint, queryParameters: queryParams);
       }
 
-      return PhpApiResult.success(Map<String, dynamic>.from(response.data));
+      return PhpApiResult.success(Map<String, dynamic>.from(response.data as Map));
     } on DioException catch (e) {
       return PhpApiResult.error(_getDioErrorMessage(e));
     }
@@ -568,11 +567,21 @@ class PhpApiService {
         return 'انتهت مهلة استقبال البيانات';
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
-        if (statusCode == 401) return 'غير مصرح - يرجى تسجيل الدخول';
-        if (statusCode == 403) return 'ممنوع الوصول';
-        if (statusCode == 404) return 'المورد غير موجود';
-        if (statusCode == 422) return 'بيانات غير صالحة';
-        if (statusCode == 500) return 'خطأ في السيرفر';
+        if (statusCode == 401) {
+          return 'غير مصرح - يرجى تسجيل الدخول';
+        }
+        if (statusCode == 403) {
+          return 'ممنوع الوصول';
+        }
+        if (statusCode == 404) {
+          return 'المورد غير موجود';
+        }
+        if (statusCode == 422) {
+          return 'بيانات غير صالحة';
+        }
+        if (statusCode == 500) {
+          return 'خطأ في السيرفر';
+        }
         return 'خطأ في الاستجابة: $statusCode';
       case DioExceptionType.cancel:
         return 'تم إلغاء الطلب';

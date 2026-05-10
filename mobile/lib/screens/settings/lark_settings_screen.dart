@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -33,7 +35,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
 
   Future<void> _loadSettings() async {
     // انتظار حتى ينهي Provider التهيئة من SharedPreferences
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     final state = ref.read(larkProvider);
     _webhookController.text = state.webhookUrl;
     _appIdController.text = state.appId;
@@ -140,8 +142,8 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: state.isEnabled
-                        ? Colors.blue.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                        ? Colors.blue.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -179,7 +181,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   value: state.isEnabled,
                   onChanged: (value) =>
                       ref.read(larkProvider.notifier).setEnabled(value),
-                  activeColor: Colors.blue,
+                  activeThumbColor: Colors.blue,
                 ),
               ],
             ),
@@ -189,7 +191,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -235,11 +237,11 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
             const SizedBox(height: 8),
             TextField(
               controller: _webhookController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'https://open.larksuite.com/open-apis/bot/v2/hook/...',
-                prefixIcon: const Icon(Icons.link, size: 20),
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
+                prefixIcon: Icon(Icons.link, size: 20),
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 10,
                 ),
@@ -314,13 +316,13 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check_circle, color: Colors.green, size: 14),
+                        const Icon(Icons.check_circle, color: Colors.green, size: 14),
                         const SizedBox(width: 4),
                         Text(
                           'متصل',
@@ -340,13 +342,13 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
+                      color: Colors.grey.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.cloud_off, color: Colors.grey, size: 14),
+                        const Icon(Icons.cloud_off, color: Colors.grey, size: 14),
                         const SizedBox(width: 4),
                         Text(
                           'غير متصل',
@@ -366,7 +368,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -432,7 +434,9 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
 
       setState(() => _isSaving = false);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       // رسالة نجاح
       ScaffoldMessenger.of(context).showSnackBar(
@@ -451,7 +455,9 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
     } catch (e) {
       setState(() => _isSaving = false);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -486,8 +492,8 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: state.isNotificationsEnabled
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -528,7 +534,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   onChanged: (value) => ref
                       .read(larkProvider.notifier)
                       .setNotificationsEnabled(value),
-                  activeColor: Colors.green,
+                  activeThumbColor: Colors.green,
                 ),
               ],
             ),
@@ -587,8 +593,8 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: state.isDailyReportEnabled
-                        ? Colors.blue.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                        ? Colors.blue.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -629,7 +635,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   onChanged: (value) => ref
                       .read(larkProvider.notifier)
                       .setDailyReportEnabled(value),
-                  activeColor: Colors.blue,
+                  activeThumbColor: Colors.blue,
                 ),
               ],
             ),
@@ -676,11 +682,11 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
 
               // Chat ID لإرسال التقرير عبر Bot API
               const SizedBox(height: 16),
-              Row(
+              const Row(
                 children: [
-                  const Icon(Icons.chat, size: 20),
-                  const SizedBox(width: 8),
-                  const Text(
+                  Icon(Icons.chat, size: 20),
+                  SizedBox(width: 8),
+                  Text(
                     'Chat ID (اختياري):',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
@@ -695,7 +701,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.info_outline, size: 20),
                     onPressed: () {
-                      showDialog(
+                      showDialog<void>(
                         context: context,
                         builder: (ctx) => AlertDialog(
                           shape: RoundedRectangleBorder(
@@ -756,12 +762,12 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      const Icon(Icons.check_circle, color: Colors.green, size: 16),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -808,9 +814,9 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                   color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Column(
+                child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text('📊 حالة الغرف (مشغولة/متاحة/تنظيف/صيانة)'),
                     SizedBox(height: 4),
                     Text('📋 حجوزات اليوم (جديدة/دخول/خروج/نشطة)'),
@@ -855,7 +861,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                     : const Icon(Icons.wifi_tethering),
                 label: Text(state.status == LarkSetupStatus.testing
                     ? 'جاري الاختبار...'
-                    : 'اختبار الاتصال'),
+                    : 'اختبار الاتصال',),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.blue,
                   side: const BorderSide(color: Colors.blue),
@@ -885,7 +891,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
                     : const Icon(Icons.send),
                 label: Text(state.status == LarkSetupStatus.sendingReport
                     ? 'جاري الإرسال...'
-                    : 'إرسال تقرير تجريبي'),
+                    : 'إرسال تقرير تجريبي',),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
@@ -959,9 +965,9 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         label,
@@ -983,10 +989,10 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isSuccess
-            ? Colors.green.withOpacity(0.1)
+            ? Colors.green.withValues(alpha: 0.1)
             : isError
-                ? Colors.red.withOpacity(0.1)
-                : Colors.blue.withOpacity(0.1),
+                ? Colors.red.withValues(alpha: 0.1)
+                : Colors.blue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -1025,10 +1031,12 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
   Future<void> _selectReportTime(BuildContext context) async {
     final state = ref.read(larkProvider);
     final parts = state.dailyReportTime.split(':');
-    int hour = int.parse(parts[0]);
-    int minute = int.parse(parts[1]);
+    final int hour = int.parse(parts[0]);
+    final int minute = int.parse(parts[1]);
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
     final time = await showTimePicker(
       context: context,
@@ -1043,7 +1051,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
       final formatted =
           '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
       _reportTimeController.text = formatted;
-      ref.read(larkProvider.notifier).setDailyReportTime(formatted);
+      unawaited(ref.read(larkProvider.notifier).setDailyReportTime(formatted));
     }
   }
 }

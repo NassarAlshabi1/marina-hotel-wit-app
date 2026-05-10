@@ -1,7 +1,8 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter/foundation.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'sync_state.freezed.dart';
+part 'sync_state.g.dart';
 
 /// حالات المزامنة الممكنة
 enum SyncStatus {

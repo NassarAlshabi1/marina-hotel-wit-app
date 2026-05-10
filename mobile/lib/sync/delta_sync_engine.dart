@@ -1,10 +1,12 @@
 /// Delta Sync Engine
 /// محرك المزامنة المتغيرة - يزامن فقط ما تغير
 /// بناءً على Vector Clock و Outbox Pattern
+library;
 
 import 'dart:async';
 
 import 'models/sync_models.dart';
+import 'strategies/conflict_strategies.dart';
 import 'vector_clock.dart';
 
 /// محرك المزامنة الدلتا المتغيرة
@@ -16,14 +18,6 @@ import 'vector_clock.dart';
 /// - حل تلقائي للتعارضات
 /// - Exponential backoff للمحاولات الفاشلة
 class DeltaSyncEngine {
-  final SyncConfiguration _config;
-  final VectorClockManager _clockManager;
-  final OutboxDataSource _outbox;
-  final InboxDataSource _inbox;
-  final RemoteDataSource _remote;
-  final ConflictResolver _conflictResolver;
-  
-  final _eventController = StreamController<SyncEvent>.broadcast();
   
   DeltaSyncEngine({
     required SyncConfiguration config,
@@ -38,6 +32,14 @@ class DeltaSyncEngine {
         _inbox = inbox,
         _remote = remote,
         _conflictResolver = conflictResolver;
+  final SyncConfiguration _config;
+  final VectorClockManager _clockManager;
+  final OutboxDataSource _outbox;
+  final InboxDataSource _inbox;
+  final RemoteDataSource _remote;
+  final ConflictResolver _conflictResolver;
+  
+  final _eventController = StreamController<SyncEvent>.broadcast();
 
   /// Stream للأحداث
   Stream<SyncEvent> get events => _eventController.stream;
@@ -53,7 +55,7 @@ class DeltaSyncEngine {
     _emitEvent(SyncEventType.syncStarted);
     
     final stopwatch = Stopwatch()..start();
-    final result = DeltaSyncResult(timestamp: DateTime.now());
+    var result = DeltaSyncResult(timestamp: DateTime.now());
     
     try {
       // ⬇️ المرحلة 1: سحب التغييرات من السيرفر (Pull)
@@ -106,7 +108,7 @@ class DeltaSyncEngine {
     try {
       // جلب التغييرات من السيرفر
       final remoteChanges = await _remote.fetchChanges(
-        since: since ?? await _outbox.getLastSyncTimestamp(),
+        since: since ?? await _outbox.getLastSyncTimestamp() ?? DateTime.fromMillisecondsSinceEpoch(0),
         limit: _config.batchSize,
       );
 
@@ -199,7 +201,7 @@ class DeltaSyncEngine {
         );
 
         // حل التعارض تلقائياً
-        final resolution = await _conflictResolver.resolve(conflict);
+        final resolution = _conflictResolver.resolve(conflict);
         
         if (resolution.winner == Winner.remote) {
           await _outbox.applyChange(change);
@@ -310,7 +312,9 @@ class DeltaSyncEngine {
 
   /// حساب checksum للتحقق من سلامة البيانات
   String? _calculateChecksum(Map<String, dynamic> data) {
-    if (data.isEmpty) return null;
+    if (data.isEmpty) {
+      return null;
+    }
     
     final sortedKeys = data.keys.toList()..sort();
     final buffer = StringBuffer();
@@ -330,7 +334,7 @@ class DeltaSyncEngine {
       table: table,
       uuid: uuid,
       timestamp: DateTime.now(),
-    ));
+    ),);
   }
 
   /// التحقق من وجود تغييرات معلقة
@@ -341,7 +345,7 @@ class DeltaSyncEngine {
 
   /// الحصول على عدد التغييرات المعلقة
   Future<int> pendingChangesCount() async {
-    return await _outbox.pendingCount();
+    return _outbox.pendingCount();
   }
 
   /// إلغاء الاشتراك
@@ -366,10 +370,6 @@ class PushResult {
 
 /// نتيجة تطبيق تغيير
 class ApplyChangeResult {
-  final bool success;
-  final bool skipped;
-  final bool hasConflict;
-  final SyncConflict? conflict;
 
   ApplyChangeResult._({
     required this.success,
@@ -386,6 +386,10 @@ class ApplyChangeResult {
   
   factory ApplyChangeResult.conflict(SyncConflict conflict) => 
     ApplyChangeResult._(success: false, hasConflict: true, conflict: conflict);
+  final bool success;
+  final bool skipped;
+  final bool hasConflict;
+  final SyncConflict? conflict;
 }
 
 /// مصدر بيانات Outbox (التغييرات المحلية)
@@ -416,16 +420,11 @@ abstract class RemoteDataSource {
 
 /// نتيجة رفع التغييرات
 class PushChangesResult {
-  final List<String> successfulIds;
-  final Map<String, String> errors;
 
   PushChangesResult({
     this.successfulIds = const [],
     this.errors = const {},
   });
-}
-
-/// محلل التعارضات
-abstract class ConflictResolver {
-  Future<ConflictResolutionResult> resolve(SyncConflict conflict);
+  final List<String> successfulIds;
+  final Map<String, String> errors;
 }

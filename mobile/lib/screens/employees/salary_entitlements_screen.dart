@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
-import '../../services/salary_entitlement_service.dart';
 import '../../services/local_db.dart';
+import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
 
 class SalaryEntitlementsScreen extends ConsumerStatefulWidget {
@@ -40,7 +41,9 @@ class _SalaryEntitlementsScreenState
         ).showSnackBar(SnackBar(content: Text('فشل تحميل البيانات: $e')));
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -75,7 +78,7 @@ class _SalaryEntitlementsScreenState
           style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        ..._entitlements.map((e) => _buildEmployeeCard(e)),
+        ..._entitlements.map(_buildEmployeeCard),
       ],
     );
   }
@@ -97,24 +100,24 @@ class _SalaryEntitlementsScreenState
             _row(
               'إجمالي الاستحقاقات',
               CurrencyFormatter.formatAmount(
-                _summary['totalEntitlements'] ?? 0,
+                (_summary['totalEntitlements'] as num?)?.toDouble() ?? 0.0,
               ),
               Colors.green,
             ),
             _row(
               'إجمالي السحبيات',
-              CurrencyFormatter.formatAmount(_summary['totalWithdrawals'] ?? 0),
+              CurrencyFormatter.formatAmount((_summary['totalWithdrawals'] as num?)?.toDouble() ?? 0.0),
               Colors.orange,
             ),
             _row(
               'إجمالي الخصومات',
-              CurrencyFormatter.formatAmount(_summary['totalDeductions'] ?? 0),
+              CurrencyFormatter.formatAmount((_summary['totalDeductions'] as num?)?.toDouble() ?? 0.0),
               Colors.red,
             ),
             const Divider(),
             _row(
               'صافي المستحقات',
-              CurrencyFormatter.formatAmount(_summary['totalNet'] ?? 0),
+              CurrencyFormatter.formatAmount((_summary['totalNet'] as num?)?.toDouble() ?? 0.0),
               Colors.blue.shade700,
               true,
             ),

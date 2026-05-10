@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
+import '../../components/widgets/room_widgets.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/room_payment_status_provider.dart'; // استيراد البروفايدر الجديد
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
-import '../../components/widgets/room_widgets.dart';
 import '../../utils/status_utils.dart';
 import '../bookings/booking_edit.dart';
 import '../payments/booking_payment_screen.dart';
@@ -14,7 +18,8 @@ class RoomsDashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final roomsAsync = ref.watch(roomsListProvider);
+    // استخدام البروفايدر الجديد الذي يدمج الغرف مع حالة السداد
+    final roomsWithStatusAsync = ref.watch(roomsWithPaymentStatusProvider);
 
     return AppScaffold(
       title: 'حالة الغرف',
@@ -25,7 +30,7 @@ class RoomsDashboard extends ConsumerWidget {
           tooltip: 'مزامنة',
         ),
       ],
-      body: roomsAsync.when(
+      body: roomsWithStatusAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(
           child: Column(
@@ -37,8 +42,8 @@ class RoomsDashboard extends ConsumerWidget {
             ],
           ),
         ),
-        data: (rooms) {
-          if (rooms.isEmpty) {
+        data: (roomsWithStatus) {
+          if (roomsWithStatus.isEmpty) {
             return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -51,7 +56,7 @@ class RoomsDashboard extends ConsumerWidget {
             );
           }
 
-          return _buildFloorsView(context, ref, rooms);
+          return _buildFloorsView(context, ref, roomsWithStatus);
         },
       ),
     );
@@ -60,12 +65,13 @@ class RoomsDashboard extends ConsumerWidget {
   Widget _buildFloorsView(
     BuildContext context,
     WidgetRef ref,
-    List<Room> rooms,
+    List<RoomWithPaymentStatus> roomsWithStatus,
   ) {
     // تنظيم الغرف حسب الطوابق
-    final Map<String, List<Room>> floorMap = {};
+    final Map<String, List<RoomWithPaymentStatus>> floorMap = {};
 
-    for (final room in rooms) {
+    for (final roomData in roomsWithStatus) {
+      final room = roomData.room;
       // استخراج رقم الطابق من رقم الغرفة (الرقم الأول)
       String floorNumber;
       if (room.roomNumber.isNotEmpty) {
@@ -77,54 +83,102 @@ class RoomsDashboard extends ConsumerWidget {
       if (!floorMap.containsKey(floorNumber)) {
         floorMap[floorNumber] = [];
       }
-      floorMap[floorNumber]!.add(room);
+      floorMap[floorNumber]!.add(roomData);
     }
 
     // ترتيب الطوابق والغرف
     final sortedFloors = floorMap.keys.toList()..sort();
     for (final floor in sortedFloors) {
       floorMap[floor]!.sort(
-        (a, b) => _compareRoomNumbers(a.roomNumber, b.roomNumber),
+        (a, b) => _compareRoomNumbers(a.room.roomNumber, b.room.roomNumber),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: sortedFloors.length,
-      itemBuilder: (context, index) {
-        final floorNumber = sortedFloors[index];
-        final floorRooms = floorMap[floorNumber]!;
-
-        return FloorSection(
-          floorNumber: floorNumber,
-          rooms: floorRooms,
-          onRoomTap: (room) => _handleRoomTap(context, ref, room),
-          isCollapsible: true,
-          initiallyExpanded: index < 2, // فتح أول طابقين بشكل افتراضي
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(roomsWithPaymentStatusProvider);
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: sortedFloors.length,
+        itemBuilder: (context, index) {
+          final floorNumber = sortedFloors[index];
+          final floorRooms = floorMap[floorNumber]!;
+
+          return RepaintBoundary(
+            child: FloorSection(
+              floorNumber: floorNumber,
+              rooms: floorRooms,
+              onRoomTap: (room) => _handleRoomTap(context, ref, room),
+              isCollapsible: true,
+              initiallyExpanded: index < 2,
+            ),
+          );
+        },
+      ),
     );
   }
 
   void _handleRoomTap(BuildContext context, WidgetRef ref, Room room) {
-    showDialog(
-      context: context,
-      builder: (context) => RoomDetailsDialog(
-        room: room,
-        onBookRoom: StatusUtils.isRoomAvailable(room.status)
-            ? () => _navigateToBooking(context, room.roomNumber)
-            : null,
-        onViewBookings: !StatusUtils.isRoomAvailable(room.status)
-            ? () => _showRoomBookings(context, ref, room.roomNumber)
-            : null,
+    final isAvailable = StatusUtils.isRoomAvailable(room.status);
+    final isOccupied = StatusUtils.isRoomOccupied(room.status);
+
+    if (isAvailable) {
+      // الانتقال مباشرة إلى شاشة إضافة حجز جديد عند النقر على غرفة شاغرة
+      _navigateToBooking(context, room.roomNumber);
+    } else if (isOccupied) {
+      // الانتقال مباشرة إلى شاشة الدفع/عرض الحجز عند النقر على غرفة محجوزة
+      _showRoomBookings(context, ref, room.roomNumber);
+    } else {
+      // للحالات الأخرى مثل الصيانة، نعرض التفاصيل
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('غرفة ${room.roomNumber}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow('الحالة', room.status),
+              if (room.type.isNotEmpty) _buildDetailRow('النوع', room.type),
+              if (room.price > 0)
+                _buildDetailRow(
+                  'السعر',
+                  '${room.price.toStringAsFixed(0)} ريال',
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Text(value),
+        ],
       ),
     );
   }
 
   void _navigateToBooking(BuildContext context, String roomNumber) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
       ),
     );
   }
@@ -156,11 +210,10 @@ class RoomsDashboard extends ConsumerWidget {
         return;
       }
 
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => BookingPaymentScreen(booking: activeBooking),
+      unawaited(Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(builder: (_) => BookingPaymentScreen(booking: activeBooking),
         ),
-      );
+      ),);
     } catch (e) {
       if (!context.mounted) {
         return;

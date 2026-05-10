@@ -10,17 +10,13 @@ import 'google_drive_backup_service.dart';
 import 'google_drive_conflict_resolver.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
-import 'unified_sync_orchestrator.dart';
-import 'sync_locks.dart';
-import 'sync_constants.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
+import 'sync_constants.dart';
+import 'sync_locks.dart';
+import 'unified_sync_orchestrator.dart';
 
 class RetryConfig {
-  final int maxRetries;
-  final int baseDelaySeconds;
-  final int maxDelaySeconds;
-  final double backoffMultiplier;
 
   const RetryConfig({
     this.maxRetries = 5,
@@ -28,6 +24,10 @@ class RetryConfig {
     this.maxDelaySeconds = 300,
     this.backoffMultiplier = 2.0,
   });
+  final int maxRetries;
+  final int baseDelaySeconds;
+  final int maxDelaySeconds;
+  final double backoffMultiplier;
 
   int calculateDelay(int attemptNumber) {
     final delay =
@@ -37,14 +37,6 @@ class RetryConfig {
 }
 
 class AutoSyncEngineState {
-  final bool isRunning;
-  final bool hasNetworkConnection;
-  final bool isSignedIn;
-  final int pendingChangesCount;
-  final DateTime? lastSuccessfulSync;
-  final int failedAttempts;
-  final DateTime? nextRetryAt;
-  final String? lastError;
 
   const AutoSyncEngineState({
     required this.isRunning,
@@ -56,6 +48,14 @@ class AutoSyncEngineState {
     this.nextRetryAt,
     this.lastError,
   });
+  final bool isRunning;
+  final bool hasNetworkConnection;
+  final bool isSignedIn;
+  final int pendingChangesCount;
+  final DateTime? lastSuccessfulSync;
+  final int failedAttempts;
+  final DateTime? nextRetryAt;
+  final String? lastError;
 
   AutoSyncEngineState copyWith({
     bool? isRunning,
@@ -88,11 +88,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   GoogleDriveBackupService? _backupService;
   GoogleDriveUnifiedSyncCoordinator? _coordinator;
-  UnifiedSyncOrchestrator? _orchestrator;
+  late UnifiedSyncOrchestrator _orchestrator;
   GoogleDriveConflictResolver? _conflictResolver;
   GoogleDriveLogger? _logger;
   // ignore: unused_field
-  AppDatabase? _database;
+  late AppDatabase _database;
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   StreamSubscription<SyncResult>? _syncResultSubscription;
@@ -118,10 +118,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   static const String _prefsRetryEnabledKey = 'auto_sync_engine_retry_enabled';
 
   final RetryConfig _retryConfig = const RetryConfig(
-    maxRetries: 5,
-    baseDelaySeconds: 2,
-    maxDelaySeconds: 300,
-    backoffMultiplier: 2.0,
+    
   );
 
   Stream<AutoSyncEngineState> get stateStream => _stateController.stream;
@@ -171,7 +168,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     );
 
     _orchestrator = UnifiedSyncOrchestrator.instance;
-    await _orchestrator!.initialize(database: database);
+    await _orchestrator.initialize(database: database);
 
     _conflictResolver = GoogleDriveConflictResolver.instance;
     _conflictResolver!.initialize(logger);
@@ -189,8 +186,12 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   Future<void> start() async {
     final canStart = await SyncLocks.autoEngineLock.synchronized(() async {
-      if (!_isInitialized) return _StartResult.notInitialized;
-      if (_isRunning) return _StartResult.alreadyRunning;
+      if (!_isInitialized) {
+        return _StartResult.notInitialized;
+      }
+      if (_isRunning) {
+        return _StartResult.alreadyRunning;
+      }
 
       _isRunning = true;
       return _StartResult.ok;
@@ -215,7 +216,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _startHealthCheck();
 
     if (_isSignedIn && _hasNetworkConnection) {
-      await _performInitialSync();
+      // ✅ نستخدم المنسق مباشرة بدلاً من _performInitialSync()
+      // لتجنب تشغيل مزامنة Appwrite (outbox) عند بدء المحرك
+      await _coordinator!.performSync(
+        trigger: SyncTrigger.manual,
+      );
     }
 
     _log('✅ Auto Sync Engine started successfully');
@@ -227,7 +232,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   void stop() {
     SyncLocks.autoEngineLock.synchronized(() {
-      if (!_isRunning) return;
+      if (!_isRunning) {
+        return;
+      }
 
       _log('🛑 Stopping Auto Sync Engine...');
 
@@ -258,7 +265,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   Future<void> restart() async {
     _log('🔄 Restarting Auto Sync Engine...');
     stop();
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     await start();
     _log('✅ Auto Sync Engine restarted');
   }
@@ -284,7 +291,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
           _retryTimer?.cancel();
         }
       },
-      onError: (error) {
+      onError: (Object error) {
         _log('❌ Connectivity listener error: $error', level: LogLevel.error);
       },
     );
@@ -346,7 +353,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
         _emitState();
       },
-      onError: (error) {
+      onError: (Object error) {
         _log('❌ Sync result listener error: $error', level: LogLevel.error);
       },
     );
@@ -379,7 +386,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
     final shouldRun = await SyncLocks.autoEngineLock.synchronized(
       () => _isRunning,
     );
-    if (!shouldRun) return;
+    if (!shouldRun) {
+      return;
+    }
 
     _log('❤️ Performing health check...');
 
@@ -393,18 +402,15 @@ class AutoSyncEngine with WidgetsBindingObserver {
     if (_hasNetworkConnection && _isSignedIn) {
       if (_pendingChangesCount > 0) {
         _log('❤️ Health check: found pending changes - triggering sync');
-        await _orchestrator!.syncNow(
-          push: true,
-          pull: true,
+        await _orchestrator.syncNow(
           reason: 'health_check',
         );
       }
 
       if (!hadConnection || !wasSignedIn) {
         _log('❤️ Health check: connection/auth restored - triggering pull');
-        await _orchestrator!.syncNow(
+        await _orchestrator.syncNow(
           push: false,
-          pull: true,
           reason: 'health_check_pull',
         );
       }
@@ -425,7 +431,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
         final account = await _backupService!.attemptSilentSignIn();
         if (account != null) {
           _isSignedIn = true;
-          await _orchestrator!.onDriveSignInChanged(true);
+          await _orchestrator.onDriveSignInChanged(true);
           _log('✅ Silent sign-in successful');
         } else {
           _log('⚠️ Silent sign-in failed - user intervention needed');
@@ -439,18 +445,16 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
     if (_pendingChangesCount > 0) {
       _log(
-        '📤 Syncing ${_pendingChangesCount} pending changes after network restore',
+        '📤 Syncing $_pendingChangesCount pending changes after network restore',
       );
-      await _orchestrator!.syncNow(
-        push: true,
+      await _orchestrator.syncNow(
         pull: false,
         reason: 'network_restore_push',
       );
     } else {
       _log('📥 Checking for remote changes after network restore');
-      await _orchestrator!.syncNow(
+      await _orchestrator.syncNow(
         push: false,
-        pull: true,
         reason: 'network_restore_pull',
       );
     }
@@ -470,7 +474,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> _onAppResumed() async {
-    if (!_isRunning) return;
+    if (!_isRunning) {
+      return;
+    }
 
     _log('📱 App resumed - triggering foreground sync');
 
@@ -492,7 +498,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
         final account = await _backupService!.attemptSilentSignIn();
         if (account != null) {
           _isSignedIn = true;
-          await _orchestrator!.onDriveSignInChanged(true);
+          await _orchestrator.onDriveSignInChanged(true);
         } else {
           _log('⚠️ Silent sign-in failed');
           return;
@@ -503,9 +509,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
       }
     }
 
-    Future.delayed(SyncConstants.appForegroundDelay, () async {
+    Future<void>.delayed(SyncConstants.appForegroundDelay, () async {
       try {
-        await _orchestrator!.onAppForeground();
+        await _orchestrator.onAppForeground();
       } catch (e) {
         _log('❌ Error on app foreground sync: $e', level: LogLevel.error);
       }
@@ -518,14 +524,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
     if (_pendingChangesCount > 0 && _hasNetworkConnection && _isSignedIn) {
       _log('💾 App paused with pending changes - quick sync before background');
 
-      _orchestrator!
-          .syncNow(push: true, pull: false, reason: 'app_paused')
+      _orchestrator
+          .syncNow(pull: false, reason: 'app_paused')
           .then((result) {
             if (result) {
               _log('✅ Quick sync before background completed');
             }
           })
-          .catchError((error) {
+          .catchError((Object error) {
             _log('⚠️ Quick sync before background failed: $error');
           });
     }
@@ -541,7 +547,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
     int count = 1,
     Map<String, dynamic>? recordData,
   }) {
-    if (!_isRunning) return;
+    if (!_isRunning) {
+      return;
+    }
 
     SyncLocks.autoEngineLock.synchronized(() {
       _pendingChangesCount += count;
@@ -553,7 +561,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
       '💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)',
     );
 
-    _orchestrator!.notifyLocalChange(table: table, operation: operation);
+    _orchestrator.notifyLocalChange(table: table, operation: operation);
   }
 
   Future<void> _scheduleRetry() async {
@@ -590,7 +598,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
             return;
           }
           _isSignedIn = true;
-          await _orchestrator!.onDriveSignInChanged(true);
+          await _orchestrator.onDriveSignInChanged(true);
         } catch (e) {
           _log('❌ Retry sign-in error: $e');
           await _scheduleRetry();
@@ -598,25 +606,12 @@ class AutoSyncEngine with WidgetsBindingObserver {
         }
       }
 
-      await _orchestrator!.syncNow(
-        push: true,
-        pull: true,
+      await _orchestrator.syncNow(
         reason: 'auto_retry',
       );
     });
   }
 
-  Future<void> _performInitialSync() async {
-    _log('🎬 Performing initial sync...');
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    await _orchestrator!.syncNow(
-      push: true,
-      pull: true,
-      reason: 'initial_sync',
-    );
-  }
 
   Future<void> onSignInChanged(bool isSignedIn) async {
     _log('🔐 Sign-in status changed: $isSignedIn');
@@ -628,13 +623,18 @@ class AutoSyncEngine with WidgetsBindingObserver {
       _failedAttempts = 0;
       _nextRetryAt = null;
 
+      // ✅ نبدل مراقبة Google Drive فقط عبر المنسق (coordinator)
+      // المنسق يتكفّل ببدء المراقبة + تنفيذ مزامنة يدوية أولى
+      // ❌ لا نستدعي _performInitialSync() لأنه يمرّ عبر UnifiedSyncOrchestrator
+      //    الذي يشغّل مزامنة Appwrite (push من outbox) — والمستخدم لا يريد
+      //    أن يتدخّل تسجيل دخول Google Drive في الـ outbox
       await _coordinator!.onSignInChanged(true);
 
-      if (_hasNetworkConnection && _isRunning) {
-        await _performInitialSync();
-      }
+      // نُعلم الـ orchestrator بتغيّر حالة تسجيل الدخول (بدون تشغيل مزامنة)
+      // ليكون على علم بحالة Google Drive لأغراض الـ sync اللاحقة
+      await _orchestrator.onDriveSignInChanged(true);
     } else {
-      await _orchestrator!.onDriveSignInChanged(false);
+      await _orchestrator.onDriveSignInChanged(false);
       _retryTimer?.cancel();
     }
   }
@@ -656,10 +656,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
     }
 
     final debounce = prefs.getInt(_prefsDebounceSecondsKey) ?? 5;
-    await _orchestrator!.setDebounceSeconds(debounce);
+    await _orchestrator.setDebounceSeconds(debounce);
 
     final pullInterval = prefs.getInt(_prefsPullIntervalKey) ?? 2;
-    await _orchestrator!.setPullInterval(pullInterval);
+    await _orchestrator.setPullInterval(pullInterval);
 
     final strategy = await _conflictResolver!.getStrategy();
     _log(
@@ -670,14 +670,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
   Future<void> setDebounceSeconds(int seconds) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsDebounceSecondsKey, seconds);
-    await _orchestrator!.setDebounceSeconds(seconds);
+    await _orchestrator.setDebounceSeconds(seconds);
     _log('⏱️ Debounce updated: ${seconds}s');
   }
 
   Future<void> setPullInterval(int minutes) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefsPullIntervalKey, minutes);
-    await _orchestrator!.setPullInterval(minutes);
+    await _orchestrator.setPullInterval(minutes);
     _log('⏰ Pull interval updated: ${minutes}min');
   }
 
@@ -703,7 +703,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('🚀 Force sync triggered by user');
 
     if (!_hasNetworkConnection) {
-      final message = 'لا يوجد اتصال بالإنترنت';
+      const message = 'لا يوجد اتصال بالإنترنت';
       _log('📴 $message');
       return SyncResult.failure(
         message: message,
@@ -713,7 +713,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     }
 
     if (!_isSignedIn) {
-      final message = 'غير مسجل الدخول في Google Drive';
+      const message = 'غير مسجل الدخول في Google Drive';
       _log('🔐 $message');
       return SyncResult.failure(
         message: message,
@@ -722,9 +722,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
       );
     }
 
-    final ok = await _orchestrator!.syncNow(
-      push: true,
-      pull: true,
+    final ok = await _orchestrator.syncNow(
       reason: 'manual_force',
     );
 
@@ -774,5 +772,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
     stop();
     _stateController.close();
     _log('🛑 Auto Sync Engine disposed');
+  }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    instance.dispose();
   }
 }

@@ -4,6 +4,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// مدير الإشعارات للمزامنة التلقائية
 class SyncNotificationManager {
+
+  SyncNotificationManager._() {
+    _initLocalNotifications();
+  }
   static SyncNotificationManager? _instance;
   static SyncNotificationManager get instance =>
       _instance ??= SyncNotificationManager._();
@@ -12,12 +16,10 @@ class SyncNotificationManager {
       FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
 
-  SyncNotificationManager._() {
-    _initLocalNotifications();
-  }
-
   Future<void> _initLocalNotifications() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
 
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
@@ -39,7 +41,9 @@ class SyncNotificationManager {
     required String body,
     String? payload,
   }) async {
-    if (!_isInitialized) await _initLocalNotifications();
+    if (!_isInitialized) {
+      await _initLocalNotifications();
+    }
 
     const androidDetails = AndroidNotificationDetails(
       'marina_notes_channel',
@@ -47,8 +51,6 @@ class SyncNotificationManager {
       channelDescription: 'تنبيهات عند وصول ملاحظات إدارية جديدة',
       importance: Importance.max,
       priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
     );
 
     const details = NotificationDetails(android: androidDetails);
@@ -87,7 +89,7 @@ class SyncNotificationManager {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -98,7 +100,7 @@ class SyncNotificationManager {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -148,7 +150,7 @@ class SyncNotificationManager {
     overlay.insert(overlayEntry);
 
     // إزالة تلقائية بعد 5 ثوان
-    Future.delayed(const Duration(seconds: 5), () {
+    Future<void>.delayed(const Duration(seconds: 5), () {
       try {
         overlayEntry.remove();
       } catch (_) {}
@@ -185,7 +187,7 @@ class SyncNotificationManager {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -200,7 +202,7 @@ class SyncNotificationManager {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -276,7 +278,7 @@ class SyncNotificationManager {
     overlay.insert(overlayEntry);
 
     // إزالة تلقائية بعد 7 ثوان
-    Future.delayed(const Duration(seconds: 7), () {
+    Future<void>.delayed(const Duration(seconds: 7), () {
       try {
         overlayEntry.remove();
       } catch (_) {}
@@ -341,7 +343,7 @@ class SyncNotificationManager {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -356,7 +358,7 @@ class SyncNotificationManager {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -427,7 +429,7 @@ class SyncNotificationManager {
                           onViewDetails();
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.2),
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
                             vertical: 8,
@@ -449,7 +451,7 @@ class SyncNotificationManager {
     overlay.insert(overlayEntry);
 
     // إزالة تلقائية بعد 10 ثوان
-    Future.delayed(const Duration(seconds: 10), () {
+    Future<void>.delayed(const Duration(seconds: 10), () {
       try {
         overlayEntry.remove();
       } catch (_) {}
@@ -457,5 +459,79 @@ class SyncNotificationManager {
 
     // اهتزاز للإشعار
     HapticFeedback.selectionClick();
+  }
+
+  /// إشعار بوجود تضارب في البيانات تم حله تلقائياً
+  /// يُستدعى عندما يتم تجاهل تغييرات السيرفر أو المحلية أثناء المزامنة
+  static void showConflictWarning(
+    BuildContext context, {
+    required String table,
+    required int discardedCount,
+    required String winnerSide,
+    String? details,
+  }) {
+    final sideText = winnerSide == 'local' ? 'الإصدار المحلي' : 'إصدار السيرفر';
+    final tableNames = {
+      'bookings': 'حجوزات',
+      'payments': 'مدفوعات',
+      'debts': 'ديون',
+      'expenses': 'مصروفات',
+      'rooms': 'غرف',
+      'employees': 'موظفين',
+      'guest_infos': 'معلومات ضيوف',
+      'shift_notes': 'ملاحظات',
+      'booking_notes': 'ملاحظات حجوزات',
+      'salary_payments': 'دفعات رواتب',
+      'salary_withdrawals': 'سحوبات رواتب',
+      'cash_transactions': 'معاملات نقدية',
+      'booking_price_adjustments': 'تسعير',
+      'blacklist': 'القائمة السوداء',
+    };
+    final tableName = tableNames[table] ?? table;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'تضارب في $tableName: تم تفضيل $sideText ($discardedCount سجل)',
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.orange.shade800,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        action: details != null
+            ? SnackBarAction(
+                label: 'تفاصيل',
+                textColor: Colors.white,
+                onPressed: () {
+                  showDialog<void>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('تفاصيل التضارب'),
+                      content: Text(details, textDirection: TextDirection.rtl),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('فهمت'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              )
+            : null,
+      ),
+    );
+
+    HapticFeedback.mediumImpact();
   }
 }

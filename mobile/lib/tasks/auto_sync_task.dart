@@ -29,8 +29,6 @@ void autoSyncCallbackDispatcher() {
       }
 
       final success = await UnifiedSyncOrchestrator.instance.syncNow(
-        push: true,
-        pull: true,
         reason: 'google_drive_background_task',
       );
 
@@ -69,7 +67,6 @@ class AutoSyncTask {
     WidgetsFlutterBinding.ensureInitialized();
     await Workmanager().initialize(
       autoSyncCallbackDispatcher,
-      isInDebugMode: debug,
     );
     _initialized = true;
   }
@@ -90,7 +87,6 @@ class AutoSyncTask {
         _kImmediateWorkName,
         _kImmediateWorkName,
         existingWorkPolicy: ExistingWorkPolicy.replace,
-        initialDelay: delay,
         constraints: Constraints(networkType: NetworkType.connected),
         inputData: const <String, dynamic>{},
       );
@@ -131,8 +127,6 @@ class AutoSyncTask {
       return;
     }
     await UnifiedSyncOrchestrator.instance.syncNow(
-      push: true,
-      pull: true,
       reason: 'pending_sync',
     );
     await prefs.setBool(_kPendingFlagKey, false);

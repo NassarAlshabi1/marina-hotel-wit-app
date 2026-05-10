@@ -21,8 +21,8 @@ class GoogleDriveBackupScreen extends ConsumerWidget {
       actions: [
         IconButton(
           onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const GoogleDriveLogsScreen()),
+            Navigator.of(context).push<void>(
+              MaterialPageRoute<void>(builder: (_) => const GoogleDriveLogsScreen()),
             );
           },
           icon: const Icon(Icons.article_outlined),
@@ -103,18 +103,16 @@ class _GoogleDriveBackupContentState
       case BackupStatus.success:
         color = Colors.green;
         icon = Icons.check_circle;
-        break;
       case BackupStatus.error:
         color = Colors.red;
         icon = Icons.error;
-        break;
       default:
         color = Colors.blue;
         icon = Icons.info;
     }
 
     return Card(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
@@ -166,7 +164,7 @@ class _GoogleDriveBackupContentState
             if (state.isSignedIn) ...[
               Row(
                 children: [
-                  Icon(Icons.account_circle, color: Colors.green, size: 20),
+                  const Icon(Icons.account_circle, color: Colors.green, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -478,7 +476,7 @@ class _GoogleDriveBackupContentState
         ? 'SQLite'
         : 'JSON';
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد الاستعادة'),
@@ -496,7 +494,7 @@ class _GoogleDriveBackupContentState
             const SizedBox(height: 12),
             Text('التاريخ: ${dateFormatter.format(backup.createdTime)}'),
             Text('السجلات: $recordsLabel'),
-            Text('التنسيق: ${formatLabel}'),
+            Text('التنسيق: $formatLabel'),
             const SizedBox(height: 12),
             const Text(
               'هل أنت متأكد من المتابعة؟',
@@ -551,8 +549,8 @@ class _GoogleDriveBackupContentState
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: syncEnabled
-                        ? Colors.teal.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                        ? Colors.teal.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -590,20 +588,20 @@ class _GoogleDriveBackupContentState
               onChanged: (value) => ref
                   .read(backupStatusProvider.notifier)
                   .setGoogleDriveSyncEnabled(value),
-              activeColor: Colors.teal,
+              activeThumbColor: Colors.teal,
             ),
             if (!syncEnabled) ...[
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.08),
+                  color: Colors.orange.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                    const Icon(Icons.info_outline, color: Colors.orange, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -647,7 +645,7 @@ class _GoogleDriveBackupContentState
                 'إنشاء نسخ احتياطية تلقائية حسب الجدولة المحددة',
               ),
               value: state.autoSettings.isEnabled,
-              onChanged: (value) => _updateAutoBackupEnabled(value),
+              onChanged: _updateAutoBackupEnabled,
             ),
             if (state.autoSettings.isEnabled) ...[
               const Divider(),
@@ -695,7 +693,7 @@ class _GoogleDriveBackupContentState
   }
 
   void _showFrequencySelection(AutoBackupSettings currentSettings) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تحديد التكرار'),

@@ -1,30 +1,32 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../services/auth_local_store.dart';
+import '../services/diagnostics/diagnostics_logger.dart';
 import '../services/local_db.dart';
-import '../services/repositories/rooms_repository.dart';
+import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/bookings_repository.dart';
+import '../services/repositories/cash_repository.dart';
+import '../services/repositories/debts_repository.dart';
 import '../services/repositories/employees_repository.dart';
 import '../services/repositories/expenses_repository.dart';
-import '../services/repositories/cash_repository.dart';
-import '../services/repositories/payments_repository.dart';
-import '../services/repositories/debts_repository.dart';
-import '../services/repositories/notes_repository.dart';
-import '../services/repositories/simple_notes_repository.dart';
-import '../services/repositories/shift_notes_repository.dart';
-import '../services/repositories/blacklist_repository.dart';
-import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/repositories/guest_infos_repository.dart';
-import '../services/auth_local_store.dart';
+import '../services/repositories/notes_repository.dart';
+import '../services/repositories/payments_repository.dart';
+import '../services/repositories/rooms_repository.dart';
+import '../services/repositories/salary_withdrawals_repository.dart';
+import '../services/repositories/shift_notes_repository.dart';
+import '../services/repositories/simple_notes_repository.dart';
 import '../services/sync_guardian.dart';
-import '../services/diagnostics/diagnostics_logger.dart';
-
 import '../services/whatsapp_service.dart';
+import '../utils/env.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 
-// إضافة Backup Providers
-export '../providers/backup_provider.dart';
 // إضافة Auto Backup Providers
 export '../providers/auto_backup_provider.dart';
+// إضافة Backup Providers
+export '../providers/backup_provider.dart';
 // إضافة Smart Sync Providers
 export '../providers/smart_sync_provider.dart';
 
@@ -51,6 +53,9 @@ final bookingsRepoProvider = Provider<BookingsRepository>(
 );
 final employeesRepoProvider = Provider<EmployeesRepository>(
   (ref) => EmployeesRepository(ref.read(databaseProvider)),
+);
+final guestInfoRepoProvider = Provider<GuestInfosRepository>(
+  (ref) => GuestInfosRepository(ref.read(databaseProvider)),
 );
 final expensesRepoProvider = Provider<ExpensesRepository>(
   (ref) => ExpensesRepository(ref.read(databaseProvider)),
@@ -79,15 +84,47 @@ final shiftNotesRepoProvider = Provider<ShiftNotesRepository>(
 final blacklistRepoProvider = Provider<BlacklistRepository>(
   (ref) => BlacklistRepository(ref.read(databaseProvider)),
 );
+final whatsappSettingsProvider = FutureProvider<Map<String, String>>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  return {
+    'apiType': prefs.getString('wa_api_type') ?? 'custom',
+    'baseUrl': prefs.getString('wa_api_base_url') ?? 'https://7103.api.greenapi.com',
+    'instanceId': prefs.getString('wa_api_instance_id') ?? Env.whatsappInstanceId,
+    'token': prefs.getString('wa_api_token') ?? Env.whatsappApiToken,
+    'customUrlTemplate': prefs.getString('wa_custom_url_template') ?? '',
+  };
+});
+
+WhatsAppApiType _parseApiType(String? type) {
+  switch (type) {
+    case 'custom':
+      return WhatsAppApiType.custom;
+    default:
+      return WhatsAppApiType.custom;
+  }
+}
+
 final whatsappServiceProvider = Provider<WhatsAppService>(
-  (ref) => WhatsAppService(
-    baseUrl: 'https://7103.api.greenapi.com',
-    instanceId: 'waInstance7103894450',
-    token: 'a8856c55173047d6b2d3078380a16f5f5d088c1e146b4903b1',
-  ),
+  (ref) {
+    final settingsAsync = ref.watch(whatsappSettingsProvider);
+    final settings = settingsAsync.valueOrNull ?? const {
+      'apiType': 'custom',
+      'baseUrl': 'https://7103.api.greenapi.com',
+      'instanceId': Env.whatsappInstanceId,
+      'token': Env.whatsappApiToken,
+      'customUrlTemplate': '',
+    };
+    return WhatsAppService(
+      apiType: _parseApiType(settings['apiType']),
+      baseUrl: settings['baseUrl'],
+      instanceId: settings['instanceId'],
+      token: settings['token'],
+      customUrlTemplate: settings['customUrlTemplate'],
+    );
+  },
 );
 
-final roomsListProvider = StreamProvider.autoDispose(
+final roomsListProvider = StreamProvider.autoDispose<List<Room>>(
   (ref) => ref.watch(roomsRepoProvider).watchAll(),
 );
 final availableRoomsProvider = StreamProvider.autoDispose(
@@ -101,7 +138,7 @@ final availableRoomsProvider = StreamProvider.autoDispose(
       ),
 );
 
-final bookingsListProvider = StreamProvider.autoDispose(
+final bookingsListProvider = StreamProvider.autoDispose<List<Booking>>(
   (ref) => ref.watch(bookingsRepoProvider).watch(),
 );
 final activeNotesProvider = FutureProvider.autoDispose(
@@ -125,13 +162,21 @@ final highPrioritySimpleNotesProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(simpleNotesRepoProvider).getHighPriorityNotes(),
 );
 
-final employeesListProvider = StreamProvider.autoDispose(
+final employeesListProvider = StreamProvider.autoDispose<List<Employee>>(
   (ref) => ref.watch(employeesRepoProvider).watchAll(),
+);
+
+final guestInfoListProvider = StreamProvider.autoDispose(
+  (ref) => ref.watch(guestInfoRepoProvider).watchAll(),
 );
 
 final expensesListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(expensesRepoProvider).watchAll(),
 );
+
+final salaryWithdrawalsListProvider = FutureProvider.autoDispose((ref) {
+  return ref.watch(salaryWithdrawalsRepoProvider).listAll();
+});
 
 final cashTransactionsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(cashRepoProvider).watchAll(),
@@ -143,53 +188,52 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
   return store.getUsersCount();
 });
 
-// Daily Statistics Providers
-final todayPaymentsProvider = FutureProvider.autoDispose((ref) {
+// Daily Statistics Providers — تحديث فوري عبر Stream من قاعدة البيانات
+final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
+  final paymentsRepo = ref.watch(paymentsRepoProvider);
   final hotelDay = Time.hotelDayKey();
-  return ref.watch(paymentsRepoProvider).getTotalByHotelDayKey(hotelDay);
+  // الفلتر على مستوى قاعدة البيانات بدلاً من تحميل كل المدفوعات
+  return paymentsRepo.watchTotalByHotelDayKey(hotelDay);
 });
 
-final todayExpensesProvider = FutureProvider.autoDispose((ref) {
+final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
+  final expensesRepo = ref.watch(expensesRepoProvider);
   final hotelDay = Time.hotelDayKey();
-  return ref.watch(expensesRepoProvider).getTotalByHotelDayKey(hotelDay);
+  // الفلتر على مستوى قاعدة البيانات — لا نحمّل جميع المصروفات
+  return expensesRepo.watchByHotelDayKey(hotelDay).map((expenses) {
+    return expenses.fold<double>(0, (sum, e) => sum + e.amount);
+  });
 });
+
+final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {
+  final hotelDay = Time.hotelDayKey();
+  final repo = ref.watch(expensesRepoProvider);
+  final total = await repo.getTotalByHotelDayKey(hotelDay);
+  final expenses = await repo.listFiltered(from: hotelDay, to: hotelDay);
+  return (count: expenses.length, total: total);
+});
+final bookingPaymentsProvider = StreamProvider.family.autoDispose<List<Payment>, int>(
+  (ref, bookingId) {
+    final paymentsRepo = ref.watch(paymentsRepoProvider);
+    return paymentsRepo.paymentsByBooking(bookingId);
+  },
+);
+
 final debtsListProvider = StreamProvider.autoDispose(
   (ref) => ref.watch(debtsRepoProvider).watchAll(),
 );
-final pendingDebtsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(debtsRepoProvider)
-      .watchAll()
-      .map(
-        (debts) => debts
-            .where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0)
-            .toList(),
-      ),
-);
-final settledDebtsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(debtsRepoProvider)
-      .watchAll()
-      .map(
-        (debts) => debts
-            .where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0)
-            .toList(),
-      ),
-);
+final pendingDebtsProvider = Provider.autoDispose<List<Debt>>((ref) {
+  final allDebts = ref.watch(debtsListProvider).valueOrNull ?? [];
+  return allDebts
+      .where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0)
+      .toList();
+});
+final settledDebtsProvider = Provider.autoDispose<List<Debt>>((ref) {
+  final allDebts = ref.watch(debtsListProvider).valueOrNull ?? [];
+  return allDebts
+      .where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0)
+      .toList();
+});
 
 // دالة للحصول على Database instance (singleton)
 AppDatabase getDatabase() => DatabaseManager.instance;
-
-
-// GuestInfo repo helper for CRUD operations
-final guestInfoRepoProvider = Provider<GuestInfosRepository>(
-  (ref) => GuestInfosRepository(ref.read(databaseProvider)),
-);
-
-// GuestInfos Providers (for information_screen)
-final guestInfoListProvider = StreamProvider.autoDispose(
-  (ref) {
-    final repo = ref.read(guestInfoRepoProvider);
-    return repo.watchAll();
-  },
-);

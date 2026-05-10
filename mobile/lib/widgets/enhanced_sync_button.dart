@@ -1,16 +1,15 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/sync_orchestrator.dart';
-import '../services/sync_error_recovery.dart';
-import '../services/connectivity_service.dart';
+
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
+import '../services/connectivity_service.dart';
+import '../services/sync_error_recovery.dart';
+import '../services/sync_orchestrator.dart';
 
 class EnhancedSyncButton extends ConsumerStatefulWidget {
-  final bool showHealthIndicator;
-  final bool showLastSyncTime;
-  final bool compact;
 
   const EnhancedSyncButton({
     super.key,
@@ -18,6 +17,9 @@ class EnhancedSyncButton extends ConsumerStatefulWidget {
     this.showLastSyncTime = true,
     this.compact = false,
   });
+  final bool showHealthIndicator;
+  final bool showLastSyncTime;
+  final bool compact;
 
   @override
   ConsumerState<EnhancedSyncButton> createState() => _EnhancedSyncButtonState();
@@ -89,10 +91,12 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   Future<void> _triggerSync() async {
-    if (_isSyncing || !_isOnline) return;
+    if (_isSyncing || !_isOnline) {
+      return;
+    }
 
     setState(() => _isSyncing = true);
-    _animationController.repeat();
+    unawaited(_animationController.repeat());
 
     try {
       await SyncErrorRecovery.instance.createRollbackPoint(
@@ -110,7 +114,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         await smartSyncManager.forceSyncNow();
       }
 
-      await appwriteSyncManager.sync(push: true, pull: true);
+      await appwriteSyncManager.sync();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -138,11 +142,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
-                const Expanded(
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 8),
+                Expanded(
                   child: Text('تعذر إكمال المزامنة. راجع التفاصيل.'),
                 ),
               ],
@@ -167,11 +171,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   void _showErrorDetails(SyncError error) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             Icon(Icons.error, color: Colors.red),
             SizedBox(width: 8),
             Text('تفاصيل الخطأ'),
@@ -187,14 +191,14 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
               _buildDetailRow('الخطورة', error.severity.name),
               _buildDetailRow('قابل للإعادة', error.isRetriable ? 'نعم' : 'لا'),
               const SizedBox(height: 8),
-              Text('الرسالة:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('الرسالة:', style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
-                padding: EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Text(error.message, style: TextStyle(fontSize: 12)),
+                child: Text(error.message, style: const TextStyle(fontSize: 12)),
               ),
             ],
           ),
@@ -206,11 +210,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 Navigator.pop(context);
                 _triggerSync();
               },
-              child: Text('إعادة المحاولة'),
+              child: const Text('إعادة المحاولة'),
             ),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('إغلاق'),
+            child: const Text('إغلاق'),
           ),
         ],
       ),
@@ -222,7 +226,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          Text('$label: ', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
           Text(value),
         ],
       ),
@@ -230,9 +234,9 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   void _showSyncOptions() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) => SafeArea(
@@ -245,47 +249,47 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
               Row(
                 children: [
                   Icon(Icons.sync, color: Theme.of(context).primaryColor),
-                  SizedBox(width: 8),
-                  Text(
+                  const SizedBox(width: 8),
+                  const Text(
                     'خيارات المزامنة',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
-              Divider(),
+              const Divider(),
               _buildHealthStatus(),
-              Divider(),
+              const Divider(),
               ListTile(
-                leading: Icon(Icons.cloud_upload, color: Colors.blue),
-                title: Text('رفع التغييرات'),
-                subtitle: Text('رفع التغييرات المحلية إلى السحابة'),
+                leading: const Icon(Icons.cloud_upload, color: Colors.blue),
+                title: const Text('رفع التغييرات'),
+                subtitle: const Text('رفع التغييرات المحلية إلى السحابة'),
                 onTap: () async {
                   Navigator.pop(context);
                   await _pushOnly();
                 },
               ),
               ListTile(
-                leading: Icon(Icons.cloud_download, color: Colors.green),
-                title: Text('سحب التحديثات'),
-                subtitle: Text('تحميل آخر التحديثات من السحابة'),
+                leading: const Icon(Icons.cloud_download, color: Colors.green),
+                title: const Text('سحب التحديثات'),
+                subtitle: const Text('تحميل آخر التحديثات من السحابة'),
                 onTap: () async {
                   Navigator.pop(context);
                   await _pullOnly();
                 },
               ),
               ListTile(
-                leading: Icon(Icons.sync, color: Colors.orange),
-                title: Text('مزامنة كاملة'),
-                subtitle: Text('رفع وسحب جميع البيانات'),
+                leading: const Icon(Icons.sync, color: Colors.orange),
+                title: const Text('مزامنة كاملة'),
+                subtitle: const Text('رفع وسحب جميع البيانات'),
                 onTap: () async {
                   Navigator.pop(context);
                   await _triggerSync();
                 },
               ),
               ListTile(
-                leading: Icon(Icons.health_and_safety, color: Colors.purple),
-                title: Text('فحص سلامة البيانات'),
-                subtitle: Text('التحقق من تكامل قاعدة البيانات'),
+                leading: const Icon(Icons.health_and_safety, color: Colors.purple),
+                title: const Text('فحص سلامة البيانات'),
+                subtitle: const Text('التحقق من تكامل قاعدة البيانات'),
                 onTap: () async {
                   Navigator.pop(context);
                   await _verifyIntegrity();
@@ -293,8 +297,8 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
               ),
               if (SyncErrorRecovery.instance.recentErrors.isNotEmpty)
                 ListTile(
-                  leading: Icon(Icons.history, color: Colors.red),
-                  title: Text('سجل الأخطاء'),
+                  leading: const Icon(Icons.history, color: Colors.red),
+                  title: const Text('سجل الأخطاء'),
                   subtitle: Text(
                     '${SyncErrorRecovery.instance.recentErrors.length} خطأ',
                   ),
@@ -313,7 +317,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   Widget _buildHealthStatus() {
     final health = _health;
     if (health == null) {
-      return ListTile(
+      return const ListTile(
         leading: CircularProgressIndicator(strokeWidth: 2),
         title: Text('جاري فحص صحة النظام...'),
       );
@@ -323,11 +327,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     final healthIcon = health.isHealthy ? Icons.check_circle : Icons.warning;
 
     return Container(
-      padding: EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: healthColor.withOpacity(0.1),
+        color: healthColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: healthColor.withOpacity(0.3)),
+        border: Border.all(color: healthColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,7 +339,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           Row(
             children: [
               Icon(healthIcon, color: healthColor, size: 20),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
                 health.isHealthy
                     ? 'النظام يعمل بشكل صحيح'
@@ -347,7 +351,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
               ),
             ],
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -367,16 +371,16 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
 
   Widget _buildStatChip(String label, String value, Color color) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(label, style: TextStyle(fontSize: 10, color: color)),
-          SizedBox(width: 4),
+          const SizedBox(width: 4),
           Text(
             value,
             style: TextStyle(
@@ -392,7 +396,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
 
   Future<void> _pushOnly() async {
     setState(() => _isSyncing = true);
-    _animationController.repeat();
+    unawaited(_animationController.repeat());
 
     try {
       final smartSyncManager = ref.read(smartSyncManagerProvider);
@@ -429,20 +433,22 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     } finally {
       _animationController.stop();
       _animationController.reset();
-      if (mounted) setState(() => _isSyncing = false);
+      if (mounted) {
+        setState(() => _isSyncing = false);
+      }
     }
   }
 
   Future<void> _pullOnly() async {
     setState(() => _isSyncing = true);
-    _animationController.repeat();
+    unawaited(_animationController.repeat());
 
     try {
       final smartSyncManager = ref.read(smartSyncManagerProvider);
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
       await smartSyncManager.pullRemoteChanges();
-      await appwriteSyncManager.sync(push: false, pull: true);
+      await appwriteSyncManager.sync(push: false);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -472,34 +478,38 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     } finally {
       _animationController.stop();
       _animationController.reset();
-      if (mounted) setState(() => _isSyncing = false);
+      if (mounted) {
+        setState(() => _isSyncing = false);
+      }
     }
   }
 
   Future<void> _verifyIntegrity() async {
-    showDialog(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => const AlertDialog(
         content: Row(
-          children: const [
+          children: [
             CircularProgressIndicator(),
             SizedBox(width: 16),
             Text('جاري فحص سلامة البيانات...'),
           ],
         ),
       ),
-    );
+    ),);
 
     try {
       final checks = await SyncOrchestrator.instance.verifyDataIntegrity();
+      // ignore: use_build_context_synchronously
       Navigator.pop(context);
 
-      showDialog(
+      unawaited(showDialog<void>(
+        // ignore: use_build_context_synchronously
         context: context,
         builder: (context) => AlertDialog(
-          title: Row(
-            children: const [
+          title: const Row(
+            children: [
               Icon(Icons.verified, color: Colors.green),
               SizedBox(width: 8),
               Text('نتائج الفحص'),
@@ -511,12 +521,12 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
               children: checks
                   .map(
                     (check) => ListTile(
-                      leading: Icon(Icons.table_chart, color: Colors.blue),
+                      leading: const Icon(Icons.table_chart, color: Colors.blue),
                       title: Text(check.tableName),
                       subtitle: Text('${check.recordCount} سجل'),
                       trailing: Text(
                         check.checksum.substring(0, 8),
-                        style: TextStyle(fontFamily: 'monospace', fontSize: 10),
+                        style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
                       ),
                     ),
                   )
@@ -526,17 +536,19 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('إغلاق'),
+              child: const Text('إغلاق'),
             ),
           ],
         ),
-      );
+      ),);
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('تعذر فحص سلامة البيانات. أعد المحاولة لاحقاً'),
+        const SnackBar(
+          content: Text('تعذر فحص سلامة البيانات. أعد المحاولة لاحقاً'),
           backgroundColor: Colors.red,
         ),
       );
@@ -546,11 +558,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   void _showErrorLog() {
     final errors = SyncErrorRecovery.instance.recentErrors;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             Icon(Icons.error_outline, color: Colors.red),
             SizedBox(width: 8),
             Text('سجل الأخطاء'),
@@ -581,11 +593,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                   error.message.length > 50
                       ? '${error.message.substring(0, 50)}...'
                       : error.message,
-                  style: TextStyle(fontSize: 11),
+                  style: const TextStyle(fontSize: 11),
                 ),
                 trailing: Text(
                   '${error.timestamp.hour}:${error.timestamp.minute.toString().padLeft(2, '0')}',
-                  style: TextStyle(fontSize: 10),
+                  style: const TextStyle(fontSize: 10),
                 ),
               );
             },
@@ -597,11 +609,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
               SyncErrorRecovery.instance.clearErrors();
               Navigator.pop(context);
             },
-            child: Text('مسح السجل'),
+            child: const Text('مسح السجل'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('إغلاق'),
+            child: const Text('إغلاق'),
           ),
         ],
       ),
@@ -647,19 +659,19 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         Stack(
           clipBehavior: Clip.none,
           children: [
-            Container(
+            DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [buttonColor.withOpacity(0.8), buttonColor],
+                  colors: [buttonColor.withValues(alpha: 0.8), buttonColor],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: buttonColor.withOpacity(0.3),
+                    color: buttonColor.withValues(alpha: 0.3),
                     blurRadius: 8,
-                    offset: Offset(0, 4),
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
@@ -677,17 +689,15 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _isSyncing
-                            ? RotationTransition(
+                        if (_isSyncing) RotationTransition(
                                 turns: _animationController,
                                 child: Icon(
                                   buttonIcon,
                                   size: 20,
                                   color: Colors.white,
                                 ),
-                              )
-                            : Icon(buttonIcon, size: 20, color: Colors.white),
-                        SizedBox(width: 8),
+                              ) else Icon(buttonIcon, size: 20, color: Colors.white),
+                        const SizedBox(width: 8),
                         Text(
                           buttonText,
                           style: TextStyle(
@@ -707,17 +717,17 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 top: -6,
                 right: -6,
                 child: Container(
-                  padding: EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: Colors.red,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
-                  constraints: BoxConstraints(minWidth: 20, minHeight: 20),
+                  constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                   child: Center(
                     child: Text(
                       pendingCount > 99 ? '99+' : '$pendingCount',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -731,22 +741,22 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 bottom: -4,
                 left: -4,
                 child: Container(
-                  padding: EdgeInsets.all(2),
+                  padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     color: Colors.orange,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
-                  child: Icon(Icons.warning, size: 12, color: Colors.white),
+                  child: const Icon(Icons.warning, size: 12, color: Colors.white),
                 ),
               ),
           ],
         ),
         if (widget.showLastSyncTime && health?.lastSuccessfulSync != null) ...[
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
             _formatLastSync(health!.lastSuccessfulSync!),
-            style: TextStyle(fontSize: 10, color: Colors.grey),
+            style: const TextStyle(fontSize: 10, color: Colors.grey),
           ),
         ],
       ],
@@ -755,9 +765,15 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
 
   String _formatLastSync(DateTime lastSync) {
     final diff = DateTime.now().difference(lastSync);
-    if (diff.inSeconds < 60) return 'منذ ${diff.inSeconds} ثانية';
-    if (diff.inMinutes < 60) return 'منذ ${diff.inMinutes} دقيقة';
-    if (diff.inHours < 24) return 'منذ ${diff.inHours} ساعة';
+    if (diff.inSeconds < 60) {
+      return 'منذ ${diff.inSeconds} ثانية';
+    }
+    if (diff.inMinutes < 60) {
+      return 'منذ ${diff.inMinutes} دقيقة';
+    }
+    if (diff.inHours < 24) {
+      return 'منذ ${diff.inHours} ساعة';
+    }
     return 'منذ ${diff.inDays} يوم';
   }
 }

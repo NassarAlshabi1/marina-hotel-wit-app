@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../utils/app_logger.dart';
 import 'api_config_service.dart';
 
 class ApiService {
@@ -35,11 +37,13 @@ class ApiService {
             await _storage.delete(key: _kToken);
           }
           if (code == 429 || code >= 500) {
-            await Future.delayed(const Duration(seconds: 1));
+            await Future<void>.delayed(const Duration(seconds: 1));
             try {
               final req = await _retryRequest(e.requestOptions);
               return handler.resolve(req);
-            } catch (_) {}
+            } catch (e, st) {
+              AppLogger.error('فشل إعادة محاولة الطلب', tag: 'API', error: e, stackTrace: st);
+            }
           }
           handler.next(e);
         },
@@ -65,7 +69,7 @@ class ApiService {
   static const _storage = FlutterSecureStorage();
   static const _kToken = 'auth_token';
 
-  Future<Response<dynamic>> _retryRequest(RequestOptions ro) async {
+  Future<Response<void>> _retryRequest(RequestOptions ro) async {
     final opts = Options(method: ro.method, headers: ro.headers);
     return _dio.request<dynamic>(
       ro.path,
@@ -76,7 +80,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>?> login(String username, String password) async {
-    final res = await _dio.post(
+    final res = await _dio.post<dynamic>(
       '/auth/login.php',
       data: jsonEncode({'username': username, 'password': password}),
     );
@@ -102,7 +106,7 @@ class ApiService {
 
   Future<bool> ping() async {
     try {
-      final res = await _dio.get('/auth/ping.php');
+      final res = await _dio.get<dynamic>('/auth/ping.php');
       return res.statusCode == 200 && res.data['success'] == true;
     } catch (_) {
       return false;
@@ -126,21 +130,21 @@ class ApiService {
       if (since != null) 'since': since,
       if (filter != null && filter.isNotEmpty) 'filter': filter,
     };
-    final res = await _dio.get('/$entity.php', queryParameters: qp);
-    return Map<String, dynamic>.from(res.data);
+    final res = await _dio.get<dynamic>('/$entity.php', queryParameters: qp);
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<Map<String, dynamic>> getEntity(String entity, dynamic id) async {
-    final res = await _dio.get('/$entity.php/$id');
-    return Map<String, dynamic>.from(res.data);
+    final res = await _dio.get<dynamic>('/$entity.php/$id');
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<Map<String, dynamic>> createEntity(
     String entity,
     Map<String, dynamic> data,
   ) async {
-    final res = await _dio.post('/$entity.php', data: jsonEncode(data));
-    return Map<String, dynamic>.from(res.data);
+    final res = await _dio.post<dynamic>('/$entity.php', data: jsonEncode(data));
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<Map<String, dynamic>> updateEntity(
@@ -148,31 +152,31 @@ class ApiService {
     dynamic id,
     Map<String, dynamic> data,
   ) async {
-    final res = await _dio.put('/$entity.php/$id', data: jsonEncode(data));
-    return Map<String, dynamic>.from(res.data);
+    final res = await _dio.put<dynamic>('/$entity.php/$id', data: jsonEncode(data));
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<Map<String, dynamic>> deleteEntity(String entity, dynamic id) async {
-    final res = await _dio.delete('/$entity.php/$id');
-    return Map<String, dynamic>.from(res.data);
+    final res = await _dio.delete<dynamic>('/$entity.php/$id');
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<Map<String, dynamic>> syncPush(
     List<Map<String, dynamic>> changes,
   ) async {
-    final res = await _dio.post(
+    final res = await _dio.post<dynamic>(
       '/sync/push.php',
       data: jsonEncode({'changes': changes}),
     );
-    return Map<String, dynamic>.from(res.data);
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<Map<String, dynamic>> syncPull(int since) async {
-    final res = await _dio.get(
+    final res = await _dio.get<dynamic>(
       '/sync/pull.php',
       queryParameters: {'since': since},
     );
-    return Map<String, dynamic>.from(res.data);
+    return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<String?> uploadRoomImage(String roomNumber, String filePath) async {
@@ -180,7 +184,7 @@ class ApiService {
       'room_number': roomNumber,
       'image': await MultipartFile.fromFile(filePath),
     });
-    final res = await _dio.post('/uploads/rooms.php', data: form);
+    final res = await _dio.post<dynamic>('/uploads/rooms.php', data: form);
     if (res.statusCode == 200 && res.data['success'] == true) {
       return res.data['data']['url'] as String;
     }

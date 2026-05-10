@@ -4,15 +4,15 @@ import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
-import '../../services/local_db.dart';
-import '../../providers/repository_providers.dart';
-import '../../services/sync_service.dart';
-import '../../utils/time.dart';
-import '../../utils/status_utils.dart';
-import '../payments/booking_payment_screen.dart';
-import 'booking_edit.dart';
-import '../payments/payments_main_screen.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/repository_providers.dart';
+import '../../services/local_db.dart';
+import '../../services/sync_service.dart';
+import '../../utils/status_utils.dart';
+import '../../utils/time.dart';
+import '../payments/booking_payment_screen.dart';
+import '../payments/payments_main_screen.dart';
+import 'booking_edit.dart';
 
 class BookingsListScreen extends ConsumerStatefulWidget {
   const BookingsListScreen({super.key});
@@ -28,10 +28,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
 
   Future<void> _navigateToAddBooking() async {
-    await Navigator.push(
+    await Navigator.push<void>(
       context,
-      MaterialPageRoute(
-        builder: (_) => const BookingEditScreen(existing: null),
+      MaterialPageRoute<void>(builder: (_) => const BookingEditScreen(),
       ),
     );
   }
@@ -47,9 +46,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
         actions: [
           IconButton(
             onPressed: () {
-              Navigator.push(
+              Navigator.push<void>(
                 context,
-                MaterialPageRoute(builder: (_) => const PaymentsMainScreen()),
+                MaterialPageRoute<void>(builder: (_) => const PaymentsMainScreen()),
               );
             },
             icon: const Icon(Icons.payments),
@@ -112,7 +111,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                           shrinkWrap: true,
                           itemCount: filtered.length + 1,
                           itemBuilder: (context, index) {
-                            if (index == 0) return _buildHeaderRow(context);
+                            if (index == 0) {
+                              return _buildHeaderRow(context);
+                            }
                             final booking = filtered[index - 1];
                             final room = roomsMap[booking.roomNumber];
                             final checkin = DateTime.tryParse(
@@ -150,18 +151,20 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                         checkout:
                                             actualCheckout ?? plannedCheckout,
                                       ));
-                            final totalAmount = (actualNights * price)
-                                .toDouble();
-                            return _BookingRow(
-                              index: index,
-                              booking: booking,
-                              expectedNights: expectedNights,
-                              actualNights: actualNights,
-                              pricePerNight: price,
-                              totalAmount: totalAmount,
-                              currencyFmt: _currencyFmt,
-                              plannedCheckout: plannedCheckout,
-                              actualCheckout: actualCheckout,
+                            final totalAmount = actualNights * price
+                                ;
+                            return RepaintBoundary(
+                              child: _BookingRow(
+                                index: index,
+                                booking: booking,
+                                expectedNights: expectedNights,
+                                actualNights: actualNights,
+                                pricePerNight: price,
+                                totalAmount: totalAmount,
+                                currencyFmt: _currencyFmt,
+                                plannedCheckout: plannedCheckout,
+                                actualCheckout: actualCheckout,
+                              ),
                             );
                           },
                         ),
@@ -212,18 +215,20 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                   checkout:
                                       actualCheckout ?? plannedCheckout,
                                 ));
-                      final totalAmount = (actualNights * price).toDouble();
-                      return _BookingRow(
-                        index: index + 1,
-                        booking: booking,
-                        expectedNights: expectedNights,
-                        actualNights: actualNights,
-                        pricePerNight: price,
-                        totalAmount: totalAmount,
-                        currencyFmt: _currencyFmt,
-                        plannedCheckout: plannedCheckout,
-                        actualCheckout: actualCheckout,
-                        compact: true,
+                      final totalAmount = actualNights * price;
+                      return RepaintBoundary(
+                        child: _BookingRow(
+                          index: index + 1,
+                          booking: booking,
+                          expectedNights: expectedNights,
+                          actualNights: actualNights,
+                          pricePerNight: price,
+                          totalAmount: totalAmount,
+                          currencyFmt: _currencyFmt,
+                          plannedCheckout: plannedCheckout,
+                          actualCheckout: actualCheckout,
+                          compact: true,
+                        ),
                       );
                     },
                   );
@@ -275,10 +280,9 @@ class _CompactBookingCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () async {
-          await Navigator.push(
+          await Navigator.push<void>(
             context,
-            MaterialPageRoute(
-              builder: (_) => BookingPaymentScreen(booking: booking),
+            MaterialPageRoute<void>(builder: (_) => BookingPaymentScreen(booking: booking),
             ),
           );
         },
@@ -288,7 +292,6 @@ class _CompactBookingCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   CircleAvatar(
                     backgroundColor: theme.colorScheme.primary,
@@ -336,7 +339,7 @@ class _CompactBookingCard extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.12),
+                      color: statusColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -407,9 +410,9 @@ class _CompactBookingCard extends StatelessWidget {
 Widget _buildHeaderRow(BuildContext context) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-    child: Row(
-      children: const [
+    color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+    child: const Row(
+      children: [
         SizedBox(width: 40, child: Text('#', textAlign: TextAlign.center)),
         _HeaderCell('بيانات النزيل', flex: 2),
         _HeaderCell('الغرفة'),
@@ -466,12 +469,12 @@ class _BookingRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final paymentsRepo = ref.watch(paymentsRepoProvider);
+    final paymentsAsync = ref.watch(bookingPaymentsProvider(booking.id));
     final baseTextStyle = TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black);
     final smallTextStyle = baseTextStyle.copyWith(fontSize: 12);
     final boldTextStyle = baseTextStyle.copyWith(fontWeight: FontWeight.w600);
     final nightsLabel = actualNights != expectedNights
-        ? '$expectedNights (${actualNights} فعلي)'
+        ? '$expectedNights ($actualNights فعلي)'
         : expectedNights.toString();
     final plannedText = plannedCheckout != null
         ? _formatDate(plannedCheckout!.toIso8601String())
@@ -494,196 +497,189 @@ class _BookingRow extends ConsumerWidget {
     ];
     final guestTooltip = guestTooltipLines.join('\n');
 
-    return StreamBuilder<List<Payment>>(
-      stream: paymentsRepo.paymentsByBooking(booking.id),
-      builder: (context, snapshot) {
-        final paid = snapshot.hasData
-            ? snapshot.data!.fold<double>(0, (s, p) => s + p.amount)
-            : 0.0;
-        final remaining = (totalAmount - paid)
-            .clamp(0.0, totalAmount)
-            .toDouble();
-        final Color statusColor = remaining <= 0.0
-            ? Colors.green
-            : (paid > 0 ? Colors.orange : Colors.red);
-        final String statusText = remaining <= 0.0
-            ? 'مسددة'
-            : (paid > 0 ? 'جزئياً' : 'غير مسددة');
+    final paid = paymentsAsync.maybeWhen(
+      data: (payments) => payments.fold<double>(0, (s, p) => s + p.amount),
+      orElse: () => 0.0,
+    );
+    final remaining = (totalAmount - paid)
+        .clamp(0.0, totalAmount);
+    final Color statusColor = remaining <= 0.0
+        ? Colors.green
+        : (paid > 0 ? Colors.orange : Colors.red);
+    final String statusText = remaining <= 0.0
+        ? 'مسددة'
+        : (paid > 0 ? 'جزئياً' : 'غير مسددة');
 
-        return compact
-            ? _CompactBookingCard(
-                booking: booking,
-                index: index,
-                nightsLabel: nightsLabel,
-                paid: paid,
-                remaining: remaining,
-                statusColor: statusColor,
-                statusText: statusText,
-                plannedText: plannedText,
-                actualText: actualText,
-                currencyFmt: currencyFmt,
-                pricePerNight: pricePerNight,
-                totalAmount: totalAmount,
-              )
-            : InkWell(
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BookingPaymentScreen(booking: booking),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: Color(0xFFE0E0E0)),
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 40,
-                        child: Text(
-                          index.toString(),
-                          textAlign: TextAlign.center,
-                          style: baseTextStyle,
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Tooltip(
-                            message: guestTooltip,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  booking.guestName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: boldTextStyle.copyWith(fontSize: 16),
-                                ),
-                                if (booking.guestPhone.isNotEmpty)
-                                  Text(
-                                    booking.guestPhone,
-                                    style: smallTextStyle,
-                                  ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  booking.guestIdNumber.isEmpty
-                                      ? booking.guestIdType
-                                      : '${booking.guestIdType} • ${booking.guestIdNumber}',
-                                  style: smallTextStyle,
-                                ),
-                                if (booking.guestNationality.isNotEmpty)
-                                  Text(
-                                    booking.guestNationality,
-                                    style: smallTextStyle,
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(booking.roomNumber, style: baseTextStyle),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            currencyFmt.format(pricePerNight),
-                            style: baseTextStyle,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _formatDate(booking.checkinDate),
-                                style: baseTextStyle,
-                              ),
-                              if (plannedText != null)
-                                Text('حتى $plannedText', style: smallTextStyle),
-                              if (actualText != null)
-                                Text(
-                                  'خروج فعلي $actualText',
-                                  style: smallTextStyle,
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(nightsLabel, style: baseTextStyle),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            currencyFmt.format(paid),
-                            style: baseTextStyle,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            currencyFmt.format(remaining),
-                            style: baseTextStyle,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: statusColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: statusColor),
-                            ),
-                            child: Text(
-                              statusText,
-                              style: baseTextStyle.copyWith(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: _buildBookingStatusChip(
-                            booking.status,
-                            baseTextStyle,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+    return compact
+        ? _CompactBookingCard(
+            booking: booking,
+            index: index,
+            nightsLabel: nightsLabel,
+            paid: paid,
+            remaining: remaining,
+            statusColor: statusColor,
+            statusText: statusText,
+            plannedText: plannedText,
+            actualText: actualText,
+            currencyFmt: currencyFmt,
+            pricePerNight: pricePerNight,
+            totalAmount: totalAmount,
+          )
+        : InkWell(
+            onTap: () async {
+              await Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(builder: (_) => BookingPaymentScreen(booking: booking),
                 ),
               );
-      },
-    );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Color(0xFFE0E0E0)),
+                ),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 40,
+                    child: Text(
+                      index.toString(),
+                      textAlign: TextAlign.center,
+                      style: baseTextStyle,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Tooltip(
+                        message: guestTooltip,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              booking.guestName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: boldTextStyle.copyWith(fontSize: 16),
+                            ),
+                            if (booking.guestPhone.isNotEmpty)
+                              Text(
+                                booking.guestPhone,
+                                style: smallTextStyle,
+                              ),
+                            const SizedBox(height: 2),
+                            Text(
+                              booking.guestIdNumber.isEmpty
+                                  ? booking.guestIdType
+                                  : '${booking.guestIdType} • ${booking.guestIdNumber}',
+                              style: smallTextStyle,
+                            ),
+                            if (booking.guestNationality.isNotEmpty)
+                              Text(
+                                booking.guestNationality,
+                                style: smallTextStyle,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(booking.roomNumber, style: baseTextStyle),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        currencyFmt.format(pricePerNight),
+                        style: baseTextStyle,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _formatDate(booking.checkinDate),
+                            style: baseTextStyle,
+                          ),
+                          if (plannedText != null)
+                            Text('حتى $plannedText', style: smallTextStyle),
+                          if (actualText != null)
+                            Text(
+                              'خروج فعلي $actualText',
+                              style: smallTextStyle,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(nightsLabel, style: baseTextStyle),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        currencyFmt.format(paid),
+                        style: baseTextStyle,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        currencyFmt.format(remaining),
+                        style: baseTextStyle,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: statusColor),
+                        ),
+                        child: Text(
+                          statusText,
+                          style: baseTextStyle.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: _buildBookingStatusChip(
+                        booking.status,
+                        baseTextStyle,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
   }
 }
 
@@ -703,12 +699,10 @@ Widget _buildBookingStatusChip(String status, TextStyle baseTextStyle) {
       case 'مكتمل':
         bg = Colors.blue.shade100;
         txt = 'مكتمل';
-        break;
       case 'cancelled':
       case 'ملغي':
         bg = Colors.red.shade100;
         txt = 'ملغي';
-        break;
       default:
         bg = Colors.grey.shade100;
         txt = status;

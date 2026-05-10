@@ -8,19 +8,30 @@ import 'lark_config.dart';
 /// عميل API للتواصل مع خوادم Lark Suite
 /// يدعم المصادقة عبر Tenant Access Token والطلبات المباشرة عبر Webhook
 class LarkApiClient {
+
+  LarkApiClient._();
   static LarkApiClient? _instance;
   static LarkApiClient get instance => _instance ??= LarkApiClient._();
 
-  LarkApiClient._();
-
   final http.Client _client = http.Client();
+
+  /// تحرير موارد HTTP client
+  void dispose() {
+    _client.close();
+  }
+
+  /// تحرير الموارد الثابتة للـ singleton
+  static void disposeInstance() {
+    _instance?._client.close();
+    _instance = null;
+  }
 
   String? _cachedToken;
   int? _tokenExpiry;
 
   /// الحصول على Base URL
   Future<String> get _baseUrl async {
-    return await LarkConfig.getBaseUrl();
+    return LarkConfig.getBaseUrl();
   }
 
   /// الحصول على Tenant Access Token صالح
@@ -44,7 +55,7 @@ class LarkApiClient {
     }
 
     // طلب رمز جديد
-    return await _fetchNewToken();
+    return _fetchNewToken();
   }
 
   /// طلب Tenant Access Token جديد من Lark API

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -9,8 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../providers/repository_providers.dart';
 import '../../providers/appwrite_providers.dart' as appwrite;
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/pdf_utils.dart';
 
@@ -24,6 +26,13 @@ class InformationScreen extends ConsumerStatefulWidget {
 class _InformationScreenState extends ConsumerState<InformationScreen>
     with SyncOnExitMixin {
   bool _exportingPdf = false;
+  final _verticalScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _verticalScrollController.dispose();
+    super.dispose();
+  }
 
   static final List<String> _idTypes = [
     'بطاقة شخصية',
@@ -31,6 +40,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     'إقامة',
     'رخصة قيادة',
     'بطاقة عائلية',
+    'شهادة ميلاد',
+    'بطاقة رقم جلوس',
   ];
 
   @override
@@ -44,7 +55,14 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       orElse: () => const <GuestInfo>[],
     );
 
-    return wrapWithSyncOnExit(
+    return PopScope(
+      canPop: !hasUnsyncedChanges,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          return;
+        }
+        _showDiscardDialog(context);
+      },
       child: AppScaffold(
         title: 'سجل المعلومية',
         actions: [
@@ -77,6 +95,29 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     );
   }
 
+  void _showDiscardDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تغييرات غير محفوظة'),
+        content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).pop();
+            },
+            child: const Text('مغادرة'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildContent(List<GuestInfo> entries) {
     if (entries.isEmpty) {
       return const Center(
@@ -88,9 +129,35 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       );
     }
 
+    final scrollCtrl = _verticalScrollController;
+
+    // ترتيب حسب رقم الغرفة (أرقام أولاً، ثم أبجدي)
+    final sorted = List<GuestInfo>.from(entries);
+    sorted.sort((a, b) {
+      final aNum = int.tryParse(a.roomNumber);
+      final bNum = int.tryParse(b.roomNumber);
+      if (aNum != null && bNum != null) {
+        return aNum.compareTo(bNum);
+      }
+      if (aNum != null) {
+        return -1;
+      }
+      if (bNum != null) {
+        return 1;
+      }
+      return a.roomNumber.compareTo(b.roomNumber);
+    });
+
     return Padding(
       padding: const EdgeInsets.all(12),
-      child: _buildTable(entries),
+      child: Scrollbar(
+        controller: scrollCtrl,
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: scrollCtrl,
+          child: _buildTable(sorted),
+        ),
+      ),
     );
   }
 
@@ -110,39 +177,39 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             DataColumn(label: SizedBox.shrink()),
             DataColumn(
               label: Text('الغرفة',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('اسم النزيل',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('الجنسية',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('رقم الهوية',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('نوع الهوية',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('تاريخ الإصدار',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('مكان الإصدار',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('المحافظة',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
             DataColumn(
               label: Text('الملاحظات',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontWeight: FontWeight.bold),),
             ),
           ],
           rows: List.generate(entries.length, (index) {
@@ -177,17 +244,20 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                         child: Row(
                           children: [
                             Icon(Icons.delete_outline, size: 18,
-                                color: Colors.red),
+                                color: Colors.red,),
                             SizedBox(width: 8),
                             Text('حذف',
-                                style: TextStyle(color: Colors.red)),
+                                style: TextStyle(color: Colors.red),),
                           ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                DataCell(Text(info.roomNumber)),
+                DataCell(Text(
+                  info.roomNumber,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),),
                 DataCell(Text(info.guestName)),
                 DataCell(Text(info.nationality)),
                 DataCell(Text(info.idNumber)),
@@ -213,7 +283,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       text: existing?.guestName ?? '',
     );
     final nationalityController = TextEditingController(
-      text: existing?.nationality ?? '',
+      text: existing?.nationality.isNotEmpty ?? false
+          ? existing!.nationality
+          : 'يمني',
     );
     final idNumberController = TextEditingController(
       text: existing?.idNumber ?? '',
@@ -347,42 +419,57 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       },
     );
 
-    if (confirmed != true) return;
-
-    final repo = ref.read(guestInfoRepoProvider);
-    if (existing == null) {
-      await repo.create(
-        roomNumber: roomController.text,
-        guestName: guestNameController.text,
-        nationality: nationalityController.text,
-        idNumber: idNumberController.text,
-        idType: selectedIdType,
-        issueDate: issueDateController.text.isEmpty
-            ? null
-            : issueDateController.text,
-        issuePlace: issuePlaceController.text,
-        governorate: governorateController.text,
-        notes: notesController.text,
-      );
-      _showSnack('تم حفظ السجل بنجاح');
-    } else {
-      await repo.update(
-        existing.id,
-        roomNumber: roomController.text,
-        guestName: guestNameController.text,
-        nationality: nationalityController.text,
-        idNumber: idNumberController.text,
-        idType: selectedIdType,
-        issueDate: issueDateController.text,
-        issuePlace: issuePlaceController.text,
-        governorate: governorateController.text,
-        notes: notesController.text,
-      );
-      _showSnack('تم تحديث السجل بنجاح');
+    if (confirmed != true) {
+      return;
     }
 
-    markDataChanged();
-    _pushToAppwrite();
+    final repo = ref.read(guestInfoRepoProvider);
+    try {
+      if (existing == null) {
+        await repo.create(
+          roomNumber: roomController.text,
+          guestName: guestNameController.text,
+          nationality: nationalityController.text,
+          idNumber: idNumberController.text,
+          idType: selectedIdType,
+          issueDate: issueDateController.text.isEmpty
+              ? null
+              : issueDateController.text,
+          issuePlace: issuePlaceController.text,
+          governorate: governorateController.text,
+          notes: notesController.text,
+        );
+        _showSnack('تم حفظ السجل بنجاح');
+      } else {
+        await repo.update(
+          existing.id,
+          roomNumber: roomController.text,
+          guestName: guestNameController.text,
+          nationality: nationalityController.text,
+          idNumber: idNumberController.text,
+          idType: selectedIdType,
+          issueDate: issueDateController.text,
+          issuePlace: issuePlaceController.text,
+          governorate: governorateController.text,
+          notes: notesController.text,
+        );
+        _showSnack('تم تحديث السجل بنجاح');
+      }
+
+      markDataChanged();
+      unawaited(_pushToAppwrite());
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حفظ السجل: $e'),
+          backgroundColor: Colors.red.shade900,
+        ),
+      );
+    }
   }
 
   Future<void> _confirmDelete(GuestInfo info) async {
@@ -405,12 +492,26 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       ),
     );
 
-    if (shouldDelete != true) return;
+    if (shouldDelete != true) {
+      return;
+    }
 
-    await ref.read(guestInfoRepoProvider).delete(info.id);
-    markDataChanged();
-    _showSnack('تم حذف السجل');
-    _pushToAppwrite();
+    try {
+      await ref.read(guestInfoRepoProvider).delete(info.id);
+      markDataChanged();
+      _showSnack('تم حذف السجل');
+      unawaited(_pushToAppwrite());
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حذف السجل: $e'),
+          backgroundColor: Colors.red.shade900,
+        ),
+      );
+    }
   }
 
   Future<void> _pickIssueDate(TextEditingController controller) async {
@@ -461,7 +562,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           info.issuePlace ?? '-',
           info.issueDate ?? '-',
           info.idNumber,
-          info.idType ?? '-',
+          info.idType,
           info.nationality,
           info.guestName,
           info.roomNumber,
@@ -572,7 +673,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             ],
           ),
           build: (context) => [
-            pw.Table.fromTextArray(
+            pw.TableHelper.fromTextArray(
               headers: headers,
               data: data,
               headerDecoration: const pw.BoxDecoration(
@@ -625,7 +726,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   }
 
   void _showSnack(String message) {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
@@ -635,7 +738,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   Future<void> _pushToAppwrite() async {
     try {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
-      await syncManager.sync(push: true, pull: false);
+      await syncManager.sync(pull: false);
     } catch (e) {
       debugPrint('⚠️ فشلت المزامنة الفورية: $e');
     }

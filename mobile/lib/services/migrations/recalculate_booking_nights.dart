@@ -1,8 +1,9 @@
 // ignore_for_file: avoid_print
 
 import 'package:flutter/foundation.dart';
-import '../local_db.dart';
+
 import '../booking_derived_fields_service.dart';
+import '../local_db.dart';
 
 /// Migration لإعادة حساب عدد الليالي والحقول المشتقة لجميع الحجوزات
 /// بناءً على التواريخ الفعلية بدلاً من الاعتماد على القيم المحفوظة
@@ -189,7 +190,7 @@ class RecalculationReport {
 
     if (errors.isNotEmpty) {
       buffer.writeln('\n❌ Errors (${errors.length}):');
-      for (var error in errors) {
+      for (final error in errors) {
         buffer.writeln('  • $error');
       }
     }
@@ -199,7 +200,7 @@ class RecalculationReport {
         .toList();
     if (changedBookings.isNotEmpty) {
       buffer.writeln('\n🔄 Changed Bookings (${changedBookings.length}):');
-      for (var booking in changedBookings) {
+      for (final booking in changedBookings) {
         buffer.writeln(
           '  • ${booking.guestName} (Room ${booking.roomNumber}):',
         );
@@ -234,18 +235,6 @@ class RecalculationReport {
 }
 
 class BookingRecalculationDetails {
-  final int bookingId;
-  final String guestName;
-  final String roomNumber;
-  final String checkinDate;
-  final String? checkoutDate;
-  final int oldExpectedNights;
-  final int newExpectedNights;
-  final int oldCalculatedNights;
-  final int newCalculatedNights;
-  final double oldTotalDue;
-  final double newTotalDue;
-  final bool changed;
 
   BookingRecalculationDetails({
     required this.bookingId,
@@ -261,6 +250,18 @@ class BookingRecalculationDetails {
     required this.newTotalDue,
     required this.changed,
   });
+  final int bookingId;
+  final String guestName;
+  final String roomNumber;
+  final String checkinDate;
+  final String? checkoutDate;
+  final int oldExpectedNights;
+  final int newExpectedNights;
+  final int oldCalculatedNights;
+  final int newCalculatedNights;
+  final double oldTotalDue;
+  final double newTotalDue;
+  final bool changed;
 
   Map<String, dynamic> toJson() {
     return {

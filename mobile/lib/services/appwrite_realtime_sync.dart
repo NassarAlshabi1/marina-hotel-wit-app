@@ -1,15 +1,18 @@
 import 'dart:async';
+
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'appwrite_service.dart';
+
 import 'appwrite_config.dart';
+import 'appwrite_service.dart';
+import 'crashlytics_service.dart';
 
 class AppwriteRealtimeSync {
-  static final AppwriteRealtimeSync _instance =
-      AppwriteRealtimeSync._internal();
   factory AppwriteRealtimeSync() => _instance;
   AppwriteRealtimeSync._internal();
+  static final AppwriteRealtimeSync _instance =
+      AppwriteRealtimeSync._internal();
 
   Realtime? _realtime;
   RealtimeSubscription? _subscription;
@@ -60,10 +63,14 @@ class AppwriteRealtimeSync {
   }
 
   Future<void> start() async {
-    if (_isListening || _realtime == null) return;
+    if (_isListening || _realtime == null) {
+      return;
+    }
 
     final prefs = await SharedPreferences.getInstance();
-    if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) return;
+    if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
+      return;
+    }
 
     final channels = _collections
         .map(
@@ -79,8 +86,14 @@ class AppwriteRealtimeSync {
 
     _subscription!.stream.listen(
       _onEvent,
-      onError: (e) {
+      onError: (Object e) {
         debugPrint('❌ Realtime error: $e');
+        CrashlyticsService.instance.recordSyncError(
+          operation: 'realtime_listen',
+          error: e.toString(),
+          severity: CrashlyticsSeverity.warning,
+          context: {'deviceId': _currentDeviceId ?? 'unknown'},
+        );
         _isListening = false;
         _reconnect();
       },
@@ -95,7 +108,9 @@ class AppwriteRealtimeSync {
     final sourceDevice = payload['device_id'] ?? payload['lastModifiedBy'];
 
     // تجاهل التغييرات من نفس الجهاز (لأنها محلية بالفعل)
-    if (sourceDevice == _currentDeviceId) return;
+    if (sourceDevice == _currentDeviceId) {
+      return;
+    }
 
     // ✅ تحسين: تصفية أنواع الأحداث (create/update/delete فقط)
     // لا نهتم بـ permissions.update أو أحداث النظام
@@ -103,7 +118,7 @@ class AppwriteRealtimeSync {
     final isDataChange = eventTypes.any((e) =>
         e.endsWith('.create') ||
         e.endsWith('.update') ||
-        e.endsWith('.delete'));
+        e.endsWith('.delete'),);
 
     if (!isDataChange) {
       debugPrint('📡 Realtime: ignoring non-data event: $eventTypes');
@@ -114,7 +129,7 @@ class AppwriteRealtimeSync {
     final updatedAt = payload['\$updatedAt'] ?? payload['\$createdAt'];
     if (updatedAt != null) {
       try {
-        final serverTime = DateTime.parse(updatedAt);
+        final serverTime = DateTime.parse(updatedAt as String);
         if (_lastServerUpdate == null || serverTime.isAfter(_lastServerUpdate!)) {
           _lastServerUpdate = serverTime;
         }
@@ -159,14 +174,22 @@ class AppwriteRealtimeSync {
     debugPrint('📡 Realtime: remote changes flag reset - count cleared');
   }
 
-  void _reconnect() {
-    Future.delayed(const Duration(seconds: 5), () {
-      if (!_isListening) start();
-    });
-  }
+    void _reconnect() {
+      CrashlyticsService.instance.recordSyncError(
+        operation: 'realtime_reconnect',
+        error: 'Connection lost — reconnecting in 5s',
+        severity: CrashlyticsSeverity.info,
+        context: {'deviceId': _currentDeviceId ?? 'unknown'},
+      );
+      Future<void>.delayed(const Duration(seconds: 5), () {
+        if (!_isListening) {
+          start();
+        }
+      });
+    }
 
   Future<void> stop() async {
-    _subscription?.close();
+    unawaited(_subscription?.close());
     _subscription = null;
     _isListening = false;
     _debounceTimer?.cancel();

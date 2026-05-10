@@ -2,15 +2,17 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
-import '../../utils/time.dart';
+import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/time.dart';
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
-  final String? bookingId;
   const PaymentHistoryScreen({super.key, this.bookingId});
+  final String? bookingId;
 
   @override
   ConsumerState<PaymentHistoryScreen> createState() =>
@@ -198,12 +200,15 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
               ),
             ),
             Expanded(
-              child: ListView.builder(
+              child: RefreshIndicator(
+                onRefresh: () => ref.read(syncServiceProvider).runSync(),
+                child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: payments.length,
                 itemBuilder: (context, index) {
                   final payment = payments[index];
-                  return Card(
+                  return RepaintBoundary(
+                    child: Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
                       leading: Container(
@@ -211,7 +216,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                         decoration: BoxDecoration(
                           color: _getPaymentMethodColor(
                             payment.paymentMethod,
-                          ).withOpacity(0.2),
+                          ).withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -312,14 +317,16 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                           : null,
                       onTap: () => _showPaymentDetails(payment),
                     ),
+                  ),
                   );
                 },
               ),
-            ),
-          ],
-        );
-      },
-    );
+                ),
+              ),
+            ],
+          );
+        },
+      );
   }
 
   bool _hasActiveFilters() {
@@ -383,7 +390,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           if (_toDate != null && paymentDate.isAfter(_toDate!)) {
             return false;
           }
-        } catch (e) {}
+        } catch (e) { debugPrint('Date parse error in filter: $e'); }
       }
 
       return true;
@@ -391,7 +398,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   }
 
   void _showFilterDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -403,7 +410,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: _selectedRevenueType,
+                    initialValue: _selectedRevenueType,
                     style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                     decoration: const InputDecoration(
                       labelText: 'نوع الإيراد',
@@ -411,7 +418,6 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                     ),
                     items: [
                       DropdownMenuItem(
-                        value: null,
                         child: Text('جميع الأنواع', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color)),
                       ),
                       ..._revenueTypes.map(
@@ -426,7 +432,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _selectedPaymentMethod,
+                    initialValue: _selectedPaymentMethod,
                     style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                     decoration: const InputDecoration(
                       labelText: 'طريقة الدفع',
@@ -434,7 +440,6 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                     ),
                     items: [
                       DropdownMenuItem(
-                        value: null,
                         child: Text('جميع الطرق', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color)),
                       ),
                       ..._paymentMethods.map(
@@ -520,7 +525,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   }
 
   void _showPaymentDetails(Payment payment) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,

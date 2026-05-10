@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/auto_backup_manager.dart';
-import '../../services/auto_backup_task.dart';
-import '../../services/alarm_backup.dart';
+
 import '../../providers/auto_backup_provider.dart';
 import '../../providers/backup_provider.dart';
+import '../../services/alarm_backup.dart';
+import '../../services/auto_backup_manager.dart';
+import '../../services/auto_backup_task.dart';
 
 class AutoBackupSettingsScreen extends ConsumerStatefulWidget {
   const AutoBackupSettingsScreen({super.key});
@@ -71,6 +72,7 @@ class _AutoBackupSettingsScreenState
       await manager.setMaxBackupCount(maxBackups);
       await manager.setRetentionDays(retentionDays);
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ تم حفظ الإعدادات بنجاح'),
@@ -78,6 +80,7 @@ class _AutoBackupSettingsScreenState
         ),
       );
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في حفظ الإعدادات: $e'),
@@ -98,6 +101,7 @@ class _AutoBackupSettingsScreenState
 
       ref.invalidate(autoBackupStatusProvider);
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -109,6 +113,7 @@ class _AutoBackupSettingsScreenState
         ),
       );
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير حالة النسخ التلقائي: $e'),
@@ -127,6 +132,7 @@ class _AutoBackupSettingsScreenState
       final manager = AutoBackupManager.instance;
       await manager.cleanupNow();
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🧹 تم تنظيف النسخ القديمة بنجاح'),
@@ -134,6 +140,7 @@ class _AutoBackupSettingsScreenState
         ),
       );
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تنظيف النسخ: $e'),
@@ -172,7 +179,7 @@ class _AutoBackupSettingsScreenState
             ],
           ),
         ),
-        data: (status) => _buildSettingsUI(status),
+        data: _buildSettingsUI,
       ),
     );
   }
@@ -507,9 +514,11 @@ class _AutoBackupSettingsScreenState
         await AutoBackupTask.scheduleDaily(time: formatted);
         await driveService.setAutoBackupTime(formatted);
 
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
+              // ignore: use_build_context_synchronously
               '✅ تم تحديث وقت النسخ الاحتياطي إلى ${picked.format(context)}',
             ),
             backgroundColor: Colors.green,
@@ -537,9 +546,11 @@ class _AutoBackupSettingsScreenState
         await AutoBackupTask.scheduleDaily(time: formatted);
         await driveService.setAutoBackupEnabled(true);
         await driveService.setAutoBackupTime(formatted);
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
+              // ignore: use_build_context_synchronously
               '✅ تم جدولة النسخ الاحتياطي يومياً في ${_scheduledTime.format(context)} (محلي + WorkManager)',
             ),
             backgroundColor: Colors.green,
@@ -550,6 +561,7 @@ class _AutoBackupSettingsScreenState
         await AlarmBackup.cancelAlarm();
         await AutoBackupTask.cancelScheduled();
         await driveService.setAutoBackupEnabled(false);
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('⏸️ تم إلغاء جدولة النسخ الاحتياطي'),
@@ -562,6 +574,7 @@ class _AutoBackupSettingsScreenState
         _isScheduledBackupEnabled = enabled;
       });
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير حالة النسخ المجدول: $e'),

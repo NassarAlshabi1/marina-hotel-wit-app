@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'package:crypto/crypto.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'connectivity_service.dart';
-import 'sync_mutex.dart';
-import 'sync_core/circuit_breaker.dart';
 
+import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'connectivity_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'sync_core/circuit_breaker.dart';
+import 'sync_mutex.dart';
 
 enum SyncPriority { critical, high, normal, low, background }
 
@@ -27,18 +28,6 @@ enum OrchestratorState {
 }
 
 class SyncTask {
-  final String id;
-  final String name;
-  final SyncPriority priority;
-  final SyncStrategy strategy;
-  final SyncDirection direction;
-  final Future<SyncTaskResult> Function() execute;
-  final bool Function()? canExecute;
-  final Duration timeout;
-  final int maxRetries;
-  int attempts;
-  DateTime? lastAttempt;
-  DateTime createdAt;
 
   SyncTask({
     required this.id,
@@ -54,22 +43,28 @@ class SyncTask {
     this.lastAttempt,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
+  final String id;
+  final String name;
+  final SyncPriority priority;
+  final SyncStrategy strategy;
+  final SyncDirection direction;
+  final Future<SyncTaskResult> Function() execute;
+  final bool Function()? canExecute;
+  final Duration timeout;
+  final int maxRetries;
+  int attempts;
+  DateTime? lastAttempt;
+  DateTime createdAt;
 
   bool get canRetry => attempts < maxRetries;
 
   Duration get nextRetryDelay {
-    final baseDelay = Duration(seconds: 5);
+    const baseDelay = Duration(seconds: 5);
     return baseDelay * (1 << attempts.clamp(0, 5));
   }
 }
 
 class SyncTaskResult {
-  final bool success;
-  final int recordsProcessed;
-  final int conflicts;
-  final Duration duration;
-  final String? error;
-  final Map<String, dynamic>? metadata;
 
   const SyncTaskResult({
     required this.success,
@@ -103,18 +98,15 @@ class SyncTaskResult {
     error: error,
     metadata: metadata,
   );
+  final bool success;
+  final int recordsProcessed;
+  final int conflicts;
+  final Duration duration;
+  final String? error;
+  final Map<String, dynamic>? metadata;
 }
 
 class SyncHealth {
-  final bool isHealthy;
-  final double successRate;
-  final int consecutiveFailures;
-  final Duration avgSyncDuration;
-  final DateTime? lastSuccessfulSync;
-  final DateTime? lastFailedSync;
-  final int pendingTasks;
-  final int outboxCount;
-  final Map<String, CircuitState> circuitStates;
 
   const SyncHealth({
     required this.isHealthy,
@@ -127,6 +119,15 @@ class SyncHealth {
     required this.outboxCount,
     required this.circuitStates,
   });
+  final bool isHealthy;
+  final double successRate;
+  final int consecutiveFailures;
+  final Duration avgSyncDuration;
+  final DateTime? lastSuccessfulSync;
+  final DateTime? lastFailedSync;
+  final int pendingTasks;
+  final int outboxCount;
+  final Map<String, CircuitState> circuitStates;
 
   Map<String, dynamic> toJson() => {
     'isHealthy': isHealthy,
@@ -156,7 +157,9 @@ class SyncMetricsData {
   double get successRate => totalSyncs > 0 ? successfulSyncs / totalSyncs : 0;
 
   Duration get avgDuration {
-    if (recentDurations.isEmpty) return Duration.zero;
+    if (recentDurations.isEmpty) {
+      return Duration.zero;
+    }
     final total = recentDurations.fold<int>(
       0,
       (sum, d) => sum + d.inMilliseconds,
@@ -206,10 +209,6 @@ class SyncMetricsData {
 }
 
 class DataIntegrityCheck {
-  final String tableName;
-  final String checksum;
-  final int recordCount;
-  final DateTime timestamp;
 
   const DataIntegrityCheck({
     required this.tableName,
@@ -217,6 +216,10 @@ class DataIntegrityCheck {
     required this.recordCount,
     required this.timestamp,
   });
+  final String tableName;
+  final String checksum;
+  final int recordCount;
+  final DateTime timestamp;
 
   Map<String, dynamic> toJson() => {
     'tableName': tableName,
@@ -227,10 +230,10 @@ class DataIntegrityCheck {
 }
 
 class SyncOrchestrator {
-  static SyncOrchestrator? _instance;
-  static SyncOrchestrator get instance => _instance ??= SyncOrchestrator._();
 
   SyncOrchestrator._();
+  static SyncOrchestrator? _instance;
+  static SyncOrchestrator get instance => _instance ??= SyncOrchestrator._();
 
   late AppDatabase _database;
   late OutboxDao _outboxDao;
@@ -243,7 +246,7 @@ class SyncOrchestrator {
   OrchestratorState _state = OrchestratorState.idle;
   Timer? _healthCheckTimer;
   Timer? _taskProcessorTimer;
-  StreamSubscription? _connectivitySubscription;
+  StreamSubscription<void>? _connectivitySubscription;
 
   final _stateController = StreamController<OrchestratorState>.broadcast();
   final _healthController = StreamController<SyncHealth>.broadcast();
@@ -271,9 +274,7 @@ class SyncOrchestrator {
       name: 'appwrite',
       config: const CircuitBreakerConfig(
         failureThreshold: 3,
-        timeout: Duration(seconds: 30),
         resetTimeout: Duration(minutes: 2),
-        successThreshold: 2,
       ),
     );
 
@@ -283,7 +284,6 @@ class SyncOrchestrator {
         failureThreshold: 3,
         timeout: Duration(minutes: 1),
         resetTimeout: Duration(minutes: 5),
-        successThreshold: 2,
       ),
     );
 
@@ -334,7 +334,7 @@ class SyncOrchestrator {
     );
 
     if (_state == OrchestratorState.idle) {
-      _processTasks();
+      unawaited(_processTasks());
     }
   }
 
@@ -405,10 +405,14 @@ class SyncOrchestrator {
   }
 
   Future<void> _processTasks() async {
-    if (_state != OrchestratorState.idle || _taskQueue.isEmpty) return;
+    if (_state != OrchestratorState.idle || _taskQueue.isEmpty) {
+      return;
+    }
 
     final acquired = await _mutex.acquire(timeout: const Duration(seconds: 5));
-    if (!acquired) return;
+    if (!acquired) {
+      return;
+    }
 
     try {
       _setState(OrchestratorState.syncing);
@@ -542,11 +546,11 @@ class SyncOrchestrator {
       final json = prefs.getString('sync_orchestrator_metrics');
       if (json != null) {
         final data = jsonDecode(json) as Map<String, dynamic>;
-        _metrics.totalSyncs = data['totalSyncs'] ?? 0;
-        _metrics.successfulSyncs = data['successfulSyncs'] ?? 0;
-        _metrics.failedSyncs = data['failedSyncs'] ?? 0;
-        _metrics.totalRecordsProcessed = data['totalRecordsProcessed'] ?? 0;
-        _metrics.totalConflicts = data['totalConflicts'] ?? 0;
+        _metrics.totalSyncs = (data['totalSyncs'] as num?)?.toInt() ?? 0;
+        _metrics.successfulSyncs = (data['successfulSyncs'] as num?)?.toInt() ?? 0;
+        _metrics.failedSyncs = (data['failedSyncs'] as num?)?.toInt() ?? 0;
+        _metrics.totalRecordsProcessed = (data['totalRecordsProcessed'] as num?)?.toInt() ?? 0;
+        _metrics.totalConflicts = (data['totalConflicts'] as num?)?.toInt() ?? 0;
       }
     } catch (e) {
       debugPrint('⚠️ [Orchestrator] خطأ في تحميل المقاييس: $e');
@@ -566,7 +570,9 @@ class SyncOrchestrator {
   }
 
   void _setState(OrchestratorState newState) {
-    if (_state == newState) return;
+    if (_state == newState) {
+      return;
+    }
     _state = newState;
     _stateController.add(newState);
     debugPrint('🔄 [Orchestrator] الحالة: ${newState.name}');
@@ -587,7 +593,9 @@ class SyncOrchestrator {
   }
 
   Future<void> forceSync() async {
-    if (_state == OrchestratorState.syncing) return;
+    if (_state == OrchestratorState.syncing) {
+      return;
+    }
     _setState(OrchestratorState.idle);
     await _processTasks();
   }

@@ -1,13 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../services/appwrite_cache_manager.dart';
+import '../services/appwrite_error_handler.dart';
+import '../services/appwrite_logger.dart';
 import '../services/appwrite_service.dart';
 import '../services/appwrite_sync_manager.dart';
-import '../services/appwrite_cache_manager.dart';
-import '../services/unified_sync_orchestrator.dart';
-import '../services/smart_sync_manager.dart';
-import '../services/appwrite_logger.dart';
-import '../services/appwrite_error_handler.dart';
-import '../services/providers.dart';
 import '../services/daos/outbox_dao.dart';
+import '../services/providers.dart';
+import '../services/smart_sync_manager.dart';
+import '../services/unified_sync_orchestrator.dart';
 
 // ============ Service Providers ============
 
@@ -25,9 +26,7 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
     database: database,
   );
 
-  ref.onDispose(() {
-    manager.dispose();
-  });
+  ref.onDispose(manager.dispose);
 
   return manager;
 });
@@ -45,7 +44,7 @@ final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
 
 final unifiedSyncStateProvider = StreamProvider<UnifiedSyncState>((ref) {
   final orch = ref.watch(unifiedSyncOrchestratorProvider);
-  ref.onDispose(() => orch.dispose());
+  ref.onDispose(orch.dispose);
   return orch.stateStream;
 });
 
@@ -73,15 +72,15 @@ final connectionStatusProvider =
     });
 
 class ConnectionState {
-  final bool isConnected;
-  final bool isChecking;
-  final String? errorMessage;
 
   ConnectionState({
     required this.isConnected,
     this.isChecking = false,
     this.errorMessage,
   });
+  final bool isConnected;
+  final bool isChecking;
+  final String? errorMessage;
 
   ConnectionState copyWith({
     bool? isConnected,
@@ -97,13 +96,13 @@ class ConnectionState {
 }
 
 class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
-  final Ref ref;
 
   ConnectionStatusNotifier(this.ref)
     : super(ConnectionState(isConnected: false));
+  final Ref ref;
 
   Future<void> checkConnection() async {
-    state = state.copyWith(isChecking: true, errorMessage: null);
+    state = state.copyWith(isChecking: true);
 
     try {
       final service = ref.read(appwriteServiceProvider);
@@ -116,14 +115,12 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
 
       state = ConnectionState(
         isConnected: isConnected,
-        isChecking: false,
         errorMessage: failureMessage,
       );
     } catch (e) {
       state = ConnectionState(
         isConnected: false,
-        isChecking: false,
-        errorMessage: 'خطأ في الاتصال: ${e.toString()}',
+        errorMessage: 'خطأ في الاتصال: $e',
       );
     }
   }
@@ -134,7 +131,7 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
 /// مزود إحصائيات المزامنة
 final syncStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final syncManager = ref.watch(appwriteSyncManagerProvider);
-  return await syncManager.getSyncStatistics();
+  return syncManager.getSyncStatistics();
 });
 
 final outboxCountProvider = StreamProvider<int>((ref) {
@@ -161,12 +158,10 @@ final projectInfoProvider = Provider<Map<String, String>>((ref) {
   return service.getProjectInfo();
 });
 
-/// مزود قائمة الأجهزة المسجلة (أحدث ثلاثة أجهزة فقط)
+/// مزود قائمة الأجهزة المسجلة (أحدث جهازين فقط)
 final devicesListProvider = FutureProvider((ref) async {
   final syncManager = ref.watch(appwriteSyncManagerProvider);
-  final devices = await syncManager.getRegisteredDevices();
-  devices.sort((a, b) => b.lastSeen.compareTo(a.lastSeen));
-  return devices.take(3).toList(growable: false);
+  return syncManager.getRegisteredDevices();
 });
 
 /// مزود السجلات

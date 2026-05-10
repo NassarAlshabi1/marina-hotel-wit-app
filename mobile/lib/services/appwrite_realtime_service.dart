@@ -1,19 +1,16 @@
 import 'dart:async';
+
 import 'package:appwrite/appwrite.dart';
+
+import 'appwrite_cache_manager.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
-import 'appwrite_cache_manager.dart';
 
 /// نوع الحدث في Realtime
 enum RealtimeEventType { create, update, delete, unknown }
 
 /// حدث Realtime
 class RealtimeEvent {
-  final RealtimeEventType type;
-  final String collection;
-  final String documentId;
-  final Map<String, dynamic>? data;
-  final DateTime timestamp;
 
   RealtimeEvent({
     required this.type,
@@ -22,6 +19,11 @@ class RealtimeEvent {
     this.data,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
+  final RealtimeEventType type;
+  final String collection;
+  final String documentId;
+  final Map<String, dynamic>? data;
+  final DateTime timestamp;
 
   @override
   String toString() =>
@@ -33,10 +35,10 @@ typedef RealtimeEventHandler = void Function(RealtimeEvent event);
 
 /// خدمة Appwrite Realtime - التحديثات الفورية
 class AppwriteRealtimeService {
-  static final AppwriteRealtimeService _instance =
-      AppwriteRealtimeService._internal();
   factory AppwriteRealtimeService() => _instance;
   AppwriteRealtimeService._internal();
+  static final AppwriteRealtimeService _instance =
+      AppwriteRealtimeService._internal();
 
   late final Realtime _realtime;
   final _logger = AppwriteLogger();
@@ -48,7 +50,9 @@ class AppwriteRealtimeService {
 
   /// تهيئة خدمة Realtime
   Future<void> initialize(Client client) async {
-    if (_initialized) return;
+    if (_initialized) {
+      return;
+    }
 
     try {
       _realtime = Realtime(client);
@@ -91,7 +95,7 @@ class AppwriteRealtimeService {
 
       // إلغاء الاشتراك القديم إذا كان موجوداً
       if (_subscriptions.containsKey(subscriptionKey)) {
-        _subscriptions[subscriptionKey]!.close();
+        unawaited(_subscriptions[subscriptionKey]!.close());
         _subscriptions.remove(subscriptionKey);
       }
 
@@ -103,7 +107,7 @@ class AppwriteRealtimeService {
         (response) {
           _handleRealtimeResponse(response, collectionId, handler);
         },
-        onError: (error) {
+        onError: (Object error) {
           _logger.error(
             'Realtime subscription error for $collectionId',
             error: error,
@@ -159,7 +163,7 @@ class AppwriteRealtimeService {
 
       // إلغاء الاشتراك القديم
       if (_subscriptions.containsKey(subscriptionKey)) {
-        _subscriptions[subscriptionKey]!.close();
+        unawaited(_subscriptions[subscriptionKey]!.close());
         _subscriptions.remove(subscriptionKey);
       }
 
@@ -170,7 +174,7 @@ class AppwriteRealtimeService {
         (response) {
           _handleRealtimeResponse(response, collectionId, handler);
         },
-        onError: (error) {
+        onError: (Object error) {
           _logger.error(
             'Realtime subscription error for document $documentId',
             error: error,
@@ -292,7 +296,7 @@ class AppwriteRealtimeService {
     RealtimeEventHandler handler,
   ) {
     try {
-      final events = response.events;
+      final events = response.events as List;
 
       if (events.isEmpty) {
         _logger.debug(
@@ -304,17 +308,17 @@ class AppwriteRealtimeService {
 
       // تحديد نوع الحدث
       RealtimeEventType eventType = RealtimeEventType.unknown;
-      if (events.any((e) => e.contains('create'))) {
+      if (events.any((e) => (e as String).contains('create'))) {
         eventType = RealtimeEventType.create;
-      } else if (events.any((e) => e.contains('update'))) {
+      } else if (events.any((e) => (e as String).contains('update'))) {
         eventType = RealtimeEventType.update;
-      } else if (events.any((e) => e.contains('delete'))) {
+      } else if (events.any((e) => (e as String).contains('delete'))) {
         eventType = RealtimeEventType.delete;
       }
 
       // استخراج البيانات
-      final payload = response.payload;
-      final documentId = payload['\$id'] ?? '';
+      final payload = (response.payload as Map<String, dynamic>?) ?? {};
+      final documentId = (payload['\$id'] ?? '') as String;
 
       _logger.debug(
         'Realtime event: $eventType on $collectionId/$documentId',
@@ -326,7 +330,7 @@ class AppwriteRealtimeService {
         type: eventType,
         collection: collectionId,
         documentId: documentId,
-        data: payload,
+        data: payload as Map<String, dynamic>?,
       );
 
       // تحديث الذاكرة المؤقتة
@@ -358,13 +362,11 @@ class AppwriteRealtimeService {
           }
           // مسح قائمة المستندات للتحديث
           _cache.clearByPattern('^${event.collection}_all');
-          break;
 
         case RealtimeEventType.delete:
           // حذف من الذاكرة المؤقتة
           _cache.remove(cacheKey);
           _cache.clearByPattern('^${event.collection}_all');
-          break;
 
         case RealtimeEventType.unknown:
           // لا شيء
@@ -412,5 +414,10 @@ class AppwriteRealtimeService {
     unsubscribeAll();
     _initialized = false;
     _logger.info('Realtime service disposed', tag: 'REALTIME');
+  }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    _instance.dispose();
   }
 }

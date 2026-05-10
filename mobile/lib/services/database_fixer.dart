@@ -4,9 +4,9 @@ import 'local_db.dart';
 
 /// خدمة لإصلاح البيانات الفاسدة في قاعدة البيانات
 class DatabaseFixer {
-  final AppDatabase db;
 
   DatabaseFixer(this.db);
+  final AppDatabase db;
 
   /// إصلاح جميع المشاكل المعروفة في قاعدة البيانات
   Future<FixResult> fixAllIssues() async {
@@ -169,12 +169,16 @@ class DatabaseFixer {
             final employee = await (db.select(
               db.employees,
             )..where((e) => e.id.equals(relatedId))).getSingleOrNull();
-            if (employee == null) shouldFix = true;
+            if (employee == null) {
+              shouldFix = true;
+            }
           } else if (expenseType == 'booking') {
             final booking = await (db.select(
               db.bookings,
             )..where((b) => b.id.equals(relatedId))).getSingleOrNull();
-            if (booking == null) shouldFix = true;
+            if (booking == null) {
+              shouldFix = true;
+            }
           }
         }
 

@@ -1,11 +1,12 @@
 import 'package:drift/drift.dart';
+
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../adapters/adapter_registry.dart';
+import '../adapters/source.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
-import '../adapters/adapter_registry.dart';
-import '../adapters/source.dart';
 
 part 'bookings_dao.g.dart';
 
@@ -27,7 +28,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     int? offset,
   }) async {
     final q = select(bookings);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     if (roomNumber != null && roomNumber.isNotEmpty) {
       q.where((t) => t.roomNumber.equals(roomNumber));
     }
@@ -48,7 +51,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     q.orderBy([
       (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),
     ]);
-    if (limit != null) q.limit(limit, offset: offset ?? 0);
+    if (limit != null) {
+      q.limit(limit, offset: offset ?? 0);
+    }
     return q.get();
   }
 
@@ -58,7 +63,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
   }) {
     final q = select(bookings);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     if (roomNumber != null && roomNumber.isNotEmpty) {
       q.where((t) => t.roomNumber.equals(roomNumber));
     }
@@ -111,10 +118,13 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
+        version: Value(existing.version + 1),
       );
       final rows = await (update(
         bookings,
@@ -135,7 +145,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final rows = await (update(bookings)..where((t) => t.id.equals(id)))
           .write(
             BookingsCompanion(
@@ -196,7 +208,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-    if (row == null) return null;
+    if (row == null) {
+      return null;
+    }
     return adapters.bookings.toJsonForSource(row, src: Source.appwrite);
   }
 
@@ -207,7 +221,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     int? serverId,
   }) async {
     final payload = await _payloadForLocalUuid(localUuid);
-    if (payload == null) return;
+    if (payload == null) {
+      return;
+    }
     await outboxDao.merge(
       entity: 'bookings',
       op: op,
@@ -222,7 +238,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
 
   /// تصدير جميع الحجوزات إلى JSON
   Future<List<Map<String, dynamic>>> exportToJson() async {
-    final bookingsList = await list(includeDeleted: false);
+    final bookingsList = await list();
     return bookingsList.map((booking) => booking.toJson()).toList();
   }
 
@@ -266,6 +282,26 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
           lastModified: Value(booking.lastModified),
           version: Value(booking.version),
           origin: Value(booking.origin),
+          discount: Value(booking.discount),
+          discountType: Value(booking.discountType),
+          discountStartDate: Value(booking.discountStartDate),
+          totalNightsCached: Value(booking.totalNightsCached),
+          totalDueCached: Value(booking.totalDueCached),
+          totalPaidCached: Value(booking.totalPaidCached),
+          remainingBalanceCached: Value(booking.remainingBalanceCached),
+          isFullyPaid: Value(booking.isFullyPaid),
+          hotelDayCheckin: Value(booking.hotelDayCheckin),
+          hotelDayCheckout: Value(booking.hotelDayCheckout),
+          stayDurationIso: Value(booking.stayDurationIso),
+          lastNightEpoch: Value(booking.lastNightEpoch),
+          isOverdue: Value(booking.isOverdue),
+          needsCheckoutReview: Value(booking.needsCheckoutReview),
+          createdAtIso: Value(booking.createdAtIso),
+          updatedAtIso: Value(booking.updatedAtIso),
+          deletedAtIso: Value(booking.deletedAtIso),
+          createdAtEpoch: Value(booking.createdAtEpoch),
+          lastModifiedEpoch: Value(booking.lastModifiedEpoch),
+          vectorClock: Value(booking.vectorClock),
         ),
       );
     }

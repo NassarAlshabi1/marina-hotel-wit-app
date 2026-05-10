@@ -268,16 +268,48 @@ class AppwriteDeltaSync {
 
   Future<int> _pullEntityChanges(String entity, String collectionId, int lastPullTs) async {
     try {
-      final documents = await _appwriteService!.listDocuments(
-        collectionId: collectionId,
-        queries: lastPullTs > 0
-            ? [Query.greaterThan('syncTimestamp', lastPullTs)]
-            : null,
-        useCache: false,
-      );
-
       int applied = 0;
-      for (final doc in documents) {
+      final pageSize = AppwriteConfig.maxPageSize; // 100 — حد Appwrite Cloud
+      int offset = 0;
+      final allDocuments = <dynamic>[];
+
+      // ✅ بناء استعلامات الفلترة الأساسية
+      final baseQueries = <String>[];
+
+      if (lastPullTs > 0) {
+        baseQueries.add(Query.greaterThan('syncTimestamp', lastPullTs));
+      }
+
+      baseQueries.add(Query.orderAsc('\$createdAt'));
+
+      // ✅ حلقة ترقيم صفحات كاملة — تجلب كل البيانات
+      while (true) {
+        final pageQueries = <String>[
+          ...baseQueries,
+          Query.limit(pageSize),
+          Query.offset(offset),
+        ];
+
+        final page = await _appwriteService!.listDocuments(
+          collectionId: collectionId,
+          queries: pageQueries,
+          useCache: false,
+        );
+
+        if (page.isEmpty) break;
+
+        allDocuments.addAll(page);
+
+        _logger.info(
+          '📥 سحب $entity: صفحة ${offset ~/ pageSize + 1} — ${page.length} سجل',
+          tag: 'DELTA_SYNC',
+        );
+
+        if (page.length < pageSize) break; // آخر صفحة
+        offset += pageSize;
+      }
+
+      for (final doc in allDocuments) {
         final data = Map<String, dynamic>.from(doc.data);
         final sourceDeviceId = data['deviceId'] as String?;
 
@@ -290,6 +322,11 @@ class AppwriteDeltaSync {
           _logger.warning('فشل تطبيق تغيير: $entity/${doc.$id} - $e', tag: 'DELTA_SYNC');
         }
       }
+
+      _logger.info(
+        '📥 سحب $entity: $applied سجل من ${allDocuments.length} مستند',
+        tag: 'DELTA_SYNC',
+      );
 
       return applied;
     } catch (e) {

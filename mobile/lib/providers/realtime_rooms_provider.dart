@@ -1,14 +1,21 @@
-import 'package:flutter/foundation.dart';
 import 'package:appwrite/appwrite.dart';
-import '../services/local_db.dart';
+import 'package:flutter/foundation.dart';
+
 import '../repositories/room_repository.dart';
-import '../services/appwrite_realtime_service.dart';
 import '../services/appwrite_logger.dart';
+import '../services/appwrite_realtime_service.dart';
+import '../services/local_db.dart';
 
 /// Provider للغرف مع دعم Realtime Updates
 ///
 /// يدير حالة الغرف ويستمع للتحديثات الفورية من Appwrite
 class RealTimeRoomsProvider extends ChangeNotifier {
+
+  RealTimeRoomsProvider({
+    required RoomRepository repository,
+    required AppwriteRealtimeService realtimeService,
+  }) : _repository = repository,
+       _realtimeService = realtimeService;
   final RoomRepository _repository;
   // ignore: unused_field
   final AppwriteRealtimeService _realtimeService;
@@ -19,12 +26,6 @@ class RealTimeRoomsProvider extends ChangeNotifier {
   bool _isSubscribed = false;
   String? _error;
   RealtimeSubscription? _subscription;
-
-  RealTimeRoomsProvider({
-    required RoomRepository repository,
-    required AppwriteRealtimeService realtimeService,
-  }) : _repository = repository,
-       _realtimeService = realtimeService;
 
   // Getters
   List<Room> get rooms => List.unmodifiable(_rooms);
@@ -41,7 +42,9 @@ class RealTimeRoomsProvider extends ChangeNotifier {
 
   /// تحميل الغرف
   Future<void> loadRooms() async {
-    if (_isLoading) return;
+    if (_isLoading) {
+      return;
+    }
 
     _setLoading(true);
     _setError(null);
@@ -150,7 +153,9 @@ class RealTimeRoomsProvider extends ChangeNotifier {
 
   /// البحث في الغرف محلياً
   List<Room> searchLocal(String query) {
-    if (query.isEmpty) return rooms;
+    if (query.isEmpty) {
+      return rooms;
+    }
 
     final lowerQuery = query.toLowerCase();
     return _rooms.where((room) {

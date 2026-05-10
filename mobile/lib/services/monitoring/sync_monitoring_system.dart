@@ -17,22 +17,6 @@ enum SyncEventType {
 
 /// حدث مزامنة واحد
 class SyncEvent {
-  final String id;
-  final SyncEventType type;
-  final DateTime timestamp;
-  final String? message;
-  final Map<String, dynamic>? metadata;
-  final String? errorStack;
-
-  // Private constructor for controlled instantiation
-  SyncEvent._({
-    required this.id,
-    required this.timestamp,
-    required this.type,
-    this.message,
-    this.metadata,
-    this.errorStack,
-  });
 
   // Public factory for creating new events
   factory SyncEvent({
@@ -49,6 +33,36 @@ class SyncEvent {
     errorStack: errorStack,
   );
 
+  // Private constructor for controlled instantiation
+  SyncEvent._({
+    required this.id,
+    required this.timestamp,
+    required this.type,
+    this.message,
+    this.metadata,
+    this.errorStack,
+  });
+
+  factory SyncEvent.fromJson(Map<String, dynamic> json) => SyncEvent._(
+    id: json['id'] as String,
+    timestamp: DateTime.parse(json['timestamp'] as String),
+    type: SyncEventType.values.firstWhere(
+      (e) => e.name == json['type'],
+      orElse: () => SyncEventType.failed,
+    ),
+    message: json['message'] as String?,
+    metadata: json['metadata'] != null
+        ? Map<String, dynamic>.from(json['metadata'] as Map)
+        : null,
+    errorStack: json['errorStack'] as String?,
+  );
+  final String id;
+  final SyncEventType type;
+  final DateTime timestamp;
+  final String? message;
+  final Map<String, dynamic>? metadata;
+  final String? errorStack;
+
   static String _generateId() {
     return const Uuid().v4();
   }
@@ -61,35 +75,10 @@ class SyncEvent {
     'metadata': metadata,
     'errorStack': errorStack,
   };
-
-  factory SyncEvent.fromJson(Map<String, dynamic> json) => SyncEvent._(
-    id: json['id'] as String,
-    timestamp: DateTime.parse(json['timestamp'] as String),
-    type: SyncEventType.values.firstWhere(
-      (e) => e.name == json['type'],
-      orElse: () => SyncEventType.failed,
-    ),
-    message: json['message'] as String?,
-    metadata: json['metadata'] != null
-        ? Map<String, dynamic>.from(json['metadata'])
-        : null,
-    errorStack: json['errorStack'] as String?,
-  );
 }
 
 /// إحصائيات الأداء الحية
 class SyncPerformanceStats {
-  final int totalAttempts;
-  final int successfulSyncs;
-  final int failedSyncs;
-  final int conflictsDetected;
-  final int conflictsResolved;
-  final double successRate;
-  final Duration averageTime;
-  final Duration? lastSyncDuration;
-  final DateTime? lastSuccessfulSync;
-  final DateTime? lastFailedSync;
-  final List<String> recentErrors;
 
   SyncPerformanceStats({
     required this.totalAttempts,
@@ -104,13 +93,30 @@ class SyncPerformanceStats {
     this.lastFailedSync,
     required this.recentErrors,
   });
+  final int totalAttempts;
+  final int successfulSyncs;
+  final int failedSyncs;
+  final int conflictsDetected;
+  final int conflictsResolved;
+  final double successRate;
+  final Duration averageTime;
+  final Duration? lastSyncDuration;
+  final DateTime? lastSuccessfulSync;
+  final DateTime? lastFailedSync;
+  final List<String> recentErrors;
 
   bool get isHealthy => successRate > 0.8 && recentErrors.length < 5;
 
   String get healthStatus {
-    if (successRate > 0.95) return '🟢 ممتاز';
-    if (successRate > 0.8) return '🟡 جيد';
-    if (successRate > 0.5) return '🟠 متوسط';
+    if (successRate > 0.95) {
+      return '🟢 ممتاز';
+    }
+    if (successRate > 0.8) {
+      return '🟡 جيد';
+    }
+    if (successRate > 0.5) {
+      return '🟠 متوسط';
+    }
     return '🔴 سيء';
   }
 }
@@ -120,13 +126,13 @@ enum SyncAlertLevel { info, warning, critical }
 
 /// تنبيه مزامنة
 class SyncAlert {
+
+  SyncAlert({required this.level, required this.message, required this.stats})
+    : timestamp = DateTime.now();
   final SyncAlertLevel level;
   final String message;
   final DateTime timestamp;
   final SyncPerformanceStats stats;
-
-  SyncAlert({required this.level, required this.message, required this.stats})
-    : timestamp = DateTime.now();
 
   String get icon {
     switch (level) {
@@ -162,11 +168,11 @@ class SyncAlert {
 /// });
 /// ```
 class SyncMonitoringSystem {
+
+  SyncMonitoringSystem._();
   static SyncMonitoringSystem? _instance;
   static SyncMonitoringSystem get instance =>
       _instance ??= SyncMonitoringSystem._();
-
-  SyncMonitoringSystem._();
 
   final List<SyncEvent> _events = [];
   final _statsController = StreamController<SyncPerformanceStats>.broadcast();
@@ -239,7 +245,7 @@ class SyncMonitoringSystem {
 
     final event = SyncEvent(
       type: SyncEventType.failed,
-      message: 'فشلت المزامنة: ${error.toString()}',
+      message: 'فشلت المزامنة: $error',
       metadata: {...?metadata, 'duration_seconds': duration.inSeconds},
       errorStack: stackTrace?.toString(),
     );
@@ -466,7 +472,7 @@ class SyncMonitoringSystem {
       final jsonList = prefs.getStringList(key) ?? [];
 
       for (final jsonStr in jsonList) {
-        final event = SyncEvent.fromJson(jsonDecode(jsonStr));
+        final event = SyncEvent.fromJson(jsonDecode(jsonStr) as Map<String, dynamic>);
         _events.add(event);
       }
 

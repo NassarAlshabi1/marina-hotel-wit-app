@@ -22,13 +22,13 @@ class BackupOverviewTab extends ConsumerWidget {
         const SizedBox(height: UIConstants.spacingLG),
 
         // Recent Backups
-        SectionHeader(title: 'آخر النسخ الاحتياطية', icon: Icons.history),
+        const SectionHeader(title: 'آخر النسخ الاحتياطية', icon: Icons.history),
         _buildRecentBackupsList(),
 
         const SizedBox(height: UIConstants.spacingLG),
 
         // Quick Actions
-        SectionHeader(title: 'إجراءات سريعة', icon: Icons.flash_on),
+        const SectionHeader(title: 'إجراءات سريعة', icon: Icons.flash_on),
         _buildQuickActionsGrid(context),
       ],
     );
@@ -45,15 +45,15 @@ class BackupOverviewTab extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.info_outline,
                   color: UIConstants.backupColor,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'معلومات النظام',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -70,7 +70,7 @@ class BackupOverviewTab extends ConsumerWidget {
               value: DateTimeFormatter.getRelativeTime('2024-01-29T18:00:00'),
               icon: Icons.schedule,
             ),
-            InfoRow(label: 'عدد النسخ', value: '5 نسخ', icon: Icons.layers),
+            const InfoRow(label: 'عدد النسخ', value: '5 نسخ', icon: Icons.layers),
             InfoRow(
               label: 'المساحة الإجمالية',
               value: FileSizeFormatter.formatBytes(75 * 1024 * 1024),
@@ -152,7 +152,7 @@ class BackupOverviewTab extends ConsumerWidget {
     ];
 
     return Column(
-      children: backups.map((backup) => _buildBackupItem(backup)).toList(),
+      children: backups.map(_buildBackupItem).toList(),
     );
   }
 
@@ -160,12 +160,12 @@ class BackupOverviewTab extends ConsumerWidget {
     final isCloud = backup['type'] == 'cloud';
 
     return Card(
-      margin: EdgeInsets.only(bottom: UIConstants.spacingSM),
+      margin: const EdgeInsets.only(bottom: UIConstants.spacingSM),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),
           decoration: BoxDecoration(
-            color: (isCloud ? Colors.blue : Colors.green).withOpacity(0.1),
+            color: (isCloud ? Colors.blue : Colors.green).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(UIConstants.radiusMD),
           ),
           child: Icon(
@@ -175,7 +175,7 @@ class BackupOverviewTab extends ConsumerWidget {
           ),
         ),
         title: Text(
-          backup['name'],
+          backup['name'] as String,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Column(
@@ -183,12 +183,12 @@ class BackupOverviewTab extends ConsumerWidget {
           children: [
             const SizedBox(height: 4),
             Text(
-              DateTimeFormatter.getRelativeTime(backup['date']),
+              DateTimeFormatter.getRelativeTime(backup['date'] as String?),
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 2),
             Text(
-              FileSizeFormatter.formatBytes(backup['size']),
+              FileSizeFormatter.formatBytes(backup['size'] as int),
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),
           ],
@@ -254,7 +254,7 @@ class BackupOverviewTab extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(UIConstants.spacingMD),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: UIConstants.iconSizeLG),

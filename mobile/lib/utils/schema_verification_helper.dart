@@ -36,7 +36,7 @@ Future<void> checkAppwriteSchema() async {
       debugPrint('❌ Attributes ناقصة:');
       missingAttrs.forEach((collection, attrs) {
         debugPrint('  📂 $collection:');
-        for (final attr in attrs) {
+        for (final attr in attrs as Iterable) {
           debugPrint('    - $attr');
         }
       });
@@ -98,7 +98,7 @@ class _SchemaVerificationButtonState extends State<SchemaVerificationButton> {
           buffer.writeln('❌ Attributes ناقصة:');
           missingAttrs.forEach((collection, attrs) {
             buffer.writeln('  📂 $collection:');
-            for (final attr in attrs) {
+            for (final attr in attrs as Iterable) {
               buffer.writeln('    • $attr');
             }
           });
@@ -143,8 +143,8 @@ class _SchemaVerificationButtonState extends State<SchemaVerificationButton> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: _result!.contains('✅')
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.orange.withOpacity(0.1),
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : Colors.orange.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: _result!.contains('✅') ? Colors.green : Colors.orange,

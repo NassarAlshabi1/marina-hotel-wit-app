@@ -1,34 +1,39 @@
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:drift/drift.dart' as d;
 import 'package:appwrite/appwrite.dart';
-import 'delta_sync_service.dart';
-import 'appwrite_service.dart';
+import 'package:appwrite/models.dart' as models;
+import 'package:drift/drift.dart' as d;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/hotel_date_helper.dart';
+import '../utils/id.dart';
+import '../utils/time.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
-import 'local_db.dart';
+import 'appwrite_service.dart';
 import 'booking_derived_fields_service.dart';
-import '../utils/time.dart';
-import '../utils/id.dart';
-import '../utils/hotel_date_helper.dart';
+import 'delta_sync_service.dart';
+import 'local_db.dart';
+import 'repositories/rooms_repository.dart';
 import 'sync_locks.dart';
 
 class AppwriteDeltaSyncResult {
-  final bool success;
-  final String message;
-  final int pushedCount;
-  final int pulledCount;
 
   AppwriteDeltaSyncResult({
     required this.success,
     required this.message,
     this.pushedCount = 0,
     this.pulledCount = 0,
+    this.skippedConflicts = 0,
   });
+  final bool success;
+  final String message;
+  final int pushedCount;
+  final int pulledCount;
+  final int skippedConflicts;
 
   /// Alias getters for compatibility
   int get recordsPulled => pulledCount;
   int get recordsPushed => pushedCount;
-  bool get hasConflicts => false; // TODO: Implement actual conflict detection
+  bool get hasConflicts => skippedConflicts > 0;
 }
 
 class AppwriteDeltaSync {
@@ -37,9 +42,10 @@ class AppwriteDeltaSync {
 
   AppwriteService? _appwriteService;
   DeltaSyncService? _deltaSyncService;
-  AppDatabase? _database;
+  late AppDatabase _database;
   String? _deviceId;
   bool _isSyncing = false;
+  int _skippedConflicts = 0;
 
   final _logger = AppwriteLogger();
 
@@ -111,15 +117,14 @@ class AppwriteDeltaSync {
         tag: 'DELTA_SYNC',
       );
 
-      final lastSyncTs = await _getLastDeltaSyncTimestamp();
-      final computation = await _deltaSyncService!.compute(since: lastSyncTs);
+      final lastPushTs = await _getLastPushSyncTimestamp();
+      final computation = await _deltaSyncService!.compute(since: lastPushTs);
 
       if (computation.changes.isEmpty) {
         _logger.info('✅ لا توجد تغييرات للمزامنة', tag: 'DELTA_SYNC');
         return AppwriteDeltaSyncResult(
           success: true,
           message: 'لا توجد تغييرات',
-          pushedCount: 0,
         );
       }
 
@@ -220,7 +225,6 @@ class AppwriteDeltaSync {
           documentId: change.localUuid,
           data: converted,
         );
-        break;
       case 'delete':
         try {
           await _appwriteService!.deleteDocument(
@@ -229,10 +233,9 @@ class AppwriteDeltaSync {
           );
         } on AppwriteException catch (e) {
           if (e.code != 404) rethrow;
-        } catch (e) {
+        } catch (_) {
           rethrow;
         }
-        break;
     }
   }
 
@@ -257,6 +260,7 @@ class AppwriteDeltaSync {
 
       final lastPullTs = await _getLastPullSyncTimestamp();
       int pulledCount = 0;
+      _skippedConflicts = 0;
 
       final entitiesToPull = {
         'rooms': AppwriteConfig.roomsCollectionId,
@@ -282,15 +286,35 @@ class AppwriteDeltaSync {
       };
 
       for (final entry in entitiesToPull.entries) {
+        // booking_nights يستخدم lastPullTs مستقل خاص به
+        final entityTs = entry.key == 'booking_nights'
+            ? await _getBookingNightsPullTs()
+            : lastPullTs;
         pulledCount += await _pullEntityChanges(
           entry.key,
           entry.value,
-          lastPullTs,
+          entityTs,
         );
       }
 
-      if (pulledCount > 0) {
+      if (pulledCount > 0 || _skippedConflicts > 0) {
         await _updateLastPullSyncTimestamp();
+        // تحديث lastPullTs المستقل لـ booking_nights
+        await _updateBookingNightsPullTs(Time.nowEpoch());
+
+        // إعادة حساب حالات الغرف بناءً على الحجوزات الفعلية
+        try {
+          await RoomsRepository(_database).refreshAllRoomOccupancy();
+          _logger.info(
+            'تم تحديث حالة إشغال الغرف بعد المزامنة',
+            tag: 'DELTA_SYNC',
+          );
+        } catch (e) {
+          _logger.warning(
+            'فشل تحديث حالة الإشغال: $e',
+            tag: 'DELTA_SYNC',
+          );
+        }
       }
 
       _logger.info(
@@ -298,10 +322,14 @@ class AppwriteDeltaSync {
         tag: 'DELTA_SYNC',
       );
 
+      final conflictMsg = _skippedConflicts > 0
+          ? ' | تم تخطي $_skippedConflicts تعارض (الأحدث أولاً)'
+          : '';
       return AppwriteDeltaSyncResult(
         success: true,
-        message: 'تم سحب التغييرات بنجاح',
+        message: 'تم سحب التغييرات بنجاح$conflictMsg',
         pulledCount: pulledCount,
+        skippedConflicts: _skippedConflicts,
       );
     } catch (e) {
       _logger.error('❌ خطأ في سحب التغييرات: $e', tag: 'DELTA_SYNC');
@@ -319,48 +347,134 @@ class AppwriteDeltaSync {
     int lastPullTs,
   ) async {
     try {
-      // Pagination: جلب النتائج على دفعات (كل دفعة 100 سجل كحد أقصى)
       int applied = 0;
-      int offset = 0;
-      const int limit = 100;
 
-      while (true) {
-        final queries = <String>[
-          'limit($limit)',
-          'offset($offset)',
-          if (lastPullTs > 0) Query.greaterThan('syncTimestamp', lastPullTs),
-          Query.orderAsc('\$createdAt'),
-        ];
+      // ✅ بناء استعلامات الفلترة - نستخدم الترتيب التصاعدي لمعالجة البيانات بالترتيب الصحيح
+      final filterQueries = <String>[
+        Query.orderAsc('\$createdAt'),
+      ];
 
-        final documents = await _appwriteService!.listDocuments(
+      // تحويل lastPullTs من ثوانٍ إلى مللي ثانية للمقارنة مع $updatedAt
+      final lastPullMs = lastPullTs > 0 ? lastPullTs * 1000 : 0;
+
+      List<models.Document> documents;
+
+      if (lastPullTs > 0) {
+        // ✅ تحويل epoch ثوانٍ إلى ISO 8601 لاستعلام $updatedAt في Appwrite
+        final lastPullIso = DateTime.fromMillisecondsSinceEpoch(lastPullMs)
+            .toUtc()
+            .toIso8601String();
+
+        // ✅ فلترة بـ $updatedAt لالتقاط الإنشاءات والتعديلات
+        try {
+          final newEventsQueries = [
+            ...filterQueries,
+            Query.greaterThan('\$updatedAt', lastPullIso),
+          ];
+          
+          _logger.debug('Pulling $entity changes updated after $lastPullIso', tag: 'DELTA_SYNC');
+          
+          documents = await _appwriteService!.listDocuments(
+            collectionId: collectionId,
+            queries: newEventsQueries,
+            useCache: false,
+          );
+        } catch (e) {
+          _logger.warning(
+            'فشل فلترة $entity بـ \$updatedAt، جلب كامل محدود: $e',
+            tag: 'DELTA_SYNC',
+          );
+          
+          // في حال فشل الفلترة، نجلب آخر 100 سجل فقط بدلاً من الكل لتوفير البيانات
+          documents = await _appwriteService!.listDocuments(
+            collectionId: collectionId,
+            queries: [
+              Query.orderDesc('\$updatedAt'),
+              Query.limit(100),
+            ],
+            useCache: false,
+          );
+        }
+      } else {
+        // ✅ أول سحب: listDocuments يتعامل مع Pagination تلقائياً عبر
+        // _listAllDocumentsInternal (limit=100, يصفّي حتى نهاية البيانات)
+        // لا نضيف limit/offset يدوياً لتجنب التعارض مع الترقيم الداخلي
+        _logger.info(
+          '📥 سحب أولي كامل لـ $entity (pagination تلقائي)',
+          tag: 'DELTA_SYNC',
+        );
+
+        documents = await _appwriteService!.listDocuments(
           collectionId: collectionId,
-          queries: queries,
+          queries: filterQueries,
           useCache: false,
         );
 
-        if (documents.isEmpty) break;
+        _logger.info(
+          '📥 سحب أولي $entity: ${documents.length} سجل',
+          tag: 'DELTA_SYNC',
+        );
+      }
 
-        for (final doc in documents) {
-          final data = Map<String, dynamic>.from(doc.data);
-          final sourceDeviceId = data['deviceId'] as String?;
+      // ✅ معالجة المستندات المسحوبة
+      for (final doc in documents) {
+        final data = Map<String, dynamic>.from(doc.data);
+        final sourceDeviceId = data['deviceId'] as String?;
 
-          if (sourceDeviceId == _deviceId) continue;
+        // تخطي المستندات التي أرسلها هذا الجهاز نفسه
+        if (sourceDeviceId == _deviceId) continue;
 
-          try {
-            await _applyRemoteChange(entity, doc.$id, data);
-            applied++;
-          } catch (e) {
-            _logger.warning(
-              'فشل تطبيق تغيير: $entity/${doc.$id} - $e',
-              tag: 'DELTA_SYNC',
-            );
+        // ✅ استخراج $updatedAt من Appwrite (متوفر دائماً في كل مستند)
+        // نستخدمه كمرجع زمني أساسي لفحص التعارضات
+        // $updatedAt يُحدَّث تلقائياً عند أي تعديل على المستند في Appwrite
+        int? remoteUpdatedAtSec;
+        try {
+          remoteUpdatedAtSec = (DateTime.parse(doc.$updatedAt).millisecondsSinceEpoch / 1000).round();
+        } catch (e) {
+          _logger.warning('Cannot parse \$updatedAt for doc ${doc.$id}: $e', tag: 'DELTA_SYNC');
+        }
+
+        // ✅ فلترة إضافية بالوقت للتأكد من أننا لا نعالج بيانات قديمة
+        if (lastPullTs > 0 && remoteUpdatedAtSec != null) {
+          if (remoteUpdatedAtSec * 1000 <= lastPullMs) {
+            continue;
           }
         }
 
-        // إذا عدد النتائج أقل من الحد، لا يوجد المزيد
-        if (documents.length < limit) break;
-        offset += limit;
+        // ✅ فحص التعارضات: مقارنة lastModified المحلي مع البعيد — الأحدث أولاً
+        // نستخدم data['lastModified'] كمرجع أساسي (متوفر في كل 17 مجموعة بعد الفحص)
+        // و $updatedAt كبديل موثوق في حال عدم وجود lastModified
+        int effectiveRemoteTs = remoteUpdatedAtSec ?? Time.nowEpoch();
+        final dataLastModified = _asInt(data['lastModified']);
+        if (dataLastModified != null && dataLastModified > effectiveRemoteTs) {
+          effectiveRemoteTs = dataLastModified;
+        }
+
+        final shouldApply = await _shouldApplyRemote(entity, doc.$id, effectiveRemoteTs);
+        if (!shouldApply) {
+          _skippedConflicts++;
+          _logger.debug(
+            '⚡ تعارض $entity/${doc.$id}: المحلية أحدث (local > $effectiveRemoteTs) → تخطي',
+            tag: 'DELTA_SYNC',
+          );
+          continue;
+        }
+
+        try {
+          await _applyRemoteChange(entity, doc.$id, data);
+          applied++;
+        } catch (e) {
+          _logger.warning(
+            'فشل تطبيق تغيير: $entity/${doc.$id} - $e',
+            tag: 'DELTA_SYNC',
+          );
+        }
       }
+
+      _logger.info(
+        '📥 سحب $entity: $applied سجل من ${documents.length} مستند',
+        tag: 'DELTA_SYNC',
+      );
 
       return applied;
     } catch (e) {
@@ -374,64 +488,46 @@ class AppwriteDeltaSync {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    final db = _database!;
+    final db = _database;
 
     switch (entity) {
       case 'rooms':
         await _applyRoomChange(db, documentId, data);
-        break;
       case 'bookings':
         await _applyBookingChange(db, documentId, data);
-        break;
       case 'payments':
         await _applyPaymentChange(db, documentId, data);
-        break;
       case 'expenses':
         await _applyExpenseChange(db, documentId, data);
-        break;
       case 'debts':
         await _applyDebtChange(db, documentId, data);
-        break;
       case 'employees':
         await _applyEmployeeChange(db, documentId, data);
-        break;
       case 'booking_nights':
         await _applyBookingNightChange(db, documentId, data);
-        break;
       case 'booking_notes':
         await _applyBookingNoteChange(db, documentId, data);
-        break;
       case 'cash_transactions':
         await _applyCashTransactionChange(db, documentId, data);
-        break;
       case 'shift_notes':
         await _applyShiftNoteChange(db, documentId, data);
-        break;
       case 'salary_cycles':
         await _applySalaryCycleChange(db, documentId, data);
-        break;
       case 'salary_payments':
         await _applySalaryPaymentChange(db, documentId, data);
-        break;
       // ❌ hotel_day_ledger - محلي فقط
       case 'price_adjustments':
         await _applyPriceAdjustmentChange(db, documentId, data);
-        break;
       case 'booking_price_adjustments':
         await _applyBookingPriceAdjustmentChange(db, documentId, data);
-        break;
       case 'audit_logs':
         await _applyAuditLogChange(db, documentId, data);
-        break;
       case 'payment_voids':
         await _applyPaymentVoidChange(db, documentId, data);
-        break;
       case 'guest_infos':
         await _applyGuestInfoChange(db, documentId, data);
-        break;
       case 'salary_withdrawals':
         await _applySalaryWithdrawalChange(db, documentId, data);
-        break;
     }
   }
 
@@ -459,7 +555,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(incomingLastModified),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
     );
 
     final existingByUuid =
@@ -469,9 +565,17 @@ class AppwriteDeltaSync {
             .getSingleOrNull();
 
     if (existingByUuid != null) {
-      await (db.update(
-        db.rooms,
-      )..where((t) => t.localUuid.equals(localUuid))).write(companion);
+      // فحص التعارض: الأحدث أولاً عند تطابق localUuid
+      if (incomingLastModified >= existingByUuid.lastModified) {
+        await (db.update(
+          db.rooms,
+        )..where((t) => t.localUuid.equals(localUuid))).write(companion);
+      } else {
+        _logger.debug(
+          '⚡ تعارض rooms/$localUuid: محلي (${existingByUuid.lastModified}) أحدث من السحابة ($incomingLastModified) → تجاهل',
+          tag: 'DELTA_SYNC',
+        );
+      }
       return;
     }
 
@@ -509,7 +613,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
       roomNumber: d.Value(roomNumber),
       guestName: d.Value(_asString(data['guestName']) ?? ''),
@@ -574,7 +678,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       serverPaymentId: _nullableValue<int>(_asInt(data['serverPaymentId'])),
       bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
       serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
@@ -614,7 +718,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       expenseType: d.Value(expenseType),
       relatedId: _nullableValue<int>(_asInt(data['relatedId'])),
       description: d.Value(_asString(data['description']) ?? ''),
@@ -643,7 +747,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
       guestName: d.Value(guestName),
       checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
@@ -683,7 +787,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       name: d.Value(name),
       basicSalary: d.Value(_asDouble(data['basicSalary'])),
       position: d.Value(_asString(data['position']) ?? ''),
@@ -712,7 +816,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       targetType: d.Value(targetType),
       targetUuid: d.Value(targetUuid),
       adjustmentType: d.Value(_asString(data['adjustmentType']) ?? ''),
@@ -790,7 +894,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       originalPaymentUuid: d.Value(originalPaymentUuid),
       originalPaymentId: d.Value(_asInt(data['originalPaymentId']) ?? 0),
       bookingUuid: d.Value(_asString(data['bookingUuid']) ?? ''),
@@ -838,7 +942,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(incomingLastModified),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
     );
 
     await db.into(db.guestInfos).insertOnConflictUpdate(companion);
@@ -859,7 +963,7 @@ class AppwriteDeltaSync {
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
       employeeId: d.Value(employeeId),
-      amount: d.Value(_asDouble(data['amount']) ?? 0),
+      amount: d.Value(_asDouble(data['amount'])),
       withdrawDate: d.Value(_asString(data['withdrawDate']) ?? ''),
       reason: _nullableValue<String>(_asString(data['reason'])),
       hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
@@ -870,7 +974,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(incomingLastModified),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
     );
 
     await db.into(db.salaryWithdrawals).insertOnConflictUpdate(companion);
@@ -884,15 +988,26 @@ class AppwriteDeltaSync {
     final bookingLocalId = _asInt(data['bookingLocalId']);
     if (bookingLocalId == null) return;
 
+    final now = Time.nowEpoch();
+    final createdAt = _asInt(data['createdAt']) ?? now;
+    final updatedAt = _asInt(data['updatedAt']) ?? now;
+    final lastModified = _asInt(data['lastModified']) ?? createdAt;
+
     final companion = BookingNightsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
-      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
-      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      createdAt: d.Value(createdAt),
+      updatedAt: d.Value(updatedAt),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
-      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      lastModified: d.Value(lastModified),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? createdAt),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? lastModified),
       bookingLocalId: d.Value(bookingLocalId),
       hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
       nightStart: d.Value(_asString(data['nightStart']) ?? ''),
@@ -926,7 +1041,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       bookingId: d.Value(bookingId),
       noteText: d.Value(_asString(data['noteText']) ?? ''),
       alertType: d.Value(_asString(data['alertType']) ?? ''),
@@ -950,7 +1065,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       registerId: _nullableValue<int>(_asInt(data['registerId'])),
       transactionType: d.Value(_asString(data['transactionType']) ?? ''),
       amount: d.Value(_asDouble(data['amount'])),
@@ -977,7 +1092,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       title: d.Value(_asString(data['title']) ?? ''),
       content: d.Value(_asString(data['content']) ?? ''),
       priority: d.Value(_asString(data['priority']) ?? 'medium'),
@@ -1006,7 +1121,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       employeeId: d.Value(employeeId),
       cycleKey: d.Value(_asString(data['cycleKey']) ?? ''),
       hotelDayStart: _nullableValue<String>(_asString(data['hotelDayStart'])),
@@ -1036,7 +1151,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       cycleId: d.Value(cycleId),
       amount: d.Value(_asInt(data['amount']) ?? 0),
       hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
@@ -1048,6 +1163,151 @@ class AppwriteDeltaSync {
     await db.into(db.salaryPayments).insertOnConflictUpdate(companion);
   }
 
+
+  /// فحص التعارضات: هل يجب تطبيق البيانات البعيدة؟
+  /// يقارن $updatedAt البعيد (من Appwrite) مع lastModified المحلي — الأحدث يفوز
+  Future<bool> _shouldApplyRemote(
+    String entity,
+    String localUuid,
+    int remoteUpdatedAtSec,
+  ) async {
+    final db = _database;
+    final localLastModified = await _getLocalLastModified(db, entity, localUuid);
+
+    // لا يوجد سجل محلي → إدراج آمن
+    if (localLastModified == null) return true;
+
+    // البيانات المحلية أحدث بفارق > 5 ثوانٍ → تجاهل البعيد (الأحدث أولاً)
+    // نستخدم هامش 5 ثوانٍ لتجنب التعارضات في حالات السباق
+    const toleranceSeconds = 5;
+    if (localLastModified > remoteUpdatedAtSec + toleranceSeconds) {
+      return false;
+    }
+
+    // البعيد بنفس العمر أو أحدث → تطبيق
+    return true;
+  }
+
+  /// استخراج lastModified للسجل المحلي حسب الكيان و localUuid
+  Future<int?> _getLocalLastModified(
+    AppDatabase db,
+    String entity,
+    String localUuid,
+  ) async {
+    switch (entity) {
+      case 'rooms':
+        final row = await (db.select(db.rooms)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'bookings':
+        final row = await (db.select(db.bookings)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'payments':
+        final row = await (db.select(db.payments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'expenses':
+        final row = await (db.select(db.expenses)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'debts':
+        final row = await (db.select(db.debts)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'employees':
+        final row = await (db.select(db.employees)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'booking_nights':
+        final row = await (db.select(db.bookingNights)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'booking_notes':
+        final row = await (db.select(db.bookingNotes)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'cash_transactions':
+        final row = await (db.select(db.cashTransactions)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'shift_notes':
+        final row = await (db.select(db.shiftNotes)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'salary_cycles':
+        final row = await (db.select(db.salaryCycles)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'salary_payments':
+        final row = await (db.select(db.salaryPayments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'price_adjustments':
+        final row = await (db.select(db.priceAdjustments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'booking_price_adjustments':
+        final row = await (db.select(db.bookingPriceAdjustments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'audit_logs':
+        // audit_logs لا يحتوي على lastModified، نستخدم timestamp كبديل
+        final row = await (db.select(db.auditLogs)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.timestamp;
+      case 'payment_voids':
+        final row = await (db.select(db.paymentVoids)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'guest_infos':
+        final row = await (db.select(db.guestInfos)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      case 'salary_withdrawals':
+        final row = await (db.select(db.salaryWithdrawals)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
+      default:
+        return null;
+    }
+  }
 
   bool? _asBool(dynamic value) {
     if (value == null) return null;
@@ -1103,6 +1363,20 @@ class AppwriteDeltaSync {
       default:
         return null;
     }
+  }
+
+  // ─── booking_nights: lastPullTs مستقل ────────────────────────
+
+  /// قراءة آخر timestamp خاص بـ booking_nights
+  Future<int> _getBookingNightsPullTs() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('delta_sync_last_pull_booking_nights') ?? 0;
+  }
+
+  /// تحديث آخر timestamp خاص بـ booking_nights
+  Future<void> _updateBookingNightsPullTs(int ts) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('delta_sync_last_pull_booking_nights', ts);
   }
 
   Map<String, dynamic> _sanitizePayload(Map<String, dynamic> payload) {
@@ -1242,7 +1516,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('appwrite_delta'),
+      origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? _asString(data['vector_clock']) ?? '{}'),
     );
 

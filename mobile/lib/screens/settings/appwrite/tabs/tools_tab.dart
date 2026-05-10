@@ -1,11 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+
 import '../../../../core/core.dart';
 import '../../../../providers/appwrite_providers.dart' as ap;
 import '../../../../services/appwrite_backup_service.dart';
-import '../../../../services/sync_integrity_checker.dart';
 import '../../../../services/providers.dart';
+import '../../../../services/sync_integrity_checker.dart';
 import '../../appwrite_logs_screen.dart';
 import '../../appwrite_sync_stats_screen.dart';
 
@@ -18,16 +21,16 @@ class AppwriteToolsTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(UIConstants.spacingMD),
       children: [
-        SectionHeader(title: 'أدوات الاختبار', icon: Icons.bug_report),
+        const SectionHeader(title: 'أدوات الاختبار', icon: Icons.bug_report),
         _buildTestingToolsCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-        SectionHeader(title: 'أدوات الصيانة', icon: Icons.build),
+        const SectionHeader(title: 'أدوات الصيانة', icon: Icons.build),
         _buildMaintenanceToolsCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-        SectionHeader(title: 'إدارة البيانات', icon: Icons.storage),
+        const SectionHeader(title: 'إدارة البيانات', icon: Icons.storage),
         _buildDataManagementCard(context, ref),
         const SizedBox(height: UIConstants.spacingLG),
-        SectionHeader(title: 'السجلات والإحصائيات', icon: Icons.analytics),
+        const SectionHeader(title: 'السجلات والإحصائيات', icon: Icons.analytics),
         _buildLogsStatsCard(context, ref),
       ],
     );
@@ -45,7 +48,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.network_check, color: Colors.blue),
@@ -60,7 +63,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.1),
+                color: Colors.purple.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.api, color: Colors.purple),
@@ -75,7 +78,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.verified, color: Colors.green),
@@ -102,7 +105,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.cleaning_services, color: Colors.orange),
@@ -117,7 +120,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.restore, color: Colors.red),
@@ -132,7 +135,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.refresh, color: Colors.blue),
@@ -159,7 +162,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.teal.withOpacity(0.1),
+                color: Colors.teal.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.cloud_download, color: Colors.teal),
@@ -174,7 +177,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.backup, color: Colors.green),
@@ -189,7 +192,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.restore_page, color: Colors.blue),
@@ -204,7 +207,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.1),
+                color: Colors.purple.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.compare_arrows, color: Colors.purple),
@@ -231,7 +234,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.description, color: Colors.blue),
@@ -246,7 +249,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.bar_chart, color: Colors.green),
@@ -261,7 +264,7 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.download, color: Colors.orange),
@@ -304,10 +307,12 @@ class AppwriteToolsTab extends ConsumerWidget {
     final db = ref.read(databaseProvider);
     final report = await SyncIntegrityChecker.instance.verify(db);
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
     final issues = report.issues.take(10).toList();
-    showDialog(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('نتائج فحص السلامة'),
@@ -325,7 +330,7 @@ class AppwriteToolsTab extends ConsumerWidget {
                     child: Text('• ${issue.toArabicMessage()}'),
                   ),
                 ),
-                if (report.issueCount > issues.length) Text('... والمزيد'),
+                if (report.issueCount > issues.length) const Text('... والمزيد'),
               ],
             ],
           ),
@@ -337,7 +342,7 @@ class AppwriteToolsTab extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ),);
   }
 
   Future<void> _clearCache(BuildContext context, WidgetRef ref) async {
@@ -381,12 +386,14 @@ class AppwriteToolsTab extends ConsumerWidget {
     );
     final result = await service.exportBackup(deviceId: deviceId);
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
     final sortedCounts = result.counts.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
 
-    showDialog(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تم إنشاء النسخة الاحتياطية'),
@@ -418,13 +425,15 @@ class AppwriteToolsTab extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ),);
   }
 
   Future<void> _exportLogs(BuildContext context, WidgetRef ref) async {
     final logger = ref.read(ap.appwriteLoggerProvider);
     final file = await logger.exportLogs();
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
     if (file == null) {
       ScaffoldMessenger.of(
         context,
@@ -437,13 +446,13 @@ class AppwriteToolsTab extends ConsumerWidget {
   void _openLogs(BuildContext context) {
     Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const AppwriteLogsScreen()));
+    ).push<void>(MaterialPageRoute<void>(builder: (_) => const AppwriteLogsScreen()));
   }
 
   void _openStats(BuildContext context) {
     Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const AppwriteSyncStatsScreen()));
+    ).push<void>(MaterialPageRoute<void>(builder: (_) => const AppwriteSyncStatsScreen()));
   }
 
   Future<void> _pullFullBackupFromAppwrite(
@@ -463,18 +472,20 @@ class AppwriteToolsTab extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             child: const Text('سحب البيانات'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -501,10 +512,12 @@ class AppwriteToolsTab extends ConsumerWidget {
       await syncManager.appwriteService.initialize();
       final result = await syncManager.pullRemoteChanges();
 
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-      showDialog(
+      unawaited(showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           icon: Icon(
@@ -514,10 +527,10 @@ class AppwriteToolsTab extends ConsumerWidget {
           ),
           title: Text(result
               ? 'تم سحب البيانات بنجاح'
-              : 'لا توجد بيانات جديدة'),
+              : 'لا توجد بيانات جديدة',),
           content: Text(result
               ? 'تم سحب جميع البيانات من Appwrite وحفظها محلياً.'
-              : 'البيانات المحلية محدّثة بالفعل.'),
+              : 'البيانات المحلية محدّثة بالفعل.',),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -525,9 +538,11 @@ class AppwriteToolsTab extends ConsumerWidget {
             ),
           ],
         ),
-      );
+      ),);
     } catch (e) {
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

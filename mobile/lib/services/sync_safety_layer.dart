@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -149,13 +150,13 @@ class SyncSafetyLayer {
       return false;
     }
 
-    Map<String, dynamic>? tables;
-
     try {
       final content = await file.readAsString();
       final decoded = jsonDecode(content) as Map<String, dynamic>;
       final localTables = Map<String, dynamic>.from(decoded['tables'] as Map);
-      tables = localTables;
+
+      // ✅ إصلاح: تعطيل FK خارج transaction لأن SQLite يتجاهل PRAGMA داخل transaction
+      await db.customStatement('PRAGMA foreign_keys = OFF');
 
       try {
         await db.transaction(() async {
@@ -167,58 +168,64 @@ class SyncSafetyLayer {
             }
           }
         });
+
+        await _appendLog({
+          'event': 'rollback-success',
+          'syncId': snapshot.syncId,
+          'phase': snapshot.phase,
+          'timestamp': rollbackAt.toIso8601String(),
+        });
+
+        debugPrint('✅ تم استعادة قاعدة البيانات بنجاح من النسخة الاحتياطية');
+        _activeSnapshots.remove(snapshot.key);
+        return true;
+      } catch (rollbackError, stack) {
+        debugPrint('❌ CRITICAL: فشل التراجع — transaction تم التراجع عنها تلقائياً');
+        await _appendLog({
+          'event': 'rollback-error',
+          'syncId': snapshot.syncId,
+          'phase': snapshot.phase,
+          'timestamp': rollbackAt.toIso8601String(),
+          'error': rollbackError.toString(),
+          'stack': stack.toString(),
+        });
+        // ✅ إصلاح: لا نحاول استعادة يدوية ثانية خارج transaction
+        // لأن الحذف تم داخل transaction والـ rollback التلقائي يعيد البيانات
+        return false;
       } finally {
-        // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الحذف والاستعادة
-        await db.customStatement('PRAGMA foreign_keys = ON');
-        debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+        // ✅ ضمان إعادة تشغيل FK في كل حالة
+        try {
+          await db.customStatement('PRAGMA foreign_keys = ON');
+          debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+
+          // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+          try {
+            final violations = await db.customSelect(
+              'PRAGMA foreign_key_check',
+              readsFrom: Set.unmodifiable({}),
+            ).get();
+            if (violations.isNotEmpty) {
+              developer.log(
+                '⚠️ FK violations after sync: ${violations.length} rows',
+                name: 'SyncSafety',
+              );
+            }
+          } catch (_) {}
+        } catch (e) {
+          debugPrint('⚠️ فشل إعادة تشغيل FOREIGN KEYS: $e');
+        }
       }
-
-      await _appendLog({
-        'event': 'rollback-success',
-        'syncId': snapshot.syncId,
-        'phase': snapshot.phase,
-        'timestamp': rollbackAt.toIso8601String(),
-      });
-
-      debugPrint('✅ تم استعادة قاعدة البيانات بنجاح من النسخة الاحتياطية');
-      _activeSnapshots.remove(snapshot.key);
-      return true;
-    } catch (rollbackError, stack) {
-      debugPrint(
-        '❌ CRITICAL: Rollback failed - attempting SQLite file restore',
-      );
+    } catch (readError, stack) {
+      debugPrint('❌ فشل قراءة ملف النسخة الاحتياطية: $readError');
       await _appendLog({
         'event': 'rollback-error',
         'syncId': snapshot.syncId,
         'phase': snapshot.phase,
         'timestamp': rollbackAt.toIso8601String(),
-        'error': rollbackError.toString(),
+        'error': readError.toString(),
         'stack': stack.toString(),
       });
-
-      // محاولة استعادة الجداول مباشرة قبل اللجوء لنسخة SQLite
-      if (tables != null) {
-        try {
-          await _clearAllTables(db);
-        } catch (_) {}
-        var restored = false;
-        for (final tableName in SyncConstants.allTablesInOrder) {
-          if (tables.containsKey(tableName)) {
-            try {
-              await _restoreTable(db, tableName, tables[tableName]);
-              restored = true;
-            } catch (e) {
-              debugPrint('⚠️ تعذر استعادة جدول $tableName: $e');
-            }
-          }
-        }
-        if (restored) {
-          _activeSnapshots.remove(snapshot.key);
-          return true;
-        }
-      }
-
-      return await _attemptFileRestore(db, file.path);
+      return false;
     }
   }
 
@@ -276,24 +283,22 @@ class SyncSafetyLayer {
     }
     await db.customStatement(
       'CREATE TABLE IF NOT EXISTS sync_audit ('
-      'id INTEGER PRIMARY KEY AUTOINCREMENT,'
-      'sync_id TEXT,'
-      'direction TEXT,'
-      'checksum TEXT,'
-      'schema_version INTEGER,'
-      'device_id TEXT,'
-      'status TEXT,'
-      'created_at TEXT,'
-      'metadata TEXT'
+      ' id INTEGER PRIMARY KEY AUTOINCREMENT,'
+      ' sync_id TEXT,'
+      ' direction TEXT,'
+      ' checksum TEXT,'
+      ' schema_version INTEGER,'
+      ' device_id TEXT,'
+      ' status TEXT,'
+      ' created_at TEXT,'
+      ' metadata TEXT '
       ')',
     );
     _auditTableEnsured = true;
   }
 
   Future<void> _clearAllTables(AppDatabase db) async {
-    // ملاحظة: FOREIGN KEYS يتم تعطيلها هنا ولكن لا يتم إعادة تشغيلها
-    // لأن الاستعادة ستحدث مباشرة بعد الحذف في نفس transaction
-    await db.customStatement('PRAGMA foreign_keys = OFF');
+    // ملاحظة: FOREIGN KEYS يتم تعطيلها خارج transaction قبل استدعاء هذه الدالة
 
     for (final table in SyncConstants.allTablesInReverseOrder) {
       try {
@@ -313,13 +318,17 @@ class SyncSafetyLayer {
     String tableName,
     dynamic tableData,
   ) async {
-    if (tableData == null) return;
+    if (tableData == null) {
+      return;
+    }
 
     final rows = (tableData as List<dynamic>)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList();
 
-    if (rows.isEmpty) return;
+    if (rows.isEmpty) {
+      return;
+    }
 
     final existingColumns = await _tableColumns(db, tableName);
 
@@ -358,56 +367,15 @@ class SyncSafetyLayer {
   }
 
   String _normalizeColumnName(String key) {
-    if (key.contains('_')) return key.toLowerCase();
+    if (key.contains('_')) {
+      return key.toLowerCase();
+    }
     return key
         .replaceAllMapped(
           RegExp('([a-z0-9])([A-Z])'),
           (m) => '${m[1]}_${m[2]!.toLowerCase()}',
         )
         .toLowerCase();
-  }
-
-  Future<bool> _attemptFileRestore(AppDatabase db, String snapshotPath) async {
-    try {
-      final content = await File(snapshotPath).readAsString();
-      final decoded = jsonDecode(content) as Map<String, dynamic>;
-      final tables = Map<String, dynamic>.from(decoded['tables'] as Map);
-      final sqliteBackupPath = tables['sqliteBackupPath'] as String?;
-
-      if (sqliteBackupPath == null || !await File(sqliteBackupPath).exists()) {
-        debugPrint('❌ لا توجد نسخة احتياطية من ملف SQLite');
-        return false;
-      }
-
-      final dbPath = await _getDatabasePath();
-      if (dbPath == null) {
-        debugPrint('❌ لم يتم العثور على مسار قاعدة البيانات');
-        return false;
-      }
-
-      await DatabaseManager.close();
-      await File(sqliteBackupPath).copy(dbPath);
-      await DatabaseManager.reopen();
-      debugPrint('✅ تم استعادة ملف SQLite بنجاح وإعادة فتح قاعدة البيانات');
-
-      await _appendLog({
-        'event': 'file-restore-success',
-        'timestamp': DateTime.now().toUtc().toIso8601String(),
-        'source': sqliteBackupPath,
-        'target': dbPath,
-      });
-
-      return true;
-    } catch (e, stack) {
-      debugPrint('❌ فشلت استعادة ملف SQLite: $e');
-      await _appendLog({
-        'event': 'file-restore-error',
-        'timestamp': DateTime.now().toUtc().toIso8601String(),
-        'error': e.toString(),
-        'stack': stack.toString(),
-      });
-      return false;
-    }
   }
 
   Future<String?> _getDatabasePath() async {

@@ -1,108 +1,101 @@
 /// Drift Outbox Storage Implementation
 /// تطبيق OutboxStorage باستخدام Drift
+library;
+
+import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import '../processors/outbox_processor.dart';
+import 'package:flutter/foundation.dart';
+
+import '../../services/local_db.dart';
 import '../models/sync_models.dart';
-
-/// جدول Outbox في Drift
-@DataClassName('OutboxRecord')
-class OutboxTable extends Table {
-  TextColumn get id => text()();
-  TextColumn get tableName => text()();
-  TextColumn get uuid => text()();
-  TextColumn get operation => text()();
-  TextColumn get payload => text()(); // JSON
-  DateTimeColumn get timestamp => dateTime()();
-  TextColumn get vectorClock => text()();
-  TextColumn get checksum => text().nullable()();
-  TextColumn get deviceId => text().nullable()();
-  IntColumn get retryCount => integer().withDefault(const Constant(0))();
-  TextColumn get lastError => text().nullable()();
-  DateTimeColumn get nextRetryAt => dateTime().nullable()();
-  DateTimeColumn get syncedAt => dateTime().nullable()();
-  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
-  BoolColumn get isFailed => boolean().withDefault(const Constant(false))();
-
-  @override
-  Set<Column> get primaryKey => {id};
-
-  @override
-  String? get tableName => 'outbox_queue';
-}
+import '../processors/outbox_processor.dart';
 
 /// تطبيق OutboxStorage باستخدام Drift
 class DriftOutboxStorage implements OutboxStorage {
-  final GeneratedDatabase _db;
 
   DriftOutboxStorage(this._db);
+  final AppDatabase _db;
 
-  /// الوصول إلى جدول Outbox
-  OutboxTable get _table => OutboxTable();
+  /// تحويل OutboxData إلى DeltaChange
+  DeltaChange _toDeltaChange(OutboxData record) {
+    Map<String, dynamic> payloadMap = {};
+    try {
+      final decoded = jsonDecode(record.payload);
+      if (decoded is Map<String, dynamic>) {
+        payloadMap = decoded;
+      }
+    } catch (e) { debugPrint('WARN: Failed to parse outbox payload: $e'); }
 
-  /// تحويل OutboxRecord إلى DeltaChange
-  DeltaChange _toDeltaChange(OutboxRecord record) {
     return DeltaChange(
-      id: record.id,
-      table: record.tableName,
-      uuid: record.uuid,
+      id: record.idempotencyKey ?? record.id.toString(),
+      table: record.entity,
+      uuid: record.localUuid,
       operation: SyncOperation.values.firstWhere(
-        (e) => e.name == record.operation,
+        (e) => e.name == record.op,
         orElse: () => SyncOperation.update,
       ),
-      payload: _parsePayload(record.payload),
-      timestamp: record.timestamp,
-      vectorClock: record.vectorClock,
-      checksum: record.checksum,
-      deviceId: record.deviceId,
-      retryCount: record.retryCount,
+      payload: payloadMap,
+      timestamp: DateTime.fromMillisecondsSinceEpoch(
+        record.clientTs * 1000,
+        isUtc: true,
+      ),
+      vectorClock: '',
+      retryCount: record.attempts,
       lastError: record.lastError,
-      nextRetryAt: record.nextRetryAt,
+      nextRetryAt: record.processingStartedAt != null
+          ? DateTime.fromMillisecondsSinceEpoch(
+              record.processingStartedAt! * 1000,
+              isUtc: true,
+            )
+          : null,
     );
   }
 
-  /// تحويل DeltaChange إلى OutboxTable Companion
-  OutboxTableCompanion _toCompanion(DeltaChange change) {
-    return OutboxTableCompanion.insert(
-      id: change.id,
-      tableName: change.table,
-      uuid: change.uuid,
-      operation: change.operation.name,
-      payload: _encodePayload(change.payload),
-      timestamp: change.timestamp,
-      vectorClock: change.vectorClock,
-      checksum: Value(change.checksum),
-      deviceId: Value(change.deviceId),
-      retryCount: Value(change.retryCount),
+  /// تحويل DeltaChange إلى OutboxCompanion
+  OutboxCompanion _toCompanion(DeltaChange change) {
+    return OutboxCompanion(
+      entity: Value(change.table),
+      op: Value(change.operation.name),
+      localUuid: Value(change.uuid),
+      payload: Value(jsonEncode(change.payload)),
+      clientTs: Value(change.timestamp.millisecondsSinceEpoch ~/ 1000),
+      attempts: Value(change.retryCount),
       lastError: Value(change.lastError),
-      nextRetryAt: Value(change.nextRetryAt),
+      idempotencyKey: Value(change.id),
+      processingStatus: const Value('pending'),
+      processingStartedAt: Value(
+        change.nextRetryAt?.millisecondsSinceEpoch != null
+            ? change.nextRetryAt!.millisecondsSinceEpoch ~/ 1000
+            : null,
+      ),
     );
-  }
-
-  Map<String, dynamic> _parsePayload(String json) {
-    // استخدام jsonDecode
-    return {};
-  }
-
-  String _encodePayload(Map<String, dynamic> payload) {
-    // استخدام jsonEncode
-    return '{}';
   }
 
   @override
   Future<void> initialize() async {
-    // يمكن إضافة تهيئة هنا إذا لزم الأمر
+    // Database is already initialized
   }
 
   @override
   Future<void> save(DeltaChange change) async {
-    await _db.into(_table).insertOnConflictUpdate(_toCompanion(change));
+    final companion = _toCompanion(change);
+    final existing = await (_db.select(_db.outbox)
+          ..where((t) => t.idempotencyKey.equals(change.id)))
+        .getSingleOrNull();
+    if (existing != null) {
+      await (_db.update(_db.outbox)..where((t) => t.id.equals(existing.id)))
+          .write(companion);
+    } else {
+      await _db.into(_db.outbox).insert(companion);
+    }
   }
 
   @override
   Future<DeltaChange?> getById(String id) async {
-    final query = _db.select(_table)..where((t) => t.id.equals(id));
-    final record = await query.getSingleOrNull();
+    final record = await (_db.select(_db.outbox)
+          ..where((t) => t.idempotencyKey.equals(id)))
+        .getSingleOrNull();
     return record != null ? _toDeltaChange(record) : null;
   }
 
@@ -112,19 +105,18 @@ class DriftOutboxStorage implements OutboxStorage {
     required DateTime before,
     bool onlyRetryable = false,
   }) async {
-    final query = _db.select(_table)
-      ..where((t) => t.isSynced.equals(false))
-      ..where((t) => t.isFailed.equals(false));
+    final query = _db.select(_db.outbox)
+      ..where((t) => t.processingStatus.equals('pending'));
 
     if (onlyRetryable) {
-      query.where((t) => t.nextRetryAt.isSmallerOrEqualValue(before));
-    } else {
-      query.where((t) =>
-          t.nextRetryAt.isNull() | t.nextRetryAt.isSmallerOrEqualValue(before));
+      final beforeEpoch = before.millisecondsSinceEpoch ~/ 1000;
+      query.where(
+        (t) => t.processingStartedAt.isSmallerOrEqualValue(beforeEpoch),
+      );
     }
 
     query
-      ..orderBy([(t) => OrderingTerm(expression: t.timestamp)])
+      ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
       ..limit(limit);
 
     final records = await query.get();
@@ -133,23 +125,33 @@ class DriftOutboxStorage implements OutboxStorage {
 
   @override
   Future<void> markAsSynced(String id, DateTime timestamp) async {
-    final query = _db.update(_table)..where((t) => t.id.equals(id));
+    final existing = await (_db.select(_db.outbox)
+          ..where((t) => t.idempotencyKey.equals(id)))
+        .getSingleOrNull();
+    if (existing == null) {
+      return;
+    }
 
-    await query.write(OutboxTableCompanion(
-      isSynced: const Value(true),
-      syncedAt: Value(timestamp),
-    ));
+    await (_db.update(_db.outbox)..where((t) => t.id.equals(existing.id)))
+        .write(const OutboxCompanion(
+      processingStatus: Value('synced'),
+    ),);
   }
 
   @override
   Future<void> markAsFailed(String id, String error, DateTime timestamp) async {
-    final query = _db.update(_table)..where((t) => t.id.equals(id));
+    final existing = await (_db.select(_db.outbox)
+          ..where((t) => t.idempotencyKey.equals(id)))
+        .getSingleOrNull();
+    if (existing == null) {
+      return;
+    }
 
-    await query.write(OutboxTableCompanion(
-      isFailed: const Value(true),
+    await (_db.update(_db.outbox)..where((t) => t.id.equals(existing.id)))
+        .write(OutboxCompanion(
+      processingStatus: const Value('failed'),
       lastError: Value(error),
-      syncedAt: Value(timestamp),
-    ));
+    ),);
   }
 
   @override
@@ -159,79 +161,95 @@ class DriftOutboxStorage implements OutboxStorage {
     required int retryCount,
     required DateTime nextRetryAt,
   }) async {
-    final query = _db.update(_table)..where((t) => t.id.equals(id));
+    final existing = await (_db.select(_db.outbox)
+          ..where((t) => t.idempotencyKey.equals(id)))
+        .getSingleOrNull();
+    if (existing == null) {
+      return;
+    }
 
-    await query.write(OutboxTableCompanion(
-      retryCount: Value(retryCount),
+    await (_db.update(_db.outbox)..where((t) => t.id.equals(existing.id)))
+        .write(OutboxCompanion(
+      attempts: Value(retryCount),
       lastError: Value(error),
-      nextRetryAt: Value(nextRetryAt),
-    ));
+      processingStatus: const Value('pending'),
+      processingStartedAt:
+          Value(nextRetryAt.millisecondsSinceEpoch ~/ 1000),
+    ),);
   }
 
   @override
   Future<void> delete(String id) async {
-    final query = _db.delete(_table)..where((t) => t.id.equals(id));
-    await query.go();
+    final existing = await (_db.select(_db.outbox)
+          ..where((t) => t.idempotencyKey.equals(id)))
+        .getSingleOrNull();
+    if (existing == null) {
+      return;
+    }
+
+    await (_db.delete(_db.outbox)..where((t) => t.id.equals(existing.id)))
+        .go();
   }
 
   @override
   Future<void> deleteByTable(String table) async {
-    // ignore: invalid_use_of_visible_for_overriding_member
-    final query = _db.delete(_table)..where((t) => t.tableName.equals(table));
-    await query.go();
+    await (_db.delete(_db.outbox)..where((t) => t.entity.equals(table))).go();
   }
 
   @override
   Future<int> deleteSyncedBefore(DateTime cutoff) async {
-    final query = _db.delete(_table)
-      ..where((t) => t.isSynced.equals(true))
-      ..where((t) => t.syncedAt.isSmallerThanValue(cutoff));
+    final epochCutoff = cutoff.millisecondsSinceEpoch ~/ 1000;
+    final query = _db.delete(_db.outbox)
+      ..where((t) => t.processingStatus.equals('synced'))
+      ..where((t) => t.clientTs.isSmallerThanValue(epochCutoff));
 
-    return await query.go();
+    return query.go();
   }
 
   @override
   Future<int> pendingCount() async {
-    final query = _db.select(_table)
-      ..where((t) => t.isSynced.equals(false))
-      ..where((t) => t.isFailed.equals(false))
-      ..where((t) =>
-          t.nextRetryAt.isNull() | t.nextRetryAt.isSmallerOrEqualValue(DateTime.now()));
-
-    final count = await query.get();
-    return count.length;
+    final result = await (_db.select(_db.outbox)
+          ..where((t) => t.processingStatus.equals('pending')))
+        .get();
+    return result.length;
   }
 
   @override
   Future<OutboxStats> getStats() async {
     final pending = await pendingCount();
 
-    final syncingQuery = _db.select(_table)
-      ..where((t) => t.isSynced.equals(false))
-      ..where((t) => t.isFailed.equals(false))
-      ..where((t) => t.nextRetryAt.isBiggerThanValue(DateTime.now()));
+    final syncingResult = await (_db.select(_db.outbox)
+          ..where((t) => t.processingStatus.equals('retrying')))
+        .get();
+    final syncing = syncingResult.length;
 
-    final syncing = (await syncingQuery.get()).length;
+    final syncedResult = await (_db.select(_db.outbox)
+          ..where((t) => t.processingStatus.equals('synced')))
+        .get();
+    final synced = syncedResult.length;
 
-    final syncedQuery = _db.select(_table)..where((t) => t.isSynced.equals(true));
-    final synced = (await syncedQuery.get()).length;
+    final failedResult = await (_db.select(_db.outbox)
+          ..where((t) => t.processingStatus.equals('failed')))
+        .get();
+    final failed = failedResult.length;
 
-    final failedQuery = _db.select(_table)..where((t) => t.isFailed.equals(true));
-    final failed = (await failedQuery.get()).length;
-
-    final oldestQuery = _db.select(_table)
-      ..where((t) => t.isSynced.equals(false))
-      ..orderBy([(t) => OrderingTerm(expression: t.timestamp)])
-      ..limit(1);
-
-    final oldest = await oldestQuery.getSingleOrNull();
+    final oldestResult = await (_db.select(_db.outbox)
+          ..where((t) => t.processingStatus.equals('pending'))
+          ..orderBy([(t) => OrderingTerm(expression: t.clientTs)])
+          ..limit(1))
+        .getSingleOrNull();
 
     return OutboxStats(
       pendingCount: pending,
       syncingCount: syncing,
       syncedCount: synced,
       failedCount: failed,
-      oldestPending: oldest?.timestamp,
+      oldestPending: oldestResult != null
+          ? DateTime.fromMillisecondsSinceEpoch(
+              oldestResult.clientTs * 1000,
+              isUtc: true,
+            )
+          : null,
     );
   }
 }

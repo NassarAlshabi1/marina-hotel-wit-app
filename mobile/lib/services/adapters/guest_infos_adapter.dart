@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart' as d;
 
-import '../local_db.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../local_db.dart';
 import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
@@ -157,6 +157,11 @@ class GuestInfosAdapter extends EntityAdapter<GuestInfo, GuestInfosCompanion> {
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
@@ -196,20 +201,32 @@ d.Value<String> _vStr(
 
 int? _epoch(Map<String, dynamic> json, String key, Source src) {
   final v = _asInt(json, key, src);
-  if (v != null) return v;
+  if (v != null) {
+    return v;
+  }
   final s = _asString(json, key, src);
-  if (s == null) return null;
+  if (s == null) {
+    return null;
+  }
   return int.tryParse(s);
 }
 
 int? _asInt(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
-  if (v is bool) return v ? 1 : 0;
-  if (v is int) return v;
-  if (v is num) return v.toInt();
+  if (v is bool) {
+    return v ? 1 : 0;
+  }
+  if (v is int) {
+    return v;
+  }
+  if (v is num) {
+    return v.toInt();
+  }
   if (v is String) {
     // تجاهل UUID أو strings طويلة
-    if (v.contains('-') || v.length > 20) return null;
+    if (v.contains('-') || v.length > 20) {
+      return null;
+    }
     return int.tryParse(v);
   }
   return null;
@@ -217,14 +234,20 @@ int? _asInt(Map<String, dynamic> json, String key, Source src) {
 
 String? _asString(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
-  if (v == null) return null;
+  if (v == null) {
+    return null;
+  }
   return v.toString();
 }
 
 Object? _raw(Map<String, dynamic> json, String key, Source src) {
-  if (json.containsKey(key)) return json[key];
+  if (json.containsKey(key)) {
+    return json[key];
+  }
   final alt = _altKey(key, src);
-  if (alt != null && json.containsKey(alt)) return json[alt];
+  if (alt != null && json.containsKey(alt)) {
+    return json[alt];
+  }
   return null;
 }
 
@@ -232,7 +255,9 @@ String _k(Source src, String camel, String snake) =>
     src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
-  if (src == Source.drive) return camel;
+  if (src == Source.drive) {
+    return camel;
+  }
   final buf = StringBuffer();
   for (var i = 0; i < camel.length; i++) {
     final c = camel[i];

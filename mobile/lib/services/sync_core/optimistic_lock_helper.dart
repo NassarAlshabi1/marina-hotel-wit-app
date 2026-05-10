@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 
-import 'optimistic_lock_exception.dart';
 import '../local_db.dart';
+import 'optimistic_lock_exception.dart';
 
 mixin OptimisticLockDaoMixin<T extends Table, D extends DataClass>
     on DatabaseAccessor<AppDatabase> {
@@ -25,7 +25,6 @@ mixin OptimisticLockDaoMixin<T extends Table, D extends DataClass>
           table: optimisticTableName,
           uuid: localUuid,
           expectedVersion: expectedVersion,
-          actualVersion: null,
         );
       }
 

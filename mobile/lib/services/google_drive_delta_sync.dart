@@ -1,16 +1,19 @@
 import 'dart:convert';
+
+import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:drift/drift.dart' as d;
+
+import '../utils/id.dart';
+import '../utils/time.dart';
+import 'adapters/adapter_registry.dart';
+import 'adapters/source.dart';
 import 'delta_sync_service.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
+import 'repositories/rooms_repository.dart';
 import 'sync_constants.dart';
-import '../utils/time.dart';
-import '../utils/id.dart';
 import 'sync_locks.dart';
-import 'adapters/adapter_registry.dart';
-import 'adapters/source.dart';
 
 enum SyncFileType { fullBackup, deltaSync }
 
@@ -62,8 +65,12 @@ class GoogleDriveDeltaSync {
 
   Future<DeltaSyncResult> pushDeltaChanges() async {
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
-      if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
-      if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
+      if (!isInitialized) {
+        return _DeltaSyncStartResult.notInitialized;
+      }
+      if (_isSyncing) {
+        return _DeltaSyncStartResult.alreadySyncing;
+      }
       if (_driveService?.isSignedIn != true) {
         return _DeltaSyncStartResult.notSignedIn;
       }
@@ -98,7 +105,6 @@ class GoogleDriveDeltaSync {
         return DeltaSyncResult(
           success: true,
           message: 'لا توجد تغييرات',
-          changesCount: 0,
         );
       }
 
@@ -132,8 +138,12 @@ class GoogleDriveDeltaSync {
 
   Future<DeltaSyncResult> pullDeltaChanges() async {
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
-      if (!isInitialized) return _DeltaSyncStartResult.notInitialized;
-      if (_isSyncing) return _DeltaSyncStartResult.alreadySyncing;
+      if (!isInitialized) {
+        return _DeltaSyncStartResult.notInitialized;
+      }
+      if (_isSyncing) {
+        return _DeltaSyncStartResult.alreadySyncing;
+      }
       if (_driveService?.isSignedIn != true) {
         return _DeltaSyncStartResult.notSignedIn;
       }
@@ -159,7 +169,6 @@ class GoogleDriveDeltaSync {
         return DeltaSyncResult(
           success: true,
           message: 'لا توجد ملفات مزامنة',
-          changesCount: 0,
         );
       }
 
@@ -171,11 +180,15 @@ class GoogleDriveDeltaSync {
 
       for (final file in deltaFiles) {
         final fileTsSec = file.createdTime.millisecondsSinceEpoch ~/ 1000;
-        if (fileTsSec <= lastPullTsSec) continue;
+        if (fileTsSec <= lastPullTsSec) {
+          continue;
+        }
 
         final sourceDeviceId = file.appProperties['device_id'];
         if (sourceDeviceId == _deviceId) {
-          if (fileTsSec > maxProcessedTsSec) maxProcessedTsSec = fileTsSec;
+          if (fileTsSec > maxProcessedTsSec) {
+            maxProcessedTsSec = fileTsSec;
+          }
           continue;
         }
 
@@ -185,11 +198,23 @@ class GoogleDriveDeltaSync {
           appliedChanges += changes;
         }
 
-        if (fileTsSec > maxProcessedTsSec) maxProcessedTsSec = fileTsSec;
+        if (fileTsSec > maxProcessedTsSec) {
+          maxProcessedTsSec = fileTsSec;
+        }
       }
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_prefsLastPullTsKey, maxProcessedTsSec);
+
+      // إعادة حساب حالات الغرف بناءً على الحجوزات الفعلية
+      if (appliedChanges > 0) {
+        try {
+          await RoomsRepository(_database!).refreshAllRoomOccupancy();
+          debugPrint('🔄 تم تحديث حالة إشغال الغرف بعد مزامنة Google Drive');
+        } catch (e) {
+          debugPrint('⚠️ فشل تحديث حالة الإشغال: $e');
+        }
+      }
 
       return DeltaSyncResult(
         success: true,
@@ -233,7 +258,7 @@ class GoogleDriveDeltaSync {
         '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
     final timeStr =
         '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}${now.millisecond.toString().padLeft(3, '0')}';
-    return '${deltaSyncPrefix}${dateStr}_$timeStr.json';
+    return '$deltaSyncPrefix${dateStr}_$timeStr.json';
   }
 
   Future<void> _uploadDeltaFile(
@@ -265,9 +290,11 @@ class GoogleDriveDeltaSync {
 
   Future<int> _applyDeltaChanges(Map<String, dynamic> deltaData) async {
     final changes = deltaData['changes'] as List<dynamic>?;
-    if (changes == null || changes.isEmpty) return 0;
+    if (changes == null || changes.isEmpty) {
+      return 0;
+    }
 
-    return await _database!.transaction(() async {
+    return _database!.transaction(() async {
       final sortedChanges = _sortChangesByDependency(changes);
       int applied = 0;
 
@@ -327,12 +354,16 @@ class GoogleDriveDeltaSync {
     String operation,
     Map<String, dynamic> data,
   ) async {
-    if (_database == null || _adapterRegistry == null) return;
+    if (_database == null || _adapterRegistry == null) {
+      return;
+    }
     final db = _database!;
     final registry = _adapterRegistry!;
     final localUuid =
         _asString(data['local_uuid']) ?? _asString(data['localUuid']) ?? '';
-    if (localUuid.isEmpty) return;
+    if (localUuid.isEmpty) {
+      return;
+    }
 
     debugPrint('🔄 تطبيق $operation على $entity/$localUuid');
 
@@ -347,55 +378,40 @@ class GoogleDriveDeltaSync {
     switch (entity) {
       case 'rooms':
         await registry.rooms.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'bookings':
         await registry.bookings.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'payments':
         await registry.payments.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'expenses':
         await registry.expenses.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'debts':
         await registry.debts.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'employees':
         await registry.employees.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'booking_notes':
         await registry.bookingNotes.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'booking_nights':
         await registry.nights.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'salary_cycles':
         await registry.salaryCycles.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'salary_payments':
         await registry.salaryPayments.upsertFromJson(
           payload,
           src: Source.drive,
         );
-        break;
       case 'cash_transactions':
         await registry.cashTransactions.upsertFromJson(
           payload,
           src: Source.drive,
         );
-        break;
       case 'shift_notes':
         await registry.shiftNotes.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'price_adjustments':
         await registry.priceAdjustments.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'audit_logs':
         await registry.auditLogs.upsertFromJson(payload, src: Source.drive);
-        break;
       case 'payment_voids':
         await registry.paymentVoids.upsertFromJson(payload, src: Source.drive);
-        break;
     }
   }
 
@@ -495,7 +511,9 @@ class GoogleDriveDeltaSync {
     final transactionType =
         _asString(data['transaction_type']) ??
         _asString(data['transactionType']);
-    if (transactionType == null || transactionType.isEmpty) return;
+    if (transactionType == null || transactionType.isEmpty) {
+      return;
+    }
 
     final transactionTime =
         _asString(data['transaction_time']) ??
@@ -526,7 +544,7 @@ class GoogleDriveDeltaSync {
             Time.nowEpoch(),
       ),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: d.Value('google_drive_delta'),
+      origin: const d.Value('google_drive_delta'),
       registerId: _nullableValue<int>(
         _asInt(data['register_id']) ?? _asInt(data['registerId']),
       ),
@@ -552,9 +570,15 @@ class GoogleDriveDeltaSync {
   }
 
   int? _asInt(dynamic value) {
-    if (value == null) return null;
-    if (value is int) return value;
-    if (value is num) return value.toInt();
+    if (value == null) {
+      return null;
+    }
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
     if (value is String && value.isNotEmpty) {
       return int.tryParse(value) ?? double.tryParse(value)?.toInt();
     }
@@ -562,10 +586,18 @@ class GoogleDriveDeltaSync {
   }
 
   double _asDouble(dynamic value, {double fallback = 0.0}) {
-    if (value == null) return fallback;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is num) return value.toDouble();
+    if (value == null) {
+      return fallback;
+    }
+    if (value is double) {
+      return value;
+    }
+    if (value is int) {
+      return value.toDouble();
+    }
+    if (value is num) {
+      return value.toDouble();
+    }
     if (value is String && value.isNotEmpty) {
       return double.tryParse(value) ?? fallback;
     }
@@ -573,7 +605,9 @@ class GoogleDriveDeltaSync {
   }
 
   String? _asString(dynamic value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     final result = value.toString();
     return result.isEmpty ? null : result;
   }
@@ -581,7 +615,9 @@ class GoogleDriveDeltaSync {
   Future<int> _getLastPushTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getInt(_prefsLastPushTsKey);
-    if (cached != null) return cached;
+    if (cached != null) {
+      return cached;
+    }
     final legacy = prefs.getInt(_prefsLegacyLastDeltaSyncKey);
     if (legacy != null) {
       await prefs.setInt(_prefsLastPushTsKey, legacy);
@@ -593,7 +629,9 @@ class GoogleDriveDeltaSync {
   Future<int> _getLastPullTimestamp() async {
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getInt(_prefsLastPullTsKey);
-    if (cached != null) return cached;
+    if (cached != null) {
+      return cached;
+    }
     final legacy = prefs.getInt(_prefsLegacyLastDeltaSyncKey);
     if (legacy != null) {
       await prefs.setInt(_prefsLastPullTsKey, legacy);
@@ -614,11 +652,15 @@ class GoogleDriveDeltaSync {
   }
 
   Future<void> cleanupOldDeltaFiles({int keepCount = 10}) async {
-    if (_driveService?.isSignedIn != true) return;
+    if (_driveService?.isSignedIn != true) {
+      return;
+    }
 
     try {
       final deltaFiles = await _listDeltaSyncFiles();
-      if (deltaFiles.length <= keepCount) return;
+      if (deltaFiles.length <= keepCount) {
+        return;
+      }
 
       deltaFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
       final toDelete = deltaFiles.skip(keepCount).toList();
@@ -664,13 +706,13 @@ class GoogleDriveDeltaSync {
 }
 
 class DeltaSyncResult {
-  final bool success;
-  final String message;
-  final int changesCount;
 
   DeltaSyncResult({
     required this.success,
     required this.message,
     this.changesCount = 0,
   });
+  final bool success;
+  final String message;
+  final int changesCount;
 }

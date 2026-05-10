@@ -1,17 +1,11 @@
-import 'package:flutter/foundation.dart';
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 
 /// استراتيجية حل التضارب
 enum ConflictStrategy { newerWins, devicePriority, manualResolve }
 
 /// معلومات التضارب
 class DataConflict {
-  final String table;
-  final String uuid;
-  final Map<String, dynamic> localData;
-  final Map<String, dynamic> remoteData;
-  final DateTime localTimestamp;
-  final DateTime remoteTimestamp;
 
   DataConflict({
     required this.table,
@@ -21,6 +15,12 @@ class DataConflict {
     required this.localTimestamp,
     required this.remoteTimestamp,
   });
+  final String table;
+  final String uuid;
+  final Map<String, dynamic> localData;
+  final Map<String, dynamic> remoteData;
+  final DateTime localTimestamp;
+  final DateTime remoteTimestamp;
 
   bool get isLocalNewer => localTimestamp.isAfter(remoteTimestamp);
 
@@ -60,13 +60,17 @@ class ConflictResolver {
     final conflicts = <DataConflict>[];
 
     for (final table in localData.keys) {
-      if (!remoteData.containsKey(table)) continue;
+      if (!remoteData.containsKey(table)) {
+        continue;
+      }
 
       final localRecords = localData[table] as Map<String, dynamic>? ?? {};
       final remoteRecords = remoteData[table] as Map<String, dynamic>? ?? {};
 
       for (final uuid in localRecords.keys) {
-        if (!remoteRecords.containsKey(uuid)) continue;
+        if (!remoteRecords.containsKey(uuid)) {
+          continue;
+        }
 
         final localRecord = localRecords[uuid] as Map<String, dynamic>;
         final remoteRecord = remoteRecords[uuid] as Map<String, dynamic>;
@@ -156,18 +160,30 @@ class ConflictResolver {
         }
 
       case ConflictStrategy.manualResolve:
-        return conflict.isLocalNewer ? conflict.localData : conflict.remoteData;
+        // ✅ إصلاح: بدلاً من السقوط الصامت إلى newerWins، نُرجع البيانات المحلية
+        // كإجراء آمن مع تسجيل الحاجة لمراجعة يدوية
+        debugPrint('⚠️ ConflictResolver: تعارض يحتاج مراجعة يدوية — تم الاحتفاظ بالبيانات المحلية كإجراء آمن: ${conflict.table}/${conflict.uuid}');
+        return conflict.localData;
     }
   }
 
   /// تحويل timestamp إلى DateTime
+  /// يدعم الثواني والمللي ثانية تلقائياً
   DateTime? _parseTimestamp(dynamic timestamp) {
-    if (timestamp == null) return null;
+    if (timestamp == null) {
+      return null;
+    }
 
     try {
       if (timestamp is String) {
         return DateTime.parse(timestamp);
       } else if (timestamp is int) {
+        // ✅ كشف تلقائي: إذا كانت القيمة < 10^10 فهي بالثواني، وإلا بالمللي ثانية
+        // Time.nowEpoch() يعيد ثوانٍ (مثال: 1713000000)
+        // DateTime.now().millisecondsSinceEpoch يعيد مللي ثانية (مثال: 1713000000000)
+        if (timestamp < 10000000000) {
+          return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+        }
         return DateTime.fromMillisecondsSinceEpoch(timestamp);
       }
     } catch (e) {

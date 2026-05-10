@@ -2,13 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
-import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/time.dart';
 import 'create_debt_from_booking.dart';
-import '../../mixins/sync_on_exit_mixin.dart';
 
 class DebtsListScreen extends ConsumerStatefulWidget {
   const DebtsListScreen({super.key});
@@ -24,6 +25,34 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   String _searchQuery = '';
   String _filterStatus = 'all'; // all, pending, settled, overdue
   Timer? _debounceTimer;
+  bool _isSendingWhatsApp = false;
+
+  /// تنظيف وتنسيق رقم الهاتف
+  String _cleanAndFormatPhone(String phone) {
+    var digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
+    if (digitsOnly.isEmpty) {
+      return '';
+    }
+    if (digitsOnly.startsWith('00')) {
+      digitsOnly = digitsOnly.substring(2);
+    }
+    if (digitsOnly.startsWith('967')) {
+      return digitsOnly;
+    }
+    if (digitsOnly.startsWith('07')) {
+      digitsOnly = '967${digitsOnly.substring(1)}';
+    } else if (digitsOnly.startsWith('7') && digitsOnly.length == 9) {
+      digitsOnly = '967$digitsOnly';
+    } else if (digitsOnly.startsWith('5') && digitsOnly.length == 9) {
+      digitsOnly = '966$digitsOnly';
+    } else if (digitsOnly.startsWith('966')) {
+      return digitsOnly;
+    }
+    else if (digitsOnly.length <= 10 && !digitsOnly.startsWith('+')) {
+      digitsOnly = '967$digitsOnly';
+    }
+    return digitsOnly;
+  }
 
   @override
   void dispose() {
@@ -78,7 +107,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     ],
                   ),
                 ),
-                data: (debts) => _buildDebtsList(debts),
+                data: _buildDebtsList,
               ),
             ),
           ],
@@ -205,9 +234,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -222,7 +251,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           const SizedBox(height: 4),
           Text(
             title,
-            style: TextStyle(fontSize: 10, color: color.withOpacity(0.8)),
+            style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.8)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -243,10 +272,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       switch (_filterStatus) {
         case 'pending':
           matchesFilter = debt.isSettled == 0 && debt.remainingAmount > 0;
-          break;
         case 'settled':
           matchesFilter = debt.isSettled == 1 || debt.remainingAmount <= 0;
-          break;
         case 'overdue':
           // الديون المتأخرة (أكثر من 30 يوم)
           final debtDateStr = debt.dateRecorded.isNotEmpty
@@ -262,7 +289,6 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           } else {
             matchesFilter = false;
           }
-          break;
       }
 
       return matchesSearch && matchesFilter;
@@ -314,13 +340,20 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: filteredDebts.length,
-      itemBuilder: (context, index) {
-        final debt = filteredDebts[index];
-        return _buildDebtCard(debt);
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(debtsListProvider);
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: filteredDebts.length,
+        itemBuilder: (context, index) {
+          final debt = filteredDebts[index];
+          return RepaintBoundary(
+            child: _buildDebtCard(debt),
+          );
+        },
+      ),
     );
   }
 
@@ -353,7 +386,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       color: cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: borderColor, width: 1),
+        side: BorderSide(color: borderColor),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -475,7 +508,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             ),
 
             // الرهن إذا كان موجود
-            if (debt.pledge?.isNotEmpty == true) ...[
+            if (debt.pledge?.isNotEmpty ?? false) ...[
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
@@ -496,7 +529,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    if (debt.pledgeType?.isNotEmpty == true)
+                    if (debt.pledgeType?.isNotEmpty ?? false)
                       Text(
                         ' (${debt.pledgeType})',
                         style: TextStyle(
@@ -510,7 +543,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             ],
 
             // الملاحظة إذا كانت موجودة
-            if (debt.note?.isNotEmpty == true) ...[
+            if (debt.note?.isNotEmpty ?? false) ...[
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
@@ -549,6 +582,23 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   ),
                   const SizedBox(width: 8),
                 ],
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isSendingWhatsApp
+                        ? null
+                        : () => _sendDebtWhatsApp(debt),
+                    icon: const Icon(Icons.chat, size: 16, color: Colors.green),
+                    label: const Text(
+                      'واتساب',
+                      style: TextStyle(color: Colors.green),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.green,
+                      side: const BorderSide(color: Colors.green),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _openDebtForm(context, existing: debt),
@@ -604,7 +654,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color),
       ),
@@ -643,7 +693,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   }
 
   void _showQuickAddMenu(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       builder: (context) => Container(
         padding: const EdgeInsets.all(20),
@@ -686,13 +736,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
   Future<void> _createDebtFromBooking() async {
     final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (context) => const CreateDebtFromBookingScreen(),
+      MaterialPageRoute<bool>(builder: (context) => const CreateDebtFromBookingScreen(),
       ),
     );
 
     // إذا تم إنشاء دين بنجاح، قم بتحديث البيانات
-    if (result == true) {
+    if (result ?? false) {
       ref.invalidate(debtsListProvider);
     }
   }
@@ -709,11 +758,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         content: Text('هل تريد تسجيل دين "${debt.guestName}" كمسدد؟'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             child: const Text('تأكيد السداد'),
           ),
@@ -721,20 +770,32 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       ),
     );
 
-    if (confirmed == true) {
-      final repo = ref.read(debtsRepoProvider);
-      await repo.update(
-        id: debt.id,
-        isSettled: 1,
-        paidAmount: debt.totalAmount,
-        remainingAmount: 0,
-        paymentDate: Time.nowDateString(),
-      );
-      markDataChanged();
+    if (confirmed ?? false) {
+      try {
+        final repo = ref.read(debtsRepoProvider);
+        await repo.update(
+          id: debt.id,
+          isSettled: 1,
+          paidAmount: debt.totalAmount,
+          remainingAmount: 0,
+          paymentDate: Time.nowDateString(),
+        );
+        markDataChanged();
 
-      if (mounted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('تم تسجيل سداد دين ${debt.guestName}')),
+          );
+        }
+      } catch (e) {
+        if (!mounted) {
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تم تسجيل سداد دين ${debt.guestName}')),
+          SnackBar(
+            content: Text('فشل تسجيل السداد: $e'),
+            backgroundColor: Colors.red.shade900,
+          ),
         );
       }
     }
@@ -796,7 +857,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     void recalculate() {
       final total = CurrencyFormatter.parseAmount(totalCtrl.text) ?? 0;
       final paid = CurrencyFormatter.parseAmount(paidCtrl.text) ?? 0;
-      final remaining = (total - paid).clamp(0.0, double.infinity).toDouble();
+      final remaining = (total - paid).clamp(0.0, double.infinity);
       remainingCtrl.text = CurrencyFormatter.formatAmount(remaining);
     }
 
@@ -824,11 +885,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                       TextField(
                         controller: guestNameCtrl,
                         style: fieldStyle,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: 'اسم النزيل*',
                           labelStyle: labelStyle,
                           floatingLabelStyle: labelStyle,
-                          border: const OutlineInputBorder(),
+                          border: OutlineInputBorder(),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -840,12 +901,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                               readOnly: true,
                               onTap: () => pickDate(dialogContext, checkinCtrl),
                               style: fieldStyle,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'تاريخ الدخول',
                                 labelStyle: labelStyle,
                                 floatingLabelStyle: labelStyle,
-                                border: const OutlineInputBorder(),
-                                suffixIcon: const Icon(
+                                border: OutlineInputBorder(),
+                                suffixIcon: Icon(
                                   Icons.calendar_today,
                                   size: 18,
                                 ),
@@ -860,12 +921,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                               onTap: () =>
                                   pickDate(dialogContext, checkoutCtrl),
                               style: fieldStyle,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'تاريخ الخروج',
                                 labelStyle: labelStyle,
                                 floatingLabelStyle: labelStyle,
-                                border: const OutlineInputBorder(),
-                                suffixIcon: const Icon(
+                                border: OutlineInputBorder(),
+                                suffixIcon: Icon(
                                   Icons.calendar_today,
                                   size: 18,
                                 ),
@@ -878,11 +939,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                       TextField(
                         controller: debtReasonCtrl,
                         style: fieldStyle,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: 'سبب الدين',
                           labelStyle: labelStyle,
                           floatingLabelStyle: labelStyle,
-                          border: const OutlineInputBorder(),
+                          border: OutlineInputBorder(),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -892,11 +953,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                             child: TextField(
                               controller: totalCtrl,
                               style: fieldStyle,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'إجمالي المبلغ*',
                                 labelStyle: labelStyle,
                                 floatingLabelStyle: labelStyle,
-                                border: const OutlineInputBorder(),
+                                border: OutlineInputBorder(),
                                 // suffixText: 'ر.س',
                               ),
                               keyboardType: TextInputType.number,
@@ -907,11 +968,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                             child: TextField(
                               controller: paidCtrl,
                               style: fieldStyle,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'المدفوع',
                                 labelStyle: labelStyle,
                                 floatingLabelStyle: labelStyle,
-                                border: const OutlineInputBorder(),
+                                border: OutlineInputBorder(),
                                 // suffixText: 'ر.س',
                               ),
                               keyboardType: TextInputType.number,
@@ -924,11 +985,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                         controller: remainingCtrl,
                         readOnly: true,
                         style: fieldStyle,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: 'المتبقي',
                           labelStyle: labelStyle,
                           floatingLabelStyle: labelStyle,
-                          border: const OutlineInputBorder(),
+                          border: OutlineInputBorder(),
                           // suffixText: 'ر.س',
                         ),
                       ),
@@ -939,11 +1000,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                             child: TextField(
                               controller: pledgeCtrl,
                               style: fieldStyle,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'الرهن',
                                 labelStyle: labelStyle,
                                 floatingLabelStyle: labelStyle,
-                                border: const OutlineInputBorder(),
+                                border: OutlineInputBorder(),
                               ),
                             ),
                           ),
@@ -952,11 +1013,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                             child: TextField(
                               controller: pledgeTypeCtrl,
                               style: fieldStyle,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'نوع الرهن',
                                 labelStyle: labelStyle,
                                 floatingLabelStyle: labelStyle,
-                                border: const OutlineInputBorder(),
+                                border: OutlineInputBorder(),
                               ),
                             ),
                           ),
@@ -966,11 +1027,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                       TextField(
                         controller: noteCtrl,
                         style: fieldStyle,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: 'ملاحظة إضافية',
                           labelStyle: labelStyle,
                           floatingLabelStyle: labelStyle,
-                          border: const OutlineInputBorder(),
+                          border: OutlineInputBorder(),
                         ),
                         maxLines: 2,
                       ),
@@ -993,11 +1054,14 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         },
       );
 
-      if (confirmed != true) return;
+      if (confirmed != true) {
+        return;
+      }
 
       final guestName = guestNameCtrl.text.trim();
       if (guestName.isEmpty) {
-        if (context.mounted) {
+        if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('يرجى إدخال اسم النزيل')),
           );
@@ -1054,7 +1118,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       }
       markDataChanged();
 
-      if (context.mounted) {
+      if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1078,6 +1143,123 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       pledgeCtrl.dispose();
       pledgeTypeCtrl.dispose();
       noteCtrl.dispose();
+    }
+  }
+
+  /// إرسال تنبيه واتساب لدين
+  Future<void> _sendDebtWhatsApp(Debt debt) async {
+    // البحث عن رقم هاتف النزيل من الحجوزات
+    String phone = '';
+    try {
+      final bookingsAsync = ref.read(bookingsListProvider);
+      final bookings = bookingsAsync.valueOrNull ?? [];
+      final booking = bookings.cast<Booking?>().firstWhere(
+        (b) => b?.id == debt.bookingLocalId,
+        orElse: () => null,
+      );
+      if (booking != null) {
+        phone = booking.guestPhone;
+      }
+    } catch (_) {}
+
+    if (phone.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لا يوجد رقم هاتف لهذا النزيل'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    final cleanedPhone = _cleanAndFormatPhone(phone);
+    if (cleanedPhone.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('رقم الهاتف غير صالح'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isSendingWhatsApp = true);
+
+    try {
+      final whatsappService = ref.read(whatsappServiceProvider);
+
+      final debtDate = DateTime.tryParse(
+        debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate,
+      );
+      final daysPassed = debtDate != null
+          ? DateTime.now().difference(debtDate).inDays
+          : 0;
+
+      final message = StringBuffer()
+        ..writeln('عزيزي ${debt.guestName}')
+        ..writeln()
+        ..writeln('تذكير بالمبلغ المتبقي عليكم')
+        ..writeln(
+            'إجمالي المبلغ: ${CurrencyFormatter.formatAmount(debt.totalAmount)}',)
+        ..writeln(
+            'المدفوع: ${CurrencyFormatter.formatAmount(debt.paidAmount)}',)
+        ..writeln(
+            'المتبقي: ${CurrencyFormatter.formatAmount(debt.remainingAmount)}',);
+
+      if (debt.debtReason.isNotEmpty) {
+        message.writeln('السبب: ${debt.debtReason}');
+      }
+      if (daysPassed > 0) {
+        message.writeln('مرت: $daysPassed يوم');
+      }
+
+      message
+        ..writeln()
+        ..writeln('نرجو منكم تسديد المبلغ المتبقي')
+        ..writeln()
+        ..writeln('شكراً لتعاونكم')
+        ..writeln('فندق مارينا')
+        ..write('للاستفسار: 9677734587456');
+
+      final result = await whatsappService.sendMessage(
+        phoneE164: cleanedPhone,
+        message: message.toString(),
+      );
+
+      if (mounted) {
+        setState(() => _isSendingWhatsApp = false);
+        if (result.quotaMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.quotaMessage!),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.success
+                  ? 'تم إرسال تنبيه واتساب لـ ${debt.guestName}'
+                  : 'تعذّر إرسال واتساب لـ ${debt.guestName}',),
+              backgroundColor: result.success ? Colors.green : Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSendingWhatsApp = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -1105,16 +1287,32 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       },
     );
 
-    if (confirm != true) return;
+    if (confirm != true) {
+      return;
+    }
 
-    final repo = ref.read(debtsRepoProvider);
-    await repo.delete(debt.id);
-    markDataChanged();
+    try {
+      final repo = ref.read(debtsRepoProvider);
+      await repo.delete(debt.id);
+      markDataChanged();
 
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('تم حذف دين ${debt.guestName}')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          // ignore: use_build_context_synchronously
+          context,
+        ).showSnackBar(SnackBar(content: Text('تم حذف دين ${debt.guestName}')));
+      }
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حذف الدين: $e'),
+          backgroundColor: Colors.red.shade900,
+        ),
+      );
     }
   }
 }

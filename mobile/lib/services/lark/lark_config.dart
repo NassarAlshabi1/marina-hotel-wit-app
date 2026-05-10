@@ -1,7 +1,9 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// مفاتيح التخزين المحلي لإعدادات Lark
-class LarkConfig {
+class LarkConfig { // 5 دقائق قبل الانتهاء
+
+  LarkConfig._();
   static const String _enabledKey = 'lark_enabled';
   static const String _appIdKey = 'lark_app_id';
   static const String _appSecretKey = 'lark_app_secret';
@@ -18,9 +20,7 @@ class LarkConfig {
   // القيم الافتراضية
   static const String defaultBaseUrl = 'https://open.larksuite.com';
   static const String defaultReportTime = '08:00';
-  static const int tokenExpiryBufferSeconds = 300; // 5 دقائق قبل الانتهاء
-
-  LarkConfig._();
+  static const int tokenExpiryBufferSeconds = 300;
 
   /// التحقق من تفعيل Lark بشكل عام
   static Future<bool> isEnabled() async {
@@ -167,7 +167,9 @@ class LarkConfig {
   static Future<bool> hasValidToken() async {
     final token = await getTokenCache();
     final expiry = await getTokenExpiry();
-    if (token == null || expiry == null) return false;
+    if (token == null || expiry == null) {
+      return false;
+    }
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     return now < (expiry - tokenExpiryBufferSeconds);
   }

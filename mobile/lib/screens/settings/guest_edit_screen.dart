@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/repositories/payments_repository.dart';
+import '../../utils/id.dart';
 import '../../utils/status_utils.dart';
 import 'guest_info.dart';
 
@@ -38,10 +40,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final _idNumberFormatter = FilteringTextInputFormatter.allow(
-    RegExp(r'[0-9]'),
+    RegExp('[0-9]'),
   );
 
   bool _saving = false;
+  bool _hasUnsavedChanges = false;
   String _idType = 'بطاقة شخصية';
 
   final Map<int, String> _roomSelections = {};
@@ -63,7 +66,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     _phoneController = TextEditingController(text: widget.guest.phone);
     _emailController = TextEditingController(text: widget.guest.email);
     _nationalityController = TextEditingController(
-      text: widget.guest.nationality,
+      text: widget.guest.nationality.isNotEmpty
+          ? widget.guest.nationality
+          : 'يمني',
     );
     _idType = widget.guest.idType;
     _idNumberController = TextEditingController(text: widget.guest.idNumber);
@@ -76,6 +81,15 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     _addressController = TextEditingController(
       text: widget.guest.address ?? '',
     );
+
+    _nameController.addListener(_markUnsaved);
+    _phoneController.addListener(_markUnsaved);
+    _emailController.addListener(_markUnsaved);
+    _nationalityController.addListener(_markUnsaved);
+    _idNumberController.addListener(_markUnsaved);
+    _idIssueDateController.addListener(_markUnsaved);
+    _idIssuePlaceController.addListener(_markUnsaved);
+    _addressController.addListener(_markUnsaved);
 
     for (final booking in widget.guest.bookings) {
       _roomSelections[booking.id] = booking.roomNumber;
@@ -92,11 +106,22 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       );
       _adjustmentTypeSelections[booking.id] = AdjustmentType.discount;
       _adjustmentModeSelections[booking.id] = AdjustmentMode.perNight;
+      _discountControllers[booking.id]!.addListener(_markUnsaved);
+      _discountStartDateControllers[booking.id]!.addListener(_markUnsaved);
+      _checkinDateControllers[booking.id]!.addListener(_markUnsaved);
     }
   }
 
   @override
   void dispose() {
+    _nameController.removeListener(_markUnsaved);
+    _phoneController.removeListener(_markUnsaved);
+    _emailController.removeListener(_markUnsaved);
+    _nationalityController.removeListener(_markUnsaved);
+    _idNumberController.removeListener(_markUnsaved);
+    _idIssueDateController.removeListener(_markUnsaved);
+    _idIssuePlaceController.removeListener(_markUnsaved);
+    _addressController.removeListener(_markUnsaved);
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
@@ -106,12 +131,15 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     _idIssuePlaceController.dispose();
     _addressController.dispose();
     for (final controller in _discountControllers.values) {
+      controller.removeListener(_markUnsaved);
       controller.dispose();
     }
     for (final controller in _discountStartDateControllers.values) {
+      controller.removeListener(_markUnsaved);
       controller.dispose();
     }
     for (final controller in _checkinDateControllers.values) {
+      controller.removeListener(_markUnsaved);
       controller.dispose();
     }
     super.dispose();
@@ -158,7 +186,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         final roomChanged = oldRoomNumber != newRoomNumber;
         final discountText =
             _discountControllers[booking.id]?.text.trim() ?? '';
-        final discount = double.tryParse(discountText) ?? 0;
+        final discount = _parseAmount(discountText);
         final discountType = _discountTypeSelections[booking.id] ?? 'per_night';
         final discountStartDateText =
             _discountStartDateControllers[booking.id]?.text.trim() ?? '';
@@ -190,23 +218,37 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         );
 
         if (roomChanged) {
-          await _transferFinancialData(
+          // ─── نقل آمن داخل معاملة واحدة (Transaction) ───
+          // يضمن عدم تلف البيانات عند حدوث خطأ أو انقطاع
+          await db.transaction(() async {
+            await _transferFinancialData(
+              db: db,
+              paymentsRepo: paymentsRepo,
+              bookingId: booking.id,
+              newRoomNumber: newRoomNumber,
+            );
+
+            if (StatusUtils.isActiveBooking(booking.status)) {
+              await roomsRepo.updateByRoomNumber(oldRoomNumber, status: 'شاغرة');
+              await roomsRepo.updateByRoomNumber(newRoomNumber, status: 'محجوزة');
+            }
+          });
+
+          // ─── سجل تدقيق للنقل ───
+          await _logRoomTransfer(
             db: db,
-            paymentsRepo: paymentsRepo,
             bookingId: booking.id,
+            guestName: name,
+            oldRoomNumber: oldRoomNumber,
             newRoomNumber: newRoomNumber,
           );
-
-          if (StatusUtils.isActiveBooking(booking.status)) {
-            await roomsRepo.updateByRoomNumber(oldRoomNumber, status: 'شاغرة');
-            await roomsRepo.updateByRoomNumber(newRoomNumber, status: 'محجوزة');
-          }
         }
 
         final derivedService = BookingDerivedFieldsService(db);
         await derivedService.refreshForBookingId(booking.id);
       }
 
+      _hasUnsavedChanges = false;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -218,7 +260,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context, true);
+        Navigator.pop<bool>(context, true);
       }
     } catch (error) {
       if (mounted) {
@@ -244,6 +286,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     required int bookingId,
     required String newRoomNumber,
   }) async {
+    // 1. نقل المدفوعات — تحديث roomNumber في كل دفعة مرتبطة بالحجز
     final payments =
         await (db.select(db.payments)
               ..where((tbl) => tbl.bookingLocalId.equals(bookingId))
@@ -253,23 +296,179 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     for (final payment in payments) {
       await paymentsRepo.update(payment.id, roomNumber: newRoomNumber);
     }
+
+    // 2. نقل تعديلات السعر (التخفيضات والزيادات)
+    //    يُحدّث roomNumber + timestamps + outbox entries للمزامنة
+    //    ملاحظة: الديون لا تحتاج نقل — مرتبطة بالحجز عبر bookingLocalId فقط
+    final adjustmentService = BookingPriceAdjustmentService(db);
+    await adjustmentService.transferAdjustmentsToRoom(
+      bookingId: bookingId,
+      newRoomNumber: newRoomNumber,
+    );
   }
 
-  Future<bool?> _showRoomChangeConfirmation() {
+  /// سجل تدقيق لنقل الغرفة — يُخزّن في جدول CashTransactions
+  Future<void> _logRoomTransfer({
+    required AppDatabase db,
+    required int bookingId,
+    required String guestName,
+    required String oldRoomNumber,
+    required String newRoomNumber,
+  }) async {
+    try {
+      final now = DateTime.now().toUtc();
+      final nowIso = now.toIso8601String();
+      final nowEpoch = now.millisecondsSinceEpoch;
+      final localUuid = IdGen.uuid();
+      final description = 'نقل غرفة الضيف "$guestName" (حجز #$bookingId) '
+          'من "$oldRoomNumber" إلى "$newRoomNumber"';
+
+      await db.into(db.cashTransactions).insert(
+        CashTransactionsCompanion.insert(
+          localUuid: localUuid,
+          createdAt: nowEpoch,
+          updatedAt: nowEpoch,
+          lastModified: nowEpoch,
+          transactionType: 'room_transfer',
+          amount: 0,
+          transactionTime: nowIso,
+          description: Value(description),
+          referenceType: const Value('booking'),
+          referenceId: Value(bookingId),
+          createdAtIso: Value(nowIso),
+          updatedAtIso: Value(nowIso),
+        ),
+      );
+    } catch (_) {
+      // سجل التدقيق غير حرج — لا نوقف العملية إذا فشل
+    }
+  }
+
+  Future<bool?> _showRoomChangeConfirmation() async {
+    // ─── جمع بيانات النقل لعرض تحذير ذكي ───
+    final db = ref.read(databaseProvider);
+    final changedRooms = <Map<String, String>>[];
+    int totalAdjustments = 0;
+    int totalPayments = 0;
+    String? priceWarning;
+
+    for (final booking in widget.guest.bookings) {
+      final oldRoom = _originalRooms[booking.id]!;
+      final newRoom = _roomSelections[booking.id]!;
+      if (oldRoom == newRoom) {
+        continue;
+      }
+
+      changedRooms.add({'old': oldRoom, 'new': newRoom});
+
+      // عد التعديلات النشطة
+      final adjustments = await (db.select(db.bookingPriceAdjustments)
+            ..where((a) => a.bookingLocalId.equals(booking.id))
+            ..where((a) => a.isActive.equals(true))
+            ..where((a) => a.deletedAt.isNull()))
+          .get();
+      totalAdjustments += adjustments.length;
+
+      // عد المدفوعات
+      final payments = await (db.select(db.payments)
+            ..where((p) => p.bookingLocalId.equals(booking.id))
+            ..where((p) => p.deletedAt.isNull()))
+          .get();
+      totalPayments += payments.length;
+
+      // مقارنة أسعار الغرف
+      if (priceWarning == null) {
+        final oldRoomData = await (db.select(db.rooms)
+              ..where((r) => r.roomNumber.equals(oldRoom))
+              ..where((r) => r.deletedAt.isNull()))
+            .getSingleOrNull();
+        final newRoomData = await (db.select(db.rooms)
+              ..where((r) => r.roomNumber.equals(newRoom))
+              ..where((r) => r.deletedAt.isNull()))
+            .getSingleOrNull();
+
+        if (oldRoomData != null && newRoomData != null) {
+          final oldPrice = oldRoomData.price.toInt();
+          final newPrice = newRoomData.price.toInt();
+          if (oldPrice != newPrice) {
+            final diff = newPrice - oldPrice;
+            final sign = diff > 0 ? '+' : '';
+            priceWarning = 'سعر الغرفة يتغير: $oldPrice → $newPrice ريال ($sign$diff)';
+          }
+        }
+      }
+    }
+
     return showDialog<bool>(
+      // ignore: use_build_context_synchronously
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد تغيير الغرفة'),
-        content: const Text(
-          'سيتم نقل جميع البيانات المالية (المدفوعات والديون) إلى الغرفة الجديدة.\n\nهل تريد المتابعة؟',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'سيتم نقل البيانات المالية إلى الغرفة (الغرف) الجديدة:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• المدفوعات: $totalPayments عملية دفع',
+              style: const TextStyle(fontSize: 13),
+            ),
+            Text(
+              '• التعديلات النشطة (تخفيضات/زيادات): $totalAdjustments',
+              style: const TextStyle(fontSize: 13),
+            ),
+            const Text(
+              '• الديون: مرتبطة بالحجز تلقائياً',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            if (changedRooms.length == 1) ...[
+              const SizedBox(height: 8),
+              Text(
+                'من: ${changedRooms.first['old']} → إلى: ${changedRooms.first['new']}',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ],
+            if (priceWarning != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.orange.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber, size: 18, color: Colors.orange.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        priceWarning,
+                        style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            const Text(
+              'هل تريد المتابعة؟',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop<bool>(context, false),
             child: const Text('إلغاء'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop<bool>(context, true),
             child: const Text('متابعة'),
           ),
         ],
@@ -285,19 +484,51 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (date == null) return;
+    if (date == null) {
+      return;
+    }
     setState(() {
       controller.text = _formatDate(date);
     });
   }
 
   DateTime? _parseDate(String value) {
-    if (value.isEmpty) return null;
+    if (value.isEmpty) {
+      return null;
+    }
     try {
       return DateTime.parse(value);
     } catch (_) {
       return null;
     }
+  }
+
+  double _parseAmount(String value) {
+    final normalized = _normalizeNumericInput(value);
+    return double.tryParse(normalized) ?? 0;
+  }
+
+  String _normalizeNumericInput(String value) {
+    var output = value.trim();
+    const arabicDigits = <String, String>{
+      '٠': '0',
+      '١': '1',
+      '٢': '2',
+      '٣': '3',
+      '٤': '4',
+      '٥': '5',
+      '٦': '6',
+      '٧': '7',
+      '٨': '8',
+      '٩': '9',
+    };
+    arabicDigits.forEach((arabic, latin) {
+      output = output.replaceAll(arabic, latin);
+    });
+    return output
+        .replaceAll('،', '')
+        .replaceAll(',', '')
+        .replaceAll(' ', '');
   }
 
   String _formatDate(DateTime dt) {
@@ -309,29 +540,37 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('تعديل بيانات الضيف'),
-        actions: [
-          TextButton(
-            onPressed: _saving ? null : _saveChanges,
-            child: _saving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('حفظ', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-      body: AbsorbPointer(
-        absorbing: _saving,
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          return;
+        }
+        _showDiscardDialog(context);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('تعديل بيانات الضيف'),
+          actions: [
+            TextButton(
+              onPressed: _saving ? null : _saveChanges,
+              child: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('حفظ', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+        body: AbsorbPointer(
+          absorbing: _saving,
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.info_outline),
@@ -371,7 +610,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         icon: Icons.email,
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
-                          if (value == null || value.isEmpty) return null;
+                          if (value == null || value.isEmpty) {
+                            return null;
+                          }
                           final emailRegex = RegExp(r'^.+@.+\..+$');
                           if (!emailRegex.hasMatch(value)) {
                             return 'صيغة بريد غير صحيحة';
@@ -401,14 +642,17 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        value: _idType,
+                        initialValue: _idType,
                         items: _idTypes
                             .map(
                               (t) => DropdownMenuItem(value: t, child: Text(t)),
                             )
                             .toList(),
                         onChanged: (value) =>
-                            setState(() => _idType = value ?? _idType),
+                            setState(() {
+                              _idType = value ?? _idType;
+                              _hasUnsavedChanges = true;
+                            }),
                         decoration: const InputDecoration(
                           labelText: 'نوع الهوية',
                           prefixIcon: Icon(Icons.badge),
@@ -489,6 +733,39 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    ),
+    );
+  }
+
+  void _markUnsaved() {
+    if (!_hasUnsavedChanges) {
+      setState(() => _hasUnsavedChanges = true);
+    }
+  }
+
+  void _showDiscardDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تغييرات غير محفوظة'),
+          content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).pop();
+              },
+              child: const Text('مغادرة'),
+            ),
+          ],
         ),
       ),
     );
@@ -610,11 +887,12 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 return Column(
                   children: [
                     DropdownButtonFormField<String>(
-                      value: currentValue,
+                      initialValue: currentValue,
                       items: items,
                       onChanged: (value) {
                         setState(() {
                           _roomSelections[booking.id] = value ?? currentValue;
+                          _hasUnsavedChanges = true;
                         });
                       },
                       decoration: InputDecoration(
@@ -716,7 +994,26 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         if (!snapshot.hasData || snapshot.data!.isEmpty) {
                           return const SizedBox.shrink();
                         }
-                        final adjustments = snapshot.data!;
+                        // ─── حماية: تصفية التعديلات الوهمية/اليتيمة ───
+                        final bookingDiscount = booking.discount;
+                        final adjustments = snapshot.data!.where((adj) {
+                          // استبعاد سجلات legacy_discount دائماً (لا تُعرض في UI)
+                          // هي سجلات داخلية يديرها النظام ولا علاقة لها بالمستخدم
+                          if (adj.reason == 'legacy_discount') {
+                            return false;
+                          }
+                          // تخطي سجلات التخفيض بدون سبب إذا لم يكن هناك تخفيض
+                          if (bookingDiscount <= 0 &&
+                              adj.adjustmentType == 0 &&
+                              adj.reason == null) {
+                            return false;
+                          }
+                          return true;
+                        }).toList();
+
+                        if (adjustments.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.all(12),
@@ -829,7 +1126,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<AdjustmentType>(
-                            value: _adjustmentTypeSelections[booking.id],
+                            initialValue: _adjustmentTypeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'نوع التعديل',
                               prefixIcon: Icon(Icons.swap_vert),
@@ -849,12 +1146,13 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             onChanged: (value) {
                               setState(() {
                                 _adjustmentTypeSelections[booking.id] = value!;
+                                _hasUnsavedChanges = true;
                               });
                             },
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<AdjustmentMode>(
-                            value: _adjustmentModeSelections[booking.id],
+                            initialValue: _adjustmentModeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'طريقة الحساب',
                               prefixIcon: Icon(Icons.calculate),
@@ -874,6 +1172,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             onChanged: (value) {
                               setState(() {
                                 _adjustmentModeSelections[booking.id] = value!;
+                                _hasUnsavedChanges = true;
                               });
                             },
                           ),
@@ -881,6 +1180,11 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           TextFormField(
                             controller: discountController,
                             keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp('[0-9٠-٩.,،]'),
+                              ),
+                            ],
                             decoration: const InputDecoration(
                               labelText: 'المبلغ',
                               prefixIcon: Icon(Icons.attach_money),
@@ -938,7 +1242,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     final discountController = _discountControllers[booking.id];
     final startDateController = _discountStartDateControllers[booking.id];
     
-    if (discountController == null || startDateController == null) return;
+    if (discountController == null || startDateController == null) {
+      return;
+    }
     
     final amountText = discountController.text.trim();
     if (amountText.isEmpty) {
@@ -948,7 +1254,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       return;
     }
     
-    final amount = double.tryParse(amountText)?.round() ?? 0;
+    final amount = _parseAmount(amountText).round();
     if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('الرجاء إدخال مبلغ صالح')),
@@ -956,12 +1262,10 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       return;
     }
     
-    final startDate = startDateController.text.trim();
+    var startDate = startDateController.text.trim();
     if (startDate.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('الرجاء تحديد تاريخ البدء')),
-      );
-      return;
+      startDate = _formatDate(DateTime.now());
+      startDateController.text = startDate;
     }
     
     final type = _adjustmentTypeSelections[booking.id] ?? AdjustmentType.discount;
@@ -977,12 +1281,13 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         type: type,
         mode: mode,
         effectiveHotelDay: startDate,
-        endHotelDay: null,
         reason: '${type == AdjustmentType.discount ? 'تخفيض' : 'زيادة'} من شاشة تعديل الضيف',
         appliedBy: 'admin',
       );
       
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -999,7 +1304,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       startDateController.clear();
       
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('حدث خطأ: $e'),
@@ -1007,7 +1314,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         ),
       );
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 
@@ -1031,7 +1340,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       ),
     );
     
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      return;
+    }
     
     try {
       setState(() => _saving = true);
@@ -1041,7 +1352,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         cancelledBy: 'admin',
       );
       
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم إنهاء $type بنجاح'),
@@ -1049,7 +1362,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         ),
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('حدث خطأ: $e'),
@@ -1057,7 +1372,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         ),
       );
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 }

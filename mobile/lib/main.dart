@@ -1,95 +1,143 @@
 import 'dart:async';
-import 'dart:ui';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'utils/theme.dart';
-import 'utils/env.dart';
-
-import 'screens/dashboard_screen.dart';
-import 'screens/rooms/rooms_list.dart';
+import 'components/admin_layout.dart';
+import 'providers/appwrite_providers.dart' as appwrite;
+import 'providers/auth_provider.dart';
+import 'providers/repository_providers.dart';
+import 'providers/theme_provider.dart';
+import 'screens/ai/ai_chat_screen.dart';
+import 'screens/auth/google_drive_login_screen.dart';
+import 'screens/auth/login_screen.dart';
 import 'screens/bookings/bookings_list.dart';
+import 'screens/dashboard_screen.dart';
+import 'screens/debts/debts_list.dart';
 import 'screens/employees/employees_list.dart';
 import 'screens/expenses/expenses_list.dart';
 import 'screens/finance/finance_screen.dart';
-import 'screens/reports/reports_screen.dart';
-import 'screens/payments/payments_main_screen.dart';
-import 'screens/debts/debts_list.dart';
-import 'screens/notes/notes_screen.dart';
-import 'screens/settings/settings_screen.dart';
-import 'screens/security/blacklist_screen.dart';
 import 'screens/information/information_screen.dart';
-import 'screens/auth/google_drive_login_screen.dart';
-import 'screens/auth/login_screen.dart';
-import 'providers/auth_provider.dart';
-import 'providers/theme_provider.dart';
-import 'providers/repository_providers.dart';
-import 'services/seed.dart';
+import 'screens/notes/notes_screen.dart';
+import 'screens/payments/payments_main_screen.dart';
+import 'screens/reports/reports_screen.dart';
+import 'screens/rooms/rooms_list.dart';
+import 'screens/security/blacklist_screen.dart';
+import 'screens/settings/settings_screen.dart';
+import 'services/alarm_backup.dart';
+import 'services/api_config_service.dart';
 import 'services/app_session_manager.dart';
-import 'services/google_drive_backup_service.dart';
-import 'services/google_drive_logger.dart';
-import 'services/local_db.dart';
-import 'services/smart_sync_manager.dart';
-import 'services/sync_guardian.dart';
+import 'services/appwrite_config_manager.dart';
+import 'services/appwrite_realtime_service.dart';
+import 'services/appwrite_realtime_sync.dart';
+import 'services/appwrite_sync_manager.dart';
+import 'services/background_sync_service.dart';
+import 'services/battery_optimizer.dart';
+import 'services/central_sync_coordinator.dart';
+import 'services/connectivity_service.dart';
+import 'services/crashlytics_service.dart';
 import 'services/database_sync_coordinator.dart';
-import 'utils/auto_sync_preferences.dart';
-import 'utils/id.dart';
-
+import 'services/diagnostics/diagnostics_logger.dart';
+import 'services/fcm_service.dart';
+import 'services/google_drive_auto_sync_engine.dart';
+import 'services/google_drive_backup_service.dart';
+import 'services/google_drive_conflict_resolver.dart';
+import 'services/google_drive_logger.dart';
+import 'services/google_drive_unified_sync_coordinator.dart';
+import 'services/local_db.dart';
+import 'services/logging/log_models.dart';
+import 'services/remote_config_service.dart';
+import 'services/seed.dart';
+import 'services/smart_sync_manager.dart';
+import 'services/sync_conflict_event_bus.dart';
+import 'services/sync_constants.dart';
+import 'services/sync_guardian.dart';
+import 'services/sync_performance_optimizer.dart';
+import 'services/sync_queue_service.dart';
+import 'services/sync_service.dart';
 // AutoSync Engine imports
 import 'services/unified_sync_orchestrator.dart';
-import 'services/google_drive_auto_sync_engine.dart';
-import 'services/google_drive_conflict_resolver.dart';
-import 'services/google_drive_unified_sync_coordinator.dart';
-import 'services/logging/log_models.dart';
-import 'services/diagnostics/diagnostics_logger.dart';
-import 'services/sync_queue_service.dart';
-import 'services/api_config_service.dart';
-import 'services/appwrite_config_manager.dart';
-import 'services/appwrite_realtime_sync.dart';
-import 'services/fcm_service.dart';
-import 'services/sync_service.dart';
-import 'providers/appwrite_providers.dart' as appwrite;
-
-import 'components/admin_layout.dart';
+import 'utils/auto_sync_preferences.dart';
+import 'utils/env.dart';
+import 'utils/hotel_day_ticker.dart';
+import 'utils/id.dart';
+import 'utils/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ─── Firebase Core: تهيئة قبل كل خدمات Firebase ───
+  try {
+    await Firebase.initializeApp();
+    debugPrint('✅ Firebase Core initialized');
+  } catch (e) {
+    debugPrint('⚠️ Firebase Core initialization failed: $e');
+    debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
+  }
+
+  // ─── Crashlytics: تهيئة قبل كل شيء ───
+  await CrashlyticsService.instance.initialize();
+
+  // ─── Remote Config: تهيئة مبكراً ───
+  await RemoteConfigService.instance.initialize();
+
   await DiagnosticsLogger.instance.initialize();
   await ApiConfigService.instance.initialize();
 
-  FlutterError.onError = (details) {
-    DiagnosticsLogger.instance.recordFlutterError(details);
-    FlutterError.presentError(details);
-  };
+  // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Lark/Telegram)
+  unawaited(AlarmBackup.initAlarmSystem());
 
-  PlatformDispatcher.instance.onError = (error, stack) {
-    DiagnosticsLogger.instance.recordError(
-      error,
-      stack,
-      tag: 'PLATFORM',
-      level: LogLevel.critical,
-    );
-    return true;
-  };
+  // ─── ربط Crashlytics + DiagnosticsLogger ───
+  CrashlyticsService.instance.setupErrorHandlers(
+    originalFlutterHandler: (details) {
+      DiagnosticsLogger.instance.recordFlutterError(details);
+      FlutterError.presentError(details);
+    },
+    originalPlatformHandler: (error, stack) {
+      DiagnosticsLogger.instance.recordError(
+        error,
+        stack,
+        tag: 'PLATFORM',
+        level: LogLevel.critical,
+      );
+    },
+    originalZonedHandler: (error, stack) {
+      DiagnosticsLogger.instance.recordError(
+        error,
+        stack,
+        tag: 'ZONED',
+        level: LogLevel.critical,
+      );
+    },
+  );
 
-  SystemChrome.setPreferredOrientations([
+  unawaited(SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
-  ]);
+  ]),);
 
-  debugPrint('BASE_API_URL=' + Env.baseApiUrl);
+  debugPrint('BASE_API_URL=${Env.baseApiUrl}');
   runZonedGuarded(
     () => runApp(const ProviderScope(child: App())),
-    (error, stack) => DiagnosticsLogger.instance.recordError(
-      error,
-      stack,
-      tag: 'ZONED',
-      level: LogLevel.critical,
-    ),
+    (error, stack) async {
+      // إرسال الخطأ إلى Crashlytics
+      await CrashlyticsService.instance.recordUnexpectedError(
+        error: error,
+        stackTrace: stack,
+        context: 'runZonedGuarded',
+      );
+      // تسجيل محلي
+      DiagnosticsLogger.instance.recordError(
+        error,
+        stack,
+        tag: 'ZONED',
+        level: LogLevel.critical,
+      );
+    },
   );
 
   unawaited(_initializeFullyAutomatedSyncSystem());
@@ -102,11 +150,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
   try {
     final prefs = await SharedPreferences.getInstance();
-    final disableGoogleDriveSyncOnStart =
-        prefs.getBool('google_drive_sync_disable_on_start') ?? false;
-    if (disableGoogleDriveSyncOnStart) {
-      await prefs.setBool('google_drive_sync_enabled', false);
-    }
     if (!prefs.containsKey('google_drive_sync_enabled')) {
       await prefs.setBool('google_drive_sync_enabled', false);
     }
@@ -122,8 +165,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     final driveLogger = GoogleDriveLogger();
     await driveLogger.initialize(
       minLevel: LogLevel.debug,
-      enableConsole: true,
-      enableFile: false,
     );
     debugPrint('✅ Logger initialized');
 
@@ -189,20 +230,21 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     await _configureAutoSyncEngine(autoSyncEngine);
 
-    // لا يتم بدء المزامنة تلقائياً عند فتح التطبيق
-    // await autoSyncEngine.start();
-
-    // if (backupService.isSignedIn) {
-    //   debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
-    //   await autoSyncEngine.onSignInChanged(true);
-    //   await smartSync.onGoogleDriveSignInChanged(true);
-    //   debugPrint('✅ تم إشعار جميع أنظمة المزامنة');
-    // }
-    debugPrint('ℹ️ المزامنة التلقائية معطلة عند بدء التطبيق');
+    // تفعيل المزامنة التلقائية عند فتح التطبيق (فقط إذا كان المستخدم قد فعّلها)
+    final driveSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (backupService.isSignedIn && driveSyncEnabled) {
+      debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
+      await autoSyncEngine.start();
+      await autoSyncEngine.onSignInChanged(true);
+      await smartSync.onGoogleDriveSignInChanged(true);
+      debugPrint('✅ تم إشعار جميع أنظمة المزامنة وبدء المراقبة');
+    } else {
+      debugPrint('ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية');
+    }
 
     await SyncQueueService.instance.initialize();
 
-    _setupEngineMonitoring(autoSyncEngine);
+    _startEngineMonitoring(autoSyncEngine);
 
     debugPrint('✅ Auto Sync Engine started');
 
@@ -296,41 +338,17 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   debugPrint('✅ Configuration complete');
 }
 
-void _setupEngineMonitoring(AutoSyncEngine engine) {
-  debugPrint('📊 Setting up engine state monitoring...');
+/// يخزن اشتراك مراقبة المحرك لاستخدامه في Dispose
+StreamSubscription<void>? _globalEngineMonitoringSub;
 
-  engine.stateStream.listen((state) {
-    final statusIcon = state.isRunning ? '🟢' : '🔴';
-    final networkIcon = state.hasNetworkConnection ? '🌐' : '📴';
-    final authIcon = state.isSignedIn ? '🔐' : '🔓';
-
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    debugPrint('📊 ENGINE STATE UPDATE');
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━====');
-    debugPrint('$statusIcon Running: ${state.isRunning}');
-    debugPrint('$networkIcon Network: ${state.hasNetworkConnection}');
-    debugPrint('$authIcon Signed in: ${state.isSignedIn}');
-    debugPrint('📦 Pending changes: ${state.pendingChangesCount}');
-    debugPrint(
-      '✅ Last successful sync: ${state.lastSuccessfulSync ?? "Never"}',
-    );
-    debugPrint('❌ Failed attempts: ${state.failedAttempts}');
-
-    if (state.nextRetryAt != null) {
-      final secondsUntil = state.nextRetryAt!
-          .difference(DateTime.now())
-          .inSeconds;
-      debugPrint('⏰ Next retry in: ${secondsUntil}s');
-    }
-
-    if (state.lastError != null) {
-      debugPrint('⚠️ Last error: ${state.lastError}');
-    }
-
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+void _startEngineMonitoring(AutoSyncEngine engine) {
+  _globalEngineMonitoringSub?.cancel();
+  _globalEngineMonitoringSub = engine.stateStream.listen((state) {
+    debugPrint('📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
+        'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
+        'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
+        'Pending: ${state.pendingChangesCount}');
   });
-
-  debugPrint('✅ Monitoring setup complete');
 }
 
 class App extends ConsumerStatefulWidget {
@@ -344,8 +362,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   bool _sessionConfigured = false;
   bool _isConfiguringSession = false;
   bool _initialLocalSyncDone = false;
-  DateTime? _lastAppwriteAutoPull;
-  StreamSubscription? _localAutoSyncSub;
+  StreamSubscription<void>? _localAutoSyncSub;
   Timer? _localAutoSyncDebounce;
   DateTime? _lastLocalAutoSync;
   bool _localAutoSyncRunning = false;
@@ -379,7 +396,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     _pendingDatabase = null;
     _isConfiguringSession = true;
-    Future.delayed(const Duration(milliseconds: 100), () async {
+    Future<void>.delayed(const Duration(milliseconds: 100), () async {
       try {
         if (_sessionConfigured) {
           await AppSessionManager.onAppCloseOrBackground();
@@ -388,17 +405,18 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           database: database,
           deviceIdResolver: () async =>
               GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
+          syncManager: ref.read(appwrite.appwriteSyncManagerProvider),
         );
         await Seeder(database).seedIfEmpty();
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
         _startRealtimeSync();
         _startLocalAutoSync(database);
+        _listenForSyncConflicts();
         if (!_initialLocalSyncDone) {
           _initialLocalSyncDone = true;
           unawaited(_runLocalAutoSync());
         }
-        unawaited(_autoPullLatestFromAppwrite());
       } finally {
         _isConfiguringSession = false;
         if (_pendingDatabase != null) {
@@ -409,7 +427,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   }
 
   void _startRealtimeSync() {
-    Future.delayed(const Duration(seconds: 3), () async {
+    Future<void>.delayed(const Duration(seconds: 5), () async {
       try {
         final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
         await syncManager.initialize();
@@ -432,6 +450,40 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         syncManager.startAutoSync(
           interval: const Duration(minutes: 2),
         );
+
+        // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
+          bool shouldSync = true;
+
+          if (lastPullEpochMs != null) {
+            final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
+            final elapsed = DateTime.now().difference(lastPull);
+            if (elapsed < SyncConstants.appOpenSyncInterval) {
+              final remaining = SyncConstants.appOpenSyncInterval - elapsed;
+              debugPrint(
+                '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
+                '(متبقي ${remaining.inMinutes} دقيقة)',
+              );
+              shouldSync = false;
+            }
+          }
+
+          if (shouldSync) {
+            debugPrint('📥 Pulling latest data from Appwrite on app start...');
+            // push + pull معاً — لا نرفع بدون سحب
+            await syncManager.sync();
+            // تسجيل وقت هذا السحب
+            await prefs.setInt(
+              SyncConstants.lastAppOpenPullKey,
+              DateTime.now().millisecondsSinceEpoch,
+            );
+            debugPrint('✅ Initial sync on app start completed');
+          }
+        } catch (e) {
+          debugPrint('⚠️ Initial sync on app start failed: $e');
+ }
 
         var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
         deviceId ??= syncManager.currentDeviceId;
@@ -478,6 +530,42 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     _localAutoSyncSub = watch.watch().listen((_) => _scheduleLocalAutoSync());
   }
 
+  /// الاستماع لأحداث تضاربات المزامنة وعرض إشعارات للمستخدم
+  StreamSubscription<SyncConflictEvent>? _conflictSubscription;
+  void _listenForSyncConflicts() {
+    _conflictSubscription?.cancel();
+    _conflictSubscription = SyncConflictEventBus.instance.events.listen(
+      (event) {
+        if (!mounted || !_sessionConfigured) {
+          return;
+        }
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        if (messenger == null) {
+          return;
+        }
+        final tableNames = {
+          'bookings': 'حجوزات',
+          'payments': 'مدفوعات',
+          'debts': 'ديون',
+          'expenses': 'مصروفات',
+          'rooms': 'غرف',
+          'employees': 'موظفين',
+        };
+        final tableName = tableNames[event.table] ?? event.table;
+        final sideText = event.winnerSide == 'local'
+            ? 'الإصدار المحلي'
+            : 'إصدار السيرفر';
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('تضارب في $tableName: تم تفضيل $sideText'),
+            backgroundColor: Colors.orange.shade800,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
+    );
+  }
+
   void _scheduleLocalAutoSync() {
     if (_localAutoSyncRunning) {
       return;
@@ -509,16 +597,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _autoPullLatestFromAppwrite() async {
-    try {
-      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
-      await syncManager.initialize();
-      await syncManager.pullRemoteChanges();
-      _lastAppwriteAutoPull = DateTime.now();
-    } catch (e) {
-      debugPrint('❌ Appwrite auto-pull error: $e');
-    }
-  }
 
   /// تهيئة FCM للإشعارات بين الأجهزة
   Future<void> _initializeFcm(dynamic syncManager) async {
@@ -526,7 +604,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
     // حقن الاعتمادات لتجنب import دائري
     FcmService.injectDependencies(
-      syncManager: syncManager,
+      syncManager: syncManager as AppwriteSyncManager,
       realtimeSync: AppwriteRealtimeSync(),
     );
 
@@ -540,23 +618,13 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     debugPrint('✅ FCM ready — cross-device notifications enabled');
   }
 
-  Future<void> _autoPullAppwriteOnResume() async {
-    final last = _lastAppwriteAutoPull;
-    if (last != null &&
-        DateTime.now().difference(last) < const Duration(seconds: 30)) {
-      return;
-    }
-    await _autoPullLatestFromAppwrite();
-  }
-
   /// رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة للتطبيق
   Future<void> _syncOnResume() async {
     try {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       // push: رفع أي تغييرات معلقة في الـ outbox
       // pull: سحب أي تغييرات جديدة من السيرفر
-      await syncManager.sync(push: true, pull: true);
-      _lastAppwriteAutoPull = DateTime.now();
+      await syncManager.sync();
       debugPrint('✅ Sync on resume completed (push + pull)');
     } catch (e) {
       debugPrint('⚠️ Sync on resume error: $e');
@@ -564,27 +632,103 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   }
 
   /// رفع التغييرات المعلقة عند خروج التطبيق للخلفية
+  /// البيانات محفوظة في SQLite (outbox) حتى لو قُتل التطبيق قبل الاكتمال
+  /// عند العودة للتطبيق ستتم إعادة المحاولة تلقائياً
   Future<void> _pushPendingChangesOnPause() async {
     try {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       // push فقط — لا نسحب لتوفير الوقت قبل أن يقتل النظام التطبيق
-      await syncManager.sync(push: true, pull: false);
+      // مهلة 10 ثوانٍ — إذا لم يكتمل، البيانات محفوظة في outbox
+      await syncManager.sync(pull: false).timeout(
+        const Duration(seconds: 10),
+      );
       debugPrint('✅ Push on pause completed');
     } catch (e) {
-      debugPrint('⚠️ Push on pause error: $e');
+      // البيانات محفوظة في outbox — لن تُفقد أبداً
+      debugPrint('⚠️ Push on pause error (data safe in outbox): $e');
     }
   }
 
   @override
   void dispose() {
     AppwriteRealtimeSync().stop();
+    _globalEngineMonitoringSub?.cancel();
     _localAutoSyncSub?.cancel();
+    _conflictSubscription?.cancel();
     _localAutoSyncDebounce?.cancel();
     if (_sessionConfigured) {
       unawaited(AppSessionManager.onAppCloseOrBackground());
     }
+    // تنظيف موارد الخدمات Singleton لمنع تسرب الذاكرة
+    unawaited(_disposeSingletonServices());
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// تنظيف جميع الخدمات Singleton عند إغلاق التطبيق
+  static Future<void> _disposeSingletonServices() async {
+    debugPrint('🧹 Disposing singleton services...');
+    try {
+      await FcmService.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing FcmService: $e');
+    }
+    try {
+      await BatteryOptimizer.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing BatteryOptimizer: $e');
+    }
+    try {
+      await AppwriteRealtimeService.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing AppwriteRealtimeService: $e');
+    }
+    try {
+      await SyncPerformanceOptimizer.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing SyncPerformanceOptimizer: $e');
+    }
+    try {
+      await SmartSyncManager.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing SmartSyncManager: $e');
+    }
+    try {
+      ConnectivityService.instance.dispose();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing ConnectivityService: $e');
+    }
+    try {
+      HotelDayTicker.instance.dispose();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing HotelDayTicker: $e');
+    }
+    try {
+      await AutoSyncEngine.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing GoogleDriveAutoSyncEngine: $e');
+    }
+    try {
+      await UnifiedSyncOrchestrator.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing UnifiedSyncOrchestrator: $e');
+    }
+    try {
+      await GoogleDriveUnifiedSyncCoordinator.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
+    }
+    try {
+      CentralSyncCoordinator.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing CentralSyncCoordinator: $e');
+    }
+    try {
+      BackgroundSyncService.disposeInstance();
+    } catch (e) {
+      debugPrint('⚠️ Error disposing BackgroundSyncService: $e');
+    }
+    debugPrint('✅ All singleton services disposed');
   }
 
   @override
@@ -594,22 +738,18 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     if (state == AppLifecycleState.resumed) {
       debugPrint('📱 التطبيق عاد للواجهة...');
-      AppSessionManager.onAppOpen().catchError(
-        (e, s) => debugPrint('Error in onAppOpen: $e\n$s'),
+      AppSessionManager.onAppOpen().catchError((Object e, StackTrace s) => debugPrint('Error in onAppOpen: $e\n$s'),
       );
       ref
           .read(backupStatusProvider.notifier)
           .refreshSignInStatus()
-          .catchError(
-            (e, s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
+          .catchError((Object e, StackTrace s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
           );
       // رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة
       unawaited(_syncOnResume());
-      UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
-        (e, s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
+      UnifiedSyncOrchestrator.instance.onAppForeground().catchError((Object e, StackTrace s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
       );
-      SyncGuardian.instance.onAppForeground().catchError(
-        (e, s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
+      SyncGuardian.instance.onAppForeground().catchError((Object e, StackTrace s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
       );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
@@ -619,9 +759,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       unawaited(_pushPendingChangesOnPause());
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(
-        () => AppSessionManager.onAppCloseOrBackground(),
-      ).catchError(
-        (e, s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'),
+        AppSessionManager.onAppCloseOrBackground,
+      ).catchError((Object e, StackTrace s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'),
       );
     }
   }
@@ -644,13 +783,23 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
               GlobalWidgetsLocalizations.delegate,
             ],
             supportedLocales: const [Locale('ar')],
-            routes: {
-              '/employees': (_) => const EmployeesListScreen(),
-              '/expenses': (_) => const ExpensesListScreen(),
-              '/finance/cash-register': (_) => const FinanceScreen(),
-              '/finance/cash-transactions': (_) => const FinanceScreen(),
-              '/debts': (_) => const DebtsListScreen(),
-              '/reports': (_) => const ReportsScreen(),
+            onGenerateRoute: (settings) {
+              // إنشاء المسارات بأسلوب lazy — الصفحة لا تُنشأ إلا عند التنقل إليها
+              switch (settings.name) {
+                case '/employees':
+                  return MaterialPageRoute<void>(builder: (_) => const EmployeesListScreen());
+                case '/expenses':
+                  return MaterialPageRoute<void>(builder: (_) => const ExpensesListScreen());
+                case '/finance/cash-register':
+                case '/finance/cash-transactions':
+                  return MaterialPageRoute<void>(builder: (_) => const FinanceScreen());
+                case '/debts':
+                  return MaterialPageRoute<void>(builder: (_) => const DebtsListScreen());
+                case '/reports':
+                  return MaterialPageRoute<void>(builder: (_) => const ReportsScreen());
+                default:
+                  return null;
+              }
             },
             home: const RootRouter(),
           );
@@ -691,27 +840,44 @@ class HomeShell extends ConsumerStatefulWidget {
 class _HomeShellState extends ConsumerState<HomeShell> {
   String _currentRoute = '/dashboard';
 
-  final Map<String, Widget> _routes = {
-    '/dashboard': const DashboardScreen(),
-    '/rooms': const RoomsListScreen(),
-    '/bookings': const BookingsListScreen(),
-    '/payments': const PaymentsMainScreen(),
-    '/debts': const DebtsListScreen(),
-    '/employees': const EmployeesListScreen(),
-    '/expenses': const ExpensesListScreen(),
-    '/finance': const FinanceScreen(),
-    '/reports': const ReportsScreen(),
-    '/notes': const NotesScreen(),
-    '/blacklist': const BlacklistScreen(),
-    '/information': const InformationScreen(),
-    '/settings': const SettingsScreen(),
-  };
+  /// قائمة بالمسارات الصالحة (للتحقق من الصلاحيات)
+  static const _validRoutes = [
+    '/dashboard', '/rooms', '/bookings', '/payments',
+    '/debts', '/employees', '/expenses', '/finance',
+    '/reports', '/notes', '/blacklist', '/information',
+    '/settings', '/ai',
+  ];
+
+  /// إنشاء الصفحة المطلوبة بأسلوب lazy — لا تُنشأ أي صفحة حتى يتم طلبها
+  Widget _buildRoute(String route) {
+    switch (route) {
+      case '/dashboard': return const DashboardScreen();
+      case '/rooms': return const RoomsListScreen();
+      case '/bookings': return const BookingsListScreen();
+      case '/payments': return const PaymentsMainScreen();
+      case '/debts': return const DebtsListScreen();
+      case '/employees': return const EmployeesListScreen();
+      case '/expenses': return const ExpensesListScreen();
+      case '/finance': return const FinanceScreen();
+      case '/reports': return const ReportsScreen();
+      case '/notes': return const NotesScreen();
+      case '/blacklist': return const BlacklistScreen();
+      case '/information': return const InformationScreen();
+      case '/settings': return const SettingsScreen();
+      case '/ai': return const AiChatScreen();
+      default: return const DashboardScreen();
+    }
+  }
 
   bool _can(String key) {
     final auth = ref.read(authProvider);
     final u = auth.currentUser;
-    if (u == null) return false;
-    if (u.userType == 'admin' || u.permissions.contains('all')) return true;
+    if (u == null) {
+      return false;
+    }
+    if (u.userType == 'admin' || u.permissions.contains('all')) {
+      return true;
+    }
     return u.permissions.contains(key);
   }
 
@@ -720,7 +886,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final routeKey = _currentRoute.replaceAll('/', '');
     final allowed = _can(routeKey.isEmpty ? 'dashboard' : routeKey);
     final body = allowed
-        ? (_routes[_currentRoute] ?? const DashboardScreen())
+        ? _buildRoute(_currentRoute)
         : const Center(child: Text('ليس لديك صلاحية لعرض هذه الصفحة'));
 
     final actions = _buildGlobalActions(context);
@@ -746,7 +912,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         onPressed: () {
           Navigator.of(
             context,
-          ).push(MaterialPageRoute(builder: (_) => const NotesScreen()));
+          ).push<void>(MaterialPageRoute<void>(builder: (_) => const NotesScreen()));
         },
         tooltip: 'التنبيهات',
         icon: Stack(
@@ -787,7 +953,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }
 
   void _navigateToRoute(String route) {
-    if (_routes.containsKey(route)) {
+    if (_validRoutes.contains(route)) {
       setState(() {
         _currentRoute = route;
       });

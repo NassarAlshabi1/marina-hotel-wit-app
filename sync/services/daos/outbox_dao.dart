@@ -4,8 +4,6 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../local_db.dart';
 import '../sync_guardian.dart';
-import '../google_drive_unified_sync_coordinator.dart';
-import '../google_drive_auto_sync_engine.dart';
 
 part 'outbox_dao.g.dart';
 

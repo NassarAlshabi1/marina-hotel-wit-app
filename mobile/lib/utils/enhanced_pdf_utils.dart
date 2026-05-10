@@ -5,7 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 /// ألوان مخصصة للـ PDF
 class PdfColors {
-  static const primary = PdfColor(0.02, 0.33, 0.66);
+  static const primary = PdfColor(0.706, 0.420, 0.0);  // #b46b00
   static const secondary = PdfColor(0.85, 0.65, 0.13);
   static const accent = PdfColor(0.0, 0.48, 0.65);
   static const textDark = PdfColor(0.15, 0.15, 0.15);
@@ -72,7 +72,7 @@ class PdfTextStyles {
     font: font,
     fontSize: 11,
     fontWeight: pw.FontWeight.bold,
-    color: PdfColors.textWhite,
+    color: PdfColors.textDark,
   );
 
   static pw.TextStyle tableCell(pw.Font font) =>
@@ -130,8 +130,8 @@ class EnhancedPdfUtils {
       width: double.infinity,
       decoration: pw.BoxDecoration(
         gradient: showGradient
-            ? pw.LinearGradient(
-                colors: const [PdfColors.primary, PdfColors.accent],
+            ? const pw.LinearGradient(
+                colors: [PdfColors.primary, PdfColors.accent],
                 begin: pw.Alignment.topLeft,
                 end: pw.Alignment.bottomRight,
               )
@@ -169,7 +169,7 @@ class EnhancedPdfUtils {
                     horizontal: 12,
                     vertical: 6,
                   ),
-                  decoration: pw.BoxDecoration(color: PdfColors.secondary),
+                  decoration: const pw.BoxDecoration(color: PdfColors.secondary),
                   child: pw.Text(
                     title.isNotEmpty ? title : 'وثيقة رسمية',
                     style: pw.TextStyle(
@@ -197,14 +197,14 @@ class EnhancedPdfUtils {
             pw.Container(
               width: 80,
               height: 80,
-              decoration: pw.BoxDecoration(color: PdfColors.textWhite),
+              decoration: const pw.BoxDecoration(color: PdfColors.textWhite),
               child: pw.Image(logo, fit: pw.BoxFit.cover),
             )
           else
             pw.Container(
               width: 80,
               height: 80,
-              decoration: pw.BoxDecoration(color: PdfColors.secondary),
+              decoration: const pw.BoxDecoration(color: PdfColors.secondary),
               child: pw.Center(
                 child: pw.Text(
                   'M',
@@ -226,7 +226,7 @@ class EnhancedPdfUtils {
     return pw.Container(
       width: double.infinity,
       padding: const pw.EdgeInsets.all(16),
-      decoration: pw.BoxDecoration(color: PdfColors.backgroundCard),
+      decoration: const pw.BoxDecoration(color: PdfColors.backgroundCard),
       child: pw.Column(
         children: [
           pw.Row(
@@ -372,7 +372,7 @@ class EnhancedPdfUtils {
         columnWidths: columnWidths != null
             ? Map.fromIterables(
                 List.generate(headers.length, (index) => index),
-                columnWidths.map((w) => pw.FixedColumnWidth(w)),
+                columnWidths.map(pw.FixedColumnWidth.new),
               )
             : null,
         children: [
@@ -396,7 +396,7 @@ class EnhancedPdfUtils {
           ...data.asMap().entries.map((entry) {
             final index = entry.key;
             final row = entry.value;
-            final isEven = index % 2 == 0;
+            final isEven = index.isEven;
 
             return pw.TableRow(
               decoration: pw.BoxDecoration(
@@ -523,9 +523,9 @@ class EnhancedPdfUtils {
     return '$day ${dateTime.day} $month ${dateTime.year} - ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
-  /// تنسيق المبلغ بالعملة
+  /// تنسيق المبلغ بالعملة مع فواصل الآلاف
   static String formatCurrency(double amount) {
-    return '${amount.toStringAsFixed(0)}';
+    return formatNumber(amount);
   }
 
   /// تنسيق الأرقام بالفواصل
@@ -548,7 +548,7 @@ class EnhancedPdfUtils {
       width: size,
       height: size,
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.textLight, width: 1),
+        border: pw.Border.all(color: PdfColors.textLight),
         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
       ),
       child: pw.Center(

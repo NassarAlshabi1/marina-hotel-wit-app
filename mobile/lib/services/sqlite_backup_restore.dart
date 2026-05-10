@@ -147,11 +147,32 @@ class SqliteBackupRestore {
       // Close any open connections to avoid file locking
       await DatabaseManager.close();
 
-      // Replace the database file
-      if (await dstFile.exists()) {
-        await dstFile.delete();
+      // ✅ إصلاح: استبدال ذري باستخدام ملف مؤقت
+      // نسخ الاحتياطي إلى ملف مؤقت أولاً، ثم إعادة تسميته إلى اسم DB الفعلي
+      final tmpPath = '$dstPath.tmp';
+      final tmpFile = File(tmpPath);
+      
+      // حذف أي ملف مؤقت سابق
+      if (await tmpFile.exists()) {
+        await tmpFile.delete();
       }
-      await srcFile.copy(dstPath);
+      
+      // نسخ الاحتياطي إلى الملف المؤقت
+      await srcFile.copy(tmpPath);
+      
+      // حذف ملف DB الحالي (بعد التأكد من وجود نسخة مؤقتة صالحة)
+      if (await dstFile.exists()) {
+        final backupPath = '$dstPath.pre_restore';
+        final backupFile = File(backupPath);
+        // الاحتفاظ بنسخة أمان من DB الحالي قبل الحذف
+        if (await backupFile.exists()) {
+          await backupFile.delete();
+        }
+        await dstFile.rename(backupPath);
+      }
+      
+      // إعادة تسمية الملف المؤقت إلى اسم DB
+      await tmpFile.rename(dstPath);
 
       // Reopen the database so the app can continue working
       if (reopenCallback != null) {

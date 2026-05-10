@@ -1,8 +1,9 @@
 // ignore_for_file: avoid_print
 
-import 'dart:io';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:http/http.dart' as http;
 
 /// سكريبت لإضافة جدول booking_price_adjustments إلى Appwrite Cloud
 ///
@@ -102,7 +103,7 @@ Future<void> main(List<String> args) async {
     int failCount = 0;
 
     for (final attr in attributes) {
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
       
       final result = await addAttribute(client, apiKey, attr);
       
@@ -187,16 +188,24 @@ Future<String> addAttribute(http.Client client, String apiKey, Map<String, dynam
   if (type == 'string') {
     urlPath = 'string';
     body['size'] = attr['size'] ?? 255;
-    if (attr['default'] != null) body['default'] = attr['default'];
+    if (attr['default'] != null) {
+      body['default'] = attr['default'];
+    }
   } else if (type == 'integer') {
     urlPath = 'integer';
-    if (attr['default'] != null) body['default'] = attr['default'];
+    if (attr['default'] != null) {
+      body['default'] = attr['default'];
+    }
   } else if (type == 'double') {
     urlPath = 'float';
-    if (attr['default'] != null) body['default'] = attr['default'];
+    if (attr['default'] != null) {
+      body['default'] = attr['default'];
+    }
   } else if (type == 'boolean') {
     urlPath = 'boolean';
-    if (attr['default'] != null) body['default'] = attr['default'];
+    if (attr['default'] != null) {
+      body['default'] = attr['default'];
+    }
   } else {
     return 'fail';
   }

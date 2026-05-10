@@ -3,15 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
-import '../../components/app_scaffold.dart';
 import '../../components/admin_layout.dart';
+import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
-import '../../providers/core_providers.dart' as coreProviders;
+import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/report_pdf_builder.dart';
 import '../../utils/time.dart';
+import '../../widgets/report_date_filter.dart';
 
 class DebtsReportScreen extends ConsumerStatefulWidget {
   const DebtsReportScreen({super.key});
@@ -22,6 +23,7 @@ class DebtsReportScreen extends ConsumerStatefulWidget {
 
 class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   final NumberFormat _currencyFormat = NumberFormat('#,##0', 'en_US');
+  final _filterController = DateFilterController();
 
   // ignore: unused_element
   String _formatNumber(num value) => _currencyFormat.format(value);
@@ -49,44 +51,22 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   }
 
   Future<void> _initializeDefaults() async {
-    final now = DateTime.now();
-    _fromDate = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(const Duration(days: 90));
-    _toDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    // الافتراضي: اليوم الفندقي الحالي (14:00 → 14:00)
+    final range = DateFilterController.getDefaultHotelDayRange();
+    _fromDate = range.from;
+    _toDate = range.to;
     await _fetchReport();
   }
 
-  Future<void> _pickDate({required bool isFrom}) async {
-    final initial = isFrom
-        ? (_fromDate ?? DateTime.now())
-        : (_toDate ?? DateTime.now());
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() {
-        if (isFrom) {
-          _fromDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
-        } else {
-          _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
-        }
-      });
-    }
-  }
-
   Future<void> _fetchReport() async {
-    if (_loading) return;
+    if (_loading) {
+      return;
+    }
     setState(() {
       _loading = true;
     });
     try {
-      final db = ref.read(coreProviders.dbProvider);
+      final db = ref.read(databaseProvider);
       final query = db.select(db.debts);
       final allDebts = await query.get();
       final filtered = <Debt>[];
@@ -163,140 +143,14 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   }
 
   Future<void> _exportPdf() async {
-    if (_rows.isEmpty) return;
-    final fonts = await EnhancedPdfUtils.loadArabicFonts();
-    final doc = pw.Document();
+    if (_rows.isEmpty) {
+      return;
+    }
     final fromLabel = _fromDate != null
         ? _dateFormat.format(_fromDate!)
         : 'غير محدد';
     final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
     final totalGuests = _guestSummaries.length;
-
-    pw.Widget metaRow(String label, String value) {
-      return pw.Padding(
-        padding: const pw.EdgeInsets.only(bottom: 6),
-        child: pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          children: [
-            pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
-            pw.Text(
-              value,
-              style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final metaInfoCard = EnhancedPdfUtils.buildInfoCard(
-      title: 'تفاصيل التقرير',
-      fonts: fonts,
-      content: [
-        metaRow('تقرير', 'الديون'),
-        metaRow('الفترة', 'من $fromLabel إلى $toLabel'),
-        metaRow('عدد السجلات', _rows.length.toString()),
-        metaRow('عدد النزلاء', totalGuests.toString()),
-      ],
-    );
-
-    pw.Widget buildReportHeader() {
-      final periodText = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
-      return pw.Container(
-        width: double.infinity,
-        decoration: const pw.BoxDecoration(color: PdfColors.primary),
-        padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.center,
-          children: [
-            pw.Text(
-              'فندق مارينا بلازا',
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 22,
-                color: PdfColors.textWhite,
-              ),
-            ),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              'تقرير الديون',
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 20,
-                color: PdfColors.textWhite,
-              ),
-            ),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              periodText,
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 12,
-                color: PdfColors.textWhite,
-              ),
-              textAlign: pw.TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
-
-    pw.Widget buildTotalsFooter() {
-      pw.Widget buildLine(String title, String value, PdfColor color) {
-        return pw.Padding(
-          padding: const pw.EdgeInsets.only(bottom: 4),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.end,
-            children: [
-              pw.Text(
-                '$title: ',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 11,
-                  color: PdfColors.textDark,
-                ),
-              ),
-              pw.Text(
-                value,
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 12,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        );
-      }
-
-      return pw.Container(
-        width: double.infinity,
-        padding: const pw.EdgeInsets.all(12),
-        decoration: pw.BoxDecoration(
-          color: PdfColors.backgroundLight,
-          border: pw.Border.all(color: PdfColors.primary, width: 0.4),
-        ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.end,
-          children: [
-            buildLine(
-              'الإجمالي الكلي للديون',
-              EnhancedPdfUtils.formatNumber(_totalDebt),
-              PdfColors.danger,
-            ),
-            buildLine(
-              'المبالغ المدفوعة',
-              EnhancedPdfUtils.formatNumber(_totalPaid),
-              PdfColors.success,
-            ),
-            buildLine(
-              'المبالغ المتبقية',
-              EnhancedPdfUtils.formatNumber(_totalRemaining),
-              PdfColors.warning,
-            ),
-          ],
-        ),
-      );
-    }
 
     final guestHeaders = ['النزيل', 'إجمالي الدين', 'المدفوع', 'المتبقي'];
     final guestData = _guestSummaries
@@ -332,8 +186,8 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           EnhancedPdfUtils.formatNumber(debt.totalAmount),
           EnhancedPdfUtils.formatNumber(debt.paidAmount),
           EnhancedPdfUtils.formatNumber(debt.remainingAmount),
-          debt.debtReason.isNotEmpty ? debt.debtReason : '-',
-          debt.isSettled == 1 ? 'نعم' : 'لا',
+          if (debt.debtReason.isNotEmpty) debt.debtReason else '-',
+          if (debt.isSettled == 1) 'نعم' else 'لا',
           (_unreturnedCounts[debt.id] ?? 0).toString(),
         ],
       [
@@ -349,46 +203,83 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       ],
     ];
 
-    final guestSummaryCard = EnhancedPdfUtils.buildInfoCard(
-      title: 'ملخص حسب النزلاء',
-      fonts: fonts,
-      content: [
-        guestData.isEmpty
-            ? pw.Text(
-                'لا توجد بيانات',
-                style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-              )
-            : EnhancedPdfUtils.buildProfessionalTable(
-                headers: guestHeaders,
-                data: guestData,
-                fonts: fonts,
-                headerColor: PdfColors.primary,
-                alternateRowColor: PdfColors.backgroundLight,
-              ),
-      ],
-    );
+    await ReportPdfBuilder.buildAndShare(ReportPdfConfig(
+      title: 'تقرير الديون',
+      fromDate: _fromDate,
+      toDate: _toDate,
+      buildContent: (fonts) {
+        pw.Widget metaRow(String label, String value) {
+          return pw.Padding(
+            padding: const pw.EdgeInsets.only(bottom: 6),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
+                pw.Text(
+                  value,
+                  style: pw.TextStyle(font: fonts.regular, fontSize: 11),
+                ),
+              ],
+            ),
+          );
+        }
 
-    final detailsTable = EnhancedPdfUtils.buildProfessionalTable(
-      headers: detailHeaders,
-      data: detailData,
-      fonts: fonts,
-      headerColor: PdfColors.primary,
-      alternateRowColor: PdfColors.backgroundLight,
-    );
+        final metaInfoCard = EnhancedPdfUtils.buildInfoCard(
+          title: 'تفاصيل التقرير',
+          fonts: fonts,
+          content: [
+            metaRow('تقرير', 'الديون'),
+            metaRow('الفترة', 'من $fromLabel إلى $toLabel'),
+            metaRow('عدد السجلات', _rows.length.toString()),
+            metaRow('عدد النزلاء', totalGuests.toString()),
+          ],
+        );
 
-    doc.addPage(
-      pw.MultiPage(
-        textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
-        footer: (context) => pw.Align(
-          alignment: pw.Alignment.center,
-          child: pw.Text(
-            'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: pw.TextStyle(font: fonts.regular, fontSize: 10),
-          ),
-        ),
-        build: (context) => [
-          buildReportHeader(),
+        pw.Widget buildLine(String title, String value, PdfColor color) {
+          return pw.Padding(
+            padding: const pw.EdgeInsets.only(bottom: 4),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.end,
+              children: [
+                pw.Text(
+                  '$title: ',
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 11,
+                    color: PdfColors.textDark,
+                  ),
+                ),
+                pw.Text(
+                  value,
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 12,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final guestSummaryCard = EnhancedPdfUtils.buildInfoCard(
+          title: 'ملخص حسب النزلاء',
+          fonts: fonts,
+          content: [
+            if (guestData.isEmpty) pw.Text(
+                    'لا توجد بيانات',
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 11),
+                  ) else EnhancedPdfUtils.buildProfessionalTable(
+                    headers: guestHeaders,
+                    data: guestData,
+                    fonts: fonts,
+                    headerColor: PdfColors.primary,
+                    alternateRowColor: PdfColors.backgroundLight,
+                  ),
+          ],
+        );
+
+        return [
           pw.SizedBox(height: 16),
           metaInfoCard,
           pw.SizedBox(height: 12),
@@ -400,23 +291,46 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
             style: pw.TextStyle(font: fonts.bold, fontSize: 14),
           ),
           pw.SizedBox(height: 8),
-          detailsTable,
+          EnhancedPdfUtils.buildProfessionalTable(
+            headers: detailHeaders,
+            data: detailData,
+            fonts: fonts,
+            headerColor: PdfColors.primary,
+            alternateRowColor: PdfColors.backgroundLight,
+          ),
           pw.SizedBox(height: 12),
-          buildTotalsFooter(),
-        ],
-      ),
-    );
-
-    String generateFileName(String title) {
-      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
-      final sanitizedTitle = title.replaceAll(RegExp(r'\s+'), '-');
-      return '$sanitizedTitle-$timestamp.pdf';
-    }
-
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: generateFileName('تقرير الديون'),
-    );
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.backgroundLight,
+              border: pw.Border.all(color: PdfColors.primary, width: 0.4),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                buildLine(
+                  'الإجمالي الكلي للديون',
+                  EnhancedPdfUtils.formatNumber(_totalDebt),
+                  PdfColors.danger,
+                ),
+                buildLine(
+                  'المبالغ المدفوعة',
+                  EnhancedPdfUtils.formatNumber(_totalPaid),
+                  PdfColors.success,
+                ),
+                buildLine(
+                  'المبالغ المتبقية',
+                  EnhancedPdfUtils.formatNumber(_totalRemaining),
+                  PdfColors.warning,
+                ),
+              ],
+            ),
+          ),
+        ];
+      },
+      fileName: ReportPdfBuilder.generateFileName('تقرير الديون'),
+    ),);
   }
 
   @override
@@ -439,20 +353,21 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // فلتر التاريخ المشترك
+            ReportDateFilterWidget(
+              controller: _filterController,
+              onDateRangeChanged: (range) {
+                setState(() {
+                  _fromDate = range.from;
+                  _toDate = range.to;
+                });
+                _fetchReport();
+              },
+            ),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                _buildDateSelector(
-                  label: 'من',
-                  value: _fromDate,
-                  onPressed: () => _pickDate(isFrom: true),
-                ),
-                _buildDateSelector(
-                  label: 'إلى',
-                  value: _toDate,
-                  onPressed: () => _pickDate(isFrom: false),
-                ),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -560,9 +475,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
             .map(
               (guest) => [
                 Text(guest.guestName, style: const TextStyle(fontSize: 11)),
-                Text('${_currencyFormat.format(guest.totalAmount)}', style: const TextStyle(fontSize: 11)),
-                Text('${_currencyFormat.format(guest.paidAmount)}', style: const TextStyle(fontSize: 11)),
-                Text('${_currencyFormat.format(guest.remainingAmount)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                Text(_currencyFormat.format(guest.totalAmount), style: const TextStyle(fontSize: 11)),
+                Text(_currencyFormat.format(guest.paidAmount), style: const TextStyle(fontSize: 11)),
+                Text(_currencyFormat.format(guest.remainingAmount), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
               ],
             )
             .toList(),
@@ -586,33 +501,17 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                 Text(_formatTextFallback(debt.debtReason), style: const TextStyle(fontSize: 10)),
                 Text(Time.safeIsoToDateString(debt.checkinDate), style: const TextStyle(fontSize: 10)),
                 Text(Time.safeIsoToDateString(debt.checkoutDate), style: const TextStyle(fontSize: 10)),
-                Text('${_currencyFormat.format(debt.totalAmount)}', style: const TextStyle(fontSize: 10)),
-                Text('${_currencyFormat.format(debt.paidAmount)}', style: const TextStyle(fontSize: 10)),
-                Text('${_currencyFormat.format(debt.remainingAmount)}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                Text(_currencyFormat.format(debt.totalAmount), style: const TextStyle(fontSize: 10)),
+                Text(_currencyFormat.format(debt.paidAmount), style: const TextStyle(fontSize: 10)),
+                Text(_currencyFormat.format(debt.remainingAmount), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
                 Text(Time.safeIsoToDateString(debt.paymentDate), style: const TextStyle(fontSize: 10)),
                 Text(_formatSettlement(debt.isSettled), style: const TextStyle(fontSize: 10)),
-                Text(debt.pledge?.isNotEmpty == true ? debt.pledge! : '-', style: const TextStyle(fontSize: 10)),
-                Text(debt.pledgeType?.isNotEmpty == true ? debt.pledgeType! : '-', style: const TextStyle(fontSize: 10)),
+                Text(debt.pledge?.isNotEmpty ?? false ? debt.pledge! : '-', style: const TextStyle(fontSize: 10)),
+                Text(debt.pledgeType?.isNotEmpty ?? false ? debt.pledgeType! : '-', style: const TextStyle(fontSize: 10)),
               ],
             )
             .toList(),
       ),
-    );
-  }
-
-  Widget _buildDateSelector({
-    required String label,
-    required DateTime? value,
-    required VoidCallback onPressed,
-  }) {
-    final text = value != null ? _dateFormat.format(value) : '—';
-    return OutlinedButton(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        textStyle: const TextStyle(fontSize: 11),
-      ),
-      child: Text('$label: $text'),
     );
   }
 
@@ -623,18 +522,27 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     try {
       return DateTime.parse(normalized);
     } catch (_) {
-      final safeDate = Time.safeIsoToDateString(value);
-      return DateTime.parse('${safeDate}T00:00:00');
+      try {
+        final safeDate = Time.safeIsoToDateString(value);
+        return DateTime.parse('${safeDate}T00:00:00');
+      } catch (_) {
+        // بيانات تاريخ فاسدة — استخدام تاريخ افتراضي آمن
+        return DateTime.fromMillisecondsSinceEpoch(0);
+      }
     }
   }
 
   String _formatDisplayDate(String value) {
-    if (value.isEmpty) return '-';
+    if (value.isEmpty) {
+      return '-';
+    }
     return Time.safeIsoToDateString(value);
   }
 
   String _formatTextFallback(String value) {
-    if (value.trim().isEmpty) return '-';
+    if (value.trim().isEmpty) {
+      return '-';
+    }
     return value;
   }
 

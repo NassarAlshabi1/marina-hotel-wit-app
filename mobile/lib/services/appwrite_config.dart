@@ -29,6 +29,7 @@ class AppwriteConfig {
   static const String salaryCyclesCollectionId = 'salary_cycles';
   static const String salaryPaymentsCollectionId = 'salary_payments';
   static const String shiftNotesCollectionId = 'shift_notes';
+  static const String blacklistCollectionId = 'blacklist';
   
   // جداول التدقيق المالي والتعديلات
   static const String priceAdjustmentsCollectionId = 'price_adjustments';
@@ -41,6 +42,9 @@ class AppwriteConfig {
   
   // جدول سحوبات الرواتب
   static const String salaryWithdrawalsCollectionId = 'salary_withdrawals';
+
+  // جدول إعدادات التطبيق (واتساب، وغيرها)
+  static const String appSettingsCollectionId = 'app_settings';
 
   // إعدادات المزامنة
   static const Duration syncInterval = Duration(minutes: 15);

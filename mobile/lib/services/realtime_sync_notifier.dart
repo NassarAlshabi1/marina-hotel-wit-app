@@ -5,11 +5,11 @@ import 'smart_sync_manager.dart';
 
 /// مُعلِم المزامنة الفورية - يتلقى إشعارات من الأجهزة الأخرى
 class RealtimeSyncNotifier {
+
+  RealtimeSyncNotifier._();
   static RealtimeSyncNotifier? _instance;
   static RealtimeSyncNotifier get instance =>
       _instance ??= RealtimeSyncNotifier._();
-
-  RealtimeSyncNotifier._();
 
   final _syncTriggerController = StreamController<SyncTrigger>.broadcast();
   Stream<SyncTrigger> get onSyncTrigger => _syncTriggerController.stream;
@@ -23,7 +23,9 @@ class RealtimeSyncNotifier {
 
   /// بدء الاستماع لإشعارات المزامنة
   Future<void> startListening() async {
-    if (_isListening) return;
+    if (_isListening) {
+      return;
+    }
 
     _isListening = true;
     await _loadLastProcessedSyncId();
@@ -47,7 +49,9 @@ class RealtimeSyncNotifier {
     try {
       final smartSync = SmartSyncManager.instance;
 
-      if (!smartSync.isDriveSignedIn) return;
+      if (!smartSync.isDriveSignedIn) {
+        return;
+      }
 
       final hasChanges = await smartSync.pullRemoteChanges();
 

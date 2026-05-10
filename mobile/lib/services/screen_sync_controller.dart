@@ -1,19 +1,16 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
+
 import 'smart_sync_manager.dart';
-import 'sync_core/sync_error_handler.dart';
-import 'sync_core/retry_strategy.dart';
 import 'sync_core/circuit_breaker.dart';
+import 'sync_core/retry_strategy.dart';
+import 'sync_core/sync_error_handler.dart';
 import 'sync_core/sync_validator.dart';
 import 'sync_locks.dart';
 
 class ScreenSyncController {
-  final String screenId;
-  final Duration debounceDelay;
-
-  late final CircuitBreaker _circuitBreaker;
-  late final RetryStrategy _retryStrategy;
 
   ScreenSyncController({
     required this.screenId,
@@ -23,13 +20,17 @@ class ScreenSyncController {
       name: 'sync_$screenId',
       config: const CircuitBreakerConfig(
         failureThreshold: 3,
-        timeout: Duration(seconds: 30),
         resetTimeout: Duration(minutes: 2),
       ),
     );
 
     _retryStrategy = RetryStrategy(config: RetryConfig.balanced);
   }
+  final String screenId;
+  final Duration debounceDelay;
+
+  late final CircuitBreaker _circuitBreaker;
+  late final RetryStrategy _retryStrategy;
 
   bool _hasChanges = false;
   Timer? _debounceTimer;
@@ -59,6 +60,13 @@ class ScreenSyncController {
   void cancelTimer() {
     _debounceTimer?.cancel();
     _debounceTimer = null;
+  }
+
+  /// إعادة ضبط علم التغييرات بعد الحفظ الناجح محلياً
+  void markSaved() {
+    _hasChanges = false;
+    cancelTimer();
+    _emitStatus(SyncStatus.synced);
   }
 
   Future<bool> syncNow() async {
@@ -111,9 +119,9 @@ class ScreenSyncController {
 
       final success = await _retryStrategy.executeWithFallback(
         operation: () async {
-          return await _circuitBreaker.execute(() async {
+          return _circuitBreaker.execute(() async {
             debugPrint('🌐 [$screenId] بدء المزامنة مع الحماية...');
-            return await SmartSyncManager.instance.pushLocalChanges();
+            return SmartSyncManager.instance.pushLocalChanges();
           });
         },
         shouldRetry: (error) {
@@ -134,7 +142,7 @@ class ScreenSyncController {
         },
       );
 
-      if (success == true) {
+      if (success ?? false) {
         _hasChanges = false;
         _emitStatus(SyncStatus.synced);
         debugPrint('✅ [$screenId] تمت المزامنة بنجاح');
@@ -172,7 +180,7 @@ class ScreenSyncController {
   Future<bool> syncOnExit() async {
     debugPrint('🚪 [$screenId] الخروج من الشاشة...');
     cancelTimer();
-    return await syncNow();
+    return syncNow();
   }
 
   Map<String, dynamic> getHealthStatus() {
@@ -188,7 +196,7 @@ class ScreenSyncController {
     cancelTimer();
 
     // إغلاق الموارد فوراً
-    // المزامنة عند الخروج تتم عبر WillPopScope في SyncOnExitMixin
+    // المزامنة عند الخروج تتم عبر PopScope في SyncOnExitMixin
     if (!_syncStatusController.isClosed) {
       _syncStatusController.close();
     }

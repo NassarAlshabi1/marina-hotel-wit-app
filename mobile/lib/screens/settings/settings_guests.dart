@@ -6,6 +6,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/time.dart';
 import 'guest_edit_screen.dart';
 import 'guest_info.dart';
 
@@ -98,13 +99,21 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
                   // قائمة الضيوف
                   Expanded(
-                    child: ListView.builder(
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        ref.invalidate(bookingsListProvider);
+                        ref.invalidate(roomsListProvider);
+                      },
+                      child: ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: filteredGuests.length,
                       itemBuilder: (context, index) {
                         final guest = filteredGuests[index];
-                        return _buildGuestCard(context, guest, roomPrices);
+                        return RepaintBoundary(
+                          child: _buildGuestCard(context, guest, roomPrices),
+                        );
                       },
+                      ),
                     ),
                   ),
                 ],
@@ -120,7 +129,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     final Map<String, GuestInfo> guestMap = {};
 
     for (final booking in bookings) {
-      if (!StatusUtils.isActiveBooking(booking.status)) continue;
+      if (!StatusUtils.isActiveBooking(booking.status)) {
+        continue;
+      }
 
       final key = '${booking.guestName}_${booking.guestPhone}';
       final email = booking.guestEmail ?? '';
@@ -185,7 +196,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   List<GuestInfo> _filterGuests(List<GuestInfo> guests) {
-    if (_searchQuery.isEmpty) return guests;
+    if (_searchQuery.isEmpty) {
+      return guests;
+    }
 
     return guests.where((guest) {
       return guest.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
@@ -286,13 +299,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.blue),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Icon(Icons.star, size: 12, color: Colors.blue),
                         SizedBox(width: 2),
                         Text(
@@ -480,7 +493,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   void _showGuestHistory(BuildContext context, GuestInfo guest) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -530,7 +543,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   void _showGuestDetails(BuildContext context, GuestInfo guest) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -677,7 +690,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                                         firstDate: DateTime(2020),
                                         lastDate: DateTime(2100),
                                       );
-                                      if (picked == null) return;
+                                      if (picked == null) {
+                                        return;
+                                      }
 
                                       // الحفاظ على الوقت الأصلي إن وجد
                                       final oldTime =
@@ -749,7 +764,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                                     onTap: () async {
                                       final currentTime =
                                           _parseDate(current);
-                                      if (currentTime == null) return;
+                                      if (currentTime == null) {
+                                        return;
+                                      }
                                       final picked =
                                           await showTimePicker(
                                         context: context,
@@ -757,7 +774,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                                           currentTime,
                                         ),
                                       );
-                                      if (picked == null) return;
+                                      if (picked == null) {
+                                        return;
+                                      }
 
                                       final datePart =
                                           current.split('T').first;
@@ -851,14 +870,18 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       ),
     );
 
-    if (result != true) return;
+    if (result != true) {
+      return;
+    }
 
     // حفظ التغييرات
     bool hasChanges = false;
     try {
       for (final booking in guest.bookings) {
         final newDate = newDates[booking.id];
-        if (newDate == null) continue;
+        if (newDate == null) {
+          continue;
+        }
         final dateOnlyNew = newDate.split('T').first;
         final dateOnlyOld = booking.checkinDate.split('T').first;
         if (dateOnlyNew == dateOnlyOld &&
@@ -873,6 +896,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       }
 
       if (hasChanges && mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('تم تعديل تاريخ الدخول وإعادة حساب المبالغ بنجاح'),
@@ -882,6 +906,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       }
     } catch (e) {
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('تعذر تعديل تاريخ الدخول: $e'),
@@ -893,7 +918,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   DateTime? _parseDate(String value) {
-    if (value.isEmpty) return null;
+    if (value.isEmpty) {
+      return null;
+    }
     try {
       return DateTime.parse(value);
     } catch (_) {
@@ -926,19 +953,20 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
   Future<void> _editGuest(BuildContext context, GuestInfo guest) async {
     final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => GuestEditScreen(guest: guest)),
+      MaterialPageRoute<bool>(builder: (_) => GuestEditScreen(guest: guest)),
     );
-    if (result == true && mounted) {
+    if ((result ?? false) && mounted) {
       ScaffoldMessenger.of(
+        // ignore: use_build_context_synchronously
         context,
       ).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الضيف')));
     }
   }
 
   Future<void> _deleteGuest(BuildContext context, GuestInfo guest) async {
-    final active = guest.bookings
+    final activeBookings = guest.bookings
         .where((b) => StatusUtils.isActiveBooking(b.status))
-        .length;
+        .toList();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => Directionality(
@@ -946,15 +974,15 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         child: AlertDialog(
           title: const Text('تأكيد حذف الضيف وكل البيانات المرتبطة'),
           content: Text(
-            'سيتم حذف جميع الحجوزات (${guest.bookings.length}) وكل ما يتعلق بها من مدفوعات وملاحظات وديون لهذا الضيف. ${active > 0 ? '\n\nتحذير: هناك حجوزات نشطة سيتم حذفها أيضاً.' : ''}\n\nهل تريد المتابعة؟',
+            'سيتم حذف جميع الحجوزات (${guest.bookings.length}) وكل ما يتعلق بها من مدفوعات وملاحظات وديون لهذا الضيف. ${activeBookings.isNotEmpty ? '\n\nتحذير: هناك ${activeBookings.length} حجوزات نشطة سيتم عمل checkout ثم حذفها.' : ''}\n\nهل تريد المتابعة؟',
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop<bool>(context, false),
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop<bool>(context, true),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text('حذف'),
             ),
@@ -963,61 +991,97 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      return;
+    }
 
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
-      final paymentsRepo = ref.read(paymentsRepoProvider);
-      final notesRepo = ref.read(notesRepoProvider);
-      final debtsRepo = ref.read(debtsRepoProvider);
-      final cashRepo = ref.read(cashRepoProvider);
       final roomsRepo = ref.read(roomsRepoProvider);
+      final paymentsRepo = ref.read(paymentsRepoProvider);
+      final debtsRepo = ref.read(debtsRepoProvider);
+      final notesRepo = ref.read(notesRepoProvider);
 
-      for (final b in guest.bookings) {
-        final bookingId = b.id;
-        // حذف الملاحظات المرتبطة بالحجز
-        final notes = await notesRepo.dao.list(bookingId: bookingId);
-        for (final n in notes) {
-          await notesRepo.delete(n.id);
-        }
-        // حذف المدفوعات المرتبطة بالحجز + المعاملات النقدية التابعة لها
-        final pays = await paymentsRepo.dao.list(bookingLocalId: bookingId);
-        for (final p in pays) {
-          if (p.cashTransactionLocalId != null) {
-            await cashRepo.delete(p.cashTransactionLocalId!);
-          }
-          await paymentsRepo.delete(p.id);
-        }
-        // حذف المعاملات النقدية المرتبطة بالحجز مباشرة عبر referenceType/referenceId
-        final relatedCash = await cashRepo.listByReference(
-          referenceType: 'booking',
-          referenceId: bookingId,
-        );
-        for (final tx in relatedCash) {
-          await cashRepo.delete(tx.id);
-        }
-        // حذف الديون المرتبطة بالحجز
-        final debts = await debtsRepo.listByBookingLocalId(bookingId);
-        for (final d in debts) {
-          await debtsRepo.delete(d.id);
-        }
-        // تحرير الغرفة المرتبطة بالحجز إذا كانت ما زالت محجوزة
-        if (b.roomNumber.isNotEmpty) {
-          final room = await roomsRepo.watchByNumber(b.roomNumber).first;
-          if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
-            await roomsRepo.update(room.id, status: 'شاغرة');
-          }
-        }
-        // حذف الحجز نفسه
-        await bookingsRepo.delete(bookingId);
+      if (guest.bookings.isEmpty) {
+        return;
       }
 
-      if (!mounted) return;
+      // ─── 1. Checkout للحجوزات النشطة (مع مزامنة Appwrite) ───
+      final nowIso = Time.nowIso();
+      final freedRooms = <String>{};
+      for (final booking in activeBookings) {
+        await bookingsRepo.update(
+          booking.id,
+          status: 'مكتمل',
+          actualCheckout: nowIso,
+        );
+        if (booking.roomNumber.isNotEmpty) {
+          freedRooms.add(booking.roomNumber);
+        }
+      }
+
+      // ─── 2. تحرير الغرف ───
+      for (final roomNumber in freedRooms) {
+        final room = await roomsRepo.watchByNumber(roomNumber).first;
+        if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
+          await roomsRepo.update(room.id, status: 'شاغرة');
+        }
+      }
+
+      // ─── 3. حذف الملاحظات (soft delete مع outbox) ───
+      for (final booking in guest.bookings) {
+        final notes = await notesRepo.watchByBooking(booking.id).first;
+        for (final note in notes) {
+          await notesRepo.delete(note.id);
+        }
+      }
+
+      // ─── 4. حذف المدفوعات (soft delete مع outbox) ───
+      for (final booking in guest.bookings) {
+        final payments = await paymentsRepo.paymentsByBooking(booking.id).first;
+        for (final payment in payments) {
+          await paymentsRepo.delete(payment.id);
+        }
+      }
+
+      // ─── 5. حذف الديون (soft delete مع outbox) ───
+      for (final booking in guest.bookings) {
+        final bookingDebts = await debtsRepo.listByBookingLocalId(booking.id);
+        for (final debt in bookingDebts) {
+          await debtsRepo.delete(debt.id);
+        }
+      }
+
+      // ─── 6. حذف الحجوزات نفسها (soft delete مع outbox للمزامنة مع Appwrite) ───
+      for (final booking in guest.bookings) {
+        await bookingsRepo.delete(booking.id);
+      }
+
+      // ─── 7. تحرير الغرف المتبقية المرتبطة بالحجوزات غير النشطة ───
+      final allRoomNumbers = guest.bookings
+          .where((b) => b.roomNumber.isNotEmpty)
+          .map((b) => b.roomNumber)
+          .toSet()
+          .difference(freedRooms);
+      for (final roomNumber in allRoomNumbers) {
+        final room = await roomsRepo.watchByNumber(roomNumber).first;
+        if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
+          await roomsRepo.update(room.id, status: 'شاغرة');
+        }
+      }
+
+      if (!mounted) {
+        return;
+      }
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حذف الضيف وجميع البيانات المرتبطة')),
+        const SnackBar(content: Text('تم حذف الضيف وجميع البيانات المرتبطة مع checkout للحجوزات النشطة')),
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('فشل الحذف: $e'), backgroundColor: Colors.red),
       );

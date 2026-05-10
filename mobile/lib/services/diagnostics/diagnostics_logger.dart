@@ -20,7 +20,9 @@ class DiagnosticsLogger extends ChangeNotifier {
     int maxEntries = 500,
     bool enableFile = true,
   }) async {
-    if (_initialized) return;
+    if (_initialized) {
+      return;
+    }
     _initialized = true;
     _maxEntries = maxEntries;
     if (enableFile) {
@@ -84,7 +86,7 @@ class DiagnosticsLogger extends ChangeNotifier {
   }
 
   void info(String message, {String tag = 'APP'}) {
-    log(message, tag: tag, level: LogLevel.info);
+    log(message, tag: tag);
   }
 
   void warning(String message, {String tag = 'APP', Object? error}) {
@@ -107,7 +109,9 @@ class DiagnosticsLogger extends ChangeNotifier {
   }
 
   List<LogEntry> getLogs({LogLevel? filter}) {
-    if (filter == null) return List.unmodifiable(_logs);
+    if (filter == null) {
+      return List.unmodifiable(_logs);
+    }
     return _logs.where((e) => e.level == filter).toList();
   }
 
@@ -150,7 +154,9 @@ class DiagnosticsLogger extends ChangeNotifier {
   }
 
   Future<void> _writeToFile(LogEntry entry) async {
-    if (_logFile == null) return;
+    if (_logFile == null) {
+      return;
+    }
     try {
       await _logFile!.writeAsString(
         '${entry.toFormattedString()}\n',

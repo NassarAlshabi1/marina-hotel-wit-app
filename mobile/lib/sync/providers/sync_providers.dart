@@ -1,17 +1,18 @@
 /// Sync Providers
 /// Providers Riverpod للمزامنة
+library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-import '../models/sync_models.dart';
-import '../vector_clock.dart';
 import '../delta_sync_engine.dart';
-import '../processors/outbox_processor.dart';
+import '../models/sync_models.dart';
 import '../orchestrator/sync_orchestrator.dart';
-import '../strategies/conflict_strategies.dart';
+import '../processors/outbox_processor.dart';
 import '../services/background_sync_service.dart';
 import '../services/realtime_sync_service.dart';
+import '../strategies/conflict_strategies.dart';
+import '../vector_clock.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Configuration Providers
@@ -20,16 +21,7 @@ import '../services/realtime_sync_service.dart';
 /// Provider لإعدادات المزامنة
 final syncConfigurationProvider = Provider<SyncConfiguration>((ref) {
   return const SyncConfiguration(
-    enabled: true,
-    defaultDirection: SyncDirection.bidirectional,
-    batchSize: 50,
-    autoSyncInterval: Duration(minutes: 15),
-    backgroundSyncEnabled: true,
-    realtimeSyncEnabled: true,
-    maxRetries: 3,
-    conflictStrategy: ConflictStrategy.newerWins,
-    requireWifi: false,
-    requireCharging: false,
+    
   );
 });
 
@@ -84,32 +76,36 @@ final conflictResolverProvider = Provider<ConflictResolver>((ref) {
 // Data Source Providers (Abstract - Implementation Required)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Provider لـ OutboxDataSource - يجب تخصيصه في التطبيق
-final outboxDataSourceProvider = Provider<OutboxDataSource>((ref) {
-  throw UnimplementedError(
-    'يجب تخصيص outboxDataSourceProvider لاستخدام OutboxStorage المناسب',
-  );
+// ⚠️ DEPRECATED: placeholder provider — لا تستخدم مباشرة، يجب تخصيصه قبل تفعيل delta sync
+// يقوم بإرجاع null بدلاً من رمي استثناء لتجنب تعطل التطبيق عند المشاهدة بالخطأ
+@Deprecated('يجب تخصيص outboxDataSourceProvider قبل تفعيل delta sync')
+final outboxDataSourceProvider = Provider<OutboxDataSource?>((ref) {
+  // Placeholder provider لعمارة delta sync المستقبلية — لم يتم التخصيص بعد
+  return null;
 });
 
-/// Provider لـ InboxDataSource - يجب تخصيصه في التطبيق
-final inboxDataSourceProvider = Provider<InboxDataSource>((ref) {
-  throw UnimplementedError(
-    'يجب تخصيص inboxDataSourceProvider لاستخدام InboxStorage المناسب',
-  );
+// ⚠️ DEPRECATED: placeholder provider — لا تستخدم مباشرة، يجب تخصيصه قبل تفعيل delta sync
+// يقوم بإرجاع null بدلاً من رمي استثناء لتجنب تعطل التطبيق عند المشاهدة بالخطأ
+@Deprecated('يجب تخصيص inboxDataSourceProvider قبل تفعيل delta sync')
+final inboxDataSourceProvider = Provider<InboxDataSource?>((ref) {
+  // Placeholder provider لعمارة delta sync المستقبلية — لم يتم التخصيص بعد
+  return null;
 });
 
-/// Provider لـ RemoteDataSource - يجب تخصيصه في التطبيق
-final remoteDataSourceProvider = Provider<RemoteDataSource>((ref) {
-  throw UnimplementedError(
-    'يجب تخصيص remoteDataSourceProvider لاستخدام RemoteDataSource المناسب',
-  );
+// ⚠️ DEPRECATED: placeholder provider — لا تستخدم مباشرة، يجب تخصيصه قبل تفعيل delta sync
+// يقوم بإرجاع null بدلاً من رمي استثناء لتجنب تعطل التطبيق عند المشاهدة بالخطأ
+@Deprecated('يجب تخصيص remoteDataSourceProvider قبل تفعيل delta sync')
+final remoteDataSourceProvider = Provider<RemoteDataSource?>((ref) {
+  // Placeholder provider لعمارة delta sync المستقبلية — لم يتم التخصيص بعد
+  return null;
 });
 
-/// Provider لـ OutboxStorage - يجب تخصيصه في التطبيق
-final outboxStorageProvider = Provider<OutboxStorage>((ref) {
-  throw UnimplementedError(
-    'يجب تخصيص outboxStorageProvider لاستخدام OutboxStorage المناسب',
-  );
+// ⚠️ DEPRECATED: placeholder provider — لا تستخدم مباشرة، يجب تخصيصه قبل تفعيل delta sync
+// يقوم بإرجاع null بدلاً من رمي استثناء لتجنب تعطل التطبيق عند المشاهدة بالخطأ
+@Deprecated('يجب تخصيص outboxStorageProvider قبل تفعيل delta sync')
+final outboxStorageProvider = Provider<OutboxStorage?>((ref) {
+  // Placeholder provider لعمارة delta sync المستقبلية — لم يتم التخصيص بعد
+  return null;
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -121,9 +117,10 @@ final deltaSyncEngineProvider = Provider<DeltaSyncEngine>((ref) {
   return DeltaSyncEngine(
     config: ref.watch(syncConfigurationProvider),
     clockManager: ref.watch(vectorClockManagerProvider),
-    outbox: ref.watch(outboxDataSourceProvider),
-    inbox: ref.watch(inboxDataSourceProvider),
-    remote: ref.watch(remoteDataSourceProvider),
+    // ignore: deprecated_member_use — placeholder providers يتم تخصيصها لاحقاً
+    outbox: ref.watch(outboxDataSourceProvider)!, // TODO: تخصيص before enabling delta sync
+    inbox: ref.watch(inboxDataSourceProvider)!, // TODO: تخصيص before enabling delta sync
+    remote: ref.watch(remoteDataSourceProvider)!, // TODO: تخصيص before enabling delta sync
     conflictResolver: ref.watch(conflictResolverProvider),
   );
 });
@@ -131,7 +128,8 @@ final deltaSyncEngineProvider = Provider<DeltaSyncEngine>((ref) {
 /// Provider لمعالج Outbox
 final outboxProcessorProvider = Provider<OutboxProcessor>((ref) {
   return OutboxProcessor(
-    storage: ref.watch(outboxStorageProvider),
+    // ignore: deprecated_member_use — placeholder provider يتم تخصيصه لاحقاً
+    storage: ref.watch(outboxStorageProvider)!, // TODO: تخصيص before enabling delta sync
     clockManager: ref.watch(vectorClockManagerProvider),
     config: ref.watch(syncConfigurationProvider),
   );
@@ -162,9 +160,7 @@ final syncStateProvider = StreamProvider<SyncState>((ref) {
   });
 
   // إيقاف عند التخلص
-  ref.onDispose(() {
-    orchestrator.stopAutoSync();
-  });
+  ref.onDispose(orchestrator.stopAutoSync);
 
   return orchestrator.stateStream;
 });
@@ -218,8 +214,6 @@ final realtimeConfigProvider = Provider<RealtimeConfig>((ref) {
       'expenses',
       'inventory',
     ],
-    pingInterval: Duration(seconds: 30),
-    enabled: true,
   );
 });
 
@@ -259,7 +253,7 @@ final backgroundSyncInitProvider = Provider<Future<void>>((ref) async {
 final manualSyncProvider = FutureProvider.family<DeltaSyncResult, SyncDirection?>(
   (ref, direction) async {
     final orchestrator = ref.read(syncOrchestratorProvider);
-    return await orchestrator.performFullSync(
+    return orchestrator.performFullSync(
       direction: direction ?? SyncDirection.bidirectional,
     );
   },
@@ -279,7 +273,7 @@ final queueChangeProvider = Provider<Future<String> Function({
     required Map<String, dynamic> data,
   }) async {
     final orchestrator = ref.read(syncOrchestratorProvider);
-    return await orchestrator.queueLocalChange(
+    return orchestrator.queueLocalChange(
       table: table,
       uuid: uuid,
       operation: operation,
@@ -293,22 +287,22 @@ final realtimeSyncControlProvider = Provider<RealtimeSyncControl>((ref) {
   final service = ref.watch(realtimeSyncServiceProvider);
 
   return RealtimeSyncControl(
-    start: () => service.start(),
-    stop: () => service.stop(),
-    reconnect: () => service.reconnect(),
+    start: service.start,
+    stop: service.stop,
+    reconnect: service.reconnect,
   );
 });
 
 class RealtimeSyncControl {
-  final Future<void> Function() start;
-  final Future<void> Function() stop;
-  final Future<void> Function() reconnect;
 
   RealtimeSyncControl({
     required this.start,
     required this.stop,
     required this.reconnect,
   });
+  final Future<void> Function() start;
+  final Future<void> Function() stop;
+  final Future<void> Function() reconnect;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -333,8 +327,12 @@ final syncConnectionProvider = Provider<SyncConnectionState>((ref) {
 
   return state.when(
     data: (asyncState) {
-      if (asyncState.isSyncing) return SyncConnectionState.syncing;
-      if (asyncState.hasError) return SyncConnectionState.error;
+      if (asyncState.isSyncing) {
+        return SyncConnectionState.syncing;
+      }
+      if (asyncState.hasError) {
+        return SyncConnectionState.error;
+      }
       return SyncConnectionState.connected;
     },
     loading: () => SyncConnectionState.connecting,
@@ -351,9 +349,15 @@ final canSyncProvider = Provider<bool>((ref) {
   final config = ref.watch(syncConfigurationProvider);
   final state = ref.watch(syncStateAsyncProvider);
 
-  if (!config.enabled) return false;
-  if (state.isLoading) return false;
-  if (state.valueOrNull?.isSyncing ?? false) return false;
+  if (!config.enabled) {
+    return false;
+  }
+  if (state.isLoading) {
+    return false;
+  }
+  if (state.valueOrNull?.isSyncing ?? false) {
+    return false;
+  }
 
   return true;
 });

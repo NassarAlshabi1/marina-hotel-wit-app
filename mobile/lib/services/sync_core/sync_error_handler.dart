@@ -13,21 +13,20 @@ enum SyncErrorType {
 }
 
 class SyncError {
-  final SyncErrorType type;
-  final String message;
-  final dynamic originalError;
-  final StackTrace? stackTrace;
-  final DateTime timestamp;
-  final Map<String, dynamic>? context;
 
   SyncError({
     required this.type,
     required this.message,
     this.originalError,
     this.stackTrace,
-    Map<String, dynamic>? context,
-  }) : timestamp = DateTime.now(),
-       context = context;
+    this.context,
+  }) : timestamp = DateTime.now();
+  final SyncErrorType type;
+  final String message;
+  final dynamic originalError;
+  final StackTrace? stackTrace;
+  final DateTime timestamp;
+  final Map<String, dynamic>? context;
 
   bool get isRetryable {
     switch (type) {
@@ -55,10 +54,10 @@ class SyncError {
 }
 
 class SyncErrorHandler {
-  static SyncErrorHandler? _instance;
-  static SyncErrorHandler get instance => _instance ??= SyncErrorHandler._();
 
   SyncErrorHandler._();
+  static SyncErrorHandler? _instance;
+  static SyncErrorHandler get instance => _instance ??= SyncErrorHandler._();
 
   final _errorController = StreamController<SyncError>.broadcast();
   Stream<SyncError> get errorStream => _errorController.stream;

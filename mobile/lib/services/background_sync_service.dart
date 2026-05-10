@@ -4,11 +4,13 @@
 
 import 'dart:async';
 import 'dart:developer' as developer;
-import 'package:workmanager/workmanager.dart';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:workmanager/workmanager.dart';
+
+import 'analytics_service.dart';
 import 'battery_optimizer.dart';
 import 'smart_sync_manager.dart';
-import 'analytics_service.dart';
 
 /// معرف مهمة المزامنة في الخلفية
 const String backgroundSyncTask = 'marina-hotel-background-sync';
@@ -17,9 +19,9 @@ const String batteryAwareSyncTask = 'marina-hotel-battery-aware-sync';
 
 /// فئة المزامنة في الخلفية
 class BackgroundSyncService {
-  static final BackgroundSyncService _instance = BackgroundSyncService._internal();
   factory BackgroundSyncService() => _instance;
   BackgroundSyncService._internal();
+  static final BackgroundSyncService _instance = BackgroundSyncService._internal();
 
   bool _isInitialized = false;
   final BatteryOptimizer _batteryOptimizer = BatteryOptimizer();
@@ -30,16 +32,17 @@ class BackgroundSyncService {
   bool _requireCharging = false;
   bool _requireNetworkTypeUnmetered = false;
   bool _requiresBatteryNotLow = true;
-  bool _requiresStorageNotLow = true;
+  final bool _requiresStorageNotLow = true;
 
   /// تهيئة خدمة المزامنة في الخلفية
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
 
     try {
       await Workmanager().initialize(
         _callbackDispatcher,
-        isInDebugMode: false,
       );
 
       await _batteryOptimizer.initialize();
@@ -91,7 +94,7 @@ class BackgroundSyncService {
           requiresBatteryNotLow: requiresBatteryNotLow,
           requiresStorageNotLow: _requiresStorageNotLow,
         ),
-        existingWorkPolicy: ExistingWorkPolicy.replace,
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
       developer.log(
@@ -120,7 +123,9 @@ class BackgroundSyncService {
     bool requireCharging = false,
     bool requireNetwork = true,
   }) async {
-    if (!_isInitialized) return;
+    if (!_isInitialized) {
+      return;
+    }
 
     try {
       await Workmanager().registerOneOffTask(
@@ -130,7 +135,7 @@ class BackgroundSyncService {
         constraints: Constraints(
           networkType: requireNetwork
               ? NetworkType.connected
-              : NetworkType.not_required,
+              : NetworkType.connected,
           requiresCharging: requireCharging,
         ),
         existingWorkPolicy: ExistingWorkPolicy.replace,
@@ -150,7 +155,9 @@ class BackgroundSyncService {
 
   /// تسجيل مهمة مزامنة مع مراعاة البطارية
   Future<void> registerBatteryAwareSync() async {
-    if (!_isInitialized) return;
+    if (!_isInitialized) {
+      return;
+    }
 
     try {
       await Workmanager().cancelByUniqueName(batteryAwareSyncTask);
@@ -167,7 +174,7 @@ class BackgroundSyncService {
           requiresCharging: !settings.syncOnBattery,
           requiresBatteryNotLow: settings.minBatteryPercentage > 20,
         ),
-        existingWorkPolicy: ExistingWorkPolicy.replace,
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
       developer.log(
@@ -184,7 +191,9 @@ class BackgroundSyncService {
 
   /// إلغاء جميع مهام المزامنة
   Future<void> cancelAllSyncs() async {
-    if (!_isInitialized) return;
+    if (!_isInitialized) {
+      return;
+    }
 
     try {
       await Workmanager().cancelAll();
@@ -203,7 +212,9 @@ class BackgroundSyncService {
 
   /// إلغاء مهمة محددة
   Future<void> cancelSync(String uniqueName) async {
-    if (!_isInitialized) return;
+    if (!_isInitialized) {
+      return;
+    }
 
     try {
       await Workmanager().cancelByUniqueName(uniqueName);
@@ -213,6 +224,15 @@ class BackgroundSyncService {
         name: 'BackgroundSyncService',
       );
     }
+  }
+
+  /// تنظيف آمن للمثيل Singleton
+  void dispose() {
+    _isInitialized = false;
+  }
+
+  static void disposeInstance() {
+    _instance.dispose();
   }
 
   /// تشغيل المزامنة اليدوية في الخلفية
@@ -228,7 +248,7 @@ class BackgroundSyncService {
     try {
       // التحقق من الاتصال
       final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity == ConnectivityResult.none) {
+      if (connectivity.contains(ConnectivityResult.none)) {
         developer.log(
           '⚠️ No connectivity, skipping background sync',
           name: 'BackgroundSyncService',
@@ -247,9 +267,8 @@ class BackgroundSyncService {
       }
 
       // تنفيذ المزامنة
-      final syncManager = SmartSyncManager();
-      await syncManager.initialize();
-      await syncManager.syncNow(null);
+      final syncManager = SmartSyncManager.instance;
+      await syncManager.syncNow();
 
       stopwatch.stop();
 
@@ -314,7 +333,7 @@ void _callbackDispatcher() {
       case periodicSyncTask:
       case backgroundSyncTask:
       case batteryAwareSyncTask:
-        return await BackgroundSyncService.executeBackgroundSync();
+        return BackgroundSyncService.executeBackgroundSync();
       default:
         developer.log(
           '⚠️ Unknown task: $task',
@@ -327,13 +346,6 @@ void _callbackDispatcher() {
 
 /// إعدادات متقدمة للمزامنة في الخلفية
 class BackgroundSyncSettings {
-  final Duration interval;
-  final bool requireCharging;
-  final bool requireUnmeteredNetwork;
-  final bool requiresBatteryNotLow;
-  final bool requiresStorageNotLow;
-  final bool enableRetry;
-  final int maxRetries;
 
   const BackgroundSyncSettings({
     this.interval = const Duration(minutes: 15),
@@ -344,25 +356,26 @@ class BackgroundSyncSettings {
     this.enableRetry = true,
     this.maxRetries = 3,
   });
+  final Duration interval;
+  final bool requireCharging;
+  final bool requireUnmeteredNetwork;
+  final bool requiresBatteryNotLow;
+  final bool requiresStorageNotLow;
+  final bool enableRetry;
+  final int maxRetries;
 
   static const BackgroundSyncSettings conservative = BackgroundSyncSettings(
     interval: Duration(minutes: 30),
-    requireCharging: false,
     requireUnmeteredNetwork: true,
-    requiresBatteryNotLow: true,
   );
 
   static const BackgroundSyncSettings aggressive = BackgroundSyncSettings(
     interval: Duration(minutes: 5),
-    requireCharging: false,
-    requireUnmeteredNetwork: false,
     requiresBatteryNotLow: false,
   );
 
   static const BackgroundSyncSettings overnight = BackgroundSyncSettings(
     interval: Duration(hours: 1),
     requireCharging: true,
-    requireUnmeteredNetwork: false,
-    requiresBatteryNotLow: true,
   );
 }

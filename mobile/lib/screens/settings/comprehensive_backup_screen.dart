@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
-import '../../components/app_scaffold.dart';
-import '../../services/comprehensive_appwrite_backup_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/comprehensive_appwrite_backup_service.dart';
 
 class ComprehensiveBackupScreen extends ConsumerStatefulWidget {
   const ComprehensiveBackupScreen({super.key});
@@ -58,7 +59,7 @@ class _ComprehensiveBackupScreenState
                 onPressed: () {
                   Share.shareXFiles([
                     XFile(file.path),
-                  ], text: 'نسخة احتياطية Marina Hotel');
+                  ], text: 'نسخة احتياطية Marina Hotel',);
                 },
               ),
             ),
@@ -77,7 +78,9 @@ class _ComprehensiveBackupScreenState
   Future<void> _restoreAndUpload() async {
     try {
       final file = await _backupService.pickBackupFile();
-      if (file == null) return;
+      if (file == null) {
+        return;
+      }
 
       setState(() {
         _isLoading = true;
@@ -213,7 +216,7 @@ class _ComprehensiveBackupScreenState
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _statusMessage?.contains('خطأ') == true
+                        color: _statusMessage?.contains('خطأ') ?? false
                             ? Colors.red
                             : Colors.black87,
                       ),
@@ -244,10 +247,10 @@ class _ComprehensiveBackupScreenState
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -258,7 +261,7 @@ class _ComprehensiveBackupScreenState
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 32),

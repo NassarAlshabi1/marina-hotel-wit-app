@@ -1,13 +1,15 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/debug_logs.dart';
+import 'data_usage_manager.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
 import 'local_db.dart';
-import '../utils/debug_logs.dart';
-import 'data_usage_manager.dart';
-import 'sync_locks.dart';
 import 'sync_constants.dart';
+import 'sync_locks.dart';
 
 /// مدير مزامنة Google Drive الذكي المبسط
 ///
@@ -89,7 +91,7 @@ class SmartGoogleDriveSync {
     _startPeriodicSync();
 
     // 3. جدولة النسخ الاحتياطي اليومي
-    _scheduleDailyFullBackup();
+    unawaited(_scheduleDailyFullBackup());
 
     _log('🚀 بدء المزامنة التلقائية');
   }
@@ -119,7 +121,9 @@ class SmartGoogleDriveSync {
 
   /// تسجيل تغيير محلي (يُستدعى من DAOs)
   void notifyLocalChange({String? entity, int count = 1}) {
-    if (!_isEnabled) return;
+    if (!_isEnabled) {
+      return;
+    }
 
     _hasPendingChanges = true;
     _pendingChangesCount += count;
@@ -144,7 +148,9 @@ class SmartGoogleDriveSync {
       return true;
     });
 
-    if (!canStart) return false;
+    if (!canStart) {
+      return false;
+    }
 
     try {
       _log('📤 بدء رفع التغييرات...');
@@ -198,7 +204,9 @@ class SmartGoogleDriveSync {
       return true;
     });
 
-    if (!canStart) return false;
+    if (!canStart) {
+      return false;
+    }
 
     try {
       _log('📥 بدء سحب التحديثات...');
@@ -242,7 +250,9 @@ class SmartGoogleDriveSync {
       return true;
     });
 
-    if (!canStart) return false;
+    if (!canStart) {
+      return false;
+    }
 
     try {
       _log('💾 بدء النسخ الاحتياطي الكامل...');
@@ -262,7 +272,6 @@ class SmartGoogleDriveSync {
 
       final fileId = await _driveService!.uploadBackup(
         backupData,
-        isSync: false,
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -303,7 +312,7 @@ class SmartGoogleDriveSync {
   }
 
   /// جدولة النسخ الاحتياطي اليومي
-  void _scheduleDailyFullBackup() async {
+  Future<void> _scheduleDailyFullBackup() async {
     final prefs = await SharedPreferences.getInstance();
     final lastBackup = prefs.getInt(_prefsLastFullBackupKey);
 

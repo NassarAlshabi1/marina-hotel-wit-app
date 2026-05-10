@@ -1,11 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../../core/core.dart';
 import '../../../../providers/appwrite_providers.dart' as ap;
 import '../../../../providers/repository_providers.dart';
-import '../../../../services/appwrite_config.dart';
 import '../../../../services/appwrite_cache_manager.dart';
+import '../../../../services/appwrite_config.dart';
 
 /// Appwrite Sync Tab - إدارة المزامنة مع Appwrite
 class AppwriteSyncTab extends ConsumerStatefulWidget {
@@ -92,15 +95,15 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.sync,
                   color: UIConstants.syncColor,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'حالة المزامنة',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -142,8 +145,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingMD),
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -151,8 +154,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                   color: UIConstants.syncColor,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'إعدادات المزامنة',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -185,7 +188,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             leading: const Icon(Icons.timer),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             enabled: _syncEnabled,
-            onTap: _syncEnabled ? () => _showIntervalDialog() : null,
+            onTap: _syncEnabled ? _showIntervalDialog : null,
           ),
           const Divider(height: 1),
           SwitchListTile(
@@ -230,15 +233,15 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.bar_chart,
                   color: Colors.green,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'إحصائيات المزامنة',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -303,8 +306,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingMD),
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -312,8 +315,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
                   color: Colors.purple,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'التخزين المؤقت',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -340,7 +343,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             ),
             leading: const Icon(Icons.data_usage),
             trailing: TextButton(
-              onPressed: () => _clearCache(),
+              onPressed: _clearCache,
               child: const Text('مسح'),
             ),
           ),
@@ -369,7 +372,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.sync, color: Colors.blue),
@@ -377,14 +380,14 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             title: const Text('مزامنة الآن'),
             subtitle: const Text('إجراء مزامنة فورية'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _syncNow(),
+            onTap: _syncNow,
           ),
           const Divider(height: 1),
           ListTile(
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.refresh, color: Colors.orange),
@@ -392,14 +395,14 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             title: const Text('إعادة مزامنة كاملة'),
             subtitle: const Text('مزامنة جميع البيانات من جديد'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showFullSyncDialog(),
+            onTap: _showFullSyncDialog,
           ),
           const Divider(height: 1),
           ListTile(
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.teal.withOpacity(0.1),
+                color: Colors.teal.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.bug_report, color: Colors.teal),
@@ -407,14 +410,14 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             title: const Text('اختبار تشخيصي'),
             subtitle: const Text('فحص الاتصال والبيانات المحلية'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _runDiagnosticTest(),
+            onTap: _runDiagnosticTest,
           ),
           const Divider(height: 1),
           ListTile(
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.1),
+                color: Colors.purple.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.cloud_upload, color: Colors.purple),
@@ -422,14 +425,14 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             title: const Text('رفع شامل إلى Appwrite'),
             subtitle: const Text('رفع جميع البيانات المحلية مباشرة'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showFullPushDialog(),
+            onTap: _showFullPushDialog,
           ),
           const Divider(height: 1),
           ListTile(
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.delete_forever, color: Colors.red),
@@ -437,7 +440,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             title: const Text('مسح سجل المزامنة'),
             subtitle: const Text('مسح سجل المزامنة على السحابة'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: loadingStats ? null : () => _showClearHistoryDialog(),
+            onTap: loadingStats ? null : _showClearHistoryDialog,
           ),
         ],
       ),
@@ -466,7 +469,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   void _showIntervalDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('فترة المزامنة'),
@@ -522,7 +525,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   void _showFullSyncDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('إعادة مزامنة كاملة'),
@@ -549,7 +552,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   Future<void> _runFullSync() async {
     final manager = ref.read(ap.appwriteSyncManagerProvider);
     await manager.resetSyncState();
-    final result = await manager.sync(push: true, pull: true);
+    final result = await manager.sync();
     ref.invalidate(ap.syncStatsProvider);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -562,7 +565,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   void _showFullPushDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('رفع شامل إلى Appwrite'),
@@ -596,10 +599,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   Future<void> _runFullPush() async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     // إظهار مؤشر التحميل
-    showDialog(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AlertDialog(
@@ -617,7 +622,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           ],
         ),
       ),
-    );
+    ),);
 
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
@@ -625,7 +630,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
 
       ref.invalidate(ap.syncStatsProvider);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       // إغلاق مؤشر التحميل
       Navigator.pop(context);
@@ -639,10 +646,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       debugPrint('📊 نتيجة الرفع الشامل:');
       debugPrint('   إجمالي السجلات: $totalRecords');
       debugPrint('   الأخطاء: $errors');
-      stats.entries.forEach((e) => debugPrint('   ${e.key}: ${e.value}'));
+      for (final e in stats.entries) {
+        debugPrint('   ${e.key}: ${e.value}');
+      }
 
       // إظهار النتائج
-      showDialog(
+      unawaited(showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: Row(
@@ -722,9 +731,11 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             ),
           ],
         ),
-      );
+      ),);
     } catch (e, stackTrace) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       // إغلاق مؤشر التحميل في حالة الخطأ
       Navigator.pop(context);
@@ -735,7 +746,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('فشل الرفع الشامل:\n${e.toString()}'),
+          content: Text('فشل الرفع الشامل:\n$e'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 8),
         ),
@@ -762,9 +773,11 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   Future<void> _runDiagnosticTest() async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
-    showDialog(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AlertDialog(
@@ -777,7 +790,7 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           ],
         ),
       ),
-    );
+    ),);
 
     try {
       final database = ref.read(databaseProvider);
@@ -834,8 +847,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             'origin': room.origin,
           };
 
-          if (room.serverId != null) payload['serverId'] = room.serverId;
-          if (room.deletedAt != null) payload['deletedAt'] = room.deletedAt;
+          if (room.serverId != null) {
+            payload['serverId'] = room.serverId;
+          }
+          if (room.deletedAt != null) {
+            payload['deletedAt'] = room.deletedAt;
+          }
 
           debugPrint('📤 اختبار رفع غرفة ${room.roomNumber}...');
 
@@ -850,10 +867,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
         }
       }
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       Navigator.pop(context);
 
-      showDialog(
+      unawaited(showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Row(
@@ -901,15 +920,17 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             ),
           ],
         ),
-      );
+      ),);
     } catch (e, stackTrace) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       Navigator.pop(context);
 
       debugPrint('❌ خطأ في الاختبار التشخيصي: $e');
       debugPrint('Stack trace: $stackTrace');
 
-      showDialog(
+      unawaited(showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Row(
@@ -927,12 +948,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             ),
           ],
         ),
-      );
+      ),);
     }
   }
 
   void _showClearHistoryDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('مسح سجل المزامنة (سحابي)'),
@@ -971,8 +992,12 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
   }
 
   String _nextSyncLabel(String? lastSyncTime) {
-    if (!_syncEnabled) return 'معطلة';
-    if (lastSyncTime == null || lastSyncTime.isEmpty) return 'غير معروف';
+    if (!_syncEnabled) {
+      return 'معطلة';
+    }
+    if (lastSyncTime == null || lastSyncTime.isEmpty) {
+      return 'غير معروف';
+    }
 
     try {
       final last = DateTime.parse(lastSyncTime);

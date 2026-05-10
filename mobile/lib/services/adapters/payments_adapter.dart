@@ -1,8 +1,9 @@
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
-import '../local_db.dart';
+
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../local_db.dart';
 import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
@@ -263,21 +264,33 @@ d.Value<bool> _vBool(
 
 int? _epoch(Map<String, dynamic> json, String key, Source src) {
   final v = _asInt(json, key, src);
-  if (v != null) return v;
+  if (v != null) {
+    return v;
+  }
   final s = _asString(json, key, src);
-  if (s == null) return null;
+  if (s == null) {
+    return null;
+  }
   final parsed = int.tryParse(s);
   return parsed;
 }
 
 int? _asInt(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
-  if (v is bool) return v ? 1 : 0;
-  if (v is int) return v;
-  if (v is num) return v.toInt();
+  if (v is bool) {
+    return v ? 1 : 0;
+  }
+  if (v is int) {
+    return v;
+  }
+  if (v is num) {
+    return v.toInt();
+  }
   if (v is String) {
     // تجاهل UUID أو strings طويلة
-    if (v.contains('-') || v.length > 20) return null;
+    if (v.contains('-') || v.length > 20) {
+      return null;
+    }
     return int.tryParse(v);
   }
   return null;
@@ -285,35 +298,57 @@ int? _asInt(Map<String, dynamic> json, String key, Source src) {
 
 double? _asDouble(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
-  if (v is double) return v;
-  if (v is int) return v.toDouble();
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
+  if (v is double) {
+    return v;
+  }
+  if (v is int) {
+    return v.toDouble();
+  }
+  if (v is num) {
+    return v.toDouble();
+  }
+  if (v is String) {
+    return double.tryParse(v);
+  }
   return null;
 }
 
 String? _asString(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
-  if (v == null) return null;
+  if (v == null) {
+    return null;
+  }
   return v.toString();
 }
 
 bool? _asBool(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
-  if (v is bool) return v;
-  if (v is num) return v != 0;
+  if (v is bool) {
+    return v;
+  }
+  if (v is num) {
+    return v != 0;
+  }
   if (v is String) {
     final t = v.toLowerCase();
-    if (t == 'true' || t == '1') return true;
-    if (t == 'false' || t == '0') return false;
+    if (t == 'true' || t == '1') {
+      return true;
+    }
+    if (t == 'false' || t == '0') {
+      return false;
+    }
   }
   return null;
 }
 
 Object? _raw(Map<String, dynamic> json, String key, Source src) {
-  if (json.containsKey(key)) return json[key];
+  if (json.containsKey(key)) {
+    return json[key];
+  }
   final alt = _altKey(key, src);
-  if (alt != null && json.containsKey(alt)) return json[alt];
+  if (alt != null && json.containsKey(alt)) {
+    return json[alt];
+  }
   return null;
 }
 
@@ -321,7 +356,9 @@ String _k(Source src, String camel, String snake) =>
     src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
-  if (src == Source.drive) return camel;
+  if (src == Source.drive) {
+    return camel;
+  }
   final buf = StringBuffer();
   for (var i = 0; i < camel.length; i++) {
     final c = camel[i];

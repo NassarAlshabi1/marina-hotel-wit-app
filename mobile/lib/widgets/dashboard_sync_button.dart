@@ -6,10 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
-import '../services/daos/outbox_dao.dart';
-import '../services/daos/sync_log_dao.dart';
 import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_realtime_sync.dart';
+import '../services/daos/outbox_dao.dart';
+import '../services/daos/sync_log_dao.dart';
 import '../services/sync_core/conflict_resolver.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
@@ -123,9 +123,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       target: 'Appwrite',
       status: 'in_progress',
     );
-    if (_isPulling) return;
+    if (_isPulling) {
+      return;
+    }
 
-    _pullAnimationController.repeat();
+    unawaited(_pullAnimationController.repeat());
     if (mounted) {
       setState(() => _isPulling = true);
     } else {
@@ -136,6 +138,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       final appwriteEnabled = await _isAppwriteSyncEnabled();
       if (!appwriteEnabled) {
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('مزامنة Appwrite معطلة - يرجى تفعيلها من الإعدادات'),
@@ -151,6 +154,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       if (!appwriteConnected) {
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('لا يوجد اتصال بـ Appwrite'),
@@ -162,6 +166,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Row(
@@ -196,6 +201,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         // 2️⃣ حل التعارضات إن وجدت
         if (pullResult.hasConflicts) {
           if (mounted) {
+            // ignore: use_build_context_synchronously
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('⚖️ جاري حل التعارضات...'),
@@ -209,7 +215,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       } else {
         // 2️⃣ بديل: سحب عبر appwriteSyncManager
         final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-        final pullResult = await appwriteSyncManager.sync(push: false, pull: true);
+        final pullResult = await appwriteSyncManager.sync(push: false);
         pulledCount = pullResult.recordsPulled;
       }
 
@@ -232,17 +238,18 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         setState(() {
           _lastSyncTime = DateTime.now();
         });
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                const Row(
                   children: [
-                    const Icon(Icons.cloud_done, color: Colors.white),
-                    const SizedBox(width: 8),
-                    const Text(
+                    Icon(Icons.cloud_done, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text(
                       '✅ تم سحب التغييرات بنجاح!',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
@@ -276,6 +283,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       );
 
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -283,12 +291,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 const Icon(Icons.error_outline, color: Colors.white),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('تعذر سحب التغييرات: ${e.toString()}'),
+                  child: Text('تعذر سحب التغييرات: $e'),
                 ),
               ],
             ),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -322,10 +329,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       target: 'Appwrite+GoogleDrive',
       status: 'in_progress',
     );
-    if (_isPushing) return;
+    if (_isPushing) {
+      return;
+    }
 
     if (_pendingChangesCount == 0) {
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Row(
@@ -343,7 +353,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       return;
     }
 
-    _pushAnimationController.repeat();
+    unawaited(_pushAnimationController.repeat());
     if (mounted) {
       setState(() => _isPushing = true);
     } else {
@@ -362,6 +372,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       if (!smartEnabled && !appwriteEnabled) {
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Row(
@@ -390,11 +401,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       final targets = <String>[];
-      if (smartEnabled && isGoogleDriveSignedIn) targets.add('Google Drive');
-      if (appwriteEnabled && appwriteConnected) targets.add('Appwrite');
+      if (smartEnabled && isGoogleDriveSignedIn) {
+        targets.add('Google Drive');
+      }
+      if (appwriteEnabled && appwriteConnected) {
+        targets.add('Appwrite');
+      }
 
       if (targets.isEmpty) {
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('لا توجد وجهات مزامنة متاحة حالياً'),
@@ -406,11 +422,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
@@ -418,7 +435,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     '⬆️ جاري رفع التغييرات إلى ${targets.join(' + ')}...',
@@ -427,7 +444,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ],
             ),
             backgroundColor: Colors.blue,
-            duration: Duration(seconds: 5),
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -516,13 +533,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         });
 
         if (failedTargets.isEmpty) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Row(
                     children: [
                       Icon(Icons.cloud_done, color: Colors.white),
                       SizedBox(width: 8),
@@ -534,25 +552,25 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                       ),
                     ],
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     '⬆️ أُرسل: $totalPushed',
-                    style: TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 12),
                   ),
                   Text(
                     '☁️ عبر: ${successTargets.join(' + ')}',
-                    style: TextStyle(fontSize: 11),
+                    style: const TextStyle(fontSize: 11),
                   ),
                 ],
               ),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 4),
             ),
           );
         } else if (successTargets.isEmpty) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Row(
+              content: const Row(
                 children: [
                   Icon(Icons.error_outline, color: Colors.white),
                   SizedBox(width: 8),
@@ -564,7 +582,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 ],
               ),
               backgroundColor: Colors.red,
-              duration: Duration(seconds: 4),
               action: SnackBarAction(
                 label: 'إعادة',
                 textColor: Colors.white,
@@ -573,37 +590,37 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             ),
           );
         } else {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: const [
+                  const Row(
+                    children: [
                       Icon(Icons.warning, color: Colors.white),
                       SizedBox(width: 8),
                       Text('⚠️ نجح جزئياً'),
                     ],
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     '✅ نجح: ${successTargets.join(', ')}',
-                    style: TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 12),
                   ),
                   Text(
                     '❌ فشل: ${failedTargets.join(', ')}',
-                    style: TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 12),
                   ),
                   if (totalPushed > 0)
                     Text(
                       '⬆️ أُرسل: $totalPushed',
-                      style: TextStyle(fontSize: 11),
+                      style: const TextStyle(fontSize: 11),
                     ),
                 ],
               ),
               backgroundColor: Colors.orange,
-              duration: Duration(seconds: 4),
             ),
           );
         }
@@ -626,9 +643,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       );
 
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
                 Icon(Icons.error_outline, color: Colors.white),
                 SizedBox(width: 8),
@@ -640,7 +658,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ],
             ),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 4),
             action: SnackBarAction(
               label: 'إعادة',
               textColor: Colors.white,
@@ -667,14 +684,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       final conflicts = await outboxDao.getConflicts();
 
-      if (conflicts.isEmpty) return 0;
+      if (conflicts.isEmpty) {
+        return 0;
+      }
 
       final resolver = ConflictResolver(
         deviceId: await _getDeviceId(),
-        strategy: ConflictStrategy.newerWins,
       );
 
-      for (final conflict in conflicts) {
+      // معالجة التعارضات بالتوازي باستخدام Future.wait بدلاً من التسلسل
+      final resolveResults = await Future.wait(conflicts.map((conflict) async {
         try {
           final localData = conflict.localPayload;
           final remoteData = conflict.remotePayload;
@@ -695,10 +714,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             if (winnerData != null) {
               await outboxDao.resolveConflict(
                 conflict.id,
-                winnerData,
+                winnerData as Map<String, dynamic>,
                 resolution: 'newer_wins',
               );
-              resolvedCount++;
+              return true;
             }
           } else {
             await outboxDao.resolveConflict(
@@ -707,10 +726,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               resolution: 'auto_no_conflict',
             );
           }
+          return false;
         } catch (e) {
           debugPrint('❌ خطأ في حل تعارض ${conflict.uuid}: $e');
+          return false;
         }
-      }
+      }),);
+      resolvedCount = resolveResults.where((r) => r).length;
 
       debugPrint('✅ تم حل $resolvedCount تعارض');
       return resolvedCount;
@@ -736,7 +758,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   }
 
   String _formatLastSyncTime(DateTime? lastSync) {
-    if (lastSync == null) return '';
+    if (lastSync == null) {
+      return '';
+    }
 
     final now = DateTime.now();
     final difference = now.difference(lastSync);
@@ -786,14 +810,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             duration: const Duration(milliseconds: 300),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [buttonColor.withOpacity(0.85), buttonColor],
+                colors: [buttonColor.withValues(alpha: 0.85), buttonColor],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: buttonColor.withOpacity(pullEnabled ? 0.4 : 0.1),
+                  color: buttonColor.withValues(alpha: pullEnabled ? 0.4 : 0.1),
                   blurRadius: pullEnabled ? 8 : 4,
                   offset: const Offset(0, 2),
                 ),
@@ -853,7 +877,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   border: Border.all(color: Colors.white, width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.blue.withOpacity(0.5),
+                      color: Colors.blue.withValues(alpha: 0.5),
                       blurRadius: 6,
                       spreadRadius: 1,
                     ),
@@ -913,14 +937,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             duration: const Duration(milliseconds: 300),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [buttonColor.withOpacity(0.85), buttonColor],
+                colors: [buttonColor.withValues(alpha: 0.85), buttonColor],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: buttonColor.withOpacity(pushEnabled ? 0.4 : 0.1),
+                  color: buttonColor.withValues(alpha: pushEnabled ? 0.4 : 0.1),
                   blurRadius: pushEnabled ? 8 : 4,
                   offset: const Offset(0, 2),
                 ),
@@ -980,7 +1004,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   border: Border.all(color: Colors.white, width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.red.withOpacity(0.5),
+                      color: Colors.red.withValues(alpha: 0.5),
                       blurRadius: 6,
                       spreadRadius: 1,
                     ),
@@ -1098,13 +1122,23 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (!_isPulling && !_isPushing && _lastSyncTime != null)
-                        Text(
-                          _formatLastSyncTime(_lastSyncTime),
-                          style: TextStyle(
-                            fontSize: 8,
-                            color: Colors.grey.shade600,
-                          ),
+                      if (!_isPulling && !_isPushing)
+                        FutureBuilder<SyncLogEntry?>(
+                          future: SyncLogDao(ref.read(databaseProvider)).getLastSync(),
+                          builder: (context, snapshot) {
+                            final lastSync = snapshot.data?.createdAt ?? _lastSyncTime;
+                            if (lastSync == null) {
+                              return const SizedBox.shrink();
+                            }
+                            return Text(
+                              'آخر مزامنة: ${_formatLastSyncTime(lastSync)}',
+                              style: TextStyle(
+                                fontSize: 8,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.normal,
+                              ),
+                            );
+                          },
                         ),
                     ],
                   ),

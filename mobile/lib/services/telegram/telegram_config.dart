@@ -1,7 +1,11 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../utils/env.dart';
+
 /// مفاتيح التخزين المحلي لإعدادات Telegram
 class TelegramConfig {
+
+  TelegramConfig._();
   static const String _enabledKey = 'telegram_enabled';
   static const String _botTokenKey = 'telegram_bot_token';
   static const String _chatIdKey = 'telegram_chat_id';
@@ -10,16 +14,16 @@ class TelegramConfig {
   static const String _dailyReportTimeKey = 'telegram_daily_report_time';
   static const String _lastReportSentKey = 'telegram_last_report_sent';
 
-  // القيم الافتراضية
-  static const String defaultReportTime = '08:00';
+  // القيم الافتراضية — تُحمّل تلقائياً حتى بعد إلغاء التثبيت وإعادة التثبيت
+  static const String defaultReportTime = '02:00';
   static const String telegramApiBase = 'https://api.telegram.org';
+  static const String defaultBotToken = Env.telegramBotToken;
+  static const String defaultChatId = Env.telegramChatId;
 
-  TelegramConfig._();
-
-  /// التحقق من تفعيل Telegram
+  /// التحقق من تفعيل Telegram/WhatsApp — مفعّل افتراضياً
   static Future<bool> isEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_enabledKey) ?? false;
+    return prefs.getBool(_enabledKey) ?? true;
   }
 
   static Future<void> setEnabled(bool enabled) async {
@@ -27,10 +31,10 @@ class TelegramConfig {
     await prefs.setBool(_enabledKey, enabled);
   }
 
-  /// Bot Token
+  /// Bot Token — يُحمّل القيمة الافتراضية تلقائياً
   static Future<String> getBotToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_botTokenKey) ?? '';
+    return prefs.getString(_botTokenKey) ?? defaultBotToken;
   }
 
   static Future<void> setBotToken(String value) async {
@@ -38,10 +42,10 @@ class TelegramConfig {
     await prefs.setString(_botTokenKey, value);
   }
 
-  /// Chat ID
+  /// Chat ID — يُحمّل القيمة الافتراضية تلقائياً
   static Future<String> getChatId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_chatIdKey) ?? '';
+    return prefs.getString(_chatIdKey) ?? defaultChatId;
   }
 
   static Future<void> setChatId(String value) async {
@@ -49,7 +53,7 @@ class TelegramConfig {
     await prefs.setString(_chatIdKey, value);
   }
 
-  /// تفعيل/تعطيل الإشعارات الفورية
+  /// تفعيل/تعطيل الإشعارات الفورية — مفعّل افتراضياً
   static Future<bool> isNotificationsEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_notificationsEnabledKey) ?? true;
@@ -60,10 +64,10 @@ class TelegramConfig {
     await prefs.setBool(_notificationsEnabledKey, enabled);
   }
 
-  /// تفعيل/تعطيل التقرير اليومي
+  /// تفعيل/تعطيل التقرير اليومي — مفعّل افتراضياً
   static Future<bool> isDailyReportEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_dailyReportEnabledKey) ?? false;
+    return prefs.getBool(_dailyReportEnabledKey) ?? true;
   }
 
   static Future<void> setDailyReportEnabled(bool enabled) async {
@@ -93,7 +97,7 @@ class TelegramConfig {
     await prefs.setString(_lastReportSentKey, dateKey);
   }
 
-  /// التحقق من اكتمال إعدادات Telegram
+  /// التحقق من اكتمال إعدادات Telegram — دائماً صحيح بالافتراضي
   static Future<bool> isConfigured() async {
     final token = await getBotToken();
     final chatId = await getChatId();

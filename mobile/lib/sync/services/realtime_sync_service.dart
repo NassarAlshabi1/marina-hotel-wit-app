@@ -1,24 +1,32 @@
 /// Realtime Sync Service
 /// خدمة المزامنة الفورية باستخدام WebSocket أو Server-Sent Events
 /// تدفع التغييرات فور حدوثها على السيرفر
+library;
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
-import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:web_socket_channel/io.dart';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:web_socket_channel/io.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../orchestrator/sync_orchestrator.dart';
 
 /// خدمة المزامنة الفورية
 class RealtimeSyncService {
+
+  RealtimeSyncService({
+    required SyncOrchestrator orchestrator,
+    required RealtimeConfig config,
+  })  : _orchestrator = orchestrator,
+        _config = config;
   final SyncOrchestrator _orchestrator;
   final RealtimeConfig _config;
 
   WebSocketChannel? _channel;
-  StreamSubscription? _messageSubscription;
-  StreamSubscription? _connectivitySubscription;
+  StreamSubscription<void>? _messageSubscription;
+  StreamSubscription<void>? _connectivitySubscription;
   Timer? _reconnectTimer;
   Timer? _pingTimer;
 
@@ -29,12 +37,6 @@ class RealtimeSyncService {
   bool _isConnecting = false;
   int _reconnectAttempts = 0;
   DateTime? _lastPing;
-
-  RealtimeSyncService({
-    required SyncOrchestrator orchestrator,
-    required RealtimeConfig config,
-  })  : _orchestrator = orchestrator,
-        _config = config;
 
   /// Stream للأحداث الفورية
   Stream<RealtimeEvent> get events => _eventController.stream;
@@ -48,12 +50,14 @@ class RealtimeSyncService {
 
   /// بدء الخدمة
   Future<void> start() async {
-    if (!_config.enabled) return;
+    if (!_config.enabled) {
+      return;
+    }
 
     // الاستماع لتغيرات الاتصال
     _connectivitySubscription = Connectivity()
         .onConnectivityChanged
-        .listen(_handleConnectivityChange);
+        .listen(_handleConnectivityChangeList);
 
     // محاولة الاتصال الأولى
     await _connect();
@@ -75,7 +79,9 @@ class RealtimeSyncService {
 
   /// الاتصال بالخادم
   Future<void> _connect() async {
-    if (_isConnected || _isConnecting) return;
+    if (_isConnected || _isConnecting) {
+      return;
+    }
 
     _isConnecting = true;
     _connectionStateController.add(ConnectionState.connecting);
@@ -131,7 +137,7 @@ class RealtimeSyncService {
   Future<void> _disconnect() async {
     _pingTimer?.cancel();
     await _messageSubscription?.cancel();
-    _channel?.sink.close();
+    unawaited(_channel?.sink.close());
 
     _isConnected = false;
     _isConnecting = false;
@@ -154,20 +160,20 @@ class RealtimeSyncService {
       switch (event.type) {
         case RealtimeEventType.change:
           _handleRemoteChange(event);
-          break;
         case RealtimeEventType.ping:
           _lastPing = DateTime.now();
           _sendPong();
+        case RealtimeEventType.pong:
+          //pong received, no action needed
           break;
         case RealtimeEventType.authSuccess:
           developer.log('Authentication successful', name: 'RealtimeSync');
-          break;
         case RealtimeEventType.authError:
           developer.log('Authentication failed', name: 'RealtimeSync');
-          break;
         case RealtimeEventType.error:
           developer.log('Server error: ${event.payload}', name: 'RealtimeSync');
-          break;
+        case RealtimeEventType.unknown:
+          developer.log('Unknown event received', name: 'RealtimeSync');
       }
     } catch (e, stackTrace) {
       developer.log(
@@ -181,7 +187,9 @@ class RealtimeSyncService {
 
   /// معالجة تغيير بعيد
   Future<void> _handleRemoteChange(RealtimeEvent event) async {
-    if (event.table == null || event.payload == null) return;
+    if (event.table == null || event.payload == null) {
+      return;
+    }
 
     // تشغيل مزامنة سريعة لسحب التغييرات
     // بدلاً من تطبيق التغيير مباشرة، نستخدم DeltaSyncEngine لضمان السلامة
@@ -197,14 +205,16 @@ class RealtimeSyncService {
   }
 
   /// معالجة خطأ
-  void _handleError(error) {
+  void _handleError(Object error) {
     developer.log('WebSocket error: $error', name: 'RealtimeSync');
     _handleDisconnect();
   }
 
   /// معالجة قطع الاتصال
   void _handleDisconnect() {
-    if (!_isConnected) return;
+    if (!_isConnected) {
+      return;
+    }
 
     _isConnected = false;
     _connectionStateController.add(ConnectionState.disconnected);
@@ -214,7 +224,9 @@ class RealtimeSyncService {
 
   /// جدولة إعادة الاتصال
   void _scheduleReconnect() {
-    if (_reconnectTimer?.isActive ?? false) return;
+    if (_reconnectTimer?.isActive ?? false) {
+      return;
+    }
 
     _reconnectAttempts++;
 
@@ -226,9 +238,7 @@ class RealtimeSyncService {
       name: 'RealtimeSync',
     );
 
-    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
-      _connect();
-    });
+    _reconnectTimer = Timer(Duration(seconds: delaySeconds), _connect);
 
     _connectionStateController.add(ConnectionState.reconnecting);
   }
@@ -241,8 +251,8 @@ class RealtimeSyncService {
   }
 
   /// معالجة تغير الاتصال
-  void _handleConnectivityChange(ConnectivityResult result) {
-    if (result == ConnectivityResult.none) {
+  void _handleConnectivityChangeList(List<ConnectivityResult> results) {
+    if (results.contains(ConnectivityResult.none)) {
       // فقدان الاتصال - قطع WebSocket
       _disconnect();
     } else if (!_isConnected && !_isConnecting) {
@@ -287,7 +297,9 @@ class RealtimeSyncService {
 
   /// إرسال رسالة
   void _send(Map<String, dynamic> message) {
-    if (!_isConnected) return;
+    if (!_isConnected) {
+      return;
+    }
 
     try {
       _channel!.sink.add(jsonEncode(message));
@@ -333,12 +345,6 @@ enum ConnectionState {
 
 /// إعدادات Realtime
 class RealtimeConfig {
-  final String wsUrl;
-  final String? authToken;
-  final Map<String, String>? headers;
-  final List<String> tablesToWatch;
-  final Duration pingInterval;
-  final bool enabled;
 
   const RealtimeConfig({
     required this.wsUrl,
@@ -348,16 +354,16 @@ class RealtimeConfig {
     this.pingInterval = const Duration(seconds: 30),
     this.enabled = true,
   });
+  final String wsUrl;
+  final String? authToken;
+  final Map<String, String>? headers;
+  final List<String> tablesToWatch;
+  final Duration pingInterval;
+  final bool enabled;
 }
 
 /// حدث Realtime
 class RealtimeEvent {
-  final RealtimeEventType type;
-  final String? table;
-  final String? operation;
-  final String? uuid;
-  final Map<String, dynamic>? payload;
-  final DateTime timestamp;
 
   RealtimeEvent({
     required this.type,
@@ -383,6 +389,12 @@ class RealtimeEvent {
       timestamp: DateTime.now(),
     );
   }
+  final RealtimeEventType type;
+  final String? table;
+  final String? operation;
+  final String? uuid;
+  final Map<String, dynamic>? payload;
+  final DateTime timestamp;
 
   Map<String, dynamic> toJson() => {
         'type': type.name,

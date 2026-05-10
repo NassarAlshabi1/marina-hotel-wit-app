@@ -86,11 +86,19 @@ class HybridLogicalClock {
   }
 
   int compare(HybridLogicalClock other) {
-    if (physicalTime < other.physicalTime) return -1;
-    if (physicalTime > other.physicalTime) return 1;
+    if (physicalTime < other.physicalTime) {
+      return -1;
+    }
+    if (physicalTime > other.physicalTime) {
+      return 1;
+    }
 
-    if (logicalCounter < other.logicalCounter) return -1;
-    if (logicalCounter > other.logicalCounter) return 1;
+    if (logicalCounter < other.logicalCounter) {
+      return -1;
+    }
+    if (logicalCounter > other.logicalCounter) {
+      return 1;
+    }
 
     return deviceId.compareTo(other.deviceId);
   }
@@ -102,11 +110,15 @@ class HybridLogicalClock {
   String toJson() => '$physicalTime-$logicalCounter-$deviceId';
 
   static HybridLogicalClock? fromJson(String? json, String defaultDeviceId) {
-    if (json == null || json.isEmpty) return null;
+    if (json == null || json.isEmpty) {
+      return null;
+    }
 
     try {
       final parts = json.split('-');
-      if (parts.length != 3) return null;
+      if (parts.length != 3) {
+        return null;
+      }
 
       return HybridLogicalClock._(
         physicalTime: int.parse(parts[0]),

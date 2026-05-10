@@ -51,7 +51,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: (isConnected ? Colors.green : Colors.red).withOpacity(
+                color: (isConnected ? Colors.green : Colors.red).withValues(alpha: 
                   0.1,
                 ),
                 shape: BoxShape.circle,
@@ -116,15 +116,15 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.info_outline,
                   color: Colors.blue,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'معلومات المشروع',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -168,8 +168,8 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingMD),
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
                 Icon(
@@ -177,8 +177,8 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
                   color: Colors.blue,
                   size: UIConstants.iconSizeMD,
                 ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
                   'إعدادات الاتصال',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -199,7 +199,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
           const Divider(height: 1),
           ListTile(
             title: const Text('عدد المحاولات'),
-            subtitle: Text('${AppwriteConfig.maxRetries} محاولات'),
+            subtitle: const Text('${AppwriteConfig.maxRetries} محاولات'),
             leading: const Icon(Icons.replay),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () => _showInfoDialog(
@@ -232,7 +232,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.bug_report, color: Colors.orange),
@@ -247,7 +247,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
               child: const Icon(Icons.restore, color: Colors.red),
@@ -267,7 +267,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
   }
 
   void _showResetDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تحذير'),
@@ -295,7 +295,7 @@ class _AppwriteConnectionTabState extends ConsumerState<AppwriteConnectionTab> {
   }
 
   void _showInfoDialog(String title, String value) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title),

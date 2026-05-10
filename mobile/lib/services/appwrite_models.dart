@@ -2,18 +2,6 @@
 
 /// نموذج الجهاز المسجل
 class AppwriteDevice {
-  final String id;
-  final String deviceName;
-  final String deviceModel;
-  final String osVersion;
-  final DateTime lastSeen;
-  final DateTime? lastActive;
-  final String status; // 'active', 'inactive', 'suspended'
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final int version;
-  final String? origin;
-  final String? localUuid;
 
   AppwriteDevice({
     required this.id,
@@ -57,15 +45,15 @@ class AppwriteDevice {
     }
 
     return AppwriteDevice(
-      id: json['\$id'] ?? json['id'] ?? '',
-      deviceName: json['deviceName'] ?? '',
-      deviceModel: json['deviceModel'] ?? '',
-      osVersion: json['osVersion'] ?? '',
+      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      deviceName: (json['deviceName'] as String?) ?? '',
+      deviceModel: (json['deviceModel'] as String?) ?? '',
+      osVersion: (json['osVersion'] as String?) ?? '',
       lastSeen: parseDate(json['lastSeen'], fallback: DateTime.now()),
       lastActive: json.containsKey('lastActive')
           ? parseDate(json['lastActive'])
           : null,
-      status: json['status'] ?? 'active',
+      status: (json['status'] as String?) ?? 'active',
       createdAt: parseDate(json['createdAt'], fallback: DateTime.now()),
       updatedAt: parseDate(json['updatedAt'], fallback: DateTime.now()),
       version: (json['version'] is num)
@@ -75,6 +63,18 @@ class AppwriteDevice {
       localUuid: json['localUuid']?.toString(),
     );
   }
+  final String id;
+  final String deviceName;
+  final String deviceModel;
+  final String osVersion;
+  final DateTime lastSeen;
+  final DateTime? lastActive;
+  final String status; // 'active', 'inactive', 'suspended'
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final int version;
+  final String? origin;
+  final String? localUuid;
 
   Map<String, dynamic> toJson() {
     int toEpoch(DateTime value) => value.toUtc().millisecondsSinceEpoch ~/ 1000;
@@ -97,17 +97,6 @@ class AppwriteDevice {
 
 /// نموذج سجل المزامنة
 class AppwriteSyncLog {
-  final String id;
-  final String deviceId;
-  final String syncType; // 'push', 'pull', 'full'
-  final DateTime startTime;
-  final DateTime? endTime;
-  final String status; // 'in_progress', 'completed', 'failed', 'partial'
-  final int recordsPushed;
-  final int recordsPulled;
-  final int conflicts;
-  final String? errorMessage;
-  final Map<String, dynamic>? details;
 
   AppwriteSyncLog({
     required this.id,
@@ -125,21 +114,32 @@ class AppwriteSyncLog {
 
   factory AppwriteSyncLog.fromJson(Map<String, dynamic> json) {
     return AppwriteSyncLog(
-      id: json['\$id'] ?? json['id'] ?? '',
-      deviceId: json['deviceId'] ?? '',
-      syncType: json['syncType'] ?? 'full',
+      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      deviceId: (json['deviceId'] as String?) ?? '',
+      syncType: (json['syncType'] as String?) ?? 'full',
       startTime: DateTime.parse(
-        json['startTime'] ?? DateTime.now().toIso8601String(),
+        (json['startTime'] as String?) ?? DateTime.now().toIso8601String(),
       ),
-      endTime: json['endTime'] != null ? DateTime.parse(json['endTime']) : null,
-      status: json['status'] ?? 'in_progress',
-      recordsPushed: json['recordsPushed'] ?? 0,
-      recordsPulled: json['recordsPulled'] ?? 0,
-      conflicts: json['conflicts'] ?? 0,
-      errorMessage: json['errorMessage'],
-      details: json['details'],
+      endTime: json['endTime'] != null ? DateTime.parse(json['endTime'] as String) : null,
+      status: (json['status'] as String?) ?? 'in_progress',
+      recordsPushed: (json['recordsPushed'] as num?)?.toInt() ?? 0,
+      recordsPulled: (json['recordsPulled'] as num?)?.toInt() ?? 0,
+      conflicts: (json['conflicts'] as num?)?.toInt() ?? 0,
+      errorMessage: json['errorMessage'] as String?,
+      details: json['details'] as Map<String, dynamic>?,
     );
   }
+  final String id;
+  final String deviceId;
+  final String syncType; // 'push', 'pull', 'full'
+  final DateTime startTime;
+  final DateTime? endTime;
+  final String status; // 'in_progress', 'completed', 'failed', 'partial'
+  final int recordsPushed;
+  final int recordsPulled;
+  final int conflicts;
+  final String? errorMessage;
+  final Map<String, dynamic>? details;
 
   Map<String, dynamic> toJson() {
     return {
@@ -161,14 +161,6 @@ class AppwriteSyncLog {
 
 /// نموذج الغرفة (مبسط)
 class AppwriteRoom {
-  final String id;
-  final String roomNumber;
-  final String type;
-  final String status;
-  final double price;
-  final int floor;
-  final DateTime? lastModified;
-  final String? lastModifiedBy;
 
   AppwriteRoom({
     required this.id,
@@ -183,18 +175,26 @@ class AppwriteRoom {
 
   factory AppwriteRoom.fromJson(Map<String, dynamic> json) {
     return AppwriteRoom(
-      id: json['\$id'] ?? json['id'] ?? '',
-      roomNumber: json['roomNumber'] ?? '',
-      type: json['type'] ?? '',
-      status: json['status'] ?? '',
-      price: (json['price'] ?? 0).toDouble(),
-      floor: json['floor'] ?? 0,
+      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      roomNumber: (json['roomNumber'] as String?) ?? '',
+      type: (json['type'] as String?) ?? '',
+      status: (json['status'] as String?) ?? '',
+      price: ((json['price'] as num?) ?? 0).toDouble(),
+      floor: (json['floor'] as num?)?.toInt() ?? 0,
       lastModified: json['lastModified'] != null
-          ? DateTime.parse(json['lastModified'])
+          ? DateTime.parse(json['lastModified'] as String)
           : null,
-      lastModifiedBy: json['lastModifiedBy'],
+      lastModifiedBy: json['lastModifiedBy'] as String?,
     );
   }
+  final String id;
+  final String roomNumber;
+  final String type;
+  final String status;
+  final double price;
+  final int floor;
+  final DateTime? lastModified;
+  final String? lastModifiedBy;
 
   Map<String, dynamic> toJson() {
     return {
@@ -211,17 +211,6 @@ class AppwriteRoom {
 
 /// نموذج الحجز (مبسط)
 class AppwriteBooking {
-  final String id;
-  final String roomId;
-  final String guestName;
-  final String guestPhone;
-  final DateTime checkIn;
-  final DateTime checkOut;
-  final String status;
-  final double totalAmount;
-  final double paidAmount;
-  final DateTime? lastModified;
-  final String? lastModifiedBy;
 
   AppwriteBooking({
     required this.id,
@@ -239,25 +228,36 @@ class AppwriteBooking {
 
   factory AppwriteBooking.fromJson(Map<String, dynamic> json) {
     return AppwriteBooking(
-      id: json['\$id'] ?? json['id'] ?? '',
-      roomId: json['roomId'] ?? '',
-      guestName: json['guestName'] ?? '',
-      guestPhone: json['guestPhone'] ?? '',
+      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      roomId: (json['roomId'] as String?) ?? '',
+      guestName: (json['guestName'] as String?) ?? '',
+      guestPhone: (json['guestPhone'] as String?) ?? '',
       checkIn: DateTime.parse(
-        json['checkIn'] ?? DateTime.now().toIso8601String(),
+        (json['checkIn'] as String?) ?? DateTime.now().toIso8601String(),
       ),
       checkOut: DateTime.parse(
-        json['checkOut'] ?? DateTime.now().toIso8601String(),
+        (json['checkOut'] as String?) ?? DateTime.now().toIso8601String(),
       ),
-      status: json['status'] ?? '',
-      totalAmount: (json['totalAmount'] ?? 0).toDouble(),
-      paidAmount: (json['paidAmount'] ?? 0).toDouble(),
+      status: (json['status'] as String?) ?? '',
+      totalAmount: ((json['totalAmount'] as num?) ?? 0).toDouble(),
+      paidAmount: ((json['paidAmount'] as num?) ?? 0).toDouble(),
       lastModified: json['lastModified'] != null
-          ? DateTime.parse(json['lastModified'])
+          ? DateTime.parse(json['lastModified'] as String)
           : null,
-      lastModifiedBy: json['lastModifiedBy'],
+      lastModifiedBy: json['lastModifiedBy'] as String?,
     );
   }
+  final String id;
+  final String roomId;
+  final String guestName;
+  final String guestPhone;
+  final DateTime checkIn;
+  final DateTime checkOut;
+  final String status;
+  final double totalAmount;
+  final double paidAmount;
+  final DateTime? lastModified;
+  final String? lastModifiedBy;
 
   Map<String, dynamic> toJson() {
     return {
@@ -277,14 +277,6 @@ class AppwriteBooking {
 
 /// نموذج الدفع (مبسط)
 class AppwritePayment {
-  final String id;
-  final String bookingId;
-  final double amount;
-  final String paymentMethod;
-  final DateTime paymentDate;
-  final String? notes;
-  final DateTime? lastModified;
-  final String? lastModifiedBy;
 
   AppwritePayment({
     required this.id,
@@ -299,20 +291,28 @@ class AppwritePayment {
 
   factory AppwritePayment.fromJson(Map<String, dynamic> json) {
     return AppwritePayment(
-      id: json['\$id'] ?? json['id'] ?? '',
-      bookingId: json['bookingId'] ?? '',
-      amount: (json['amount'] ?? 0).toDouble(),
-      paymentMethod: json['paymentMethod'] ?? '',
+      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      bookingId: (json['bookingId'] as String?) ?? '',
+      amount: ((json['amount'] as num?) ?? 0).toDouble(),
+      paymentMethod: (json['paymentMethod'] as String?) ?? '',
       paymentDate: DateTime.parse(
-        json['paymentDate'] ?? DateTime.now().toIso8601String(),
+        (json['paymentDate'] as String?) ?? DateTime.now().toIso8601String(),
       ),
-      notes: json['notes'],
+      notes: json['notes'] as String?,
       lastModified: json['lastModified'] != null
-          ? DateTime.parse(json['lastModified'])
+          ? DateTime.parse(json['lastModified'] as String)
           : null,
-      lastModifiedBy: json['lastModifiedBy'],
+      lastModifiedBy: json['lastModifiedBy'] as String?,
     );
   }
+  final String id;
+  final String bookingId;
+  final double amount;
+  final String paymentMethod;
+  final DateTime paymentDate;
+  final String? notes;
+  final DateTime? lastModified;
+  final String? lastModifiedBy;
 
   Map<String, dynamic> toJson() {
     return {
@@ -329,14 +329,6 @@ class AppwritePayment {
 
 /// نموذج المصروف (مبسط)
 class AppwriteExpense {
-  final String id;
-  final String category;
-  final double amount;
-  final String description;
-  final DateTime expenseDate;
-  final String? employeeId;
-  final DateTime? lastModified;
-  final String? lastModifiedBy;
 
   AppwriteExpense({
     required this.id,
@@ -351,20 +343,28 @@ class AppwriteExpense {
 
   factory AppwriteExpense.fromJson(Map<String, dynamic> json) {
     return AppwriteExpense(
-      id: json['\$id'] ?? json['id'] ?? '',
-      category: json['category'] ?? '',
-      amount: (json['amount'] ?? 0).toDouble(),
-      description: json['description'] ?? '',
+      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      category: (json['category'] as String?) ?? '',
+      amount: ((json['amount'] as num?) ?? 0).toDouble(),
+      description: (json['description'] as String?) ?? '',
       expenseDate: DateTime.parse(
-        json['expenseDate'] ?? DateTime.now().toIso8601String(),
+        (json['expenseDate'] as String?) ?? DateTime.now().toIso8601String(),
       ),
-      employeeId: json['employeeId'],
+      employeeId: json['employeeId'] as String?,
       lastModified: json['lastModified'] != null
-          ? DateTime.parse(json['lastModified'])
+          ? DateTime.parse(json['lastModified'] as String)
           : null,
-      lastModifiedBy: json['lastModifiedBy'],
+      lastModifiedBy: json['lastModifiedBy'] as String?,
     );
   }
+  final String id;
+  final String category;
+  final double amount;
+  final String description;
+  final DateTime expenseDate;
+  final String? employeeId;
+  final DateTime? lastModified;
+  final String? lastModifiedBy;
 
   Map<String, dynamic> toJson() {
     return {
@@ -381,14 +381,6 @@ class AppwriteExpense {
 
 /// نموذج الموظف (مبسط)
 class AppwriteEmployee {
-  final String id;
-  final String name;
-  final String phone;
-  final String position;
-  final double salary;
-  final String status;
-  final DateTime? lastModified;
-  final String? lastModifiedBy;
 
   AppwriteEmployee({
     required this.id,
@@ -403,18 +395,26 @@ class AppwriteEmployee {
 
   factory AppwriteEmployee.fromJson(Map<String, dynamic> json) {
     return AppwriteEmployee(
-      id: json['\$id'] ?? json['id'] ?? '',
-      name: json['name'] ?? '',
-      phone: json['phone'] ?? '',
-      position: json['position'] ?? '',
-      salary: (json['salary'] ?? 0).toDouble(),
-      status: json['status'] ?? '',
+      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      name: (json['name'] as String?) ?? '',
+      phone: (json['phone'] as String?) ?? '',
+      position: (json['position'] as String?) ?? '',
+      salary: ((json['salary'] as num?) ?? 0).toDouble(),
+      status: (json['status'] as String?) ?? '',
       lastModified: json['lastModified'] != null
-          ? DateTime.parse(json['lastModified'])
+          ? DateTime.parse(json['lastModified'] as String)
           : null,
-      lastModifiedBy: json['lastModifiedBy'],
+      lastModifiedBy: json['lastModifiedBy'] as String?,
     );
   }
+  final String id;
+  final String name;
+  final String phone;
+  final String position;
+  final double salary;
+  final String status;
+  final DateTime? lastModified;
+  final String? lastModifiedBy;
 
   Map<String, dynamic> toJson() {
     return {
@@ -431,14 +431,6 @@ class AppwriteEmployee {
 
 /// نموذج الدين (مبسط)
 class AppwriteDebt {
-  final String id;
-  final String bookingId;
-  final String guestName;
-  final double amount;
-  final String status;
-  final DateTime dueDate;
-  final DateTime? lastModified;
-  final String? lastModifiedBy;
 
   AppwriteDebt({
     required this.id,
@@ -453,20 +445,28 @@ class AppwriteDebt {
 
   factory AppwriteDebt.fromJson(Map<String, dynamic> json) {
     return AppwriteDebt(
-      id: json['\$id'] ?? json['id'] ?? '',
-      bookingId: json['bookingId'] ?? '',
-      guestName: json['guestName'] ?? '',
-      amount: (json['amount'] ?? 0).toDouble(),
-      status: json['status'] ?? '',
+      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      bookingId: (json['bookingId'] as String?) ?? '',
+      guestName: (json['guestName'] as String?) ?? '',
+      amount: ((json['amount'] as num?) ?? 0).toDouble(),
+      status: (json['status'] as String?) ?? '',
       dueDate: DateTime.parse(
-        json['dueDate'] ?? DateTime.now().toIso8601String(),
+        (json['dueDate'] as String?) ?? DateTime.now().toIso8601String(),
       ),
       lastModified: json['lastModified'] != null
-          ? DateTime.parse(json['lastModified'])
+          ? DateTime.parse(json['lastModified'] as String)
           : null,
-      lastModifiedBy: json['lastModifiedBy'],
+      lastModifiedBy: json['lastModifiedBy'] as String?,
     );
   }
+  final String id;
+  final String bookingId;
+  final String guestName;
+  final double amount;
+  final String status;
+  final DateTime dueDate;
+  final DateTime? lastModified;
+  final String? lastModifiedBy;
 
   Map<String, dynamic> toJson() {
     return {

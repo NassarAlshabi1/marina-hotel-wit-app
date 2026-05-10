@@ -21,7 +21,9 @@ class DateTimeFormatter {
 
   /// Format ISO string to date and time (2024-01-29 18:30)
   static String formatDateTime(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
@@ -33,7 +35,9 @@ class DateTimeFormatter {
 
   /// Format ISO string to date only (2024-01-29)
   static String formatDate(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
@@ -45,7 +49,9 @@ class DateTimeFormatter {
 
   /// Format ISO string to time only (18:30)
   static String formatTime(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
@@ -57,7 +63,9 @@ class DateTimeFormatter {
 
   /// Format ISO string to full date and time with seconds
   static String formatDateTimeFull(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
@@ -69,7 +77,9 @@ class DateTimeFormatter {
 
   /// Format ISO string to Arabic date (29 يناير 2024)
   static String formatArabicDate(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
@@ -81,7 +91,9 @@ class DateTimeFormatter {
 
   /// Format ISO string to Arabic date and time (29 يناير 2024 - 6:30 م)
   static String formatArabicDateTime(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
@@ -98,7 +110,9 @@ class DateTimeFormatter {
 
   /// Get relative time (منذ 5 دقائق، منذ ساعة، إلخ)
   static String getRelativeTime(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return 'لا يوجد';
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
 
     try {
       final date = DateTime.parse(isoString);
@@ -133,7 +147,9 @@ class DateTimeFormatter {
 
   /// Get time ago in short format (5د، 2س، 3ي)
   static String getTimeAgoShort(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return '-';
+    if (isoString == null || isoString.isEmpty) {
+      return '-';
+    }
 
     try {
       final date = DateTime.parse(isoString);
@@ -158,7 +174,9 @@ class DateTimeFormatter {
 
   /// Check if date is today
   static bool isToday(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return false;
+    if (isoString == null || isoString.isEmpty) {
+      return false;
+    }
 
     try {
       final date = DateTime.parse(isoString);
@@ -173,7 +191,9 @@ class DateTimeFormatter {
 
   /// Check if date is yesterday
   static bool isYesterday(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return false;
+    if (isoString == null || isoString.isEmpty) {
+      return false;
+    }
 
     try {
       final date = DateTime.parse(isoString);

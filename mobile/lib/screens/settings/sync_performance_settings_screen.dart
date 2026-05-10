@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../services/data_usage_manager.dart';
 import '../../services/sync_performance_optimizer.dart';
 import '../../services/sync_performance_settings.dart';
-import '../../services/data_usage_manager.dart';
 
 class SyncPerformanceSettingsScreen extends ConsumerStatefulWidget {
   const SyncPerformanceSettingsScreen({super.key});
@@ -35,6 +36,7 @@ class _SyncPerformanceSettingsScreenState
       await SyncPerformanceSettings.applyProfile(profileKey);
       setState(() => _currentProfile = profileKey);
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -44,6 +46,7 @@ class _SyncPerformanceSettingsScreenState
         ),
       );
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تطبيق ملف التعريف: $e'),
@@ -117,9 +120,9 @@ class _SyncPerformanceSettingsScreenState
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
               ),
               child: const Text(
                 '💡 النصيحة: ملف "متوازن" مُوصى به لمعظم الاستخدامات، بينما "توفير البطارية" مثالي للأجهزة القديمة أو الاستخدام المحدود.',
@@ -159,7 +162,7 @@ class _SyncPerformanceSettingsScreenState
           color: isSelected ? Colors.blue : Colors.grey.shade300,
           width: isSelected ? 2 : 1,
         ),
-        color: isSelected ? Colors.blue.withOpacity(0.05) : null,
+        color: isSelected ? Colors.blue.withValues(alpha: 0.05) : null,
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
@@ -193,8 +196,8 @@ class _SyncPerformanceSettingsScreenState
           ],
         ),
         trailing: isSelected
-            ? Icon(Icons.check_circle, color: Colors.blue)
-            : Icon(Icons.radio_button_unchecked, color: Colors.grey),
+            ? const Icon(Icons.check_circle, color: Colors.blue)
+            : const Icon(Icons.radio_button_unchecked, color: Colors.grey),
         onTap: _isLoading ? null : () => _applyProfile(key),
       ),
     );
@@ -386,7 +389,7 @@ class _SyncPerformanceSettingsScreenState
                   ],
                 ),
 
-                if (stats['consecutive_failures'] > 0) ...[
+                if ((stats['consecutive_failures'] as int? ?? 0) > 0) ...[
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -1,11 +1,11 @@
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 
-import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
+import 'remote_config_service.dart';
 
 class BookingDerivedFieldsService {
   BookingDerivedFieldsService(this.db);
@@ -111,23 +111,29 @@ class BookingDerivedFieldsService {
         .get();
 
     final active = activeBookings
-        .where((b) => StatusUtils.isBookingActive(b))
+        .where(StatusUtils.isBookingActive)
         .toList();
 
     int refreshed = 0;
     int promoted = 0;
-    for (final booking in active) {
+    // معالجة الحجوزات بالتوازي باستخدام Future.wait بدلاً من التسلسل
+    final results = await Future.wait(active.map((booking) async {
       try {
-        if (StatusUtils.isBookingProvisional(booking) && moment.hour >= 14) {
+        bool didPromote = false;
+        final cutoffHour = RemoteConfigService.instance.checkoutHour;
+        if (StatusUtils.isBookingProvisional(booking) && moment.hour >= cutoffHour) {
           await _promoteProvisionalBooking(booking.id);
-          promoted++;
+          didPromote = true;
         }
         await refreshForBooking(booking, now: moment, forceRebuild: true);
-        refreshed++;
+        return (promoted: didPromote, refreshed: true);
       } catch (e) {
         debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
+        return (promoted: false, refreshed: false);
       }
-    }
+    }),);
+    promoted = results.where((r) => r.promoted).length;
+    refreshed = results.where((r) => r.refreshed).length;
 
     if (promoted > 0) {
       debugPrint('✅ تم تثبيت $promoted حجز مؤقت → محجوزة');
@@ -144,149 +150,6 @@ class BookingDerivedFieldsService {
   }
 
   // ignore: unused_element
-  Future<void> _ensureBookingNights({
-    required Booking booking,
-    required DateTime checkin,
-    required DateTime checkout,
-    required double nightlyRate,
-    required int discount,
-    required String discountType,
-    required DateTime? discountStartDate,
-  }) async {
-    final lastNight =
-        await (db.select(db.bookingNights)
-              ..where((n) => n.bookingLocalId.equals(booking.id))
-              ..where((n) => n.deletedAt.isNull())
-              ..orderBy([
-                (n) => d.OrderingTerm(
-                  expression: n.nightEnd,
-                  mode: d.OrderingMode.desc,
-                ),
-              ])
-              ..limit(1))
-            .getSingleOrNull();
-
-    DateTime start = checkin;
-    if (lastNight != null) {
-      final parsed = _parseDateTime(lastNight.nightEnd);
-      if (parsed != null) {
-        start = parsed;
-      }
-    }
-
-    if (start.isBefore(checkin)) {
-      start = checkin;
-    }
-
-    if (!checkout.isAfter(start)) {
-      return;
-    }
-
-    final segments = _buildNightSegments(start, checkout);
-    if (segments.isEmpty) {
-      return;
-    }
-
-    final nowUtc = DateTime.now().toUtc();
-    final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
-    final stampIso = nowUtc.toIso8601String();
-
-    await db.batch((batch) {
-      int sequence = lastNight?.sequence ?? 0;
-      for (final segment in segments) {
-        sequence += 1;
-        final rate = _calculateNightlyRate(
-          segment.start,
-          nightlyRate,
-          discount,
-          discountType,
-          discountStartDate,
-        );
-        batch.insert(
-          db.bookingNights,
-          BookingNightsCompanion(
-            localUuid: d.Value(IdGen.uuid()),
-            createdAt: d.Value(stamp),
-            updatedAt: d.Value(stamp),
-            lastModified: d.Value(stamp),
-            createdAtIso: d.Value(stampIso),
-            updatedAtIso: d.Value(stampIso),
-            createdAtEpoch: d.Value(stamp),
-            lastModifiedEpoch: d.Value(stamp),
-            origin: const d.Value('derived'),
-            bookingLocalId: d.Value(booking.id),
-            hotelDayKey: d.Value(segment.hotelDayKey),
-            nightStart: d.Value(segment.start.toIso8601String()),
-            nightEnd: d.Value(segment.end.toIso8601String()),
-            nightlyRate: d.Value(rate),
-            sequence: d.Value(sequence),
-            isProcessedByAutoFix: const d.Value(false),
-          ),
-          mode: d.InsertMode.insertOrIgnore,
-        );
-      }
-    });
-  }
-
-  // ignore: unused_element
-  Future<void> _rebuildBookingNights({
-    required Booking booking,
-    required DateTime checkin,
-    required DateTime checkout,
-    required double nightlyRate,
-    required int discount,
-    required String discountType,
-    required DateTime? discountStartDate,
-  }) async {
-    final segments = _buildNightSegments(checkin, checkout);
-
-    final nowUtc = DateTime.now().toUtc();
-    final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
-    final stampIso = nowUtc.toIso8601String();
-
-    await db.transaction(() async {
-      await (db.delete(
-        db.bookingNights,
-      )..where((t) => t.bookingLocalId.equals(booking.id))).go();
-
-      await db.batch((batch) {
-        int sequence = 0;
-        for (final segment in segments) {
-          sequence += 1;
-          final rate = _calculateNightlyRate(
-            segment.start,
-            nightlyRate,
-            discount,
-            discountType,
-            discountStartDate,
-          );
-          batch.insert(
-            db.bookingNights,
-            BookingNightsCompanion(
-              localUuid: d.Value(IdGen.uuid()),
-              createdAt: d.Value(stamp),
-              updatedAt: d.Value(stamp),
-              lastModified: d.Value(stamp),
-              createdAtIso: d.Value(stampIso),
-              updatedAtIso: d.Value(stampIso),
-              createdAtEpoch: d.Value(stamp),
-              lastModifiedEpoch: d.Value(stamp),
-              origin: const d.Value('derived'),
-              bookingLocalId: d.Value(booking.id),
-              hotelDayKey: d.Value(segment.hotelDayKey),
-              nightStart: d.Value(segment.start.toIso8601String()),
-              nightEnd: d.Value(segment.end.toIso8601String()),
-              nightlyRate: d.Value(rate),
-              sequence: d.Value(sequence),
-              isProcessedByAutoFix: const d.Value(false),
-            ),
-            mode: d.InsertMode.insertOrReplace,
-          );
-        }
-      });
-    });
-  }
-
   double _calculateNightlyRate(
     DateTime segmentStart,
     double baseRate,
@@ -294,7 +157,9 @@ class BookingDerivedFieldsService {
     String discountType,
     DateTime? discountStartDate,
   ) {
-    if (baseRate < 0) baseRate = 0;
+    if (baseRate < 0) {
+      baseRate = 0;
+    }
     var rate = baseRate;
     if (discount > 0 && discountType != 'total') {
       final segDay = DateTime(segmentStart.year, segmentStart.month, segmentStart.day);
@@ -333,12 +198,16 @@ class BookingDerivedFieldsService {
   }
 
   DateTime? _parseDateTime(String? value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     final v = value.trim();
-    if (v.isEmpty) return null;
+    if (v.isEmpty) {
+      return null;
+    }
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds = normalized.length == 16
-        ? '${normalized}:00'
+        ? '$normalized:00'
         : normalized;
     try {
       return DateTime.parse(withSeconds);
@@ -347,22 +216,24 @@ class BookingDerivedFieldsService {
     }
   }
 
+  // ignore: unused_element
   List<_NightSegment> _buildNightSegments(
     DateTime checkin,
     DateTime checkout, {
-    int cutoffHour = 14,
+    int? cutoffHour,
   }) {
+    final int resolvedCutoffHour = cutoffHour ?? RemoteConfigService.instance.checkoutHour;
     final segments = <_NightSegment>[];
 
     // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
-    int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: cutoffHour);
+    final int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: resolvedCutoffHour);
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
     DateTime startOfCheckinHotelDay = DateTime(
       checkin.year,
       checkin.month,
       checkin.day,
-      cutoffHour,
+      resolvedCutoffHour,
     );
     if (checkin.isBefore(startOfCheckinHotelDay)) {
       startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(const Duration(days: 1));

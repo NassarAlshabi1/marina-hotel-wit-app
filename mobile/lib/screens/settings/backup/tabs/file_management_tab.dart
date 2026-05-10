@@ -17,7 +17,7 @@ class FileManagementTab extends ConsumerWidget {
         const SizedBox(height: UIConstants.spacingLG),
 
         // File Types
-        SectionHeader(
+        const SectionHeader(
           title: 'أنواع الملفات المدعومة',
           icon: Icons.file_present,
         ),
@@ -26,7 +26,7 @@ class FileManagementTab extends ConsumerWidget {
         const SizedBox(height: UIConstants.spacingLG),
 
         // Recent Operations
-        SectionHeader(title: 'العمليات الأخيرة', icon: Icons.history),
+        const SectionHeader(title: 'العمليات الأخيرة', icon: Icons.history),
         _buildRecentOperationsList(),
       ],
     );
@@ -171,7 +171,7 @@ class FileManagementTab extends ConsumerWidget {
     }
 
     return Column(
-      children: operations.map((op) => _buildOperationItem(op)).toList(),
+      children: operations.map(_buildOperationItem).toList(),
     );
   }
 
@@ -180,12 +180,12 @@ class FileManagementTab extends ConsumerWidget {
     final isSuccess = operation['status'] == 'success';
 
     return Card(
-      margin: EdgeInsets.only(bottom: UIConstants.spacingSM),
+      margin: const EdgeInsets.only(bottom: UIConstants.spacingSM),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(UIConstants.spacingSM),
           decoration: BoxDecoration(
-            color: (isExport ? Colors.green : Colors.blue).withOpacity(0.1),
+            color: (isExport ? Colors.green : Colors.blue).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(UIConstants.radiusMD),
           ),
           child: Icon(
@@ -199,14 +199,13 @@ class FileManagementTab extends ConsumerWidget {
           children: [
             const SizedBox(height: 4),
             Text(
-              DateTimeFormatter.getRelativeTime(operation['date']),
+              DateTimeFormatter.getRelativeTime(operation['date'] as String?),
               style: const TextStyle(fontSize: 12),
             ),
           ],
         ),
         trailing: StatusBadge(
           status: isSuccess ? 'نجح' : 'فشل',
-          showIcon: true,
         ),
       ),
     );

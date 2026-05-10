@@ -21733,6 +21733,15 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('REFERENCES bookings (id)'));
+  static const VerificationMeta _roomNumberMeta =
+      const VerificationMeta('roomNumber');
+  @override
+  late final GeneratedColumn<String> roomNumber = GeneratedColumn<String>(
+      'room_number', aliasedName, true,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 20),
+      type: DriftSqlType.string,
+      requiredDuringInsert: false);
   static const VerificationMeta _adjustmentTypeMeta =
       const VerificationMeta('adjustmentType');
   @override
@@ -21820,6 +21829,7 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
         id,
         bookingLocalUuid,
         bookingLocalId,
+        roomNumber,
         adjustmentType,
         adjustmentMode,
         amount,
@@ -21937,6 +21947,12 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
           bookingLocalId.isAcceptableOrUnknown(
               data['booking_local_id']!, _bookingLocalIdMeta));
     }
+    if (data.containsKey('room_number')) {
+      context.handle(
+          _roomNumberMeta,
+          roomNumber.isAcceptableOrUnknown(
+              data['room_number']!, _roomNumberMeta));
+    }
     if (data.containsKey('adjustment_type')) {
       context.handle(
           _adjustmentTypeMeta,
@@ -22034,6 +22050,8 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
           DriftSqlType.string, data['${effectivePrefix}booking_local_uuid'])!,
       bookingLocalId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}booking_local_id']),
+      roomNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}room_number']),
       adjustmentType: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}adjustment_type'])!,
       adjustmentMode: attachedDatabase.typeMapping.read(
@@ -22082,6 +22100,7 @@ class BookingPriceAdjustment extends DataClass
   final int id;
   final String bookingLocalUuid;
   final int? bookingLocalId;
+  final String? roomNumber;
   final int adjustmentType;
   final String adjustmentMode;
   final double amount;
@@ -22110,6 +22129,7 @@ class BookingPriceAdjustment extends DataClass
       required this.id,
       required this.bookingLocalUuid,
       this.bookingLocalId,
+      this.roomNumber,
       required this.adjustmentType,
       required this.adjustmentMode,
       required this.amount,
@@ -22151,6 +22171,9 @@ class BookingPriceAdjustment extends DataClass
     map['booking_local_uuid'] = Variable<String>(bookingLocalUuid);
     if (!nullToAbsent || bookingLocalId != null) {
       map['booking_local_id'] = Variable<int>(bookingLocalId);
+    }
+    if (!nullToAbsent || roomNumber != null) {
+      map['room_number'] = Variable<String>(roomNumber);
     }
     map['adjustment_type'] = Variable<int>(adjustmentType);
     map['adjustment_mode'] = Variable<String>(adjustmentMode);
@@ -22206,6 +22229,9 @@ class BookingPriceAdjustment extends DataClass
       bookingLocalId: bookingLocalId == null && nullToAbsent
           ? const Value.absent()
           : Value(bookingLocalId),
+      roomNumber: roomNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(roomNumber),
       adjustmentType: Value(adjustmentType),
       adjustmentMode: Value(adjustmentMode),
       amount: Value(amount),
@@ -22249,6 +22275,7 @@ class BookingPriceAdjustment extends DataClass
       id: serializer.fromJson<int>(json['id']),
       bookingLocalUuid: serializer.fromJson<String>(json['bookingLocalUuid']),
       bookingLocalId: serializer.fromJson<int?>(json['bookingLocalId']),
+      roomNumber: serializer.fromJson<String?>(json['roomNumber']),
       adjustmentType: serializer.fromJson<int>(json['adjustmentType']),
       adjustmentMode: serializer.fromJson<String>(json['adjustmentMode']),
       amount: serializer.fromJson<double>(json['amount']),
@@ -22282,6 +22309,7 @@ class BookingPriceAdjustment extends DataClass
       'id': serializer.toJson<int>(id),
       'bookingLocalUuid': serializer.toJson<String>(bookingLocalUuid),
       'bookingLocalId': serializer.toJson<int?>(bookingLocalId),
+      'roomNumber': serializer.toJson<String?>(roomNumber),
       'adjustmentType': serializer.toJson<int>(adjustmentType),
       'adjustmentMode': serializer.toJson<String>(adjustmentMode),
       'amount': serializer.toJson<double>(amount),
@@ -22313,6 +22341,7 @@ class BookingPriceAdjustment extends DataClass
           int? id,
           String? bookingLocalUuid,
           Value<int?> bookingLocalId = const Value.absent(),
+          Value<String?> roomNumber = const Value.absent(),
           int? adjustmentType,
           String? adjustmentMode,
           double? amount,
@@ -22345,6 +22374,7 @@ class BookingPriceAdjustment extends DataClass
         bookingLocalUuid: bookingLocalUuid ?? this.bookingLocalUuid,
         bookingLocalId:
             bookingLocalId.present ? bookingLocalId.value : this.bookingLocalId,
+        roomNumber: roomNumber.present ? roomNumber.value : this.roomNumber,
         adjustmentType: adjustmentType ?? this.adjustmentType,
         adjustmentMode: adjustmentMode ?? this.adjustmentMode,
         amount: amount ?? this.amount,
@@ -22393,6 +22423,8 @@ class BookingPriceAdjustment extends DataClass
       bookingLocalId: data.bookingLocalId.present
           ? data.bookingLocalId.value
           : this.bookingLocalId,
+      roomNumber:
+          data.roomNumber.present ? data.roomNumber.value : this.roomNumber,
       adjustmentType: data.adjustmentType.present
           ? data.adjustmentType.value
           : this.adjustmentType,
@@ -22435,6 +22467,7 @@ class BookingPriceAdjustment extends DataClass
           ..write('id: $id, ')
           ..write('bookingLocalUuid: $bookingLocalUuid, ')
           ..write('bookingLocalId: $bookingLocalId, ')
+          ..write('roomNumber: $roomNumber, ')
           ..write('adjustmentType: $adjustmentType, ')
           ..write('adjustmentMode: $adjustmentMode, ')
           ..write('amount: $amount, ')
@@ -22468,6 +22501,7 @@ class BookingPriceAdjustment extends DataClass
         id,
         bookingLocalUuid,
         bookingLocalId,
+        roomNumber,
         adjustmentType,
         adjustmentMode,
         amount,
@@ -22500,6 +22534,7 @@ class BookingPriceAdjustment extends DataClass
           other.id == this.id &&
           other.bookingLocalUuid == this.bookingLocalUuid &&
           other.bookingLocalId == this.bookingLocalId &&
+          other.roomNumber == this.roomNumber &&
           other.adjustmentType == this.adjustmentType &&
           other.adjustmentMode == this.adjustmentMode &&
           other.amount == this.amount &&
@@ -22531,6 +22566,7 @@ class BookingPriceAdjustmentsCompanion
   final Value<int> id;
   final Value<String> bookingLocalUuid;
   final Value<int?> bookingLocalId;
+  final Value<String?> roomNumber;
   final Value<int> adjustmentType;
   final Value<String> adjustmentMode;
   final Value<double> amount;
@@ -22559,6 +22595,7 @@ class BookingPriceAdjustmentsCompanion
     this.id = const Value.absent(),
     this.bookingLocalUuid = const Value.absent(),
     this.bookingLocalId = const Value.absent(),
+    this.roomNumber = const Value.absent(),
     this.adjustmentType = const Value.absent(),
     this.adjustmentMode = const Value.absent(),
     this.amount = const Value.absent(),
@@ -22588,6 +22625,7 @@ class BookingPriceAdjustmentsCompanion
     this.id = const Value.absent(),
     required String bookingLocalUuid,
     this.bookingLocalId = const Value.absent(),
+    this.roomNumber = const Value.absent(),
     this.adjustmentType = const Value.absent(),
     this.adjustmentMode = const Value.absent(),
     this.amount = const Value.absent(),
@@ -22622,6 +22660,7 @@ class BookingPriceAdjustmentsCompanion
     Expression<int>? id,
     Expression<String>? bookingLocalUuid,
     Expression<int>? bookingLocalId,
+    Expression<String>? roomNumber,
     Expression<int>? adjustmentType,
     Expression<String>? adjustmentMode,
     Expression<double>? amount,
@@ -22651,6 +22690,7 @@ class BookingPriceAdjustmentsCompanion
       if (id != null) 'id': id,
       if (bookingLocalUuid != null) 'booking_local_uuid': bookingLocalUuid,
       if (bookingLocalId != null) 'booking_local_id': bookingLocalId,
+      if (roomNumber != null) 'room_number': roomNumber,
       if (adjustmentType != null) 'adjustment_type': adjustmentType,
       if (adjustmentMode != null) 'adjustment_mode': adjustmentMode,
       if (amount != null) 'amount': amount,
@@ -22682,6 +22722,7 @@ class BookingPriceAdjustmentsCompanion
       Value<int>? id,
       Value<String>? bookingLocalUuid,
       Value<int?>? bookingLocalId,
+      Value<String?>? roomNumber,
       Value<int>? adjustmentType,
       Value<String>? adjustmentMode,
       Value<double>? amount,
@@ -22710,6 +22751,7 @@ class BookingPriceAdjustmentsCompanion
       id: id ?? this.id,
       bookingLocalUuid: bookingLocalUuid ?? this.bookingLocalUuid,
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
+      roomNumber: roomNumber ?? this.roomNumber,
       adjustmentType: adjustmentType ?? this.adjustmentType,
       adjustmentMode: adjustmentMode ?? this.adjustmentMode,
       amount: amount ?? this.amount,
@@ -22777,6 +22819,9 @@ class BookingPriceAdjustmentsCompanion
     if (bookingLocalId.present) {
       map['booking_local_id'] = Variable<int>(bookingLocalId.value);
     }
+    if (roomNumber.present) {
+      map['room_number'] = Variable<String>(roomNumber.value);
+    }
     if (adjustmentType.present) {
       map['adjustment_type'] = Variable<int>(adjustmentType.value);
     }
@@ -22830,6 +22875,7 @@ class BookingPriceAdjustmentsCompanion
           ..write('id: $id, ')
           ..write('bookingLocalUuid: $bookingLocalUuid, ')
           ..write('bookingLocalId: $bookingLocalId, ')
+          ..write('roomNumber: $roomNumber, ')
           ..write('adjustmentType: $adjustmentType, ')
           ..write('adjustmentMode: $adjustmentMode, ')
           ..write('amount: $amount, ')
@@ -27758,7 +27804,9 @@ final class $$BookingsTableReferences
     final manager = $$RoomsTableTableManager($_db, $_db.rooms)
         .filter((f) => f.roomNumber.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_roomNumberTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -29028,7 +29076,9 @@ final class $$BookingNotesTableReferences
     final manager = $$BookingsTableTableManager($_db, $_db.bookings)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_bookingIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -31480,11 +31530,15 @@ final class $$PaymentsTableReferences
 
   $$BookingsTableProcessedTableManager? get bookingLocalId {
     final $_column = $_itemColumn<int>('booking_local_id');
-    if ($_column == null) return null;
+    if ($_column == null) {
+      return null;
+    }
     final manager = $$BookingsTableTableManager($_db, $_db.bookings)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_bookingLocalIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -31496,13 +31550,17 @@ final class $$PaymentsTableReferences
 
   $$CashTransactionsTableProcessedTableManager? get cashTransactionLocalId {
     final $_column = $_itemColumn<int>('cash_transaction_local_id');
-    if ($_column == null) return null;
+    if ($_column == null) {
+      return null;
+    }
     final manager =
         $$CashTransactionsTableTableManager($_db, $_db.cashTransactions)
             .filter((f) => f.id.sqlEquals($_column));
     final item =
         $_typedResult.readTableOrNull(_cashTransactionLocalIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -32315,11 +32373,15 @@ final class $$DebtsTableReferences
 
   $$BookingsTableProcessedTableManager? get bookingLocalId {
     final $_column = $_itemColumn<int>('booking_local_id');
-    if ($_column == null) return null;
+    if ($_column == null) {
+      return null;
+    }
     final manager = $$BookingsTableTableManager($_db, $_db.bookings)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_bookingLocalIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -33026,7 +33088,9 @@ final class $$BookingNightsTableReferences
     final manager = $$BookingsTableTableManager($_db, $_db.bookings)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_bookingLocalIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -34447,7 +34511,9 @@ final class $$IntegrityViolationsTableReferences extends BaseReferences<
     final manager = $$AutoFixRunsTableTableManager($_db, $_db.autoFixRuns)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_runIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -35026,7 +35092,9 @@ final class $$SalaryCyclesTableReferences
     final manager = $$EmployeesTableTableManager($_db, $_db.employees)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_employeeIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -35649,7 +35717,9 @@ final class $$SalaryPaymentsTableReferences
     final manager = $$SalaryCyclesTableTableManager($_db, $_db.salaryCycles)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_cycleIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -37406,7 +37476,9 @@ final class $$SyncConflictsTableReferences extends BaseReferences<_$AppDatabase,
     final manager = $$SyncLogTableTableManager($_db, $_db.syncLog)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_logIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -38214,6 +38286,7 @@ typedef $$BookingPriceAdjustmentsTableCreateCompanionBuilder
   Value<int> id,
   required String bookingLocalUuid,
   Value<int?> bookingLocalId,
+  Value<String?> roomNumber,
   Value<int> adjustmentType,
   Value<String> adjustmentMode,
   Value<double> amount,
@@ -38244,6 +38317,7 @@ typedef $$BookingPriceAdjustmentsTableUpdateCompanionBuilder
   Value<int> id,
   Value<String> bookingLocalUuid,
   Value<int?> bookingLocalId,
+  Value<String?> roomNumber,
   Value<int> adjustmentType,
   Value<String> adjustmentMode,
   Value<double> amount,
@@ -38267,11 +38341,15 @@ final class $$BookingPriceAdjustmentsTableReferences extends BaseReferences<
 
   $$BookingsTableProcessedTableManager? get bookingLocalId {
     final $_column = $_itemColumn<int>('booking_local_id');
-    if ($_column == null) return null;
+    if ($_column == null) {
+      return null;
+    }
     final manager = $$BookingsTableTableManager($_db, $_db.bookings)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_bookingLocalIdTable($_db));
-    if (item == null) return manager;
+    if (item == null) {
+      return manager;
+    }
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -38336,6 +38414,9 @@ class $$BookingPriceAdjustmentsTableFilterComposer
   ColumnFilters<String> get bookingLocalUuid => $composableBuilder(
       column: $table.bookingLocalUuid,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get roomNumber => $composableBuilder(
+      column: $table.roomNumber, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get adjustmentType => $composableBuilder(
       column: $table.adjustmentType,
@@ -38455,6 +38536,9 @@ class $$BookingPriceAdjustmentsTableOrderingComposer
       column: $table.bookingLocalUuid,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get roomNumber => $composableBuilder(
+      column: $table.roomNumber, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get adjustmentType => $composableBuilder(
       column: $table.adjustmentType,
       builder: (column) => ColumnOrderings(column));
@@ -38566,6 +38650,9 @@ class $$BookingPriceAdjustmentsTableAnnotationComposer
   GeneratedColumn<String> get bookingLocalUuid => $composableBuilder(
       column: $table.bookingLocalUuid, builder: (column) => column);
 
+  GeneratedColumn<String> get roomNumber => $composableBuilder(
+      column: $table.roomNumber, builder: (column) => column);
+
   GeneratedColumn<int> get adjustmentType => $composableBuilder(
       column: $table.adjustmentType, builder: (column) => column);
 
@@ -38661,6 +38748,7 @@ class $$BookingPriceAdjustmentsTableTableManager extends RootTableManager<
             Value<int> id = const Value.absent(),
             Value<String> bookingLocalUuid = const Value.absent(),
             Value<int?> bookingLocalId = const Value.absent(),
+            Value<String?> roomNumber = const Value.absent(),
             Value<int> adjustmentType = const Value.absent(),
             Value<String> adjustmentMode = const Value.absent(),
             Value<double> amount = const Value.absent(),
@@ -38690,6 +38778,7 @@ class $$BookingPriceAdjustmentsTableTableManager extends RootTableManager<
             id: id,
             bookingLocalUuid: bookingLocalUuid,
             bookingLocalId: bookingLocalId,
+            roomNumber: roomNumber,
             adjustmentType: adjustmentType,
             adjustmentMode: adjustmentMode,
             amount: amount,
@@ -38719,6 +38808,7 @@ class $$BookingPriceAdjustmentsTableTableManager extends RootTableManager<
             Value<int> id = const Value.absent(),
             required String bookingLocalUuid,
             Value<int?> bookingLocalId = const Value.absent(),
+            Value<String?> roomNumber = const Value.absent(),
             Value<int> adjustmentType = const Value.absent(),
             Value<String> adjustmentMode = const Value.absent(),
             Value<double> amount = const Value.absent(),
@@ -38748,6 +38838,7 @@ class $$BookingPriceAdjustmentsTableTableManager extends RootTableManager<
             id: id,
             bookingLocalUuid: bookingLocalUuid,
             bookingLocalId: bookingLocalId,
+            roomNumber: roomNumber,
             adjustmentType: adjustmentType,
             adjustmentMode: adjustmentMode,
             amount: amount,

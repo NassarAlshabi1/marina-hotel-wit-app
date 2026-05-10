@@ -1,17 +1,22 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
+
 import '../../utils/status_utils.dart';
-import '../local_db.dart';
+import '../auto_backup_manager.dart';
+import '../crashlytics_service.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/rooms_dao.dart';
-import '../auto_backup_manager.dart';
+import '../local_db.dart';
 
 class RoomsRepository {
-  RoomsRepository(this.db)
-    : outbox = OutboxDao(db),
-      dao = RoomsDao(db, OutboxDao(db));
+  RoomsRepository(this.db) {
+    outbox = OutboxDao(db);
+    dao = RoomsDao(db, outbox);
+  }
   final AppDatabase db;
-  final OutboxDao outbox;
-  final RoomsDao dao;
+  late final OutboxDao outbox;
+  late final RoomsDao dao;
 
   Stream<List<Room>> watchAll({String? search}) =>
       dao.watchList(search: search);
@@ -26,21 +31,33 @@ class RoomsRepository {
     required String status,
     String? imageUrl,
   }) async {
-    final result = await dao.insertOne(
-      RoomsCompanion(
-        roomNumber: d.Value(roomNumber),
-        type: d.Value(type),
-        price: d.Value(price),
-        status: d.Value(status),
-        imageUrl: d.Value(imageUrl),
-      ),
-    );
-    AutoBackupManager.instance.onDataChange(
-      'rooms',
-      'INSERT',
-      recordData: {'room_number': roomNumber},
-    );
-    return result;
+    try {
+      final result = await dao.insertOne(
+        RoomsCompanion(
+          roomNumber: d.Value(roomNumber),
+          type: d.Value(type),
+          price: d.Value(price),
+          status: d.Value(status),
+          imageUrl: d.Value(imageUrl),
+        ),
+      );
+      unawaited(AutoBackupManager.instance.onDataChange(
+        'rooms',
+        'INSERT',
+        recordData: {'room_number': roomNumber},
+      ),);
+      return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'RoomsRepository',
+        action: 'create',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.fatal,
+        extra: {'roomNumber': roomNumber, 'type': type},
+      );
+      rethrow;
+    }
   }
 
   Future<int> update(
@@ -50,23 +67,34 @@ class RoomsRepository {
     String? status,
     String? imageUrl,
   }) async {
-    final result = await dao.updateById(
-      id,
-      RoomsCompanion(
-        type: type != null ? d.Value(type) : const d.Value.absent(),
-        price: price != null ? d.Value(price) : const d.Value.absent(),
-        status: status != null ? d.Value(status) : const d.Value.absent(),
-        imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
-      ),
-    );
-    if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
-        'rooms',
-        'UPDATE',
-        recordData: {'id': id},
+    try {
+      final result = await dao.updateById(
+        id,
+        RoomsCompanion(
+          type: type != null ? d.Value(type) : const d.Value.absent(),
+          price: price != null ? d.Value(price) : const d.Value.absent(),
+          status: status != null ? d.Value(status) : const d.Value.absent(),
+          imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
+        ),
       );
+      if (result > 0) {
+        unawaited(AutoBackupManager.instance.onDataChange(
+          'rooms',
+          'UPDATE',
+          recordData: {'id': id},
+        ),);
+      }
+      return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'RoomsRepository',
+        action: 'update',
+        error: e,
+        stackTrace: stack,
+        extra: {'id': '$id'},
+      );
+      rethrow;
     }
-    return result;
   }
 
   Future<int> updateByRoomNumber(
@@ -76,35 +104,70 @@ class RoomsRepository {
     String? status,
     String? imageUrl,
   }) async {
-    final result = await dao.updateByNumber(
-      roomNumber,
-      RoomsCompanion(
-        type: type != null ? d.Value(type) : const d.Value.absent(),
-        price: price != null ? d.Value(price) : const d.Value.absent(),
-        status: status != null ? d.Value(status) : const d.Value.absent(),
-        imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
-      ),
-    );
-    if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
-        'rooms',
-        'UPDATE',
-        recordData: {'room_number': roomNumber},
+    try {
+      final result = await dao.updateByNumber(
+        roomNumber,
+        RoomsCompanion(
+          type: type != null ? d.Value(type) : const d.Value.absent(),
+          price: price != null ? d.Value(price) : const d.Value.absent(),
+          status: status != null ? d.Value(status) : const d.Value.absent(),
+          imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
+        ),
       );
+      if (result > 0) {
+        unawaited(AutoBackupManager.instance.onDataChange(
+          'rooms',
+          'UPDATE',
+          recordData: {'room_number': roomNumber},
+        ),);
+      }
+      return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'RoomsRepository',
+        action: 'updateByRoomNumber',
+        error: e,
+        stackTrace: stack,
+        extra: {'roomNumber': roomNumber},
+      );
+      rethrow;
     }
-    return result;
   }
 
   Future<int> delete(String roomNumber) async {
-    final result = await dao.softDelete(roomNumber);
-    if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
-        'rooms',
-        'DELETE',
-        recordData: {'room_number': roomNumber},
+    try {
+      // ✅ فحص وجود حجوزات نشطة قبل الحذف
+      final activeBooking = await (db.select(db.bookings)
+            ..where((b) => b.roomNumber.equals(roomNumber))
+            ..where((b) => b.deletedAt.isNull())
+            ..where((b) => b.status.isIn(StatusUtils.activeBookingStatuses))
+            ..limit(1))
+          .getSingleOrNull();
+      if (activeBooking != null) {
+        throw StateError(
+          'لا يمكن حذف الغرفة $roomNumber: يوجد حجز نشط '
+          '(الضيف: ${activeBooking.guestName})',
+        );
+      }
+      final result = await dao.softDelete(roomNumber);
+      if (result > 0) {
+        unawaited(AutoBackupManager.instance.onDataChange(
+          'rooms',
+          'DELETE',
+          recordData: {'room_number': roomNumber},
+        ),);
+      }
+      return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'RoomsRepository',
+        action: 'delete',
+        error: e,
+        stackTrace: stack,
+        extra: {'roomNumber': roomNumber},
       );
+      rethrow;
     }
-    return result;
   }
 
   Future<int> updateStatus(int id, String status) async {
@@ -125,8 +188,7 @@ class RoomsRepository {
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
       await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data']),
-        clearExisting: false,
+        List<Map<String, dynamic>>.from(data['data'] as List),
       );
     }
   }
@@ -138,7 +200,7 @@ class RoomsRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 
   Future<void> refreshAllRoomOccupancy() async {

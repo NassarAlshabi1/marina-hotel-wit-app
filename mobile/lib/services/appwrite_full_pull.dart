@@ -1,12 +1,15 @@
+import 'dart:developer' as developer;
+
 import 'package:appwrite/appwrite.dart';
 import 'package:drift/drift.dart' as drift;
-import 'appwrite_config.dart';
-import 'appwrite_service.dart';
-import 'local_db.dart';
+
+import '../utils/status_utils.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
+import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
-import '../utils/status_utils.dart';
+import 'appwrite_service.dart';
+import 'local_db.dart';
 
 /// ✅ خدمة السحب الشامل من Appwrite
 /// تجلب جميع البيانات بدون أي فلترة - كل الجداول وكل الحقول
@@ -80,6 +83,20 @@ class AppwriteFullPull {
     } finally {
       // إعادة تفعيل FOREIGN KEY
       await _database!.customStatement('PRAGMA foreign_keys=ON');
+
+      // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+      try {
+        final violations = await _database!.customSelect(
+          'PRAGMA foreign_key_check',
+          readsFrom: Set.unmodifiable({}),
+        ).get();
+        if (violations.isNotEmpty) {
+          developer.log(
+            '⚠️ FK violations after sync: ${violations.length} rows',
+            name: 'SyncSafety',
+          );
+        }
+      } catch (_) {}
     }
 
     return result;
@@ -346,10 +363,12 @@ class AppwriteFullPull {
       final rooms = await _database!.select(_database!.rooms).get();
 
       for (final room in rooms) {
-        if (room.deletedAt != null) continue;
+        if (room.deletedAt != null) {
+          continue;
+        }
 
         final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
-        final newStatus = shouldBeOccupied ? 'مشغولة' : 'شاغرة';
+        final newStatus = shouldBeOccupied ? 'محجوزة' : 'شاغرة';
 
         if (room.status != newStatus) {
           final query = _database!.update(_database!.rooms)

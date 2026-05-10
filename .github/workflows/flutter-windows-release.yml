@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'capy/**'
+      - 'marina'
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-windows-release.yml'
@@ -44,12 +44,15 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.3'
+          flutter-version: '3.35.7'
           cache: true
-          cache-key: flutter-${{ runner.os }}-3.38.3
+          cache-key: flutter-${{ runner.os }}-3.35.7
 
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
+
+      - name: Add Windows platform support
+        run: flutter create --platforms=windows .
 
       - name: Flutter doctor
         run: flutter doctor -v

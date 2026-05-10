@@ -82,7 +82,6 @@ class HotelDateHelper {
     return Time.nightsWithCutoff(
       checkIn,
       checkout: checkOut,
-      cutoffHour: hotelStartHour,
     );
   }
 
@@ -213,12 +212,12 @@ class HotelDateHelper {
     String entity,
     Map<String, dynamic> payload,
   ) {
-    if (entity != 'bookings') return payload;
+    if (entity != 'bookings') {
+      return payload;
+    }
 
     final result = Map<String, dynamic>.from(payload);
-    for (final field in bookingComputedFields) {
-      result.remove(field);
-    }
+    bookingComputedFields.forEach(result.remove);
     return result;
   }
 }

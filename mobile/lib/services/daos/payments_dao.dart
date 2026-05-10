@@ -1,11 +1,12 @@
 import 'package:drift/drift.dart';
+
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../adapters/adapter_registry.dart';
+import '../adapters/source.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
-import '../adapters/adapter_registry.dart';
-import '../adapters/source.dart';
 
 part 'payments_dao.g.dart';
 
@@ -22,9 +23,19 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     String? to,
     String? revenueType,
     bool includeDeleted = false,
+    bool excludeVoided = false,
+    bool excludePendingBalance = false,
   }) async {
     final q = select(payments);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+    if (excludeVoided) {
+      q.where((t) => t.isVoided.equals(false));
+    }
+    if (excludePendingBalance) {
+      q.where((t) => t.isPendingBalance.equals(false));
+    }
     if (bookingLocalId != null) {
       q.where((t) => t.bookingLocalId.equals(bookingLocalId));
     }
@@ -51,7 +62,12 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
   }) async {
     final q = select(payments);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+    // استبعاد المدفوعات المُلغاة والمعلقة من التقارير المالية
+    q.where((t) => t.isVoided.equals(false));
+    q.where((t) => t.isPendingBalance.equals(false));
 
     if (from != null && to != null) {
       q.where(
@@ -76,10 +92,36 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
   }) {
     final q = select(payments);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     if (bookingLocalId != null) {
       q.where((t) => t.bookingLocalId.equals(bookingLocalId));
     }
+    return q.watch();
+  }
+
+  /// مراقبة المدفوعات ليوم فندقي محدد (فلتر على مستوى قاعدة البيانات)
+  ///
+  /// يتضمن المدفوعات التي:
+  /// 1. hotelDayKey == [hotelDayKey]
+  /// 2. hotelDayKey == null وتاريخها ضمن نطاق اليوم الفندقي
+  Stream<List<Payment>> watchByHotelDayKey(
+    String hotelDayKey, {
+    bool includeVoided = false,
+  }) {
+    final q = select(payments);
+    q.where((t) => t.deletedAt.isNull());
+    if (!includeVoided) {
+      q.where((t) => t.isVoided.equals(false));
+    }
+    // حالة 1: hotelDayKey يطابق اليوم
+    q.where(
+      (t) => t.hotelDayKey.equals(hotelDayKey) |
+          // حالة 2: hotelDayKey فارغ وتاريخ الدفعة ضمن نطاق اليوم
+          (t.hotelDayKey.isNull() &
+              t.paymentDate.like('$hotelDayKey%')),
+    );
     return q.watch();
   }
 
@@ -87,9 +129,15 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   Future<List<Payment>> listByDate(
     String date, {
     bool includeDeleted = false,
+    bool includeVoided = false,
   }) async {
     final q = select(payments);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+    if (!includeVoided) {
+      q.where((t) => t.isVoided.equals(false));
+    }
     q.where((t) => t.paymentDate.like('$date%'));
     return q.get();
   }
@@ -97,21 +145,23 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   Future<List<Payment>> listByHotelDayKey(
     String hotelDayKey, {
     bool includeDeleted = false,
+    bool includeVoided = false,
     String? revenueType,
   }) async {
     final q = select(payments);
-    if (!includeDeleted) q.where((t) => t.deletedAt.isNull());
-
-    final startIso = Time.hotelDayStartIso(hotelDayKey);
-    final endIso = Time.hotelDayEndIso(hotelDayKey);
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+    if (!includeVoided) {
+      q.where((t) => t.isVoided.equals(false));
+    }
 
     final byKey = payments.hotelDayKey.equals(hotelDayKey);
-    final byRangeFallback =
+    final byDateFallback =
         payments.hotelDayKey.isNull() &
-        payments.paymentDate.isBiggerOrEqualValue(startIso) &
-        payments.paymentDate.isSmallerThanValue(endIso);
+        payments.paymentDate.like('$hotelDayKey%');
 
-    q.where((t) => byKey | byRangeFallback);
+    q.where((t) => byKey | byDateFallback);
 
     if (revenueType != null && revenueType.isNotEmpty) {
       q.where((t) => t.revenueType.equals(revenueType));
@@ -163,10 +213,13 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: Value(now),
+        version: Value(existing.version + 1),
       );
       final rows = await (update(
         payments,
@@ -187,7 +240,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
-      if (existing == null) return 0;
+      if (existing == null) {
+        return 0;
+      }
       final rows = await (update(payments)..where((t) => t.id.equals(id)))
           .write(
             PaymentsCompanion(
@@ -214,7 +269,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-    if (row == null) return null;
+    if (row == null) {
+      return null;
+    }
     return adapters.payments.toJsonForSource(row, src: Source.appwrite);
   }
 
@@ -225,7 +282,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     int? serverId,
   }) async {
     final payload = await _payloadForLocalUuid(localUuid);
-    if (payload == null) return;
+    if (payload == null) {
+      return;
+    }
     await outboxDao.merge(
       entity: 'payments',
       op: op,
@@ -240,7 +299,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
 
   /// تصدير جميع المدفوعات إلى JSON
   Future<List<Map<String, dynamic>>> exportToJson() async {
-    final paymentsList = await list(includeDeleted: false);
+    final paymentsList = await list();
     return paymentsList.map((payment) => payment.toJson()).toList();
   }
 

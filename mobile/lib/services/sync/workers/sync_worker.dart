@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
-import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../core/sync_orchestrator.dart';
@@ -15,11 +14,12 @@ class SyncWorker {
 
   /// تهيئة WorkManager
   static Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
     
     await Workmanager().initialize(
       callbackDispatcher,
-      isInDebugMode: kDebugMode,
     );
     
     _isInitialized = true;
@@ -29,7 +29,9 @@ class SyncWorker {
   static Future<void> schedulePeriodicSync({
     Duration frequency = const Duration(hours: 1),
   }) async {
-    if (!_isInitialized) await initialize();
+    if (!_isInitialized) {
+      await initialize();
+    }
     
     await Workmanager().registerPeriodicTask(
       periodicTaskName,
@@ -39,7 +41,7 @@ class SyncWorker {
         networkType: NetworkType.connected,
         requiresBatteryNotLow: true,
       ),
-      existingWorkPolicy: ExistingWorkPolicy.replace,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     );
     
     developer.log('✅ تم جدولة المزامنة الدورية كل ${frequency.inMinutes} دقيقة');
@@ -53,7 +55,9 @@ class SyncWorker {
 
   /// تنفيذ مزامنة فورية في الخلفية
   static Future<void> syncNowInBackground() async {
-    if (!_isInitialized) await initialize();
+    if (!_isInitialized) {
+      await initialize();
+    }
     
     await Workmanager().registerOneOffTask(
       'sync-${DateTime.now().millisecondsSinceEpoch}',

@@ -1,6 +1,11 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
+
+import '../../utils/id.dart';
+import '../../utils/time.dart';
+import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 
 String _normalizeArabic(String input) {
@@ -27,21 +32,13 @@ List<String> _tokens(String name) => _normalizeArabic(
 ).split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
 
 bool _tripleMatch(List<String> a, List<String> b) {
-  if (a.length < 3 || b.length < 3) return false;
+  if (a.length < 3 || b.length < 3) {
+    return false;
+  }
   return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
 }
 
 class BlacklistEntry {
-  final int id;
-  final String name;
-  final String? nationality;
-  final String? nationalId;
-  final String? phone;
-  final String? reason;
-  final String? notes;
-  final String reportedBy;
-  final bool active;
-  final DateTime createdAt;
 
   const BlacklistEntry({
     required this.id,
@@ -55,11 +52,22 @@ class BlacklistEntry {
     this.active = true,
     required this.createdAt,
   });
+  final int id;
+  final String name;
+  final String? nationality;
+  final String? nationalId;
+  final String? phone;
+  final String? reason;
+  final String? notes;
+  final String reportedBy;
+  final bool active;
+  final DateTime createdAt;
 }
 
 class BlacklistRepository {
-  BlacklistRepository(this.db);
+  BlacklistRepository(this.db) : _outboxDao = OutboxDao(db);
   final AppDatabase db;
+  final OutboxDao _outboxDao;
 
   static const _createdByTag = 'blacklist';
 
@@ -85,7 +93,7 @@ class BlacklistRepository {
     Map<String, dynamic> payload = const {};
     try {
       payload = jsonDecode(row.content) as Map<String, dynamic>;
-    } catch (_) {}
+    } catch (e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
     return BlacklistEntry(
       id: row.id,
       name: row.title,
@@ -104,7 +112,7 @@ class BlacklistRepository {
 
   Stream<List<BlacklistEntry>> watchAll() {
     final query = (db.select(db.shiftNotes)
-      ..where((t) => t.createdBy.equals(_createdByTag))
+      ..where((t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull())
       ..orderBy([(t) => d.OrderingTerm.desc(t.createdAt)]));
     return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
@@ -112,7 +120,7 @@ class BlacklistRepository {
   Future<List<BlacklistEntry>> listAll() async {
     final rows =
         await (db.select(db.shiftNotes)
-              ..where((t) => t.createdBy.equals(_createdByTag))
+              ..where((t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull())
               ..orderBy([(t) => d.OrderingTerm.desc(t.createdAt)]))
             .get();
     return rows.map(_fromRow).toList();
@@ -128,6 +136,8 @@ class BlacklistRepository {
     String reportedBy = 'police',
     bool active = true,
   }) async {
+    final now = Time.nowEpoch();
+    final uuid = IdGen.uuid();
     final id = await db
         .into(db.shiftNotes)
         .insert(
@@ -148,13 +158,38 @@ class BlacklistRepository {
             ),
             priority: const d.Value('high'),
             shiftType: const d.Value('all'),
-            createdAt: d.Value(DateTime.now().millisecondsSinceEpoch ~/ 1000),
+            createdAt: d.Value(now),
             createdAtIso: d.Value(DateTime.now().toIso8601String()),
+            updatedAt: d.Value(now),
+            lastModified: d.Value(now),
             expiresAt: const d.Value(null),
             isRead: const d.Value(0),
             createdBy: const d.Value(_createdByTag),
+            localUuid: d.Value(uuid),
           ),
         );
+
+    // إضافة سجل Outbox للمزامنة مع Appwrite
+    await _outboxDao.merge(
+      entity: 'blacklist',
+      op: 'create',
+      localUuid: uuid,
+      payload: {
+        'name': name.trim(),
+        'nationality': nationality?.trim() ?? '',
+        'nationalId': nationalId?.trim() ?? '',
+        'phone': phone?.trim() ?? '',
+        'reason': reason?.trim() ?? '',
+        'notes': notes?.trim() ?? '',
+        'reportedBy': reportedBy,
+        'active': active,
+        'createdAt': now,
+        'lastModified': now,
+        'origin': 'mobile',
+      },
+      clientTs: now,
+    );
+
     return id;
   }
 
@@ -162,30 +197,156 @@ class BlacklistRepository {
     final row = await (db.select(
       db.shiftNotes,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
-    if (row == null) return false;
+    if (row == null) {
+      return false;
+    }
     Map<String, dynamic> payload = const {};
     try {
       payload = jsonDecode(row.content) as Map<String, dynamic>;
-    } catch (_) {}
+    } catch (e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
     payload['active'] = active;
+    final now = Time.nowEpoch();
     final updated =
         await (db.update(db.shiftNotes)..where((t) => t.id.equals(id))).write(
-          ShiftNotesCompanion(content: d.Value(jsonEncode(payload))),
+          ShiftNotesCompanion(
+            content: d.Value(jsonEncode(payload)),
+            updatedAt: d.Value(now),
+            lastModified: d.Value(now),
+          ),
         );
+
+    if (updated > 0) {
+      await _outboxDao.merge(
+        entity: 'blacklist',
+        op: 'update',
+        localUuid: row.localUuid,
+        serverId: row.serverId,
+        payload: {
+          'active': active,
+          'lastModified': now,
+        },
+        clientTs: now,
+      );
+    }
+
     return updated > 0;
   }
 
-  Future<bool> delete(int id) async {
-    final rows = await (db.delete(
+  Future<bool> updateEntry({
+    required int id,
+    required String name,
+    String? nationality,
+    String? nationalId,
+    String? phone,
+    String? reason,
+    String? notes,
+    String? reportedBy,
+  }) async {
+    final row = await (db.select(
       db.shiftNotes,
-    )..where((t) => t.id.equals(id))).go();
-    return rows > 0;
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (row == null) {
+      return false;
+    }
+    final oldPayload = jsonDecode(row.content) as Map<String, dynamic>;
+    final now = Time.nowEpoch();
+    final updated =
+        await (db.update(db.shiftNotes)..where((t) => t.id.equals(id))).write(
+          ShiftNotesCompanion(
+            title: d.Value(name.trim()),
+            content: d.Value(
+              jsonEncode(
+                _toPayload(
+                  nationality: nationality?.trim(),
+                  nationalId: nationalId?.trim(),
+                  phone: phone?.trim(),
+                  reason: reason?.trim(),
+                  notes: notes?.trim(),
+                  reportedBy: reportedBy ?? (oldPayload['reportedBy'] as String?) ?? 'police',
+                  active: (oldPayload['active'] as bool?) ?? true,
+                ),
+              ),
+            ),
+            updatedAt: d.Value(now),
+            lastModified: d.Value(now),
+          ),
+        );
+
+    if (updated > 0) {
+      await _outboxDao.merge(
+        entity: 'blacklist',
+        op: 'update',
+        localUuid: row.localUuid,
+        serverId: row.serverId,
+        payload: {
+          'name': name.trim(),
+          'nationality': nationality?.trim() ?? '',
+          'nationalId': nationalId?.trim() ?? '',
+          'phone': phone?.trim() ?? '',
+          'reason': reason?.trim() ?? '',
+          'notes': notes?.trim() ?? '',
+          'reportedBy': reportedBy ?? (oldPayload['reportedBy'] as String?) ?? 'police',
+          'active': (oldPayload['active'] as bool?) ?? true,
+          'lastModified': now,
+        },
+        clientTs: now,
+      );
+    }
+
+    return updated > 0;
+  }
+
+  /// ✅ إصلاح: حذف ناعم (soft delete) بدلاً من الحذف الفعلي
+  /// لتوافق مع آلية المزامنة التي تعتمد على deletedAt
+  Future<bool> delete(int id) async {
+    final row = await (db.select(
+      db.shiftNotes,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (row == null) {
+      return false;
+    }
+
+    final now = Time.nowEpoch();
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+
+    // ✅ حذف ناعم: تعيين deletedAt بدلاً من حذف الصف فعلياً
+    final updated = await (db.update(db.shiftNotes)
+          ..where((t) => t.id.equals(id)))
+        .write(ShiftNotesCompanion(
+          deletedAt: d.Value(now),
+          deletedAtIso: d.Value(nowIso),
+          updatedAt: d.Value(now),
+          lastModified: d.Value(now),
+        ),);
+
+    if (updated > 0) {
+      await _outboxDao.merge(
+        entity: 'blacklist',
+        op: 'delete',
+        localUuid: row.localUuid,
+        serverId: row.serverId,
+        payload: {
+          'deletedAt': now,
+          'lastModified': now,
+        },
+        clientTs: now,
+      );
+    }
+
+    return updated > 0;
   }
 
   Future<bool> isNameBlacklisted(String name) async {
+    return await findBlacklistMatch(name) != null;
+  }
+
+  /// فحص هل الاسم مطابق لشخص في القائمة السوداء وارجاع بياناته
+  /// تطابق: الاسم الكامل أو أول 3 أسماء متطابقة
+  /// ✅ إصلاح: استبعاد المحذوفة ناعماً
+  Future<BlacklistEntry?> findBlacklistMatch(String name) async {
     final rows = await (db.select(
       db.shiftNotes,
-    )..where((t) => t.createdBy.equals(_createdByTag))).get();
+    )..where((t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull())).get();
     final nNorm = _normalizeArabic(name);
     final nTokens = _tokens(name);
     for (final row in rows) {
@@ -196,12 +357,15 @@ class BlacklistRepository {
       if (fullEq || tripleEq) {
         try {
           final payload = jsonDecode(row.content) as Map<String, dynamic>;
-          if ((payload['active'] as bool?) ?? true) return true;
+          final active = (payload['active'] as bool?) ?? true;
+          if (active) {
+            return _fromRow(row);
+          }
         } catch (_) {
-          return true; // malformed payload -> treat as active match
+          return _fromRow(row);
         }
       }
     }
-    return false;
+    return null;
   }
 }

@@ -1,14 +1,15 @@
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
-import 'local_db.dart';
+
 import 'database_fixer.dart';
+import 'local_db.dart';
 
 /// نظام مراقبة صحة قاعدة البيانات المستمر
 class DatabaseHealthMonitor {
-  final AppDatabase db;
-  final DatabaseFixer fixer;
 
   DatabaseHealthMonitor(this.db, this.fixer);
+  final AppDatabase db;
+  final DatabaseFixer fixer;
 
   /// فحص سريع للصحة العامة (< 100ms)
   Future<HealthReport> quickScan() async {
@@ -75,7 +76,7 @@ class DatabaseHealthMonitor {
   }) async* {
     while (true) {
       yield await quickScan();
-      await Future.delayed(interval);
+      await Future<void>.delayed(interval);
     }
   }
 
@@ -161,11 +162,21 @@ class DatabaseHealthMonitor {
   double _calculateHealthScore(HealthMetrics metrics) {
     final totalIssues = metrics.totalIssues;
 
-    if (totalIssues == 0) return 100.0;
-    if (totalIssues <= 5) return 95.0;
-    if (totalIssues <= 10) return 90.0;
-    if (totalIssues <= 20) return 80.0;
-    if (totalIssues <= 50) return 70.0;
+    if (totalIssues == 0) {
+      return 100.0;
+    }
+    if (totalIssues <= 5) {
+      return 95.0;
+    }
+    if (totalIssues <= 10) {
+      return 90.0;
+    }
+    if (totalIssues <= 20) {
+      return 80.0;
+    }
+    if (totalIssues <= 50) {
+      return 70.0;
+    }
 
     return 50.0;
   }
@@ -174,8 +185,12 @@ class DatabaseHealthMonitor {
   HealthStatus _determineStatus(HealthMetrics metrics) {
     final score = _calculateHealthScore(metrics);
 
-    if (score >= 95.0) return HealthStatus.healthy;
-    if (score >= 80.0) return HealthStatus.warning;
+    if (score >= 95.0) {
+      return HealthStatus.healthy;
+    }
+    if (score >= 80.0) {
+      return HealthStatus.warning;
+    }
     return HealthStatus.critical;
   }
 
@@ -285,16 +300,6 @@ class DatabaseHealthMonitor {
 
 /// تقرير صحة قاعدة البيانات
 class HealthReport {
-  final DateTime scannedAt;
-  final Duration scanDuration;
-  final int invalidServerIds;
-  final int orphanPayments;
-  final int orphanExpenses;
-  final double healthScore;
-  final HealthStatus status;
-  final ScanType scanType;
-  final String? details;
-  final String? error;
 
   HealthReport({
     required this.scannedAt,
@@ -322,6 +327,16 @@ class HealthReport {
       error: error,
     );
   }
+  final DateTime scannedAt;
+  final Duration scanDuration;
+  final int invalidServerIds;
+  final int orphanPayments;
+  final int orphanExpenses;
+  final double healthScore;
+  final HealthStatus status;
+  final ScanType scanType;
+  final String? details;
+  final String? error;
 
   int get totalIssues => invalidServerIds + orphanPayments + orphanExpenses;
 
@@ -342,7 +357,9 @@ class HealthReport {
 
   @override
   String toString() {
-    if (error != null) return '❌ خطأ في الفحص: $error';
+    if (error != null) {
+      return '❌ خطأ في الفحص: $error';
+    }
 
     return '''
 $statusEmoji صحة قاعدة البيانات: ${healthScore.toStringAsFixed(1)}%
@@ -357,25 +374,21 @@ $statusEmoji صحة قاعدة البيانات: ${healthScore.toStringAsFixed(1
 
 /// مقاييس الصحة
 class HealthMetrics {
-  final int invalidServerIds;
-  final int orphanPayments;
-  final int orphanExpenses;
 
   HealthMetrics({
     required this.invalidServerIds,
     required this.orphanPayments,
     required this.orphanExpenses,
   });
+  final int invalidServerIds;
+  final int orphanPayments;
+  final int orphanExpenses;
 
   int get totalIssues => invalidServerIds + orphanPayments + orphanExpenses;
 }
 
 /// لقطة سجل الصحة
 class HealthSnapshot {
-  final DateTime timestamp;
-  final double healthScore;
-  final int totalIssues;
-  final String status;
 
   HealthSnapshot({
     required this.timestamp,
@@ -383,19 +396,23 @@ class HealthSnapshot {
     required this.totalIssues,
     required this.status,
   });
+  final DateTime timestamp;
+  final double healthScore;
+  final int totalIssues;
+  final String status;
 }
 
 /// اتجاه الصحة
 class HealthTrend {
-  final bool improving;
-  final double changeRate;
-  final List<String> concerns;
 
   HealthTrend({
     required this.improving,
     required this.changeRate,
     required this.concerns,
   });
+  final bool improving;
+  final double changeRate;
+  final List<String> concerns;
 
   String get emoji => improving ? '📈' : '📉';
 

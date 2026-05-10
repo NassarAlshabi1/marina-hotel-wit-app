@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
-import '../local_db.dart';
-import '../daos/outbox_dao.dart';
-import '../daos/employees_dao.dart';
+
 import '../auto_backup_manager.dart';
+import '../crashlytics_service.dart';
+import '../daos/employees_dao.dart';
+import '../daos/outbox_dao.dart';
+import '../local_db.dart';
 
 class EmployeesRepository {
   EmployeesRepository(this.db)
@@ -25,6 +29,7 @@ class EmployeesRepository {
     String? hireDate,
     required String status,
   }) async {
+    try {
     final s = salary ?? basicSalary ?? 0.0;
     final result = await dao.insertOne(
       EmployeesCompanion(
@@ -36,12 +41,23 @@ class EmployeesRepository {
         status: d.Value(status),
       ),
     );
-    AutoBackupManager.instance.onDataChange(
+    unawaited(AutoBackupManager.instance.onDataChange(
       'employees',
       'INSERT',
       recordData: {'name': name},
-    );
+    ),);
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'EmployeesRepository',
+        action: 'create',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.fatal,
+        extra: {'name': name, 'status': status},
+      );
+      rethrow;
+    }
   }
 
   Future<int> update(
@@ -54,6 +70,7 @@ class EmployeesRepository {
     String? hireDate,
     String? status,
   }) async {
+    try {
     final result = await dao.updateById(
       id,
       EmployeesCompanion(
@@ -68,13 +85,23 @@ class EmployeesRepository {
       ),
     );
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
         'employees',
         'UPDATE',
         recordData: {'id': id},
-      );
+      ),);
     }
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'EmployeesRepository',
+        action: 'update',
+        error: e,
+        stackTrace: stack,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
   }
 
   Future<int> updateByLocalUuid(
@@ -101,15 +128,26 @@ class EmployeesRepository {
   );
 
   Future<int> delete(int id) async {
+    try {
     final result = await dao.softDelete(id);
     if (result > 0) {
-      AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
         'employees',
         'DELETE',
         recordData: {'id': id},
-      );
+      ),);
     }
     return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'EmployeesRepository',
+        action: 'delete',
+        error: e,
+        stackTrace: stack,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
   }
 
   // دوال النسخ الاحتياطي
@@ -126,8 +164,7 @@ class EmployeesRepository {
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
       await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data']),
-        clearExisting: false,
+        List<Map<String, dynamic>>.from(data['data'] as List),
       );
     }
   }
@@ -139,6 +176,6 @@ class EmployeesRepository {
 
   /// الحصول على إجمالي عدد السجلات
   Future<int> getRecordCount() async {
-    return await dao.getRecordCount();
+    return dao.getRecordCount();
   }
 }

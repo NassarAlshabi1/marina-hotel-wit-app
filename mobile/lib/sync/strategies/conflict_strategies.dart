@@ -1,5 +1,6 @@
 /// Conflict Resolution Strategies
 /// استراتيجيات حل التعارضات المختلفة
+library;
 
 import '../models/sync_models.dart';
 import '../vector_clock.dart';
@@ -7,9 +8,6 @@ import '../vector_clock.dart';
 /// محلل التعارضات الرئيسي
 /// يختار الاستراتيجية المناسبة ويطبقها
 class ConflictResolver {
-  final ConflictStrategy _defaultStrategy;
-  final Map<String, ConflictStrategy> _tableStrategies;
-  final SmartMergeResolver? _smartMergeResolver;
 
   ConflictResolver({
     ConflictStrategy defaultStrategy = ConflictStrategy.newerWins,
@@ -18,6 +16,9 @@ class ConflictResolver {
   })  : _defaultStrategy = defaultStrategy,
         _tableStrategies = tableStrategies ?? {},
         _smartMergeResolver = smartMergeResolver;
+  final ConflictStrategy _defaultStrategy;
+  final Map<String, ConflictStrategy> _tableStrategies;
+  final SmartMergeResolver? _smartMergeResolver;
 
   /// حل تعارض باستخدام الاستراتيجية المحددة
   ConflictResolutionResult resolve(SyncConflict conflict) {
@@ -51,13 +52,11 @@ class ConflictResolver {
         return ConflictResolutionResult(
           winner: Winner.local,
           data: conflict.localRecord,
-          requiresReview: false,
         );
       case VectorClockComparison.remoteNewer:
         return ConflictResolutionResult(
           winner: Winner.remote,
           data: conflict.remoteChange.payload,
-          requiresReview: false,
         );
       case VectorClockComparison.concurrent:
       case VectorClockComparison.equal:
@@ -91,13 +90,11 @@ class ConflictResolver {
       return ConflictResolutionResult(
         winner: Winner.local,
         data: conflict.localRecord,
-        requiresReview: false,
       );
     } else if (remotePriority > localPriority) {
       return ConflictResolutionResult(
         winner: Winner.remote,
         data: conflict.remoteChange.payload,
-        requiresReview: false,
       );
     } else {
       // أولوية متساوية - استخدام الوقت
@@ -119,7 +116,6 @@ class ConflictResolver {
         return ConflictResolutionResult(
           winner: Winner.merged,
           data: result,
-          requiresReview: false,
         );
       }
     }
@@ -147,13 +143,11 @@ class ConflictResolver {
       return ConflictResolutionResult(
         winner: Winner.local,
         data: conflict.localRecord,
-        requiresReview: false,
       );
     } else {
       return ConflictResolutionResult(
         winner: Winner.remote,
         data: conflict.remoteChange.payload,
-        requiresReview: false,
       );
     }
   }
@@ -230,7 +224,9 @@ class DefaultSmartMergeResolver implements SmartMergeResolver {
     }
 
     // إذا بقيت تعارضات غير محلولة، نعيد null
-    if (hasConflict) return null;
+    if (hasConflict) {
+      return null;
+    }
 
     return merged;
   }
@@ -279,10 +275,10 @@ class DefaultSmartMergeResolver implements SmartMergeResolver {
 /// مدير التعارضات
 /// يتتبع جميع التعارضات ويساعد في حلها
 class ConflictManager {
-  final List<SyncConflict> _conflicts = [];
-  final int _maxHistory;
 
   ConflictManager({int maxHistory = 100}) : _maxHistory = maxHistory;
+  final List<SyncConflict> _conflicts = [];
+  final int _maxHistory;
 
   /// قائمة التعارضات
   List<SyncConflict> get conflicts => List.unmodifiable(_conflicts);
@@ -354,17 +350,12 @@ class ConflictManager {
     _conflicts.removeWhere((c) =>
         c.resolution != null &&
         c.resolvedAt != null &&
-        c.resolvedAt!.isBefore(cutoff));
+        c.resolvedAt!.isBefore(cutoff),);
   }
 }
 
 /// إحصائيات التعارضات
 class ConflictStats {
-  final int total;
-  final int active;
-  final int resolved;
-  final Map<String, int> byTable;
-  final Map<ConflictResolution?, int> byResolution;
 
   ConflictStats({
     required this.total,
@@ -373,6 +364,11 @@ class ConflictStats {
     required this.byTable,
     required this.byResolution,
   });
+  final int total;
+  final int active;
+  final int resolved;
+  final Map<String, int> byTable;
+  final Map<ConflictResolution?, int> byResolution;
 
   @override
   String toString() =>

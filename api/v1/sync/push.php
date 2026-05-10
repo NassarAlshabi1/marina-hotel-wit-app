@@ -93,6 +93,9 @@ try {
     
     $conn->commit();
     
+    // إعادة حساب حالات الغرف بعد كل مزامنة (بدون المساس بالـ transaction)
+    recalculateAllRoomStatuses($conn);
+    
     jsonResponse(true, ['results' => $results], null, 200);
     
 } catch (Exception $e) {

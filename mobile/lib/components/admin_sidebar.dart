@@ -3,30 +3,34 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 
 class AdminSidebar extends ConsumerWidget {
-  final String currentRoute;
-  final Function(String) onRouteSelected;
 
   const AdminSidebar({
     super.key,
     required this.currentRoute,
     required this.onRouteSelected,
   });
+  final String currentRoute;
+  final void Function(String) onRouteSelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
     bool can(String key) {
       final u = auth.currentUser;
-      if (u == null) return false;
-      if (u.permissions.contains('all') || u.userType == 'admin') return true;
+      if (u == null) {
+        return false;
+      }
+      if (u.permissions.contains('all') || u.userType == 'admin') {
+        return true;
+      }
       return u.permissions.contains(key);
     }
 
-    final sidebarColor = const Color(0xFF0F172A);
-    final headerColor = const Color(0xFF16213C);
-    final cardOverlay = Colors.white.withOpacity(0.08);
-    final dividerColor = Colors.white.withOpacity(0.12);
-    final inactiveColor = Colors.white.withOpacity(0.72);
+    const sidebarColor = Color(0xFF0F172A);
+    const headerColor = Color(0xFF16213C);
+    final cardOverlay = Colors.white.withValues(alpha: 0.08);
+    final dividerColor = Colors.white.withValues(alpha: 0.12);
+    final inactiveColor = Colors.white.withValues(alpha: 0.72);
 
     return Container(
       width: 280,
@@ -37,7 +41,7 @@ class AdminSidebar extends ConsumerWidget {
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: headerColor,
-              border: Border(bottom: BorderSide(color: dividerColor, width: 1)),
+              border: Border(bottom: BorderSide(color: dividerColor)),
             ),
             child: Column(
               children: [
@@ -81,7 +85,7 @@ class AdminSidebar extends ConsumerWidget {
                   child: Row(
                     children: [
                       CircleAvatar(
-                        backgroundColor: Colors.white.withOpacity(0.2),
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
                         child: const Icon(Icons.person, color: Colors.white),
                       ),
                       const SizedBox(width: 12),
@@ -211,13 +215,22 @@ class AdminSidebar extends ConsumerWidget {
                     onTap: () => onRouteSelected('/blacklist'),
                     context: context,
                   ),
-                if (true)
+                if (can('information'))
                   _buildMenuItem(
                     icon: Icons.badge,
                     title: 'سجل المعلومية',
                     route: '/information',
                     isActive: currentRoute.startsWith('/information'),
                     onTap: () => onRouteSelected('/information'),
+                    context: context,
+                  ),
+                if (can('settings'))
+                  _buildMenuItem(
+                    icon: Icons.smart_toy,
+                    title: 'المساعد الذكي',
+                    route: '/ai',
+                    isActive: currentRoute.startsWith('/ai'),
+                    onTap: () => onRouteSelected('/ai'),
                     context: context,
                   ),
                 if (can('settings'))
@@ -271,18 +284,18 @@ class AdminSidebar extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       decoration: BoxDecoration(
-        color: isActive ? Colors.white.withOpacity(0.12) : Colors.transparent,
+        color: isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
         leading: Icon(
           icon,
-          color: isActive ? Colors.white : Colors.white.withOpacity(0.72),
+          color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.72),
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isActive ? Colors.white : Colors.white.withOpacity(0.72),
+            color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.72),
             fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
           ),
         ),

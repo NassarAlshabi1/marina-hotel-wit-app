@@ -1,17 +1,18 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/material.dart';
+
 import 'package:battery_plus/battery_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// مدير استخدام البيانات - يتتبع استهلاك البيانات ويوفر إحصائيات مفصلة
 class DataUsageManager {
-  static final DataUsageManager _instance = DataUsageManager._internal();
 
   factory DataUsageManager() => _instance;
 
   DataUsageManager._internal();
+  static final DataUsageManager _instance = DataUsageManager._internal();
 
   // إضافة static getter instance للوصول للـ singleton
   static DataUsageManager get instance => _instance;
@@ -199,7 +200,9 @@ class DataUsageManager {
       final connectivity = Connectivity();
       final results = await connectivity.checkConnectivity();
 
-      if (results.isEmpty) return 'No Connection';
+      if (results.isEmpty) {
+        return 'No Connection';
+      }
 
       // ترتيب الأولوية في عرض نوع الاتصال
       if (results.contains(ConnectivityResult.wifi)) {

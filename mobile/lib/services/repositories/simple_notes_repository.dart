@@ -1,7 +1,7 @@
-import '../local_db.dart';
-import '../daos/shift_notes_dao.dart';
-import '../daos/outbox_dao.dart';
 import '../../models/shift_note_adapter.dart' as adapter;
+import '../daos/outbox_dao.dart';
+import '../daos/shift_notes_dao.dart';
+import '../local_db.dart';
 
 class SimpleNotesRepository {
   SimpleNotesRepository(this.db) : dao = ShiftNotesDao(db, OutboxDao(db));

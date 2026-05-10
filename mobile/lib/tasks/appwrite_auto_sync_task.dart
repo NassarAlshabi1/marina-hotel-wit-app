@@ -24,8 +24,6 @@ void appwriteAutoSyncCallbackDispatcher() {
       }
 
       final success = await UnifiedSyncOrchestrator.instance.syncNow(
-        push: true,
-        pull: true,
         reason: 'appwrite_background_task',
       );
 
@@ -49,11 +47,12 @@ class AppwriteAutoSyncTask {
   static bool _initialized = false;
 
   static Future<void> initialize({bool debug = false}) async {
-    if (_initialized) return;
+    if (_initialized) {
+      return;
+    }
     WidgetsFlutterBinding.ensureInitialized();
     await Workmanager().initialize(
       appwriteAutoSyncCallbackDispatcher,
-      isInDebugMode: debug,
     );
     _initialized = true;
   }
@@ -66,7 +65,9 @@ class AppwriteAutoSyncTask {
     }
     final token = ++_debounceToken;
     await Future<void>.delayed(delay, () async {
-      if (token != _debounceToken) return;
+      if (token != _debounceToken) {
+        return;
+      }
       await Workmanager().registerOneOffTask(
         _kImmediateWorkName,
         _kImmediateWorkName,
@@ -103,7 +104,9 @@ class AppwriteAutoSyncTask {
   }
 
   static Future<void> cancelAll() async {
-    if (!_initialized) return;
+    if (!_initialized) {
+      return;
+    }
     _debounceToken++;
     await Workmanager().cancelByUniqueName(_kImmediateWorkName);
     await Workmanager().cancelByUniqueName(_kPeriodicWorkName);
@@ -112,10 +115,10 @@ class AppwriteAutoSyncTask {
   static Future<void> consumePendingAndSync({bool force = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final pending = prefs.getBool(_kPendingFlagKey) ?? false;
-    if (!pending && !force) return;
+    if (!pending && !force) {
+      return;
+    }
     await UnifiedSyncOrchestrator.instance.syncNow(
-      push: true,
-      pull: true,
       reason: 'pending_appwrite_sync',
     );
     await prefs.setBool(_kPendingFlagKey, false);

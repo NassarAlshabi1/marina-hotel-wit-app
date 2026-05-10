@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../screens/notes/notes_screen.dart';
 import '../providers/repository_providers.dart';
+import '../screens/notes/notes_screen.dart';
 import 'widgets/sync_action_button.dart';
 
 class AppScaffold extends ConsumerWidget {
@@ -12,11 +12,33 @@ class AppScaffold extends ConsumerWidget {
     required this.body,
     this.actions,
     this.fab,
+    this.subtitle,
+    this.appBarBackgroundColor,
+    this.titleColor,
+    this.subtitleColor,
+    this.titleAlign,
   });
   final String title;
   final Widget body;
   final List<Widget>? actions;
   final Widget? fab;
+
+  /// عنوان ثانوي يظهر أسفل العنوان الرئيسي في الـ AppBar
+  /// (مثال: عنوان التقرير بخط أصغر وتوسيط)
+  final String? subtitle;
+
+  /// لون خلفية الـ AppBar (إذا لم يُحدد يستخدم لون الثيم)
+  final Color? appBarBackgroundColor;
+
+  /// لون العنوان الرئيسي
+  final Color? titleColor;
+
+  /// لون العنوان الثانوي
+  final Color? subtitleColor;
+
+  /// محاذاة العنوان الرئيسي (الافتراضي: توسيط)
+  /// استخدم TextAlign.end للمحاذاة اليمنى في RTL
+  final TextAlign? titleAlign;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,17 +49,51 @@ class AppScaffold extends ConsumerWidget {
     );
     final hasUnread = unreadCount > 0;
 
+    final isLightBg = appBarBackgroundColor != null &&
+        appBarBackgroundColor!.computeLuminance() > 0.5;
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(title),
+          toolbarHeight: subtitle != null ? 64 : null,
+          backgroundColor: appBarBackgroundColor,
+          foregroundColor: isLightBg ? Colors.black87 : null,
+          elevation: appBarBackgroundColor != null ? 1 : null,
+          title: subtitle != null
+              ? Column(
+                  crossAxisAlignment: titleAlign == TextAlign.end
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      textAlign: titleAlign ?? TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: titleColor ?? (isLightBg ? Colors.black : Colors.white),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: subtitleColor ?? (isLightBg ? Colors.black54 : Colors.white70),
+                      ),
+                    ),
+                  ],
+                )
+              : Text(title),
           actions: [
             IconButton(
               onPressed: () {
                 Navigator.of(
                   context,
-                ).push(MaterialPageRoute(builder: (_) => const NotesScreen()));
+                ).push<void>(MaterialPageRoute<void>(builder: (_) => const NotesScreen()));
               },
               tooltip: 'التنبيهات',
               icon: Stack(

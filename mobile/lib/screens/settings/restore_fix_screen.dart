@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
 import 'dart:convert';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 
-import '../../services/restore_fix_service.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+
 import '../../services/local_db.dart';
+import '../../services/restore_fix_service.dart';
 
 // مقدم خدمة الإصلاح التلقائي
 final restoreFixServiceProvider = Provider<RestoreFixService>(
@@ -21,7 +22,7 @@ final fixLogsProvider = FutureProvider.autoDispose<List<RestoreFixLogData>>((
   ref,
 ) async {
   final service = ref.read(restoreFixServiceProvider);
-  return await service.getFixLogs(limit: 50);
+  return service.getFixLogs(limit: 50);
 });
 
 // مقدم لحالة التحميل
@@ -273,7 +274,7 @@ class RestoreFixScreen extends ConsumerWidget {
                 return Column(
                   children: logs
                       .take(10)
-                      .map((log) => _buildLogEntry(log))
+                      .map(_buildLogEntry)
                       .toList(),
                 );
               },
@@ -434,25 +435,26 @@ class RestoreFixScreen extends ConsumerWidget {
 
       // إظهار النتيجة
       if (report.success) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               '✅ اكتمل الإصلاح بنجاح: ${report.bookingsFixed} حجز، ${report.roomsUpdated} غرفة',
             ),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 4),
           ),
         );
       } else {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ فشل الإصلاح: ${report.error}'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
           ),
         );
       }
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ غير متوقع: $e'),
@@ -485,6 +487,7 @@ class RestoreFixScreen extends ConsumerWidget {
         text: 'سجلات الإصلاح التلقائي للنسخة الاحتياطية',
       );
 
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ تم تصدير السجلات بنجاح'),
@@ -492,6 +495,7 @@ class RestoreFixScreen extends ConsumerWidget {
         ),
       );
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في التصدير: $e'),

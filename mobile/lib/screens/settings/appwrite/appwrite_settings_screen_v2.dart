@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../components/app_scaffold.dart';
 import 'tabs/connection_tab.dart';
-import 'tabs/sync_tab.dart';
 import 'tabs/devices_tab.dart';
+import 'tabs/sync_tab.dart';
 import 'tabs/tools_tab.dart';
 
 /// Appwrite Settings Screen v2 - إعدادات Appwrite المحسّنة
@@ -57,7 +58,7 @@ class _AppwriteSettingsScreenV2State
       body: Column(
         children: [
           // Tab Bar
-          Container(
+          ColoredBox(
             color: Colors.grey.shade100,
             child: TabBar(
               controller: _tabController,
@@ -99,10 +100,10 @@ class _AppwriteSettingsScreenV2State
   }
 
   void _showMenu() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => SafeArea(
         child: Column(
@@ -146,7 +147,7 @@ class _AppwriteSettingsScreenV2State
   }
 
   void _showHelpDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('مساعدة Appwrite'),

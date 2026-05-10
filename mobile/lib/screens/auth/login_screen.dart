@@ -61,8 +61,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                          children: const [
+                        const Row(
+                          children: [
                             Icon(
                               Icons.lock,
                               size: 28,
@@ -157,7 +157,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _onSubmit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
     setState(() => _submitting = true);
     await ref
         .read(authProvider.notifier)
@@ -166,6 +168,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           _passwordCtrl.text,
           rememberMe: _rememberMe,
         );
+    if (!mounted) {
+      return;
+    }
     setState(() => _submitting = false);
     // سيقوم RootRouter بإظهار الواجهة الرئيسية تلقائيًا عند نجاح الدخول
   }

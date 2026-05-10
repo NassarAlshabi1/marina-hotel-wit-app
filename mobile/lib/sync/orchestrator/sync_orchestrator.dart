@@ -1,34 +1,19 @@
 /// Sync Orchestrator
 /// منسق المزامنة - يدير عملية المزامنة الكاملة
 /// Pull → Resolve → Push → Notify
+library;
 
 import 'dart:async';
 import 'dart:developer' as developer;
 
-import '../models/sync_models.dart';
-import '../vector_clock.dart';
 import '../delta_sync_engine.dart';
+import '../models/sync_models.dart';
 import '../processors/outbox_processor.dart';
+import '../vector_clock.dart';
 
 /// منسق المزامنة الرئيسي
 /// يدور حول النمط: Pull → Resolve → Push → Notify
 class SyncOrchestrator {
-  final DeltaSyncEngine _syncEngine;
-  final OutboxProcessor _outbox;
-  // ignore: unused_field
-  final VectorClockManager _clockManager;
-  final SyncConfiguration _config;
-  // ignore: unused_field
-  final List<SyncStrategy> _strategies;
-
-  final _stateController = StreamController<SyncState>.broadcast();
-  final _progressController = StreamController<SyncProgress>.broadcast();
-  final _conflictController = StreamController<SyncConflict>.broadcast();
-
-  Timer? _autoSyncTimer;
-  bool _isInitialized = false;
-  bool _isSyncing = false;
-  DateTime? _lastSyncAt;
 
   SyncOrchestrator({
     required DeltaSyncEngine syncEngine,
@@ -41,6 +26,23 @@ class SyncOrchestrator {
         _clockManager = clockManager,
         _config = config,
         _strategies = strategies ?? [];
+  final DeltaSyncEngine _syncEngine;
+  final OutboxProcessor _outbox;
+  // ignore: unused_field
+  final VectorClockManager _clockManager;
+  final SyncConfiguration _config;
+  // ignore: unused_field
+  final List<SyncStrategy> _strategies;
+
+  final _stateController = StreamController<SyncState>.broadcast();
+  final _progressController = StreamController<SyncProgress>.broadcast();
+  final _conflictController = StreamController<SyncConflict>.broadcast();
+  StreamSubscription<SyncEvent>? _engineEventsSub;
+
+  Timer? _autoSyncTimer;
+  bool _isInitialized = false;
+  bool _isSyncing = false;
+  DateTime? _lastSyncAt;
 
   /// Stream لحالة المزامنة
   Stream<SyncState> get stateStream => _stateController.stream;
@@ -56,12 +58,14 @@ class SyncOrchestrator {
 
   /// تهيئة المنسق
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
 
     developer.log('Initializing SyncOrchestrator', name: 'Sync');
 
     // الاستماع لأحداث المحرك
-    _syncEngine.events.listen(_handleSyncEvent);
+    _engineEventsSub = _syncEngine.events.listen(_handleSyncEvent);
 
     // تهيئة Outbox
     await _outbox.initialize();
@@ -74,7 +78,9 @@ class SyncOrchestrator {
 
   /// بدء المزامنة التلقائية
   void startAutoSync() {
-    if (!_config.enabled || !_config.backgroundSyncEnabled) return;
+    if (!_config.enabled || !_config.backgroundSyncEnabled) {
+      return;
+    }
 
     _autoSyncTimer?.cancel();
     _autoSyncTimer = Timer.periodic(
@@ -94,8 +100,12 @@ class SyncOrchestrator {
 
   /// المزامنة إذا لزم الأمر (حسب الإعدادات)
   Future<void> syncIfNeeded() async {
-    if (!_config.enabled) return;
-    if (_isSyncing) return;
+    if (!_config.enabled) {
+      return;
+    }
+    if (_isSyncing) {
+      return;
+    }
 
     // التحقق من وجود تغييرات معلقة
     final pendingCount = await _outbox.pendingCount;
@@ -136,14 +146,12 @@ class SyncOrchestrator {
       _progressController.add(progress.copyWith(
         phase: SyncPhase.pull,
         message: 'جاري سحب التغييرات من السيرفر...',
-      ));
+      ),);
 
       final pullResult = await _syncEngine.sync(direction: SyncDirection.download);
 
       // إشعار بالتعارضات المكتشفة
-      for (final conflict in pullResult.conflicts) {
-        _conflictController.add(conflict);
-      }
+      pullResult.conflicts.forEach(_conflictController.add);
 
       // ⏸️ المرحلة 2: Resolve - حل التعارضات
       if (pullResult.conflicts.isNotEmpty) {
@@ -151,7 +159,7 @@ class SyncOrchestrator {
           phase: SyncPhase.resolve,
           message: 'جاري حل ${pullResult.conflicts.length} تعارض...',
           conflictsFound: pullResult.conflicts.length,
-        ));
+        ),);
 
         // التعارضات تم حلها تلقائياً في SyncEngine
         // هنا يمكن إضافة منطق إضافي إذا لزم الأمر
@@ -164,7 +172,7 @@ class SyncOrchestrator {
           phase: SyncPhase.push,
           message: 'جاري رفع $pendingCount تغيير...',
           pendingToPush: pendingCount,
-        ));
+        ),);
 
         final pushResult = await _syncEngine.sync(direction: SyncDirection.upload);
 
@@ -191,7 +199,7 @@ class SyncOrchestrator {
           downloaded: combinedResult.downloadedCount,
           conflicts: combinedResult.conflictCount,
           durationMs: stopwatch.elapsedMilliseconds,
-        ));
+        ),);
 
         _emitState(status: SyncStatus.synced, lastSyncAt: _lastSyncAt);
 
@@ -214,7 +222,7 @@ class SyncOrchestrator {
           downloaded: pullResult.downloadedCount,
           conflicts: pullResult.conflictCount,
           durationMs: stopwatch.elapsedMilliseconds,
-        ));
+        ),);
 
         _emitState(status: SyncStatus.synced, lastSyncAt: _lastSyncAt);
 
@@ -227,7 +235,7 @@ class SyncOrchestrator {
         phase: SyncPhase.failed,
         message: 'فشلت المزامنة: $e',
         error: e.toString(),
-      ));
+      ),);
 
       _emitState(status: SyncStatus.failed, error: e.toString());
 
@@ -246,17 +254,17 @@ class SyncOrchestrator {
 
   /// مزامنة اتجاه واحد فقط
   Future<DeltaSyncResult> syncDirection(SyncDirection direction) async {
-    return await performFullSync(direction: direction);
+    return performFullSync(direction: direction);
   }
 
   /// سحب التغييرات فقط (Pull)
   Future<DeltaSyncResult> pullOnly() async {
-    return await syncDirection(SyncDirection.download);
+    return syncDirection(SyncDirection.download);
   }
 
   /// رفع التغييرات فقط (Push)
   Future<DeltaSyncResult> pushOnly() async {
-    return await syncDirection(SyncDirection.upload);
+    return syncDirection(SyncDirection.upload);
   }
 
   /// التحقق من وجود تغييرات معلقة
@@ -300,13 +308,10 @@ class SyncOrchestrator {
         break;
       case SyncEventType.syncFailed:
         _emitState(status: SyncStatus.failed);
-        break;
       case SyncEventType.syncStarted:
         _emitState(status: SyncStatus.syncing);
-        break;
       case SyncEventType.syncCompleted:
         _emitState(status: SyncStatus.synced, lastSyncAt: DateTime.now());
-        break;
       default:
         break;
     }
@@ -328,12 +333,14 @@ class SyncOrchestrator {
       status: status,
       error: error,
       lastSyncAt: lastSyncAt,
-    ));
+    ),);
   }
 
   /// التخلص من الموارد
   void dispose() {
     stopAutoSync();
+    unawaited(_engineEventsSub?.cancel() ?? Future<void>.value());
+    _engineEventsSub = null;
     _stateController.close();
     _progressController.close();
     _conflictController.close();
@@ -344,10 +351,6 @@ class SyncOrchestrator {
 
 /// حالة المزامنة
 class SyncState {
-  final SyncStatus status;
-  final bool isSyncing;
-  final DateTime? lastSyncAt;
-  final String? error;
 
   SyncState({
     required this.status,
@@ -355,6 +358,10 @@ class SyncState {
     this.lastSyncAt,
     this.error,
   });
+  final SyncStatus status;
+  final bool isSyncing;
+  final DateTime? lastSyncAt;
+  final String? error;
 
   bool get isIdle => !isSyncing;
   bool get hasError => error != null;
@@ -367,16 +374,6 @@ class SyncState {
 
 /// تقدم المزامنة
 class SyncProgress {
-  final SyncPhase phase;
-  final String message;
-  final int? pendingToPush;
-  final int? conflictsFound;
-  final int? uploaded;
-  final int? downloaded;
-  final int? conflicts;
-  final int? durationMs;
-  final bool completed;
-  final String? error;
 
   SyncProgress({
     required this.phase,
@@ -390,6 +387,16 @@ class SyncProgress {
     this.completed = false,
     this.error,
   });
+  final SyncPhase phase;
+  final String message;
+  final int? pendingToPush;
+  final int? conflictsFound;
+  final int? uploaded;
+  final int? downloaded;
+  final int? conflicts;
+  final int? durationMs;
+  final bool completed;
+  final String? error;
 
   SyncProgress copyWith({
     SyncPhase? phase,
@@ -439,15 +446,15 @@ abstract class SyncStrategy {
 
 /// سياق المزامنة
 class SyncContext {
-  final SyncDirection direction;
-  final DateTime? since;
-  final Map<String, dynamic> metadata;
 
   SyncContext({
     required this.direction,
     this.since,
     this.metadata = const {},
   });
+  final SyncDirection direction;
+  final DateTime? since;
+  final Map<String, dynamic> metadata;
 }
 
 /// استثناء: المزامنة قيد التنفيذ

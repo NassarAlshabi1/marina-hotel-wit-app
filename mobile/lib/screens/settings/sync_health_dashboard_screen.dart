@@ -2,11 +2,12 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/sync_dashboard_provider.dart';
-import '../../services/sync_health_monitor.dart';
-import '../../services/sync_core/circuit_breaker.dart';
-import '../../services/sync_integrity_checker.dart';
 import 'package:intl/intl.dart';
+
+import '../../providers/sync_dashboard_provider.dart';
+import '../../services/sync_core/circuit_breaker.dart';
+import '../../services/sync_health_monitor.dart';
+import '../../services/sync_integrity_checker.dart';
 
 class SyncHealthDashboardScreen extends ConsumerStatefulWidget {
   const SyncHealthDashboardScreen({super.key});
@@ -120,7 +121,7 @@ class _SyncHealthDashboardScreenState
     final statusText = _getStatusText(status);
 
     return Card(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -486,7 +487,9 @@ class _SyncHealthDashboardScreenState
   }
 
   String _formatLastSync(DateTime? dateTime) {
-    if (dateTime == null) return 'لم يتم بعد';
+    if (dateTime == null) {
+      return 'لم يتم بعد';
+    }
 
     final now = DateTime.now();
     final difference = now.difference(dateTime);
@@ -623,7 +626,7 @@ class _SyncHealthDashboardScreenState
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
                   ],
                 ],
                 if (!hasIssues) ...[
@@ -676,10 +679,6 @@ class _SyncHealthDashboardScreenState
 }
 
 class MetricCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color? color;
 
   const MetricCard({
     super.key,
@@ -688,6 +687,10 @@ class MetricCard extends StatelessWidget {
     required this.icon,
     this.color,
   });
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -727,9 +730,9 @@ class MetricCard extends StatelessWidget {
 }
 
 class StatusIndicator extends StatelessWidget {
-  final SyncHealthStatus status;
 
   const StatusIndicator({super.key, required this.status});
+  final SyncHealthStatus status;
 
   Color get color {
     switch (status) {
@@ -749,7 +752,7 @@ class StatusIndicator extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color, width: 2),
       ),
@@ -786,14 +789,14 @@ class StatusIndicator extends StatelessWidget {
 }
 
 class CircuitBreakerCard extends StatelessWidget {
-  final String name;
-  final CircuitState state;
 
   const CircuitBreakerCard({
     super.key,
     required this.name,
     required this.state,
   });
+  final String name;
+  final CircuitState state;
 
   @override
   Widget build(BuildContext context) {
@@ -808,7 +811,7 @@ class CircuitBreakerCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -836,9 +839,9 @@ class CircuitBreakerCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withOpacity(0.3)),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
             child: Text(
               statusText,

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../tasks/auto_sync_task.dart';
+import '../utils/app_logger.dart';
 import 'local_db.dart';
 import 'sync_constants.dart';
 import 'unified_sync_orchestrator.dart';
@@ -97,8 +98,6 @@ class SyncGuardian {
           '📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation',
         );
         final ok = await _orchestrator!.syncNow(
-          push: true,
-          pull: true,
           reason: 'guardian_debounce',
         );
         if (!ok) {
@@ -109,7 +108,9 @@ class SyncGuardian {
         debugPrint('⚠️ فشل رفع التغييرات: $e');
         try {
           await AutoSyncTask.scheduleImmediateSync();
-        } catch (_) {}
+        } catch (e, st) {
+          AppLogger.warning('فشل فحص حماية المزامنة', tag: 'SYNC_GUARD', error: e, stackTrace: st);
+        }
       } finally {
         _emitHealth();
       }
@@ -134,7 +135,7 @@ class SyncGuardian {
 
     _lastPullTime = now;
 
-    Future.delayed(SyncConstants.appForegroundDelay, () async {
+    Future<void>.delayed(SyncConstants.appForegroundDelay, () async {
       try {
         await _orchestrator!.onAppForeground();
       } catch (e) {
@@ -152,8 +153,6 @@ class SyncGuardian {
   Future<void> forceSync() async {
     await _consumePending(force: true);
     await _orchestrator?.syncNow(
-      push: true,
-      pull: true,
       reason: 'guardian_force',
     );
   }
@@ -230,7 +229,7 @@ class SyncGuardian {
 
   Future<void> dispose() async {
     _pendingMonitor?.cancel();
-    _healthController.close();
+    unawaited(_healthController.close());
     _initialized = false;
   }
 

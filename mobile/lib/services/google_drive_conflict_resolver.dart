@@ -16,16 +16,6 @@ enum ConflictResolutionStrategy {
 }
 
 class ConflictDetails {
-  final String tableName;
-  final String localUuid;
-  final Map<String, dynamic> localRecord;
-  final Map<String, dynamic> remoteRecord;
-  final DateTime localTimestamp;
-  final DateTime remoteTimestamp;
-  final int localVersion;
-  final int remoteVersion;
-  final String? localDeviceId;
-  final String? remoteDeviceId;
 
   const ConflictDetails({
     required this.tableName,
@@ -39,6 +29,16 @@ class ConflictDetails {
     this.localDeviceId,
     this.remoteDeviceId,
   });
+  final String tableName;
+  final String localUuid;
+  final Map<String, dynamic> localRecord;
+  final Map<String, dynamic> remoteRecord;
+  final DateTime localTimestamp;
+  final DateTime remoteTimestamp;
+  final int localVersion;
+  final int remoteVersion;
+  final String? localDeviceId;
+  final String? remoteDeviceId;
 
   bool get isLocalNewer => localTimestamp.isAfter(remoteTimestamp);
   bool get isRemoteNewer => remoteTimestamp.isAfter(localTimestamp);
@@ -58,10 +58,6 @@ class ConflictDetails {
 }
 
 class ConflictResolutionResult {
-  final bool resolved;
-  final Map<String, dynamic>? selectedRecord;
-  final String? reason;
-  final bool requiresManualReview;
 
   const ConflictResolutionResult({
     required this.resolved,
@@ -99,6 +95,10 @@ class ConflictResolutionResult {
       reason: reason,
     );
   }
+  final bool resolved;
+  final Map<String, dynamic>? selectedRecord;
+  final String? reason;
+  final bool requiresManualReview;
 }
 
 class GoogleDriveConflictResolver {
@@ -190,7 +190,9 @@ class GoogleDriveConflictResolver {
           final localTs = _extractTimestamp(localRecord);
           final remoteTs = _extractTimestamp(remoteRecord);
 
-          if (localTs == null || remoteTs == null) continue;
+          if (localTs == null || remoteTs == null) {
+            continue;
+          }
 
           final timeDiff = localTs.difference(remoteTs).inSeconds.abs();
 
@@ -210,7 +212,7 @@ class GoogleDriveConflictResolver {
 
             conflicts.add(conflict);
             _log(
-              '⚠️ Detected conflict: ${conflict.toString()}',
+              '⚠️ Detected conflict: $conflict',
               level: LogLevel.warning,
             );
           }
@@ -230,7 +232,7 @@ class GoogleDriveConflictResolver {
     final strategy = await getStrategy();
 
     _log('🔧 Resolving conflict using strategy: ${strategy.name}');
-    _log('   ${conflict.toString()}');
+    _log('   $conflict');
 
     switch (strategy) {
       case ConflictResolutionStrategy.newerWins:
@@ -249,7 +251,7 @@ class GoogleDriveConflictResolver {
         );
 
       case ConflictResolutionStrategy.devicePriorityBased:
-        return await _resolveByDevicePriority(conflict);
+        return _resolveByDevicePriority(conflict);
 
       case ConflictResolutionStrategy.manualReview:
         return ConflictResolutionResult.needsManualReview(
@@ -342,9 +344,9 @@ class GoogleDriveConflictResolver {
           );
 
           if (existingIndex >= 0) {
-            recordsList[existingIndex] = entry.selectedRecord!;
+            recordsList[existingIndex] = entry.selectedRecord;
           } else {
-            recordsList.add(entry.selectedRecord!);
+            recordsList.add(entry.selectedRecord);
           }
 
           merged[tableName] = recordsList;
@@ -356,7 +358,9 @@ class GoogleDriveConflictResolver {
   }
 
   Map<String, Map<String, dynamic>> _getRecordsMap(dynamic tableData) {
-    if (tableData is! List) return {};
+    if (tableData is! List) {
+      return {};
+    }
 
     final map = <String, Map<String, dynamic>>{};
     for (final record in tableData) {
@@ -395,13 +399,17 @@ class GoogleDriveConflictResolver {
 
   int _extractVersion(Map<String, dynamic> record) {
     final version = record['version'];
-    if (version is int) return version;
-    if (version is String) return int.tryParse(version) ?? 1;
+    if (version is int) {
+      return version;
+    }
+    if (version is String) {
+      return int.tryParse(version) ?? 1;
+    }
     return 1;
   }
 
   String? _extractDeviceId(Map<String, dynamic> record) {
-    return record['device_id'] ?? record['deviceId'];
+    return (record['device_id'] ?? record['deviceId']) as String?;
   }
 
   String? _findTableName(
@@ -457,8 +465,8 @@ class GoogleDriveConflictResolver {
     final decoded = <Map<String, dynamic>>[];
     for (final entry in history.take(limit)) {
       try {
-        decoded.add(jsonDecode(entry));
-      } catch (_) {}
+        decoded.add(jsonDecode(entry) as Map<String, dynamic>);
+      } catch (e) { debugPrint('WARN: Failed to parse conflict history: $e'); }
     }
 
     return decoded;

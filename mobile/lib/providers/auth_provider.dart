@@ -1,12 +1,10 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
+import '../utils/app_logger.dart';
 
 class AuthUser {
-  final int id;
-  final String username;
-  final String fullName;
-  final String userType;
-  final List<String> permissions;
 
   const AuthUser({
     required this.id,
@@ -15,10 +13,6 @@ class AuthUser {
     required this.userType,
     this.permissions = const [],
   });
-
-  String get name => fullName.isNotEmpty ? fullName : username;
-
-  bool get isAdmin => userType == 'admin' || permissions.contains('all');
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     final rawPerms = json['permissions'];
@@ -41,6 +35,15 @@ class AuthUser {
           : const <String>[],
     );
   }
+  final int id;
+  final String username;
+  final String fullName;
+  final String userType;
+  final List<String> permissions;
+
+  String get name => fullName.isNotEmpty ? fullName : username;
+
+  bool get isAdmin => userType == 'admin' || permissions.contains('all');
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -62,12 +65,6 @@ class AuthUser {
 }
 
 class AuthState {
-  final bool isAuthenticated;
-  final bool isRestoring;
-  final String? error;
-  final AuthUser? currentUser;
-  final bool rememberMe;
-  final AuthType authType;
 
   const AuthState({
     required this.isAuthenticated,
@@ -76,7 +73,15 @@ class AuthState {
     this.currentUser,
     this.rememberMe = false,
     this.authType = AuthType.local,
+    this.sessionInvalidated = false,
   });
+  final bool isAuthenticated;
+  final bool isRestoring;
+  final String? error;
+  final AuthUser? currentUser;
+  final bool rememberMe;
+  final AuthType authType;
+  final bool sessionInvalidated;
 
   AuthState copyWith({
     bool? isAuthenticated,
@@ -85,49 +90,115 @@ class AuthState {
     AuthUser? currentUser,
     bool? rememberMe,
     AuthType? authType,
+    bool? sessionInvalidated,
   }) => AuthState(
     isAuthenticated: isAuthenticated ?? this.isAuthenticated,
     isRestoring: isRestoring ?? this.isRestoring,
-    error: error,
+    error: error, // null يمسح الخطأ
     currentUser: currentUser ?? this.currentUser,
     rememberMe: rememberMe ?? this.rememberMe,
     authType: authType ?? this.authType,
+    sessionInvalidated: sessionInvalidated ?? this.sessionInvalidated,
   );
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier()
-    : super(const AuthState(isAuthenticated: false, isRestoring: true)) {
+      : super(const AuthState(isAuthenticated: false, isRestoring: true)) {
     restoreSession();
   }
 
   final _store = AuthLocalStore();
+  Timer? _sessionCheckTimer;
+
+  /// فحص دوري لصلاحية الجلسة — كل 30 ثانية
+  void _startSessionCheck() {
+    _sessionCheckTimer?.cancel();
+    _sessionCheckTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _checkSession(),
+    );
+  }
+
+  void _stopSessionCheck() {
+    _sessionCheckTimer?.cancel();
+    _sessionCheckTimer = null;
+  }
+
+  Future<void> _checkSession() async {
+    if (!state.isAuthenticated || state.currentUser == null) {
+      return;
+    }
+    final valid = await _store.checkSessionValidity();
+    if (!valid && mounted) {
+      AppLogger.warning(
+        'Session invalidated — credentials changed from another device',
+        tag: 'AUTH',
+      );
+      await _store.clearSession();
+      _stopSessionCheck();
+      state = const AuthState(
+        isAuthenticated: false,
+        error: 'تم تغيير بيانات الدخول من جهاز آخر. يرجى تسجيل الدخول مجدداً.',
+        sessionInvalidated: true,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _stopSessionCheck();
+    super.dispose();
+  }
 
   Future<void> restoreSession() async {
-    state = state.copyWith(isRestoring: true, error: null);
+    state = state.copyWith(isRestoring: true);
 
     final rememberMe = await _store.getRememberMe();
     if (!rememberMe) {
-      state = const AuthState(isAuthenticated: false, isRestoring: false);
+      state = const AuthState(isAuthenticated: false);
       return;
     }
 
     final json = await _store.loadCurrentUser();
     if (json == null) {
-      state = const AuthState(isAuthenticated: false, isRestoring: false);
+      state = const AuthState(isAuthenticated: false);
       return;
     }
 
     final user = AuthUser.fromJson(json);
     final authType = await _store.getAuthType();
 
+    // التحقق من صلاحية الجلسة عند الاستعادة
+    if (!_store.isFixedAccount(user.username)) {
+      final valid = await _store.checkSessionValidity();
+      if (!valid) {
+        await _store.clearSession();
+        state = const AuthState(
+          isAuthenticated: false,
+          error: 'تم تغيير بيانات الدخول من جهاز آخر. يرجى تسجيل الدخول مجدداً.',
+          sessionInvalidated: true,
+        );
+        return;
+      }
+    }
+
     state = AuthState(
       isAuthenticated: true,
-      isRestoring: false,
       currentUser: user,
       rememberMe: rememberMe,
       authType: authType,
     );
+
+    // بدء فحص الجلسة للمستخدمين السحابيين
+    try {
+      final accounts = await _store.loadCloudAccounts();
+      if (accounts.containsKey(user.username)) {
+        _startSessionCheck();
+      }
+    } catch (e) {
+      debugPrint('Error loading cloud accounts: \$e');
+    }
   }
 
   Future<void> login(
@@ -135,13 +206,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String password, {
     bool rememberMe = false,
   }) async {
-    state = state.copyWith(error: null);
+    state = state.copyWith();
 
     final data = await _store.validateCredentials(username, password);
     if (data == null) {
-      state = AuthState(
+      state = const AuthState(
         isAuthenticated: false,
-        isRestoring: false,
         error: 'اسم المستخدم أو كلمة المرور غير صحيحة',
       );
       return;
@@ -154,16 +224,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     state = AuthState(
       isAuthenticated: true,
-      isRestoring: false,
       currentUser: user,
       rememberMe: rememberMe,
-      authType: AuthType.local,
     );
+
+    // بدء فحص الجلسة للمستخدمين السحابيين
+    try {
+      final accounts = await _store.loadCloudAccounts();
+      if (accounts.containsKey(user.username)) {
+        _startSessionCheck();
+      }
+    } catch (e) {
+      debugPrint('Error loading cloud accounts: \$e');
+    }
   }
 
   Future<void> logout() async {
+    _stopSessionCheck();
     await _store.clearSession();
-    state = const AuthState(isAuthenticated: false, isRestoring: false);
+    state = const AuthState(isAuthenticated: false);
   }
 
   Future<void> updateUserPermissions(
@@ -194,6 +273,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
       userType: userType,
       permissions: permissions,
     );
+  }
+
+  /// تحديث بيانات مستخدم سحابي (من شاشة إدارة المستخدمين)
+  Future<bool> updateCloudUser({
+    required String username,
+    required String docId,
+    String? newPassword,
+    String? newFullName,
+    String? newUserType,
+    List<String>? newPermissions,
+    bool? active,
+  }) async {
+    return _store.updateCloudUser(
+      username: username,
+      docId: docId,
+      newPassword: newPassword,
+      newFullName: newFullName,
+      newUserType: newUserType,
+      newPermissions: newPermissions,
+      active: active,
+    );
+  }
+
+  /// حذف مستخدم سحابي
+  Future<bool> deleteCloudUser({
+    required String docId,
+  }) async {
+    return _store.deleteCloudUser(docId: docId);
   }
 }
 

@@ -1,5 +1,9 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/app_logger.dart';
+import 'appwrite_service.dart';
 
 enum AuthType { local }
 
@@ -86,7 +90,9 @@ class AuthLocalStore {
           return MapEntry(key.toString(), <String, dynamic>{});
         });
       }
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.warning('فشل قراءة الحسابات المخصصة المحفوظة', tag: 'AUTH', error: e, stackTrace: st);
+    }
     return {};
   }
 
@@ -133,13 +139,66 @@ class AuthLocalStore {
     return maxId + 1;
   }
 
+  /// سحب المستخدمين من Appwrite Cloud (app_users collection)
+  /// يعيد Map<username, account_data> أو فارغ عند الفشل
+  Future<Map<String, Map<String, dynamic>>> loadCloudAccounts() async {
+    try {
+      final appwrite = AppwriteService();
+      await appwrite.initialize();
+      final docs = await appwrite.listDocuments(
+        collectionId: 'app_users',
+        useCache: false,
+      );
+      final cloudAccounts = <String, Map<String, dynamic>>{};
+      for (final doc in docs) {
+        final d = doc.data;
+        final username = (d['username'] ?? '').toString().trim();
+        if (username.isEmpty) continue;
+        final active = d['active'];
+        if (active == false) continue;
+        cloudAccounts[username] = {
+          'password': (d['password'] ?? '').toString(),
+          'full_name': (d['full_name'] ?? username).toString(),
+          'user_type': (d['user_type'] ?? 'employee').toString(),
+          'id': doc.$id.hashCode, // استخدام hash كـ ID محلي
+          'doc_id': doc.$id,
+          'is_cloud': true,
+          'permissions_json': (d['permissions'] ?? '[]').toString(),
+        };
+      }
+      if (cloudAccounts.isNotEmpty) {
+        AppLogger.debug(
+          'Cloud users loaded: ${cloudAccounts.keys.join(', ')}',
+          tag: 'AUTH',
+        );
+      }
+      return cloudAccounts;
+    } catch (e) {
+      AppLogger.warning(
+        'Failed to load cloud users (fallback to local only)',
+        tag: 'AUTH',
+        error: e,
+      );
+      return {};
+    }
+  }
+
   Future<Map<String, dynamic>?> validateCredentials(
     String username,
     String password,
   ) async {
     final normalized = username.trim();
+
+    // 1️⃣ البحث في الحسابات المحلية (hardcoded + custom)
     Map<String, dynamic>? account = _fixedAccounts[normalized];
     account ??= await _getCustomAccount(normalized);
+
+    // 2️⃣ البحث في Appwrite Cloud
+    if (account == null) {
+      final cloudAccounts = await loadCloudAccounts();
+      account = cloudAccounts[normalized];
+    }
+
     if (account == null) {
       return null;
     }
@@ -148,9 +207,51 @@ class AuthLocalStore {
       return null;
     }
 
-    final perms = normalized == 'admin'
-        ? ['all']
-        : await getPermissions(normalized);
+    // تحميل الصلاحيات: admin = all, cloud = من JSON, local = من SharedPreferences
+    List<String> perms;
+    if (normalized == 'admin') {
+      perms = ['all'];
+    } else if (account['is_cloud'] == true) {
+      // مستخدم سحابي — الصلاحيات من الحقل JSON
+      try {
+        final permsJson = account['permissions_json'] as String? ?? '[]';
+        final parsed = jsonDecode(permsJson);
+        perms = (parsed as List).map((e) => e.toString()).toList();
+      } catch (e, st) {
+        AppLogger.warning(
+          'فشل تحليل صلاحيات المستخدم السحابي، سيتم استخدام صلاحيات احتياطية',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
+        perms = await getPermissions(normalized);
+      }
+      // حفظ credentials_version لمراقبة الجلسة
+      try {
+        final appwrite = AppwriteService();
+        await appwrite.initialize();
+        final docs = await appwrite.listDocuments(
+          collectionId: 'app_users',
+          useCache: false,
+        );
+        for (final doc in docs) {
+          if ((doc.data['username']?.toString() ?? '') == normalized) {
+            final version = doc.data['credentials_version'] as int? ?? 0;
+            await saveCredentialsVersion(version);
+            break;
+          }
+        }
+      } catch (e, st) {
+        AppLogger.warning(
+          'تعذر حفظ credentials_version للمستخدم $normalized',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    } else {
+      perms = await getPermissions(normalized);
+    }
     return {
       'id': account['id'] ?? 0,
       'username': normalized,
@@ -190,10 +291,190 @@ class AuthLocalStore {
     };
     await _saveCustomAccounts(accounts);
     await setPermissions(normalized, permissions);
+
+    // رفع المستخدم إلى Appwrite Cloud
+    await _pushUserToCloud(
+      username: normalized,
+      password: password,
+      fullName: fullName,
+      userType: userType,
+      permissions: permissions,
+    );
+  }
+
+  /// رفع مستخدم إلى Appwrite Cloud
+  Future<void> _pushUserToCloud({
+    required String username,
+    required String password,
+    required String fullName,
+    required String userType,
+    required List<String> permissions,
+  }) async {
+    try {
+      final appwrite = AppwriteService();
+      await appwrite.initialize();
+      final docId = 'user_$username';
+      await appwrite.upsertDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+        data: {
+          'username': username,
+          'password': password,
+          'full_name': fullName,
+          'user_type': userType,
+          'permissions': jsonEncode(permissions),
+          'active': true,
+          'last_login': 0,
+          'credentials_version': 1,
+        },
+      );
+      AppLogger.debug('User $username pushed to cloud', tag: 'AUTH');
+    } catch (e) {
+      AppLogger.warning(
+        'Failed to push user $username to cloud',
+        tag: 'AUTH',
+        error: e,
+      );
+    }
+  }
+
+  /// تحديث بيانات مستخدم سحابي (اسم، كلمة مرور، صلاحيات) + زيادة credentials_version
+  /// يعيد true إذا نجح → يجب قطع الجلسة على الأجهزة الأخرى
+  Future<bool> updateCloudUser({
+    required String username,
+    required String docId,
+    String? newPassword,
+    String? newFullName,
+    String? newUserType,
+    List<String>? newPermissions,
+    bool? active,
+  }) async {
+    try {
+      final appwrite = AppwriteService();
+      await appwrite.initialize();
+
+      // سحب المستند الحالي لمعرفة credentials_version الحالي
+      final currentDoc = await appwrite.getDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+      );
+      final currentVersion = currentDoc.data['credentials_version'] as int? ?? 0;
+      final nextVersion = currentVersion + 1;
+
+      final data = <String, dynamic>{
+        'credentials_version': nextVersion,
+      };
+
+      if (newPassword != null) data['password'] = newPassword;
+      if (newFullName != null) data['full_name'] = newFullName;
+      if (newUserType != null) data['user_type'] = newUserType;
+      if (newPermissions != null) data['permissions'] = jsonEncode(newPermissions);
+      if (active != null) data['active'] = active;
+
+      await appwrite.updateDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+        data: data,
+      );
+
+      AppLogger.info(
+        'Cloud user $username updated (version $currentVersion → $nextVersion)',
+        tag: 'AUTH',
+      );
+      return true;
+    } catch (e) {
+      AppLogger.error(
+        'Failed to update cloud user $username',
+        tag: 'AUTH',
+        error: e,
+      );
+      return false;
+    }
+  }
+
+  /// حذف مستخدم سحابي من Appwrite
+  Future<bool> deleteCloudUser({
+    required String docId,
+  }) async {
+    try {
+      final appwrite = AppwriteService();
+      await appwrite.initialize();
+      await appwrite.deleteDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+      );
+      AppLogger.info('Cloud user deleted (doc: $docId)', tag: 'AUTH');
+      return true;
+    } catch (e) {
+      AppLogger.warning('Failed to delete cloud user', tag: 'AUTH', error: e);
+      return false;
+    }
+  }
+
+  /// حفظ credentials_version عند تسجيل الدخول
+  static const _kCredVersion = 'credentials_version';
+
+  Future<void> saveCredentialsVersion(int version) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kCredVersion, version);
+  }
+
+  Future<int?> getCredentialsVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_kCredVersion);
+  }
+
+  /// التحقق من صلاحية الجلسة — يقارن credentials_version المحلي مع السحابة
+  /// يعيد true إذا الجلسة صالحة، false إذا تم تغيير البيانات من جهاز آخر
+  Future<bool> checkSessionValidity() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedVersion = prefs.getInt(_kCredVersion);
+      if (storedVersion == null) return true; // مستخدم محلي، لا تحقق
+
+      final currentUser = await loadCurrentUser();
+      if (currentUser == null) return true;
+
+      final username = currentUser['username']?.toString() ?? '';
+      if (username.isEmpty) return true;
+      if (_fixedAccounts.containsKey(username)) return true; // hardcoded
+
+      final appwrite = AppwriteService();
+      await appwrite.initialize();
+      final cloudAccounts = await loadCloudAccounts();
+      final cloudAccount = cloudAccounts[username];
+      if (cloudAccount == null) return true; // ليس مستخدم سحابي
+
+      // سحب credentials_version من السحابة
+      final docs = await appwrite.listDocuments(
+        collectionId: 'app_users',
+        useCache: false,
+      );
+      for (final doc in docs) {
+        final d = doc.data;
+        if ((d['username']?.toString() ?? '') == username) {
+          final cloudVersion = d['credentials_version'] as int? ?? 0;
+          if (cloudVersion != storedVersion) {
+            AppLogger.warning(
+              'Session invalid for $username: local=$storedVersion, cloud=$cloudVersion',
+              tag: 'AUTH',
+            );
+            return false;
+          }
+          return true;
+        }
+      }
+      return true;
+    } catch (e) {
+      AppLogger.warning('Session check failed (ignoring)', tag: 'AUTH', error: e);
+      return true;
+    }
   }
 
   Future<List<Map<String, dynamic>>> getAllAccountsDetailed() async {
     final result = <Map<String, dynamic>>[];
+
+    // حسابات محلية ثابتة (hardcoded)
     _fixedAccounts.forEach((username, data) {
       result.add({
         'username': username,
@@ -201,8 +482,11 @@ class AuthLocalStore {
         'user_type': data['user_type'] ?? 'employee',
         'id': data['id'],
         'is_fixed': true,
+        'is_cloud': false,
       });
     });
+
+    // حسابات محلية مخصصة (custom)
     final customAccounts = await _loadCustomAccounts();
     customAccounts.forEach((username, rawData) {
       if (rawData is Map) {
@@ -212,9 +496,41 @@ class AuthLocalStore {
           'user_type': rawData['user_type'] ?? 'employee',
           'id': rawData['id'],
           'is_fixed': false,
+          'is_cloud': false,
         });
       }
     });
+
+    // حسابات سحابية من Appwrite (app_users)
+    try {
+      final cloudAccounts = await loadCloudAccounts();
+      final localUsernames = result
+          .map((a) => a['username'].toString())
+          .toSet();
+      cloudAccounts.forEach((username, data) {
+        // تجنب التكرار مع الحسابات المحلية
+        if (!localUsernames.contains(username)) {
+          result.add({
+            'username': username,
+            'full_name': data['full_name'] ?? username,
+            'user_type': data['user_type'] ?? 'employee',
+            'id': data['id'],
+            'is_fixed': false,
+            'is_cloud': true,
+            'doc_id': data['doc_id'],
+          });
+        }
+      });
+    } catch (e, st) {
+      // فشل سحب السحابي — لا مشكلة، نعرض المحلي فقط
+      AppLogger.warning(
+        'فشل سحب الحسابات السحابية أثناء التجميع التفصيلي',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
+    }
+
     result.sort((a, b) {
       final aName = a['username'].toString();
       final bName = b['username'].toString();
@@ -239,7 +555,13 @@ class AuthLocalStore {
         return json.map((key, value) => MapEntry(key.toString(), value));
       }
       return null;
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.warning(
+        'بيانات المستخدم الحالي غير صالحة في التخزين المحلي',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
       return null;
     }
   }
@@ -281,6 +603,28 @@ class AuthLocalStore {
 
   Future<List<String>> getPermissions(String username) async {
     if (username == 'admin') return ['all'];
+
+    // 1️⃣ محاولة سحب الصلاحيات من السحابة
+    try {
+      final cloudAccounts = await loadCloudAccounts();
+      final cloudAccount = cloudAccounts[username];
+      if (cloudAccount != null) {
+        final permsJson = cloudAccount['permissions_json'] as String? ?? '[]';
+        final parsed = jsonDecode(permsJson);
+        if (parsed is List && parsed.isNotEmpty) {
+          return parsed.map((e) => e.toString()).toList();
+        }
+      }
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر تحميل الصلاحيات من السحابة للمستخدم $username',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
+    }
+
+    // 2️⃣ fallback: الصلاحيات المحلية
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kPermissionsMap);
     if (raw == null) return _fixedPermissions[username] ?? <String>[];
@@ -293,7 +637,13 @@ class AuthLocalStore {
         }
       }
       return _fixedPermissions[username] ?? <String>[];
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر تحليل خريطة الأذونات المحلية للمستخدم $username',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
       return _fixedPermissions[username] ?? <String>[];
     }
   }
@@ -308,19 +658,57 @@ class AuthLocalStore {
         if (decoded is Map) {
           map = decoded.map((k, v) => MapEntry(k.toString(), v));
         }
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.warning('فشل قراءة بيانات الأذونات المحفوظة', tag: 'AUTH', error: e, stackTrace: st);
+      }
     }
     map[username] = permissions;
     await prefs.setString(_kPermissionsMap, jsonEncode(map));
     if (username == 'admin') {
       map[username] = ['all'];
     }
+
+    // تحديث الصلاحيات في السحابة أيضاً
+    await _updateCloudPermissions(username, permissions);
+  }
+
+  /// تحديث صلاحيات مستخدم سحابي في Appwrite
+  Future<void> _updateCloudPermissions(
+    String username,
+    List<String> permissions,
+  ) async {
+    try {
+      final appwrite = AppwriteService();
+      await appwrite.initialize();
+      final cloudAccounts = await loadCloudAccounts();
+      final cloudAccount = cloudAccounts[username];
+      if (cloudAccount == null) return;
+      final docId = cloudAccount['doc_id'] as String?;
+      if (docId == null) return;
+      await appwrite.updateDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+        data: {
+          'permissions': jsonEncode(permissions),
+        },
+      );
+      AppLogger.debug(
+        'Permissions updated for $username in cloud',
+        tag: 'AUTH',
+      );
+    } catch (e) {
+      AppLogger.warning(
+        'Failed to update cloud permissions for $username',
+        tag: 'AUTH',
+        error: e,
+      );
+    }
   }
 
   Future<List<String>> getAllUsernames() async {
     final names = <String>{..._fixedAccounts.keys};
     final custom = await _loadCustomAccounts();
-    names.addAll(custom.keys.map((e) => e.toString()));
+    names.addAll(custom.keys.map((e) => e));
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kPermissionsMap);
     if (raw != null) {
@@ -331,7 +719,21 @@ class AuthLocalStore {
             names.add(k.toString());
           }
         }
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.warning('فشل قراءة أسماء المستخدمين من الأذونات', tag: 'AUTH', error: e, stackTrace: st);
+      }
+    }
+    // إضافة أسماء المستخدمين السحابيين
+    try {
+      final cloudAccounts = await loadCloudAccounts();
+      names.addAll(cloudAccounts.keys);
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر إضافة المستخدمين السحابيين إلى قائمة الأسماء',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
     }
     final list = names.toList();
     list.sort();
@@ -341,5 +743,10 @@ class AuthLocalStore {
   Future<int> getUsersCount() async {
     final list = await getAllUsernames();
     return list.length;
+  }
+
+  /// التحقق مما إذا كان المستخدم من الحسابات الثابتة (hardcoded)
+  bool isFixedAccount(String username) {
+    return _fixedAccounts.containsKey(username);
   }
 }

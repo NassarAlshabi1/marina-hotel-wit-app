@@ -7,15 +7,6 @@ import '../utils/time.dart';
 import 'local_db.dart';
 
 class BookingCalculationResult {
-  final List<NightlyBreakdown> breakdown;
-  final FinancialSummary financialSummary;
-  final DateTime checkin;
-  final DateTime checkout;
-  final bool bookingActive;
-  final String stayDurationIso;
-  final int? lastNightEpoch;
-  final String hotelDayCheckin;
-  final String hotelDayCheckout;
 
   const BookingCalculationResult({
     required this.breakdown,
@@ -28,6 +19,15 @@ class BookingCalculationResult {
     required this.hotelDayCheckin,
     required this.hotelDayCheckout,
   });
+  final List<NightlyBreakdown> breakdown;
+  final FinancialSummary financialSummary;
+  final DateTime checkin;
+  final DateTime checkout;
+  final bool bookingActive;
+  final String stayDurationIso;
+  final int? lastNightEpoch;
+  final String hotelDayCheckin;
+  final String hotelDayCheckout;
 }
 
 class EnhancedBookingCalculationService {
@@ -117,7 +117,9 @@ class EnhancedBookingCalculationService {
     final booking =
         await (db.select(db.bookings)..where((b) => b.id.equals(bookingId)))
             .getSingleOrNull();
-    if (booking == null) return;
+    if (booking == null) {
+      return;
+    }
 
     final calculation = await calculateForBooking(booking, now: now);
     await _replaceBookingNights(
@@ -198,7 +200,26 @@ class EnhancedBookingCalculationService {
             endDate,
           );
           if (nightsInRange > 0) {
-            adjAmount = (rawAmount / nightsInRange).round();
+            // حساب المبلغ الموزع بدقة مع معالجة الباقي في آخر ليلة
+            final int basePart = rawAmount ~/ nightsInRange;
+            final int remainder = rawAmount % nightsInRange;
+            
+            // تحديد ترتيب الليلة الحالية ضمن النطاق المتأثر
+            int nightIndexInRange = 0;
+            for (final s in segments) {
+              final d = DateTime.parse(s.hotelDayKey);
+              if (!_isWithinRange(d, effectiveDate, endDate)) {
+                continue;
+              }
+              if (d.isBefore(nightDate)) {
+                nightIndexInRange++;
+              } else {
+                break;
+              }
+            }
+            
+            // إضافة 1 من الباقي لأول 'remainder' ليالي لضمان تطابق المجموع
+            adjAmount = basePart + (nightIndexInRange < remainder ? 1 : 0);
           }
         }
         
@@ -224,14 +245,12 @@ class EnhancedBookingCalculationService {
               uuid: 'legacy_discount',
               type: 'legacy_discount',
               amount: signed,
-              reason: null,
-              appliedBy: null,
             ),
           );
         }
       }
 
-      final int finalRate = (baseRate + adjustmentTotal).clamp(0, baseRate * 3);
+      final int finalRate = (baseRate + adjustmentTotal).clamp(0, baseRate * 100);
 
       breakdown.add(
         NightlyBreakdown(
@@ -314,6 +333,7 @@ class EnhancedBookingCalculationService {
                     p.bookingUuidCache.equals(booking.localUuid)),
               )
               ..where((p) => p.deletedAt.isNull())
+              ..where((p) => p.isVoided.equals(false))
               ..where((p) => p.isPendingBalance.equals(false))
               ..where(
                 (p) =>
@@ -329,7 +349,7 @@ class EnhancedBookingCalculationService {
   Future<List<BookingPriceAdjustment>> _fetchActiveAdjustments(
     Booking booking,
   ) async {
-    return await (db.select(db.bookingPriceAdjustments)
+    final raw = await (db.select(db.bookingPriceAdjustments)
           ..where(
             (a) =>
                 (a.bookingLocalId.equals(booking.id) |
@@ -338,6 +358,42 @@ class EnhancedBookingCalculationService {
           ..where((a) => a.isActive.equals(true))
           ..where((a) => a.deletedAt.isNull()))
         .get();
+
+    // ─── حماية متعددة الطبقات ضد التعديلات الوهمية ───
+
+    final bookingDiscount = _asInt(booking.discount);
+
+    return raw.where((adj) {
+      // ① استبعاد سجلات legacy_discount دائماً
+      //    يتم تطبيق التخفيض القديم عبر المسار المخصص في
+      //    _buildNightlyBreakdown (سطور 218-232).
+      //    تمرير هذه السجلات هنا يُسبب تخفيضاً مزدوجاً (BUG #2).
+      if (adj.reason == 'legacy_discount') {
+        return false;
+      }
+
+      // ② التحقق من roomNumber — تجنب تطبيق تخفيض من حجز آخر
+      final adjRoom = adj.roomNumber?.trim();
+      if (adjRoom == null || adjRoom.isEmpty) {
+        return false;
+      }
+      final room = booking.roomNumber.trim();
+      if (adjRoom != room) {
+        return false;
+      }
+
+      // ③ حماية: إذا لم يكن هناك تخفيض على الحجز (discount = 0)
+      //    فتجنب تطبيق أي تعديل بـ amount سلبي بدون سبب واضح
+      if (bookingDiscount <= 0 &&
+          adj.adjustmentType == 0 &&
+          adj.reason == null) {
+        // سجل تخفيض يدوي بدون سبب + لا يوجد تخفيض على الحجز
+        // = سجل يتيم محتمل → تجاهله للحماية
+        return false;
+      }
+
+      return true;
+    }).toList();
   }
 
   Future<void> _replaceBookingNights({
@@ -480,7 +536,9 @@ class EnhancedBookingCalculationService {
     DateTime nightDate,
     DateTime? discountStartDate,
   ) {
-    if (discountStartDate == null) return true;
+    if (discountStartDate == null) {
+      return true;
+    }
     final nightDay = DateTime(nightDate.year, nightDate.month, nightDate.day);
     final discountDay = DateTime(discountStartDate.year, discountStartDate.month, discountStartDate.day);
     return !nightDay.isBefore(discountDay);
@@ -491,8 +549,12 @@ class EnhancedBookingCalculationService {
     DateTime effectiveDate,
     DateTime? endDate,
   ) {
-    if (nightDate.isBefore(effectiveDate)) return false;
-    if (endDate != null && nightDate.isAfter(endDate)) return false;
+    if (nightDate.isBefore(effectiveDate)) {
+      return false;
+    }
+    if (endDate != null && nightDate.isAfter(endDate)) {
+      return false;
+    }
     return true;
   }
 
@@ -529,12 +591,16 @@ class EnhancedBookingCalculationService {
   }
 
   DateTime? _parseDateTime(String? value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     final v = value.trim();
-    if (v.isEmpty) return null;
+    if (v.isEmpty) {
+      return null;
+    }
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds =
-        normalized.length == 16 ? '${normalized}:00' : normalized;
+        normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {
@@ -543,10 +609,18 @@ class EnhancedBookingCalculationService {
   }
 
   int _asInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is num) return value.round();
-    if (value is String) return int.tryParse(value) ?? 0;
+    if (value == null) {
+      return 0;
+    }
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.round();
+    }
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
     return 0;
   }
 
@@ -558,7 +632,7 @@ class EnhancedBookingCalculationService {
     final segments = <_NightSegment>[];
 
     // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
-    int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: cutoffHour);
+    final int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: cutoffHour);
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
     DateTime startOfCheckinHotelDay = DateTime(

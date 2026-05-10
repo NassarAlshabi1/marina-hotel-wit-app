@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../providers/auto_sync_engine_providers.dart';
 import '../../services/google_drive_auto_sync_engine.dart';
 import '../../services/google_drive_conflict_resolver.dart';
+import '../../utils/date_parser.dart';
 
 class AutoSyncEngineMonitorScreen extends ConsumerStatefulWidget {
   const AutoSyncEngineMonitorScreen({super.key});
@@ -21,7 +23,7 @@ class _AutoSyncEngineMonitorScreenState
   @override
   Widget build(BuildContext context) {
     final engineState = ref.watch(autoSyncEngineStateProvider);
-    final syncHealth = ref.watch(syncHealthProvider);
+    final syncHealth = ref.watch(autoSyncHealthSummaryProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -256,8 +258,8 @@ class _AutoSyncEngineMonitorScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.error, color: Colors.red),
                 SizedBox(width: 8),
                 Text(
@@ -270,7 +272,7 @@ class _AutoSyncEngineMonitorScreenState
             LinearProgressIndicator(
               value: state.failedAttempts / 5,
               backgroundColor: Colors.red.shade100,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
             ),
             const SizedBox(height: 8),
             Text(
@@ -322,6 +324,7 @@ class _AutoSyncEngineMonitorScreenState
               child: ElevatedButton.icon(
                 onPressed: () async {
                   await AutoSyncEngine.instance.resetFailedAttempts();
+                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('✅ تم إعادة تعيين المحاولات')),
                   );
@@ -638,7 +641,7 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   Future<void> _performManualSync(BuildContext context) async {
-    showDialog(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AlertDialog(
@@ -650,12 +653,15 @@ class _AutoSyncEngineMonitorScreenState
           ],
         ),
       ),
-    );
+    ),);
 
     try {
       final result = await AutoSyncEngine.instance.forceSyncNow();
 
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        // ignore: use_build_context_synchronously
+        Navigator.of(context).pop();
+      }
 
       if (mounted) {
         final message = result.success
@@ -665,7 +671,8 @@ class _AutoSyncEngineMonitorScreenState
             : '❌ ${result.message}\n'
                   '${result.error ?? ""}';
 
-        showDialog(
+        unawaited(showDialog<void>(
+          // ignore: use_build_context_synchronously
           context: context,
           builder: (context) => AlertDialog(
             title: Text(result.success ? 'نجح!' : 'فشل'),
@@ -677,13 +684,17 @@ class _AutoSyncEngineMonitorScreenState
               ),
             ],
           ),
-        );
+        ),);
       }
 
       ref.invalidate(autoSyncEngineStateProvider);
     } catch (e) {
-      if (mounted) Navigator.of(context).pop();
       if (mounted) {
+        // ignore: use_build_context_synchronously
+        Navigator.of(context).pop();
+      }
+      if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red),
         );
@@ -694,6 +705,7 @@ class _AutoSyncEngineMonitorScreenState
   Future<void> _resetFailedAttempts(BuildContext context) async {
     await AutoSyncEngine.instance.resetFailedAttempts();
     if (mounted) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ تم إعادة تعيين المحاولات الفاشلة'),
@@ -709,7 +721,7 @@ class _AutoSyncEngineMonitorScreenState
 
     statusAsync.when(
       data: (status) {
-        showDialog(
+        showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('الحالة الكاملة (JSON)'),
@@ -761,7 +773,7 @@ class _AutoSyncEngineMonitorScreenState
           return;
         }
 
-        showModalBottomSheet(
+        showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
           builder: (context) => DraggableScrollableSheet(
@@ -805,19 +817,19 @@ class _AutoSyncEngineMonitorScreenState
                           backgroundColor: Colors.purple.shade100,
                           child: Text('${index + 1}'),
                         ),
-                        title: Text('${entry['table']} / ${entry['uuid']}'),
+                        title: Text('${entry['table'] as String} / ${entry['uuid'] as String}'),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(entry['resolution'] ?? ''),
+                            Text(entry['resolution'] as String? ?? ''),
                             Text(
-                              'الفرق الزمني: ${entry['time_diff_seconds']} ثانية',
+                              'الفرق الزمني: ${entry['time_diff_seconds'] as String? ?? ''} ثانية',
                               style: const TextStyle(fontSize: 11),
                             ),
                           ],
                         ),
                         trailing: Text(
-                          _formatTimestamp(entry['timestamp']),
+                          _formatTimestamp(entry['timestamp'] as String?),
                           style: const TextStyle(fontSize: 11),
                         ),
                       );
@@ -830,7 +842,7 @@ class _AutoSyncEngineMonitorScreenState
         );
       },
       loading: () {
-        showDialog(
+        showDialog<void>(
           context: context,
           builder: (context) => const AlertDialog(
             content: Row(
@@ -865,7 +877,8 @@ class _AutoSyncEngineMonitorScreenState
         (current['coordinator']?['debounce_seconds'] as int?) ?? 5;
 
     if (mounted) {
-      showDialog(
+      unawaited(showDialog<void>(
+        // ignore: use_build_context_synchronously
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('ضبط Debouncing'),
@@ -883,8 +896,12 @@ class _AutoSyncEngineMonitorScreenState
                   onChanged: (value) async {
                     if (value != null) {
                       await AutoSyncEngine.instance.setDebounceSeconds(value);
-                      if (context.mounted) Navigator.pop(context);
                       if (mounted) {
+                        // ignore: use_build_context_synchronously
+                        Navigator.pop(context);
+                      }
+                      if (mounted) {
+                        // ignore: use_build_context_synchronously
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -900,7 +917,7 @@ class _AutoSyncEngineMonitorScreenState
             ],
           ),
         ),
-      );
+      ),);
     }
   }
 
@@ -910,7 +927,8 @@ class _AutoSyncEngineMonitorScreenState
         (current['coordinator']?['pull_interval_minutes'] as int?) ?? 2;
 
     if (mounted) {
-      showDialog(
+      unawaited(showDialog<void>(
+        // ignore: use_build_context_synchronously
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('ضبط فترة Pull'),
@@ -928,8 +946,12 @@ class _AutoSyncEngineMonitorScreenState
                   onChanged: (value) async {
                     if (value != null) {
                       await AutoSyncEngine.instance.setPullInterval(value);
-                      if (context.mounted) Navigator.pop(context);
                       if (mounted) {
+                        // ignore: use_build_context_synchronously
+                        Navigator.pop(context);
+                      }
+                      if (mounted) {
+                        // ignore: use_build_context_synchronously
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -945,7 +967,7 @@ class _AutoSyncEngineMonitorScreenState
             ],
           ),
         ),
-      );
+      ),);
     }
   }
 
@@ -954,7 +976,8 @@ class _AutoSyncEngineMonitorScreenState
     final currentStrategy = await resolver.getStrategy();
 
     if (mounted) {
-      showDialog(
+      unawaited(showDialog<void>(
+        // ignore: use_build_context_synchronously
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('استراتيجية حل التضارب'),
@@ -970,8 +993,12 @@ class _AutoSyncEngineMonitorScreenState
                   onChanged: (value) async {
                     if (value != null) {
                       await AutoSyncEngine.instance.setConflictStrategy(value);
-                      if (context.mounted) Navigator.pop(context);
                       if (mounted) {
+                        // ignore: use_build_context_synchronously
+                        Navigator.pop(context);
+                      }
+                      if (mounted) {
+                        // ignore: use_build_context_synchronously
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -987,21 +1014,33 @@ class _AutoSyncEngineMonitorScreenState
             ),
           ),
         ),
-      );
+      ),);
     }
   }
 
   String _getDebounceDescription(int seconds) {
-    if (seconds <= 2) return 'سريع جداً - استجابة فورية';
-    if (seconds <= 5) return 'متوازن - موصى به';
-    if (seconds <= 10) return 'بطيء - توفير البطارية';
+    if (seconds <= 2) {
+      return 'سريع جداً - استجابة فورية';
+    }
+    if (seconds <= 5) {
+      return 'متوازن - موصى به';
+    }
+    if (seconds <= 10) {
+      return 'بطيء - توفير البطارية';
+    }
     return 'بطيء جداً';
   }
 
   String _getPullIntervalDescription(int minutes) {
-    if (minutes <= 1) return 'سريع جداً - تحديثات فورية';
-    if (minutes <= 2) return 'سريع - موصى به';
-    if (minutes <= 5) return 'متوسط - متوازن';
+    if (minutes <= 1) {
+      return 'سريع جداً - تحديثات فورية';
+    }
+    if (minutes <= 2) {
+      return 'سريع - موصى به';
+    }
+    if (minutes <= 5) {
+      return 'متوسط - متوازن';
+    }
     return 'بطيء - توفير البيانات';
   }
 
@@ -1062,12 +1101,13 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   String _formatTimestamp(String? iso) {
-    if (iso == null) return '';
-    try {
-      final dt = DateTime.parse(iso);
-      return DateFormat('dd/MM HH:mm').format(dt);
-    } catch (_) {
+    if (iso == null) {
+      return '';
+    }
+    final dt = DateParser.parse(iso);
+    if (dt == null) {
       return iso;
     }
+    return DateFormat('dd/MM HH:mm').format(dt);
   }
 }

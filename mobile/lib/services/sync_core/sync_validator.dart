@@ -1,9 +1,6 @@
 import 'package:flutter/foundation.dart';
 
 class ValidationResult {
-  final bool isValid;
-  final String? error;
-  final List<String> warnings;
 
   ValidationResult({required this.isValid, this.error, List<String>? warnings})
     : warnings = warnings ?? [];
@@ -15,13 +12,16 @@ class ValidationResult {
   factory ValidationResult.invalid(String error, {List<String>? warnings}) {
     return ValidationResult(isValid: false, error: error, warnings: warnings);
   }
+  final bool isValid;
+  final String? error;
+  final List<String> warnings;
 }
 
 class SyncValidator {
-  static SyncValidator? _instance;
-  static SyncValidator get instance => _instance ??= SyncValidator._();
 
   SyncValidator._();
+  static SyncValidator? _instance;
+  static SyncValidator get instance => _instance ??= SyncValidator._();
 
   ValidationResult validateSyncData(Map<String, dynamic> data) {
     final warnings = <String>[];
@@ -36,7 +36,7 @@ class SyncValidator {
 
     if (data.containsKey('timestamp')) {
       try {
-        DateTime.parse(data['timestamp']);
+        DateTime.parse(data['timestamp'] as String);
       } catch (e) {
         return ValidationResult.invalid('timestamp غير صالح');
       }
@@ -89,8 +89,8 @@ class SyncValidator {
     }
 
     try {
-      final localTime = DateTime.parse(localData['timestamp']);
-      final remoteTime = DateTime.parse(remoteData['timestamp']);
+      final localTime = DateTime.parse(localData['timestamp'] as String);
+      final remoteTime = DateTime.parse(remoteData['timestamp'] as String);
 
       final difference = localTime.difference(remoteTime).abs();
       if (difference > const Duration(hours: 24)) {
@@ -104,11 +104,21 @@ class SyncValidator {
   }
 
   int _estimateSize(dynamic data) {
-    if (data == null) return 0;
-    if (data is String) return data.length;
-    if (data is int) return 8;
-    if (data is double) return 8;
-    if (data is bool) return 1;
+    if (data == null) {
+      return 0;
+    }
+    if (data is String) {
+      return data.length;
+    }
+    if (data is int) {
+      return 8;
+    }
+    if (data is double) {
+      return 8;
+    }
+    if (data is bool) {
+      return 1;
+    }
     if (data is List) {
       return data.fold(0, (sum, item) => sum + _estimateSize(item));
     }

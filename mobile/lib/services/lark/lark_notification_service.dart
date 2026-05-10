@@ -25,13 +25,6 @@ enum LarkEventType {
 
 /// بيانات الحدث المطلوب إرسال إشعار عنه
 class LarkEvent {
-  final LarkEventType type;
-  final String roomNumber;
-  final String? guestName;
-  final String? guestPhone;
-  final String? details;
-  final DateTime? eventTime;
-  final double? amount;
 
   const LarkEvent({
     required this.type,
@@ -42,16 +35,23 @@ class LarkEvent {
     this.eventTime,
     this.amount,
   });
+  final LarkEventType type;
+  final String roomNumber;
+  final String? guestName;
+  final String? guestPhone;
+  final String? details;
+  final DateTime? eventTime;
+  final double? amount;
 }
 
 /// خدمة إشعارات Lark الفورية
 /// ترسل إشعارات فورية عند أحداث الفندق المختلفة
 class LarkNotificationService {
+
+  LarkNotificationService._();
   static LarkNotificationService? _instance;
   static LarkNotificationService get instance =>
       _instance ??= LarkNotificationService._();
-
-  LarkNotificationService._();
 
   final LarkApiClient _api = LarkApiClient.instance;
 
@@ -60,8 +60,12 @@ class LarkNotificationService {
   Future<bool> sendEventNotification(LarkEvent event) async {
     try {
       // التحقق من تفعيل Lark والإشعارات
-      if (!await LarkConfig.isEnabled()) return false;
-      if (!await LarkConfig.isNotificationsEnabled()) return false;
+      if (!await LarkConfig.isEnabled()) {
+        return false;
+      }
+      if (!await LarkConfig.isNotificationsEnabled()) {
+        return false;
+      }
 
       final webhookUrl = await LarkConfig.getWebhookUrl();
       if (webhookUrl.isEmpty) {
@@ -115,12 +119,12 @@ class LarkNotificationService {
     }
 
     if (event.details != null && event.details!.isNotEmpty) {
-      buffer.writeln('');
+      buffer.writeln();
       buffer.writeln('${event.details}');
     }
 
     if (event.eventTime != null) {
-      buffer.writeln('');
+      buffer.writeln();
       buffer.writeln(
         '**الوقت:** ${event.eventTime!.hour.toString().padLeft(2, '0')}:${event.eventTime!.minute.toString().padLeft(2, '0')}',
       );
@@ -175,9 +179,15 @@ class LarkNotificationService {
   }) {
     final details = StringBuffer();
     details.writeln('**تاريخ الدخول:** $checkinDate');
-    if (checkoutDate != null) details.writeln('**تاريخ الخروج:** $checkoutDate');
-    if (nights != null) details.writeln('**عدد الليالي:** $nights');
-    if (totalDue != null) details.writeln('**الإجمالي:** \$${totalDue.toStringAsFixed(2)}');
+    if (checkoutDate != null) {
+      details.writeln('**تاريخ الخروج:** $checkoutDate');
+    }
+    if (nights != null) {
+      details.writeln('**عدد الليالي:** $nights');
+    }
+    if (totalDue != null) {
+      details.writeln('**الإجمالي:** \$${totalDue.toStringAsFixed(2)}');
+    }
 
     return sendEventNotification(LarkEvent(
       type: LarkEventType.newBooking,
@@ -186,7 +196,7 @@ class LarkNotificationService {
       guestPhone: guestPhone,
       details: details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار تسجيل دخول ضيف
@@ -197,7 +207,9 @@ class LarkNotificationService {
     int? expectedNights,
   }) {
     final details = StringBuffer();
-    if (expectedNights != null) details.writeln('**الليالي المتوقعة:** $expectedNights');
+    if (expectedNights != null) {
+      details.writeln('**الليالي المتوقعة:** $expectedNights');
+    }
 
     return sendEventNotification(LarkEvent(
       type: LarkEventType.checkIn,
@@ -206,7 +218,7 @@ class LarkNotificationService {
       guestPhone: guestPhone,
       details: details.isEmpty ? null : details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار تسجيل خروج ضيف
@@ -218,8 +230,12 @@ class LarkNotificationService {
     double? remaining,
   }) {
     final details = StringBuffer();
-    if (actualNights != null) details.writeln('**عدد الليالي الفعلية:** $actualNights');
-    if (totalPaid != null) details.writeln('**إجمالي المدفوع:** \$${totalPaid.toStringAsFixed(2)}');
+    if (actualNights != null) {
+      details.writeln('**عدد الليالي الفعلية:** $actualNights');
+    }
+    if (totalPaid != null) {
+      details.writeln('**إجمالي المدفوع:** \$${totalPaid.toStringAsFixed(2)}');
+    }
     if (remaining != null && remaining > 0) {
       details.writeln('**المتبقي:** \$${remaining.toStringAsFixed(2)}');
     }
@@ -230,7 +246,7 @@ class LarkNotificationService {
       guestName: guestName,
       details: details.isEmpty ? null : details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار استلام دفعة
@@ -258,7 +274,7 @@ class LarkNotificationService {
       amount: amount,
       details: details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار طلب صيانة
@@ -273,7 +289,7 @@ class LarkNotificationService {
       guestName: reportedBy,
       details: description,
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار إلغاء حجز
@@ -288,7 +304,7 @@ class LarkNotificationService {
       guestName: guestName,
       details: reason,
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار تأخير مغادرة
@@ -301,8 +317,12 @@ class LarkNotificationService {
   }) {
     final details = StringBuffer();
     details.writeln('**موعد المغادرة المخطط:** $plannedCheckout');
-    if (extraNights != null) details.writeln('**ليالي إضافية:** $extraNights');
-    if (extraCharge != null) details.writeln('**تكلفة إضافية:** \$${extraCharge.toStringAsFixed(2)}');
+    if (extraNights != null) {
+      details.writeln('**ليالي إضافية:** $extraNights');
+    }
+    if (extraCharge != null) {
+      details.writeln('**تكلفة إضافية:** \$${extraCharge.toStringAsFixed(2)}');
+    }
 
     return sendEventNotification(LarkEvent(
       type: LarkEventType.overstay,
@@ -310,7 +330,7 @@ class LarkNotificationService {
       guestName: guestName,
       details: details.toString().trimRight(),
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 
   /// إشعار مصروف جديد
@@ -325,6 +345,6 @@ class LarkNotificationService {
       amount: amount,
       details: '$category\n${description ?? ''}',
       eventTime: DateTime.now(),
-    ));
+    ),);
   }
 }

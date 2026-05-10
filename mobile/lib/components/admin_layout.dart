@@ -3,13 +3,6 @@ import '../utils/theme.dart';
 import 'admin_sidebar.dart';
 
 class AdminLayout extends StatelessWidget {
-  final Widget body;
-  final String currentRoute;
-  final String? title;
-  final List<Widget>? actions;
-  final Widget? floatingActionButton;
-  final PreferredSizeWidget? appBar;
-  final Function(String)? onRouteSelected;
 
   const AdminLayout({
     super.key,
@@ -21,6 +14,13 @@ class AdminLayout extends StatelessWidget {
     this.appBar,
     this.onRouteSelected,
   });
+  final Widget body;
+  final String currentRoute;
+  final String? title;
+  final List<Widget>? actions;
+  final Widget? floatingActionButton;
+  final PreferredSizeWidget? appBar;
+  final void Function(String)? onRouteSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +42,7 @@ class AdminLayout extends StatelessWidget {
                   children: [
                     if (title != null || actions != null) _buildTopBar(context),
                     Expanded(
-                      child: Container(
+                      child: ColoredBox(
                         color: Theme.of(context).scaffoldBackgroundColor,
                         child: body,
                       ),
@@ -65,7 +65,7 @@ class AdminLayout extends StatelessWidget {
             currentRoute: currentRoute,
             onRouteSelected: onRouteSelected ?? (route) {},
           ),
-          body: Container(color: Theme.of(context).scaffoldBackgroundColor, child: body),
+          body: ColoredBox(color: Theme.of(context).scaffoldBackgroundColor, child: body),
           floatingActionButton: floatingActionButton,
         ),
       );
@@ -85,7 +85,7 @@ class AdminLayout extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -127,12 +127,6 @@ class AdminLayout extends StatelessWidget {
 
 // Bootstrap-like components for matching PHP design
 class AdminCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsets? padding;
-  final Color? color;
-  final double? elevation;
-  final String? title;
-  final Widget? trailing;
 
   const AdminCard({
     super.key,
@@ -143,6 +137,12 @@ class AdminCard extends StatelessWidget {
     this.title,
     this.trailing,
   });
+  final Widget child;
+  final EdgeInsets? padding;
+  final Color? color;
+  final double? elevation;
+  final String? title;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -189,11 +189,6 @@ class AdminCard extends StatelessWidget {
 }
 
 class StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final String? subtitle;
 
   const StatCard({
     super.key,
@@ -203,6 +198,11 @@ class StatCard extends StatelessWidget {
     required this.color,
     this.subtitle,
   });
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -216,7 +216,7 @@ class StatCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topRight,
             end: Alignment.bottomLeft,
-            colors: [color, color.withOpacity(0.8)],
+            colors: [color, color.withValues(alpha: 0.8)],
           ),
         ),
         child: Row(
@@ -238,7 +238,7 @@ class StatCard extends StatelessWidget {
                     title,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                     ),
                   ),
                   if (subtitle != null) ...[
@@ -247,7 +247,7 @@ class StatCard extends StatelessWidget {
                       subtitle!,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -257,7 +257,7 @@ class StatCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, size: 32, color: Colors.white),
@@ -270,11 +270,6 @@ class StatCard extends StatelessWidget {
 }
 
 class AdminTable extends StatefulWidget {
-  final List<String> headers;
-  final List<List<Widget>> rows;
-  final bool striped;
-  final bool bordered;
-  final int rowsPerPage;
 
   const AdminTable({
     super.key,
@@ -284,6 +279,11 @@ class AdminTable extends StatefulWidget {
     this.bordered = true,
     this.rowsPerPage = 50,
   });
+  final List<String> headers;
+  final List<List<Widget>> rows;
+  final bool striped;
+  final bool bordered;
+  final int rowsPerPage;
 
   @override
   State<AdminTable> createState() => _AdminTableState();
@@ -379,12 +379,12 @@ class _AdminTableState extends State<AdminTable> {
                 .entries
                 .map(
                   (entry) => DataRow(
-                    color: widget.striped && (startIndex + entry.key) % 2 == 1
+                    color: widget.striped && (startIndex + entry.key).isOdd
                         ? WidgetStateProperty.all(
-                            AppColors.lightGray.withOpacity(0.3),
+                            AppColors.lightGray.withValues(alpha: 0.3),
                           )
                         : null,
-                    cells: entry.value.map((cell) => DataCell(cell)).toList(),
+                    cells: entry.value.map(DataCell.new).toList(),
                   ),
                 )
                 .toList(),
@@ -396,8 +396,6 @@ class _AdminTableState extends State<AdminTable> {
 }
 
 class StatusBadge extends StatelessWidget {
-  final String text;
-  final Color color;
 
   const StatusBadge({super.key, required this.text, required this.color});
 
@@ -416,6 +414,8 @@ class StatusBadge extends StatelessWidget {
   factory StatusBadge.info(String text) {
     return StatusBadge(text: text, color: Colors.blue);
   }
+  final String text;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {

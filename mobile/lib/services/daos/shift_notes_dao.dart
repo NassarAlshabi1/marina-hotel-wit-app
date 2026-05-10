@@ -13,16 +13,20 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
 
   final OutboxDao outboxDao;
 
-  // جلب جميع الملاحظات
-  Future<List<ShiftNote>> getAllNotes() => select(shiftNotes).get();
+  // جلب جميع الملاحظات (غير المحذوفة، غير القائمة السوداء)
+  Future<List<ShiftNote>> getAllNotes() => (select(shiftNotes)
+    ..where((t) => t.deletedAt.isNull() & t.createdBy.equals('user')))
+      .get();
 
-  // جلب الملاحظات غير المقروءة فقط
-  Future<List<ShiftNote>> getUnreadNotes() =>
-      (select(shiftNotes)..where((t) => t.isRead.equals(0))).get();
+  // جلب الملاحظات غير المقروءة فقط (غير المحذوفة، غير القائمة السوداء)
+  Future<List<ShiftNote>> getUnreadNotes() => (select(shiftNotes)
+    ..where((t) => t.isRead.equals(0) & t.deletedAt.isNull() & t.createdBy.equals('user')))
+      .get();
 
-  // جلب الملاحظات عالية الأولوية
-  Future<List<ShiftNote>> getHighPriorityNotes() =>
-      (select(shiftNotes)..where((t) => t.priority.equals('high'))).get();
+  // جلب الملاحظات عالية الأولوية (غير المحذوفة، غير القائمة السوداء)
+  Future<List<ShiftNote>> getHighPriorityNotes() => (select(shiftNotes)
+    ..where((t) => t.priority.equals('high') & t.deletedAt.isNull() & t.createdBy.equals('user')))
+      .get();
 
   // إضافة ملاحظة جديدة
   Future<int> addNote({
@@ -58,7 +62,6 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           entity: 'shift_notes',
           op: 'create',
           localUuid: uuid,
-          serverId: null,
           payload: {
             'title': title,
             'content': content,
@@ -89,7 +92,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       final existing = await (select(
         shiftNotes,
       )..where((t) => t.id.equals(id))).getSingleOrNull();
-      if (existing == null) return false;
+      if (existing == null) {
+        return false;
+      }
 
       final now = Time.nowEpoch();
       final companion = ShiftNotesCompanion(
@@ -108,11 +113,21 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
 
       if (rows > 0 && !originIsServer) {
         final payload = <String, dynamic>{};
-        if (title != null) payload['title'] = title;
-        if (content != null) payload['content'] = content;
-        if (priority != null) payload['priority'] = priority;
-        if (shiftType != null) payload['shift_type'] = shiftType;
-        if (expiresAt != null) payload['expires_at'] = expiresAt;
+        if (title != null) {
+          payload['title'] = title;
+        }
+        if (content != null) {
+          payload['content'] = content;
+        }
+        if (priority != null) {
+          payload['priority'] = priority;
+        }
+        if (shiftType != null) {
+          payload['shift_type'] = shiftType;
+        }
+        if (expiresAt != null) {
+          payload['expires_at'] = expiresAt;
+        }
 
         if (payload.isNotEmpty) {
           await outboxDao.merge(
@@ -135,7 +150,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       final existing = await (select(
         shiftNotes,
       )..where((t) => t.id.equals(id))).getSingleOrNull();
-      if (existing == null) return false;
+      if (existing == null) {
+        return false;
+      }
 
       final now = Time.nowEpoch();
       final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
@@ -167,7 +184,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       final existing = await (select(
         shiftNotes,
       )..where((t) => t.id.equals(id))).getSingleOrNull();
-      if (existing == null) return false;
+      if (existing == null) {
+        return false;
+      }
 
       final now = Time.nowEpoch();
       final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
@@ -199,7 +218,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       final existing = await (select(
         shiftNotes,
       )..where((t) => t.id.equals(id))).getSingleOrNull();
-      if (existing == null) return false; // Already deleted or doesn't exist
+      if (existing == null) {
+        return false; // Already deleted or doesn't exist
+      }
 
       // Soft delete if using SyncFields, but original code used hard delete.
       // SyncFields mixin usually implies soft delete (deletedAt).
@@ -232,23 +253,25 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  // عدد الملاحظات غير المقروءة
+  // عدد الملاحظات غير المقروءة (غير المحذوفة، غير القائمة السوداء)
   Future<int> getUnreadCount() async {
     final query = selectOnly(shiftNotes)
       ..addColumns([shiftNotes.id.count()])
-      ..where(shiftNotes.isRead.equals(0));
+      ..where(shiftNotes.isRead.equals(0) & shiftNotes.deletedAt.isNull() & shiftNotes.createdBy.equals('user'));
     final result = await query.getSingle();
     return result.read(shiftNotes.id.count()) ?? 0;
   }
 
-  // مراقبة التغييرات على جميع الملاحظات
-  Stream<List<ShiftNote>> watchAllNotes() => select(shiftNotes).watch();
+  // مراقبة التغييرات على جميع الملاحظات (غير المحذوفة، غير القائمة السوداء)
+  Stream<List<ShiftNote>> watchAllNotes() => (select(shiftNotes)
+    ..where((t) => t.deletedAt.isNull() & t.createdBy.equals('user')))
+      .watch();
 
-  // مراقبة عدد الملاحظات غير المقروءة
+  // مراقبة عدد الملاحظات غير المقروءة (غير المحذوفة، غير القائمة السوداء)
   Stream<int> watchUnreadCount() {
     final query = selectOnly(shiftNotes)
       ..addColumns([shiftNotes.id.count()])
-      ..where(shiftNotes.isRead.equals(0));
+      ..where(shiftNotes.isRead.equals(0) & shiftNotes.deletedAt.isNull() & shiftNotes.createdBy.equals('user'));
     return query.watchSingle().map(
       (row) => row.read(shiftNotes.id.count()) ?? 0,
     );

@@ -4,10 +4,6 @@ import 'package:flutter/foundation.dart';
 enum CircuitState { closed, open, halfOpen }
 
 class CircuitBreakerConfig {
-  final int failureThreshold;
-  final Duration timeout;
-  final Duration resetTimeout;
-  final int successThreshold;
 
   const CircuitBreakerConfig({
     this.failureThreshold = 5,
@@ -15,9 +11,16 @@ class CircuitBreakerConfig {
     this.resetTimeout = const Duration(minutes: 1),
     this.successThreshold = 2,
   });
+  final int failureThreshold;
+  final Duration timeout;
+  final Duration resetTimeout;
+  final int successThreshold;
 }
 
 class CircuitBreaker {
+
+  CircuitBreaker({required this.name, CircuitBreakerConfig? config})
+    : config = config ?? const CircuitBreakerConfig();
   final String name;
   final CircuitBreakerConfig config;
 
@@ -29,9 +32,6 @@ class CircuitBreaker {
 
   final _stateController = StreamController<CircuitState>.broadcast();
   Stream<CircuitState> get stateStream => _stateController.stream;
-
-  CircuitBreaker({required this.name, CircuitBreakerConfig? config})
-    : config = config ?? const CircuitBreakerConfig();
 
   CircuitState get state => _state;
   int get failureCount => _failureCount;
@@ -112,14 +112,18 @@ class CircuitBreaker {
   }
 
   bool _shouldAttemptReset() {
-    if (_lastFailureTime == null) return false;
+    if (_lastFailureTime == null) {
+      return false;
+    }
 
     final timeSinceLastFailure = DateTime.now().difference(_lastFailureTime!);
     return timeSinceLastFailure >= config.resetTimeout;
   }
 
   void _transitionTo(CircuitState newState) {
-    if (_state == newState) return;
+    if (_state == newState) {
+      return;
+    }
 
     final oldState = _state;
     _state = newState;
@@ -177,22 +181,22 @@ class CircuitBreaker {
 }
 
 class CircuitBreakerOpenException implements Exception {
-  final String message;
 
   CircuitBreakerOpenException(this.message);
+  final String message;
 
   @override
   String toString() => message;
 }
 
 class CircuitBreakerTimeoutException implements Exception {
-  final String message;
-  final TimeoutException originalException;
 
   CircuitBreakerTimeoutException(
     this.message, {
     required this.originalException,
   });
+  final String message;
+  final TimeoutException originalException;
 
   @override
   String toString() => message;

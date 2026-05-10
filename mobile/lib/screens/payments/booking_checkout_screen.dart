@@ -1,21 +1,24 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
+import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
-import '../../utils/time.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/date_parser.dart';
 import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
-import '../../mixins/sync_on_exit_mixin.dart';
+import '../../utils/time.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
-  final Booking booking;
 
   const BookingCheckoutScreen({super.key, required this.booking});
+  final Booking booking;
 
   @override
   ConsumerState<BookingCheckoutScreen> createState() =>
@@ -27,7 +30,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   @override
   String get screenId => 'booking_checkout';
   bool _isProcessing = false;
-  StreamSubscription? _hotelDayTickerSub;
+  StreamSubscription<void>? _hotelDayTickerSub;
 
   @override
   void initState() {
@@ -52,20 +55,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     await derivedService.refreshForBookingId(widget.booking.id);
   }
 
-  DateTime? _parseDateTime(String? value) {
-    if (value == null) return null;
-    final v = value.trim();
-    if (v.isEmpty) return null;
-    final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
-    final withSeconds = normalized.length == 16
-        ? '${normalized}:00'
-        : normalized;
-    try {
-      return DateTime.parse(withSeconds);
-    } catch (_) {
-      return null;
-    }
-  }
+  DateTime? _parseDateTime(String? value) => DateParser.parse(value);
 
   @override
   void dispose() {
@@ -164,11 +154,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                             discountStartDate,
                           );
                           final fullNights = (actualNights - discountedNights)
-                              .clamp(0, actualNights);
+                              .clamp(0, actualNights).toInt();
                           final discountedRate = (roomPrice - discount).clamp(
                             0.0,
                             roomPrice,
-                          );
+                          ).toDouble();
                           return (fullNights * roomPrice) +
                               (discountedNights * discountedRate);
                         }
@@ -176,7 +166,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                       })();
 
                 final totalDue = discount > 0 && discountType == 'total'
-                    ? (nightTotal - discount).clamp(0.0, nightTotal)
+                    ? (nightTotal - discount).clamp(0.0, nightTotal).toDouble()
                     : nightTotal;
 
                 return Padding(
@@ -300,10 +290,13 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                               );
                             }
 
-                            final totalPaid = payments.fold<double>(
-                              0,
-                              (sum, payment) => sum + payment.amount,
-                            );
+                            // ✅ استبعاد المدفوعات الملغاة
+                            final totalPaid = payments
+                                .where((p) => !p.isVoided)
+                                .fold<double>(
+                                  0,
+                                  (sum, payment) => sum + payment.amount,
+                                );
                             final remainingAmount = (totalDue - totalPaid)
                                 .clamp(0, totalDue)
                                 .toDouble();
@@ -343,61 +336,64 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                 ),
                                 const SizedBox(height: 8),
                                 Expanded(
-                                  child: ListView.builder(
-                                    itemCount: payments.length,
-                                    itemBuilder: (context, index) {
-                                      final payment = payments[index];
-                                      return Card(
-                                        child: ListTile(
-                                          leading: Icon(
-                                            payment.paymentMethod == 'تحويل'
-                                                ? Icons.account_balance
-                                                : Icons.money,
-                                            color:
-                                                payment.paymentMethod == 'تحويل'
-                                                ? Colors.blue
-                                                : Colors.green,
-                                          ),
-                                          title: Text(
-                                            CurrencyFormatter.formatAmount(
-                                              payment.amount,
+                                  child: RefreshIndicator(
+                                    onRefresh: _refreshBookingNights,
+                                    child: ListView.builder(
+                                      itemCount: payments.length,
+                                      itemBuilder: (context, index) {
+                                        final payment = payments[index];
+                                        return Card(
+                                          child: ListTile(
+                                            leading: Icon(
+                                              payment.paymentMethod == 'تحويل'
+                                                  ? Icons.account_balance
+                                                  : Icons.money,
+                                              color:
+                                                  payment.paymentMethod == 'تحويل'
+                                                  ? Colors.blue
+                                                  : Colors.green,
                                             ),
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
+                                            title: Text(
+                                              CurrencyFormatter.formatAmount(
+                                                payment.amount,
+                                              ),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
-                                          ),
-                                          subtitle: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'طريقة الدفع: ${payment.paymentMethod}',
-                                              ),
-                                              Text(
-                                                'النوع: ${payment.revenueType}',
-                                              ),
-                                              Text(
-                                                'التاريخ: ${payment.paymentDate}',
-                                              ),
-                                              if (payment.notes != null &&
-                                                  payment.notes!.isNotEmpty)
+                                            subtitle: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
                                                 Text(
-                                                  'ملاحظات: ${payment.notes}',
+                                                  'طريقة الدفع: ${payment.paymentMethod}',
                                                 ),
-                                            ],
-                                          ),
-                                          trailing: payment.roomNumber != null
-                                              ? Chip(
-                                                  label: Text(
-                                                    payment.roomNumber!,
+                                                Text(
+                                                  'النوع: ${payment.revenueType}',
+                                                ),
+                                                Text(
+                                                  'التاريخ: ${payment.paymentDate}',
+                                                ),
+                                                if (payment.notes != null &&
+                                                    payment.notes!.isNotEmpty)
+                                                  Text(
+                                                    'ملاحظات: ${payment.notes}',
                                                   ),
-                                                  backgroundColor:
-                                                      Colors.blue.shade50,
-                                                )
-                                              : null,
-                                        ),
-                                      );
-                                    },
+                                              ],
+                                            ),
+                                            trailing: payment.roomNumber != null
+                                                ? Chip(
+                                                    label: Text(
+                                                      payment.roomNumber!,
+                                                    ),
+                                                    backgroundColor:
+                                                        Colors.blue.shade50,
+                                                  )
+                                                : null,
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
                               ],
@@ -428,14 +424,17 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                 widget.booking.id,
                               ),
                               builder: (context, snapshot) {
+                                // ✅ استبعاد المدفوعات الملغاة
                                 final totalPaid =
-                                    snapshot.data?.fold<double>(
-                                      0,
-                                      (sum, payment) => sum + payment.amount,
-                                    ) ??
+                                    snapshot.data
+                                        ?.where((p) => !p.isVoided)
+                                        .fold<double>(
+                                          0,
+                                          (sum, payment) => sum + payment.amount,
+                                        ) ??
                                     0.0;
                                 final remainingAmount = (totalDue - totalPaid)
-                                    .clamp(0, totalDue);
+                                    .clamp(0, totalDue).toDouble();
                                 return ElevatedButton.icon(
                                   onPressed:
                                       _isProcessing || remainingAmount > 0
@@ -486,6 +485,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     String selectedMethod = 'نقدي';
     String selectedType = 'room';
 
+    try {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
@@ -507,7 +507,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedMethod,
+                  initialValue: selectedMethod,
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'طريقة الدفع',
@@ -521,7 +521,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'نوع الإيراد',
@@ -564,10 +564,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       ),
     );
 
-    if (result == true) {
+    if (result ?? false) {
       final parsedAmount =
           CurrencyFormatter.parseAmount(amountController.text);
       if (parsedAmount == null || parsedAmount <= 0) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('يرجى إدخال مبلغ صحيح'),
@@ -577,6 +578,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         return;
       }
       if (parsedAmount % 1 != 0) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('المبلغ يجب أن يكون بدون كسور'),
@@ -585,7 +587,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         );
         return;
       }
-      final double amount = parsedAmount.toDouble();
+      final double amount = parsedAmount;
 
       setState(() => _isProcessing = true);
 
@@ -602,6 +604,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         );
         markDataChanged();
 
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('تم إضافة الدفعة بنجاح'),
@@ -616,12 +619,17 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           ),
         );
       } catch (e) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
         );
       } finally {
         setState(() => _isProcessing = false);
       }
+    }
+    } finally {
+      amountController.dispose();
+      notesController.dispose();
     }
   }
 
@@ -650,55 +658,61 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       ),
     );
 
-    if (result == true) {
+    if ((result ?? false) && mounted) {
       setState(() => _isProcessing = true);
 
       try {
         final bookingsRepo = ref.read(bookingsRepoProvider);
         final roomsRepo = ref.read(roomsRepoProvider);
 
-        // تحديث حالة الحجز
+        // ✅ تحديث حالة الحجز + حالة الغرفة في معاملة واحدة
         final nowIso = Time.nowIso();
         final checkin =
             DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
         final nowDate = DateTime.parse(nowIso);
         final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
+
+        // استخدام refreshAllRoomOccupancy بدلاً من تحديث يدوي جزئي
+        // هذا يضمن تناسق جميع حالات الغرف
         await bookingsRepo.update(
           widget.booking.id,
           status: 'مكتمل',
           actualCheckout: nowIso,
           calculatedNights: actualNights,
         );
-
-        // تحديث حالة الغرفة إلى شاغرة
-        final roomsStream = roomsRepo.watchByNumber(widget.booking.roomNumber);
-        final room = await roomsStream.first;
-        if (room != null) {
-          await roomsRepo.update(room.id, status: 'شاغرة');
-        }
+        // تحديث حالة الغرفة إلى شاغرة عبر المستودع الموحد
+        await roomsRepo.refreshAllRoomOccupancy();
         markDataChanged();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('تم إتمام الحجز بنجاح'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'إغلاق',
-              textColor: Colors.white,
-              onPressed: () =>
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+        if (mounted) {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('تم إتمام الحجز بنجاح'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'إغلاق',
+                textColor: Colors.white,
+                onPressed: () =>
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              ),
             ),
-          ),
-        );
-
-        Navigator.of(context).pop();
+          );
+          // ignore: use_build_context_synchronously
+          Navigator.of(context).pop();
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
-        );
+        if (mounted) {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
+          );
+        }
       } finally {
-        setState(() => _isProcessing = false);
+        if (mounted) {
+          setState(() => _isProcessing = false);
+        }
       }
     }
   }

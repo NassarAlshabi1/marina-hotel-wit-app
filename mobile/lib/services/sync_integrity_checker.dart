@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
 
 enum IssueType {
@@ -11,12 +12,6 @@ enum IssueType {
 }
 
 class IntegrityIssue {
-  final IssueType type;
-  final String table;
-  final String? uuid;
-  final String description;
-  final Map<String, dynamic>? metadata;
-  final bool isCritical;
 
   IntegrityIssue({
     required this.type,
@@ -26,6 +21,12 @@ class IntegrityIssue {
     this.metadata,
     this.isCritical = false,
   });
+  final IssueType type;
+  final String table;
+  final String? uuid;
+  final String description;
+  final Map<String, dynamic>? metadata;
+  final bool isCritical;
 
   @override
   String toString() =>
@@ -50,15 +51,15 @@ class IntegrityIssue {
 }
 
 class IntegrityReport {
-  final List<IntegrityIssue> issues;
-  final DateTime timestamp;
-  final Duration checkDuration;
 
   IntegrityReport({
     required this.issues,
     required this.timestamp,
     Duration? checkDuration,
   }) : checkDuration = checkDuration ?? Duration.zero;
+  final List<IntegrityIssue> issues;
+  final DateTime timestamp;
+  final Duration checkDuration;
 
   bool get hasIssues => issues.isNotEmpty;
   bool get hasCriticalIssues => issues.any((i) => i.isCritical);
@@ -76,13 +77,13 @@ class IntegrityReport {
   @override
   String toString() {
     return 'IntegrityReport: ${issues.length} issues found '
-        '(${criticalIssueCount} critical) at ${timestamp.toIso8601String()}';
+        '($criticalIssueCount critical) at ${timestamp.toIso8601String()}';
   }
 }
 
 class SyncIntegrityChecker {
-  static final instance = SyncIntegrityChecker._();
   SyncIntegrityChecker._();
+  static final instance = SyncIntegrityChecker._();
 
   Future<IntegrityReport> verify(AppDatabase db) async {
     final startTime = DateTime.now();
@@ -229,7 +230,6 @@ class SyncIntegrityChecker {
             table: table,
             uuid: row.read<String>('local_uuid'),
             description: 'Invalid version: ${row.read<int?>('version')}',
-            isCritical: false,
           ),
         );
       }
@@ -350,13 +350,10 @@ class SyncIntegrityChecker {
     switch (issue.type) {
       case IssueType.orphanedRecord:
         await _fixOrphanedRecord(db, issue);
-        break;
       case IssueType.versionInconsistency:
         await _fixVersionInconsistency(db, issue);
-        break;
       case IssueType.amountMismatch:
         await _fixAmountMismatch(db, issue);
-        break;
       default:
         throw UnsupportedError('Cannot auto-fix issue type: ${issue.type}');
     }
@@ -388,26 +385,31 @@ class SyncIntegrityChecker {
   }
 
   Future<void> _fixAmountMismatch(AppDatabase db, IntegrityIssue issue) async {
-    if (issue.table != 'bookings' || issue.uuid == null) return;
-
-    final actualPaid = issue.metadata?['actual_paid'] as double? ?? 0.0;
+    if (issue.table != 'bookings' || issue.uuid == null) {
+      return;
+    }
 
     final booking = await (db.select(
       db.bookings,
     )..where((t) => t.localUuid.equals(issue.uuid!))).getSingleOrNull();
 
-    if (booking == null) return;
+    if (booking == null) {
+      return;
+    }
 
-    final totalDue = booking.totalDueCached;
-    final remaining = totalDue - actualPaid;
+    // إعادة حساب كاملة بدلاً من الاعتماد على القيم المخزنة مؤقتاً (stale)
+    final calcService = EnhancedBookingCalculationService(db);
+    final calculation = await calcService.calculateForBooking(booking);
+    final summary = calculation.financialSummary;
 
     await (db.update(
       db.bookings,
     )..where((t) => t.localUuid.equals(issue.uuid!))).write(
       BookingsCompanion(
-        totalPaidCached: Value(actualPaid),
-        remainingBalanceCached: Value(remaining),
-        isFullyPaid: Value(remaining <= 0.01),
+        totalDueCached: Value(summary.totalDue.toDouble()),
+        totalPaidCached: Value(summary.totalPaid.toDouble()),
+        remainingBalanceCached: Value(summary.remainingBalance.toDouble()),
+        isFullyPaid: Value(summary.isFullyPaid),
         updatedAt: Value(DateTime.now().millisecondsSinceEpoch ~/ 1000),
       ),
     );

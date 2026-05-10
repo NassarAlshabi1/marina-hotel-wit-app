@@ -15,7 +15,7 @@ final smartSyncStatusProvider =
       // استمع لتغييرات حالة تسجيل الدخول في Google Drive
       ref.watch(smartSyncGoogleDriveSignInStatusProvider);
 
-      return await manager.getStatus();
+      return manager.getStatus();
     });
 
 /// Provider لحالة تسجيل الدخول Google Drive (في smart_sync_provider)
@@ -25,12 +25,18 @@ final smartSyncGoogleDriveSignInStatusProvider = Provider<bool>((ref) {
 });
 
 /// Provider لتهيئة المزامنة الذكية مع فحص حالة تسجيل الدخول
+/// ✅ إصلاح: استبدال Future.delayed بالاستماع الصحيح لحالة تسجيل الدخول
 final smartSyncInitProvider = FutureProvider<void>((ref) async {
   final manager = ref.watch(smartSyncManagerProvider);
   final backupService = ref.watch(googleDriveBackupServiceProvider);
 
-  // انتظار تهيئة BackupProvider أولاً
-  await Future.delayed(const Duration(milliseconds: 500));
+  // انتظار تهيئة BackupProvider من خلال مراقبة حالة تسجيل الدخول
+  // بدلاً من Future.delayed الذي قد لا يكفي أو يكون طويلاً بلا داع
+  final signInState = ref.watch(smartSyncGoogleDriveSignInStatusProvider);
+  if (!signInState) {
+    // لا نهيئ المزامنة بدون تسجيل دخول — سيعاد الحساب عند تغيير الحالة
+    return;
+  }
 
   await manager.initialize(backupService);
 });

@@ -2,8 +2,8 @@ import 'package:drift/drift.dart' as d;
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
-import '../local_db.dart';
 import '../daos/outbox_dao.dart';
+import '../local_db.dart';
 
 class GuestInfosRepository {
   GuestInfosRepository(this._db)
@@ -72,7 +72,6 @@ class GuestInfosRepository {
           entity: 'guest_infos',
           op: 'create',
           localUuid: uuid,
-          serverId: null,
           payload: {
             'roomNumber': roomNumber,
             'guestName': guestName,
@@ -115,7 +114,9 @@ class GuestInfosRepository {
             ..where((t) => t.id.equals(id)))
           .getSingleOrNull();
 
-      if (existing == null) return;
+      if (existing == null) {
+        return;
+      }
 
       await (_db.update(_db.guestInfos)..where((t) => t.id.equals(id)))
           .write(
@@ -168,7 +169,9 @@ class GuestInfosRepository {
             ..where((t) => t.id.equals(id)))
           .getSingleOrNull();
 
-      if (existing == null) return;
+      if (existing == null) {
+        return;
+      }
 
       // soft delete: تعيين deletedAt بدلاً من حذف فعلي
       await (_db.update(_db.guestInfos)..where((t) => t.id.equals(id)))

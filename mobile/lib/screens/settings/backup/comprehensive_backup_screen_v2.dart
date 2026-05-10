@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../components/app_scaffold.dart';
 import '../../../core/core.dart';
 import 'tabs/backup_overview_tab.dart';
+import 'tabs/file_management_tab.dart';
 import 'tabs/google_drive_tab.dart';
 import 'tabs/local_backups_tab.dart';
-import 'tabs/file_management_tab.dart';
 
 /// Comprehensive Backup Screen - الشاشة الرئيسية للنسخ الاحتياطي
 ///
@@ -59,7 +60,7 @@ class _ComprehensiveBackupScreenState
       body: Column(
         children: [
           // Tab Bar
-          Container(
+          ColoredBox(
             color: Colors.grey.shade100,
             child: TabBar(
               controller: _tabController,
@@ -100,10 +101,10 @@ class _ComprehensiveBackupScreenState
   }
 
   void _showSettingsMenu() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => SafeArea(
         child: Column(
@@ -140,7 +141,7 @@ class _ComprehensiveBackupScreenState
   }
 
   void _showHelpDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('مساعدة'),
@@ -164,7 +165,7 @@ class _ComprehensiveBackupScreenState
   }
 
   void _showAboutDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('حول النسخ الاحتياطي'),
@@ -173,9 +174,9 @@ class _ComprehensiveBackupScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('نظام النسخ الاحتياطي الشامل'),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text('الإصدار: 2.0'),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text('يوفر نسخ احتياطي آمن ومتعدد الخيارات لبياناتك'),
           ],
         ),

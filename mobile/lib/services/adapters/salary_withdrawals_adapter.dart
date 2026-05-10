@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart' as d;
 
-import '../local_db.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../local_db.dart';
 import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
@@ -49,6 +49,21 @@ class SalaryWithdrawalsAdapter
         refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
+    // دعم الحقول القديمة من Appwrite (date, action, note, notes, expenseId)
+    // عند السحب من السيرفر، قد تأتي بالحقل القديم أو الجديد
+    final appwriteDate = _asString(json, 'date', src);
+    final appwriteAction = _asString(json, 'action', src);
+    final appwriteNote = _asString(json, 'note', src);
+    final appwriteNotes = _asString(json, 'notes', src);
+    final appwriteExpenseId = _asInt(json, 'expenseId', src);
+    final wd = _asString(json, 'withdrawDate', src) ?? appwriteDate ?? '';
+    final wt = _asString(json, 'withdrawalType', src) ?? appwriteAction;
+    final desc = _asString(json, 'description', src) ?? appwriteNotes ?? appwriteNote;
+    String? reasonVal = _asString(json, 'reason', src);
+    if (reasonVal == null && appwriteExpenseId != null) {
+      reasonVal = 'exp_$appwriteExpenseId';
+    }
+
     return SalaryWithdrawalsCompanion(
       id: _vInt(json, 'id', src),
       localUuid: d.Value(
@@ -59,27 +74,16 @@ class SalaryWithdrawalsAdapter
       serverId: _vInt(json, 'serverId', src),
       employeeId: _vInt(json, 'employeeId', src, altKey: 'employee_id'),
       amount: _vDouble(json, 'amount', src, fallback: 0),
-      withdrawDate: _vStr(
-        json,
-        'withdrawDate',
-        src,
-        altKey: 'withdraw_date',
-        fallback: '',
-      ),
-      reason: _vStr(json, 'reason', src),
+      withdrawDate: d.Value(wd),
+      reason: reasonVal != null ? d.Value(reasonVal) : const d.Value.absent(),
       hotelDayKey: _vStr(
         json,
         'hotelDayKey',
         src,
         altKey: 'hotel_day_key',
       ),
-      withdrawalType: _vStr(
-        json,
-        'withdrawalType',
-        src,
-        altKey: 'withdrawal_type',
-      ),
-      description: _vStr(json, 'description', src),
+      withdrawalType: wt != null ? d.Value(wt) : const d.Value.absent(),
+      description: desc != null ? d.Value(desc) : const d.Value.absent(),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -108,7 +112,13 @@ class SalaryWithdrawalsAdapter
 
   @override
   Map<String, dynamic> toJson(SalaryWithdrawal model, {required Source src}) {
-    return {
+    // استخراج expenseId من حقل reason (الصيغة: "exp_123")
+    int? expenseId;
+    if (model.reason != null && model.reason!.startsWith('exp_')) {
+      expenseId = int.tryParse(model.reason!.substring(4));
+    }
+
+    final map = <String, dynamic>{
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
@@ -127,6 +137,17 @@ class SalaryWithdrawalsAdapter
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
     };
+
+    // حقول إضافية مطلوبة من Appwrite Schema
+    // الحقول date و action مطلوبة (REQUIRED) في Appwrite
+    if (src == Source.appwrite) {
+      map['date'] = model.withdrawDate;
+      map['action'] = model.withdrawalType;
+      map['note'] = model.description;
+      map['expenseId'] = expenseId;
+    }
+
+    return map;
   }
 }
 
@@ -176,19 +197,31 @@ d.Value<double> _vDouble(
 
 int? _epoch(Map<String, dynamic> json, String key, Source src) {
   final v = _asInt(json, key, src);
-  if (v != null) return v;
+  if (v != null) {
+    return v;
+  }
   final s = _asString(json, key, src);
-  if (s == null) return null;
+  if (s == null) {
+    return null;
+  }
   return int.tryParse(s);
 }
 
 int? _asInt(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
-  if (v is bool) return v ? 1 : 0;
-  if (v is int) return v;
-  if (v is num) return v.toInt();
+  if (v is bool) {
+    return v ? 1 : 0;
+  }
+  if (v is int) {
+    return v;
+  }
+  if (v is num) {
+    return v.toInt();
+  }
   if (v is String) {
-    if (v.contains('-') || v.length > 20) return null;
+    if (v.contains('-') || v.length > 20) {
+      return null;
+    }
     return int.tryParse(v);
   }
   return null;
@@ -196,23 +229,37 @@ int? _asInt(Map<String, dynamic> json, String key, Source src) {
 
 double? _asDouble(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
-  if (v is double) return v;
-  if (v is int) return v.toDouble();
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v);
+  if (v is double) {
+    return v;
+  }
+  if (v is int) {
+    return v.toDouble();
+  }
+  if (v is num) {
+    return v.toDouble();
+  }
+  if (v is String) {
+    return double.tryParse(v);
+  }
   return null;
 }
 
 String? _asString(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
-  if (v == null) return null;
+  if (v == null) {
+    return null;
+  }
   return v.toString();
 }
 
 Object? _raw(Map<String, dynamic> json, String key, Source src) {
-  if (json.containsKey(key)) return json[key];
+  if (json.containsKey(key)) {
+    return json[key];
+  }
   final alt = _altKey(key, src);
-  if (alt != null && json.containsKey(alt)) return json[alt];
+  if (alt != null && json.containsKey(alt)) {
+    return json[alt];
+  }
   return null;
 }
 
@@ -220,7 +267,9 @@ String _k(Source src, String camel, String snake) =>
     src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
-  if (src == Source.drive) return camel;
+  if (src == Source.drive) {
+    return camel;
+  }
   final buf = StringBuffer();
   for (var i = 0; i < camel.length; i++) {
     final c = camel[i];

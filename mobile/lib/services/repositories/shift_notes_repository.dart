@@ -1,8 +1,9 @@
 import 'package:drift/drift.dart' as d;
-import '../local_db.dart' show AppDatabase, BookingNotesCompanion;
+
+import '../../models/shift_note_adapter.dart';
 import '../daos/booking_notes_dao.dart';
 import '../daos/outbox_dao.dart';
-import '../../models/shift_note_adapter.dart';
+import '../local_db.dart' show AppDatabase, BookingNotesCompanion;
 
 /// Repository للملاحظات العامة (ملاحظات النوبات)
 /// يستخدم جدول BookingNotes مع bookingId = -1 للملاحظات العامة
@@ -15,7 +16,7 @@ class ShiftNotesRepository {
   /// مراقبة جميع الملاحظات العامة
   Stream<List<ShiftNote>> watchAll() {
     return dao
-        .list(bookingId: ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID)
+        .list(bookingId: ShiftNoteAdapter.generalNotesBookingId)
         .asStream()
         .map(
           (bookingNotes) =>
@@ -26,8 +27,7 @@ class ShiftNotesRepository {
   /// جلب جميع الملاحظات العامة النشطة
   Future<List<ShiftNote>> listAllActive() async {
     final bookingNotes = await dao.list(
-      bookingId: ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID,
-      includeDeleted: false,
+      bookingId: ShiftNoteAdapter.generalNotesBookingId,
     );
     return bookingNotes
         .where((note) => note.isActive == 1)
@@ -38,8 +38,7 @@ class ShiftNotesRepository {
   /// جلب الملاحظات غير المقروءة
   Future<List<ShiftNote>> listUnread() async {
     final bookingNotes = await dao.list(
-      bookingId: ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID,
-      includeDeleted: false,
+      bookingId: ShiftNoteAdapter.generalNotesBookingId,
     );
     return bookingNotes
         .where((note) => note.isActive == 1) // غير مقروءة = نشطة
@@ -58,15 +57,15 @@ class ShiftNotesRepository {
   /// إنشاء ملاحظة جديدة
   Future<int> create(ShiftNote note) async {
     final data = ShiftNoteAdapter.toBookingNoteData(note);
-    return await dao.insertOne(
+    return dao.insertOne(
       BookingNotesCompanion(
-        bookingId: d.Value(ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID),
-        noteText: d.Value(data['note_text']),
-        alertType: d.Value(data['alert_type']),
+        bookingId: const d.Value(ShiftNoteAdapter.generalNotesBookingId),
+        noteText: d.Value(data['note_text'] as String),
+        alertType: d.Value(data['alert_type'] as String),
         alertUntil: data['alert_until'] != null
-            ? d.Value(data['alert_until'])
+            ? d.Value(data['alert_until'] as String?)
             : const d.Value.absent(),
-        isActive: d.Value(data['is_active']),
+        isActive: d.Value(data['is_active'] as int),
       ),
     );
   }
@@ -74,18 +73,20 @@ class ShiftNotesRepository {
   /// تحديث ملاحظة موجودة
   Future<bool> update(ShiftNote note) async {
     final id = int.tryParse(note.id);
-    if (id == null) return false;
+    if (id == null) {
+      return false;
+    }
 
     final data = ShiftNoteAdapter.toBookingNoteData(note);
     final rows = await dao.updateById(
       id,
       BookingNotesCompanion(
-        noteText: d.Value(data['note_text']),
-        alertType: d.Value(data['alert_type']),
+        noteText: d.Value(data['note_text'] as String),
+        alertType: d.Value(data['alert_type'] as String),
         alertUntil: data['alert_until'] != null
-            ? d.Value(data['alert_until'])
+            ? d.Value(data['alert_until'] as String?)
             : const d.Value.absent(),
-        isActive: d.Value(data['is_active']),
+        isActive: d.Value(data['is_active'] as int),
       ),
     );
     return rows > 0;
@@ -94,7 +95,9 @@ class ShiftNotesRepository {
   /// وضع علامة مقروء على الملاحظة
   Future<bool> markAsRead(String noteId) async {
     final id = int.tryParse(noteId);
-    if (id == null) return false;
+    if (id == null) {
+      return false;
+    }
 
     final rows = await dao.updateById(
       id,
@@ -108,7 +111,9 @@ class ShiftNotesRepository {
   /// وضع علامة غير مقروء على الملاحظة
   Future<bool> markAsUnread(String noteId) async {
     final id = int.tryParse(noteId);
-    if (id == null) return false;
+    if (id == null) {
+      return false;
+    }
 
     final rows = await dao.updateById(
       id,
@@ -122,7 +127,9 @@ class ShiftNotesRepository {
   /// حذف ملاحظة (soft delete)
   Future<bool> delete(String noteId) async {
     final id = int.tryParse(noteId);
-    if (id == null) return false;
+    if (id == null) {
+      return false;
+    }
 
     final rows = await dao.softDelete(id);
     return rows > 0;
@@ -131,11 +138,13 @@ class ShiftNotesRepository {
   /// جلب ملاحظة بالمعرف
   Future<ShiftNote?> getById(String noteId) async {
     final id = int.tryParse(noteId);
-    if (id == null) return null;
+    if (id == null) {
+      return null;
+    }
 
     final bookingNote = await dao.getById(id);
     if (bookingNote == null ||
-        bookingNote.bookingId != ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID) {
+        bookingNote.bookingId != ShiftNoteAdapter.generalNotesBookingId) {
       return null;
     }
 

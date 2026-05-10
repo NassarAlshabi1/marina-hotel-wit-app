@@ -1,15 +1,6 @@
 import 'local_db.dart';
 
 class SalaryEntitlement {
-  final Employee employee;
-  final DateTime hireDate;
-  final int totalMonthsWorked;
-  final double basicSalary;
-  final double totalEntitlement;
-  final double totalWithdrawals;
-  final double totalDeductions;
-  final double netEntitlement;
-  final List<SalaryTransaction> transactions;
 
   SalaryEntitlement({
     required this.employee,
@@ -22,13 +13,18 @@ class SalaryEntitlement {
     required this.netEntitlement,
     required this.transactions,
   });
+  final Employee employee;
+  final DateTime hireDate;
+  final int totalMonthsWorked;
+  final double basicSalary;
+  final double totalEntitlement;
+  final double totalWithdrawals;
+  final double totalDeductions;
+  final double netEntitlement;
+  final List<SalaryTransaction> transactions;
 }
 
 class SalaryTransaction {
-  final String type;
-  final double amount;
-  final String date;
-  final String? note;
 
   SalaryTransaction({
     required this.type,
@@ -36,12 +32,16 @@ class SalaryTransaction {
     required this.date,
     this.note,
   });
+  final String type;
+  final double amount;
+  final String date;
+  final String? note;
 }
 
 class SalaryEntitlementService {
-  final AppDatabase _db;
 
   SalaryEntitlementService(this._db);
+  final AppDatabase _db;
 
   Future<List<SalaryEntitlement>> calculateAllEntitlements() async {
     final employees = await (_db.select(
@@ -70,7 +70,7 @@ class SalaryEntitlementService {
     }
 
     final totalMonthsWorked = _calculateMonthsDifference(hireDate, now);
-    final totalEntitlement = (totalMonthsWorked * employee.basicSalary).toDouble();
+    final totalEntitlement = totalMonthsWorked * employee.basicSalary;
 
     final expenses = await (_db.select(
       _db.expenses,
@@ -82,7 +82,8 @@ class SalaryEntitlementService {
 
     for (final expense in expenses) {
       final type = expense.expenseType.trim();
-      if (type == 'سحب راتب' || type == 'سلفة' || type == 'رواتب') {
+      if (type == 'سحب راتب' || type == 'سلفة' || type == 'رواتب'
+          || type == 'سحب من الراتب') {
         totalWithdrawals += expense.amount;
         transactions.add(
           SalaryTransaction(
@@ -92,7 +93,8 @@ class SalaryEntitlementService {
             note: expense.description,
           ),
         );
-      } else if (type == 'خصم راتب' || type == 'خصم' || type == 'غياب') {
+      } else if (type == 'خصم راتب' || type == 'خصم' || type == 'غياب'
+          || type == 'خصم من الراتب') {
         totalDeductions += expense.amount;
         transactions.add(
           SalaryTransaction(
@@ -124,7 +126,9 @@ class SalaryEntitlementService {
 
   int _calculateMonthsDifference(DateTime from, DateTime to) {
     int months = (to.year - from.year) * 12 + (to.month - from.month);
-    if (to.day < from.day) months--;
+    if (to.day < from.day) {
+      months--;
+    }
     return months < 0 ? 0 : months;
   }
 

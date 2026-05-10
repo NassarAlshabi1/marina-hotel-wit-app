@@ -8,10 +8,6 @@ import 'appwrite_config_manager.dart';
 import 'appwrite_service.dart';
 
 class AppwriteBackupResult {
-  final File file;
-  final Map<String, int> counts;
-  final int totalRecords;
-  final DateTime timestamp;
 
   const AppwriteBackupResult({
     required this.file,
@@ -19,6 +15,10 @@ class AppwriteBackupResult {
     required this.totalRecords,
     required this.timestamp,
   });
+  final File file;
+  final Map<String, int> counts;
+  final int totalRecords;
+  final DateTime timestamp;
 }
 
 class AppwriteBackupService {
@@ -51,7 +51,7 @@ class AppwriteBackupService {
 
   Future<List<dynamic>> _listAllCollections() async {
     final allCollections = <dynamic>[];
-    final limit = AppwriteConfig.maxPageSize;
+    const limit = AppwriteConfig.maxPageSize;
     var offset = 0;
     var usedFallback = false;
 
