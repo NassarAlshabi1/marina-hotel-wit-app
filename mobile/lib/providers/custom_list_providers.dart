@@ -6,7 +6,7 @@
 library;
 
 import 'package:drift/drift.dart' as drift;
-import 'package:flutter_riverpod/flutter_riverpod.dart' show AsyncValue, Family, FutureProvider, FutureProviderAutoDisposeFamilyRef, ProviderListenable, Ref, WidgetRef;
+import 'package:flutter_riverpod/flutter_riverpod.dart' show FutureProvider, WidgetRef;
 
 import 'repository_providers.dart';
 
@@ -84,7 +84,7 @@ final customListProvider =
       'SELECT * FROM custom_list_items '
       'WHERE list_key = ? AND is_active = 1 '
       'ORDER BY sort_order ASC, id ASC',
-      variables: [drift.Variable.withText(listKey)],
+      variables: [drift.Variable<String>(listKey)],
     ).get();
     if (rows.isEmpty) {
       return _fallbackItems(listKey);
@@ -105,7 +105,7 @@ final customListAllProvider =
       'SELECT * FROM custom_list_items '
       'WHERE list_key = ? '
       'ORDER BY sort_order ASC, id ASC',
-      variables: [drift.Variable.withText(listKey)],
+      variables: [drift.Variable<String>(listKey)],
     ).get();
     return rows.map((r) => CustomListItem.fromRow(r.data)).toList();
   } catch (e) {
@@ -133,7 +133,7 @@ Future<void> addCustomListItem(
   final existing = await db.customSelect(
     'SELECT id FROM custom_list_items '
     'WHERE list_key = ? AND name = ?',
-    variables: [drift.Variable.withText(listKey), drift.Variable.withText(name)],
+    variables: [drift.Variable<String>(listKey), drift.Variable<String>(name)],
   ).get();
   if (existing.isNotEmpty) {
     throw Exception('يوجد عنصر بنفس الاسم "$name" بالفعل');
@@ -142,7 +142,7 @@ Future<void> addCustomListItem(
   final maxRow = await db.customSelect(
     'SELECT MAX(sort_order) as max_order FROM custom_list_items '
     'WHERE list_key = ?',
-    variables: [drift.Variable.withText(listKey)],
+    variables: [drift.Variable<String>(listKey)],
   ).get();
   final nextOrder = (maxRow.first.data['max_order'] as int? ?? 0) + 1;
   await db.customStatement(
@@ -166,8 +166,8 @@ Future<void> updateCustomListItem(
     'SELECT id FROM custom_list_items '
     'WHERE list_key = ? AND name = ? AND id != ?',
     variables: [
-      drift.Variable.withText(listKey),
-      drift.Variable.withText(newName),
+      drift.Variable<String>(listKey),
+      drift.Variable<String>(newName),
       drift.Variable.withInt(id),
     ],
   ).get();
