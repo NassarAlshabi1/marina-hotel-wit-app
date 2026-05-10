@@ -2395,7 +2395,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     // تكلفة الليالي الفعلية المستخدمة
     double actualNightsCost = 0;
     if (nights.isNotEmpty) {
-      final effectiveCount = actualNights.clamp(0, nights.length).toInt();
+      final effectiveCount = actualNights.clamp(0, nights.length);
       for (int i = 0; i < effectiveCount; i++) {
         actualNightsCost +=
             nights[i].finalRate > 0 ? nights[i].finalRate : nights[i].nightlyRate;
@@ -2408,7 +2408,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
 
     final totalPaid = summary.paidAmount;
-    final refundAmount = (totalPaid - actualNightsCost).clamp(0.0, totalPaid).toDouble();
+    final refundAmount = (totalPaid - actualNightsCost).clamp(0.0, totalPaid);
 
     if (!mounted) {
       return;

@@ -250,7 +250,7 @@ class EnhancedBookingCalculationService {
         }
       }
 
-      final int finalRate = (baseRate + adjustmentTotal).clamp(0, baseRate * 100).toInt();
+      final int finalRate = (baseRate + adjustmentTotal).clamp(0, baseRate * 100);
 
       breakdown.add(
         NightlyBreakdown(
@@ -306,12 +306,12 @@ class EnhancedBookingCalculationService {
     final totalDiscount =
         booking.discountType == 'total' ? _asInt(booking.discount) : 0;
     if (totalDiscount > 0) {
-      totalDue = (totalDue - totalDiscount).clamp(0, totalDue).toInt();
+      totalDue = (totalDue - totalDiscount).clamp(0, totalDue);
       totalAdjustments -= totalDiscount;
     }
 
     final totalPaid = await _getTotalPayments(booking);
-    final remaining = (totalDue - totalPaid).clamp(0, totalDue).toInt();
+    final remaining = (totalDue - totalPaid).clamp(0, totalDue);
 
     return FinancialSummary(
       subtotal: subtotal,

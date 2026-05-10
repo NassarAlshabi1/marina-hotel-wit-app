@@ -112,7 +112,7 @@ class StayBalanceResult {
     if (totalNeeded <= 0) {
       return 1.0;
     }
-    return (totalPaidNights / totalNeeded).clamp(0.0, 1.0).toDouble();
+    return (totalPaidNights / totalNeeded).clamp(0.0, 1.0);
   }
 
   /// الأيام غير المغطاة حتى التاريخ اليدوي

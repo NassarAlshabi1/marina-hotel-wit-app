@@ -1525,7 +1525,7 @@ class GeminiService {
               paidAmount: Value(newPaid),
               remainingAmount: Value(
                 (targetDebt.totalAmount - newPaid)
-                    .clamp(0.0, double.infinity).toDouble(),
+                    .clamp(0.0, double.infinity),
               ),
               isSettled: Value(isFullySettled ? 1 : 0),
               paymentDate: Value(now.toIso8601String().split('T')[0]),

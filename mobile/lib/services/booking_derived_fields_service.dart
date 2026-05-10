@@ -164,7 +164,7 @@ class BookingDerivedFieldsService {
     if (discount > 0 && discountType != 'total') {
       final segDay = DateTime(segmentStart.year, segmentStart.month, segmentStart.day);
       if (discountStartDate == null) {
-        rate = (baseRate - discount).clamp(0.0, baseRate).toDouble();
+        rate = (baseRate - discount).clamp(0.0, baseRate);
       } else {
         final discountDay = DateTime(
           discountStartDate.year,
@@ -172,7 +172,7 @@ class BookingDerivedFieldsService {
           discountStartDate.day,
         );
         if (!segDay.isBefore(discountDay)) {
-          rate = (baseRate - discount).clamp(0.0, baseRate).toDouble();
+          rate = (baseRate - discount).clamp(0.0, baseRate);
         }
       }
     }

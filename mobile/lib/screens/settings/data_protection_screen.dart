@@ -1155,7 +1155,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       _retentionDaysController.text = retentionDays.toString();
     }
     final statusMessage = backupState.message;
-    final double? progress = backupState.progress?.clamp(0.0, 1.0).toDouble();
+    final double? progress = backupState.progress?.clamp(0.0, 1.0);
     final bool isErrorMessage = backupState.status == BackupStatus.error;
     final bool isSuccessMessage = backupState.status == BackupStatus.success;
     final lastLocalBackup = backupState.lastLocalBackupTime;

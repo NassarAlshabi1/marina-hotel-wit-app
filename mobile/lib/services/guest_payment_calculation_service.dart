@@ -41,7 +41,7 @@ class GuestPaymentCalculation {
   bool get isCurrentlyFullyPaid => totalPaid >= costSoFar;
 
   /// نسبة الدفع من التكاليف الحالية (0-100)
-  double get paymentPercentage => costSoFar > 0 ? (totalPaid / costSoFar * 100).clamp(0.0, 100.0).toDouble() : 100;
+  double get paymentPercentage => costSoFar > 0 ? (totalPaid / costSoFar * 100).clamp(0.0, 100.0) : 100;
 
   /// الحالة الوصفية للنزيل
   String get statusDescription {

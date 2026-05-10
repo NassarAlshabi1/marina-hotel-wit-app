@@ -229,12 +229,12 @@ class BookingComputedStreamService {
     int totalDue = days * pricePerNight;
     final discount = booking.discount.round();
     if (booking.discountType == 'total' && discount > 0) {
-      totalDue = (totalDue - discount).clamp(0, totalDue).toInt();
+      totalDue = (totalDue - discount).clamp(0, totalDue);
     }
 
     // Sum payments
     final totalPaid = await _sumPaymentsForBooking(booking);
-    final remaining = (totalDue - totalPaid).clamp(0, totalDue).toInt();
+    final remaining = (totalDue - totalPaid).clamp(0, totalDue);
 
     return BookingWithPayments(
       booking: booking,
@@ -327,14 +327,14 @@ class BookingComputedStreamService {
     int totalDue = days * pricePerNight;
     final discount = booking.discount.round();
     if (booking.discountType == 'total' && discount > 0) {
-      totalDue = (totalDue - discount).clamp(0, totalDue).toInt();
+      totalDue = (totalDue - discount).clamp(0, totalDue);
     }
 
     final bookingPayments = paymentsMap[booking.id] ?? [];
     final totalPaid = bookingPayments.fold<int>(
       0, (sum, p) => sum + p.amount.round(),
     );
-    final remaining = (totalDue - totalPaid).clamp(0, totalDue).toInt();
+    final remaining = (totalDue - totalPaid).clamp(0, totalDue);
 
     return BookingWithPayments(
       booking: booking,

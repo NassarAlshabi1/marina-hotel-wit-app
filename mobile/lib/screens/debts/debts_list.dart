@@ -857,7 +857,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     void recalculate() {
       final total = CurrencyFormatter.parseAmount(totalCtrl.text) ?? 0;
       final paid = CurrencyFormatter.parseAmount(paidCtrl.text) ?? 0;
-      final remaining = (total - paid).clamp(0.0, double.infinity).toDouble();
+      final remaining = (total - paid).clamp(0.0, double.infinity);
       remainingCtrl.text = CurrencyFormatter.formatAmount(remaining);
     }
 

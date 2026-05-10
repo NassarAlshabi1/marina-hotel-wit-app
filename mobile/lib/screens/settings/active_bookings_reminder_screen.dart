@@ -894,7 +894,7 @@ class _ActiveBookingsReminderScreenState
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
-                        value: paidPercent.clamp(0.0, 100.0).toDouble() / 100,
+                        value: paidPercent.clamp(0.0, 100.0) / 100,
                         minHeight: 4,
                         backgroundColor: Colors.grey.shade300,
                         valueColor: AlwaysStoppedAnimation<Color>(

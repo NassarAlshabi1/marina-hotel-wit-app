@@ -628,7 +628,7 @@ double _getOverdueCost(Booking b) {
           ClipRRect(
             borderRadius: BorderRadius.circular(3),
             child: LinearProgressIndicator(
-              value: (paidPercent / 100).clamp(0.0, 1.0).toDouble(),
+              value: (paidPercent / 100).clamp(0.0, 1.0),
               minHeight: 4,
               backgroundColor: Colors.grey.shade200,
               valueColor: AlwaysStoppedAnimation<Color>(paidPercent >= 100 ? Colors.green : Colors.orange),

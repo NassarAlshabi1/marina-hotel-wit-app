@@ -502,7 +502,7 @@ class _BookingRow extends ConsumerWidget {
       orElse: () => 0.0,
     );
     final remaining = (totalAmount - paid)
-        .clamp(0.0, totalAmount).toDouble();
+        .clamp(0.0, totalAmount);
     final Color statusColor = remaining <= 0.0
         ? Colors.green
         : (paid > 0 ? Colors.orange : Colors.red);
