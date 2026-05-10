@@ -6,7 +6,7 @@
 library;
 
 import 'package:drift/drift.dart' as drift;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show AsyncValue, Family, FutureProvider, FutureProviderAutoDisposeFamilyRef, ProviderListenable, Ref, WidgetRef;
 
 import 'repository_providers.dart';
 
@@ -124,7 +124,7 @@ final customListNamesProvider =
 
 /// إضافة عنصر جديد إلى قائمة
 Future<void> addCustomListItem(
-  Ref ref,
+  WidgetRef ref,
   String listKey,
   String name,
 ) async {
@@ -155,7 +155,7 @@ Future<void> addCustomListItem(
 
 /// تعديل اسم عنصر في القائمة
 Future<void> updateCustomListItem(
-  Ref ref,
+  WidgetRef ref,
   String listKey,
   int id,
   String newName,
@@ -183,7 +183,7 @@ Future<void> updateCustomListItem(
 
 /// حذف عنصر من القائمة
 Future<void> deleteCustomListItem(
-  Ref ref,
+  WidgetRef ref,
   String listKey,
   int id,
 ) async {
@@ -197,7 +197,7 @@ Future<void> deleteCustomListItem(
 
 /// تفعيل/تعطيل عنصر
 Future<void> toggleCustomListItem(
-  Ref ref,
+  WidgetRef ref,
   String listKey,
   int id,
   bool active,
@@ -212,7 +212,7 @@ Future<void> toggleCustomListItem(
 
 /// إعادة ترتيب العناصر
 Future<void> reorderCustomListItems(
-  Ref ref,
+  WidgetRef ref,
   String listKey,
   List<int> ids,
 ) async {
@@ -227,7 +227,7 @@ Future<void> reorderCustomListItems(
 }
 
 /// إعادة تحميل جميع providers المرتبطة بقائمة معينة
-void _invalidateAll(Ref ref, String listKey) {
+void _invalidateAll(WidgetRef ref, String listKey) {
   ref.invalidate(customListProvider(listKey));
   ref.invalidate(customListAllProvider(listKey));
   ref.invalidate(customListNamesProvider(listKey));

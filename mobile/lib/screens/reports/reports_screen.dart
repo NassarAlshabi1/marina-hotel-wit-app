@@ -91,6 +91,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           final expenses = await db.select(db.expenses).get();
           double expense = 0;
           for (final e in expenses) {
+            // تجاهل المصروفات المحذوفة ناعماً
+            if (e.deletedAt != null) {
+              continue;
+            }
             expense += e.amount;
           }
           final result = {'income': income, 'expense': expense};

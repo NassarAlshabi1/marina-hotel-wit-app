@@ -1578,7 +1578,8 @@ class AppwriteSyncManager {
             'Unknown outbox entity: ${entry.entity}',
             tag: 'SYNC',
           );
-          return true;
+          // لا نحذف الإدخال — نُبقيه للتحقيق ونعيد false ليبقى في الطابور
+          return false;
       }
     } catch (error, stackTrace) {
       final parsed = _errorHandler.handleError(

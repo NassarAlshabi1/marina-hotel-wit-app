@@ -2761,7 +2761,13 @@ _ReportResult _processReportData(_ReportParams params) {
   }
 
   bool isSalaryExpense(String type) {
-    return type.trim().contains('راتب');
+    final normalized = type.trim();
+    return normalized == 'رواتب' ||
+        normalized == 'سحب راتب' ||
+        normalized == 'سحب من الراتب' ||
+        normalized == 'خصم راتب' ||
+        normalized == 'خصم من الراتب' ||
+        normalized.contains('راتب');
   }
 
   final incomeList = <_IncomeEntry>[];
