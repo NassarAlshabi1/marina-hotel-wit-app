@@ -37,6 +37,7 @@ class SyncOrchestrator {
   final _stateController = StreamController<SyncState>.broadcast();
   final _progressController = StreamController<SyncProgress>.broadcast();
   final _conflictController = StreamController<SyncConflict>.broadcast();
+  StreamSubscription<SyncEvent>? _engineEventsSub;
 
   Timer? _autoSyncTimer;
   bool _isInitialized = false;
@@ -64,7 +65,7 @@ class SyncOrchestrator {
     developer.log('Initializing SyncOrchestrator', name: 'Sync');
 
     // الاستماع لأحداث المحرك
-    _syncEngine.events.listen(_handleSyncEvent);
+    _engineEventsSub = _syncEngine.events.listen(_handleSyncEvent);
 
     // تهيئة Outbox
     await _outbox.initialize();
@@ -338,6 +339,8 @@ class SyncOrchestrator {
   /// التخلص من الموارد
   void dispose() {
     stopAutoSync();
+    unawaited(_engineEventsSub?.cancel() ?? Future<void>.value());
+    _engineEventsSub = null;
     _stateController.close();
     _progressController.close();
     _conflictController.close();

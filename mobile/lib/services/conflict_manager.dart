@@ -256,6 +256,8 @@ class ConflictManager {
   }
 
   void dispose() {
-    _conflictsController.close();
+    if (!_conflictsController.isClosed) {
+      _conflictsController.close();
+    }
   }
 }

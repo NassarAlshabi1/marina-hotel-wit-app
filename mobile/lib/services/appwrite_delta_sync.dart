@@ -304,7 +304,7 @@ class AppwriteDeltaSync {
 
         // إعادة حساب حالات الغرف بناءً على الحجوزات الفعلية
         try {
-          await RoomsRepository(_database!).refreshAllRoomOccupancy();
+          await RoomsRepository(_database).refreshAllRoomOccupancy();
           _logger.info(
             'تم تحديث حالة إشغال الغرف بعد المزامنة',
             tag: 'DELTA_SYNC',
@@ -488,7 +488,7 @@ class AppwriteDeltaSync {
     String documentId,
     Map<String, dynamic> data,
   ) async {
-    final db = _database!;
+    final db = _database;
 
     switch (entity) {
       case 'rooms':
@@ -1171,7 +1171,7 @@ class AppwriteDeltaSync {
     String localUuid,
     int remoteUpdatedAtSec,
   ) async {
-    final db = _database!;
+    final db = _database;
     final localLastModified = await _getLocalLastModified(db, entity, localUuid);
 
     // لا يوجد سجل محلي → إدراج آمن

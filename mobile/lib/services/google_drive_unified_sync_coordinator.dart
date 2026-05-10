@@ -242,7 +242,9 @@ class GoogleDriveUnifiedSyncCoordinator {
         return;
       }
       await _startMonitoring();
-      await performSync(trigger: SyncTrigger.manual);
+      // ✅ لا نُنفّذ performSync تلقائياً عند تسجيل الدخول
+      // المراقبة ستبدأ وستقوم بالمزامنة عند الحاجة (تغيير محلي أو دورية)
+      // هذا يمنع ظهور زر "رفع التغييرات" فور تسجيل الدخول إلى Google Drive
     } else {
       _stopMonitoring();
       _hasPendingChanges = false;

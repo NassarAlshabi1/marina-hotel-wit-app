@@ -1578,7 +1578,8 @@ class AppwriteSyncManager {
             'Unknown outbox entity: ${entry.entity}',
             tag: 'SYNC',
           );
-          return true;
+          // لا نحذف الإدخال — نُبقيه للتحقيق ونعيد false ليبقى في الطابور
+          return false;
       }
     } catch (error, stackTrace) {
       final parsed = _errorHandler.handleError(
@@ -3272,7 +3273,7 @@ class AppwriteSyncManager {
                 ..where((t) => t.localUuid.equals(localUuid)))
               .getSingleOrNull();
           if (existing != null) {
-            await (database.delete<dynamic>(database.shiftNotes)
+            await (database.delete(database.shiftNotes)
                   ..where((t) => t.localUuid.equals(localUuid)))
                 .go();
           }

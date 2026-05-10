@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/custom_list_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart';
 import '../../services/auto_backup_manager.dart';
@@ -55,18 +56,35 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   // متغيرات الدفع المتقدم
   bool _hasAdvancePayment = false;
   final _advancePayment = TextEditingController();
-  String _paymentMethod = 'نقداً';
+  String _paymentMethod = 'نقدي';
   final _paymentNotes = TextEditingController();
-  static const _paymentMethods = ['نقداً', 'تحويل بنكي'];
 
-  static const _idTypes = [
-    'بطاقة شخصية',
-    'جواز سفر',
-    'رخصة قيادة',
-    'بطاقة عسكرية',
-    'استبيان',
-    'شهادة ميلاد',
-  ];
+  /// أنواع الهوية من القائمة الديناميكية
+  List<String> get _idTypes {
+    final asyncTypes = ref.watch(customListNamesProvider(kListKeyIdType));
+    final types = asyncTypes.valueOrNull ?? kDefaultIdTypes;
+    // التأكد من أن القيمة المحددة موجودة في القائمة
+    if (_idType.isNotEmpty && !types.contains(_idType)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _idType = types.isNotEmpty ? types.first : 'بطاقة شخصية');
+      });
+    }
+    return types;
+  }
+
+  /// طرق الدفع من القائمة الديناميكية
+  List<String> get _paymentMethods {
+    final asyncTypes = ref.watch(customListNamesProvider(kListKeyPaymentMethod));
+    final methods = asyncTypes.valueOrNull ?? kDefaultPaymentMethods;
+    // التأكد من أن القيمة المحددة موجودة في القائمة
+    if (_paymentMethod.isNotEmpty && !methods.contains(_paymentMethod)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _paymentMethod = methods.isNotEmpty ? methods.first : 'نقدي');
+      });
+    }
+    return methods;
+  }
+
   static const _statusOptions = ['محجوزة', 'مؤقت', 'شاغرة', 'مكتمل', 'ملغي'];
 
   @override

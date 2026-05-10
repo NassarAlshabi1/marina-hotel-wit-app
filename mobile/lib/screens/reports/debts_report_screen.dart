@@ -522,8 +522,13 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     try {
       return DateTime.parse(normalized);
     } catch (_) {
-      final safeDate = Time.safeIsoToDateString(value);
-      return DateTime.parse('${safeDate}T00:00:00');
+      try {
+        final safeDate = Time.safeIsoToDateString(value);
+        return DateTime.parse('${safeDate}T00:00:00');
+      } catch (_) {
+        // بيانات تاريخ فاسدة — استخدام تاريخ افتراضي آمن
+        return DateTime.fromMillisecondsSinceEpoch(0);
+      }
     }
   }
 

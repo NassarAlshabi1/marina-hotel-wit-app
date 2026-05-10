@@ -1231,11 +1231,11 @@ class GeminiService {
                 newPrice = oldPrice * (1 + value / 100);
               case 'percent_decrease':
                 newPrice = (oldPrice * (1 - value / 100))
-                    .clamp(0.0, double.infinity);
+                    .clamp(0.0, double.infinity).toDouble();
               case 'fixed_increase':
                 newPrice = oldPrice + value;
               case 'fixed_decrease':
-                newPrice = (oldPrice - value).clamp(0.0, double.infinity);
+                newPrice = (oldPrice - value).clamp(0.0, double.infinity).toDouble();
               default:
                 newPrice = oldPrice;
             }

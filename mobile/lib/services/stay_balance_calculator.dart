@@ -237,7 +237,11 @@ class StayBalanceCalculator {
 
     // ─── محاكاة يوم بيوم لحساب الليالي المغطاة ───
     final coveredDates = <DateTime>[];
-    double remainingBalance = booking.totalPaidCached;
+    int toMinor(double amount) => amount.round();
+    double fromMinor(int amount) => amount.toDouble();
+
+    final totalPaidMinor = toMinor(booking.totalPaidCached);
+    int remainingBalanceMinor = totalPaidMinor;
     int totalCoveredNights = 0;
 
     DateTime currentNight = firstHotelDay;
@@ -245,14 +249,15 @@ class StayBalanceCalculator {
       final key = Time.dateToString(currentNight);
       final adjustment = adjMap[key] ?? 0.0;
       final effectiveRate =
-          (baseRate + adjustment).clamp(0.0, baseRate > 0 ? baseRate * 3 : 0);
+          (baseRate + adjustment).clamp(0.0, baseRate > 0 ? baseRate * 3 : 0).toDouble();
+      final effectiveRateMinor = toMinor(effectiveRate);
 
-      if (effectiveRate <= 0) {
+      if (effectiveRateMinor <= 0) {
         break;
       }
 
-      if (remainingBalance >= effectiveRate) {
-        remainingBalance -= effectiveRate;
+      if (remainingBalanceMinor >= effectiveRateMinor) {
+        remainingBalanceMinor -= effectiveRateMinor;
         totalCoveredNights++;
         coveredDates.add(currentNight);
         currentNight = currentNight.add(const Duration(days: 1));
@@ -265,18 +270,23 @@ class StayBalanceCalculator {
     final actualNightsSpent =
         Time.nightsWithCutoff(checkin, checkout: moment);
 
-    double consumedCost = 0;
+    int consumedCostMinor = 0;
     DateTime consumedNight = firstHotelDay;
     for (int i = 0; i < actualNightsSpent && i < 3650; i++) {
       final key = Time.dateToString(consumedNight);
       final adjustment = adjMap[key] ?? 0.0;
-      consumedCost +=
-          (baseRate + adjustment).clamp(0.0, baseRate > 0 ? baseRate * 3 : 0);
+      final nightRate = (baseRate + adjustment).clamp(
+        0.0,
+        baseRate > 0 ? baseRate * 3 : 0,
+      ).toDouble();
+      consumedCostMinor += toMinor(nightRate);
       consumedNight = consumedNight.add(const Duration(days: 1));
     }
 
+    final consumedCost = fromMinor(consumedCostMinor);
+
     // ─── الرصيد الفعلي = إجمالي المدفوع - تكلفة الأيام المقضية ───
-    final effectiveBalance = booking.totalPaidCached - consumedCost;
+    final effectiveBalance = fromMinor(totalPaidMinor - consumedCostMinor);
 
     // ─── تاريخ المغادرة التلقائي ───
     final autoCheckout = checkinDateOnly.add(Duration(days: totalCoveredNights));
@@ -297,15 +307,18 @@ class StayBalanceCalculator {
         : 0;
 
     // ─── الفائض المالي بعد تغطية جميع الليالي ───
-    final double surplusAfterAllNights =
-        remainingBalance < 0 ? 0 : remainingBalance;
+    final surplusMinor = remainingBalanceMinor < 0 ? 0 : remainingBalanceMinor;
+    final double surplusAfterAllNights = fromMinor(surplusMinor);
 
     // ─── متوسط السعر الفعلي بعد التعديلات ───
     double effectiveNightlyRate = baseRate;
-    if (totalCoveredNights > 0 && priceAdjustments != null && priceAdjustments.isNotEmpty) {
-      final totalCoveredCost = booking.totalPaidCached - surplusAfterAllNights;
-      if (totalCoveredCost > 0) {
-        effectiveNightlyRate = totalCoveredCost / totalCoveredNights;
+    if (totalCoveredNights > 0 &&
+        priceAdjustments != null &&
+        priceAdjustments.isNotEmpty) {
+      final totalCoveredCostMinor = totalPaidMinor - surplusMinor;
+      if (totalCoveredCostMinor > 0) {
+        effectiveNightlyRate =
+            fromMinor(totalCoveredCostMinor) / totalCoveredNights;
       }
     }
 

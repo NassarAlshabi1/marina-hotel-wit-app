@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../components/widgets/empty_state.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/performance_provider.dart';
 import '../../providers/repository_providers.dart';
@@ -90,6 +91,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           final expenses = await db.select(db.expenses).get();
           double expense = 0;
           for (final e in expenses) {
+            // تجاهل المصروفات المحذوفة ناعماً
+            if (e.deletedAt != null) {
+              continue;
+            }
             expense += e.amount;
           }
           final result = {'income': income, 'expense': expense};

@@ -543,5 +543,5 @@ class _DebtData {
   final double total;
   final double paid;
 
-  double get remaining => (total - paid).clamp(0, total);
+  double get remaining => (total - paid).clamp(0, total).toDouble();
 }

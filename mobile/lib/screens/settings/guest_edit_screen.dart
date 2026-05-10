@@ -525,11 +525,10 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     arabicDigits.forEach((arabic, latin) {
       output = output.replaceAll(arabic, latin);
     });
-    output = output
+    return output
         .replaceAll('،', '')
         .replaceAll(',', '')
         .replaceAll(' ', '');
-    return output;
   }
 
   String _formatDate(DateTime dt) {

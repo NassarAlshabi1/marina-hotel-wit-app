@@ -79,22 +79,22 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 : <db.Booking>[];
 
             return ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               children: [
                 // ─── بطاقة يوم الفندق ───
                 _buildHotelDayCard(),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // ─── بطاقة الصندوق: الايراد / المصروفات / المتبقي ───
                 _buildCashDeskCard(income, expenses, balance),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // ─── مدفوعات اليوم ───
                 _buildTodayPayments(payments),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // ─── الحجوزات النشطة ───
                 _buildActiveBookings(activeBookings),
@@ -114,33 +114,33 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     final hotelDay = Time.hotelDayKey();
     final cutoff = now.hour >= 14;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.indigo.shade700, Colors.indigo.shade500],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.indigo.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.calendar_today, color: Colors.white, size: 22),
+            child: const Icon(Icons.calendar_today, color: Colors.white, size: 18),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,16 +149,16 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                   'اليوم الفندقي',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Text(
                   hotelDay,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -166,20 +166,20 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: cutoff ? Colors.orange.withValues(alpha: 0.9) : Colors.green.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(cutoff ? Icons.nightlight : Icons.wb_sunny,
-                    size: 14, color: Colors.white,),
-                const SizedBox(width: 4),
+                    size: 12, color: Colors.white,),
+                const SizedBox(width: 3),
                 Text(
                   cutoff ? 'بعد 14:00' : 'قبل 14:00',
-                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -192,15 +192,15 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   // ─── بطاقة الصندوق: الايراد / المصروفات / المتبقي ───
   Widget _buildCashDeskCard(double income, double expenses, double balance) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
@@ -210,101 +210,101 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: Colors.indigo.shade50,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.account_balance_wallet, size: 20, color: Colors.indigo.shade700),
+                child: Icon(Icons.account_balance_wallet, size: 16, color: Colors.indigo.shade700),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               const Text(
                 'حالة الصندوق',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Row(
             children: [
               // الايراد
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [Colors.green.shade50, Colors.green.shade100],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Colors.green.shade200),
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.trending_up, color: Colors.green.shade700, size: 20),
-                      const SizedBox(height: 4),
+                      Icon(Icons.trending_up, color: Colors.green.shade700, size: 16),
+                      const SizedBox(height: 2),
                       Text(
                         CurrencyFormatter.formatAmount(income),
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: Colors.green.shade800,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 1),
                       Text(
                         'الايراد',
-                        style: TextStyle(fontSize: 11, color: Colors.green.shade600, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 10, color: Colors.green.shade600, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               // المصروفات
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [Colors.red.shade50, Colors.red.shade100],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Colors.red.shade200),
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.trending_down, color: Colors.red.shade700, size: 20),
-                      const SizedBox(height: 4),
+                      Icon(Icons.trending_down, color: Colors.red.shade700, size: 16),
+                      const SizedBox(height: 2),
                       Text(
                         CurrencyFormatter.formatAmount(expenses),
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: Colors.red.shade800,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 1),
                       Text(
                         'المصروفات',
-                        style: TextStyle(fontSize: 11, color: Colors.red.shade600, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 10, color: Colors.red.shade600, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               // المتبقي
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: balance >= 0
@@ -313,7 +313,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: balance >= 0 ? Colors.indigo.shade200 : Colors.orange.shade300,
                     ),
@@ -323,24 +323,24 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       Icon(
                         balance >= 0 ? Icons.savings : Icons.warning_amber,
                         color: balance >= 0 ? Colors.indigo.shade700 : Colors.orange.shade700,
-                        size: 20,
+                        size: 16,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         CurrencyFormatter.formatAmount(balance.abs()),
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: balance >= 0 ? Colors.indigo.shade800 : Colors.orange.shade800,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 1),
                       Text(
                         balance >= 0 ? 'المتبقي' : 'عجز',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                           color: balance >= 0 ? Colors.indigo.shade600 : Colors.orange.shade600,
                         ),
@@ -398,21 +398,21 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
               children: [
-                const Icon(Icons.receipt_long, size: 18, color: Colors.indigo),
-                const SizedBox(width: 6),
+                const Icon(Icons.receipt_long, size: 16, color: Colors.indigo),
+                const SizedBox(width: 5),
                 const Text(
                   'تفاصيل مدفوعات اليوم الفندقي',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 Text(
@@ -424,7 +424,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           ),
           if (todayPayments.isEmpty)
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
+              padding: EdgeInsets.symmetric(vertical: 16),
               child: Center(
                 child: Text(
                   'لا توجد مدفوعات اليوم',
@@ -445,7 +445,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 payments: groupPayments,
               );
             }),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
         ],
       ),
     );
@@ -460,27 +460,27 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     return Column(
       children: [
         Container(
-          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(
             color: isRoom ? Colors.indigo.shade50 : Colors.amber.shade50,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: (isRoom ? Colors.indigo : Colors.amber).shade100),
           ),
           child: Row(
             children: [
               Icon(
                 isRoom ? Icons.hotel : Icons.payments_outlined,
-                size: 16,
+                size: 14,
                 color: isRoom ? Colors.indigo.shade700 : Colors.amber.shade700,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 7),
               Expanded(
                 child: Text(
                   isRoom ? 'غرفة $roomNumber' : 'مدفوعات عامة',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 11,
                     color: isRoom ? Colors.indigo.shade800 : Colors.amber.shade800,
                   ),
                 ),
@@ -489,7 +489,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 CurrencyFormatter.formatAmount(totalAmount),
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                  fontSize: 12,
                   color: isRoom ? Colors.indigo.shade900 : Colors.amber.shade900,
                 ),
               ),
@@ -504,7 +504,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
   Widget _buildSinglePaymentDetail(db.Payment p) {
     return Padding(
-      padding: const EdgeInsets.only(left: 15, right: 40, top: 4, bottom: 4),
+      padding: const EdgeInsets.only(left: 12, right: 35, top: 3, bottom: 3),
       child: Row(
         children: [
           if (p.notes?.isNotEmpty ?? false)
@@ -514,13 +514,13 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 children: [
                   Text(
                     p.notes!,
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade800),
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade800),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     p.paymentDate.split(' ').last.substring(0, 5), // Time only HH:mm
-                    style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 8, color: Colors.grey.shade500),
                   ),
                 ],
               ),
@@ -529,12 +529,12 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             Expanded(
               child: Text(
                 p.paymentDate.split(' ').last.substring(0, 5), // Time only HH:mm
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
               ),
             ),
           Text(
             CurrencyFormatter.formatAmount(p.amount),
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -546,21 +546,21 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
               children: [
-                const Icon(Icons.hotel, size: 18, color: Colors.indigo),
-                const SizedBox(width: 6),
+                const Icon(Icons.hotel, size: 16, color: Colors.indigo),
+                const SizedBox(width: 5),
                 const Text(
                   'الحجوزات النشطة',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 Text(
@@ -572,7 +572,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           ),
           if (bookings.isEmpty)
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
+              padding: EdgeInsets.symmetric(vertical: 16),
               child: Center(
                 child: Text(
                   'لا توجد حجوزات نشطة',
@@ -592,20 +592,20 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     final hasBalance = booking.remainingBalanceCached > 0;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
         color: isPaid
             ? Colors.green.shade50
             : hasBalance
                 ? Colors.orange.shade50
                 : Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 18,
+            radius: 14,
             backgroundColor: isPaid
                 ? Colors.green.shade100
                 : hasBalance
@@ -615,7 +615,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
               booking.roomNumber,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 11,
+                fontSize: 10,
                 color: isPaid
                     ? Colors.green.shade800
                     : hasBalance
@@ -624,26 +624,26 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 7),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   booking.guestName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Row(
                   children: [
                     Text(
                       booking.guestPhone,
-                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                      style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Text(
                       booking.guestNationality,
-                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                      style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
                     ),
                   ],
                 ),
@@ -651,7 +651,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                   Text(
                     'متبقي: ${CurrencyFormatter.formatAmount(booking.remainingBalanceCached)}',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: Colors.orange.shade700,
                     ),
@@ -660,7 +660,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             ),
           ),
           SizedBox(
-            height: 30,
+            height: 26,
             child: ElevatedButton.icon(
               onPressed: () {
                 Navigator.push<void>(
@@ -669,12 +669,12 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                   ),
                 );
               },
-              icon: const Icon(Icons.payment, size: 13),
-              label: const Text('دفع', style: TextStyle(fontSize: 11)),
+              icon: const Icon(Icons.payment, size: 12),
+              label: const Text('دفع', style: TextStyle(fontSize: 10)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: isPaid ? Colors.grey.shade400 : Colors.green,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
             ),
           ),

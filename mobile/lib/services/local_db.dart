@@ -772,7 +772,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 36;
+  int get schemaVersion => 37;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1795,6 +1795,73 @@ class AppDatabase extends _$AppDatabase {
         }
         developer.log(
           'Migration 36: additional indexes created successfully',
+          name: 'db.migration',
+        );
+      }
+
+      // === Migration 37: جدول القوائم المخصصة (أنواع المصروفات، أنواع الهوية، طرق الدفع) ===
+      if (from < 37) {
+        await m.database.customStatement(
+          'CREATE TABLE IF NOT EXISTS custom_list_items ('
+          'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'list_key TEXT NOT NULL, '
+          'name TEXT NOT NULL, '
+          'sort_order INTEGER NOT NULL DEFAULT 0, '
+          'is_active INTEGER NOT NULL DEFAULT 1, '
+          'is_system INTEGER NOT NULL DEFAULT 0)',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_custom_list_key '
+          'ON custom_list_items (list_key, sort_order)',
+        );
+
+        // بذر أنواع المصروفات الافتراضية
+        const expenseDefaults = [
+          ['رواتب', '1', '1'],
+          ['ديزل', '2', '0'],
+          ['صيانة', '3', '0'],
+          ['فواتير كهرباء ومياه', '4', '0'],
+          ['مستلزمات', '5', '0'],
+          ['مساعدة محتاج', '6', '0'],
+          ['اخرى', '7', '0'],
+        ];
+        for (final e in expenseDefaults) {
+          await m.database.customStatement(
+            'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
+            "VALUES ('expense_type', '${e[0]}', ${e[1]}, 1, ${e[2]})",
+          );
+        }
+
+        // بذر أنواع الهوية الافتراضية
+        const idTypeDefaults = [
+          ['بطاقة شخصية', '1', '0'],
+          ['جواز سفر', '2', '0'],
+          ['رخصة قيادة', '3', '0'],
+          ['بطاقة عسكرية', '4', '0'],
+          ['استبيان', '5', '0'],
+          ['شهادة ميلاد', '6', '0'],
+        ];
+        for (final e in idTypeDefaults) {
+          await m.database.customStatement(
+            'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
+            "VALUES ('id_type', '${e[0]}', ${e[1]}, 1, ${e[2]})",
+          );
+        }
+
+        // بذر طرق الدفع الافتراضية
+        const paymentMethodDefaults = [
+          ['نقدي', '1', '0'],
+          ['تحويل بنكي', '2', '0'],
+        ];
+        for (final e in paymentMethodDefaults) {
+          await m.database.customStatement(
+            'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
+            "VALUES ('payment_method', '${e[0]}', ${e[1]}, 1, ${e[2]})",
+          );
+        }
+
+        developer.log(
+          'Migration 37: custom_list_items table created and seeded',
           name: 'db.migration',
         );
       }
