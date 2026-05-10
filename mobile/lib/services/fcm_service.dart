@@ -19,6 +19,8 @@ class FcmService {
   String? _currentToken;
   bool _isInitialized = false;
   StreamSubscription<String>? _tokenRefreshSubscription; // اشتراك تحديث التوكن — يجب إلغاؤه
+  StreamSubscription<RemoteMessage>? _onMessageSubscription;
+  StreamSubscription<RemoteMessage>? _onMessageOpenedAppSubscription;
 
   /// تهيئة FCM — تُستدعى من main.dart بعد تثبيت Appwrite
   Future<void> initialize() async {
@@ -112,13 +114,13 @@ class FcmService {
   /// إعداد معالجات الرسائل الواردة
   void _setupMessageHandlers() {
     // --- رسالة في المقدمة (التطبيق مفتوح) ---
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    _onMessageSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('📩 FCM: foreground message received');
       _handleIncomingMessage(message);
     });
 
     // --- المستخدم ضغط على الإشعار ---
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    _onMessageOpenedAppSubscription = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint('📩 FCM: notification tapped');
       _handleIncomingMessage(message);
     });
@@ -233,7 +235,11 @@ class FcmService {
   /// تنظيف الموارد — إلغاء اشتراك تحديث التوكن
   void dispose() {
     _tokenRefreshSubscription?.cancel();
+    _onMessageSubscription?.cancel();
+    _onMessageOpenedAppSubscription?.cancel();
     _tokenRefreshSubscription = null;
+    _onMessageSubscription = null;
+    _onMessageOpenedAppSubscription = null;
     _currentToken = null;
     _isInitialized = false;
     debugPrint('🛑 FCM Service disposed');
