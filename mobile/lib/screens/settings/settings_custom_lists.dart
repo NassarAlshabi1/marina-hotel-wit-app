@@ -42,7 +42,7 @@ class _SettingsCustomListsScreenState
       title: 'إدارة القوائم المنسدلة',
       body: Column(
         children: [
-          Container(
+          ColoredBox(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: TabBar(
               controller: _tabController,
@@ -272,7 +272,7 @@ class _ListManagerState extends ConsumerState<_ListManager> {
     );
     final name = controller.text.trim();
     controller.dispose();
-    if (ok == true && name.isNotEmpty && mounted) {
+    if ((ok ?? false) && name.isNotEmpty && mounted) {
       setState(() => _isProcessing = true);
       try {
         await addCustomListItem(ref, _listKey, name);
@@ -330,7 +330,7 @@ class _ListManagerState extends ConsumerState<_ListManager> {
     );
     final newName = controller.text.trim();
     controller.dispose();
-    if (ok == true && newName.isNotEmpty && mounted) {
+    if ((ok ?? false) && newName.isNotEmpty && mounted) {
       setState(() => _isProcessing = true);
       try {
         await updateCustomListItem(ref, _listKey, item.id, newName);
@@ -404,7 +404,7 @@ class _ListManagerState extends ConsumerState<_ListManager> {
         ],
       ),
     );
-    if (ok == true && mounted) {
+    if ((ok ?? false) && mounted) {
       setState(() => _isProcessing = true);
       try {
         await deleteCustomListItem(ref, _listKey, item.id);

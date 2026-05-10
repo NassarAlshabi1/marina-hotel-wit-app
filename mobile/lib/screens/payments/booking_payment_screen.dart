@@ -2729,7 +2729,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             );
           }
 
-          final allPayments = snapshot.data;
+          final allPayments = snapshot.data ?? [];
           final todayPayments = allPayments.where((p) =>
               !p.isVoided &&
               (p.hotelDayKey == hotelDay ||
