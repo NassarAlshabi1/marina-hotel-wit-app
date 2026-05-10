@@ -1,6 +1,5 @@
 /// نماذج بيانات المزامنة الاحترافية
 /// Delta Sync + Vector Clock + Event Sourcing
-library;
 
 /// اتجاه المزامنة
 enum SyncDirection { upload, download, bidirectional }

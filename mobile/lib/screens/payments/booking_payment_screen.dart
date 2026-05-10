@@ -3597,12 +3597,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   String _formatDate(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      return '${date.day}/${date.month}/${date.year}';
-    } catch (e) {
+    final date = DateParser.parse(dateStr);
+    if (date == null) {
       return dateStr;
     }
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   String _formatAmountForMessage(num amount) {

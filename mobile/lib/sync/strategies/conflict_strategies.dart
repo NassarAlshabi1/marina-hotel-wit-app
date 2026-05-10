@@ -1,6 +1,5 @@
 /// Conflict Resolution Strategies
 /// استراتيجيات حل التعارضات المختلفة
-library;
 
 import '../models/sync_models.dart';
 import '../vector_clock.dart';

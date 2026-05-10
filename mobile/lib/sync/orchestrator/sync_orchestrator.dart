@@ -1,7 +1,6 @@
 /// Sync Orchestrator
 /// منسق المزامنة - يدير عملية المزامنة الكاملة
 /// Pull → Resolve → Push → Notify
-library;
 
 import 'dart:async';
 import 'dart:developer' as developer;

@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../providers/auto_sync_engine_providers.dart';
 import '../../services/google_drive_auto_sync_engine.dart';
 import '../../services/google_drive_conflict_resolver.dart';
+import '../../utils/date_parser.dart';
 
 class AutoSyncEngineMonitorScreen extends ConsumerStatefulWidget {
   const AutoSyncEngineMonitorScreen({super.key});
@@ -1103,11 +1104,10 @@ class _AutoSyncEngineMonitorScreenState
     if (iso == null) {
       return '';
     }
-    try {
-      final dt = DateTime.parse(iso);
-      return DateFormat('dd/MM HH:mm').format(dt);
-    } catch (_) {
+    final dt = DateParser.parse(iso);
+    if (dt == null) {
       return iso;
     }
+    return DateFormat('dd/MM HH:mm').format(dt);
   }
 }
