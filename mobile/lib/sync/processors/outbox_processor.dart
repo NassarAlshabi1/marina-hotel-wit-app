@@ -1,6 +1,7 @@
 /// Outbox Processor
 /// يدير التغييرات المحلية المعلقة ويرسلها للمزامنة
 /// مع دعم إعادة المحاولة التلقائية والتتبع
+library;
 
 import 'dart:async';
 import 'dart:convert';

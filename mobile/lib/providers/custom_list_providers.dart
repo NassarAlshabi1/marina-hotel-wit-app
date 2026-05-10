@@ -3,6 +3,7 @@
 /// Provides dynamic, manageable dropdown lists stored in the
 /// `custom_list_items` table. Each list is identified by a `list_key`
 /// (e.g. 'expense_type', 'id_type', 'payment_method').
+library;
 
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart' show FutureProvider, WidgetRef;

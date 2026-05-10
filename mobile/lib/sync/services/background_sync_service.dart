@@ -1,6 +1,7 @@
 /// Background Sync Service
 /// خدمة المزامنة في الخلفية باستخدام WorkManager
 /// تضمن مزامنة البيانات حتى عندما يكون التطبيق مغلقاً
+library;
 
 import 'dart:async';
 import 'dart:developer' as developer;

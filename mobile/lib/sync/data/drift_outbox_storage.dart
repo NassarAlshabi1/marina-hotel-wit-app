@@ -1,5 +1,6 @@
 /// Drift Outbox Storage Implementation
 /// تطبيق OutboxStorage باستخدام Drift
+library;
 
 import 'dart:convert';
 

@@ -1,5 +1,6 @@
 /// Drift Sync Data Source Implementation
 /// تطبيق OutboxDataSource و InboxDataSource باستخدام Drift
+library;
 
 import 'package:drift/drift.dart';
 import '../delta_sync_engine.dart';

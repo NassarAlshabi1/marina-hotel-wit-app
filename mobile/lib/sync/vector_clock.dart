@@ -1,6 +1,7 @@
 /// Vector Clock Implementation
 /// للتعرف على الترتيب الزمني الحقيقي بين الأجهزة المتعددة
 /// واكتشاف التعارضات بشكل دقيق
+library;
 
 import 'dart:convert';
 import 'dart:math' as math;

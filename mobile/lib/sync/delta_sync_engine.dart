@@ -1,6 +1,7 @@
 /// Delta Sync Engine
 /// محرك المزامنة المتغيرة - يزامن فقط ما تغير
 /// بناءً على Vector Clock و Outbox Pattern
+library;
 
 import 'dart:async';
 

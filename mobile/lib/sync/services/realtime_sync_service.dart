@@ -1,6 +1,7 @@
 /// Realtime Sync Service
 /// خدمة المزامنة الفورية باستخدام WebSocket أو Server-Sent Events
 /// تدفع التغييرات فور حدوثها على السيرفر
+library;
 
 import 'dart:async';
 import 'dart:convert';

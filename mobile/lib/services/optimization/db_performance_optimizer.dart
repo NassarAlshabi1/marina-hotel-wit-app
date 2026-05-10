@@ -4,6 +4,7 @@
 /// Creates composite indexes for better query performance
 /// Runs automatically on app startup
 /// ============================================================
+library;
 
 import 'package:flutter/foundation.dart';
 

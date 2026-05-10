@@ -6,6 +6,7 @@
 ///   Tier 2: Disk  (persistent, sqflite)
 ///   Tier 3: Network (backing store)
 /// ============================================================
+library;
 
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
