@@ -545,8 +545,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         : '${widget.booking.guestIdType} • ${widget.booking.guestIdNumber}';
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -569,18 +569,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           Row(
             children: [
               CircleAvatar(
-                radius: 13,
+                radius: 16,
                 backgroundColor: Colors.blue,
                 child: Text(
                   widget.booking.roomNumber,
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 10,
+                    fontSize: 12,
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -588,35 +588,35 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     Text(
                       widget.booking.guestName,
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 13,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
                       'غرفة ${widget.booking.roomNumber}${hasPhone ? ' • $_currentGuestPhone' : ''}',
                       style: const TextStyle(
-                        fontSize: 9,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: Colors.grey,
                       ),
                     ),
                     Text(
                       identityLine,
-                      style: const TextStyle(fontSize: 9, color: Colors.grey),
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
                     ),
                     Text(
                       'الجنسية: ${widget.booking.guestNationality}',
-                      style: const TextStyle(fontSize: 9, color: Colors.grey),
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
                     ),
                     Text(
                       'الوصول: $checkinText',
-                      style: const TextStyle(fontSize: 9, color: Colors.grey),
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
                     ),
                     if (plannedText != null)
                       Text(
                         'المغادرة المخطط: $plannedText',
                         style: const TextStyle(
-                          fontSize: 9,
+                          fontSize: 10,
                           color: Colors.grey,
                         ),
                       ),
@@ -637,14 +637,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                           : '';
                       return Text(
                         'المغادرة التلقائية: $autoStr (${balanceResult.totalPaidNights} ليلة مدفوعة)$extra',
-                        style: const TextStyle(fontSize: 8, color: Colors.grey),
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
                       );
                     },),
                     if (actualText != null)
                       Text(
                         'المغادرة الفعلي: $actualText',
                         style: const TextStyle(
-                          fontSize: 9,
+                          fontSize: 10,
                           color: Colors.green,
                         ),
                       ),
@@ -652,7 +652,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: summary.isFullyPaid
                       ? Colors.green.withValues(alpha: 0.2)
@@ -665,7 +665,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 child: Text(
                   summary.isFullyPaid ? 'مكتمل الدفع' : 'دفع جزئي',
                   style: TextStyle(
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                     color: summary.isFullyPaid ? Colors.green : Colors.orange,
                   ),
@@ -673,10 +673,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
             ],
           ),
-          const SizedBox(height: 1),
+          const SizedBox(height: 4),
           Wrap(
-            spacing: 3,
-            runSpacing: 3,
+            spacing: 4,
+            runSpacing: 4,
             children: [
               _buildDetailChip(
                 context,
@@ -895,7 +895,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   Widget _buildAmountChip(String label, double amount, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
@@ -906,14 +906,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           Text(
             _currencyFmt.format(amount),
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 7, color: color.withValues(alpha: 0.8)),
+            style: TextStyle(fontSize: 8, color: color.withValues(alpha: 0.8)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -930,7 +930,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }) {
     final chipColor = color ?? Theme.of(context).colorScheme.primary;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: chipColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(6),
@@ -939,18 +939,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 10, color: chipColor),
+          Icon(icon, size: 12, color: chipColor),
           const SizedBox(width: 3),
           Text(
             label,
             style: TextStyle(
               color: chipColor,
               fontWeight: FontWeight.bold,
-              fontSize: 8,
+              fontSize: 9,
             ),
           ),
           const SizedBox(width: 2),
-          Text(value, style: TextStyle(color: chipColor, fontSize: 8)),
+          Text(value, style: TextStyle(color: chipColor, fontSize: 9)),
         ],
       ),
     );
