@@ -111,7 +111,7 @@ class LocalBackupService {
         selectedDir = await getApplicationDocumentsDirectory();
       }
 
-      if (!await selectedDir.exists()) {
+      if (!selectedDir.existsSync()) {
         await selectedDir.create(recursive: true);
         debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي: ${selectedDir.path}');
       }
@@ -368,7 +368,7 @@ class LocalBackupService {
     try {
       final backupDir = await getBackupDirectory();
 
-      if (!await backupDir.exists()) {
+      if (!backupDir.existsSync()) {
         return [];
       }
 
@@ -418,7 +418,7 @@ class LocalBackupService {
             }
           } else {
             final metadataFile = File(_metadataFilePath(file.path));
-            if (await metadataFile.exists()) {
+            if (metadataFile.existsSync()) {
               final metaContent = await metadataFile.readAsString();
               metadata = BackupMetadata.fromJson(
                 jsonDecode(metaContent) as Map<String, dynamic>,
@@ -476,7 +476,7 @@ class LocalBackupService {
 
   Future<void> _restoreFromJsonBackup(String filePath) async {
     final file = File(filePath);
-    if (!await file.exists()) {
+    if (!file.existsSync()) {
       throw Exception('ملف النسخة الاحتياطية غير موجود');
     }
 
@@ -626,13 +626,13 @@ class LocalBackupService {
 
   Future<void> _restoreFromSqliteBackup(String filePath) async {
     final file = File(filePath);
-    if (!await file.exists()) {
+    if (!file.existsSync()) {
       throw Exception('ملف النسخة الاحتياطية غير موجود');
     }
 
     BackupMetadata? metadata;
     final metadataFile = File(_metadataFilePath(filePath));
-    if (await metadataFile.exists()) {
+    if (metadataFile.existsSync()) {
       final metaContent = await metadataFile.readAsString();
       metadata = BackupMetadata.fromJson(
         jsonDecode(metaContent) as Map<String, dynamic>,
@@ -676,7 +676,7 @@ class LocalBackupService {
   Future<void> _deleteSidecarFiles(String dbPath) async {
     for (final suffix in ['-wal', '-shm']) {
       final file = File('$dbPath$suffix');
-      if (await file.exists()) {
+      if (file.existsSync()) {
         try {
           await file.delete();
         } catch (e) {
@@ -690,7 +690,7 @@ class LocalBackupService {
   Future<void> shareBackup(String filePath) async {
     try {
       final file = File(filePath);
-      if (!await file.exists()) {
+      if (!file.existsSync()) {
         throw Exception('ملف النسخة الاحتياطية غير موجود');
       }
 
@@ -823,7 +823,7 @@ class LocalBackupService {
   Future<void> deleteLocalBackup(String filePath) async {
     try {
       final file = File(filePath);
-      if (await file.exists()) {
+      if (file.existsSync()) {
         await file.delete();
         debugPrint('✅ تم حذف النسخة الاحتياطية: $filePath');
       }
@@ -979,7 +979,7 @@ class LocalBackupService {
 
       return {
         'path': backupDir.path,
-        'exists': await backupDir.exists(),
+        'exists': backupDir.existsSync(),
         'backups_count': backups.length,
         'total_size_bytes': totalSize,
         'total_size_mb': (totalSize / (1024 * 1024)).toStringAsFixed(2),

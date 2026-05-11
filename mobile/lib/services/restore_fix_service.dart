@@ -1193,7 +1193,7 @@ class RestoreFixService {
   Future<void> _restoreFromSnapshot(String snapshotPath) async {
     try {
       final file = File(snapshotPath);
-      if (!await file.exists()) {
+      if (!file.existsSync()) {
         throw RestoreValidationException(
           'ملف اللقطة الاحتياطية غير موجود: $snapshotPath',
         );
@@ -1276,7 +1276,7 @@ class RestoreFixService {
   Future<void> _deleteSnapshot(String filePath) async {
     try {
       final file = File(filePath);
-      if (await file.exists()) {
+      if (file.existsSync()) {
         await file.delete();
         debugPrint('🗑️ تم حذف اللقطة الاحتياطية: $filePath');
       }

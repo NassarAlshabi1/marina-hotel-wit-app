@@ -1267,7 +1267,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
               localBackupPath ??
               (tempSqlitePath = await SqliteBackupRestore.backupDatabase());
           final sqliteFile = File(sqlitePath);
-          if (!await sqliteFile.exists()) {
+          if (!sqliteFile.existsSync()) {
             throw Exception(
               'تعذر العثور على ملف النسخة الاحتياطية SQLite لرفعه',
             );
@@ -1315,7 +1315,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       if (tempSqlitePath != null) {
         try {
           final tempFile = File(tempSqlitePath);
-          if (await tempFile.exists()) {
+          if (tempFile.existsSync()) {
             await tempFile.delete();
             debugPrint('🗑️ تم حذف ملف النسخة المؤقت: $tempSqlitePath');
           }

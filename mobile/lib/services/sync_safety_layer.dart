@@ -144,7 +144,7 @@ class SyncSafetyLayer {
     final file = File(snapshot.filePath);
     final rollbackAt = DateTime.now().toUtc();
 
-    if (!await file.exists()) {
+    if (!file.existsSync()) {
       debugPrint('❌ ملف النسخة الاحتياطية غير موجود: ${snapshot.filePath}');
       _activeSnapshots.remove(snapshot.key);
       return false;
@@ -232,7 +232,7 @@ class SyncSafetyLayer {
   Future<void> _cleanupSnapshot(SyncSafetySnapshot snapshot) async {
     _activeSnapshots.remove(snapshot.key);
     final file = File(snapshot.filePath);
-    if (await file.exists()) {
+    if (file.existsSync()) {
       await file.delete();
     }
   }
@@ -249,7 +249,7 @@ class SyncSafetyLayer {
       dir = await Directory.systemTemp.createTemp('sync_support_');
     }
     final target = Directory(p.join(dir.path, 'sync_safety'));
-    if (!await target.exists()) {
+    if (!target.existsSync()) {
       await target.create(recursive: true);
     }
     return target;
@@ -258,7 +258,7 @@ class SyncSafetyLayer {
   Future<File> _logFile() async {
     final dir = await _ensureBaseDirectory();
     final file = File(p.join(dir.path, 'sync_rollback.log'));
-    if (!await file.exists()) {
+    if (!file.existsSync()) {
       await file.create(recursive: true);
     }
     return file;
@@ -382,7 +382,7 @@ class SyncSafetyLayer {
     try {
       final dbDir = await sqflite.getDatabasesPath();
       final dbPath = p.join(dbDir, 'marina_hotel.db');
-      if (await File(dbPath).exists()) {
+      if (File(dbPath).existsSync()) {
         return dbPath;
       }
     } catch (e) {
