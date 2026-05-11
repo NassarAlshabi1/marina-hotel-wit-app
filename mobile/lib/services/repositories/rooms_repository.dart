@@ -103,6 +103,7 @@ class RoomsRepository {
     double? price,
     String? status,
     String? imageUrl,
+    bool originIsServer = false,
   }) async {
     try {
       final result = await dao.updateByNumber(
@@ -113,6 +114,7 @@ class RoomsRepository {
           status: status != null ? d.Value(status) : const d.Value.absent(),
           imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
         ),
+        originIsServer: originIsServer,
       );
       if (result > 0) {
         unawaited(AutoBackupManager.instance.onDataChange(
@@ -203,7 +205,7 @@ class RoomsRepository {
     return dao.getRecordCount();
   }
 
-  Future<void> refreshAllRoomOccupancy() async {
+  Future<void> refreshAllRoomOccupancy({bool originIsServer = false}) async {
     final bookings = await (db.select(
       db.bookings,
     )..where((tbl) => tbl.deletedAt.isNull())).get();
@@ -225,9 +227,9 @@ class RoomsRepository {
       final target = StatusUtils.roomStatusForOccupancy(shouldBeOccupied);
 
       if (shouldBeOccupied && !isCurrentlyOccupied) {
-        await updateByRoomNumber(room.roomNumber, status: target);
+        await updateByRoomNumber(room.roomNumber, status: target, originIsServer: originIsServer);
       } else if (!shouldBeOccupied && !isCurrentlyAvailable) {
-        await updateByRoomNumber(room.roomNumber, status: target);
+        await updateByRoomNumber(room.roomNumber, status: target, originIsServer: originIsServer);
       }
     }
   }

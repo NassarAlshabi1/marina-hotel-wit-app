@@ -304,7 +304,7 @@ class AppwriteDeltaSync {
 
         // إعادة حساب حالات الغرف بناءً على الحجوزات الفعلية
         try {
-          await RoomsRepository(_database).refreshAllRoomOccupancy();
+          await RoomsRepository(_database).refreshAllRoomOccupancy(originIsServer: true);
           _logger.info(
             'تم تحديث حالة إشغال الغرف بعد المزامنة',
             tag: 'DELTA_SYNC',
