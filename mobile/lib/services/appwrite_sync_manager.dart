@@ -1040,7 +1040,7 @@ class AppwriteSyncManager {
           'errorMessage': errorMessage ?? '',
         },
       );
-      WhatsAppNotificationService.instance.notifySyncError(
+      await WhatsAppNotificationService.instance.notifySyncError(
         operation: 'sync',
         // ignore: dead_null_aware_expression
           error: errorMessage ?? e.toString(),
@@ -2881,7 +2881,7 @@ class AppwriteSyncManager {
         error: e,
         stackTrace: stackTrace,
       );
-      WhatsAppNotificationService.instance.notifySyncError(
+      await WhatsAppNotificationService.instance.notifySyncError(
         operation: 'bulk_push',
         error: e.toString(),
       );

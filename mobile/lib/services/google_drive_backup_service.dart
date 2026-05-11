@@ -439,53 +439,30 @@ class GoogleDriveBackupService {
         }
       }
 
-      final backupData = {
-        'metadata': metadata.toJson(),
-        'whatsapp_settings': whatsappSettings,
-        'rooms': roomsData.map((room) => room.toJson()).toList(),
-        'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
-        'booking_notes': bookingNotesData.map((note) => note.toJson()).toList(),
-        'booking_nights': bookingNightsData
-            .map((night) => night.toJson())
-            .toList(),
-        'hotel_day_ledger': ledgerData.map((entry) => entry.toJson()).toList(),
-        'shift_notes': shiftNotesData.map((note) => note.toJson()).toList(),
-        'employees': employeesData
-            .map((employee) => employee.toJson())
-            .toList(),
-        'expenses': expensesData.map((expense) => expense.toJson()).toList(),
-        'cash_transactions': cashTransactionsData
-            .map((transaction) => transaction.toJson())
-            .toList(),
-        'payments': paymentsData.map((payment) => payment.toJson()).toList(),
-        'debts': debtsData.map((debt) => debt.toJson()).toList(),
-        'salary_cycles': salaryCyclesData
-            .map((cycle) => cycle.toJson())
-            .toList(),
-        'salary_payments': salaryPaymentsData
-            .map((payment) => payment.toJson())
-            .toList(),
-        'price_adjustments': priceAdjustmentsData
-            .map((adj) => adj.toJson())
-            .toList(),
-        'booking_price_adjustments': bookingPriceAdjData
-            .map((adj) => adj.toJson())
-            .toList(),
-        'audit_logs': auditLogsData
-            .map((log) => log.toJson())
-            .toList(),
-        'payment_voids': paymentVoidsData
-            .map((v) => v.toJson())
-            .toList(),
-        'guest_infos': guestInfosData
-            .map((g) => g.toJson())
-            .toList(),
-        'salary_withdrawals': salaryWithdrawalsData
-            .map((s) => s.toJson())
-            .toList(),
-        // القائمة السوداء مستخرجة بشكل منفصل لتسهيل الاستعادة والتحقق
-        'blacklist': blacklistData.map((e) => e.toJson()).toList(),
-      };
+      final backupData = buildBackupDataMap(
+        metadata: metadata.toJson(),
+        roomsData: roomsData,
+        bookingsData: bookingsData,
+        bookingNotesData: bookingNotesData,
+        bookingNightsData: bookingNightsData,
+        ledgerData: ledgerData,
+        shiftNotesData: shiftNotesData,
+        employeesData: employeesData,
+        expensesData: expensesData,
+        cashTransactionsData: cashTransactionsData,
+        paymentsData: paymentsData,
+        debtsData: debtsData,
+        salaryCyclesData: salaryCyclesData,
+        salaryPaymentsData: salaryPaymentsData,
+        priceAdjustmentsData: priceAdjustmentsData,
+        bookingPriceAdjData: bookingPriceAdjData,
+        auditLogsData: auditLogsData,
+        paymentVoidsData: paymentVoidsData,
+        guestInfosData: guestInfosData,
+        salaryWithdrawalsData: salaryWithdrawalsData,
+        blacklistData: blacklistData,
+        whatsappSettings: whatsappSettings,
+      );
 
       // حساب تجزئة SHA-256 للتحقق من سلامة البيانات
       final dataHash = _computeBackupChecksum(backupData);

@@ -141,3 +141,85 @@ class LenientValueSerializer extends ValueSerializer {
 }
 
 const lenientValueSerializer = LenientValueSerializer();
+
+/// بناء خريطة بيانات النسخ الاحتياطي المشتركة بين Google Drive والنسخ المحلي
+/// لتجنب تكرار كود تحويل الجداول إلى JSON
+Map<String, dynamic> buildBackupDataMap({
+  required Map<String, dynamic> metadata,
+  required List<dynamic> roomsData,
+  required List<dynamic> bookingsData,
+  required List<dynamic> bookingNotesData,
+  required List<dynamic> bookingNightsData,
+  required List<dynamic> ledgerData,
+  required List<dynamic> shiftNotesData,
+  required List<dynamic> employeesData,
+  required List<dynamic> expensesData,
+  required List<dynamic> cashTransactionsData,
+  required List<dynamic> paymentsData,
+  required List<dynamic> debtsData,
+  required List<dynamic> salaryCyclesData,
+  required List<dynamic> salaryPaymentsData,
+  required List<dynamic> priceAdjustmentsData,
+  required List<dynamic> bookingPriceAdjData,
+  required List<dynamic> auditLogsData,
+  required List<dynamic> paymentVoidsData,
+  required List<dynamic> guestInfosData,
+  required List<dynamic> salaryWithdrawalsData,
+  List<dynamic>? blacklistData,
+  Map<String, dynamic>? whatsappSettings,
+  Map<String, dynamic>? syncStateData,
+}) {
+  final backupData = <String, dynamic>{
+    'metadata': metadata,
+    'rooms': roomsData.map((room) => room.toJson()).toList(),
+    'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
+    'booking_notes': bookingNotesData.map((note) => note.toJson()).toList(),
+    'booking_nights': bookingNightsData
+        .map((night) => night.toJson())
+        .toList(),
+    'hotel_day_ledger': ledgerData.map((entry) => entry.toJson()).toList(),
+    'shift_notes': shiftNotesData.map((note) => note.toJson()).toList(),
+    'employees': employeesData.map((employee) => employee.toJson()).toList(),
+    'expenses': expensesData.map((expense) => expense.toJson()).toList(),
+    'cash_transactions': cashTransactionsData
+        .map((transaction) => transaction.toJson())
+        .toList(),
+    'payments': paymentsData.map((payment) => payment.toJson()).toList(),
+    'debts': debtsData.map((debt) => debt.toJson()).toList(),
+    'salary_cycles': salaryCyclesData
+        .map((cycle) => cycle.toJson())
+        .toList(),
+    'salary_payments': salaryPaymentsData
+        .map((payment) => payment.toJson())
+        .toList(),
+    'price_adjustments': priceAdjustmentsData
+        .map((adj) => adj.toJson())
+        .toList(),
+    'booking_price_adjustments': bookingPriceAdjData
+        .map((adj) => adj.toJson())
+        .toList(),
+    'audit_logs': auditLogsData.map((log) => log.toJson()).toList(),
+    'payment_voids': paymentVoidsData.map((v) => v.toJson()).toList(),
+    'guest_infos': guestInfosData.map((g) => g.toJson()).toList(),
+    'salary_withdrawals': salaryWithdrawalsData
+        .map((s) => s.toJson())
+        .toList(),
+  };
+
+  // إعدادات الواتساب (اختياري)
+  if (whatsappSettings != null && whatsappSettings.isNotEmpty) {
+    backupData['whatsapp_settings'] = whatsappSettings;
+  }
+
+  // القائمة السوداء (اختياري)
+  if (blacklistData != null) {
+    backupData['blacklist'] = blacklistData.map((e) => e.toJson()).toList();
+  }
+
+  // حالة المزامنة (اختياري)
+  if (syncStateData != null) {
+    backupData['sync_state'] = syncStateData;
+  }
+
+  return backupData;
+}
