@@ -2508,6 +2508,15 @@ class AppwriteSyncManager {
           await _updateLastPullTs(Time.nowEpoch());
         });
 
+        // تنظيف outbox بعد السحب الناجح: حذف عناصر outbox التي
+        // تم سحب نفس البيانات من السحابة (لا حاجة لإعادة إرسالها)
+        if (recordsPulled > 0) {
+          final removed = await _cleanupOutboxAfterPull();
+          if (removed > 0) {
+            _logger.info('🧹 تم حذف $removed عنصر من outbox بعد السحب', tag: 'SYNC');
+          }
+        }
+
         _lastSyncTime = DateTime.now();
         await _saveSettings();
 
