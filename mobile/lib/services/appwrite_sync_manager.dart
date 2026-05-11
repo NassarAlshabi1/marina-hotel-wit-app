@@ -2232,17 +2232,6 @@ class AppwriteSyncManager {
     }
   }
 
-  /// بناء قائمة queries للـ Delta Sync
-  /// إذا كان lastPullTs > 0 تُرجع فلتر lastModified، وإلا تُرجع قائمة فارغة (full fetch)
-  List<String> _deltaQueries(int lastPullTs) {
-    if (lastPullTs > 0) {
-      // نطرح 5 ثوان كـ margin لتجنب فقدان بيانات بسبب اختلاف الساعات
-      final cutoff = lastPullTs - 5;
-      return [Query.greaterThan('lastModified', cutoff)];
-    }
-    return [];
-  }
-
   /// الحصول على قائمة الأجهزة المسجلة
   /// [limit] عدد الأجهزة المطلوبة (افتراضياً 2)
   /// يحاول الترتيب من الخادم أولاً، وإذا فشل (لا يوجد فهرس) يرجع للترتيب المحلي
