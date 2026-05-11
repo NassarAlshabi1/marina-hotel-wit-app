@@ -22,7 +22,7 @@ class ReportPageScaffold extends StatelessWidget {
 
   final String title;
   final DateFilterController filterController;
-  final void Function(DateRangeResult range) onDateRangeChanged;
+  final void Function(DateRange range) onDateRangeChanged;
   final VoidCallback onExportPdf;
   final VoidCallback onSearch;
   final bool isPdfEnabled;
