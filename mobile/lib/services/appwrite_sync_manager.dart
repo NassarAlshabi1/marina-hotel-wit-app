@@ -105,9 +105,63 @@ class AppwriteSyncManager {
   int? _deviceVersion;
   int? _deviceCreatedAtEpoch;
   String? _fcmToken; // توكن FCM للإشعارات بين الأجهزة
+  bool? _remoteEpochIsMillis;
 
   final _syncController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
+
+  Future<bool> _isRemoteEpochMillis() async {
+    final cached = _remoteEpochIsMillis;
+    if (cached != null) {
+      return cached;
+    }
+    try {
+      final info = appwriteService.getProjectInfo();
+      final dbId = info['databaseId'] ?? AppwriteConfig.databaseId;
+
+      final list = await appwriteService.databases.listDocuments(
+        databaseId: dbId,
+        collectionId: AppwriteConfig.roomsCollectionId,
+        queries: [Query.limit(1)],
+      );
+
+      if (list.documents.isEmpty) {
+        _remoteEpochIsMillis = false;
+        return false;
+      }
+
+      final data = list.documents.first.data;
+      final raw =
+          data['lastModified'] ?? data['last_modified'] ?? data['last_modified_epoch'];
+
+      final value = raw is int
+          ? raw
+          : raw is num
+          ? raw.toInt()
+          : raw is String
+          ? int.tryParse(raw)
+          : null;
+
+      final isMillis = value != null && value > 10000000000;
+      _remoteEpochIsMillis = isMillis;
+      return isMillis;
+    } catch (_) {
+      _remoteEpochIsMillis = false;
+      return false;
+    }
+  }
+
+  Future<List<String>> _buildDeltaQueries(int lastPullTs) async {
+    if (lastPullTs <= 0) {
+      return [];
+    }
+    final cutoffSeconds = lastPullTs - 5;
+    final isMillis = await _isRemoteEpochMillis();
+    if (isMillis) {
+      return [Query.greaterThan('lastModified', cutoffSeconds * 1000)];
+    }
+    return [Query.greaterThan('lastModified', cutoffSeconds)];
+  }
 
   /// تهيئة المزامنة
   Future<void> initialize() async {
@@ -617,11 +671,11 @@ class AppwriteSyncManager {
 
           // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
           final lastPullTs = await _getLastPullTs();
-          final deltaQ = _deltaQueries(lastPullTs);
+          final deltaQ = await _buildDeltaQueries(lastPullTs);
           final isDelta = deltaQ.isNotEmpty;
           if (isDelta) {
             _logger.info(
-              '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs).toIso8601String()}',
+              '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs * 1000).toIso8601String()}',
               tag: 'SYNC',
             );
           } else {
@@ -757,10 +811,14 @@ class AppwriteSyncManager {
             recordsPulled += await _timePhase('syncBookingNights', () async {
               // booking_nights يستخدم lastPullTs خاص به (مستقل عن باقي الجداول)
               final nightsPullTs = await _getBookingNightsPullTs();
-              final nightsDeltaQ = _bookingNightsDeltaQueries(nightsPullTs);
+              final remoteEpochIsMillis = await _isRemoteEpochMillis();
+              final nightsDeltaQ = _bookingNightsDeltaQueries(
+                nightsPullTs,
+                remoteEpochIsMillis: remoteEpochIsMillis,
+              );
               if (nightsDeltaQ.isNotEmpty) {
                 _logger.info(
-                  '🔄 booking_nights Delta: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(nightsPullTs).toIso8601String()}',
+                  '🔄 booking_nights Delta: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(nightsPullTs * 1000).toIso8601String()}',
                   tag: 'SYNC',
                 );
               }
@@ -2061,7 +2119,11 @@ class AppwriteSyncManager {
   /// قراءة آخر timestamp خاص بـ booking_nights من SharedPreferences
   Future<int> _getBookingNightsPullTs() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('sync_last_pull_booking_nights') ?? 0;
+    final ts = prefs.getInt('sync_last_pull_booking_nights') ?? 0;
+    if (ts > 10000000000) {
+      return ts ~/ 1000;
+    }
+    return ts;
   }
 
   /// تحديث آخر timestamp خاص بـ booking_nights
@@ -2071,9 +2133,15 @@ class AppwriteSyncManager {
   }
 
   /// بناء delta queries خاصة بـ booking_nights
-  List<String> _bookingNightsDeltaQueries(int lastPullTs) {
+  List<String> _bookingNightsDeltaQueries(
+    int lastPullTs, {
+    required bool remoteEpochIsMillis,
+  }) {
     if (lastPullTs > 0) {
       final cutoff = lastPullTs - 5;
+      if (remoteEpochIsMillis) {
+        return [Query.greaterThan('lastModified', cutoff * 1000)];
+      }
       return [Query.greaterThan('lastModified', cutoff)];
     }
     return []; // full fetch
@@ -2135,7 +2203,11 @@ class AppwriteSyncManager {
       final state = await (database.select(database.syncState)
             ..where((t) => t.id.equals(1)))
           .getSingleOrNull();
-      return state?.lastPullTs ?? 0;
+      final ts = state?.lastPullTs ?? 0;
+      if (ts > 10000000000) {
+        return ts ~/ 1000;
+      }
+      return ts;
     } catch (_) {
       _logger.warning('Failed to read lastPullTs, using 0', tag: 'SYNC');
       return 0;
@@ -2246,11 +2318,11 @@ class AppwriteSyncManager {
 
         // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
         final lastPullTs = await _getLastPullTs();
-        final deltaQ = _deltaQueries(lastPullTs);
+        final deltaQ = await _buildDeltaQueries(lastPullTs);
         final isDelta = deltaQ.isNotEmpty;
         if (isDelta) {
           _logger.info(
-            '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs).toIso8601String()}',
+            '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs * 1000).toIso8601String()}',
             tag: 'SYNC',
           );
         } else {
@@ -2355,7 +2427,11 @@ class AppwriteSyncManager {
           try {
             // booking_nights يستخدم lastPullTs خاص به (مستقل عن باقي الجداول)
             final nightsPullTs = await _getBookingNightsPullTs();
-            final nightsDeltaQ = _bookingNightsDeltaQueries(nightsPullTs);
+            final remoteEpochIsMillis = await _isRemoteEpochMillis();
+            final nightsDeltaQ = _bookingNightsDeltaQueries(
+              nightsPullTs,
+              remoteEpochIsMillis: remoteEpochIsMillis,
+            );
             final bookingNights = await appwriteService.listBookingNights(
               queries: nightsDeltaQ,
               useCache: false,
