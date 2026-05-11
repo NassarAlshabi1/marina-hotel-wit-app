@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import 'booking_derived_fields_service.dart';
+import 'daos/outbox_dao.dart';
+import 'daos/payments_dao.dart';
 import 'local_db.dart';
 import 'price_adjustment_service.dart';
 
@@ -1368,22 +1370,17 @@ class GeminiService {
             break;
           }
 
-          final uuid = _uuid.v4();
-          await db.into(db.payments).insert(
+          final paymentsDao = PaymentsDao(db, OutboxDao(db));
+          await paymentsDao.insertOne(
             PaymentsCompanion(
               bookingLocalId: Value(activeBooking.id),
+              bookingUuidCache: Value(activeBooking.localUuid),
               roomNumber: Value(roomNumber),
               amount: Value(amount),
               paymentDate: Value(now.toIso8601String().split('T')[0]),
               paymentMethod: const Value('cash'),
               revenueType: const Value('room_rent'),
               notes: Value(notes),
-              localUuid: Value(uuid),
-              createdAt: Value(now.millisecondsSinceEpoch),
-              updatedAt: Value(now.millisecondsSinceEpoch),
-              lastModified: Value(now.millisecondsSinceEpoch),
-              createdAtIso: Value(now.toIso8601String()),
-              updatedAtIso: Value(now.toIso8601String()),
             ),
           );
           result =
