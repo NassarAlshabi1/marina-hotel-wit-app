@@ -142,6 +142,108 @@ class LenientValueSerializer extends ValueSerializer {
 
 const lenientValueSerializer = LenientValueSerializer();
 
+/// حاوية بيانات الجداول المشتركة بين خدمات النسخ الاحتياطي
+/// لتجنب تكرار قائمة المعاملات الطويلة في كل خدمة نسخ احتياطي
+class BackupTableData {
+  const BackupTableData({
+    required this.roomsData,
+    required this.bookingsData,
+    required this.bookingNotesData,
+    required this.bookingNightsData,
+    required this.ledgerData,
+    required this.shiftNotesData,
+    required this.employeesData,
+    required this.expensesData,
+    required this.cashTransactionsData,
+    required this.paymentsData,
+    required this.debtsData,
+    required this.salaryCyclesData,
+    required this.salaryPaymentsData,
+    required this.priceAdjustmentsData,
+    required this.bookingPriceAdjData,
+    required this.auditLogsData,
+    required this.paymentVoidsData,
+    required this.guestInfosData,
+    required this.salaryWithdrawalsData,
+  });
+
+  final List<dynamic> roomsData;
+  final List<dynamic> bookingsData;
+  final List<dynamic> bookingNotesData;
+  final List<dynamic> bookingNightsData;
+  final List<dynamic> ledgerData;
+  final List<dynamic> shiftNotesData;
+  final List<dynamic> employeesData;
+  final List<dynamic> expensesData;
+  final List<dynamic> cashTransactionsData;
+  final List<dynamic> paymentsData;
+  final List<dynamic> debtsData;
+  final List<dynamic> salaryCyclesData;
+  final List<dynamic> salaryPaymentsData;
+  final List<dynamic> priceAdjustmentsData;
+  final List<dynamic> bookingPriceAdjData;
+  final List<dynamic> auditLogsData;
+  final List<dynamic> paymentVoidsData;
+  final List<dynamic> guestInfosData;
+  final List<dynamic> salaryWithdrawalsData;
+
+  /// إجمالي عدد السجلات في جميع الجداول
+  int get totalRecords =>
+      roomsData.length +
+      bookingsData.length +
+      bookingNotesData.length +
+      bookingNightsData.length +
+      ledgerData.length +
+      shiftNotesData.length +
+      employeesData.length +
+      expensesData.length +
+      cashTransactionsData.length +
+      paymentsData.length +
+      debtsData.length +
+      salaryCyclesData.length +
+      salaryPaymentsData.length +
+      priceAdjustmentsData.length +
+      bookingPriceAdjData.length +
+      auditLogsData.length +
+      paymentVoidsData.length +
+      guestInfosData.length +
+      salaryWithdrawalsData.length;
+
+  /// بناء خريطة بيانات النسخ الاحتياطي من هذه الحاوية
+  Map<String, dynamic> toBackupDataMap({
+    required Map<String, dynamic> metadata,
+    List<dynamic>? blacklistData,
+    Map<String, dynamic>? whatsappSettings,
+    Map<String, dynamic>? syncStateData,
+  }) {
+    return buildBackupDataMap(
+      metadata: metadata,
+      roomsData: roomsData,
+      bookingsData: bookingsData,
+      bookingNotesData: bookingNotesData,
+      bookingNightsData: bookingNightsData,
+      ledgerData: ledgerData,
+      shiftNotesData: shiftNotesData,
+      employeesData: employeesData,
+      expensesData: expensesData,
+      cashTransactionsData: cashTransactionsData,
+      paymentsData: paymentsData,
+      debtsData: debtsData,
+      salaryCyclesData: salaryCyclesData,
+      salaryPaymentsData: salaryPaymentsData,
+      priceAdjustmentsData: priceAdjustmentsData,
+      bookingPriceAdjData: bookingPriceAdjData,
+      auditLogsData: auditLogsData,
+      paymentVoidsData: paymentVoidsData,
+      guestInfosData: guestInfosData,
+      salaryWithdrawalsData: salaryWithdrawalsData,
+      blacklistData: blacklistData,
+      whatsappSettings: whatsappSettings,
+      syncStateData: syncStateData,
+    );
+  }
+}
+
 /// بناء خريطة بيانات النسخ الاحتياطي المشتركة بين Google Drive والنسخ المحلي
 /// لتجنب تكرار كود تحويل الجداول إلى JSON
 Map<String, dynamic> buildBackupDataMap({

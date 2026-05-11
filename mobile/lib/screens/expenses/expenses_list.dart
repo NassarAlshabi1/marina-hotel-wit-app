@@ -119,10 +119,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     child: Text('حدث خطأ أثناء تحميل المصروفات.'),
                   );
                 }
-                if (!snapshot.hasData) {
+                final expensesData = snapshot.data;
+                if (expensesData == null) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final filteredExpenses = snapshot.data!;
+                final filteredExpenses = expensesData;
 
                 return RefreshIndicator(
                   onRefresh: () async {

@@ -15,6 +15,7 @@ import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
+import 'report_page_scaffold.dart';
 
 class PaymentsReportScreen extends ConsumerStatefulWidget {
   const PaymentsReportScreen({super.key});
@@ -324,100 +325,69 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
+    return ReportPageScaffold(
       title: 'تقرير دفوعات النزلاء',
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.picture_as_pdf),
-          tooltip: 'تصدير PDF',
-          onPressed: _rows.isEmpty ? null : _exportPdf,
+      filterController: _filterController,
+      onDateRangeChanged: (range) {
+        setState(() {
+          _fromDate = range.from;
+          _toDate = range.to;
+        });
+        _fetchReport();
+      },
+      onExportPdf: _exportPdf,
+      onSearch: _fetchReport,
+      isPdfEnabled: _rows.isNotEmpty,
+      isLoading: _loading,
+      filterWidgets: [
+        SizedBox(
+          width: 140,
+          child: DropdownButtonFormField<String?>(
+            initialValue: _selectedRoom,
+            decoration: const InputDecoration(
+              labelText: 'الغرفة',
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            ),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
+            items: [
+              DropdownMenuItem<String?>(
+                child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
+              ),
+              ..._availableRooms.map(
+                (room) => DropdownMenuItem<String?>(
+                  value: room,
+                  child: Text(room, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
+                ),
+              ),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedRoom = value;
+              });
+              _fetchReport();
+            },
+          ),
         ),
       ],
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // فلتر التاريخ المشترك
-            ReportDateFilterWidget(
-              controller: _filterController,
-              onDateRangeChanged: (range) {
-                setState(() {
-                  _fromDate = range.from;
-                  _toDate = range.to;
-                });
-                _fetchReport();
+      summaryWidget: _buildSummary(),
+      contentWidget: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _rows.isEmpty
+          ? const EmptyState(
+              title: 'لا توجد بيانات',
+              message: 'لم يتم العثور على دفوعات ضمن النطاق المحدد.',
+              icon: Icons.receipt_long,
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.only(bottom: 8),
+              itemCount: _rows.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 5),
+              itemBuilder: (context, index) {
+                final row = _rows[index];
+                return _buildPaymentCard(row);
               },
             ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                SizedBox(
-                  width: 140,
-                  child: DropdownButtonFormField<String?>(
-                    initialValue: _selectedRoom,
-                    decoration: const InputDecoration(
-                      labelText: 'الغرفة',
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    ),
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
-                    items: [
-                      DropdownMenuItem<String?>(
-                        child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
-                      ),
-                      ..._availableRooms.map(
-                        (room) => DropdownMenuItem<String?>(
-                          value: room,
-                          child: Text(room, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
-                        ),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedRoom = value;
-                      });
-                      _fetchReport();
-                    },
-                  ),
-                ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    textStyle: const TextStyle(fontSize: 11),
-                  ),
-                  onPressed: _loading ? null : _fetchReport,
-                  icon: const Icon(Icons.search, size: 16),
-                  label: Text(_loading ? 'جارٍ...' : 'بحث'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _buildSummary(),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _rows.isEmpty
-                  ? const EmptyState(
-                      title: 'لا توجد بيانات',
-                      message: 'لم يتم العثور على دفوعات ضمن النطاق المحدد.',
-                      icon: Icons.receipt_long,
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      itemCount: _rows.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 5),
-                      itemBuilder: (context, index) {
-                        final row = _rows[index];
-                        return _buildPaymentCard(row);
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

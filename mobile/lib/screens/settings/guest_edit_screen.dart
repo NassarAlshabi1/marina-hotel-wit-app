@@ -106,9 +106,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       );
       _adjustmentTypeSelections[booking.id] = AdjustmentType.discount;
       _adjustmentModeSelections[booking.id] = AdjustmentMode.perNight;
-      _discountControllers[booking.id]!.addListener(_markUnsaved);
-      _discountStartDateControllers[booking.id]!.addListener(_markUnsaved);
-      _checkinDateControllers[booking.id]!.addListener(_markUnsaved);
+      _discountControllers[booking.id]?.addListener(_markUnsaved);
+      _discountStartDateControllers[booking.id]?.addListener(_markUnsaved);
+      _checkinDateControllers[booking.id]?.addListener(_markUnsaved);
     }
   }
 
@@ -802,9 +802,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
   Widget _buildBookingRoomCard(Booking booking) {
     final roomsAsync = ref.watch(roomsListProvider);
-    final discountController = _discountControllers[booking.id]!;
+    final discountController = _discountControllers[booking.id] ?? TextEditingController();
     final discountStartDateController =
-        _discountStartDateControllers[booking.id]!;
+        _discountStartDateControllers[booking.id] ?? TextEditingController();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),

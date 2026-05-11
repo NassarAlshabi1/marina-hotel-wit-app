@@ -775,8 +775,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
   AppDatabase._internal(super.executor);
 
-  static AppDatabase forTesting(QueryExecutor executor) =>
-      AppDatabase._internal(executor);
+  AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
   int get schemaVersion => 38;
@@ -1809,8 +1808,8 @@ class AppDatabase extends _$AppDatabase {
       // === Migration 37: جدول القوائم المخصصة (أنواع المصروفات، أنواع الهوية، طرق الدفع) ===
       if (from < 37) {
         await m.database.customStatement(
-          'CREATE TABLE IF NOT EXISTS custom_list_items ('
-          'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'CREATE TABLE IF NOT EXISTS custom_list_items '
+          '(id INTEGER PRIMARY KEY AUTOINCREMENT, '
           'list_key TEXT NOT NULL, '
           'name TEXT NOT NULL, '
           'sort_order INTEGER NOT NULL DEFAULT 0, '

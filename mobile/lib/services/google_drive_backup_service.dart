@@ -391,27 +391,29 @@ class GoogleDriveBackupService {
         ..where((t) => t.createdBy.equals('blacklist'));
       final blacklistData = await blacklistQuery.get();
 
-      final totalRecords =
-          roomsData.length +
-          bookingsData.length +
-          bookingNotesData.length +
-          bookingNightsData.length +
-          ledgerData.length +
-          shiftNotesData.length +
-          employeesData.length +
-          expensesData.length +
-          cashTransactionsData.length +
-          paymentsData.length +
-          debtsData.length +
-          salaryCyclesData.length +
-          salaryPaymentsData.length +
-          priceAdjustmentsData.length +
-          bookingPriceAdjData.length +
-          auditLogsData.length +
-          paymentVoidsData.length +
-          guestInfosData.length +
-          salaryWithdrawalsData.length +
-          blacklistData.length;
+      final tableData = BackupTableData(
+        roomsData: roomsData,
+        bookingsData: bookingsData,
+        bookingNotesData: bookingNotesData,
+        bookingNightsData: bookingNightsData,
+        ledgerData: ledgerData,
+        shiftNotesData: shiftNotesData,
+        employeesData: employeesData,
+        expensesData: expensesData,
+        cashTransactionsData: cashTransactionsData,
+        paymentsData: paymentsData,
+        debtsData: debtsData,
+        salaryCyclesData: salaryCyclesData,
+        salaryPaymentsData: salaryPaymentsData,
+        priceAdjustmentsData: priceAdjustmentsData,
+        bookingPriceAdjData: bookingPriceAdjData,
+        auditLogsData: auditLogsData,
+        paymentVoidsData: paymentVoidsData,
+        guestInfosData: guestInfosData,
+        salaryWithdrawalsData: salaryWithdrawalsData,
+      );
+
+      final totalRecords = tableData.totalRecords + blacklistData.length;
 
       final metadata = BackupMetadata(
         appVersion: '1.2.0+3',
@@ -439,27 +441,8 @@ class GoogleDriveBackupService {
         }
       }
 
-      final backupData = buildBackupDataMap(
+      final backupData = tableData.toBackupDataMap(
         metadata: metadata.toJson(),
-        roomsData: roomsData,
-        bookingsData: bookingsData,
-        bookingNotesData: bookingNotesData,
-        bookingNightsData: bookingNightsData,
-        ledgerData: ledgerData,
-        shiftNotesData: shiftNotesData,
-        employeesData: employeesData,
-        expensesData: expensesData,
-        cashTransactionsData: cashTransactionsData,
-        paymentsData: paymentsData,
-        debtsData: debtsData,
-        salaryCyclesData: salaryCyclesData,
-        salaryPaymentsData: salaryPaymentsData,
-        priceAdjustmentsData: priceAdjustmentsData,
-        bookingPriceAdjData: bookingPriceAdjData,
-        auditLogsData: auditLogsData,
-        paymentVoidsData: paymentVoidsData,
-        guestInfosData: guestInfosData,
-        salaryWithdrawalsData: salaryWithdrawalsData,
         blacklistData: blacklistData,
         whatsappSettings: whatsappSettings,
       );
@@ -638,7 +621,11 @@ class GoogleDriveBackupService {
 
         _log('✅ تم رفع $typeLabel بنجاح: ${uploadedFile.id}');
         partialFileId = null; // تم بنجاح، لا حاجة للتنظيف
-        return uploadedFile.id!;
+        final fileId = uploadedFile.id;
+        if (fileId == null) {
+          throw Exception('فشل في الحصول على معرف الملف المرفوع');
+        }
+        return fileId;
       } catch (e) {
         _log('❌ خطأ في رفع النسخة الاحتياطية: $e');
 
@@ -677,7 +664,11 @@ class GoogleDriveBackupService {
         uploadMedia: media,
       );
       _log('✅ تم رفع الملف: ${uploadedFile.id}');
-      return uploadedFile.id!;
+      final uploadedId = uploadedFile.id;
+      if (uploadedId == null) {
+        throw Exception('فشل في الحصول على معرف الملف المرفوع');
+      }
+      return uploadedId;
     });
   }
 
@@ -808,9 +799,7 @@ class GoogleDriveBackupService {
               as drive.Media;
 
       final List<int> dataStore = [];
-      await for (final data in media.stream) {
-        dataStore.addAll(data);
-      }
+      await media.stream.forEach(dataStore.addAll);
 
       // محاولة فك ضغط gzip — مع دعم التوافق مع النسخ القديمة غير المضغوطة
       List<int> decodedBytes;

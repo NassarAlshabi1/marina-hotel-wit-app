@@ -169,37 +169,7 @@ class LocalBackupService {
         final guestInfosData = await db.select(db.guestInfos).get();
         final salaryWithdrawalsData = await db.select(db.salaryWithdrawals).get();
 
-        final totalRecords =
-            roomsData.length +
-            bookingsData.length +
-            bookingNotesData.length +
-            employeesData.length +
-            expensesData.length +
-            cashTransactionsData.length +
-            paymentsData.length +
-            debtsData.length +
-            bookingNightsData.length +
-            ledgerData.length +
-            shiftNotesData.length +
-            salaryCyclesData.length +
-            salaryPaymentsData.length +
-            priceAdjustmentsData.length +
-            bookingPriceAdjData.length +
-            auditLogsData.length +
-            paymentVoidsData.length +
-            guestInfosData.length +
-            salaryWithdrawalsData.length;
-
-        final metadata = BackupMetadata(
-          appVersion: '1.2.0+3',
-          databaseVersion: db.schemaVersion,
-          backupTimestamp: timestamp,
-          totalRecords: totalRecords,
-          deviceInfo: deviceLabel,
-        );
-
-        final backupData = buildBackupDataMap(
-          metadata: metadata.toJson(),
+        final tableData = BackupTableData(
           roomsData: roomsData,
           bookingsData: bookingsData,
           bookingNotesData: bookingNotesData,
@@ -219,6 +189,20 @@ class LocalBackupService {
           paymentVoidsData: paymentVoidsData,
           guestInfosData: guestInfosData,
           salaryWithdrawalsData: salaryWithdrawalsData,
+        );
+
+        final totalRecords = tableData.totalRecords;
+
+        final metadata = BackupMetadata(
+          appVersion: '1.2.0+3',
+          databaseVersion: db.schemaVersion,
+          backupTimestamp: timestamp,
+          totalRecords: totalRecords,
+          deviceInfo: deviceLabel,
+        );
+
+        final backupData = tableData.toBackupDataMap(
+          metadata: metadata.toJson(),
           syncStateData: syncStateData.isNotEmpty
               ? syncStateData.first.toJson()
               : <String, dynamic>{},
