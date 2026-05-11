@@ -727,7 +727,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     } finally {
       description.dispose();
       amount.dispose();
-      date.dispose();
     }
   }
 
