@@ -646,6 +646,9 @@ class Outbox extends Table {
       text().withDefault(const Constant('pending'))();
   IntColumn get processingStartedAt => integer().nullable()();
   TextColumn get processingWorker => text().nullable()();
+  /// مصدر عنصر outbox: 'local' = تغيير محلي (مستخدم)، 'restore' = استعادة من نسخة احتياطية
+  /// هذا يفصل بين تتبع التغييرات المحلية وعمليات الاستعادة/المزامنة البعيدة
+  TextColumn get source => text().withDefault(const Constant('local'))();
 
   List<Index> get indexes => [
     Index(
@@ -667,6 +670,10 @@ class Outbox extends Table {
     Index(
       'idx_outbox_processing_started',
       'CREATE INDEX idx_outbox_processing_started ON outbox (processing_status, processing_started_at)',
+    ),
+    Index(
+      'idx_outbox_source_status',
+      'CREATE INDEX idx_outbox_source_status ON outbox (source, processing_status)',
     ),
   ];
 }
@@ -772,7 +779,7 @@ class AppDatabase extends _$AppDatabase {
       AppDatabase._internal(executor);
 
   @override
-  int get schemaVersion => 37;
+  int get schemaVersion => 38;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1862,6 +1869,23 @@ class AppDatabase extends _$AppDatabase {
 
         developer.log(
           'Migration 37: custom_list_items table created and seeded',
+          name: 'db.migration',
+        );
+      }
+
+      // Migration 38: إضافة عمود source إلى جدول outbox
+      // يفصل بين عناصر outbox الناتجة عن تغييرات محلية (source='local')
+      // وعناصر الاستعادة/المزامنة البعيدة (source='restore')
+      if (from < 38) {
+        await m.database.customStatement(
+          'ALTER TABLE outbox ADD COLUMN source TEXT NOT NULL DEFAULT \'local\'',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_outbox_source_status '
+          'ON outbox (source, processing_status)',
+        );
+        developer.log(
+          'Migration 38: added source column to outbox table',
           name: 'db.migration',
         );
       }

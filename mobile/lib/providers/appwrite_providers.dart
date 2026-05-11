@@ -137,7 +137,8 @@ final syncStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
 final outboxCountProvider = StreamProvider<int>((ref) {
   final db = ref.watch(databaseProvider);
   final dao = OutboxDao(db);
-  return dao.watchCount();
+  // ✅ فصل هندسي: نراقب فقط عناصر source='local' (تغييرات محلية)
+  return dao.watchCount(sources: const ['local']);
 });
 
 /// مزود إحصائيات الذاكرة المؤقتة

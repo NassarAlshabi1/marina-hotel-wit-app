@@ -1512,7 +1512,9 @@ class AppwriteSyncManager {
     int totalProcessed = 0;
 
     while (true) {
-      final entries = await outboxDao.takeBatch(batchSize);
+      // ✅ فصل هندسي: نعالج فقط عناصر source='local' (تغييرات محلية)
+      // عناصر 'restore' تُعالج بشكل منفصل عبر pushAllLocalData
+      final entries = await outboxDao.takeBatch(batchSize, sources: const ['local']);
       if (entries.isEmpty) {
         break;
       }
@@ -2080,6 +2082,7 @@ class AppwriteSyncManager {
   /// تنظيف outbox بعد سحب البيانات من السحابة بنجاح.
   /// يحذف عناصر outbox التي تتطابق مع بيانات تم سحبها فعلياً (بنفس entity + localUuid).
   /// المنطق: إذا السحابة أرسلت هذا السجل فلا حاجة لإعادة إرساله عبر outbox.
+  /// ✅ فصل هندسي: يحذف فقط عناصر source='local' — لا يمس عناصر 'restore'
   Future<int> _cleanupOutboxAfterPull() async {
     int totalRemoved = 0;
 
@@ -2108,9 +2111,9 @@ class AppwriteSyncManager {
 
     for (final entity in entityUuidMap.keys) {
       try {
-        // جلب UUIDs من outbox لهذا الكيان فقط
+        // جلب UUIDs من outbox لهذا الكيان فقط (source='local' فقط)
         final outboxEntries = await (database.select(database.outbox)
-              ..where((t) => t.entity.equals(entity)))
+              ..where((t) => t.entity.equals(entity) & t.source.equals('local')))
             .get();
 
         if (outboxEntries.isEmpty) continue;

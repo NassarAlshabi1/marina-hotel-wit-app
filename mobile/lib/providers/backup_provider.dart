@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/appwrite_sync_manager.dart';
 import '../services/auto_backup_task.dart';
-import '../services/daos/outbox_dao.dart';
 import '../services/file_management_service.dart';
 import '../services/google_drive_auto_sync_engine.dart';
 import '../services/google_drive_backup_service.dart'
@@ -931,6 +930,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       }
 
       // مزامنة البيانات إلى السحابة إذا طُلب ذلك
+      // ✅ فصل هندسي: بعد الاستعادة، ندفع مباشرة إلى Appwrite وGoogle Drive
+      // دون إضافة بيانات إلى outbox — هذا يفصل عملية الاستعادة عن تتبع التغييرات المحلية
       if (syncToCloud) {
         state = state.copyWith(
           message: 'رفع البيانات إلى السحابة...',
@@ -938,10 +939,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         );
 
         try {
-          // إضافة جميع البيانات إلى outbox للرفع
-          await _addAllDataToOutbox();
-
-          // رفع إلى Appwrite إذا كان مفعّلاً
+          // رفع إلى Appwrite مباشرة (بدون outbox) إذا كان مفعّلاً
           final prefs = await SharedPreferences.getInstance();
           final appwriteEnabled =
               prefs.getBool('appwrite_sync_enabled') ?? true;
@@ -990,64 +988,6 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         status: BackupStatus.error,
         message: 'خطأ في استعادة البيانات: $e',
       );
-    }
-  }
-
-  /// إضافة جميع البيانات الحالية إلى outbox للرفع
-  Future<void> _addAllDataToOutbox() async {
-    try {
-      final db = DatabaseManager.instance;
-      final outboxDao = OutboxDao(db);
-      final now = DateTime.now().millisecondsSinceEpoch;
-
-      // إضافة الغرف
-      final rooms = await db.select(db.rooms).get();
-      await Future.wait(rooms.map((room) => outboxDao.merge(
-        entity: 'rooms',
-        op: 'upsert',
-        localUuid: room.localUuid,
-        serverId: room.serverId,
-        payload: {},
-        clientTs: now,
-      ),),);
-
-      // إضافة الحجوزات
-      final bookings = await db.select(db.bookings).get();
-      await Future.wait(bookings.map((booking) => outboxDao.merge(
-        entity: 'bookings',
-        op: 'upsert',
-        localUuid: booking.localUuid,
-        serverId: booking.serverId,
-        payload: {},
-        clientTs: now,
-      ),),);
-
-      // إضافة المصروفات
-      final expenses = await db.select(db.expenses).get();
-      await Future.wait(expenses.map((expense) => outboxDao.merge(
-        entity: 'expenses',
-        op: 'upsert',
-        localUuid: expense.localUuid,
-        serverId: expense.serverId,
-        payload: {},
-        clientTs: now,
-      ),),);
-
-      // إضافة الدفعات
-      final payments = await db.select(db.payments).get();
-      await Future.wait(payments.map((payment) => outboxDao.merge(
-        entity: 'payments',
-        op: 'upsert',
-        localUuid: payment.localUuid,
-        serverId: payment.serverId,
-        payload: {},
-        clientTs: now,
-      ),),);
-
-      debugPrint('✅ تم إضافة جميع البيانات إلى outbox للرفع');
-    } catch (e) {
-      debugPrint('❌ خطأ في إضافة البيانات إلى outbox: $e');
-      rethrow;
     }
   }
 
