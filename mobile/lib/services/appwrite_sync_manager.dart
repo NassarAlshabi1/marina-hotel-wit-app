@@ -151,6 +151,10 @@ class AppwriteSyncManager {
     }
   }
 
+  /// قيمة خفيرة (_sentinel_) تُستخدم كـ lastModified في بعض السجلات القديمة
+  /// يجب استبعادها من نتائج Delta Sync لتجنب السحب المتكرر
+  static const int _sentinelLastModified = 9999999999;
+
   Future<List<String>> _buildDeltaQueries(int lastPullTs) async {
     if (lastPullTs <= 0) {
       return [];
@@ -158,9 +162,15 @@ class AppwriteSyncManager {
     final cutoffSeconds = lastPullTs - 5;
     final isMillis = await _isRemoteEpochMillis();
     if (isMillis) {
-      return [Query.greaterThan('lastModified', cutoffSeconds * 1000)];
+      return [
+        Query.greaterThan('lastModified', cutoffSeconds * 1000),
+        Query.notEqual('lastModified', _sentinelLastModified),
+      ];
     }
-    return [Query.greaterThan('lastModified', cutoffSeconds)];
+    return [
+      Query.greaterThan('lastModified', cutoffSeconds),
+      Query.notEqual('lastModified', _sentinelLastModified),
+    ];
   }
 
   /// تهيئة المزامنة
@@ -1410,6 +1420,17 @@ class AppwriteSyncManager {
         // Financial immutability: if local payment exists and is newer, keep local
         final localUuid = (data['localUuid'] as String?) ?? '';
         final incomingLastModified = _asInt(data['lastModified']);
+
+        // تجاهل السجلات ذات القيمة الخفيرة (بيانات فاسدة من إصدار سابق)
+        if (incomingLastModified == _sentinelLastModified) {
+          _logger.debug(
+            'Skipping payment ${doc.$id}: sentinel lastModified detected',
+            tag: 'SYNC',
+          );
+          processed++;
+          continue;
+        }
+
         final existingPayment = await _getPaymentByLocalUuid(localUuid);
         if (existingPayment != null && existingPayment.lastModified > incomingLastModified) {
           _logger.debug(
@@ -2140,9 +2161,15 @@ class AppwriteSyncManager {
     if (lastPullTs > 0) {
       final cutoff = lastPullTs - 5;
       if (remoteEpochIsMillis) {
-        return [Query.greaterThan('lastModified', cutoff * 1000)];
+        return [
+          Query.greaterThan('lastModified', cutoff * 1000),
+          Query.notEqual('lastModified', _sentinelLastModified),
+        ];
       }
-      return [Query.greaterThan('lastModified', cutoff)];
+      return [
+        Query.greaterThan('lastModified', cutoff),
+        Query.notEqual('lastModified', _sentinelLastModified),
+      ];
     }
     return []; // full fetch
   }
