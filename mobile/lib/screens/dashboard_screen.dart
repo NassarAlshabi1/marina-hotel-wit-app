@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/responsive/responsive.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
@@ -14,7 +15,6 @@ import '../services/appwrite_realtime_sync.dart';
 import '../services/local_db.dart';
 import '../services/remote_config_service.dart';
 import '../services/sync_constants.dart';
-import '../core/responsive/responsive.dart';
 import '../utils/status_utils.dart';
 import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
