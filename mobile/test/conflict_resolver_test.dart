@@ -16,7 +16,7 @@ void main() {
     VectorClock? remoteClock,
     String table = 'bookings',
   }) {
-    final now = DateTime.utc(2025);
+    final now = DateTime.utc(2025, 1);
     return ConflictContext(
       table: table,
       uuid: 'u1',
@@ -152,7 +152,7 @@ void main() {
         remote: remote,
         localClock: VectorClock({'a': 1}),
         remoteClock: VectorClock({'b': 1}),
-        localTs: DateTime.utc(2025),
+        localTs: DateTime.utc(2025, 1),
         remoteTs: DateTime.utc(2025, 1, 1, 0, 0, 10),
       );
 
