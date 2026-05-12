@@ -59,17 +59,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit'])) {
         );
 
         if ($update_stmt->execute()) {
-            // إدارة حالة الغرف
+            // إدارة حالة الغرف — prepared statements
             if ($room_id != $booking['room_id']) {
                 // تحرير الغرفة القديمة
-                $conn->query("UPDATE rooms SET status = 'available' WHERE id = {$booking['room_id']}");
+                $stmt_old_room = $conn->prepare("UPDATE rooms SET status = 'available' WHERE id = ?");
+                $stmt_old_room->bind_param('i', $booking['room_id']);
+                $stmt_old_room->execute();
+                $stmt_old_room->close();
                 // حجز الغرفة الجديدة
-                $conn->query("UPDATE rooms SET status = 'occupied' WHERE id = $room_id");
+                $stmt_new_room = $conn->prepare("UPDATE rooms SET status = 'occupied' WHERE id = ?");
+                $stmt_new_room->bind_param('i', $room_id);
+                $stmt_new_room->execute();
+                $stmt_new_room->close();
             }
             
             // إذا كانت الحالة "تم المغادرة"، تحرير الغرفة
             if ($status == 'تم المغادرة') {
-                $conn->query("UPDATE rooms SET status = 'available' WHERE id = $room_id");
+                $stmt_free = $conn->prepare("UPDATE rooms SET status = 'available' WHERE id = ?");
+                $stmt_free->bind_param('i', $room_id);
+                $stmt_free->execute();
+                $stmt_free->close();
             }
 
             $message = "<div class='alert alert-success'>تم تحديث الحجز بنجاح</div>";
@@ -93,9 +102,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit'])) {
     }
 }
 
-// جلب الغرف المتاحة (بالإضافة للغرفة الحالية)
-$rooms = $conn->query("SELECT id, room_number, type FROM rooms 
-                       WHERE status = 'available' OR id = {$booking['room_id']}");
+// جلب الغرف المتاحة (بالإضافة للغرفة الحالية) — prepared statement
+$stmt_rooms = $conn->prepare("SELECT id, room_number, type FROM rooms WHERE status = 'available' OR id = ?");
+$stmt_rooms->bind_param('i', $booking['room_id']);
+$stmt_rooms->execute();
+$rooms = $stmt_rooms->get_result();
 ?>
 
 <!DOCTYPE html>

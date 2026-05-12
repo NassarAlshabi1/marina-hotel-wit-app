@@ -6,6 +6,43 @@
 class ApiValidator {
     private $errors = [];
     private $data = [];
+
+    // قائمة الجداول والأعمدة المسموحة لمنع SQL Injection
+    private static $allowedTables = [
+        'rooms', 'bookings', 'employees', 'expenses', 'payments',
+        'debts', 'shift_notes', 'booking_notes', 'cash_transactions',
+        'hotel_day_ledger', 'salary_cycles', 'salary_payments',
+        'salary_withdrawals', 'booking_nights', 'booking_price_adjustments',
+        'price_adjustments', 'audit_logs', 'payment_voids', 'guest_infos',
+        'blacklist', 'outbox', 'users',
+    ];
+    private static $allowedColumns = [
+        'id', 'room_number', 'type', 'price', 'status', 'guest_name',
+        'guest_phone', 'guest_id_type', 'guest_id_number', 'guest_nationality',
+        'checkin_date', 'checkout_date', 'name', 'phone', 'position',
+        'basic_salary', 'amount', 'description', 'expense_type', 'payment_method',
+        'revenue_type', 'booking_id', 'room_id', 'identity_number', 'identity_type',
+        'email', 'address', 'note', 'notes', 'title', 'content', 'priority',
+        'shift_type', 'is_read', 'created_by', 'cleaning_status', 'image_url',
+    ];
+
+    /**
+     * التحقق من أن اسم الجدول مسموح به (منع SQL Injection)
+     */
+    private static function validateTableName(string $table): void {
+        if (!in_array($table, self::$allowedTables, true)) {
+            throw new InvalidArgumentException("اسم الجدول غير مسموح به: $table");
+        }
+    }
+
+    /**
+     * التحقق من أن اسم العمود مسموح به (منع SQL Injection)
+     */
+    private static function validateColumnName(string $column): void {
+        if (!in_array($column, self::$allowedColumns, true)) {
+            throw new InvalidArgumentException("اسم العمود غير مسموح به: $column");
+        }
+    }
     
     public function __construct($data) {
         $this->data = $data;
@@ -162,7 +199,11 @@ class ApiValidator {
         if (!isset($this->data[$field])) {
             return $this;
         }
-        
+
+        // ✅ التحقق من أسماء الجدول والعمود لمنع SQL Injection
+        self::validateTableName($table);
+        self::validateColumnName($column);
+
         $value = $this->data[$field];
         $sql = "SELECT COUNT(*) as count FROM $table WHERE $column = ?";
         $params = [$value];
@@ -193,7 +234,11 @@ class ApiValidator {
         if (!isset($this->data[$field])) {
             return $this;
         }
-        
+
+        // ✅ التحقق من أسماء الجدول والعمود لمنع SQL Injection
+        self::validateTableName($table);
+        self::validateColumnName($column);
+
         $value = $this->data[$field];
         $sql = "SELECT COUNT(*) as count FROM $table WHERE $column = ?";
         

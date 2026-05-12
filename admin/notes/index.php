@@ -48,32 +48,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         case 'delete':
             $id = (int)$_POST['id'];
-            $conn->query("DELETE FROM shift_notes WHERE id=$id");
+            $stmt = $conn->prepare("DELETE FROM shift_notes WHERE id = ?");
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $stmt->close();
             $success = 'تم حذف الملاحظة';
             break;
 
         case 'mark_read':
             $id = (int)$_POST['id'];
-            $conn->query("UPDATE shift_notes SET is_read=1 WHERE id=$id");
+            $stmt = $conn->prepare("UPDATE shift_notes SET is_read=1 WHERE id = ?");
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $stmt->close();
             break;
     }
 }
 
-/*==========  بناء الفلاتر  ==========*/
+/*==========  بناء الفلاتر — آمن  ==========*/
 $filter = $_GET['filter'] ?? 'all';
-$where  = "WHERE status='active'";
+
+// بناء استعلام آمن باستخدام prepared statements
+$shiftNotesQuery = "SELECT * FROM shift_notes WHERE status='active'";
+$bindTypes = '';
+$bindParams = [];
 
 switch ($filter) {
-    case 'unread':  $where .= " AND is_read=0"; break;
-    case 'high':    $where .= " AND priority='high'"; break;
+    case 'unread':  $shiftNotesQuery .= " AND is_read=0"; break;
+    case 'high':    $shiftNotesQuery .= " AND priority='high'"; break;
     case 'my_shift':
         $h = date('H');
         $shift = ($h >= 6 && $h < 14) ? 'morning' : (($h >= 14 && $h < 22) ? 'evening' : 'night');
-        $where .= " AND (shift_type='$shift' OR shift_type='all')";
+        $shiftNotesQuery .= " AND (shift_type = ? OR shift_type = 'all')";
+        $bindTypes = 's';
+        $bindParams = [$shift];
         break;
 }
 
-$notes = $conn->query("SELECT * FROM shift_notes $where ORDER BY priority DESC, created_at DESC");
+$shiftNotesQuery .= " ORDER BY priority DESC, created_at DESC";
+
+if (!empty($bindParams)) {
+    $stmt = $conn->prepare($shiftNotesQuery);
+    $stmt->bind_param($bindTypes, ...$bindParams);
+    $stmt->execute();
+    $notes = $stmt->get_result();
+} else {
+    $notes = $conn->query($shiftNotesQuery);
+}
 ?>
 
 <!-- ==================  HEADER STYLES  ================== -->

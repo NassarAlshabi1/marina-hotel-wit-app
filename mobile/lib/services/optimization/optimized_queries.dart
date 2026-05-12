@@ -145,11 +145,11 @@ class OptimizedQueries {
           (SELECT COUNT(*) FROM rooms), 2
         ) as occupancy_rate
       FROM bookings
-      WHERE hotel_day_checkin >= date('now', '-${days - 1} days')
+      WHERE hotel_day_checkin >= date('now', '-' || ? || ' days')
         AND status NOT IN ('checked_out', 'cancelled')
       GROUP BY date(hotel_day_checkin)
       ORDER BY day
-    ''').get();
+    ''', variables: [Variable<int>(days - 1)]).get();
     
     return rows.map((row) => row.data).toList();
   }
@@ -304,6 +304,17 @@ class OptimizedQueries {
   /// Generic method for paginated queries with optimized limit.
   /// Uses raw SQL since Drift's typed select API requires compile-time
   /// table types, which is incompatible with a generic parameter.
+  ///
+  /// ⚠️ SECURITY: tableName must be from a whitelist; whereSql/orderBySql
+  /// must NOT contain user-controlled input.
+  static const _allowedTables = {
+    'rooms', 'bookings', 'payments', 'expenses', 'employees', 'debts',
+    'booking_notes', 'cash_transactions', 'booking_nights', 'hotel_day_ledger',
+    'salary_cycles', 'salary_payments', 'salary_withdrawals', 'shift_notes',
+    'blacklist', 'price_adjustments', 'booking_price_adjustments',
+    'audit_logs', 'payment_voids', 'guest_infos',
+  };
+
   Future<List<Map<String, dynamic>>> getPaginated(
     String tableName, {
     required int page,
@@ -312,10 +323,22 @@ class OptimizedQueries {
     List<Variable<Object>>? variables,
     String? orderBySql,
   }) async {
+    // ✅ التحقق من اسم الجدول لمنع SQL Injection
+    if (!_allowedTables.contains(tableName)) {
+      throw ArgumentError('اسم الجدول غير مسموح به: $tableName');
+    }
+    // ✅ التحقق من أن whereSql و orderBySql لا يحتويان على أحرف خطرة
+    if (whereSql != null && whereSql.contains(RegExp(r';|--'))) {
+      throw ArgumentError('whereSql يحتوي على أحرف غير مسموح بها');
+    }
+    if (orderBySql != null && orderBySql.contains(RegExp(r';|--'))) {
+      throw ArgumentError('orderBySql يحتوي على أحرف غير مسموح بها');
+    }
+
     final offset = (page - 1) * limit;
     final params = <Variable<Object>>[...?variables];
 
-    var sql = 'SELECT * FROM $tableName';
+    var sql = 'SELECT * FROM "$tableName"';
 
     if (whereSql != null) {
       sql += ' WHERE $whereSql';

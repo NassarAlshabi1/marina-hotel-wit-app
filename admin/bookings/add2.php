@@ -107,11 +107,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $booking_id = $conn->insert_id;
 
-            // تحديث guest_id
-            $conn->query("UPDATE bookings SET guest_id = $booking_id WHERE booking_id = $booking_id");
+            // تحديث guest_id — prepared statement
+            $stmt_gid = $conn->prepare("UPDATE bookings SET guest_id = ? WHERE booking_id = ?");
+            $stmt_gid->bind_param('ii', $booking_id, $booking_id);
+            $stmt_gid->execute();
+            $stmt_gid->close();
 
-            // تحديث حالة الغرفة
-            $conn->query("UPDATE rooms SET status = 'محجوزة' WHERE room_number = '$room_number'");
+            // تحديث حالة الغرفة — prepared statement
+            $stmt_room = $conn->prepare("UPDATE rooms SET status = 'محجوزة' WHERE room_number = ?");
+            $stmt_room->bind_param('s', $room_number);
+            $stmt_room->execute();
+            $stmt_room->close();
 
             $conn->commit();
 

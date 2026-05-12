@@ -301,8 +301,10 @@ class SyncSafetyLayer {
     // ملاحظة: FOREIGN KEYS يتم تعطيلها خارج transaction قبل استدعاء هذه الدالة
 
     for (final table in SyncConstants.allTablesInReverseOrder) {
+      // ✅ التحقق من أن اسم الجدول مسموح به
+      if (!SyncConstants.allTablesInOrder.contains(table)) continue;
       try {
-        await db.customStatement('DELETE FROM $table');
+        await db.customStatement('DELETE FROM "$table"');
       } on Exception catch (e) {
         if (e.toString().contains('no such table')) {
           debugPrint('ℹ️ الجدول غير موجود، تخطي الحذف: $table');
@@ -318,6 +320,12 @@ class SyncSafetyLayer {
     String tableName,
     dynamic tableData,
   ) async {
+    // ✅ التحقق من أن اسم الجدول مسموح به لمنع SQL Injection
+    if (!SyncConstants.allTablesInOrder.contains(tableName)) {
+      debugPrint('⚠️ اسم الجدول غير مسموح به، تخطي الاستعادة: $tableName');
+      return;
+    }
+
     if (tableData == null) {
       return;
     }
@@ -350,10 +358,11 @@ class SyncSafetyLayer {
         final columns = filtered.keys.toList();
         final values = filtered.values.toList();
         final placeholders = List.filled(values.length, '?').join(', ');
-        final columnNames = columns.join(', ');
+        // ✅ أسماء الأعمدة محمية بـ double-quote لمنع الحقن
+        final columnNames = columns.map((c) => '"$c"').join(', ');
 
         batch.customStatement(
-          'INSERT OR REPLACE INTO $tableName ($columnNames) VALUES ($placeholders)',
+          'INSERT OR REPLACE INTO "$tableName" ($columnNames) VALUES ($placeholders)',
           values,
         );
       }
@@ -362,7 +371,8 @@ class SyncSafetyLayer {
   }
 
   Future<Set<String>> _tableColumns(AppDatabase db, String tableName) async {
-    final result = await db.customSelect('PRAGMA table_info($tableName)').get();
+    // ✅ استخدام double-quoted identifier بدلاً من interpolation المباشر
+    final result = await db.customSelect('PRAGMA table_info("$tableName")').get();
     return result.map((r) => r.data['name'] as String).toSet();
   }
 
