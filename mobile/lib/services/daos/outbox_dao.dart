@@ -136,10 +136,14 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final worker = workerId ?? _uuid.v4();
     final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-    // بناء شرط source إذا حُدد
-    final sourceCondition = (sources != null && sources.isNotEmpty)
-        ? ' AND source IN (${sources.map((s) => "'$s'").join(',')})'
-        : '';
+    // ✅ بناء شرط source باستخدام معاملات (Parameterized) لمنع SQL Injection
+    final sourceVariables = <Variable<String>>[];
+    String sourceCondition = '';
+    if (sources != null && sources.isNotEmpty) {
+      final placeholders = sources.map((_) => '?').join(',');
+      sourceCondition = ' AND source IN ($placeholders)';
+      sourceVariables.addAll(sources.map((s) => Variable<String>(s)));
+    }
 
     // ✅ تحديث ذري: حدّت الحالة مباشرة في استعلام واحد لمنع المعالجة المكررة
     // بدلاً من SELECT ثم UPDATE المنفصلين اللذين يسمحان بسباق البيانات
@@ -153,6 +157,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         Variable<int>(nowEpoch),
         Variable<String>(worker),
         const Variable<String>('pending'),
+        ...sourceVariables,
         Variable<int>(limit),
       ],
       readsFrom: {outbox},
