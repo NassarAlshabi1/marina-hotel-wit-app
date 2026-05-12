@@ -70,7 +70,11 @@ jobs:
         run: flutter pub run build_runner build --delete-conflicting-outputs --verbose
 
       - name: Build Windows release
-        run: flutter build windows --release --dart-define=BASE_API_URL=${{ env.BASE_API_URL }}
+        run: >
+          flutter build windows --release
+          --dart-define=BASE_API_URL=${{ env.BASE_API_URL }}
+          --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
+          --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
