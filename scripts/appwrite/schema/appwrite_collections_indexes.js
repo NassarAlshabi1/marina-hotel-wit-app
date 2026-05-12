@@ -83,7 +83,7 @@ const COLLECTIONS = {
       { name: 'status', type: 'string', size: 16, required: true },
       { name: 'notes', type: 'string', size: 512, required: false },
       { name: 'discount', type: 'double', required: false },
-      { name: 'discountType', type: 'string', size: 16, required: false },
+      { name: 'discountType', type: 'string', size: 16, required: false, default: '' },  // مطابق لقيمة Appwrite الفعلية
       { name: 'expectedNights', type: 'integer', required: false },
       { name: 'calculatedNights', type: 'integer', required: false },
       { name: 'totalDueCached', type: 'double', required: false },
@@ -220,7 +220,7 @@ const COLLECTIONS = {
       { name: 'debtReason', type: 'string', size: 128, required: false },
       { name: 'totalAmount', type: 'double', required: true },
       { name: 'paidAmount', type: 'double', required: true },
-      { name: 'remainingAmount', type: 'double', required: true },
+      { name: 'remainingAmount', type: 'integer', required: true },  // Appwrite: integer
       { name: 'paymentDate', type: 'string', size: 16, required: false },
       { name: 'isSettled', type: 'integer', required: false },
       { name: 'pledge', type: 'string', size: 256, required: false },
@@ -274,7 +274,7 @@ const COLLECTIONS = {
       { name: 'version', type: 'integer', required: false },
       { name: 'registerId', type: 'integer', required: false },
       { name: 'transactionType', type: 'string', size: 16, required: true },
-      { name: 'amount', type: 'double', required: true },
+      { name: 'amount', type: 'integer', required: true },  // Appwrite: integer
       { name: 'referenceType', type: 'string', size: 16, required: false },
       { name: 'referenceId', type: 'integer', required: false },
       { name: 'description', type: 'string', size: 256, required: false },
@@ -304,10 +304,12 @@ const COLLECTIONS = {
       { name: 'nightEnd', type: 'string', size: 16, required: true },
       { name: 'nightlyRate', type: 'double', required: false },
       { name: 'sequence', type: 'integer', required: false },
-      { name: 'isProcessedByAutoFix', type: 'boolean', required: false },
+      { name: 'isProcessedByAutoFix', type: 'boolean', required: false, default: true },  // مطابق لقيمة Appwrite الفعلية
       { name: 'baseRate', type: 'double', required: false },
       { name: 'adjustment', type: 'double', required: false },
       { name: 'finalRate', type: 'double', required: false },
+      { name: 'appliedAdjustmentUuid', type: 'string', size: 64, required: false },
+      { name: 'appliedAdjustmentsJson', type: 'string', size: 10000, required: false },
     ],
     indexes: [
       { key: 'idx_nights_booking', type: 'key', attributes: ['bookingLocalId', 'hotelDayKey'], unique: true },
@@ -355,9 +357,9 @@ const COLLECTIONS = {
       { name: 'cycleKey', type: 'string', size: 16, required: true },
       { name: 'hotelDayStart', type: 'string', size: 16, required: false },
       { name: 'hotelDayEnd', type: 'string', size: 16, required: false },
-      { name: 'expectedAmount', type: 'integer', required: false },
-      { name: 'actualPaid', type: 'integer', required: false },
-      { name: 'remainingAmount', type: 'integer', required: false },
+      { name: 'expectedAmount', type: 'double', required: false },  // Appwrite: double
+      { name: 'actualPaid', type: 'double', required: false },  // Appwrite: double
+      { name: 'remainingAmount', type: 'double', required: false },  // Appwrite: double
       { name: 'status', type: 'string', size: 16, required: false },
     ],
     indexes: [
@@ -377,7 +379,7 @@ const COLLECTIONS = {
       { name: 'lastModification', type: 'integer', required: true },
       { name: 'version', type: 'integer', required: false },
       { name: 'cycleId', type: 'integer', required: true },
-      { name: 'amount', type: 'integer', required: false },
+      { name: 'amount', type: 'integer', required: false },  // Appwrite: integer
       { name: 'hotelDayKey', type: 'string', size: 16, required: false },
       { name: 'paymentDateIso', type: 'string', size: 16, required: true },
       { name: 'method', type: 'string', size: 16, required: false },
@@ -400,7 +402,7 @@ const COLLECTIONS = {
       { name: 'lastModification', type: 'integer', required: true },
       { name: 'version', type: 'integer', required: false },
       { name: 'employeeId', type: 'integer', required: true },
-      { name: 'amount', type: 'double', required: true },
+      { name: 'amount', type: 'integer', required: true },  // Appwrite: integer
       { name: 'withdrawDate', type: 'string', size: 16, required: true },
       { name: 'reason', type: 'string', size: 256, required: false },
       { name: 'hotelDayKey', type: 'string', size: 16, required: false },
@@ -428,13 +430,44 @@ const COLLECTIONS = {
       { name: 'content', type: 'string', size: 2048, required: true },
       { name: 'priority', type: 'string', size: 16, required: false },
       { name: 'shiftType', type: 'string', size: 16, required: false },
-      { name: 'isRead', type: 'integer', required: false },
+      { name: 'isRead', type: 'boolean', required: false },  // Appwrite: boolean
       { name: 'expiresAt', type: 'string', size: 16, required: false },
       { name: 'createdBy', type: 'string', size: 32, required: false },
     ],
     indexes: [
       { key: 'idx_shift_priority', type: 'key', attributes: ['priority'] },
       { key: 'idx_shift_read', type: 'key', attributes: ['isRead'] },
+    ]
+  },
+
+  blacklist: {
+    name: 'Blacklist',
+    description: 'Blacklisted guests',
+    fields: [
+      // حقول المزامنة المخصصة — createdAt/updatedAt/deletedAt نصية هنا
+      { name: 'localUuid', type: 'string', size: 64, required: true },
+      { name: 'serverId', type: 'integer', required: false },
+      { name: 'createdAt', type: 'string', size: 30, required: true },  // ISO 8601 string في Appwrite
+      { name: 'updatedAt', type: 'string', size: 30, required: true },  // ISO 8601 string في Appwrite
+      { name: 'deletedAt', type: 'string', size: 30, required: false },  // ISO 8601 string في Appwrite
+      { name: 'lastModified', type: 'integer', required: true },
+      { name: 'origin', type: 'string', size: 20, required: false },
+      { name: 'syncTimestamp', type: 'integer', required: false },
+      { name: 'idempotencyKey', type: 'string', size: 128, required: false },  // Appwrite: varchar
+      { name: 'createdatEpoch', type: 'string', size: 30, required: false },  // Appwrite: string (خطأ إملائي محفوظ)
+      // حقول القائمة السوداء
+      { name: 'name', type: 'string', size: 200, required: true },
+      { name: 'nationality', type: 'string', size: 100, required: false },
+      { name: 'nationalId', type: 'string', size: 50, required: false },
+      { name: 'phone', type: 'string', size: 30, required: false },
+      { name: 'reason', type: 'string', size: 5000, required: false },
+      { name: 'notes', type: 'string', size: 5000, required: false },
+      { name: 'reportedBy', type: 'string', size: 50, required: false },
+      { name: 'active', type: 'boolean', required: false },
+    ],
+    indexes: [
+      { key: 'idx_bl_name', type: 'key', attributes: ['name'] },
+      { key: 'idx_bl_modified', type: 'key', attributes: ['lastModified'] },
     ]
   },
 
@@ -452,8 +485,8 @@ const COLLECTIONS = {
       { name: 'targetType', type: 'string', size: 16, required: true },
       { name: 'targetUuid', type: 'string', size: 64, required: true },
       { name: 'adjustmentType', type: 'string', size: 16, required: true },
-      { name: 'previousValue', type: 'integer', required: true },
-      { name: 'newValue', type: 'integer', required: true },
+      { name: 'previousValue', type: 'double', required: true },  // Appwrite: double
+      { name: 'newValue', type: 'double', required: true },  // Appwrite: double
       { name: 'reason', type: 'string', size: 256, required: false },
       { name: 'effectiveDate', type: 'string', size: 16, required: true },
       { name: 'appliedBy', type: 'string', size: 32, required: false },
@@ -482,7 +515,7 @@ const COLLECTIONS = {
       { name: 'roomNumber', type: 'string', size: 20, required: false },
       { name: 'adjustmentType', type: 'integer', required: false },
       { name: 'adjustmentMode', type: 'string', size: 16, required: false },
-      { name: 'amount', type: 'double', required: false },
+      { name: 'amount', type: 'integer', required: false },  // Appwrite: integer
       { name: 'effectiveHotelDay', type: 'string', size: 16, required: true },
       { name: 'endHotelDay', type: 'string', size: 16, required: false },
       { name: 'isActive', type: 'boolean', required: false },
@@ -514,7 +547,7 @@ const COLLECTIONS = {
       { name: 'timestamp', type: 'integer', required: true },
       { name: 'timestampIso', type: 'string', size: 32, required: true },
       { name: 'isFinancial', type: 'boolean', required: false },
-      { name: 'amountImpact', type: 'integer', required: false },
+      { name: 'amountImpact', type: 'double', required: false },  // Appwrite: double
       { name: 'createdAt', type: 'integer', required: true },
     ],
     indexes: [
@@ -538,7 +571,7 @@ const COLLECTIONS = {
       { name: 'originalPaymentUuid', type: 'string', size: 64, required: true },
       { name: 'originalPaymentId', type: 'integer', required: true },
       { name: 'bookingUuid', type: 'string', size: 64, required: true },
-      { name: 'voidedAmount', type: 'integer', required: true },
+      { name: 'voidedAmount', type: 'integer', required: true },  // Appwrite: integer ✓
       { name: 'voidReason', type: 'string', size: 256, required: true },
       { name: 'voidedBy', type: 'string', size: 32, required: true },
       { name: 'voidedAt', type: 'integer', required: true },

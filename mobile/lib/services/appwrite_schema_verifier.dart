@@ -96,7 +96,7 @@ class AppwriteSchemaVerifier {
           'key': 'discountType',
           'type': 'string',
           'size': 20,
-          'default': 'per_night',
+          'default': '',  // مطابق لقيمة Appwrite الفعلية (فارغ بدلاً من per_night)
         },
         {'key': 'discountStartDate', 'type': 'string', 'size': 50},
         {'key': 'hotelDayCheckin', 'type': 'string', 'size': 50},
@@ -138,7 +138,12 @@ class AppwriteSchemaVerifier {
         {'key': 'nightEnd', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'nightlyRate', 'type': 'double', 'default': 0},
         {'key': 'sequence', 'type': 'integer', 'default': 0},
-        {'key': 'isProcessedByAutoFix', 'type': 'boolean', 'default': false},
+        {'key': 'isProcessedByAutoFix', 'type': 'boolean', 'default': true},  // مطابق لقيمة Appwrite الفعلية
+        {'key': 'baseRate', 'type': 'double', 'default': 0},
+        {'key': 'adjustment', 'type': 'double', 'default': 0},
+        {'key': 'finalRate', 'type': 'double', 'default': 0},
+        {'key': 'appliedAdjustmentUuid', 'type': 'string', 'size': 64},
+        {'key': 'appliedAdjustmentsJson', 'type': 'string', 'size': 10000},
       ],
     },
     'employees': {
@@ -201,7 +206,7 @@ class AppwriteSchemaVerifier {
           'size': 20,
           'required': true,
         },
-        {'key': 'amount', 'type': 'double', 'required': true},
+        {'key': 'amount', 'type': 'integer', 'required': true},  // Appwrite: integer (مطابق للكلاود)
         {'key': 'referenceType', 'type': 'string', 'size': 50},
         {'key': 'referenceId', 'type': 'integer'},
         {'key': 'description', 'type': 'string', 'size': 500},
@@ -267,7 +272,7 @@ class AppwriteSchemaVerifier {
         {'key': 'debtReason', 'type': 'string', 'size': 200, 'default': ''},
         {'key': 'totalAmount', 'type': 'double', 'required': true},
         {'key': 'paidAmount', 'type': 'double', 'required': true},
-        {'key': 'remainingAmount', 'type': 'double', 'required': true},
+        {'key': 'remainingAmount', 'type': 'integer', 'required': true},  // Appwrite: integer
         {'key': 'paymentDate', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'isSettled', 'type': 'integer', 'default': 0},
         {'key': 'pledge', 'type': 'string', 'size': 200},
@@ -313,7 +318,7 @@ class AppwriteSchemaVerifier {
           'unique': true,
         },
         {'key': 'cycleId', 'type': 'integer', 'required': true},
-        {'key': 'amount', 'type': 'double', 'default': 0},
+        {'key': 'amount', 'type': 'integer', 'default': 0},  // Appwrite: integer
         {'key': 'hotelDayKey', 'type': 'string', 'size': 50},
         {
           'key': 'paymentDateIso',
@@ -362,7 +367,7 @@ class AppwriteSchemaVerifier {
         {'key': 'content', 'type': 'string', 'size': 1000, 'required': true},
         {'key': 'priority', 'type': 'string', 'size': 20, 'default': 'medium'},
         {'key': 'shiftType', 'type': 'string', 'size': 20, 'default': 'all'},
-        {'key': 'isRead', 'type': 'integer', 'default': 0},
+        {'key': 'isRead', 'type': 'boolean', 'default': false},  // Appwrite: boolean
         {'key': 'createdAt', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'expiresAt', 'type': 'string', 'size': 50},
         {'key': 'createdBy', 'type': 'string', 'size': 50, 'default': 'user'},
@@ -370,15 +375,26 @@ class AppwriteSchemaVerifier {
     },
     'blacklist': {
       'name': 'Blacklist',
-      'includeSyncFields': true,
+      'includeSyncFields': false,  // حقول المزامنة مخصصة — createdAt/updatedAt/deletedAt نصية هنا
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        // ── حقول المزامنة المخصصة (أنواع مختلفة عن SyncFields القياسية) ──
+        {'key': 'localUuid', 'type': 'string', 'size': 64, 'required': true, 'unique': true},
+        {'key': 'serverId', 'type': 'integer'},
+        {'key': 'createdAt', 'type': 'string', 'size': 30, 'required': true},  // ISO 8601 string في Appwrite
+        {'key': 'updatedAt', 'type': 'string', 'size': 30, 'required': true},  // ISO 8601 string في Appwrite
+        {'key': 'deletedAt', 'type': 'string', 'size': 30},  // ISO 8601 string في Appwrite
+        {'key': 'lastModified', 'type': 'integer', 'required': true},
+        {'key': 'origin', 'type': 'string', 'size': 20, 'default': 'mobile'},
+        {'key': 'syncTimestamp', 'type': 'integer'},
+        {'key': 'idempotencyKey', 'type': 'string', 'size': 128},  // Appwrite: varchar
+        {'key': 'createdatEpoch', 'type': 'string', 'size': 30},  // Appwrite: string (خطأ إملائي محفوظ من الكلاود)
+        // ── حقول القائمة السوداء ──
         {'key': 'name', 'type': 'string', 'size': 200, 'required': true},
         {'key': 'nationality', 'type': 'string', 'size': 100},
-        {'key': 'nationalId', 'type': 'string', 'size': 100},
+        {'key': 'nationalId', 'type': 'string', 'size': 50},
         {'key': 'phone', 'type': 'string', 'size': 30},
-        {'key': 'reason', 'type': 'string', 'size': 500},
-        {'key': 'notes', 'type': 'string', 'size': 1000},
+        {'key': 'reason', 'type': 'string', 'size': 5000},
+        {'key': 'notes', 'type': 'string', 'size': 5000},
         {'key': 'reportedBy', 'type': 'string', 'size': 50, 'default': 'police'},
         {'key': 'active', 'type': 'boolean', 'default': true},
       ],
@@ -433,7 +449,7 @@ class AppwriteSchemaVerifier {
         {'key': 'originalPaymentUuid', 'type': 'string', 'size': 36, 'required': true},
         {'key': 'originalPaymentId', 'type': 'integer', 'required': true},
         {'key': 'bookingUuid', 'type': 'string', 'size': 36, 'required': true},
-        {'key': 'voidedAmount', 'type': 'double', 'required': true},
+        {'key': 'voidedAmount', 'type': 'integer', 'required': true},  // Appwrite: integer
         {'key': 'voidReason', 'type': 'string', 'size': 500, 'required': true},
         {'key': 'voidedBy', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'voidedAt', 'type': 'integer', 'required': true},
@@ -452,7 +468,7 @@ class AppwriteSchemaVerifier {
         {'key': 'bookingLocalId', 'type': 'integer'},
         {'key': 'adjustmentType', 'type': 'integer', 'required': true}, // 0=discount, 1=surcharge
         {'key': 'adjustmentMode', 'type': 'string', 'size': 20, 'default': 'per_night'}, // per_night, total, percentage
-        {'key': 'amount', 'type': 'double', 'required': true},
+        {'key': 'amount', 'type': 'integer', 'required': true},  // Appwrite: integer
         {'key': 'effectiveHotelDay', 'type': 'string', 'size': 10, 'required': true},
         {'key': 'endHotelDay', 'type': 'string', 'size': 10},
         {'key': 'isActive', 'type': 'boolean', 'default': true},
@@ -460,6 +476,48 @@ class AppwriteSchemaVerifier {
         {'key': 'appliedBy', 'type': 'string', 'size': 100},
         {'key': 'cancelledAt', 'type': 'string', 'size': 30},
         {'key': 'cancelledBy', 'type': 'string', 'size': 100},
+      ],
+    },
+    'salary_withdrawals': {
+      'name': 'Salary Withdrawals',
+      'includeSyncFields': true,
+      'attributes': [
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true,
+        },
+        {'key': 'employeeId', 'type': 'integer', 'required': true},
+        {'key': 'amount', 'type': 'integer', 'required': true},  // Appwrite: integer
+        {'key': 'withdrawDate', 'type': 'string', 'size': 50, 'required': true},
+        {'key': 'reason', 'type': 'string', 'size': 5000},
+        {'key': 'hotelDayKey', 'type': 'string', 'size': 50},
+        {'key': 'withdrawalType', 'type': 'string', 'size': 30},
+        {'key': 'description', 'type': 'string', 'size': 5000},
+      ],
+    },
+    'guest_infos': {
+      'name': 'Guest Infos',
+      'includeSyncFields': true,
+      'attributes': [
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true,
+        },
+        {'key': 'roomNumber', 'type': 'string', 'size': 50, 'required': true},
+        {'key': 'guestName', 'type': 'string', 'size': 200, 'required': true},
+        {'key': 'nationality', 'type': 'string', 'size': 100, 'required': true},
+        {'key': 'idNumber', 'type': 'string', 'size': 50, 'required': true},
+        {'key': 'idType', 'type': 'string', 'size': 50, 'default': 'بطاقة شخصية'},
+        {'key': 'issueDate', 'type': 'string', 'size': 50},
+        {'key': 'issuePlace', 'type': 'string', 'size': 100},
+        {'key': 'governorate', 'type': 'string', 'size': 100},
+        {'key': 'notes', 'type': 'string', 'size': 5000},
       ],
     },
   };

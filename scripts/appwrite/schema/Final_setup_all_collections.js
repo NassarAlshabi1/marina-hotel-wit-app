@@ -261,7 +261,7 @@ const bookings = {
     { key: 'calculatedNights',    type: 'integer', required: false, default: 1 },
     { key: 'totalNightsCached',   type: 'integer', required: false, default: 0 },
     { key: 'discount',            type: 'float',   required: false, default: 0 },
-    { key: 'discountType',        type: 'string',  required: false, default: 'per_night', size: 20 },
+    { key: 'discountType',        type: 'string',  required: false, default: '', size: 20 },  // مطابق لقيمة Appwrite الفعلية
     { key: 'discountStartDate',   type: 'string',  required: false, size: 20 },
     { key: 'totalDueCached',      type: 'float',   required: false, default: 0.0 },
     { key: 'totalPaidCached',     type: 'float',   required: false, default: 0.0 },
@@ -370,18 +370,32 @@ const payments = {
 const debts = {
   attributes: [
     ...syncFields.attributes,
-    { key: 'amount',              type: 'integer', required: true },  // مخزّن كـ integer (جنيهات)
-    { key: 'debtorName',          type: 'string',  required: true,  size: 200 },
-    { key: 'dueDate',             type: 'string',  required: true,  size: 20 },
-    { key: 'status',              type: 'string',  required: true,  size: 20 },  // pending, settled
+    // حقول الديون الفعلية — مطابقة لـ Appwrite Cloud
     { key: 'bookingLocalId',      type: 'integer', required: false },
-    { key: 'sync_version',        type: 'integer', required: false, default: 1 },
-    { key: 'sync_vector_clock',   type: 'string',  required: false, default: '{}', size: 2000 },
-    { key: 'sync_origin',         type: 'string',  required: false, default: 'local', size: 20 },
+    { key: 'guestName',           type: 'string',  required: true,  size: 200 },
+    { key: 'checkinDate',         type: 'string',  required: true,  size: 20 },
+    { key: 'checkoutDate',        type: 'string',  required: true,  size: 20 },
+    { key: 'dateRecorded',        type: 'string',  required: false, default: '', size: 20 },
+    { key: 'debtReason',          type: 'string',  required: false, default: '', size: 200 },
+    { key: 'totalAmount',         type: 'float',   required: true },
+    { key: 'paidAmount',          type: 'float',   required: true },
+    { key: 'remainingAmount',     type: 'integer', required: true },  // Appwrite: integer
+    { key: 'paymentDate',         type: 'string',  required: true,  size: 20 },
+    { key: 'isSettled',           type: 'integer', required: false, default: 0 },
+    { key: 'pledge',              type: 'string',  required: false, size: 200 },
+    { key: 'pledgeType',          type: 'string',  required: false, size: 50 },
+    { key: 'note',                type: 'string',  required: false, size: 5000 },
+    { key: 'debtUuid',            type: 'string',  required: false, size: 64 },
+    { key: 'hotelDayOpened',      type: 'string',  required: false, size: 20 },
+    { key: 'hotelDayClosed',      type: 'string',  required: false, size: 20 },
+    { key: 'isFromAutoFix',       type: 'boolean', required: false, default: false },
+    { key: 'settlementConfirmed', type: 'boolean', required: false, default: false },
   ],
   indexes: [
     ...syncFields.indexes,
-    { key: 'idx_debts_status', type: 'key', attributes: ['status'] },
+    { key: 'idx_debts_status',  type: 'key', attributes: ['isSettled', 'isFromAutoFix'] },
+    { key: 'idx_debts_guest',   type: 'key', attributes: ['guestName'] },
+    { key: 'idx_debts_booking', type: 'key', attributes: ['bookingLocalId'] },
   ],
 };
 
@@ -470,7 +484,7 @@ const booking_nights = {
     { key: 'nightEnd',             type: 'string',  required: true,  size: 20 },
     { key: 'nightlyRate',          type: 'float',   required: false, default: 0.0 },
     { key: 'sequence',             type: 'integer', required: false, default: 0 },
-    { key: 'isProcessedByAutoFix', type: 'boolean', required: false, default: false },
+    { key: 'isProcessedByAutoFix', type: 'boolean', required: false, default: true },  // مطابق لقيمة Appwrite الفعلية
     { key: 'baseRate',             type: 'float',   required: false, default: 0.0 },
     { key: 'adjustment',           type: 'float',   required: false, default: 0.0 },
     { key: 'finalRate',            type: 'float',   required: false, default: 0.0 },
@@ -566,6 +580,8 @@ const blacklist = {
     { key: 'lastModified',    type: 'integer', required: true },  // epoch seconds
     { key: 'origin',          type: 'string',  required: false, default: 'mobile', size: 20 },
     { key: 'syncTimestamp',   type: 'integer', required: false },
+    { key: 'idempotencyKey',  type: 'string',  required: false, size: 128 },  // Appwrite: varchar
+    { key: 'createdatEpoch',  type: 'string',  required: false, size: 30 },  // Appwrite: string (خطأ إملائي محفوظ)
     // حقول القائمة السوداء
     { key: 'name',            type: 'string',  required: true,  size: 200 },
     { key: 'nationality',     type: 'string',  required: false, size: 100 },
@@ -593,9 +609,9 @@ const salary_cycles = {
     { key: 'cycleKey',       type: 'string',  required: true,  size: 20 },  // YYYY-MM
     { key: 'hotelDayStart',  type: 'string',  required: false, size: 20 },
     { key: 'hotelDayEnd',    type: 'string',  required: false, size: 20 },
-    { key: 'expectedAmount', type: 'integer', required: false, default: 0 },
-    { key: 'actualPaid',     type: 'integer', required: false, default: 0 },
-    { key: 'remainingAmount', type: 'integer', required: false, default: 0 },
+    { key: 'expectedAmount', type: 'float',   required: false, default: 0 },
+    { key: 'actualPaid',     type: 'float',   required: false, default: 0 },
+    { key: 'remainingAmount', type: 'float',  required: false, default: 0 },
     { key: 'status',         type: 'string',  required: false, default: 'draft', size: 20 },  // draft, active, closed
   ],
   indexes: [
@@ -634,9 +650,9 @@ const price_adjustments = {
     ...syncFields.attributes,
     { key: 'targetType',   type: 'string',  required: true,  size: 30 },  // room, ...
     { key: 'targetUuid',   type: 'string',  required: true,  size: 64 },
-    { key: 'adjustmentType', type: 'integer', required: true },
-    { key: 'previousValue', type: 'integer', required: true },
-    { key: 'newValue',     type: 'integer', required: true },
+    { key: 'adjustmentType', type: 'string',  required: true,  size: 30 },  // Appwrite: string
+    { key: 'previousValue', type: 'float',   required: true },
+    { key: 'newValue',     type: 'float',   required: true },
     { key: 'reason',       type: 'string',  required: false, size: 5000 },
     { key: 'effectiveDate', type: 'string', required: true,  size: 20 },
     { key: 'appliedBy',    type: 'string',  required: true,  size: 100 },
@@ -673,7 +689,7 @@ const audit_logs = {
     { key: 'timestamp',    type: 'integer', required: true },  // epoch seconds
     { key: 'timestampIso', type: 'string',  required: true,  size: 30 },
     { key: 'isFinancial',  type: 'boolean', required: false, default: false },
-    { key: 'amountImpact', type: 'integer', required: false },
+    { key: 'amountImpact', type: 'float',   required: false },
     { key: 'createdAt',    type: 'integer', required: true },  // epoch seconds
   ],
   indexes: [

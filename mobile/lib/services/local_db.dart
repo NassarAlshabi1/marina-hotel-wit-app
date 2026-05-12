@@ -77,6 +77,9 @@ class Bookings extends Table with SyncFields {
   TextColumn get status => text()();
   TextColumn get notes => text().nullable()();
   RealColumn get discount => real().withDefault(const Constant(0))();
+  // ⚠️ CRITICAL: Appwrite Cloud default = '' (فارغ)، لكن Drift = 'per_night'
+  // تغيير القيمة الافتراضية يتطلب ترحيل بيانات + إعادة تشغيل build_runner
+  // بعد الإصلاح: text().withDefault(const Constant(''))();
   TextColumn get discountType =>
       text().withDefault(const Constant('per_night'))();
   TextColumn get discountStartDate => text().nullable()();
@@ -316,7 +319,9 @@ class ShiftNotes extends Table with SyncFields {
   TextColumn get shiftType => text().withDefault(
     const Constant('all'),
   )(); // morning, evening, night, all
-  // ⚠️ TODO: IntColumn بدلاً من BoolColumn — يتطلب ترحيل و إعادة توليد الكود
+  // ⚠️ CRITICAL: Appwrite Cloud = boolean، لكن Drift = IntColumn
+  // تغيير النوع يتطلب ترحيل بيانات + إعادة تشغيل build_runner
+  // بعد الإصلاح: BoolColumn get isRead => boolean().withDefault(const Constant(false))();
   IntColumn get isRead =>
       integer().withDefault(const Constant(0))(); // 0 = غير مقروء، 1 = مقروء
   // createdAt موجود في SyncFields كـ integer
@@ -357,6 +362,9 @@ class BookingNights extends Table with SyncFields {
   TextColumn get nightEnd => text()();
   RealColumn get nightlyRate => real().withDefault(const Constant(0.0))();
   IntColumn get sequence => integer().withDefault(const Constant(0))();
+  // ⚠️ CRITICAL: Appwrite Cloud default = true، لكن Drift = false
+  // تغيير القيمة الافتراضية يتطلب ترحيل بيانات + إعادة تشغيل build_runner
+  // بعد الإصلاح: boolean().withDefault(const Constant(true))();
   BoolColumn get isProcessedByAutoFix =>
       boolean().withDefault(const Constant(false))();
   RealColumn get baseRate => real().withDefault(const Constant(0.0))();
@@ -397,7 +405,11 @@ class PriceAdjustments extends Table with SyncFields {
   TextColumn get targetType => text()();
   TextColumn get targetUuid => text()();
   TextColumn get adjustmentType => text()();
+  // ⚠️ CRITICAL: Appwrite Cloud = double/float، لكن Drift = IntColumn — فقدان الكسور!
+  // تغيير النوع يتطلب ترحيل بيانات + إعادة تشغيل build_runner
+  // بعد الإصلاح: RealColumn get previousValue => real()();
   IntColumn get previousValue => integer()();
+  // بعد الإصلاح: RealColumn get newValue => real()();
   IntColumn get newValue => integer()();
   TextColumn get reason => text().nullable()();
   TextColumn get effectiveDate => text()();
@@ -467,6 +479,9 @@ class AuditLogs extends Table {
   IntColumn get timestamp => integer()();
   TextColumn get timestampIso => text()();
   BoolColumn get isFinancial => boolean().withDefault(const Constant(false))();
+  // ⚠️ CRITICAL: Appwrite Cloud = double/float، لكن Drift = IntColumn — فقدان الكسور!
+  // تغيير النوع يتطلب ترحيل بيانات + إعادة تشغيل build_runner
+  // بعد الإصلاح: RealColumn get amountImpact => real().nullable()();
   IntColumn get amountImpact => integer().nullable()();
   IntColumn get createdAt => integer()();
 
@@ -581,8 +596,13 @@ class SalaryCycles extends Table with SyncFields {
   TextColumn get cycleKey => text()();
   TextColumn get hotelDayStart => text().nullable()();
   TextColumn get hotelDayEnd => text().nullable()();
+  // ⚠️ CRITICAL: Appwrite Cloud = double/float، لكن Drift = IntColumn — فقدان الكسور!
+  // تغيير النوع يتطلب ترحيل بيانات + إعادة تشغيل build_runner
+  // بعد الإصلاح: RealColumn get expectedAmount => real().withDefault(const Constant(0.0))();
   IntColumn get expectedAmount => integer().withDefault(const Constant(0))();
+  // بعد الإصلاح: RealColumn get actualPaid => real().withDefault(const Constant(0.0))();
   IntColumn get actualPaid => integer().withDefault(const Constant(0))();
+  // بعد الإصلاح: RealColumn get remainingAmount => real().withDefault(const Constant(0.0))();
   IntColumn get remainingAmount => integer().withDefault(const Constant(0))();
   TextColumn get status => text().withDefault(const Constant('draft'))();
 
