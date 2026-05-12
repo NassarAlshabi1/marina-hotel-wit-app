@@ -18,11 +18,11 @@ class BackupMetadata {
     );
     return BackupMetadata(
       appVersion: json['app_version'] as String? ?? '',
-      databaseVersion: json['database_version'] as int? ?? 1,
+      databaseVersion: (json['database_version'] as num?)?.toInt() ?? 1,
       backupTimestamp: DateTime.parse(
         (json['backup_timestamp'] as String?) ?? DateTime.now().toIso8601String(),
       ),
-      totalRecords: json['total_records'] as int? ?? 0,
+      totalRecords: (json['total_records'] as num?)?.toInt() ?? 0,
       deviceInfo: json['device_info'] as String? ?? '',
       format: format,
     );

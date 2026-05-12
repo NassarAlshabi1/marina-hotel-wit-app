@@ -143,7 +143,7 @@ class DeltaSyncInitializer {
     try {
       // ✅ بوابة أمان — ننتظر حتى تكتمل تحميل إعدادات Appwrite
       // قبل بناء Client، مما يمنع استخدام القيم الافتراضية الخطأ
-      await AppwriteConfigManager.init();
+      await AppwriteConfigManager.ready;
 
       // إنشاء AppwriteService جديد (آمن — يحتوي على فحص _initialized)
       final service = AppwriteService();

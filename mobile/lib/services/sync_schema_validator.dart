@@ -379,9 +379,10 @@ class SyncSchemaValidator {
       final issues = <String>[];
       final warnings = <String>[];
 
-      // التحقق من cycleId (مطلوب في Appwrite — يُستخدم لربط الموظف)
-      if (payment.cycleId == null) {
-        issues.add('cycleId فارغ - مطلوب في Appwrite');
+      // cycleId غير nullable في المخطط المحلي — لا حاجة لفحص null
+      // لكن نتحقق أن القيمة تشير إلى سجل صالح
+      if (payment.cycleId <= 0) {
+        issues.add('cycleId غير صالح (${payment.cycleId}) - مطلوب في Appwrite');
       }
 
       // التحقق من paymentDate (مطلوب في Appwrite)

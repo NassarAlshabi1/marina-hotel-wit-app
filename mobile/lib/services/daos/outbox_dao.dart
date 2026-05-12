@@ -395,7 +395,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       OutboxCompanion(
         processingStatus: const Value('pending'),
         attempts: Value(attempts + 1),
-        lastError: Value(lastError),
+        lastError: const Value(null),
         processingStartedAt: const Value(null),
         processingWorker: const Value(null),
       ),

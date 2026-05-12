@@ -35,8 +35,8 @@ class FieldChange {
     fieldName: json['fieldName'] as String,
     oldValue: _deserializeValue(json['oldValue'], json['fieldType'] as String?),
     newValue: _deserializeValue(json['newValue'], json['fieldType'] as String?),
-    version: json['version'] as int,
-    timestamp: json['timestamp'] as int,
+    version: (json['version'] as num).toInt(),
+    timestamp: (json['timestamp'] as num).toInt(),
     deviceId: json['deviceId'] as String,
     vectorClock: json['vectorClock'] as String? ?? '{}',
     fieldType: FieldType.values.firstWhere(
