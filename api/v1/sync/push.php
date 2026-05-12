@@ -196,7 +196,8 @@ function applyEntityFieldMapping($entity, $data) {
  */
 function createRecord($conn, $table, $data, $uuid) {
     // التحقق من وجود السجل مسبقًا
-    $check = $conn->prepare("SELECT id FROM $table WHERE local_uuid = ? LIMIT 1");
+    $safeTable = $conn->real_escape_string($table);
+    $check = $conn->prepare("SELECT id FROM `$safeTable` WHERE local_uuid = ? LIMIT 1");
     $check->bind_param('s', $uuid);
     $check->execute();
     $existing = $check->get_result();
@@ -244,9 +245,9 @@ function createRecord($conn, $table, $data, $uuid) {
     }
     
     $sql = sprintf(
-        "INSERT INTO %s (%s) VALUES (%s)",
-        $table,
-        implode(', ', $columns),
+        "INSERT INTO `%s` (`%s`) VALUES (%s)",
+        $conn->real_escape_string($table),
+        implode('`, `', array_map([$conn, 'real_escape_string'], $columns)),
         implode(', ', $placeholders)
     );
     
@@ -319,8 +320,8 @@ function updateRecord($conn, $table, $data, $uuid) {
     $types .= 's';
     
     $sql = sprintf(
-        "UPDATE %s SET %s WHERE local_uuid = ?",
-        $table,
+        "UPDATE `%s` SET %s WHERE local_uuid = ?",
+        $conn->real_escape_string($table),
         implode(', ', $sets)
     );
     
@@ -353,7 +354,8 @@ function updateRecord($conn, $table, $data, $uuid) {
  * حذف سجل (حذف ناعم)
  */
 function deleteRecord($conn, $table, $uuid) {
-    $stmt = $conn->prepare("UPDATE $table SET deleted_at = NOW() WHERE local_uuid = ?");
+    $safeTable = $conn->real_escape_string($table);
+    $stmt = $conn->prepare("UPDATE `$safeTable` SET deleted_at = NOW() WHERE local_uuid = ?");
     if (!$stmt) {
         return [
             'success' => false,

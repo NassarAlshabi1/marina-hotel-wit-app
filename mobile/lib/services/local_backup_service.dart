@@ -321,8 +321,14 @@ class LocalBackupService {
   }
 
   Future<Map<String, int>> _collectRecordCountsFromRawDb(Database db) async {
+    // قائمة بيضاء لأسماء الجداول — حماية من SQL Injection
+    const allowedTables = {
+      'rooms', 'bookings', 'booking_notes', 'employees',
+      'expenses', 'cash_transactions', 'payments',
+    };
     Future<int> count(String table) async {
-      final result = await db.rawQuery('SELECT COUNT(*) AS count FROM $table');
+      if (!allowedTables.contains(table)) return 0;
+      final result = await db.rawQuery('SELECT COUNT(*) AS count FROM "$table"');
       if (result.isEmpty) {
         return 0;
       }

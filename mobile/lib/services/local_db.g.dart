@@ -36483,7 +36483,7 @@ class $$OutboxTableTableManager extends RootTableManager<
             Value<String> processingStatus = const Value.absent(),
             Value<int?> processingStartedAt = const Value.absent(),
             Value<String?> processingWorker = const Value.absent(),
-            String source = 'local',
+            Value<String> source = const Value.absent(),
           }) =>
               OutboxCompanion.insert(
             id: id,
@@ -36499,7 +36499,7 @@ class $$OutboxTableTableManager extends RootTableManager<
             processingStatus: processingStatus,
             processingStartedAt: processingStartedAt,
             processingWorker: processingWorker,
-            source: Value(source),
+            source: source,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

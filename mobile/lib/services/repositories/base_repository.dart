@@ -84,10 +84,13 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       for (final column in table.$columns) column.$name: column,
     };
     final targets = <List<Column>>[];
-    final sanitizedName = tableName.replaceAll("'", "''");
+    // استخدام علامات الاقتباس المزدوجة لأسماء الجداول في PRAGMA
+    // (PRAGMA لا يدعم المعلمات في SQLite)
+    // علامات الاقتباس المزدوجة آمنة لأن أسماء الجداول لا تحتوي على علامات اقتباس
+    final safeName = tableName.replaceAll('"', '');
 
     final indexRows = await db
-        .customSelect("PRAGMA index_list('$sanitizedName')")
+        .customSelect('PRAGMA index_list("$safeName")')
         .get();
     for (final row in indexRows) {
       final isUnique = row.data['unique'] == 1 || row.data['unique'] == true;
@@ -98,9 +101,9 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       if (indexName == null || indexName.isEmpty) {
         continue;
       }
-      final sanitizedIndex = indexName.replaceAll("'", "''");
+      final safeIndex = indexName.replaceAll('"', '');
       final infoRows = await db
-          .customSelect("PRAGMA index_info('$sanitizedIndex')")
+          .customSelect('PRAGMA index_info("$safeIndex")')
           .get();
       final cols = <Column>[];
       for (final info in infoRows) {

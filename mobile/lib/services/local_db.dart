@@ -1134,16 +1134,24 @@ class AppDatabase extends _$AppDatabase {
           'debts',
         ];
 
+        // قائمة بيضاء لأسماء الجداول — حماية من SQL Injection
+        const allowedTables = {
+          'bookings', 'employees', 'expenses',
+          'cash_transactions', 'payments', 'debts',
+        };
+
         for (final tableName in tablesToCheck) {
+          // التحقق من القائمة البيضاء قبل استخدام اسم الجدول في SQL
+          if (!allowedTables.contains(tableName)) continue;
           try {
             await m.database.customStatement(
-              'SELECT server_id FROM $tableName LIMIT 1',
+              'SELECT server_id FROM "$tableName" LIMIT 1',
             );
           } catch (e) {
             // العمود غير موجود
             try {
               await m.database.customStatement(
-                'ALTER TABLE $tableName ADD COLUMN server_id INTEGER',
+                'ALTER TABLE "$tableName" ADD COLUMN server_id INTEGER',
               );
               developer.log(
                 'Added serverId column to $tableName table',
@@ -1848,7 +1856,8 @@ class AppDatabase extends _$AppDatabase {
         for (final e in expenseDefaults) {
           await m.database.customStatement(
             'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
-            "VALUES ('expense_type', '${e[0]}', ${e[1]}, 1, ${e[2]})",
+            'VALUES (?, ?, ?, 1, ?)',
+            [Variable.withString('expense_type'), Variable.withString(e[0]), Variable.withInt(int.parse(e[1])), Variable.withInt(int.parse(e[2]))],
           );
         }
 
@@ -1864,7 +1873,8 @@ class AppDatabase extends _$AppDatabase {
         for (final e in idTypeDefaults) {
           await m.database.customStatement(
             'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
-            "VALUES ('id_type', '${e[0]}', ${e[1]}, 1, ${e[2]})",
+            'VALUES (?, ?, ?, 1, ?)',
+            [Variable.withString('id_type'), Variable.withString(e[0]), Variable.withInt(int.parse(e[1])), Variable.withInt(int.parse(e[2]))],
           );
         }
 
@@ -1876,7 +1886,8 @@ class AppDatabase extends _$AppDatabase {
         for (final e in paymentMethodDefaults) {
           await m.database.customStatement(
             'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
-            "VALUES ('payment_method', '${e[0]}', ${e[1]}, 1, ${e[2]})",
+            'VALUES (?, ?, ?, 1, ?)',
+            [Variable.withString('payment_method'), Variable.withString(e[0]), Variable.withInt(int.parse(e[1])), Variable.withInt(int.parse(e[2]))],
           );
         }
 

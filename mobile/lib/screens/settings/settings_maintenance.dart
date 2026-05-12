@@ -127,7 +127,7 @@ class _SettingsMaintenanceScreenState
       }
       try {
         final result = await db
-            .customSelect('SELECT COUNT(*) AS c FROM $table WHERE deleted_at IS NULL')
+            .customSelect('SELECT COUNT(*) AS c FROM "$table" WHERE deleted_at IS NULL')
             .getSingle();
         final v = result.data['c'];
         totalRecords += (v is int) ? v : (v is num) ? v.toInt() : 0;

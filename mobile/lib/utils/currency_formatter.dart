@@ -5,9 +5,10 @@ class CurrencyFormatter {
   static final NumberFormat _intFormatter = NumberFormat('#,##0', 'en_US');
   static final NumberFormat _decimalFormatter = NumberFormat('#,##0.00', 'en_US');
 
-  /// تقريب المبلغ بشكل صحيح
+  /// تقريب المبلغ بقطع الكسور العشرية (truncation)
+  /// في النظام الفندقي لا نقرّب الكسور بل نقطعها
   static int _roundAmount(double amount) {
-    return amount.round();
+    return amount.truncate();
   }
 
   /// تنسيق المبلغ بالفواصل فقط (5,000)
@@ -76,7 +77,8 @@ class CurrencyFormatter {
     if (parsed == null) {
       return null;
     }
-    return parsed;
+    // قطع الكسور العشرية — المبالغ الفندقية بالريال فقط
+    return parsed.truncateToDouble();
   }
 
   /// إنشاء NumberFormat للاستخدام المتكرر
