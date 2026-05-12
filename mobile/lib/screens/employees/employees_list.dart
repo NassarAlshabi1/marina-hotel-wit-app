@@ -50,7 +50,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final list = snapshot.data!;
+                final list = snapshot.data;
 
                 if (list.isEmpty) {
                   return _buildEmptyState();
