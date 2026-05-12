@@ -24,6 +24,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         env:
           ANTHROPIC_BASE_URL: "https://agentrouter.org/"
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.AGENTROUTER_API_KEY }}
         with:
           anthropic_api_key: ${{ secrets.AGENTROUTER_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}

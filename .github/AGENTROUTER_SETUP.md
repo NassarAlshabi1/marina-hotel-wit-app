@@ -122,6 +122,24 @@ claude_args: "--model claude-sonnet-4-5-20250929"
 
 ---
 
+## 🛡️ Troubleshooting: WAF Issue
+
+If you encounter the error:
+
+```
+API Error: API returned an empty or malformed response (HTTP 200)
+```
+
+This is caused by **Aliyun WAF** (Web Application Firewall) on AgentRouter's server intercepting API requests and returning a CAPTCHA page instead of the expected JSON response.
+
+### Possible Solutions
+
+1. **Contact AgentRouter Support**: Report the WAF blocking issue at [AgentRouter Console](https://agentrouter.org/console/token) or via their Discord
+2. **Wait for fix**: This may be a temporary server-side configuration issue
+3. **Alternative**: Use a direct Anthropic API key if available by removing the `ANTHROPIC_BASE_URL` env var and setting `ANTHROPIC_API_KEY` directly
+
+---
+
 ## 📚 Resources
 
 - [AgentRouter Console](https://agentrouter.org/console/token)
