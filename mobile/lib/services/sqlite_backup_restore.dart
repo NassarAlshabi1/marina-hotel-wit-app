@@ -50,7 +50,7 @@ class SqliteBackupRestore {
       if (Platform.isAndroid) {
         try {
           final documentsTarget = Directory(kAndroidDocumentsBackupPath);
-          if (!documentsTarget.existsSync()) {
+          if (!await documentsTarget.exists()) {
             await documentsTarget.create(recursive: true);
           }
           return documentsTarget;
