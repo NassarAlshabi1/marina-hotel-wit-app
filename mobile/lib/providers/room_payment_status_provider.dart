@@ -13,22 +13,47 @@ class RoomWithPaymentStatus {
   RoomWithPaymentStatus({
     required this.room,
     required this.isPaymentOverdue,
+    this.activeBooking,
   });
   final Room room;
   final bool isPaymentOverdue;
 
-  Color get roomColor {
-    if (StatusUtils.isRoomAvailable(room.status)) {
-      return Colors.green.shade600;
-    }
+  /// ✅ الحجز النشط المرتبط بالغرفة (إن وجد)
+  /// يُستخدم لتحديد حالة الإشغال بدلاً من الاعتماد على room.status المخزن
+  /// الذي قد يكون قديماً/غير محدث بعد المزامنة
+  final Booking? activeBooking;
 
-    if (room.status == 'صيانة') {
+  /// ✅ هل توجد غرفة بحجز نشط فعلي؟
+  bool get hasActiveBooking => activeBooking != null;
+
+  Color get roomColor {
+    // صيانة - الأولوية القصوى
+    if (room.status == 'صيانة' || room.status == 'maintenance') {
       return Colors.orange.shade600;
     }
 
-    // إذا كانت الغرفة محجوزة، نتحقق من حالة تأخر السداد
-    // ملاحظة: تم إلغاء اللون البني (overdueRoomColor) والاعتماد على الوميض في الواجهة
-    return Colors.red.shade600; // اللون الأحمر للمحجوز والمتأخر في السداد
+    // ✅ نعتمد على وجود حجز نشط فعلي بدلاً من room.status المخزن
+    // هذا يضمن أن الغرفة تظهر باللون الصحيح حتى لو كان room.status
+    // قديماً أو غير محدث بعد المزامنة مع Appwrite
+    if (hasActiveBooking) {
+      // غرفة محجوزة بنشاط - أحمر
+      return Colors.red.shade600;
+    }
+
+    // لا يوجد حجز نشط - خضراء (شاغرة)
+    return Colors.green.shade600;
+  }
+
+  /// ✅ الحالة المعروضة للغرفة - مشتقة من الحجز النشط
+  /// بدلاً من room.status المخزن الذي قد يكون قديماً
+  String get displayStatus {
+    if (room.status == 'صيانة' || room.status == 'maintenance') {
+      return 'صيانة';
+    }
+    if (hasActiveBooking) {
+      return 'محجوزة';
+    }
+    return 'شاغرة';
   }
 }
 
@@ -67,19 +92,19 @@ final roomsWithPaymentStatusProvider =
     final result = rooms.map((room) {
       bool isPaymentOverdue = false;
 
-      if (StatusUtils.isRoomOccupied(room.status)) {
-        final activeBooking = bookingByRoom[room.roomNumber];
+      // ✅ استخدام bookingByRoom لتحديد وجود حجز نشط فعلي
+      // بدلاً من الاعتماد على room.status الذي قد يكون قديماً
+      final activeBooking = bookingByRoom[room.roomNumber];
 
-        if (activeBooking != null) {
-          final hasRemainingBalance =
-              activeBooking.remainingBalanceCached.round() > 0;
+      if (activeBooking != null) {
+        final hasRemainingBalance =
+            activeBooking.remainingBalanceCached.round() > 0;
 
-          if (hasRemainingBalance) {
-            final hour = currentTime.hour;
-            // تأخر السداد يبدأ من الساعة 11 مساءً إلى 5 صباحاً
-            if (hour >= 23 || hour < 5) {
-              isPaymentOverdue = true;
-            }
+        if (hasRemainingBalance) {
+          final hour = currentTime.hour;
+          // تأخر السداد يبدأ من الساعة 11 مساءً إلى 5 صباحاً
+          if (hour >= 23 || hour < 5) {
+            isPaymentOverdue = true;
           }
         }
       }
@@ -87,6 +112,7 @@ final roomsWithPaymentStatusProvider =
       return RoomWithPaymentStatus(
         room: room,
         isPaymentOverdue: isPaymentOverdue,
+        activeBooking: activeBooking,
       );
     }).toList();
 

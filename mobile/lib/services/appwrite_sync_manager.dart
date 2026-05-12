@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
 import '../utils/id.dart';
+import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
@@ -25,6 +26,7 @@ import 'crashlytics_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'repositories/bookings_repository.dart';
+import 'repositories/rooms_repository.dart';
 import 'sync_constants.dart';
 import 'sync_core/sync_metrics.dart';
 import 'sync_enums.dart';
@@ -80,6 +82,7 @@ class AppwriteSyncManager {
   }) : outboxDao = OutboxDao(database) {
     _adapterRegistry = AdapterRegistry(database);
     _bookingsRepository = BookingsRepository(database);
+    _roomsRepository = RoomsRepository(database);
   }
   static AppwriteSyncManager? _instance;
 
@@ -87,6 +90,7 @@ class AppwriteSyncManager {
   final AppDatabase database;
   final OutboxDao outboxDao;
   late final BookingsRepository _bookingsRepository;
+  late final RoomsRepository _roomsRepository;
   late final AdapterRegistry _adapterRegistry;
   final SyncMutex _mutex = SyncMutex();
 
@@ -985,6 +989,31 @@ class AppwriteSyncManager {
               tag: 'SYNC',
             );
           }
+
+          // ✅ إعادة حساب حالة إشغال الغرف بناءً على الحجوزات النشطة
+          // هذا يضمن أن الغرف التي تم تسجيل خروج نزلائها تظهر كـ "شاغرة"
+          // والغرف التي بها حجوزات نشطة تظهر كـ "محجوزة" - بغض النظر عن
+          // حالة الغرفة المخزنة على Appwrite (التي قد تكون قديمة/غير محدثة)
+          try {
+            await _roomsRepository.refreshAllRoomOccupancy(
+              originIsServer: true,
+            );
+            _logger.info(
+              '🔄 تم إعادة حساب حالة إشغال الغرف بعد المزامنة',
+              tag: 'SYNC',
+            );
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ فشل إعادة حساب حالة إشغال الغرف: $e',
+              tag: 'SYNC',
+            );
+            await CrashlyticsService.instance.recordSyncError(
+              operation: 'refresh_room_occupancy',
+              error: e.toString(),
+              stackTrace: st,
+              context: {'phase': 'post_sync'},
+            );
+          }
         } finally {
           // إعادة تفعيل Foreign Keys بعد انتهاء السحب
           await database.customStatement('PRAGMA foreign_keys=ON');
@@ -1326,10 +1355,21 @@ class AppwriteSyncManager {
   Future<int> _syncBookings(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    final affectedRoomNumbers = <String>{};
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ حفظ حالة الحجز القديمة قبل التحديث لمقارنتها
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existingBooking = await (database.select(database.bookings)
+              ..where((b) => b.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        final oldStatus = existingBooking?.status;
+        final oldRoomNumber = existingBooking?.roomNumber;
+
         await _adapterRegistry.bookings.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -1337,7 +1377,6 @@ class AppwriteSyncManager {
 
         // TRIGGER POST-SYNC PROCESSING
         // 1. Resolve local ID from UUID
-        final localUuid = (data['localUuid'] as String?) ?? '';
         final booking = await (database.select(database.bookings)
               ..where((b) => b.localUuid.equals(localUuid)))
             .getSingleOrNull();
@@ -1345,9 +1384,35 @@ class AppwriteSyncManager {
         if (booking != null) {
           // 2. Convert legacy discount to adjustments
           await _bookingsRepository.syncLegacyDiscountToAdjustments(booking.id);
-          
+
           // 3. Recalculate derived fields (nightly rates, total due)
           await _bookingsRepository.derivedFields.refreshForBookingId(booking.id);
+
+          // ✅ 4. تتبع الغرف المتأثرة بتغيير حالة الحجز
+          // إذا تغيرت الحالة من نشطة إلى غير نشطة (مثل تسجيل الخروج)
+          // نحتاج لإعادة حساب حالة الإشغال للغرفة
+          final newStatus = booking.status;
+          final newRoomNumber = booking.roomNumber;
+
+          final statusChanged = oldStatus != null && oldStatus != newStatus;
+          final wasActive = oldStatus != null &&
+              StatusUtils.isActiveBooking(oldStatus);
+          final isNowActive = StatusUtils.isActiveBooking(newStatus);
+
+          if (statusChanged && wasActive != isNowActive) {
+            // الحالة تغيرت بين نشطة وغير نشطة - أضف الغرفة للقائمة
+            if (oldRoomNumber != null && oldRoomNumber.isNotEmpty) {
+              affectedRoomNumbers.add(oldRoomNumber);
+            }
+            if (newRoomNumber.isNotEmpty) {
+              affectedRoomNumbers.add(newRoomNumber);
+            }
+          } else if (existingBooking == null) {
+            // حجز جديد من المزامنة - أضف الغرفة للقائمة
+            if (newRoomNumber.isNotEmpty) {
+              affectedRoomNumbers.add(newRoomNumber);
+            }
+          }
         }
 
         processed++;
@@ -1355,7 +1420,67 @@ class AppwriteSyncManager {
         _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
       }
     }
+
+    // ✅ إعادة حساب حالة الإشغال للغرف المتأثرة فقط (تحسين الأداء)
+    if (affectedRoomNumbers.isNotEmpty) {
+      try {
+        for (final roomNumber in affectedRoomNumbers) {
+          await _refreshSingleRoomOccupancy(roomNumber);
+        }
+        _logger.debug(
+          '🔄 تم تحديث حالة ${affectedRoomNumbers.length} غرفة متأثرة بتغييرات الحجوزات',
+          tag: 'SYNC',
+        );
+      } catch (e) {
+        _logger.warning(
+          '⚠️ فشل تحديث حالة الغرف المتأثرة: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+
     return processed;
+  }
+
+  /// ✅ إعادة حساب حالة إشغال غرفة واحدة بناءً على الحجوزات النشطة
+  /// يستخدم RoomsRepository لضمان تحديث version و lastModified
+  Future<void> _refreshSingleRoomOccupancy(String roomNumber) async {
+    try {
+      // التحقق من وجود حجز نشط للغرفة
+      final activeBooking = await _bookingsRepository.getActiveBookingForRoom(
+        roomNumber,
+      );
+
+      final room = await (database.select(database.rooms)
+            ..where((r) => r.roomNumber.equals(roomNumber))
+            ..limit(1))
+          .getSingleOrNull();
+
+      if (room == null || room.deletedAt != null) return;
+
+      final shouldBeOccupied = activeBooking != null;
+      final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
+      final isCurrentlyAvailable = StatusUtils.isRoomAvailable(room.status);
+
+      if (shouldBeOccupied && !isCurrentlyOccupied) {
+        await _roomsRepository.updateByRoomNumber(
+          roomNumber,
+          status: StatusUtils.roomStatusForOccupancy(true),
+          originIsServer: true,
+        );
+      } else if (!shouldBeOccupied && !isCurrentlyAvailable) {
+        await _roomsRepository.updateByRoomNumber(
+          roomNumber,
+          status: StatusUtils.roomStatusForOccupancy(false),
+          originIsServer: true,
+        );
+      }
+    } catch (e) {
+      _logger.warning(
+        '⚠️ فشل تحديث حالة الغرفة $roomNumber: $e',
+        tag: 'SYNC',
+      );
+    }
   }
 
   Future<int> _syncEmployees(List<models.Document> documents) async {

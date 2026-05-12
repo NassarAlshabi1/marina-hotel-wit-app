@@ -161,7 +161,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
         itemBuilder: (context, index) {
           final floorNumber = sortedFloors[index];
           final floorRooms = floorMap[floorNumber]!;
-          final availableCount = floorRooms.where((r) => StatusUtils.isRoomAvailable(r.room.status)).length;
+          // ✅ حساب الغرف المتاحة بناءً على الحجز النشط بدلاً من room.status المخزن
+          final availableCount = floorRooms.where((r) => !r.hasActiveBooking && r.room.status != 'صيانة' && r.room.status != 'maintenance').length;
           
           return RepaintBoundary(
             child: _FloorExpansionTile(
@@ -350,7 +351,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              room.status,
+              room.status,  // ✅ room.status سيكون صحيحاً بعد refreshAllRoomOccupancy
               style: TextStyle(color: color, fontWeight: FontWeight.bold),
             ),
           ),
@@ -798,7 +799,8 @@ class _RoomGridCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final room = roomData.room;
-    final isAvailable = StatusUtils.isRoomAvailable(room.status);
+    // ✅ استخدام displayStatus المشتق من الحجز النشط بدلاً من room.status المخزن
+    final isAvailable = !roomData.hasActiveBooking && room.status != 'صيانة' && room.status != 'maintenance';
     // استخدام اللون التلقائي من الموديل
     final cardColor = roomData.roomColor;
 
@@ -853,7 +855,7 @@ class _RoomGridCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  room.status,
+                  roomData.displayStatus,
                   style: TextStyle(
                     fontSize: 9,
                     color: cardColor,
@@ -891,7 +893,8 @@ class _RoomListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final room = roomData.room;
-    final isAvailable = StatusUtils.isRoomAvailable(room.status);
+    // ✅ استخدام displayStatus المشتق من الحجز النشط بدلاً من room.status المخزن
+    final isAvailable = !roomData.hasActiveBooking && room.status != 'صيانة' && room.status != 'maintenance';
     // استخدام اللون التلقائي من الموديل
     final statusColor = roomData.roomColor;
 
@@ -990,7 +993,7 @@ class _RoomListCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      room.status,
+                      roomData.displayStatus,
                       style: TextStyle(
                         color: statusColor,
                         fontWeight: FontWeight.w600,

@@ -1,15 +1,14 @@
 import 'dart:developer' as developer;
 
 import 'package:appwrite/appwrite.dart';
-import 'package:drift/drift.dart' as drift;
 
-import '../utils/status_utils.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_service.dart';
 import 'local_db.dart';
+import 'repositories/rooms_repository.dart';
 
 /// ✅ خدمة السحب الشامل من Appwrite
 /// تجلب جميع البيانات بدون أي فلترة - كل الجداول وكل الحقول
@@ -346,37 +345,14 @@ class AppwriteFullPull {
   }
 
   /// تحديث حالة إشغال الغرف
+  /// ✅ يستخدم RoomsRepository.refreshAllRoomOccupancy() لضمان:
+  /// - تحديث version و lastModified مع كل تغيير
+  /// - التحقق من الحالة الحالية قبل التحديث (تجنب التحديثات غير الضرورية)
+  /// - دعم جميع حالات الغرف (شاغرة، محجوزة، صيانة، إلخ) عبر StatusUtils
   Future<void> _refreshRoomOccupancy() async {
     try {
-      final bookings = await _database!.select(_database!.bookings).get();
-
-      final occupiedRooms = <String>{};
-      for (final booking in bookings) {
-        // ✅ استخدام StatusUtils للتحقق من الحجوزات النشطة
-        // يدعم جميع حالات الحجز: محجوزة، نشط، active، confirmed، مؤقت، إلخ
-        if (booking.deletedAt == null &&
-            StatusUtils.isActiveBooking(booking.status)) {
-          occupiedRooms.add(booking.roomNumber);
-        }
-      }
-
-      final rooms = await _database!.select(_database!.rooms).get();
-
-      for (final room in rooms) {
-        if (room.deletedAt != null) {
-          continue;
-        }
-
-        final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
-        final newStatus = shouldBeOccupied ? 'محجوزة' : 'شاغرة';
-
-        if (room.status != newStatus) {
-          final query = _database!.update(_database!.rooms)
-            ..where((t) => t.id.equals(room.id));
-          await query.write(RoomsCompanion(status: drift.Value(newStatus)));
-        }
-      }
-
+      final roomsRepo = RoomsRepository(_database!);
+      await roomsRepo.refreshAllRoomOccupancy(originIsServer: true);
       _logger.info('🔄 تم تحديث حالة إشغال الغرف', tag: 'FULL_PULL');
     } catch (e) {
       _logger.warning('⚠️ فشل تحديث حالة الإشغال: $e', tag: 'FULL_PULL');
