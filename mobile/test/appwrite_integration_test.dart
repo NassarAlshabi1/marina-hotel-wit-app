@@ -1,16 +1,15 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
+import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/appwrite_config.dart';
 
 const String devKey = String.fromEnvironment(
   'APPWRITE_DEV_KEY',
-  defaultValue: '',
 );
 
 void main() {
   final bool hasDevKey = devKey.isNotEmpty;
-  final String skipReason =
+  const String skipReason =
       'APPWRITE_DEV_KEY not provided; skipping integration test.';
 
   test(

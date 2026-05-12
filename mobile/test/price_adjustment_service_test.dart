@@ -1,6 +1,6 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/price_adjustment_service.dart';
 import 'package:marina_hotel_mobile/utils/time.dart';
@@ -20,7 +20,7 @@ void main() {
 
   group('تعديل السعر أثناء الإقامة', () {
     test('السيناريو: دخول يوم 5 بسعر 10000، رفع السعر يوم 10 إلى 12000', () async {
-      final roomUuid = 'room-101-uuid';
+      const roomUuid = 'room-101-uuid';
       await db.into(db.rooms).insert(RoomsCompanion(
         localUuid: Value(roomUuid),
         roomNumber: const Value('101'),
@@ -32,7 +32,7 @@ void main() {
         lastModified: Value(Time.nowEpoch()),
       ));
 
-      final bookingUuid = 'booking-guest-uuid';
+      const bookingUuid = 'booking-guest-uuid';
       final bookingId = await db.into(db.bookings).insert(BookingsCompanion(
         localUuid: Value(bookingUuid),
         roomNumber: const Value('101'),
@@ -119,7 +119,7 @@ void main() {
             ..where((b) => b.id.equals(bookingId)))
           .getSingle();
 
-      final expectedTotal = (5 * 10000.0) + (5 * 12000.0);
+      const expectedTotal = (5 * 10000.0) + (5 * 12000.0);
       expect(updatedBooking.totalDueCached, expectedTotal);
       expect(updatedBooking.remainingBalanceCached, expectedTotal);
 

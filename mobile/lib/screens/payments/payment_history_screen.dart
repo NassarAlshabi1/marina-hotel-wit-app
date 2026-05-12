@@ -135,7 +135,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           );
         }
 
-        var payments = snapshot.data!;
+        var payments = snapshot.data;
         payments = _applyFilters(payments);
 
         if (payments.isEmpty) {
