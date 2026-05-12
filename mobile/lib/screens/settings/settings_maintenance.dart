@@ -105,7 +105,7 @@ class _SettingsMaintenanceScreenState
     int dbSizeBytes = 0;
     for (final ext in ['', '-wal', '-shm']) {
       final file = File(p.join(dbDir, 'marina_hotel.db$ext'));
-      if (await file.exists()) {
+      if (file.existsSync()) {
         dbSizeBytes += await file.length();
       }
     }
@@ -685,7 +685,7 @@ class _SettingsMaintenanceScreenState
     int total = 0;
     for (final ext in ['', '-wal', '-shm']) {
       final file = File(p.join(dbDir, 'marina_hotel.db$ext'));
-      if (await file.exists()) {
+      if (file.existsSync()) {
         total += await file.length();
       }
     }

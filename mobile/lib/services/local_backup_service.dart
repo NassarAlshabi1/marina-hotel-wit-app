@@ -111,7 +111,7 @@ class LocalBackupService {
         selectedDir = await getApplicationDocumentsDirectory();
       }
 
-      if (!await selectedDir.exists()) {
+      if (!selectedDir.existsSync()) {
         await selectedDir.create(recursive: true);
         debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي: ${selectedDir.path}');
       }
@@ -169,26 +169,29 @@ class LocalBackupService {
         final guestInfosData = await db.select(db.guestInfos).get();
         final salaryWithdrawalsData = await db.select(db.salaryWithdrawals).get();
 
-        final totalRecords =
-            roomsData.length +
-            bookingsData.length +
-            bookingNotesData.length +
-            employeesData.length +
-            expensesData.length +
-            cashTransactionsData.length +
-            paymentsData.length +
-            debtsData.length +
-            bookingNightsData.length +
-            ledgerData.length +
-            shiftNotesData.length +
-            salaryCyclesData.length +
-            salaryPaymentsData.length +
-            priceAdjustmentsData.length +
-            bookingPriceAdjData.length +
-            auditLogsData.length +
-            paymentVoidsData.length +
-            guestInfosData.length +
-            salaryWithdrawalsData.length;
+        final tableData = BackupTableData(
+          roomsData: roomsData,
+          bookingsData: bookingsData,
+          bookingNotesData: bookingNotesData,
+          bookingNightsData: bookingNightsData,
+          ledgerData: ledgerData,
+          shiftNotesData: shiftNotesData,
+          employeesData: employeesData,
+          expensesData: expensesData,
+          cashTransactionsData: cashTransactionsData,
+          paymentsData: paymentsData,
+          debtsData: debtsData,
+          salaryCyclesData: salaryCyclesData,
+          salaryPaymentsData: salaryPaymentsData,
+          priceAdjustmentsData: priceAdjustmentsData,
+          bookingPriceAdjData: bookingPriceAdjData,
+          auditLogsData: auditLogsData,
+          paymentVoidsData: paymentVoidsData,
+          guestInfosData: guestInfosData,
+          salaryWithdrawalsData: salaryWithdrawalsData,
+        );
+
+        final totalRecords = tableData.totalRecords;
 
         final metadata = BackupMetadata(
           appVersion: '1.2.0+3',
@@ -198,59 +201,12 @@ class LocalBackupService {
           deviceInfo: deviceLabel,
         );
 
-        final backupData = {
-          'metadata': metadata.toJson(),
-          'rooms': roomsData.map((room) => room.toJson()).toList(),
-          'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
-          'booking_notes': bookingNotesData
-              .map((note) => note.toJson())
-              .toList(),
-          'employees': employeesData
-              .map((employee) => employee.toJson())
-              .toList(),
-          'expenses': expensesData.map((expense) => expense.toJson()).toList(),
-          'cash_transactions': cashTransactionsData
-              .map((transaction) => transaction.toJson())
-              .toList(),
-          'payments': paymentsData.map((payment) => payment.toJson()).toList(),
-          'debts': debtsData.map((debt) => debt.toJson()).toList(),
-          'booking_nights': bookingNightsData
-              .map((night) => night.toJson())
-              .toList(),
-          'hotel_day_ledger': ledgerData
-              .map((entry) => entry.toJson())
-              .toList(),
-          'shift_notes': shiftNotesData
-              .map((note) => note.toJson())
-              .toList(),
-          'salary_cycles': salaryCyclesData
-              .map((cycle) => cycle.toJson())
-              .toList(),
-          'salary_payments': salaryPaymentsData
-              .map((payment) => payment.toJson())
-              .toList(),
-          'price_adjustments': priceAdjustmentsData
-              .map((adj) => adj.toJson())
-              .toList(),
-          'booking_price_adjustments': bookingPriceAdjData
-              .map((adj) => adj.toJson())
-              .toList(),
-          'audit_logs': auditLogsData
-              .map((log) => log.toJson())
-              .toList(),
-          'payment_voids': paymentVoidsData
-              .map((v) => v.toJson())
-              .toList(),
-          'guest_infos': guestInfosData
-              .map((g) => g.toJson())
-              .toList(),
-          'salary_withdrawals': salaryWithdrawalsData
-              .map((s) => s.toJson())
-              .toList(),
-          'sync_state': syncStateData.isNotEmpty
+        final backupData = tableData.toBackupDataMap(
+          metadata: metadata.toJson(),
+          syncStateData: syncStateData.isNotEmpty
               ? syncStateData.first.toJson()
               : <String, dynamic>{},
-        };
+        );
 
         final filePath = '${backupDir.path}/$baseName.json.gz';
         final file = File(filePath);
@@ -396,7 +352,7 @@ class LocalBackupService {
     try {
       final backupDir = await getBackupDirectory();
 
-      if (!await backupDir.exists()) {
+      if (!backupDir.existsSync()) {
         return [];
       }
 
@@ -446,7 +402,7 @@ class LocalBackupService {
             }
           } else {
             final metadataFile = File(_metadataFilePath(file.path));
-            if (await metadataFile.exists()) {
+            if (metadataFile.existsSync()) {
               final metaContent = await metadataFile.readAsString();
               metadata = BackupMetadata.fromJson(
                 jsonDecode(metaContent) as Map<String, dynamic>,
@@ -504,7 +460,7 @@ class LocalBackupService {
 
   Future<void> _restoreFromJsonBackup(String filePath) async {
     final file = File(filePath);
-    if (!await file.exists()) {
+    if (!file.existsSync()) {
       throw Exception('ملف النسخة الاحتياطية غير موجود');
     }
 
@@ -654,13 +610,13 @@ class LocalBackupService {
 
   Future<void> _restoreFromSqliteBackup(String filePath) async {
     final file = File(filePath);
-    if (!await file.exists()) {
+    if (!file.existsSync()) {
       throw Exception('ملف النسخة الاحتياطية غير موجود');
     }
 
     BackupMetadata? metadata;
     final metadataFile = File(_metadataFilePath(filePath));
-    if (await metadataFile.exists()) {
+    if (metadataFile.existsSync()) {
       final metaContent = await metadataFile.readAsString();
       metadata = BackupMetadata.fromJson(
         jsonDecode(metaContent) as Map<String, dynamic>,
@@ -704,7 +660,7 @@ class LocalBackupService {
   Future<void> _deleteSidecarFiles(String dbPath) async {
     for (final suffix in ['-wal', '-shm']) {
       final file = File('$dbPath$suffix');
-      if (await file.exists()) {
+      if (file.existsSync()) {
         try {
           await file.delete();
         } catch (e) {
@@ -718,7 +674,7 @@ class LocalBackupService {
   Future<void> shareBackup(String filePath) async {
     try {
       final file = File(filePath);
-      if (!await file.exists()) {
+      if (!file.existsSync()) {
         throw Exception('ملف النسخة الاحتياطية غير موجود');
       }
 
@@ -851,7 +807,7 @@ class LocalBackupService {
   Future<void> deleteLocalBackup(String filePath) async {
     try {
       final file = File(filePath);
-      if (await file.exists()) {
+      if (file.existsSync()) {
         await file.delete();
         debugPrint('✅ تم حذف النسخة الاحتياطية: $filePath');
       }
@@ -1007,7 +963,7 @@ class LocalBackupService {
 
       return {
         'path': backupDir.path,
-        'exists': await backupDir.exists(),
+        'exists': backupDir.existsSync(),
         'backups_count': backups.length,
         'total_size_bytes': totalSize,
         'total_size_mb': (totalSize / (1024 * 1024)).toStringAsFixed(2),

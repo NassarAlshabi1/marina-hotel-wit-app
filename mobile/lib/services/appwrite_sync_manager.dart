@@ -105,9 +105,63 @@ class AppwriteSyncManager {
   int? _deviceVersion;
   int? _deviceCreatedAtEpoch;
   String? _fcmToken; // توكن FCM للإشعارات بين الأجهزة
+  bool? _remoteEpochIsMillis;
 
   final _syncController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
+
+  Future<bool> _isRemoteEpochMillis() async {
+    final cached = _remoteEpochIsMillis;
+    if (cached != null) {
+      return cached;
+    }
+    try {
+      final info = appwriteService.getProjectInfo();
+      final dbId = info['databaseId'] ?? AppwriteConfig.databaseId;
+
+      final list = await appwriteService.databases.listDocuments(
+        databaseId: dbId,
+        collectionId: AppwriteConfig.roomsCollectionId,
+        queries: [Query.limit(1)],
+      );
+
+      if (list.documents.isEmpty) {
+        _remoteEpochIsMillis = false;
+        return false;
+      }
+
+      final data = list.documents.first.data;
+      final raw =
+          data['lastModified'] ?? data['last_modified'] ?? data['last_modified_epoch'];
+
+      final value = raw is int
+          ? raw
+          : raw is num
+          ? raw.toInt()
+          : raw is String
+          ? int.tryParse(raw)
+          : null;
+
+      final isMillis = value != null && value > 10000000000;
+      _remoteEpochIsMillis = isMillis;
+      return isMillis;
+    } catch (_) {
+      _remoteEpochIsMillis = false;
+      return false;
+    }
+  }
+
+  Future<List<String>> _buildDeltaQueries(int lastPullTs) async {
+    if (lastPullTs <= 0) {
+      return [];
+    }
+    final cutoffSeconds = lastPullTs - 5;
+    final isMillis = await _isRemoteEpochMillis();
+    if (isMillis) {
+      return [Query.greaterThan('lastModified', cutoffSeconds * 1000)];
+    }
+    return [Query.greaterThan('lastModified', cutoffSeconds)];
+  }
 
   /// تهيئة المزامنة
   Future<void> initialize() async {
@@ -617,11 +671,11 @@ class AppwriteSyncManager {
 
           // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
           final lastPullTs = await _getLastPullTs();
-          final deltaQ = _deltaQueries(lastPullTs);
+          final deltaQ = await _buildDeltaQueries(lastPullTs);
           final isDelta = deltaQ.isNotEmpty;
           if (isDelta) {
             _logger.info(
-              '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs).toIso8601String()}',
+              '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs * 1000).toIso8601String()}',
               tag: 'SYNC',
             );
           } else {
@@ -757,10 +811,14 @@ class AppwriteSyncManager {
             recordsPulled += await _timePhase('syncBookingNights', () async {
               // booking_nights يستخدم lastPullTs خاص به (مستقل عن باقي الجداول)
               final nightsPullTs = await _getBookingNightsPullTs();
-              final nightsDeltaQ = _bookingNightsDeltaQueries(nightsPullTs);
+              final remoteEpochIsMillis = await _isRemoteEpochMillis();
+              final nightsDeltaQ = _bookingNightsDeltaQueries(
+                nightsPullTs,
+                remoteEpochIsMillis: remoteEpochIsMillis,
+              );
               if (nightsDeltaQ.isNotEmpty) {
                 _logger.info(
-                  '🔄 booking_nights Delta: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(nightsPullTs).toIso8601String()}',
+                  '🔄 booking_nights Delta: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(nightsPullTs * 1000).toIso8601String()}',
                   tag: 'SYNC',
                 );
               }
@@ -1040,7 +1098,7 @@ class AppwriteSyncManager {
           'errorMessage': errorMessage ?? '',
         },
       );
-      WhatsAppNotificationService.instance.notifySyncError(
+      await WhatsAppNotificationService.instance.notifySyncError(
         operation: 'sync',
         // ignore: dead_null_aware_expression
           error: errorMessage ?? e.toString(),
@@ -1512,7 +1570,9 @@ class AppwriteSyncManager {
     int totalProcessed = 0;
 
     while (true) {
-      final entries = await outboxDao.takeBatch(batchSize);
+      // ✅ فصل هندسي: نعالج فقط عناصر source='local' (تغييرات محلية)
+      // عناصر 'restore' تُعالج بشكل منفصل عبر pushAllLocalData
+      final entries = await outboxDao.takeBatch(batchSize, sources: const ['local']);
       if (entries.isEmpty) {
         break;
       }
@@ -2059,7 +2119,11 @@ class AppwriteSyncManager {
   /// قراءة آخر timestamp خاص بـ booking_nights من SharedPreferences
   Future<int> _getBookingNightsPullTs() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('sync_last_pull_booking_nights') ?? 0;
+    final ts = prefs.getInt('sync_last_pull_booking_nights') ?? 0;
+    if (ts > 10000000000) {
+      return ts ~/ 1000;
+    }
+    return ts;
   }
 
   /// تحديث آخر timestamp خاص بـ booking_nights
@@ -2069,9 +2133,15 @@ class AppwriteSyncManager {
   }
 
   /// بناء delta queries خاصة بـ booking_nights
-  List<String> _bookingNightsDeltaQueries(int lastPullTs) {
+  List<String> _bookingNightsDeltaQueries(
+    int lastPullTs, {
+    required bool remoteEpochIsMillis,
+  }) {
     if (lastPullTs > 0) {
       final cutoff = lastPullTs - 5;
+      if (remoteEpochIsMillis) {
+        return [Query.greaterThan('lastModified', cutoff * 1000)];
+      }
       return [Query.greaterThan('lastModified', cutoff)];
     }
     return []; // full fetch
@@ -2080,6 +2150,7 @@ class AppwriteSyncManager {
   /// تنظيف outbox بعد سحب البيانات من السحابة بنجاح.
   /// يحذف عناصر outbox التي تتطابق مع بيانات تم سحبها فعلياً (بنفس entity + localUuid).
   /// المنطق: إذا السحابة أرسلت هذا السجل فلا حاجة لإعادة إرساله عبر outbox.
+  /// ✅ فصل هندسي: يحذف فقط عناصر source='local' — لا يمس عناصر 'restore'
   Future<int> _cleanupOutboxAfterPull() async {
     int totalRemoved = 0;
 
@@ -2108,9 +2179,9 @@ class AppwriteSyncManager {
 
     for (final entity in entityUuidMap.keys) {
       try {
-        // جلب UUIDs من outbox لهذا الكيان فقط
+        // جلب UUIDs من outbox لهذا الكيان فقط (source='local' فقط)
         final outboxEntries = await (database.select(database.outbox)
-              ..where((t) => t.entity.equals(entity)))
+              ..where((t) => t.entity.equals(entity) & t.source.equals('local')))
             .get();
 
         if (outboxEntries.isEmpty) continue;
@@ -2132,7 +2203,11 @@ class AppwriteSyncManager {
       final state = await (database.select(database.syncState)
             ..where((t) => t.id.equals(1)))
           .getSingleOrNull();
-      return state?.lastPullTs ?? 0;
+      final ts = state?.lastPullTs ?? 0;
+      if (ts > 10000000000) {
+        return ts ~/ 1000;
+      }
+      return ts;
     } catch (_) {
       _logger.warning('Failed to read lastPullTs, using 0', tag: 'SYNC');
       return 0;
@@ -2243,11 +2318,11 @@ class AppwriteSyncManager {
 
         // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
         final lastPullTs = await _getLastPullTs();
-        final deltaQ = _deltaQueries(lastPullTs);
+        final deltaQ = await _buildDeltaQueries(lastPullTs);
         final isDelta = deltaQ.isNotEmpty;
         if (isDelta) {
           _logger.info(
-            '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs).toIso8601String()}',
+            '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs * 1000).toIso8601String()}',
             tag: 'SYNC',
           );
         } else {
@@ -2352,7 +2427,11 @@ class AppwriteSyncManager {
           try {
             // booking_nights يستخدم lastPullTs خاص به (مستقل عن باقي الجداول)
             final nightsPullTs = await _getBookingNightsPullTs();
-            final nightsDeltaQ = _bookingNightsDeltaQueries(nightsPullTs);
+            final remoteEpochIsMillis = await _isRemoteEpochMillis();
+            final nightsDeltaQ = _bookingNightsDeltaQueries(
+              nightsPullTs,
+              remoteEpochIsMillis: remoteEpochIsMillis,
+            );
             final bookingNights = await appwriteService.listBookingNights(
               queries: nightsDeltaQ,
               useCache: false,
@@ -2428,15 +2507,6 @@ class AppwriteSyncManager {
           // تحديث lastPullTs بعد محاولة سحب كل الكولكشنات
           await _updateLastPullTs(Time.nowEpoch());
         });
-
-        // تنظيف outbox بعد السحب الناجح: حذف عناصر outbox التي
-        // تم سحب نفس البيانات من السحابة (لا حاجة لإعادة إرسالها)
-        if (recordsPulled > 0) {
-          final removed = await _cleanupOutboxAfterPull();
-          if (removed > 0) {
-            _logger.info('🧹 تم حذف $removed عنصر من outbox بعد السحب', tag: 'SYNC');
-          }
-        }
 
         _lastSyncTime = DateTime.now();
         await _saveSettings();
@@ -2878,7 +2948,7 @@ class AppwriteSyncManager {
         error: e,
         stackTrace: stackTrace,
       );
-      WhatsAppNotificationService.instance.notifySyncError(
+      await WhatsAppNotificationService.instance.notifySyncError(
         operation: 'bulk_push',
         error: e.toString(),
       );

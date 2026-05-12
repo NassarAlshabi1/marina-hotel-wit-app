@@ -261,7 +261,7 @@ class SyncService {
       );
     });
 
-    await RoomsRepository(db).refreshAllRoomOccupancy();
+    await RoomsRepository(db).refreshAllRoomOccupancy(originIsServer: true);
   }
 
   Future<void> _applyServerId(

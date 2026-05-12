@@ -119,10 +119,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     child: Text('حدث خطأ أثناء تحميل المصروفات.'),
                   );
                 }
-                if (!snapshot.hasData) {
+                final expensesData = snapshot.data;
+                if (expensesData == null) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final filteredExpenses = snapshot.data!;
+                final filteredExpenses = expensesData;
 
                 return RefreshIndicator(
                   onRefresh: () async {
@@ -444,9 +445,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           ? CurrencyFormatter.formatAmount(existing.amount)
           : '',
     );
-    final date = TextEditingController(
-      text: existing?.date ?? Time.hotelDayKey(),
-    );
+    DateTime selectedDate;
+    try {
+      selectedDate = DateTime.parse(existing?.date ?? Time.hotelDayKey());
+    } catch (_) {
+      selectedDate = DateTime.now();
+    }
 
     try {
     String dialogSalaryAction = _salaryWithdrawAction;
@@ -567,10 +571,27 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     decoration: const InputDecoration(labelText: 'الوصف'),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: date,
-                    decoration: const InputDecoration(
-                      labelText: 'التاريخ YYYY-MM-DD',
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) {
+                        setState(() => selectedDate = picked);
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'التاريخ',
+                        suffixIcon: Icon(Icons.calendar_today),
+                      ),
+                      child: Text(
+                        DateFormat('yyyy-MM-dd').format(selectedDate),
+                        style: Theme.of(ctx).textTheme.bodyMedium,
+                      ),
                     ),
                   ),
                 ],
@@ -621,9 +642,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
     final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
     final trimmedDescription = description.text.trim();
-    final trimmedDate = date.text.trim().isEmpty
-        ? Time.hotelDayKey()
-        : date.text.trim();
+    final trimmedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
     final isSalaryExpense = selectedType == _salaryType;
     final savedType = isSalaryExpense
         ? _deriveSalaryExpenseType(dialogSalaryAction)
@@ -708,7 +727,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     } finally {
       description.dispose();
       amount.dispose();
-      date.dispose();
     }
   }
 

@@ -172,7 +172,7 @@ class FileManagementService {
     for (final path in backupPaths) {
       try {
         final file = File(path);
-        if (!await file.exists()) {
+        if (!file.existsSync()) {
           continue;
         }
 
@@ -205,7 +205,7 @@ class FileManagementService {
         final sourcePath = filePaths[i];
         final sourceFile = File(sourcePath);
 
-        if (await sourceFile.exists()) {
+        if (sourceFile.existsSync()) {
           final fileName = sourceFile.path.split('/').last;
           final targetPath = '${archiveFolder.path}/${i + 1}_$fileName';
           await sourceFile.copy(targetPath);
@@ -298,7 +298,7 @@ class FileManagementService {
     }
 
     final exportDir = Directory('${baseDir.path}/$_exportFolderName');
-    if (!await exportDir.exists()) {
+    if (!exportDir.existsSync()) {
       await exportDir.create(recursive: true);
     }
 
@@ -310,7 +310,7 @@ class FileManagementService {
     final baseDir = await getApplicationDocumentsDirectory();
     final importDir = Directory('${baseDir.path}/imports');
 
-    if (!await importDir.exists()) {
+    if (!importDir.existsSync()) {
       await importDir.create(recursive: true);
     }
 
@@ -629,7 +629,7 @@ class FileManagementService {
     Directory dir,
     Duration duration,
   ) async {
-    if (!await dir.exists()) {
+    if (!dir.existsSync()) {
       return;
     }
 

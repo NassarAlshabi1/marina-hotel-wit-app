@@ -28,7 +28,7 @@ void main() {
 
   test('isBookingActive reads from booking model', () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(() => database.close());
+    addTearDown(database.close);
 
     await database
         .into(database.rooms)

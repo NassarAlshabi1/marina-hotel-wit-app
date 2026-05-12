@@ -223,7 +223,7 @@ class ComprehensiveAppwriteBackupService {
       // حفظ الملف
       final dir = await getApplicationDocumentsDirectory();
       final backupDir = Directory('${dir.path}/full_backups');
-      if (!await backupDir.exists()) {
+      if (!backupDir.existsSync()) {
         await backupDir.create(recursive: true);
       }
 

@@ -67,7 +67,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           return const Center(child: CircularProgressIndicator());
         }
 
-        final payments = snapshot.data!;
+        final payments = snapshot.data;
 
         return StreamBuilder<List<db.Booking>>(
           stream: ref.read(bookingsRepoProvider).watchList(),

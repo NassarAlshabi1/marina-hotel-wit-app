@@ -53,6 +53,7 @@ class DriftOutboxStorage implements OutboxStorage {
   }
 
   /// تحويل DeltaChange إلى OutboxCompanion
+  /// ✅ فصل هندسي: جميع الإدخالات من هذا المسار تحمل source='local'
   OutboxCompanion _toCompanion(DeltaChange change) {
     return OutboxCompanion(
       entity: Value(change.table),
@@ -69,6 +70,7 @@ class DriftOutboxStorage implements OutboxStorage {
             ? change.nextRetryAt!.millisecondsSinceEpoch ~/ 1000
             : null,
       ),
+      source: const Value('local'),
     );
   }
 

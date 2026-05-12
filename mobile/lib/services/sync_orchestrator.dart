@@ -447,7 +447,7 @@ class SyncOrchestrator {
   }
 
   Future<SyncHealth> getHealth() async {
-    final outboxCount = await _outboxDao.count();
+    final outboxCount = await _outboxDao.count(sources: const ['local']);
 
     return SyncHealth(
       isHealthy:

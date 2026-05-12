@@ -141,3 +141,187 @@ class LenientValueSerializer extends ValueSerializer {
 }
 
 const lenientValueSerializer = LenientValueSerializer();
+
+/// حاوية بيانات الجداول المشتركة بين خدمات النسخ الاحتياطي
+/// لتجنب تكرار قائمة المعاملات الطويلة في كل خدمة نسخ احتياطي
+class BackupTableData {
+  const BackupTableData({
+    required this.roomsData,
+    required this.bookingsData,
+    required this.bookingNotesData,
+    required this.bookingNightsData,
+    required this.ledgerData,
+    required this.shiftNotesData,
+    required this.employeesData,
+    required this.expensesData,
+    required this.cashTransactionsData,
+    required this.paymentsData,
+    required this.debtsData,
+    required this.salaryCyclesData,
+    required this.salaryPaymentsData,
+    required this.priceAdjustmentsData,
+    required this.bookingPriceAdjData,
+    required this.auditLogsData,
+    required this.paymentVoidsData,
+    required this.guestInfosData,
+    required this.salaryWithdrawalsData,
+  });
+
+  final List<dynamic> roomsData;
+  final List<dynamic> bookingsData;
+  final List<dynamic> bookingNotesData;
+  final List<dynamic> bookingNightsData;
+  final List<dynamic> ledgerData;
+  final List<dynamic> shiftNotesData;
+  final List<dynamic> employeesData;
+  final List<dynamic> expensesData;
+  final List<dynamic> cashTransactionsData;
+  final List<dynamic> paymentsData;
+  final List<dynamic> debtsData;
+  final List<dynamic> salaryCyclesData;
+  final List<dynamic> salaryPaymentsData;
+  final List<dynamic> priceAdjustmentsData;
+  final List<dynamic> bookingPriceAdjData;
+  final List<dynamic> auditLogsData;
+  final List<dynamic> paymentVoidsData;
+  final List<dynamic> guestInfosData;
+  final List<dynamic> salaryWithdrawalsData;
+
+  /// إجمالي عدد السجلات في جميع الجداول
+  int get totalRecords =>
+      roomsData.length +
+      bookingsData.length +
+      bookingNotesData.length +
+      bookingNightsData.length +
+      ledgerData.length +
+      shiftNotesData.length +
+      employeesData.length +
+      expensesData.length +
+      cashTransactionsData.length +
+      paymentsData.length +
+      debtsData.length +
+      salaryCyclesData.length +
+      salaryPaymentsData.length +
+      priceAdjustmentsData.length +
+      bookingPriceAdjData.length +
+      auditLogsData.length +
+      paymentVoidsData.length +
+      guestInfosData.length +
+      salaryWithdrawalsData.length;
+
+  /// بناء خريطة بيانات النسخ الاحتياطي من هذه الحاوية
+  Map<String, dynamic> toBackupDataMap({
+    required Map<String, dynamic> metadata,
+    List<dynamic>? blacklistData,
+    Map<String, dynamic>? whatsappSettings,
+    Map<String, dynamic>? syncStateData,
+  }) {
+    return buildBackupDataMap(
+      metadata: metadata,
+      roomsData: roomsData,
+      bookingsData: bookingsData,
+      bookingNotesData: bookingNotesData,
+      bookingNightsData: bookingNightsData,
+      ledgerData: ledgerData,
+      shiftNotesData: shiftNotesData,
+      employeesData: employeesData,
+      expensesData: expensesData,
+      cashTransactionsData: cashTransactionsData,
+      paymentsData: paymentsData,
+      debtsData: debtsData,
+      salaryCyclesData: salaryCyclesData,
+      salaryPaymentsData: salaryPaymentsData,
+      priceAdjustmentsData: priceAdjustmentsData,
+      bookingPriceAdjData: bookingPriceAdjData,
+      auditLogsData: auditLogsData,
+      paymentVoidsData: paymentVoidsData,
+      guestInfosData: guestInfosData,
+      salaryWithdrawalsData: salaryWithdrawalsData,
+      blacklistData: blacklistData,
+      whatsappSettings: whatsappSettings,
+      syncStateData: syncStateData,
+    );
+  }
+}
+
+/// بناء خريطة بيانات النسخ الاحتياطي المشتركة بين Google Drive والنسخ المحلي
+/// لتجنب تكرار كود تحويل الجداول إلى JSON
+Map<String, dynamic> buildBackupDataMap({
+  required Map<String, dynamic> metadata,
+  required List<dynamic> roomsData,
+  required List<dynamic> bookingsData,
+  required List<dynamic> bookingNotesData,
+  required List<dynamic> bookingNightsData,
+  required List<dynamic> ledgerData,
+  required List<dynamic> shiftNotesData,
+  required List<dynamic> employeesData,
+  required List<dynamic> expensesData,
+  required List<dynamic> cashTransactionsData,
+  required List<dynamic> paymentsData,
+  required List<dynamic> debtsData,
+  required List<dynamic> salaryCyclesData,
+  required List<dynamic> salaryPaymentsData,
+  required List<dynamic> priceAdjustmentsData,
+  required List<dynamic> bookingPriceAdjData,
+  required List<dynamic> auditLogsData,
+  required List<dynamic> paymentVoidsData,
+  required List<dynamic> guestInfosData,
+  required List<dynamic> salaryWithdrawalsData,
+  List<dynamic>? blacklistData,
+  Map<String, dynamic>? whatsappSettings,
+  Map<String, dynamic>? syncStateData,
+}) {
+  final backupData = <String, dynamic>{
+    'metadata': metadata,
+    'rooms': roomsData.map((room) => room.toJson()).toList(),
+    'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
+    'booking_notes': bookingNotesData.map((note) => note.toJson()).toList(),
+    'booking_nights': bookingNightsData
+        .map((night) => night.toJson())
+        .toList(),
+    'hotel_day_ledger': ledgerData.map((entry) => entry.toJson()).toList(),
+    'shift_notes': shiftNotesData.map((note) => note.toJson()).toList(),
+    'employees': employeesData.map((employee) => employee.toJson()).toList(),
+    'expenses': expensesData.map((expense) => expense.toJson()).toList(),
+    'cash_transactions': cashTransactionsData
+        .map((transaction) => transaction.toJson())
+        .toList(),
+    'payments': paymentsData.map((payment) => payment.toJson()).toList(),
+    'debts': debtsData.map((debt) => debt.toJson()).toList(),
+    'salary_cycles': salaryCyclesData
+        .map((cycle) => cycle.toJson())
+        .toList(),
+    'salary_payments': salaryPaymentsData
+        .map((payment) => payment.toJson())
+        .toList(),
+    'price_adjustments': priceAdjustmentsData
+        .map((adj) => adj.toJson())
+        .toList(),
+    'booking_price_adjustments': bookingPriceAdjData
+        .map((adj) => adj.toJson())
+        .toList(),
+    'audit_logs': auditLogsData.map((log) => log.toJson()).toList(),
+    'payment_voids': paymentVoidsData.map((v) => v.toJson()).toList(),
+    'guest_infos': guestInfosData.map((g) => g.toJson()).toList(),
+    'salary_withdrawals': salaryWithdrawalsData
+        .map((s) => s.toJson())
+        .toList(),
+  };
+
+  // إعدادات الواتساب (اختياري)
+  if (whatsappSettings != null && whatsappSettings.isNotEmpty) {
+    backupData['whatsapp_settings'] = whatsappSettings;
+  }
+
+  // القائمة السوداء (اختياري)
+  if (blacklistData != null) {
+    backupData['blacklist'] = blacklistData.map((e) => e.toJson()).toList();
+  }
+
+  // حالة المزامنة (اختياري)
+  if (syncStateData != null) {
+    backupData['sync_state'] = syncStateData;
+  }
+
+  return backupData;
+}

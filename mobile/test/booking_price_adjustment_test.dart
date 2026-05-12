@@ -1,10 +1,10 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/booking_price_adjustment_service.dart';
-import 'package:marina_hotel_mobile/utils/time.dart';
+import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/utils/id.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
 
 AppDatabase _createTestDb() {
   return AppDatabase.forTesting(NativeDatabase.memory());
@@ -233,7 +233,7 @@ void main() {
           .getSingle();
 
       for (var i = 0; i < 15; i++) {
-        final hotelDay = DateTime(2025, 2, 1).add(Duration(days: i));
+        final hotelDay = DateTime(2025, 2).add(Duration(days: i));
         final hotelDayKey = '${hotelDay.year}-${hotelDay.month.toString().padLeft(2, '0')}-${hotelDay.day.toString().padLeft(2, '0')}';
         await db.into(db.bookingNights).insert(BookingNightsCompanion(
           localUuid: Value(IdGen.uuid()),
@@ -458,7 +458,7 @@ void main() {
           .getSingle();
 
       for (var i = 0; i < 10; i++) {
-        final hotelDay = DateTime(2025, 1, 1).add(Duration(days: i));
+        final hotelDay = DateTime(2025).add(Duration(days: i));
         final hotelDayKey = '${hotelDay.year}-${hotelDay.month.toString().padLeft(2, '0')}-${hotelDay.day.toString().padLeft(2, '0')}';
         await db.into(db.bookingNights).insert(BookingNightsCompanion(
           localUuid: Value(IdGen.uuid()),

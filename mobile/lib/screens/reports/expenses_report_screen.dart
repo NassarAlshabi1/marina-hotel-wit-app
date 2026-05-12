@@ -16,6 +16,7 @@ import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
+import 'report_page_scaffold.dart';
 
 /// أيقونات وألوان لأنواع المصروفات
 const _typeConfig = <String, _ExpenseTypeConfig>{
@@ -542,95 +543,64 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
+    return ReportPageScaffold(
       title: widget.title,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.picture_as_pdf),
-          tooltip: 'تصدير PDF',
-          onPressed: _rows.isEmpty ? null : _exportPdf,
-        ),
-      ],
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // فلتر التاريخ المشترك
-            ReportDateFilterWidget(
-              controller: _filterController,
-              onDateRangeChanged: (range) {
-                setState(() {
-                  _fromDate = range.from;
-                  _toDate = range.to;
-                });
-                _fetchReport();
-              },
-            ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (widget.showTypeFilter)
-                  SizedBox(
-                    width: 160,
-                    child: DropdownButtonFormField<String?>(
-                      initialValue: _selectedType,
-                      decoration: InputDecoration(
-                        labelText: widget.typeLabel,
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                      ),
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
-                      items: [
-                        DropdownMenuItem<String?>(
-                          child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
-                        ),
-                        ..._availableTypes.map(
-                          (type) => DropdownMenuItem<String?>(
-                            value: type,
-                            child: Text(type, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
-                          ),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedType = value;
-                        });
-                      },
-                    ),
+      filterController: _filterController,
+      onDateRangeChanged: (range) {
+        setState(() {
+          _fromDate = range.from;
+          _toDate = range.to;
+        });
+        _fetchReport();
+      },
+      onExportPdf: _exportPdf,
+      onSearch: _fetchReport,
+      isPdfEnabled: _rows.isNotEmpty,
+      isLoading: _loading,
+      filterWidgets: [
+        if (widget.showTypeFilter)
+          SizedBox(
+            width: 160,
+            child: DropdownButtonFormField<String?>(
+              initialValue: _selectedType,
+              decoration: InputDecoration(
+                labelText: widget.typeLabel,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              ),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
+              items: [
+                DropdownMenuItem<String?>(
+                  child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
+                ),
+                ..._availableTypes.map(
+                  (type) => DropdownMenuItem<String?>(
+                    value: type,
+                    child: Text(type, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
                   ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    textStyle: const TextStyle(fontSize: 11),
-                  ),
-                  onPressed: _loading ? null : _fetchReport,
-                  icon: const Icon(Icons.search, size: 16),
-                  label: Text(_loading ? 'جارٍ...' : 'بحث'),
                 ),
               ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedType = value;
+                });
+              },
             ),
-            const SizedBox(height: 6),
-            _buildDetailedSummary(),
-            const SizedBox(height: 6),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _rows.isEmpty
-                  ? const EmptyState(
-                      title: 'لا توجد بيانات',
-                      message: 'لم يتم العثور على مصروفات ضمن النطاق المحدد.',
-                      icon: Icons.receipt_long,
-                    )
-                  : ListView(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      children: _buildGroupedList(),
-                    ),
+          ),
+      ],
+      summaryWidget: _buildDetailedSummary(),
+      contentWidget: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _rows.isEmpty
+          ? const EmptyState(
+              title: 'لا توجد بيانات',
+              message: 'لم يتم العثور على مصروفات ضمن النطاق المحدد.',
+              icon: Icons.receipt_long,
+            )
+          : ListView(
+              padding: const EdgeInsets.only(bottom: 8),
+              children: _buildGroupedList(),
             ),
-          ],
-        ),
-      ),
     );
   }
 

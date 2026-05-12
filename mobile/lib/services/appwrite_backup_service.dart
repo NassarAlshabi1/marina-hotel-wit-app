@@ -175,7 +175,7 @@ class AppwriteBackupService {
 
     final dir = await getApplicationDocumentsDirectory();
     final targetDir = Directory('${dir.path}/appwrite_backups');
-    if (!await targetDir.exists()) {
+    if (!targetDir.existsSync()) {
       await targetDir.create(recursive: true);
     }
 

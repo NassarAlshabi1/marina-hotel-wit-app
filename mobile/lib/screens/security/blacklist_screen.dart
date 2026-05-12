@@ -47,7 +47,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          var entries = snapshot.data!;
+          var entries = snapshot.data;
           if (_filterText.isNotEmpty) {
             final query = _filterText.trim().toLowerCase();
             entries = entries

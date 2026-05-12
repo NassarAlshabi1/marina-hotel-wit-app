@@ -17578,6 +17578,14 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
   late final GeneratedColumn<String> processingWorker = GeneratedColumn<String>(
       'processing_worker', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceMeta =
+      const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('local'));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -17592,7 +17600,8 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         idempotencyKey,
         processingStatus,
         processingStartedAt,
-        processingWorker
+        processingWorker,
+        source
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -17672,6 +17681,12 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
           processingWorker.isAcceptableOrUnknown(
               data['processing_worker']!, _processingWorkerMeta));
     }
+    if (data.containsKey('source')) {
+      context.handle(
+          _sourceMeta,
+          source.isAcceptableOrUnknown(
+              data['source']!, _sourceMeta));
+    }
     return context;
   }
 
@@ -17707,6 +17722,8 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
           DriftSqlType.int, data['${effectivePrefix}processing_started_at']),
       processingWorker: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}processing_worker']),
+      source: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}source'])!,
     );
   }
 
@@ -17730,6 +17747,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
   final String processingStatus;
   final int? processingStartedAt;
   final String? processingWorker;
+  final String source;
   const OutboxData(
       {required this.id,
       required this.entity,
@@ -17743,7 +17761,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       this.idempotencyKey,
       required this.processingStatus,
       this.processingStartedAt,
-      this.processingWorker});
+      this.processingWorker,
+      required this.source});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -17770,6 +17789,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     if (!nullToAbsent || processingWorker != null) {
       map['processing_worker'] = Variable<String>(processingWorker);
     }
+    map['source'] = Variable<String>(source);
     return map;
   }
 
@@ -17798,6 +17818,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       processingWorker: processingWorker == null && nullToAbsent
           ? const Value.absent()
           : Value(processingWorker),
+      source: Value(source),
     );
   }
 
@@ -17819,6 +17840,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       processingStartedAt:
           serializer.fromJson<int?>(json['processingStartedAt']),
       processingWorker: serializer.fromJson<String?>(json['processingWorker']),
+      source: serializer.fromJson<String>(json['source']),
     );
   }
   @override
@@ -17838,6 +17860,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       'processingStatus': serializer.toJson<String>(processingStatus),
       'processingStartedAt': serializer.toJson<int?>(processingStartedAt),
       'processingWorker': serializer.toJson<String?>(processingWorker),
+      'source': serializer.toJson<String>(source),
     };
   }
 
@@ -17854,7 +17877,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           Value<String?> idempotencyKey = const Value.absent(),
           String? processingStatus,
           Value<int?> processingStartedAt = const Value.absent(),
-          Value<String?> processingWorker = const Value.absent()}) =>
+          Value<String?> processingWorker = const Value.absent(),
+          String? source}) =>
       OutboxData(
         id: id ?? this.id,
         entity: entity ?? this.entity,
@@ -17874,6 +17898,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
         processingWorker: processingWorker.present
             ? processingWorker.value
             : this.processingWorker,
+        source: source ?? this.source,
       );
   OutboxData copyWithCompanion(OutboxCompanion data) {
     return OutboxData(
@@ -17898,6 +17923,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       processingWorker: data.processingWorker.present
           ? data.processingWorker.value
           : this.processingWorker,
+      source: data.source.present ? data.source.value : this.source,
     );
   }
 
@@ -17917,6 +17943,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           ..write('processingStatus: $processingStatus, ')
           ..write('processingStartedAt: $processingStartedAt, ')
           ..write('processingWorker: $processingWorker')
+          ..write(', source: $source')
           ..write(')'))
         .toString();
   }
@@ -17935,7 +17962,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       idempotencyKey,
       processingStatus,
       processingStartedAt,
-      processingWorker);
+      processingWorker,
+      source);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -17952,7 +17980,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           other.idempotencyKey == this.idempotencyKey &&
           other.processingStatus == this.processingStatus &&
           other.processingStartedAt == this.processingStartedAt &&
-          other.processingWorker == this.processingWorker);
+          other.processingWorker == this.processingWorker &&
+          other.source == this.source);
 }
 
 class OutboxCompanion extends UpdateCompanion<OutboxData> {
@@ -17969,6 +17998,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
   final Value<String> processingStatus;
   final Value<int?> processingStartedAt;
   final Value<String?> processingWorker;
+  final Value<String> source;
   const OutboxCompanion({
     this.id = const Value.absent(),
     this.entity = const Value.absent(),
@@ -17983,6 +18013,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     this.processingStatus = const Value.absent(),
     this.processingStartedAt = const Value.absent(),
     this.processingWorker = const Value.absent(),
+    this.source = const Value.absent(),
   });
   OutboxCompanion.insert({
     this.id = const Value.absent(),
@@ -17998,6 +18029,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     this.processingStatus = const Value.absent(),
     this.processingStartedAt = const Value.absent(),
     this.processingWorker = const Value.absent(),
+    this.source = const Value.absent(),
   })  : entity = Value(entity),
         op = Value(op),
         localUuid = Value(localUuid),
@@ -18017,6 +18049,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     Expression<String>? processingStatus,
     Expression<int>? processingStartedAt,
     Expression<String>? processingWorker,
+    Expression<String>? source,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -18033,6 +18066,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
       if (processingStartedAt != null)
         'processing_started_at': processingStartedAt,
       if (processingWorker != null) 'processing_worker': processingWorker,
+      if (source != null) 'source': source,
     });
   }
 
@@ -18049,7 +18083,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
       Value<String?>? idempotencyKey,
       Value<String>? processingStatus,
       Value<int?>? processingStartedAt,
-      Value<String?>? processingWorker}) {
+      Value<String?>? processingWorker,
+      Value<String>? source}) {
     return OutboxCompanion(
       id: id ?? this.id,
       entity: entity ?? this.entity,
@@ -18064,6 +18099,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
       processingStatus: processingStatus ?? this.processingStatus,
       processingStartedAt: processingStartedAt ?? this.processingStartedAt,
       processingWorker: processingWorker ?? this.processingWorker,
+      source: source ?? this.source,
     );
   }
 
@@ -18109,6 +18145,9 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     if (processingWorker.present) {
       map['processing_worker'] = Variable<String>(processingWorker.value);
     }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
     return map;
   }
 
@@ -18127,7 +18166,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('processingStatus: $processingStatus, ')
           ..write('processingStartedAt: $processingStartedAt, ')
-          ..write('processingWorker: $processingWorker')
+          ..write('processingWorker: $processingWorker, ')
+          ..write('source: $source')
           ..write(')'))
         .toString();
   }
@@ -36192,6 +36232,7 @@ typedef $$OutboxTableCreateCompanionBuilder = OutboxCompanion Function({
   Value<String> processingStatus,
   Value<int?> processingStartedAt,
   Value<String?> processingWorker,
+  String? source,
 });
 typedef $$OutboxTableUpdateCompanionBuilder = OutboxCompanion Function({
   Value<int> id,
@@ -36207,6 +36248,7 @@ typedef $$OutboxTableUpdateCompanionBuilder = OutboxCompanion Function({
   Value<String> processingStatus,
   Value<int?> processingStartedAt,
   Value<String?> processingWorker,
+  Value<String>? source,
 });
 
 class $$OutboxTableFilterComposer
@@ -36260,6 +36302,9 @@ class $$OutboxTableFilterComposer
   ColumnFilters<String> get processingWorker => $composableBuilder(
       column: $table.processingWorker,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
 }
 
 class $$OutboxTableOrderingComposer
@@ -36313,6 +36358,9 @@ class $$OutboxTableOrderingComposer
   ColumnOrderings<String> get processingWorker => $composableBuilder(
       column: $table.processingWorker,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
 }
 
 class $$OutboxTableAnnotationComposer
@@ -36362,6 +36410,9 @@ class $$OutboxTableAnnotationComposer
 
   GeneratedColumn<String> get processingWorker => $composableBuilder(
       column: $table.processingWorker, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
 }
 
 class $$OutboxTableTableManager extends RootTableManager<
@@ -36400,6 +36451,7 @@ class $$OutboxTableTableManager extends RootTableManager<
             Value<String> processingStatus = const Value.absent(),
             Value<int?> processingStartedAt = const Value.absent(),
             Value<String?> processingWorker = const Value.absent(),
+            Value<String>? source,
           }) =>
               OutboxCompanion(
             id: id,
@@ -36415,6 +36467,7 @@ class $$OutboxTableTableManager extends RootTableManager<
             processingStatus: processingStatus,
             processingStartedAt: processingStartedAt,
             processingWorker: processingWorker,
+            source: source == null ? const Value.absent() : Value(source),
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -36430,6 +36483,7 @@ class $$OutboxTableTableManager extends RootTableManager<
             Value<String> processingStatus = const Value.absent(),
             Value<int?> processingStartedAt = const Value.absent(),
             Value<String?> processingWorker = const Value.absent(),
+            String? source,
           }) =>
               OutboxCompanion.insert(
             id: id,
@@ -36445,6 +36499,7 @@ class $$OutboxTableTableManager extends RootTableManager<
             processingStatus: processingStatus,
             processingStartedAt: processingStartedAt,
             processingWorker: processingWorker,
+            source: source == null ? const Value.absent() : Value(source),
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

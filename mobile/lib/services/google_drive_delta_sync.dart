@@ -209,7 +209,7 @@ class GoogleDriveDeltaSync {
       // إعادة حساب حالات الغرف بناءً على الحجوزات الفعلية
       if (appliedChanges > 0) {
         try {
-          await RoomsRepository(_database!).refreshAllRoomOccupancy();
+          await RoomsRepository(_database!).refreshAllRoomOccupancy(originIsServer: true);
           debugPrint('🔄 تم تحديث حالة إشغال الغرف بعد مزامنة Google Drive');
         } catch (e) {
           debugPrint('⚠️ فشل تحديث حالة الإشغال: $e');

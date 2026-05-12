@@ -66,7 +66,7 @@ class SqliteBackupRestore {
           final fallbackTarget = Directory(
             p.join(fallbackDirs.first.path, 'MarinaHotelBackups'),
           );
-          if (!await fallbackTarget.exists()) {
+          if (!fallbackTarget.existsSync()) {
             await fallbackTarget.create(recursive: true);
           }
           return fallbackTarget;
@@ -84,7 +84,7 @@ class SqliteBackupRestore {
 
     dir ??= await getApplicationDocumentsDirectory();
 
-    if (!await dir.exists()) {
+    if (!dir.existsSync()) {
       await dir.create(recursive: true);
     }
 
@@ -97,7 +97,7 @@ class SqliteBackupRestore {
     try {
       final srcPath = await _resolveDefaultDbPath();
       final srcFile = File(srcPath);
-      if (!await srcFile.exists()) {
+      if (!srcFile.existsSync()) {
         throw Exception('Database not found at $srcPath');
       }
 
@@ -134,7 +134,7 @@ class SqliteBackupRestore {
       }
 
       final srcFile = File(sourcePath);
-      if (!await srcFile.exists()) {
+      if (!srcFile.existsSync()) {
         throw Exception('Backup file not found: $sourcePath');
       }
 
@@ -153,7 +153,7 @@ class SqliteBackupRestore {
       final tmpFile = File(tmpPath);
       
       // حذف أي ملف مؤقت سابق
-      if (await tmpFile.exists()) {
+      if (tmpFile.existsSync()) {
         await tmpFile.delete();
       }
       
@@ -161,11 +161,11 @@ class SqliteBackupRestore {
       await srcFile.copy(tmpPath);
       
       // حذف ملف DB الحالي (بعد التأكد من وجود نسخة مؤقتة صالحة)
-      if (await dstFile.exists()) {
+      if (dstFile.existsSync()) {
         final backupPath = '$dstPath.pre_restore';
         final backupFile = File(backupPath);
         // الاحتفاظ بنسخة أمان من DB الحالي قبل الحذف
-        if (await backupFile.exists()) {
+        if (backupFile.existsSync()) {
           await backupFile.delete();
         }
         await dstFile.rename(backupPath);

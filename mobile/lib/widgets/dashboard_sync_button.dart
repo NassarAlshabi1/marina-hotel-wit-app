@@ -67,7 +67,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       final db = ref.read(databaseProvider);
       final outboxDao = OutboxDao(db);
-      final count = await outboxDao.count();
+      // ✅ فصل هندسي: نعرض فقط عدد التغييرات المحلية المعلقة
+      final count = await outboxDao.count(sources: const ['local']);
       if (mounted) {
         setState(() {
           _pendingChangesCount = count;

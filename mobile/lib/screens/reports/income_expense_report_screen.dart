@@ -361,19 +361,6 @@ class _IncomeExpenseReportScreenState
     final toLabel = DateFormat('yyyy-MM-dd').format(_toDate!);
     final nonSalaryExpenses = _expenseTotal - _salaryTotal;
 
-    // ===== حسابات تحليل طرق الدفع =====
-    final cashIncome = _incomeEntries
-        .where((e) => e.paymentMethod == 'cash')
-        .fold<double>(0, (s, e) => s + e.amount);
-    final cardIncome = _incomeEntries
-        .where((e) => e.paymentMethod == 'card')
-        .fold<double>(0, (s, e) => s + e.amount);
-    final transferIncome = _incomeEntries
-        .where((e) => e.paymentMethod == 'transfer')
-        .fold<double>(0, (s, e) => s + e.amount);
-    final otherMethodIncome =
-        _incomeTotal - cashIncome - cardIncome - transferIncome;
-
     // ===== حسابات تحليل أنواع الإيرادات =====
     final roomRevenue = _incomeEntries
         .where((e) => e.revenueType == 'room' || e.revenueType.isEmpty)
@@ -621,47 +608,7 @@ class _IncomeExpenseReportScreenState
           widgets.add(
             buildSectionTitle('تحليل طرق الدفع', PdfColors.secondary),
           );
-          widgets.add(
-            EnhancedPdfUtils.buildProfessionalTable(
-              headers: ['طريقة الدفع', 'المبلغ', 'العدد', 'النسبة'],
-              fonts: fonts,
-              headerColor: PdfColors.secondary,
-              alternateRowColor: PdfColors.backgroundLight,
-              data: [
-                [
-                  'نقداً',
-                  EnhancedPdfUtils.formatNumber(cashIncome),
-                  '${_incomeEntries.where((e) => e.paymentMethod == 'cash').length}',
-                  if (_incomeTotal > 0) '${(cashIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
-                ],
-                [
-                  'بطاقة ائتمانية',
-                  EnhancedPdfUtils.formatNumber(cardIncome),
-                  '${_incomeEntries.where((e) => e.paymentMethod == 'card').length}',
-                  if (_incomeTotal > 0) '${(cardIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
-                ],
-                [
-                  'تحويل بنكي',
-                  EnhancedPdfUtils.formatNumber(transferIncome),
-                  '${_incomeEntries.where((e) => e.paymentMethod == 'transfer').length}',
-                  if (_incomeTotal > 0) '${(transferIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
-                ],
-                if (otherMethodIncome > 0)
-                  [
-                    'أخرى',
-                    EnhancedPdfUtils.formatNumber(otherMethodIncome),
-                    '${_incomeEntries.where((e) => e.paymentMethod != 'cash' && e.paymentMethod != 'card' && e.paymentMethod != 'transfer').length}',
-                    if (_incomeTotal > 0) '${(otherMethodIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
-                  ],
-                [
-                  'الإجمالي',
-                  EnhancedPdfUtils.formatNumber(_incomeTotal),
-                  '${_incomeEntries.length}',
-                  '100%',
-                ],
-              ],
-            ),
-          );
+          widgets.add(_buildPaymentMethodsTable(fonts));
 
           // ═══════════════════════════════════════
           // القسم 5: تفاصيل المصروفات
@@ -748,28 +695,7 @@ class _IncomeExpenseReportScreenState
           widgets.add(
             buildSectionTitle('تحليل الديون المستحقة', PdfColors.danger),
           );
-          widgets.add(
-            EnhancedPdfUtils.buildProfessionalTable(
-              headers: ['البيان', 'القيمة'],
-              fonts: fonts,
-              headerColor: PdfColors.danger,
-              alternateRowColor: PdfColors.backgroundLight,
-              columnWidths: [200, 130],
-              data: [
-                ['إجمالي الديون في الفترة', '$_totalDebtsCount دين'],
-                ['ديون غير مسددة في الفترة', '$_unsettledDebtsInPeriodCount دين'],
-                ['مبلغ الديون غير المسددة في الفترة',
-                  EnhancedPdfUtils.formatNumber(_unsettledDebtsInPeriodAmount),],
-                ['إجمالي الديون غير المسددة (كل الفترات)', '$_unsettledDebtsCount دين'],
-                ['مبلغ الديون غير المسددة الكلي',
-                  EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount),],
-                ['نسبة الديون غير المسددة الكلية من الإيرادات',
-                  if (_incomeTotal > 0) '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',],
-                ['قدرة تغطية الديون (صافي / ديون)',
-                  if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',],
-              ],
-            ),
-          );
+          widgets.add(_buildDebtAnalysisTable(fonts, debtCoverage));
 
           // ═══════════════════════════════════════
           // القسم 9: إحصائيات الحجوزات والإشغال
@@ -802,46 +728,9 @@ class _IncomeExpenseReportScreenState
           widgets.add(
             buildSectionTitle('المؤشرات المالية الرئيسية', PdfColors.primary),
           );
-          widgets.add(
-            EnhancedPdfUtils.buildProfessionalTable(
-              headers: ['المؤشر', 'القيمة', 'التقييم'],
-              fonts: fonts,
-              headerColor: PdfColors.primary,
-              alternateRowColor: PdfColors.backgroundLight,
-              data: [
-                [
-                  'هامش الربح الصافي',
-                  '${profitMargin.toStringAsFixed(1)}%',
-                  if (profitMargin > 20) 'ممتاز' else profitMargin > 10
-                          ? 'جيد'
-                          : profitMargin > 0
-                              ? 'مقبول'
-                              : 'خسارة',
-                ],
-                [
-                  'نسبة المصروفات إلى الإيرادات',
-                  '${expenseRatio.toStringAsFixed(1)}%',
-                  if (expenseRatio < 60) 'ممتاز' else expenseRatio < 80
-                          ? 'جيد'
-                          : 'مرتفع',
-                ],
-                [
-                  'نسبة الرواتب إلى الإيرادات',
-                  '${salaryExpenseRatio.toStringAsFixed(1)}%',
-                  if (salaryExpenseRatio < 30) 'ممتاز' else salaryExpenseRatio < 50
-                          ? 'جيد'
-                          : 'مرتفع',
-                ],
-                [
-                  'معدل تغطية الديون',
-                  if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',
-                  if (debtCoverage > 2) 'ممتاز' else debtCoverage > 1
-                          ? 'جيد'
-                          : 'ضعيف',
-                ],
-              ],
-            ),
-          );
+          widgets.add(_buildFinancialIndicatorsTable(
+            fonts, profitMargin, expenseRatio, salaryExpenseRatio, debtCoverage,
+          ));
 
           // ═══════════════════════════════════════
           // القسم 11: الملخص المحاسبي الشامل
@@ -938,6 +827,133 @@ class _IncomeExpenseReportScreenState
     );
 
     return doc;
+  }
+
+  /// جدول تحليل طرق الدفع (مشترك بين PDF العادي والمجمع)
+  pw.Widget _buildPaymentMethodsTable(ArabicPdfFonts fonts) {
+    final cashIncome = _incomeEntries
+        .where((e) => e.paymentMethod == 'cash')
+        .fold<double>(0, (s, e) => s + e.amount);
+    final cardIncome = _incomeEntries
+        .where((e) => e.paymentMethod == 'card')
+        .fold<double>(0, (s, e) => s + e.amount);
+    final transferIncome = _incomeEntries
+        .where((e) => e.paymentMethod == 'transfer')
+        .fold<double>(0, (s, e) => s + e.amount);
+    final otherMethodIncome =
+        _incomeTotal - cashIncome - cardIncome - transferIncome;
+
+    return EnhancedPdfUtils.buildProfessionalTable(
+      headers: ['طريقة الدفع', 'المبلغ', 'العدد', 'النسبة'],
+      fonts: fonts,
+      headerColor: PdfColors.secondary,
+      alternateRowColor: PdfColors.backgroundLight,
+      data: [
+        [
+          'نقداً',
+          EnhancedPdfUtils.formatNumber(cashIncome),
+          '${_incomeEntries.where((e) => e.paymentMethod == 'cash').length}',
+          if (_incomeTotal > 0) '${(cashIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
+        ],
+        [
+          'بطاقة ائتمانية',
+          EnhancedPdfUtils.formatNumber(cardIncome),
+          '${_incomeEntries.where((e) => e.paymentMethod == 'card').length}',
+          if (_incomeTotal > 0) '${(cardIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
+        ],
+        [
+          'تحويل بنكي',
+          EnhancedPdfUtils.formatNumber(transferIncome),
+          '${_incomeEntries.where((e) => e.paymentMethod == 'transfer').length}',
+          if (_incomeTotal > 0) '${(transferIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
+        ],
+        if (otherMethodIncome > 0)
+          [
+            'أخرى',
+            EnhancedPdfUtils.formatNumber(otherMethodIncome),
+            '${_incomeEntries.where((e) => e.paymentMethod != 'cash' && e.paymentMethod != 'card' && e.paymentMethod != 'transfer').length}',
+            if (_incomeTotal > 0) '${(otherMethodIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
+          ],
+        [
+          'الإجمالي',
+          EnhancedPdfUtils.formatNumber(_incomeTotal),
+          '${_incomeEntries.length}',
+          '100%',
+        ],
+      ],
+    );
+  }
+
+  /// جدول تحليل الديون المستحقة (مشترك بين PDF العادي والمجمع)
+  pw.Widget _buildDebtAnalysisTable(ArabicPdfFonts fonts, double debtCoverage) {
+    return EnhancedPdfUtils.buildProfessionalTable(
+      headers: ['البيان', 'القيمة'],
+      fonts: fonts,
+      headerColor: PdfColors.danger,
+      alternateRowColor: PdfColors.backgroundLight,
+      columnWidths: [200, 130],
+      data: [
+        ['إجمالي الديون في الفترة', '$_totalDebtsCount دين'],
+        ['ديون غير مسددة في الفترة', '$_unsettledDebtsInPeriodCount دين'],
+        ['مبلغ الديون غير المسددة في الفترة',
+          EnhancedPdfUtils.formatNumber(_unsettledDebtsInPeriodAmount),],
+        ['إجمالي الديون غير المسددة (كل الفترات)', '$_unsettledDebtsCount دين'],
+        ['مبلغ الديون غير المسددة الكلي',
+          EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount),],
+        ['نسبة الديون غير المسددة الكلية من الإيرادات',
+          if (_incomeTotal > 0) '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',],
+        ['قدرة تغطية الديون (صافي / ديون)',
+          if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',],
+      ],
+    );
+  }
+
+  /// جدول المؤشرات المالية الرئيسية (مشترك بين PDF العادي والمجمع)
+  pw.Widget _buildFinancialIndicatorsTable(
+    ArabicPdfFonts fonts,
+    double profitMargin,
+    double expenseRatio,
+    double salaryExpenseRatio,
+    double debtCoverage,
+  ) {
+    return EnhancedPdfUtils.buildProfessionalTable(
+      headers: ['المؤشر', 'القيمة', 'التقييم'],
+      fonts: fonts,
+      headerColor: PdfColors.primary,
+      alternateRowColor: PdfColors.backgroundLight,
+      data: [
+        [
+          'هامش الربح الصافي',
+          '${profitMargin.toStringAsFixed(1)}%',
+          if (profitMargin > 20) 'ممتاز' else profitMargin > 10
+                  ? 'جيد'
+                  : profitMargin > 0
+                      ? 'مقبول'
+                      : 'خسارة',
+        ],
+        [
+          'نسبة المصروفات إلى الإيرادات',
+          '${expenseRatio.toStringAsFixed(1)}%',
+          if (expenseRatio < 60) 'ممتاز' else expenseRatio < 80
+                  ? 'جيد'
+                  : 'مرتفع',
+        ],
+        [
+          'نسبة الرواتب إلى الإيرادات',
+          '${salaryExpenseRatio.toStringAsFixed(1)}%',
+          if (salaryExpenseRatio < 30) 'ممتاز' else salaryExpenseRatio < 50
+                  ? 'جيد'
+                  : 'مرتفع',
+        ],
+        [
+          'معدل تغطية الديون',
+          if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',
+          if (debtCoverage > 2) 'ممتاز' else debtCoverage > 1
+                  ? 'جيد'
+                  : 'ضعيف',
+        ],
+      ],
+    );
   }
 
   /// ترجمة طريقة الدفع
@@ -1248,9 +1264,10 @@ class _IncomeExpenseReportScreenState
 
                   // جداول تفصيلية مضغوطة
                   pw.SizedBox(height: 8),
-                  _buildIncomeMiniTable(
+                  _buildMiniTable(
                     fonts,
                     'الدخل',
+                    ['التاريخ', 'الغرفة', 'الدفع', 'النوع', 'المبلغ'],
                     group.incomeEntries
                         .map(
                           (e) => [
@@ -1263,11 +1280,13 @@ class _IncomeExpenseReportScreenState
                         )
                         .toList(),
                     PdfColors.success,
+                    boldColumnIndex: 4,
                   ),
                   pw.SizedBox(height: 4),
                   _buildMiniTable(
                     fonts,
                     'المصروفات',
+                    ['التاريخ', 'الوصف', 'المبلغ'],
                     group.expenseEntries
                         .map(
                           (e) => [
@@ -1278,6 +1297,7 @@ class _IncomeExpenseReportScreenState
                         )
                         .toList(),
                     PdfColors.danger,
+                    boldColumnIndex: 2,
                   ),
                 ],
               ),
@@ -1432,19 +1452,6 @@ class _IncomeExpenseReportScreenState
           // أقسام الدورة المالية في التقرير المجمع
           // ═══════════════════════════════════════
 
-          // حسابات تحليل طرق الدفع
-          final cashIncome = _incomeEntries
-              .where((e) => e.paymentMethod == 'cash')
-              .fold<double>(0, (s, e) => s + e.amount);
-          final cardIncome = _incomeEntries
-              .where((e) => e.paymentMethod == 'card')
-              .fold<double>(0, (s, e) => s + e.amount);
-          final transferIncome = _incomeEntries
-              .where((e) => e.paymentMethod == 'transfer')
-              .fold<double>(0, (s, e) => s + e.amount);
-          final otherMethodIncome =
-              _incomeTotal - cashIncome - cardIncome - transferIncome;
-
           // مؤشرات مالية
           final profitMargin =
               _incomeTotal > 0 ? (_net / _incomeTotal * 100) : 0.0;
@@ -1477,47 +1484,7 @@ class _IncomeExpenseReportScreenState
               ),
             ),
           );
-          widgets.add(
-            EnhancedPdfUtils.buildProfessionalTable(
-              headers: ['طريقة الدفع', 'المبلغ', 'العدد', 'النسبة'],
-              fonts: fonts,
-              headerColor: PdfColors.secondary,
-              alternateRowColor: PdfColors.backgroundLight,
-              data: [
-                [
-                  'نقداً',
-                  EnhancedPdfUtils.formatNumber(cashIncome),
-                  '${_incomeEntries.where((e) => e.paymentMethod == 'cash').length}',
-                  if (_incomeTotal > 0) '${(cashIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
-                ],
-                [
-                  'بطاقة ائتمانية',
-                  EnhancedPdfUtils.formatNumber(cardIncome),
-                  '${_incomeEntries.where((e) => e.paymentMethod == 'card').length}',
-                  if (_incomeTotal > 0) '${(cardIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
-                ],
-                [
-                  'تحويل بنكي',
-                  EnhancedPdfUtils.formatNumber(transferIncome),
-                  '${_incomeEntries.where((e) => e.paymentMethod == 'transfer').length}',
-                  if (_incomeTotal > 0) '${(transferIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
-                ],
-                if (otherMethodIncome > 0)
-                  [
-                    'أخرى',
-                    EnhancedPdfUtils.formatNumber(otherMethodIncome),
-                    '${_incomeEntries.where((e) => e.paymentMethod != 'cash' && e.paymentMethod != 'card' && e.paymentMethod != 'transfer').length}',
-                    if (_incomeTotal > 0) '${(otherMethodIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
-                  ],
-                [
-                  'الإجمالي',
-                  EnhancedPdfUtils.formatNumber(_incomeTotal),
-                  '${_incomeEntries.length}',
-                  '100%',
-                ],
-              ],
-            ),
-          );
+          widgets.add(_buildPaymentMethodsTable(fonts));
 
           // تكاليف الموارد البشرية
           widgets.add(
@@ -1580,28 +1547,7 @@ class _IncomeExpenseReportScreenState
               ),
             ),
           );
-          widgets.add(
-            EnhancedPdfUtils.buildProfessionalTable(
-              headers: ['البيان', 'القيمة'],
-              fonts: fonts,
-              headerColor: PdfColors.danger,
-              alternateRowColor: PdfColors.backgroundLight,
-              columnWidths: [200, 130],
-              data: [
-                ['إجمالي الديون في الفترة', '$_totalDebtsCount دين'],
-                ['ديون غير مسددة في الفترة', '$_unsettledDebtsInPeriodCount دين'],
-                ['مبلغ الديون غير المسددة في الفترة',
-                  EnhancedPdfUtils.formatNumber(_unsettledDebtsInPeriodAmount),],
-                ['إجمالي الديون غير المسددة (كل الفترات)', '$_unsettledDebtsCount دين'],
-                ['مبلغ الديون غير المسددة الكلي',
-                  EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount),],
-                ['نسبة الديون غير المسددة الكلية من الإيرادات',
-                  if (_incomeTotal > 0) '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',],
-                ['قدرة تغطية الديون (صافي / ديون)',
-                  if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',],
-              ],
-            ),
-          );
+          widgets.add(_buildDebtAnalysisTable(fonts, debtCoverage));
 
           // إحصائيات الحجوزات والإشغال
           widgets.add(
@@ -1660,46 +1606,9 @@ class _IncomeExpenseReportScreenState
               ),
             ),
           );
-          widgets.add(
-            EnhancedPdfUtils.buildProfessionalTable(
-              headers: ['المؤشر', 'القيمة', 'التقييم'],
-              fonts: fonts,
-              headerColor: PdfColors.primary,
-              alternateRowColor: PdfColors.backgroundLight,
-              data: [
-                [
-                  'هامش الربح الصافي',
-                  '${profitMargin.toStringAsFixed(1)}%',
-                  if (profitMargin > 20) 'ممتاز' else profitMargin > 10
-                          ? 'جيد'
-                          : profitMargin > 0
-                              ? 'مقبول'
-                              : 'خسارة',
-                ],
-                [
-                  'نسبة المصروفات إلى الإيرادات',
-                  '${expenseRatio.toStringAsFixed(1)}%',
-                  if (expenseRatio < 60) 'ممتاز' else expenseRatio < 80
-                          ? 'جيد'
-                          : 'مرتفع',
-                ],
-                [
-                  'نسبة الرواتب إلى الإيرادات',
-                  '${salaryExpenseRatio.toStringAsFixed(1)}%',
-                  if (salaryExpenseRatio < 30) 'ممتاز' else salaryExpenseRatio < 50
-                          ? 'جيد'
-                          : 'مرتفع',
-                ],
-                [
-                  'معدل تغطية الديون',
-                  if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',
-                  if (debtCoverage > 2) 'ممتاز' else debtCoverage > 1
-                          ? 'جيد'
-                          : 'ضعيف',
-                ],
-              ],
-            ),
-          );
+          widgets.add(_buildFinancialIndicatorsTable(
+            fonts, profitMargin, expenseRatio, salaryExpenseRatio, debtCoverage,
+          ));
 
           return widgets;
         },
@@ -1709,13 +1618,15 @@ class _IncomeExpenseReportScreenState
     return doc;
   }
 
-  /// جدول مصغر مضغوط
+  /// جدول مصغر موحد (مشترك بين جدول المصروفات وجدول الإيرادات)
   pw.Widget _buildMiniTable(
     ArabicPdfFonts fonts,
     String title,
+    List<String> headers,
     List<List<String>> rows,
-    PdfColor headerColor,
-  ) {
+    PdfColor headerColor, {
+    int boldColumnIndex = -1,
+  }) {
     if (rows.isEmpty) {
       return pw.Container();
     }
@@ -1739,11 +1650,9 @@ class _IncomeExpenseReportScreenState
             children: [
               pw.TableRow(
                 decoration: pw.BoxDecoration(color: headerColor),
-                children: [
-                  _miniCell('التاريخ', fonts.bold, PdfColors.textDark),
-                  _miniCell('الوصف', fonts.bold, PdfColors.textDark),
-                  _miniCell('المبلغ', fonts.bold, PdfColors.textDark),
-                ],
+                children: headers
+                    .map((h) => _miniCell(h, fonts.bold, PdfColors.textDark))
+                    .toList(),
               ),
               ...rows.asMap().entries.map((entry) {
                 final isEven = entry.key.isEven;
@@ -1753,83 +1662,15 @@ class _IncomeExpenseReportScreenState
                           color: PdfColors.backgroundLight,
                         )
                       : null,
-                  children: [
-                    _miniCell(entry.value[0], fonts.regular, PdfColors.textDark),
-                    _miniCell(entry.value[1], fonts.regular, PdfColors.textDark),
-                    _miniCell(
-                      entry.value[2],
-                      fonts.bold,
+                  children: entry.value.asMap().entries.map((cell) {
+                    final isBold = cell.key == boldColumnIndex;
+                    return _miniCell(
+                      cell.value,
+                      isBold ? fonts.bold : fonts.regular,
                       PdfColors.textDark,
-                      align: pw.TextAlign.left,
-                    ),
-                  ],
-                );
-              }),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// جدول مصغر للإيرادات مع طريقة الدفع ونوع الإيراد
-  pw.Widget _buildIncomeMiniTable(
-    ArabicPdfFonts fonts,
-    String title,
-    List<List<String>> rows,
-    PdfColor headerColor,
-  ) {
-    if (rows.isEmpty) {
-      return pw.Container();
-    }
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          title,
-          style: pw.TextStyle(
-            font: fonts.bold,
-            fontSize: 10,
-            color: headerColor,
-          ),
-        ),
-        pw.SizedBox(height: 3),
-        pw.Container(
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.textLight, width: 0.3),
-          ),
-          child: pw.Table(
-            children: [
-              pw.TableRow(
-                decoration: pw.BoxDecoration(color: headerColor),
-                children: [
-                  _miniCell('التاريخ', fonts.bold, PdfColors.textDark),
-                  _miniCell('الغرفة', fonts.bold, PdfColors.textDark),
-                  _miniCell('الدفع', fonts.bold, PdfColors.textDark),
-                  _miniCell('النوع', fonts.bold, PdfColors.textDark),
-                  _miniCell('المبلغ', fonts.bold, PdfColors.textDark),
-                ],
-              ),
-              ...rows.asMap().entries.map((entry) {
-                final isEven = entry.key.isEven;
-                return pw.TableRow(
-                  decoration: isEven
-                      ? const pw.BoxDecoration(
-                          color: PdfColors.backgroundLight,
-                        )
-                      : null,
-                  children: [
-                    _miniCell(entry.value[0], fonts.regular, PdfColors.textDark),
-                    _miniCell(entry.value[1], fonts.regular, PdfColors.textDark),
-                    _miniCell(entry.value[2], fonts.regular, PdfColors.textDark),
-                    _miniCell(entry.value[3], fonts.regular, PdfColors.textDark),
-                    _miniCell(
-                      entry.value[4],
-                      fonts.bold,
-                      PdfColors.textDark,
-                      align: pw.TextAlign.left,
-                    ),
-                  ],
+                      align: isBold ? pw.TextAlign.left : pw.TextAlign.center,
+                    );
+                  }).toList(),
                 );
               }),
             ],

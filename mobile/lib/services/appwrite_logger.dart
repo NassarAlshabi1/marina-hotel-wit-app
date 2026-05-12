@@ -42,7 +42,7 @@ class AppwriteLogger {
       final directory = await getApplicationDocumentsDirectory();
       final logsDir = Directory('${directory.path}/appwrite_logs');
 
-      if (!await logsDir.exists()) {
+      if (!logsDir.existsSync()) {
         await logsDir.create(recursive: true);
       }
 

@@ -17,21 +17,31 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   final AdapterRegistry adapters;
 
-  Stream<int> watchCount() {
+  /// مشاهدة عدد عناصر outbox المعلقة/الفاشلة
+  /// [sources] — إذا حُدد، يقتصر العد على هذه المصادر فقط
+  Stream<int> watchCount({List<String>? sources}) {
     final countExp = outbox.id.count();
     final query = selectOnly(outbox)
       ..addColumns([countExp])
       ..where(outbox.processingStatus.isIn(['pending', 'failed']));
+    if (sources != null && sources.isNotEmpty) {
+      query.where(outbox.source.isIn(sources));
+    }
     return query
         .map((row) => row.read(countExp) ?? 0)
         .watchSingle();
   }
 
-  Future<int> count() async {
+  /// عدد عناصر outbox المعلقة/الفاشلة
+  /// [sources] — إذا حُدد، يقتصر العد على هذه المصادر فقط
+  Future<int> count({List<String>? sources}) async {
     final countExp = outbox.id.count();
     final query = selectOnly(outbox)
       ..addColumns([countExp])
       ..where(outbox.processingStatus.isIn(['pending', 'failed']));
+    if (sources != null && sources.isNotEmpty) {
+      query.where(outbox.source.isIn(sources));
+    }
     final row = await query.getSingle();
     return row.read(countExp) ?? 0;
   }
@@ -70,6 +80,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return rows;
   }
 
+  /// إدراج أو تحديث عنصر outbox
+  /// [source] — مصدر العنصر: 'local' = تغيير محلي (افتراضي)، 'restore' = استعادة من نسخة احتياطية
+  /// هذا يفصل بين التغييرات المحلية والعمليات البعيدة
   Future<int> merge({
     required String entity,
     required String op,
@@ -77,6 +90,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     int? serverId,
     required Map<String, dynamic> payload,
     required int clientTs,
+    String source = 'local',
   }) async {
     final existing = await (select(outbox)
           ..where((t) =>
@@ -97,6 +111,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           clientTs: Value(clientTs),
           idempotencyKey: Value(idempKey),
           serverId: Value(serverId),
+          source: Value(source),
         ),
       );
       return existing.id;
@@ -110,19 +125,28 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       payload: payloadJson,
       clientTs: clientTs,
       idempotencyKey: Value(idempKey),
+      source: Value(source),
     ),);
   }
 
-  Future<List<OutboxData>> takeBatch(int limit, {String? workerId}) async {
+  /// جلب دفعة من عناصر outbox للمعالجة
+  /// [sources] — إذا حُدد، يقتصر الجلب على هذه المصادر فقط (مثلاً ['local'] فقط)
+  /// [workerId] — معرف العامل الذي يعالج الدفعة
+  Future<List<OutboxData>> takeBatch(int limit, {String? workerId, List<String>? sources}) async {
     final worker = workerId ?? _uuid.v4();
     final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    // بناء شرط source إذا حُدد
+    final sourceCondition = (sources != null && sources.isNotEmpty)
+        ? ' AND source IN (${sources.map((s) => "'$s'").join(',')})'
+        : '';
 
     // ✅ تحديث ذري: حدّت الحالة مباشرة في استعلام واحد لمنع المعالجة المكررة
     // بدلاً من SELECT ثم UPDATE المنفصلين اللذين يسمحان بسباق البيانات
     final claimed = await customSelect(
       'UPDATE outbox SET processing_status = ?, processing_started_at = ?, processing_worker = ? '
       'WHERE id IN ('
-      '  SELECT id FROM outbox WHERE processing_status = ? ORDER BY client_ts ASC LIMIT ? '
+      '  SELECT id FROM outbox WHERE processing_status = ?$sourceCondition ORDER BY client_ts ASC LIMIT ? '
       ') RETURNING *',
       variables: [
         const Variable<String>('processing'),
@@ -146,6 +170,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       lastError: row.read<String?>('last_error'),
       attempts: row.read<int>('attempts'),
       idempotencyKey: row.read<String?>('idempotency_key'),
+      source: row.read<String>('source'),
     ),).get();
 
     return claimed;
@@ -257,13 +282,21 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// يُستدعى بعد pull ناجح: إذا كان السحابة تحتوي على نفس entity + localUuid
   /// فلا حاجة لإرسال هذا العنصر مرة أخرى.
   ///
+  /// [sources] — إذا حُدد، يحذف فقط العناصر ذات المصدر المحدد.
+  /// افتراضياً يحذف فقط عناصر 'local' (تغييرات محلية) لأن عناصر 'restore'
+  /// لا علاقة لها بعملية السحب من السحابة.
+  ///
   /// ✅ إصلاح: دمج شروط entity و localUuid في استعلام واحد بدلاً من إنشاء
   /// استعلام جديد يفقد شرط localUuid (الخطأ السابق كان يُنشئ delete(outbox)
   /// جديد عند وجود entity، مما يُلغي شرط localUuid.isIn(chunk)).
-  Future<int> removePulledEntities(List<String> uuids, {String? entity}) async {
+  Future<int> removePulledEntities(List<String> uuids, {String? entity, List<String>? sources}) async {
     if (uuids.isEmpty) {
       return 0;
     }
+    // افتراضياً نحذف فقط عناصر source='local' — هذا هو السلوك الصحيح
+    // لأن السحب من السحابة يعني أن البيانات موجودة بالفعل على السيرفر
+    // وعناصر 'restore' تم إنشاؤها بغرض الرفع ولا يجب حذفها بهذا المنطق
+    final effectiveSources = sources ?? const ['local'];
     const batchSize = 500;
     int totalRemoved = 0;
     for (var i = 0; i < uuids.length; i += batchSize) {
@@ -271,11 +304,11 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       final chunk = uuids.sublist(i, end);
       if (entity != null) {
         totalRemoved += await (delete(outbox)
-              ..where((t) => t.localUuid.isIn(chunk) & t.entity.equals(entity)))
+              ..where((t) => t.localUuid.isIn(chunk) & t.entity.equals(entity) & t.source.isIn(effectiveSources)))
             .go();
       } else {
         totalRemoved += await (delete(outbox)
-              ..where((t) => t.localUuid.isIn(chunk)))
+              ..where((t) => t.localUuid.isIn(chunk) & t.source.isIn(effectiveSources)))
             .go();
       }
     }
