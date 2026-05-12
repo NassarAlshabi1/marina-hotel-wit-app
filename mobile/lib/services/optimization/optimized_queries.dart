@@ -328,10 +328,10 @@ class OptimizedQueries {
       throw ArgumentError('اسم الجدول غير مسموح به: $tableName');
     }
     // ✅ التحقق من أن whereSql و orderBySql لا يحتويان على أحرف خطرة
-    if (whereSql != null && whereSql.contains(RegExp(r';|--'))) {
+    if (whereSql != null && whereSql.contains(RegExp(';|--'))) {
       throw ArgumentError('whereSql يحتوي على أحرف غير مسموح بها');
     }
-    if (orderBySql != null && orderBySql.contains(RegExp(r';|--'))) {
+    if (orderBySql != null && orderBySql.contains(RegExp(';|--'))) {
       throw ArgumentError('orderBySql يحتوي على أحرف غير مسموح بها');
     }
 
