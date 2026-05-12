@@ -1,0 +1,44 @@
+# Claude Issue Triage - تصنيف تلقائي للـ Issues
+# يقوم بتحليل الـ Issues الجديدة وإضافة labels مناسبة
+
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Auto-triage Issue
+        uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_BASE_URL: "https://agentrouter.org/"
+        with:
+          anthropic_api_key: ${{ secrets.AGENTROUTER_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            You are an issue triage assistant. Analyze the following issue and add appropriate labels.
+
+            Repository: ${{ github.repository }}
+            Issue Number: ${{ github.event.issue.number }}
+            Issue Title: ${{ github.event.issue.title }}
+
+            Issue Body:
+            ${{ github.event.issue.body }}
+
+            Instructions:
+            1. Determine if this is a: bug, enhancement, question, or documentation issue
+            2. Check if it's high priority or needs immediate attention
+            3. Use 'gh' CLI to add appropriate labels
+
+            Available labels to use: bug, enhancement, question, documentation, help wanted, good first issue, priority: high, priority: low
+          claude_args: "--model claude-haiku-4-5-20251001"

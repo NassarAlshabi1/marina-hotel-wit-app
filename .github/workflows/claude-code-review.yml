@@ -1,0 +1,47 @@
+# Claude Code Review - مراجعة تلقائية للـ Pull Requests
+# يقوم بمراجعة الكود وإضافة تعليقات
+
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_BASE_URL: "https://agentrouter.org/"
+        with:
+          anthropic_api_key: ${{ secrets.AGENTROUTER_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            You are a code reviewer. Review the following pull request changes and provide feedback.
+
+            PR Title: ${{ github.event.pull_request.title }}
+            PR Description: ${{ github.event.pull_request.body }}
+            PR Number: ${{ github.event.pull_request.number }}
+
+            Use 'gh pr diff' to see the changes and then post a review comment.
+
+            Review for:
+            1. Bugs and potential issues
+            2. Security vulnerabilities
+            3. Code style and best practices
+            4. Performance concerns
+            5. Missing tests
+
+            Post a summary comment on the PR with your findings using 'gh pr comment'.
+          claude_args: "--model claude-sonnet-4-5-20250929"
