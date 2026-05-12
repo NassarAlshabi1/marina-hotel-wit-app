@@ -34,7 +34,7 @@ jobs:
       - name: Run Claude Code via AgentRouter
         uses: anthropics/claude-code-action@v1
         env:
-          ANTHROPIC_BASE_URL: "https://agentrouter.org/"
+          ANTHROPIC_BASE_URL: "https://agentrouter.org/v1"
           ANTHROPIC_AUTH_TOKEN: ${{ secrets.AGENTROUTER_API_KEY }}
         with:
           anthropic_api_key: ${{ secrets.AGENTROUTER_API_KEY }}
