@@ -10,7 +10,9 @@
 ///   --dart-define=WHATSAPP_API_KEY=your_api_key \
 ///   --dart-define=WHATSAPP_API_TOKEN=your_token \
 ///   --dart-define=WHATSAPP_INSTANCE_ID=your_instance_id \
-///   --dart-define=HOTEL_CONTACT_PHONE=your_phone
+///   --dart-define=HOTEL_CONTACT_PHONE=your_phone \
+///   --dart-define=AGENT_ROUTER_API_KEY=your_agent_router_key \
+///   --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
 /// ```
 ///
 /// القيم الافتراضية الفارغة تعني أن الميزة ستكون معطلة حتى يتم توفير القيمة.
@@ -76,6 +78,21 @@ class Env {
   );
 
   // ═══════════════════════════════════════════════════════════════
+  //  AgentRouter AI
+  // ═══════════════════════════════════════════════════════════════
+
+  /// مفتاح AgentRouter API — يجب تمريره عبر --dart-define
+  static const String agentRouterApiKey = String.fromEnvironment(
+    'AGENT_ROUTER_API_KEY',
+  );
+
+  /// رابط AgentRouter API الأساسي — يجب تمريره عبر --dart-define
+  static const String agentRouterBaseUrl = String.fromEnvironment(
+    'AGENT_ROUTER_BASE_URL',
+    defaultValue: 'https://openrouter.ai/api/v1',
+  );
+
+  // ═══════════════════════════════════════════════════════════════
   //  Convenience checks
   // ═══════════════════════════════════════════════════════════════
 
@@ -93,4 +110,7 @@ class Env {
 
   /// هل تم تكوين API الأساسي؟
   static bool get isApiConfigured => baseApiUrl.isNotEmpty;
+
+  /// هل تم تكوين AgentRouter AI؟
+  static bool get isAgentRouterConfigured => agentRouterApiKey.isNotEmpty;
 }

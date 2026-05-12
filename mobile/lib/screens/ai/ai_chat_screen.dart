@@ -1,9 +1,72 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
+import '../../services/agent_router_service.dart';
 import '../../services/gemini_service.dart';
+import '../../utils/env.dart';
 
-/// شاشة المساعد الذكي - Gemini AI
+/// مزود AI النشط
+enum AiProvider {
+  gemini,
+  agentRouter;
+
+  String get displayName {
+    switch (this) {
+      case AiProvider.gemini:
+        return 'Gemini AI';
+      case AiProvider.agentRouter:
+        return 'AgentRouter AI';
+    }
+  }
+
+  String get modelName {
+    switch (this) {
+      case AiProvider.gemini:
+        return 'Gemini 2.5 Flash';
+      case AiProvider.agentRouter:
+        return AgentRouterService.instance.currentModel;
+    }
+  }
+}
+
+/// رسالة محادثة
+class ChatMessage {
+  ChatMessage({
+    required this.id,
+    required this.text,
+    this.isUser = false,
+    this.pendingCommand,
+    this.isExecuted = false,
+    this.executionResult,
+    DateTime? timestamp,
+  }) : timestamp = timestamp ?? DateTime.now();
+
+  final String id;
+  String text;
+  final bool isUser;
+  final AiCommand? pendingCommand;
+  final bool isExecuted;
+  final String? executionResult;
+  final DateTime timestamp;
+
+  ChatMessage copyWith({
+    String? text,
+    bool? isExecuted,
+    String? executionResult,
+  }) {
+    return ChatMessage(
+      id: id,
+      text: text ?? this.text,
+      isUser: isUser,
+      pendingCommand: pendingCommand,
+      isExecuted: isExecuted ?? this.isExecuted,
+      executionResult: executionResult ?? this.executionResult,
+      timestamp: timestamp,
+    );
+  }
+}
+
+/// شاشة المساعد الذكي — تدعم Gemini AI و AgentRouter AI
 class AiChatScreen extends StatefulWidget {
   const AiChatScreen({super.key});
 
@@ -20,27 +83,72 @@ class _AiChatScreenState extends State<AiChatScreen>
   String? _lastUserMessage;
   String _loadingText = 'يفكر...';
 
+  /// مزود AI النشط
+  AiProvider _activeProvider = AiProvider.gemini;
+
+  /// هل يتوفر AgentRouter؟
+  bool get _isAgentRouterAvailable =>
+      Env.isAgentRouterConfigured && AgentRouterService.instance.isInitialized;
+
+  /// هل يتوفر Gemini؟
+  bool get _isGeminiAvailable => GeminiService.instance.isAvailable;
+
+  /// هل أي مزود متاح؟
+  bool get _isAnyAvailable =>
+      _isGeminiAvailable || _isAgentRouterAvailable;
+
   @override
   void initState() {
     super.initState();
-    _initGemini();
+    _initializeProviders();
     _addWelcomeMessage();
   }
 
-  Future<void> _initGemini() async {
+  Future<void> _initializeProviders() async {
+    // محاولة تهيئة Gemini أولاً
     await GeminiService.instance.initialize();
-    if (mounted) {
-      setState(() {});
+
+    // محاولة تهيئة AgentRouter كبديل
+    if (Env.isAgentRouterConfigured) {
+      await AgentRouterService.instance.initialize();
     }
+
+    // تحديد المزود النشط
+    if (_isGeminiAvailable) {
+      _activeProvider = AiProvider.gemini;
+    } else if (_isAgentRouterAvailable) {
+      _activeProvider = AiProvider.agentRouter;
+    }
+
+    if (mounted) setState(() {});
   }
 
-  /// إعادة تهيئة Gemini AI (عند الفشل)
-  Future<void> _retryInitGemini() async {
+  /// إعادة تهيئة المزود النشط
+  Future<void> _retryInit() async {
     setState(() => _isLoading = true);
-    await GeminiService.instance.initialize(forceRetry: true);
-    if (mounted) {
-      setState(() => _isLoading = false);
+
+    if (_activeProvider == AiProvider.gemini) {
+      await GeminiService.instance.initialize(forceRetry: true);
+    } else {
+      await AgentRouterService.instance.initialize(forceRetry: true);
     }
+
+    // إذا فشل المزود النشط، حاول المزود الآخر
+    if (!_isAnyAvailable) {
+      if (_activeProvider == AiProvider.gemini && Env.isAgentRouterConfigured) {
+        await AgentRouterService.instance.initialize(forceRetry: true);
+        if (_isAgentRouterAvailable) {
+          _activeProvider = AiProvider.agentRouter;
+        }
+      } else if (_activeProvider == AiProvider.agentRouter) {
+        await GeminiService.instance.initialize(forceRetry: true);
+        if (_isGeminiAvailable) {
+          _activeProvider = AiProvider.gemini;
+        }
+      }
+    }
+
+    if (mounted) setState(() => _isLoading = false);
   }
 
   void _addWelcomeMessage() {
@@ -56,8 +164,9 @@ class _AiChatScreenState extends State<AiChatScreen>
           '- تسوية الديون\n'
           '- تحديث بيانات الضيوف\n'
           '- ملخص الإيرادات والمصروفات\n\n'
+          '${Env.isAgentRouterConfigured ? "✨ يدعم AgentRouter AI — يمكنك التبديل بين المزودين من القائمة.\n\n" : ""}'
           'اكتب طلبك وسأساعدك!',
-    ),);
+    ));
   }
 
   void _scrollToBottom() {
@@ -74,9 +183,7 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty || _isLoading) {
-      return;
-    }
+    if (text.isEmpty || _isLoading) return;
 
     _controller.clear();
     _lastUserMessage = text;
@@ -86,15 +193,32 @@ class _AiChatScreenState extends State<AiChatScreen>
         id: 'user_${DateTime.now().millisecondsSinceEpoch}',
         text: text,
         isUser: true,
-      ),);
+      ));
       _isLoading = true;
       _loadingText = 'يفكر...';
-      // _cooldownSeconds removed
     });
     _scrollToBottom();
 
     try {
-      final response = await GeminiService.instance.chat(text);
+      final GeminiResponse response;
+
+      if (_activeProvider == AiProvider.agentRouter && _isAgentRouterAvailable) {
+        // استخدام AgentRouter
+        final hotelContext = await GeminiService.instance.buildHotelContext();
+        response = await AgentRouterService.instance.chat(text, hotelContext);
+      } else if (_isGeminiAvailable) {
+        // استخدام Gemini
+        response = await GeminiService.instance.chat(text);
+      } else if (_isAgentRouterAvailable) {
+        // التبديل تلقائياً إلى AgentRouter
+        _activeProvider = AiProvider.agentRouter;
+        final hotelContext = await GeminiService.instance.buildHotelContext();
+        response = await AgentRouterService.instance.chat(text, hotelContext);
+      } else {
+        response = const GeminiResponse(
+          text: 'لا يوجد مزود AI متاح. تأكد من تفعيل AI Logic في Firebase أو توفير مفتاح AgentRouter API.',
+        );
+      }
 
       if (mounted) {
         setState(() {
@@ -103,9 +227,8 @@ class _AiChatScreenState extends State<AiChatScreen>
             text: response.text,
             pendingCommand:
                 response.requiresConfirmation ? response.command : null,
-          ),);
+          ));
           _isLoading = false;
-          // _cooldownSeconds removed
         });
         _scrollToBottom();
       }
@@ -113,17 +236,17 @@ class _AiChatScreenState extends State<AiChatScreen>
       debugPrint('❌ Chat Error: $e');
       if (mounted) {
         String errorMsg = 'عذراً، حدث خطأ أثناء الاتصال.';
-        if (e.toString().contains('API_KEY')) {
-          errorMsg = 'خطأ في مفتاح API. يرجى التحقق من إعدادات Firebase.';
-        } else if (e.toString().contains('QUOTA')) {
-          errorMsg = 'تم تجاوز حد الطلبات المسموح به لـ Gemini.';
+        if (e.toString().contains('API_KEY') || e.toString().contains('401')) {
+          errorMsg = 'خطأ في مفتاح API.';
+        } else if (e.toString().contains('QUOTA') || e.toString().contains('429')) {
+          errorMsg = 'تم تجاوز حد الطلبات المسموح به.';
         }
 
         setState(() {
           _messages.add(ChatMessage(
             id: 'error_${DateTime.now().millisecondsSinceEpoch}',
-            text: '$errorMsg\nتأكد من اتصالك بالإنترنت وتفعيل AI Logic.',
-          ),);
+            text: '$errorMsg\nتأكد من اتصالك بالإنترنت.',
+          ));
           _isLoading = false;
         });
         _scrollToBottom();
@@ -132,9 +255,7 @@ class _AiChatScreenState extends State<AiChatScreen>
   }
 
   Future<void> _confirmCommand(ChatMessage message) async {
-    if (message.pendingCommand == null) {
-      return;
-    }
+    if (message.pendingCommand == null) return;
 
     setState(() {
       final idx = _messages.indexOf(message);
@@ -174,7 +295,6 @@ class _AiChatScreenState extends State<AiChatScreen>
   }
 
   Future<void> _cancelCommand(ChatMessage message) async {
-    // تسجيل في سجل التدقيق — تم الإلغاء
     GeminiService.instance.logToAudit(
       userMessage: _lastUserMessage ?? '',
       aiResponse: message.text,
@@ -193,6 +313,90 @@ class _AiChatScreenState extends State<AiChatScreen>
         }
       });
     }
+  }
+
+  /// التبديل بين مزودي AI
+  void _switchProvider(AiProvider provider) {
+    if (provider == AiProvider.gemini && !_isGeminiAvailable) return;
+    if (provider == AiProvider.agentRouter && !_isAgentRouterAvailable) return;
+
+    setState(() {
+      _activeProvider = provider;
+      _messages.clear();
+      _addWelcomeMessage();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('تم التبديل إلى ${provider.displayName}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// تغيير نموذج AgentRouter
+  void _showModelPicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Icon(Icons.model_training, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'اختر النموذج',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('إغلاق'),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            ...AgentRouterService.availableModels.map((model) {
+              final isSelected =
+                  AgentRouterService.instance.currentModel == model['id'];
+              return ListTile(
+                leading: Icon(
+                  isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                  color: isSelected ? Colors.amber : Colors.grey,
+                ),
+                title: Text(model['name']!),
+                subtitle: Text(
+                  model['id']!,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+                selected: isSelected,
+                onTap: () {
+                  AgentRouterService.instance.setModel(model['id']!);
+                  Navigator.pop(ctx);
+                  setState(() {});
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('تم تغيير النموذج إلى ${model['name']}'),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+              );
+            }),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showAuditLog() {
@@ -235,7 +439,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2,),
+                                        horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: entry.wasConfirmed
                                           ? Colors.green.withValues(alpha: 0.15)
@@ -257,7 +461,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                                   if (entry.commandType != null)
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 2,),
+                                          horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
                                         color:
                                             Colors.blue.withValues(alpha: 0.1),
@@ -277,7 +481,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                                   Text(
                                     DateFormat('HH:mm').format(entry.timestamp),
                                     style: const TextStyle(
-                                        fontSize: 10, color: Colors.grey,),
+                                        fontSize: 10, color: Colors.grey),
                                   ),
                                 ],
                               ),
@@ -321,7 +525,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                   );
                 },
                 child: const Text('مسح السجل',
-                    style: TextStyle(color: Colors.red),),
+                    style: TextStyle(color: Colors.red)),
               ),
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -336,7 +540,11 @@ class _AiChatScreenState extends State<AiChatScreen>
   void _clearChat() {
     setState(() {
       _messages.clear();
-      GeminiService.instance.clearHistory();
+      if (_activeProvider == AiProvider.gemini) {
+        GeminiService.instance.clearHistory();
+      } else {
+        AgentRouterService.instance.clearHistory();
+      }
       _addWelcomeMessage();
     });
   }
@@ -350,7 +558,6 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isAvailable = GeminiService.instance.isAvailable;
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -359,12 +566,12 @@ class _AiChatScreenState extends State<AiChatScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              isAvailable ? Icons.smart_toy : Icons.smart_toy_outlined,
-              color: isAvailable ? Colors.amber : Colors.grey,
+              _isAnyAvailable ? Icons.smart_toy : Icons.smart_toy_outlined,
+              color: _isAnyAvailable ? Colors.amber : Colors.grey,
             ),
             const SizedBox(width: 8),
             const Text('المساعد الذكي'),
-            if (isAvailable) ...[
+            if (_isAnyAvailable) ...[
               const SizedBox(width: 8),
               Container(
                 padding:
@@ -373,27 +580,87 @@ class _AiChatScreenState extends State<AiChatScreen>
                   color: Colors.green.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'متصّل',
-                  style: TextStyle(color: Colors.green, fontSize: 11),
+                child: Text(
+                  _activeProvider.displayName,
+                  style: const TextStyle(color: Colors.green, fontSize: 11),
                 ),
               ),
             ],
           ],
         ),
         actions: [
+          // اختيار النموذج (AgentRouter فقط)
+          if (_activeProvider == AiProvider.agentRouter)
+            IconButton(
+              icon: const Icon(Icons.tune),
+              tooltip: 'اختيار النموذج',
+              onPressed: _showModelPicker,
+            ),
           // سجل التدقيق
           IconButton(
             icon: const Icon(Icons.history),
             tooltip: 'سجل العمليات',
             onPressed: _showAuditLog,
           ),
+          // تبديل المزود
+          if (Env.isAgentRouterConfigured)
+            PopupMenuButton<AiProvider>(
+              icon: const Icon(Icons.swap_horiz),
+              tooltip: 'تبديل مزود AI',
+              onSelected: _switchProvider,
+              itemBuilder: (ctx) => [
+                PopupMenuItem(
+                  value: AiProvider.gemini,
+                  enabled: _isGeminiAvailable,
+                  child: Row(
+                    children: [
+                      Icon(
+                        _activeProvider == AiProvider.gemini
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_off,
+                        color: _activeProvider == AiProvider.gemini
+                            ? Colors.amber
+                            : Colors.grey,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Gemini AI'),
+                      if (!_isGeminiAvailable)
+                        const Text(' (غير متاح)',
+                            style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: AiProvider.agentRouter,
+                  enabled: _isAgentRouterAvailable,
+                  child: Row(
+                    children: [
+                      Icon(
+                        _activeProvider == AiProvider.agentRouter
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_off,
+                        color: _activeProvider == AiProvider.agentRouter
+                            ? Colors.amber
+                            : Colors.grey,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('AgentRouter AI'),
+                      if (!_isAgentRouterAvailable)
+                        const Text(' (غير متاح)',
+                            style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
       body: Column(
         children: [
-          // شريط تحذير إذا لم يكن متاحاً — مع تفاصيل الخطأ وزر إعادة المحاولة
-          if (!isAvailable)
+          // شريط تحذير إذا لم يكن متاحاً
+          if (!_isAnyAvailable)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -423,16 +690,17 @@ class _AiChatScreenState extends State<AiChatScreen>
                         if (GeminiService.instance.initError != null) ...[
                           const SizedBox(height: 4),
                           Text(
-                            GeminiService.instance.initError!,
+                            'Gemini: ${GeminiService.instance.initError}',
                             style: TextStyle(
                               color: Colors.orange.shade700,
                               fontSize: 11,
                             ),
                           ),
-                        ] else ...[
+                        ],
+                        if (AgentRouterService.instance.initError != null) ...[
                           const SizedBox(height: 4),
                           Text(
-                            'تأكد من تفعيل AI Logic في Firebase Console',
+                            'AgentRouter: ${AgentRouterService.instance.initError}',
                             style: TextStyle(
                               color: Colors.orange.shade700,
                               fontSize: 11,
@@ -443,15 +711,14 @@ class _AiChatScreenState extends State<AiChatScreen>
                         SizedBox(
                           height: 28,
                           child: ElevatedButton.icon(
-                            onPressed: _retryInitGemini,
+                            onPressed: _retryInit,
                             icon: const Icon(Icons.refresh, size: 14),
                             label: const Text('إعادة المحاولة',
-                                style: TextStyle(fontSize: 11),),
+                                style: TextStyle(fontSize: 11)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.orange.shade700,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,),
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -482,8 +749,8 @@ class _AiChatScreenState extends State<AiChatScreen>
                   ),
           ),
 
-          // اقتراحات سريعة (تظهر فقط في البداية)
-          if (_messages.length <= 1 && !isAvailable)
+          // اقتراحات سريعة
+          if (_messages.length <= 1 && !_isAnyAvailable)
             _buildQuickSuggestions(),
 
           // حقل الإدخال
@@ -499,7 +766,7 @@ class _AiChatScreenState extends State<AiChatScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.smart_toy_outlined,
-              size: 64, color: Colors.grey.shade300,),
+              size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 16),
           Text(
             'ابدأ محادثة مع المساعد الذكي',
@@ -551,10 +818,10 @@ class _AiChatScreenState extends State<AiChatScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.smart_toy,
-                        size: 14, color: Colors.amber.shade700,),
+                        size: 14, color: Colors.amber.shade700),
                     const SizedBox(width: 4),
                     Text(
-                      'Marina AI',
+                      _activeProvider.displayName,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
@@ -565,7 +832,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                     Text(
                       DateFormat('HH:mm').format(message.timestamp),
                       style: TextStyle(
-                          fontSize: 10, color: Colors.grey.shade400,),
+                          fontSize: 10, color: Colors.grey.shade400),
                     ),
                   ],
                 ),
@@ -638,12 +905,12 @@ class _AiChatScreenState extends State<AiChatScreen>
                     onPressed: () => _confirmCommand(message),
                     icon: const Icon(Icons.check, size: 16),
                     label: const Text('تأكيد التنفيذ',
-                        style: TextStyle(fontSize: 12),),
+                        style: TextStyle(fontSize: 12)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8,),
+                          horizontal: 14, vertical: 8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -658,7 +925,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8,),
+                          horizontal: 14, vertical: 8),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -761,7 +1028,7 @@ class _AiChatScreenState extends State<AiChatScreen>
               child: IconButton(
                 onPressed: _clearChat,
                 icon: Icon(Icons.delete_outline,
-                    size: 18, color: Colors.grey.shade500,),
+                    size: 18, color: Colors.grey.shade500),
                 tooltip: 'مسح المحادثة',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
