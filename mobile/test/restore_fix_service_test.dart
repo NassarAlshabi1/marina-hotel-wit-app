@@ -87,7 +87,7 @@ void main() {
               localUuid: Value(debtUuid),
               bookingLocalId: Value(bookingId),
               guestName: const Value('أحمد'),
-              checkinDate: Value(DateTime(2024, 10, 1).toIso8601String()),
+              checkinDate: Value(DateTime(2024, 10).toIso8601String()),
               checkoutDate: Value(DateTime(2024, 10, 4).toIso8601String()),
               totalAmount: const Value(1200),
               paidAmount: const Value(0),
@@ -178,7 +178,7 @@ void main() {
 
     test('snapshot rollback restores data on failure', () async {
       final now = Time.nowEpoch();
-      final originalStatus = 'شاغرة';
+      const originalStatus = 'شاغرة';
       await database
           .into(database.rooms)
           .insert(
@@ -324,7 +324,7 @@ void main() {
       );
       final change = computation.changes.first;
       expect(change.clientTimestamp, greaterThan(1000000000000));
-      expect((change.data['created_at'] as int), greaterThan(1000000000000));
+      expect(change.data['created_at'] as int, greaterThan(1000000000000));
     });
 
     test('detects updates after mirror persistence', () async {
@@ -346,7 +346,7 @@ void main() {
           );
       final firstComputation = await deltaService.compute();
       await deltaService.persistMirror(firstComputation);
-      await (database.into(database.syncState)).insertOnConflictUpdate(
+      await database.into(database.syncState).insertOnConflictUpdate(
         SyncStateCompanion(
           id: const Value(1),
           lastPushTs: Value(now),
@@ -395,7 +395,7 @@ void main() {
           );
       final initial = await deltaService.compute();
       await deltaService.persistMirror(initial);
-      await (database.into(database.syncState)).insertOnConflictUpdate(
+      await database.into(database.syncState).insertOnConflictUpdate(
         SyncStateCompanion(
           id: const Value(1),
           lastPushTs: Value(now),

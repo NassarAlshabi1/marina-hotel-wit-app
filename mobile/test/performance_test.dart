@@ -4,13 +4,16 @@
 /// Automated performance tests for critical operations
 /// Run: dart test test/performance_test.dart
 /// ============================================================
+library;
 
 import 'dart:async';
 import 'dart:io';
+
 import 'package:test/test.dart';
-import '../lib/services/local_db.dart' as local_db;
-import '../lib/services/cache/layered_cache_service.dart';
+
 import '../lib/services/batch/batch_operations_service.dart';
+import '../lib/services/cache/layered_cache_service.dart';
+import '../lib/services/local_db.dart' as local_db;
 import '../lib/services/optimization/optimized_queries.dart';
 
 void main() {
@@ -149,7 +152,7 @@ void main() {
       
       // Access same keys again
       int hits = 0;
-      final total = 100;
+      const total = 100;
       
       for (int i = 0; i < total; i++) {
         final value = await cache.get('key_$i', () async => 'new_$i');

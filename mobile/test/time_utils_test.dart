@@ -55,8 +55,8 @@ void main() {
   test('nightsWithCutoff uses date difference + cutoff rule', () {
     // checkin 1 يناير 13:00, checkout 2 يناير 15:00
     // فرق التواريخ = 1 يوم، المغادرة 15:00 > 14:00 → +1 = 2
-    final checkin = DateTime(2024, 1, 1, 13, 0);
-    final checkout = DateTime(2024, 1, 2, 15, 0);
+    final checkin = DateTime(2024, 1, 1, 13);
+    final checkout = DateTime(2024, 1, 2, 15);
     expect(
       Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 14),
       2,
@@ -65,7 +65,7 @@ void main() {
     // نفس اليوم → يوم واحد على الأقل، المغادرة 12:00 < 14:00 → لا إضافة
     final sameDay = Time.nightsWithCutoff(
       checkin,
-      checkout: DateTime(2024, 1, 1, 12, 0),
+      checkout: DateTime(2024, 1, 1, 12),
       cutoffHour: 14,
     );
     expect(sameDay, 1);
@@ -73,8 +73,8 @@ void main() {
     // checkin 10 يناير 20:00, checkout 12 يناير 13:00
     // فرق التواريخ = 2، المغادرة 13:00 < 14:00 → 2
     final multi = Time.nightsWithCutoff(
-      DateTime(2024, 1, 10, 20, 0),
-      checkout: DateTime(2024, 1, 12, 13, 0),
+      DateTime(2024, 1, 10, 20),
+      checkout: DateTime(2024, 1, 12, 13),
       cutoffHour: 14,
     );
     expect(multi, 2);
@@ -82,7 +82,7 @@ void main() {
     // checkin 10 يناير 20:00, checkout 12 يناير 14:01
     // فرق التواريخ = 2، المغادرة 14:01 > 14:00 → +1 = 3
     final afterCutoff = Time.nightsWithCutoff(
-      DateTime(2024, 1, 10, 20, 0),
+      DateTime(2024, 1, 10, 20),
       checkout: DateTime(2024, 1, 12, 14, 1),
       cutoffHour: 14,
     );
@@ -90,8 +90,8 @@ void main() {
 
     // المغادرة بالضبط عند 14:00:00 → لا يوم إضافي
     final exactCutoff = Time.nightsWithCutoff(
-      DateTime(2024, 1, 10, 20, 0),
-      checkout: DateTime(2024, 1, 12, 14, 0, 0),
+      DateTime(2024, 1, 10, 20),
+      checkout: DateTime(2024, 1, 12, 14),
       cutoffHour: 14,
     );
     expect(exactCutoff, 2);

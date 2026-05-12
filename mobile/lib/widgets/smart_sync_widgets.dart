@@ -93,7 +93,7 @@ class _SmartSyncNotificationListenerState
       next,
     ) {
       if (next.hasValue) {
-        final status = next.value!;
+        final status = next.value;
         final lastSyncString = status['last_sync_check'] as String?;
 
         if (lastSyncString != null) {
