@@ -110,7 +110,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
           );
         }
 
-        final payments = snapshot.data;
+        final payments = snapshot.data!;
         return SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),

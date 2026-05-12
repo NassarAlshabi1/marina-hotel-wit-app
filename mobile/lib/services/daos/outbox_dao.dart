@@ -361,6 +361,51 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       ),
     );
   }
+
+  /// جلب سجلات الأخطاء من Outbox
+  Future<List<SyncErrorRecord>> getAllErrorRecords({int limit = 100}) async {
+    final failed = await (select(outbox)
+          ..where((t) =>
+              t.processingStatus.isIn(['failed']) &
+              t.lastError.isNotNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.clientTs)])
+          ..limit(limit))
+        .get();
+
+    return failed.map((entry) {
+      final isConflict =
+          entry.lastError?.contains('conflict') == true ||
+          entry.lastError?.contains('تعارض') == true;
+      return SyncErrorRecord(
+        id: entry.id,
+        entity: entry.entity,
+        uuid: entry.localUuid,
+        operation: entry.op,
+        status: isConflict ? 'conflict' : 'failed',
+        error: entry.lastError ?? 'Unknown error',
+        attempts: entry.attempts,
+        timestamp: DateTime.fromMillisecondsSinceEpoch(entry.clientTs * 1000),
+      );
+    }).toList();
+  }
+
+  /// جدولة إعادة محاولة لسجل خطأ محدد
+  Future<void> scheduleRetry(int id, String lastError, int attempts) async {
+    await (update(outbox)..where((t) => t.id.equals(id))).write(
+      OutboxCompanion(
+        processingStatus: const Value('pending'),
+        attempts: Value(attempts + 1),
+        lastError: Value(lastError),
+        processingStartedAt: const Value(null),
+        processingWorker: const Value(null),
+      ),
+    );
+  }
+
+  /// حذف سجل واحد ناجح (مُستخدم لحذف سجلات الأخطاء الفردية)
+  Future<void> cleanupSingleSuccess(int id) async {
+    await (delete(outbox)..where((t) => t.id.equals(id))).go();
+  }
 }
 
 /// سجل يمثل تعارض في البيانات
@@ -382,4 +427,39 @@ class ConflictRecord {
   final Map<String, dynamic> remotePayload;
   final String lastError;
   final DateTime timestamp;
+}
+
+/// سجل خطأ المزامنة — يمثّل عنصر outbox فاشل أو متعارض
+class SyncErrorRecord {
+  SyncErrorRecord({
+    required this.id,
+    required this.entity,
+    required this.uuid,
+    required this.operation,
+    required this.status,
+    required this.error,
+    required this.attempts,
+    required this.timestamp,
+  });
+
+  final int id;
+  final String entity;
+  final String uuid;
+  final String operation;
+  final String status; // 'failed' أو 'conflict'
+  final String error;
+  final int attempts;
+  final DateTime timestamp;
+
+  /// هل الخطأ بسبب تعارض بيانات؟
+  bool get isConflict => status == 'conflict';
+
+  /// تسمية الحالة بالعربية
+  String get statusLabel => isConflict ? 'تعارض' : 'فشل';
+
+  /// ملخص قصير لنص الخطأ
+  String get shortError {
+    if (error.length <= 80) return error;
+    return '${error.substring(0, 77)}...';
+  }
 }

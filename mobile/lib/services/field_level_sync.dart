@@ -33,8 +33,8 @@ class FieldChange {
 
   factory FieldChange.fromJson(Map<String, dynamic> json) => FieldChange(
     fieldName: json['fieldName'] as String,
-    oldValue: _deserializeValue(json['oldValue'], json['fieldType']),
-    newValue: _deserializeValue(json['newValue'], json['fieldType']),
+    oldValue: _deserializeValue(json['oldValue'], json['fieldType'] as String?),
+    newValue: _deserializeValue(json['newValue'], json['fieldType'] as String?),
     version: json['version'] as int,
     timestamp: json['timestamp'] as int,
     deviceId: json['deviceId'] as String,
@@ -1256,10 +1256,10 @@ class FieldMetadata {
 
   /// إنشاء من JSON
   factory FieldMetadata.fromJson(Map<String, dynamic> json) => FieldMetadata(
-    versions: Map<String, int>.from(json['versions'] ?? {}),
-    timestamps: Map<String, int>.from(json['timestamps'] ?? {}),
-    vectorClocks: Map<String, String>.from(json['vectorClocks'] ?? {}),
-    devices: Map<String, String>.from(json['devices'] ?? {}),
+    versions: Map<String, int>.from(json['versions'] as Map? ?? {}),
+    timestamps: Map<String, int>.from(json['timestamps'] as Map? ?? {}),
+    vectorClocks: Map<String, String>.from(json['vectorClocks'] as Map? ?? {}),
+    devices: Map<String, String>.from(json['devices'] as Map? ?? {}),
   );
 
   final Map<String, int> versions;

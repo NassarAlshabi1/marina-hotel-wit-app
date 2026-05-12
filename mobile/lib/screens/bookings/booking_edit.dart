@@ -128,7 +128,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     } else {
       if (widget.initialRoomNumber != null &&
           widget.initialRoomNumber!.isNotEmpty) {
-        _roomNumber.text = widget.initialRoomNumber;
+        _roomNumber.text = widget.initialRoomNumber!;
         _roomInitialized = true;
       }
       _checkin.text = _formatDateTime(DateTime.now());

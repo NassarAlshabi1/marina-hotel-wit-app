@@ -379,9 +379,9 @@ class SyncSchemaValidator {
       final issues = <String>[];
       final warnings = <String>[];
 
-      // التحقق من employeeId (مطلوب في Appwrite)
-      if (payment.employeeId == null) {
-        issues.add('employeeId فارغ - مطلوب في Appwrite');
+      // التحقق من cycleId (مطلوب في Appwrite — يُستخدم لربط الموظف)
+      if (payment.cycleId == null) {
+        issues.add('cycleId فارغ - مطلوب في Appwrite');
       }
 
       // التحقق من paymentDate (مطلوب في Appwrite)
@@ -393,7 +393,6 @@ class SyncSchemaValidator {
         'collection': 'salary_payments',
         'localId': payment.id,
         'localUuid': payment.localUuid,
-        'employeeId': payment.employeeId,
         'cycleId': payment.cycleId,
         'isValid': issues.isEmpty,
         'issues': issues,
@@ -413,14 +412,10 @@ class SyncSchemaValidator {
       final issues = <String>[];
       final warnings = <String>[];
 
-      // التحقق من shiftDate (مطلوب في Appwrite)
-      if (note.shiftDate == null || note.shiftDate!.isEmpty) {
-        // يمكن حسابه من createdAtIso
-        if (note.createdAtIso != null && note.createdAtIso!.isNotEmpty) {
-          warnings.add('shiftDate فارغ - سيتم حسابه من createdAtIso');
-        } else {
-          warnings.add('shiftDate فارغ - سيتم حسابه من createdAt');
-        }
+      // التحقق من createdAtIso (التاريخ — مطلوب في Appwrite)
+      if (note.createdAtIso == null || note.createdAtIso!.isEmpty) {
+        // يمكن حسابه من createdAt
+        warnings.add('createdAtIso فارغ - سيتم حسابه من createdAt');
       }
 
       // التحقق من note (مطلوب في Appwrite - يستخدم content أو title)
@@ -432,7 +427,7 @@ class SyncSchemaValidator {
         'collection': 'shift_notes',
         'localId': note.id,
         'localUuid': note.localUuid,
-        'shiftDate': note.shiftDate,
+        'shiftDate': note.createdAtIso,
         'isValid': issues.isEmpty,
         'issues': issues,
         'warnings': warnings,
