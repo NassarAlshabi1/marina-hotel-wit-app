@@ -4,15 +4,15 @@
 /// Automated performance tests for critical operations
 /// Run: flutter test test/performance_test.dart
 /// ============================================================
+library;
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/drift.dart' show Value;
-
+import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/batch/batch_operations_service.dart';
 import 'package:marina_hotel_mobile/services/cache/layered_cache_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart' as local_db;
-import 'package:marina_hotel_mobile/services/optimization/optimized_queries.dart';
 import 'package:marina_hotel_mobile/services/optimization/db_performance_optimizer.dart';
+import 'package:marina_hotel_mobile/services/optimization/optimized_queries.dart';
 
 void main() {
   group('Performance Tests', () {
