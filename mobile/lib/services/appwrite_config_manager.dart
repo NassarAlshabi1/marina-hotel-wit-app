@@ -37,9 +37,7 @@ class AppwriteConfigManager {
       // التهيئة تمت بالفعل — لا حاجة لإعادة تشغيلها
       return;
     }
-    if (_initCompleter == null) {
-      _initCompleter = Completer<void>();
-    }
+    _initCompleter ??= Completer<void>();
     try {
       final prefs = await SharedPreferences.getInstance();
       _endpoint = prefs.getString(_endpointKey) ?? AppwriteConfig.endpoint;
