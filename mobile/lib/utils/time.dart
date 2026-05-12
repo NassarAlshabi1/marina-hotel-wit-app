@@ -112,9 +112,10 @@ class Time {
       checkin.day,
       cutoffHour,
     );
-    if (checkin.isBefore(startOfCheckinHotelDay)) {
-      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(const Duration(days: 1));
-    }
+    // ✅ إصلاح: لا نرجع بيوم للخلف — يوم الفندق يبدأ من ساعة القطع
+    // في نفس يوم تسجيل الدخول، وليس من اليوم السابق
+    // السابق: كان يرجع لليوم السابق إذا كان تسجيل الدخول قبل ساعة القطع
+    // مما يسبب احتساب ليلة إضافية خاطئة
 
     // حساب الفرق الزمني بين الوقت الحالي (أو وقت المغادرة) وبداية يوم الفندق للحجز
     final duration = end.difference(startOfCheckinHotelDay);

@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'connectivity_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'sync_constants.dart';
 import 'sync_core/circuit_breaker.dart';
 import 'sync_mutex.dart';
 
@@ -506,6 +507,10 @@ class SyncOrchestrator {
     ];
 
     for (final table in tables) {
+      // ✅ SECURITY: التحقق من اسم الجدول ضد القائمة البيضاء
+      if (!SyncConstants.sqlAllowedTables.contains(table)) {
+        continue;
+      }
       try {
         final result = await _database
             .customSelect(

@@ -23,6 +23,24 @@ class SyncConstants {
     'salary_payments',
   ];
 
+  // ✅ SECURITY: قائمة بيضاء شاملة لجميع أسماء الجداول المسموح بها في SQL
+  // تُستخدم لمنع SQL Injection في العمليات الديناميكية
+  static const sqlAllowedTables = {
+    // Main tables
+    'rooms', 'employees', 'bookings', 'payments', 'expenses', 'debts',
+    'booking_notes', 'shift_notes', 'cash_transactions',
+    // Extra tables
+    'booking_nights', 'hotel_day_ledger', 'auto_fix_runs',
+    'integrity_violations', 'app_sessions', 'salary_cycles',
+    'salary_payments',
+    // Sync/Outbox tables
+    'outbox', 'sync_log', 'sync_queue',
+    // New tables
+    'salary_withdrawals', 'blacklist', 'price_adjustments',
+    'booking_price_adjustments', 'audit_logs', 'payment_voids',
+    'guest_infos',
+  };
+
   static List<String> get allTablesInOrder => [...tableOrder, ...extraTables];
 
   static List<String> get allTablesInReverseOrder =>

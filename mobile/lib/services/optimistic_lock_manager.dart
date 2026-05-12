@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 
 import 'local_db.dart';
+import 'sync_constants.dart';
 
 class OptimisticLockException implements Exception {
   OptimisticLockException(
@@ -56,21 +57,8 @@ class OptimisticLockManager {
 
   /// الحصول على الإصدار الحالي لصف
   Future<int?> _getCurrentVersion(String table, String uuid) async {
-    const allowedTables = {
-      'rooms',
-      'bookings',
-      'booking_notes',
-      'employees',
-      'expenses',
-      'cash_transactions',
-      'payments',
-      'debts',
-      'booking_nights',
-      'hotel_day_ledger',
-      'shift_notes',
-    };
-
-    if (!allowedTables.contains(table)) {
+    // ✅ SECURITY: استخدام القائمة البيضاء الموحدة من SyncConstants
+    if (!SyncConstants.sqlAllowedTables.contains(table)) {
       throw ArgumentError('جدول غير مسموح: $table');
     }
 

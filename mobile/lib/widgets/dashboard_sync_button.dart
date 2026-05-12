@@ -301,10 +301,18 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
     } finally {
-      _pullAnimationController.stop();
-      _pullAnimationController.reset();
+      // ✅ حماية: التحقق من أن المتحكم لم يُتخلص منه قبل إيقافه
+      // لمنع كراش Null check operator used on a null value
       if (mounted) {
+        try {
+          _pullAnimationController.stop();
+          _pullAnimationController.reset();
+        } catch (_) {
+          // المتحكم قد يكون تم التخلص منه بعد فحص mounted بسبب سباق البيانات
+        }
         setState(() => _isPulling = false);
+      } else {
+        _isPulling = false;
       }
     }
   }
@@ -668,10 +676,18 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
     } finally {
-      _pushAnimationController.stop();
-      _pushAnimationController.reset();
+      // ✅ حماية: التحقق من أن المتحكم لم يُتخلص منه قبل إيقافه
+      // لمنع كراش Null check operator used on a null value
       if (mounted) {
+        try {
+          _pushAnimationController.stop();
+          _pushAnimationController.reset();
+        } catch (_) {
+          // المتحكم قد يكون تم التخلص منه بعد فحص mounted بسبب سباق البيانات
+        }
         setState(() => _isPushing = false);
+      } else {
+        _isPushing = false;
       }
     }
   }

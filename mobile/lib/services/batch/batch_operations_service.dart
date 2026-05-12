@@ -4,6 +4,7 @@
 
 import 'package:drift/drift.dart';
 import '../local_db.dart' as local_db;
+import '../sync_constants.dart';
 
 class DriftBatchResult<T> {
   DriftBatchResult({
@@ -122,11 +123,17 @@ class BatchOperationsService {
   /// ─── BATCH DELETE ───
   
   /// Delete by IDs (much faster than SELECT then DELETE)
+  /// ✅ SECURITY: يتحقق من اسم الجدول ضد القائمة البيضاء لمنع SQL Injection
   Future<int> batchDeleteByIds(
     String tableName,
     List<int> ids, {
     int batchSize = 500,
   }) async {
+    // ✅ SECURITY: التحقق من اسم الجدول ضد القائمة البيضاء
+    if (!SyncConstants.sqlAllowedTables.contains(tableName)) {
+      throw ArgumentError('اسم الجدول غير مسموح به: $tableName');
+    }
+
     int totalDeleted = 0;
     
     for (var i = 0; i < ids.length; i += batchSize) {
@@ -134,7 +141,7 @@ class BatchOperationsService {
       final placeholders = List.filled(batch.length, '?').join(',');
       
       await db.customUpdate(
-        'DELETE FROM $tableName '
+        'DELETE FROM "$tableName" '
         'WHERE id IN ($placeholders)',
         variables: [
           for (final id in batch) Variable<int>(id),
@@ -234,6 +241,7 @@ extension BatchExtensions on BatchOperationsService {
   /// Quick bulk insert for sync operations using raw SQL
   /// Note: For type-safe inserts, prefer the specific batch helpers
   /// (batchInsertRooms, batchInsertPayments, etc.)
+  /// ✅ SECURITY: يتحقق من اسم الجدول وأسماء الأعمدة ضد القائمة البيضاء
   Future<void> bulkInsertSync(
     String table,
     List<Map<String, dynamic>> records, {
@@ -243,8 +251,20 @@ extension BatchExtensions on BatchOperationsService {
       return;
     }
 
+    // ✅ SECURITY: التحقق من اسم الجدول ضد القائمة البيضاء
+    if (!SyncConstants.sqlAllowedTables.contains(table)) {
+      throw ArgumentError('اسم الجدول غير مسموح به: $table');
+    }
+
     final keys = records.first.keys.toList();
-    final columns = keys.join(', ');
+    // ✅ SECURITY: تنقيح أسماء الأعمدة - فقط أحرف أبجدية رقمية وشرطة سفلية
+    final sanitizedColumns = keys.map((k) {
+      if (!RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$').hasMatch(k)) {
+        throw ArgumentError('اسم العمود غير صالح: $k');
+      }
+      return '"$k"'; // استخدام علامات اقتباس مزدوجة لحماية أسماء الأعمدة
+    }).toList();
+    final columns = sanitizedColumns.join(', ');
     final placeholders = List.filled(keys.length, '?').join(', ');
 
     await db.transaction(() async {
@@ -254,7 +274,7 @@ extension BatchExtensions on BatchOperationsService {
           for (final record in chunk) {
             final values = keys.map((k) => record[k]).toList();
             batch.customStatement(
-              'INSERT OR REPLACE INTO $table ($columns) VALUES ($placeholders)',
+              'INSERT OR REPLACE INTO "$table" ($columns) VALUES ($placeholders)',
               values,
             );
           }

@@ -7,6 +7,7 @@
 
 import 'package:drift/drift.dart';
 import '../local_db.dart' as local_db;
+import '../sync_constants.dart';
 
 class OptimizedQueries {
   OptimizedQueries(this.db);
@@ -305,15 +306,15 @@ class OptimizedQueries {
   /// Uses raw SQL since Drift's typed select API requires compile-time
   /// table types, which is incompatible with a generic parameter.
   ///
-  /// ⚠️ SECURITY: tableName must be from a whitelist; whereSql/orderBySql
-  /// must NOT contain user-controlled input.
-  static const _allowedTables = {
-    'rooms', 'bookings', 'payments', 'expenses', 'employees', 'debts',
-    'booking_notes', 'cash_transactions', 'booking_nights', 'hotel_day_ledger',
-    'salary_cycles', 'salary_payments', 'salary_withdrawals', 'shift_notes',
-    'blacklist', 'price_adjustments', 'booking_price_adjustments',
-    'audit_logs', 'payment_voids', 'guest_infos',
-  };
+  /// ⚠️ SECURITY: tableName validated against SyncConstants whitelist;
+  /// whereSql/orderBySql validated against strict SQL-safe pattern.
+  static const _allowedTables = SyncConstants.sqlAllowedTables;
+
+  /// ✅ SECURITY: نمط التحقق الصارم لمنع SQL Injection في whereSql/orderBySql
+  /// يسمح فقط بأحرف أبجدية رقمية، مسافات، عوامل مقارنة، و AND/OR/NOT
+  static final _safeSqlPattern = RegExp(
+    r"^[a-zA-Z0-9_\s.='<>!(),?*\-]+$",
+  );
 
   Future<List<Map<String, dynamic>>> getPaginated(
     String tableName, {
@@ -323,16 +324,30 @@ class OptimizedQueries {
     List<Variable<Object>>? variables,
     String? orderBySql,
   }) async {
-    // ✅ التحقق من اسم الجدول لمنع SQL Injection
+    // ✅ SECURITY: التحقق من اسم الجدول ضد القائمة البيضاء الموحدة
     if (!_allowedTables.contains(tableName)) {
       throw ArgumentError('اسم الجدول غير مسموح به: $tableName');
     }
-    // ✅ التحقق من أن whereSql و orderBySql لا يحتويان على أحرف خطرة
-    if (whereSql != null && whereSql.contains(RegExp(';|--'))) {
-      throw ArgumentError('whereSql يحتوي على أحرف غير مسموح بها');
+    // ✅ SECURITY: التحقق الصارم من أن whereSql لا يحتوي على أحرف خطرة
+    if (whereSql != null) {
+      if (whereSql.contains(';') || whereSql.contains('--')) {
+        throw ArgumentError('whereSql يحتوي على أحرف غير مسموح بها (؛ أو --)');
+      }
+      if (!_safeSqlPattern.hasMatch(whereSql)) {
+        throw ArgumentError('whereSql يحتوي على أحرف غير مسموح بها');
+      }
+      // منع UNION injection
+      if (whereSql.toUpperCase().contains('UNION')) {
+        throw ArgumentError('whereSql لا يمكن أن يحتوي على UNION');
+      }
     }
-    if (orderBySql != null && orderBySql.contains(RegExp(';|--'))) {
-      throw ArgumentError('orderBySql يحتوي على أحرف غير مسموح بها');
+    if (orderBySql != null) {
+      if (orderBySql.contains(';') || orderBySql.contains('--')) {
+        throw ArgumentError('orderBySql يحتوي على أحرف غير مسموح بها (؛ أو --)');
+      }
+      if (!_safeSqlPattern.hasMatch(orderBySql)) {
+        throw ArgumentError('orderBySql يحتوي على أحرف غير مسموح بها');
+      }
     }
 
     final offset = (page - 1) * limit;

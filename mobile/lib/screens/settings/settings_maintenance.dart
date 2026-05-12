@@ -118,6 +118,13 @@ class _SettingsMaintenanceScreenState
       'booking_nights', 'hotel_day_ledger', 'shift_notes',
     ];
     for (final table in mainTables) {
+      // ✅ SECURITY: التحقق من اسم الجدول (defensive - القائمة محلية)
+      if (!const {'rooms', 'bookings', 'booking_notes', 'employees',
+          'expenses', 'cash_transactions', 'payments', 'debts',
+          'booking_nights', 'hotel_day_ledger', 'shift_notes',
+        }.contains(table)) {
+        continue;
+      }
       try {
         final result = await db
             .customSelect('SELECT COUNT(*) AS c FROM $table WHERE deleted_at IS NULL')

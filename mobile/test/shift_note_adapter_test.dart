@@ -54,7 +54,7 @@ void main() {
 
     expect(
       data['booking_id'],
-      adapter.ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID,
+      adapter.ShiftNoteAdapter.generalNotesBookingId,
     );
     expect(data['note_text'], 'Title|||Body');
     expect(data['alert_type'], 'H-NIG');

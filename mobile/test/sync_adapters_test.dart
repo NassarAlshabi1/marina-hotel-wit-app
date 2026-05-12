@@ -442,11 +442,13 @@ void main() {
       )..where((t) => t.localUuid.equals(uuid))).getSingle();
       expect(localExpense, isNotNull);
       expect(localExpense.amount, equals(500.0));
-      expect(localExpense.idempotencyKey, equals('exp-$uuid'));
-      expect(localExpense.deviceId, equals('device-001'));
+      // ✅ إصلاح: Expenses لا يحتوي على idempotencyKey أو deviceId
+      // هذه الحقول موجودة فقط في Outbox و AuditLogs وليس في Expenses
+      expect(localExpense.expenseType, equals('maintenance'));
+      expect(localExpense.description, equals('إصلاح مكيف'));
 
       print(
-        '✓ Expense created with idempotencyKey: ${localExpense.idempotencyKey}',
+        '✓ Expense created successfully with amount: ${localExpense.amount}',
       );
     });
   });

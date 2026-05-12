@@ -17,6 +17,7 @@ import '../utils/app_logger.dart';
 import 'backup_serializers.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
+import 'sync_constants.dart';
 
 export 'google_drive_backup_service.dart' show BackupFormat;
 
@@ -291,8 +292,12 @@ class LocalBackupService {
 
   Future<Map<String, int>> _collectRecordCounts(AppDatabase db) async {
     Future<int> count(String table) async {
+      // ✅ SECURITY: التحقق من اسم الجدول ضد القائمة البيضاء
+      if (!SyncConstants.sqlAllowedTables.contains(table)) {
+        throw ArgumentError('اسم الجدول غير مسموح به: $table');
+      }
       final row = await db
-          .customSelect('SELECT COUNT(*) AS count FROM $table')
+          .customSelect('SELECT COUNT(*) AS count FROM "$table"')
           .getSingle();
       final value = row.data['count'];
       if (value is int) {
