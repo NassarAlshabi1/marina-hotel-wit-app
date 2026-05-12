@@ -77,11 +77,8 @@ class Bookings extends Table with SyncFields {
   TextColumn get status => text()();
   TextColumn get notes => text().nullable()();
   RealColumn get discount => real().withDefault(const Constant(0))();
-  // ⚠️ CRITICAL: Appwrite Cloud default = '' (فارغ)، لكن Drift = 'per_night'
-  // تغيير القيمة الافتراضية يتطلب ترحيل بيانات + إعادة تشغيل build_runner
-  // بعد الإصلاح: text().withDefault(const Constant(''))();
   TextColumn get discountType =>
-      text().withDefault(const Constant('per_night'))();
+      text().withDefault(const Constant(''))();
   TextColumn get discountStartDate => text().nullable()();
   IntColumn get expectedNights => integer().withDefault(const Constant(1))();
   IntColumn get calculatedNights => integer().withDefault(const Constant(1))();
@@ -362,11 +359,8 @@ class BookingNights extends Table with SyncFields {
   TextColumn get nightEnd => text()();
   RealColumn get nightlyRate => real().withDefault(const Constant(0.0))();
   IntColumn get sequence => integer().withDefault(const Constant(0))();
-  // ⚠️ CRITICAL: Appwrite Cloud default = true، لكن Drift = false
-  // تغيير القيمة الافتراضية يتطلب ترحيل بيانات + إعادة تشغيل build_runner
-  // بعد الإصلاح: boolean().withDefault(const Constant(true))();
   BoolColumn get isProcessedByAutoFix =>
-      boolean().withDefault(const Constant(false))();
+      boolean().withDefault(const Constant(true))();
   RealColumn get baseRate => real().withDefault(const Constant(0.0))();
   RealColumn get adjustment => real().withDefault(const Constant(0.0))();
   RealColumn get finalRate => real().withDefault(const Constant(0.0))();
