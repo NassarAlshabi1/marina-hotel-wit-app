@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/responsive/responsive.dart';
 import '../providers/auth_provider.dart';
 
 class AdminSidebar extends ConsumerWidget {
@@ -32,52 +33,71 @@ class AdminSidebar extends ConsumerWidget {
     final dividerColor = Colors.white.withValues(alpha: 0.12);
     final inactiveColor = Colors.white.withValues(alpha: 0.72);
 
+    // ─── عرض الشريط الجانبي حسب حجم الشاشة ───
+    final sidebarWidth = context.sidebarWidth;
+
+    // ─── أحجام متجاوبة ───
+    final isDesktop = context.isDesktopOrAbove;
+    final headerPadding = isDesktop
+        ? const EdgeInsets.all(24)
+        : const EdgeInsets.symmetric(horizontal: 16, vertical: 18);
+    final logoIconSize = isDesktop ? 32.0 : 28.0;
+    final logoIconPadding = isDesktop ? 12.0 : 10.0;
+    final hotelNameFontSize = isDesktop ? 18.0 : 16.0;
+    final menuIconSize = isDesktop ? 24.0 : 22.0;
+    final menuFontSize = isDesktop ? 14.0 : 13.0;
+    final userCardPadding = isDesktop
+        ? const EdgeInsets.all(12)
+        : const EdgeInsets.symmetric(horizontal: 10, vertical: 8);
+    final menuHPadding = isDesktop ? 16.0 : 12.0;
+
     return Container(
-      width: 280,
+      width: sidebarWidth,
       color: sidebarColor,
       child: Column(
         children: [
+          // ─── رأس الشريط الجانبي ───
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: headerPadding,
             decoration: BoxDecoration(
               color: headerColor,
               border: Border(bottom: BorderSide(color: dividerColor)),
             ),
             child: Column(
               children: [
-                // Logo section
+                // شعار الفندق
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(logoIconPadding),
                       decoration: BoxDecoration(
                         color: cardOverlay,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.hotel,
                         color: Colors.white,
-                        size: 32,
+                        size: logoIconSize,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    const Expanded(
+                    const SizedBox(width: 12),
+                    Expanded(
                       child: Text(
                         'فندق مارينا بلازا',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 18,
+                          fontSize: hotelNameFontSize,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: isDesktop ? 16 : 12),
 
-                // User info section
+                // بطاقة المستخدم
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: userCardPadding,
                   decoration: BoxDecoration(
                     color: cardOverlay,
                     borderRadius: BorderRadius.circular(12),
@@ -85,20 +105,22 @@ class AdminSidebar extends ConsumerWidget {
                   child: Row(
                     children: [
                       CircleAvatar(
+                        radius: isDesktop ? 18 : 15,
                         backgroundColor: Colors.white.withValues(alpha: 0.2),
-                        child: const Icon(Icons.person, color: Colors.white),
+                        child: Icon(Icons.person, color: Colors.white,
+                            size: isDesktop ? 20 : 18),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               auth.currentUser?.name ?? 'مستخدم',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                                fontSize: isDesktop ? 14 : 13,
                               ),
                             ),
                             Text(
@@ -107,7 +129,7 @@ class AdminSidebar extends ConsumerWidget {
                                   : 'موظف',
                               style: TextStyle(
                                 color: inactiveColor,
-                                fontSize: 12,
+                                fontSize: isDesktop ? 12 : 11,
                               ),
                             ),
                           ],
@@ -120,10 +142,12 @@ class AdminSidebar extends ConsumerWidget {
             ),
           ),
 
-          // Menu Items - exactly matching PHP sidebar
+          // ─── عناصر القائمة ───
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: EdgeInsets.symmetric(
+                vertical: isDesktop ? 12 : 8,
+              ),
               children: [
                 if (can('dashboard'))
                   _buildMenuItem(
@@ -133,6 +157,9 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute == '/dashboard',
                     onTap: () => onRouteSelected('/dashboard'),
                     context: context,
+                    menuIconSize: menuIconSize,
+                    menuFontSize: menuFontSize,
+                    menuHPadding: menuHPadding,
                   ),
                 if (can('rooms'))
                   _buildMenuItem(
@@ -142,6 +169,9 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute.startsWith('/rooms'),
                     onTap: () => onRouteSelected('/rooms'),
                     context: context,
+                    menuIconSize: menuIconSize,
+                    menuFontSize: menuFontSize,
+                    menuHPadding: menuHPadding,
                   ),
                 if (can('bookings'))
                   _buildMenuItem(
@@ -151,6 +181,9 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute.startsWith('/bookings'),
                     onTap: () => onRouteSelected('/bookings'),
                     context: context,
+                    menuIconSize: menuIconSize,
+                    menuFontSize: menuFontSize,
+                    menuHPadding: menuHPadding,
                   ),
                 if (can('payments'))
                   _buildMenuItem(
@@ -160,6 +193,9 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute.startsWith('/payments'),
                     onTap: () => onRouteSelected('/payments'),
                     context: context,
+                    menuIconSize: menuIconSize,
+                    menuFontSize: menuFontSize,
+                    menuHPadding: menuHPadding,
                   ),
                 if (can('debts'))
                   _buildMenuItem(
@@ -169,6 +205,9 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute.startsWith('/debts'),
                     onTap: () => onRouteSelected('/debts'),
                     context: context,
+                    menuIconSize: menuIconSize,
+                    menuFontSize: menuFontSize,
+                    menuHPadding: menuHPadding,
                   ),
                 if (can('expenses'))
                   _buildMenuItem(
@@ -178,6 +217,9 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute.startsWith('/expenses'),
                     onTap: () => onRouteSelected('/expenses'),
                     context: context,
+                    menuIconSize: menuIconSize,
+                    menuFontSize: menuFontSize,
+                    menuHPadding: menuHPadding,
                   ),
                 if (can('finance'))
                   _buildMenuItem(
@@ -187,6 +229,9 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute.startsWith('/finance'),
                     onTap: () => onRouteSelected('/finance'),
                     context: context,
+                    menuIconSize: menuIconSize,
+                    menuFontSize: menuFontSize,
+                    menuHPadding: menuHPadding,
                   ),
                 if (can('reports'))
                   _buildMenuItem(
@@ -196,6 +241,9 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute.startsWith('/reports'),
                     onTap: () => onRouteSelected('/reports'),
                     context: context,
+                    menuIconSize: menuIconSize,
+                    menuFontSize: menuFontSize,
+                    menuHPadding: menuHPadding,
                   ),
                 if (can('notes'))
                   _buildMenuItem(
@@ -205,6 +253,9 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute.startsWith('/notes'),
                     onTap: () => onRouteSelected('/notes'),
                     context: context,
+                    menuIconSize: menuIconSize,
+                    menuFontSize: menuFontSize,
+                    menuHPadding: menuHPadding,
                   ),
                 if (can('settings'))
                   _buildMenuItem(
@@ -214,6 +265,9 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute.startsWith('/blacklist'),
                     onTap: () => onRouteSelected('/blacklist'),
                     context: context,
+                    menuIconSize: menuIconSize,
+                    menuFontSize: menuFontSize,
+                    menuHPadding: menuHPadding,
                   ),
                 if (can('information'))
                   _buildMenuItem(
@@ -223,6 +277,9 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute.startsWith('/information'),
                     onTap: () => onRouteSelected('/information'),
                     context: context,
+                    menuIconSize: menuIconSize,
+                    menuFontSize: menuFontSize,
+                    menuHPadding: menuHPadding,
                   ),
                 if (can('settings'))
                   _buildMenuItem(
@@ -232,6 +289,9 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute.startsWith('/ai'),
                     onTap: () => onRouteSelected('/ai'),
                     context: context,
+                    menuIconSize: menuIconSize,
+                    menuFontSize: menuFontSize,
+                    menuHPadding: menuHPadding,
                   ),
                 if (can('settings'))
                   _buildMenuItem(
@@ -241,6 +301,9 @@ class AdminSidebar extends ConsumerWidget {
                     isActive: currentRoute.startsWith('/settings'),
                     onTap: () => onRouteSelected('/settings'),
                     context: context,
+                    menuIconSize: menuIconSize,
+                    menuFontSize: menuFontSize,
+                    menuHPadding: menuHPadding,
                   ),
               ],
             ),
@@ -253,19 +316,19 @@ class AdminSidebar extends ConsumerWidget {
               route: '/logout',
               isActive: false,
               onTap: () async {
-                // إغلاق الـ Drawer في الموبايل قبل تسجيل الخروج
                 try {
-                  final isTablet = MediaQuery.of(context).size.width >= 768;
-                  if (!isTablet && Navigator.of(context).canPop()) {
+                  if (context.isMobile && Navigator.of(context).canPop()) {
                     Navigator.of(context).pop();
                   }
                 } catch (e) {
                   // تجاهل الأخطاء
                 }
-
                 await ref.read(authProvider.notifier).logout();
               },
               context: context,
+              menuIconSize: menuIconSize,
+              menuFontSize: menuFontSize,
+              menuHPadding: menuHPadding,
             ),
           ),
         ],
@@ -280,9 +343,12 @@ class AdminSidebar extends ConsumerWidget {
     required bool isActive,
     required VoidCallback onTap,
     BuildContext? context,
+    double menuIconSize = 24,
+    double menuFontSize = 14,
+    double menuHPadding = 16,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      margin: EdgeInsets.symmetric(horizontal: menuHPadding - 4, vertical: 2),
       decoration: BoxDecoration(
         color: isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
@@ -290,6 +356,7 @@ class AdminSidebar extends ConsumerWidget {
       child: ListTile(
         leading: Icon(
           icon,
+          size: menuIconSize,
           color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.72),
         ),
         title: Text(
@@ -297,24 +364,22 @@ class AdminSidebar extends ConsumerWidget {
           style: TextStyle(
             color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.72),
             fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+            fontSize: menuFontSize,
           ),
         ),
         onTap: () {
-          // إغلاق الـ Drawer في الموبايل قبل التنقل
           if (context != null) {
             try {
-              // تحقق مما إذا كان هناك drawer مفتوح وأغلقه
-              final isTablet = MediaQuery.of(context).size.width >= 768;
-              if (!isTablet && Navigator.of(context).canPop()) {
+              if (context.isMobile && Navigator.of(context).canPop()) {
                 Navigator.of(context).pop();
               }
             } catch (e) {
-              // تجاهل الأخطاء ومتابع
+              // تجاهل الأخطاء ومتابعة
             }
           }
           onTap();
         },
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        contentPadding: EdgeInsets.symmetric(horizontal: menuHPadding),
         dense: true,
       ),
     );

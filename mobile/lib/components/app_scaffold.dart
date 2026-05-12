@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/responsive/responsive.dart';
 import '../providers/repository_providers.dart';
 import '../screens/notes/notes_screen.dart';
 import 'widgets/sync_action_button.dart';
@@ -24,10 +25,9 @@ class AppScaffold extends ConsumerWidget {
   final Widget? fab;
 
   /// عنوان ثانوي يظهر أسفل العنوان الرئيسي في الـ AppBar
-  /// (مثال: عنوان التقرير بخط أصغر وتوسيط)
   final String? subtitle;
 
-  /// لون خلفية الـ AppBar (إذا لم يُحدد يستخدم لون الثيم)
+  /// لون خلفية الـ AppBar
   final Color? appBarBackgroundColor;
 
   /// لون العنوان الرئيسي
@@ -36,8 +36,7 @@ class AppScaffold extends ConsumerWidget {
   /// لون العنوان الثانوي
   final Color? subtitleColor;
 
-  /// محاذاة العنوان الرئيسي (الافتراضي: توسيط)
-  /// استخدم TextAlign.end للمحاذاة اليمنى في RTL
+  /// محاذاة العنوان الرئيسي
   final TextAlign? titleAlign;
 
   @override
@@ -52,11 +51,26 @@ class AppScaffold extends ConsumerWidget {
     final isLightBg = appBarBackgroundColor != null &&
         appBarBackgroundColor!.computeLuminance() > 0.5;
 
+    // ─── أحجام متجاوبة ───
+    final titleFontSize = context.responsive<double>(
+      mobile: 17,
+      tablet: 19,
+      desktop: 20,
+    );
+    final subtitleFontSize = context.responsive<double>(
+      mobile: 14,
+      tablet: 15,
+      desktop: 16,
+    );
+    final toolbarHeight = subtitle != null
+        ? context.responsive<double>(mobile: 60, tablet: 64, desktop: 68)
+        : null;
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          toolbarHeight: subtitle != null ? 64 : null,
+          toolbarHeight: toolbarHeight,
           backgroundColor: appBarBackgroundColor,
           foregroundColor: isLightBg ? Colors.black87 : null,
           elevation: appBarBackgroundColor != null ? 1 : null,
@@ -71,7 +85,7 @@ class AppScaffold extends ConsumerWidget {
                       title,
                       textAlign: titleAlign ?? TextAlign.center,
                       style: TextStyle(
-                        fontSize: 17,
+                        fontSize: titleFontSize,
                         fontWeight: FontWeight.bold,
                         color: titleColor ?? (isLightBg ? Colors.black : Colors.white),
                       ),
@@ -80,7 +94,7 @@ class AppScaffold extends ConsumerWidget {
                     Text(
                       subtitle!,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: subtitleFontSize,
                         fontWeight: FontWeight.w600,
                         color: subtitleColor ?? (isLightBg ? Colors.black54 : Colors.white70),
                       ),

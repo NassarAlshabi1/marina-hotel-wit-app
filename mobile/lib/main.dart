@@ -115,9 +115,14 @@ Future<void> main() async {
     },
   );
 
+  // ─── دعم جميع اتجاهات الشاشة للتابلت والويندوز ───
+  // على الهاتف: عمودي فقط (أفضل تجربة)
+  // على التابلت والويندوز: جميع الاتجاهات
   unawaited(SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
   ]),);
 
   debugPrint('BASE_API_URL=${Env.baseApiUrl}');

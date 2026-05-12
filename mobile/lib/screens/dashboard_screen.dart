@@ -14,6 +14,7 @@ import '../services/appwrite_realtime_sync.dart';
 import '../services/local_db.dart';
 import '../services/remote_config_service.dart';
 import '../services/sync_constants.dart';
+import '../core/responsive/responsive.dart';
 import '../utils/status_utils.dart';
 import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
@@ -176,20 +177,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final padding = context.screenPadding;
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 16),
-            _buildStatisticsCards(),
-            const SizedBox(height: 20),
-            _buildRoomsSection(),
-            const SizedBox(height: 12),
-            _buildColorInstructions(),
-          ],
+        child: ResponsiveContent(
+          maxWidth: 1600,
+          padding: padding,
+          child: ListView(
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 16),
+              _buildStatisticsCards(),
+              const SizedBox(height: 20),
+              _buildRoomsSection(),
+              const SizedBox(height: 12),
+              _buildColorInstructions(),
+            ],
+          ),
         ),
       ),
     );
@@ -231,6 +236,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildStatisticsCards() {
     final currencyFmt = NumberFormat('#,##0', 'en_US');
+    final spacing = context.isMobile ? 8.0 : 10.0;
     return Row(
       children: [
         Expanded(
@@ -404,7 +410,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     };
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(context.isMobile ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -437,10 +443,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: context.responsive<int>(mobile: 4, tablet: 5, desktop: 6, desktopLarge: 8),
+              mainAxisSpacing: context.isMobile ? 8.0 : 10.0,
+              crossAxisSpacing: context.isMobile ? 8.0 : 10.0,
               childAspectRatio: 1.2,
             ),
             itemCount: _dashboardRoomNumbers.length,
@@ -496,10 +502,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Center(
               child: Text(
                 roomNumber,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: context.responsive<double>(mobile: 12, tablet: 14, desktop: 16),
                 ),
               ),
             ),

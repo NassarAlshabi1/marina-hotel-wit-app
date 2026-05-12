@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/responsive/responsive.dart';
 import '../utils/theme.dart';
 import 'admin_sidebar.dart';
 
@@ -24,10 +25,40 @@ class AdminLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isTablet = MediaQuery.of(context).size.width >= 768;
+    // ─── سطح المكتب (ويندوز): شريط جانبي ثابت + محتوى واسع ───
+    if (context.isDesktopOrAbove) {
+      return Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          body: Row(
+            children: [
+              // شريط جانبي بعرض متجاوب
+              AdminSidebar(
+                currentRoute: currentRoute,
+                onRouteSelected: onRouteSelected ?? (route) {},
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    if (title != null || actions != null) _buildTopBar(context),
+                    Expanded(
+                      child: ColoredBox(
+                        color: Theme.of(context).scaffoldBackgroundColor,
+                        child: body,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          floatingActionButton: floatingActionButton,
+        ),
+      );
+    }
 
-    if (isTablet) {
-      // Desktop/Tablet layout with sidebar (like PHP admin)
+    // ─── تابلت: شريط جانبي مضغوط أو قابل للطي + محتوى ───
+    if (context.isTablet) {
       return Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
@@ -55,27 +86,31 @@ class AdminLayout extends StatelessWidget {
           floatingActionButton: floatingActionButton,
         ),
       );
-    } else {
-      // Mobile layout with drawer
-      return Directionality(
-        textDirection: TextDirection.rtl,
-        child: Scaffold(
-          appBar: appBar ?? _buildMobileAppBar(context),
-          drawer: AdminSidebar(
-            currentRoute: currentRoute,
-            onRouteSelected: onRouteSelected ?? (route) {},
-          ),
-          body: ColoredBox(color: Theme.of(context).scaffoldBackgroundColor, child: body),
-          floatingActionButton: floatingActionButton,
-        ),
-      );
     }
+
+    // ─── هاتف: Drawer + شريط تطبيق ───
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: appBar ?? _buildMobileAppBar(context),
+        drawer: AdminSidebar(
+          currentRoute: currentRoute,
+          onRouteSelected: onRouteSelected ?? (route) {},
+        ),
+        body: ColoredBox(color: Theme.of(context).scaffoldBackgroundColor, child: body),
+        floatingActionButton: floatingActionButton,
+      ),
+    );
   }
 
   Widget _buildTopBar(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final height = context.appBarHeight;
+    final horizontalPadding = context.isDesktopOrAbove ? 32.0 : 24.0;
+    final fontSize = context.isDesktopOrAbove ? 22.0 : 20.0;
+
     return Container(
-      height: 60,
+      height: height,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         border: Border(
@@ -92,7 +127,7 @@ class AdminLayout extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
         child: Row(
           children: [
             Expanded(
@@ -100,7 +135,7 @@ class AdminLayout extends StatelessWidget {
                   ? Text(
                       title!,
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: fontSize,
                         fontWeight: FontWeight.w600,
                         color: isDark ? const Color(0xFFE0D5F0) : AppColors.textPrimary,
                       ),
@@ -147,17 +182,25 @@ class AdminCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardPadding = padding ?? EdgeInsets.all(context.isMobile ? 12 : 16);
+    final cardMargin = EdgeInsets.symmetric(
+      horizontal: context.isMobile ? 6 : 10,
+      vertical: 4,
+    );
+    final headerPadding = EdgeInsets.all(context.isMobile ? 12 : 16);
+    final titleFontSize = context.isDesktopOrAbove ? 18.0 : 16.0;
+
     return Card(
       elevation: elevation ?? 1,
       color: color ?? (isDark ? const Color(0xFF1E1E1E) : Colors.white),
-      margin: const EdgeInsets.all(8),
+      margin: cardMargin,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (title != null) ...[
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: headerPadding,
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF2C1E38) : AppColors.lightGray,
                 borderRadius: const BorderRadius.only(
@@ -170,8 +213,8 @@ class AdminCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       title!,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: titleFontSize,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -181,7 +224,7 @@ class AdminCard extends StatelessWidget {
               ),
             ),
           ],
-          Padding(padding: padding ?? const EdgeInsets.all(16), child: child),
+          Padding(padding: cardPadding, child: child),
         ],
       ),
     );
@@ -206,11 +249,35 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final valueFontSize = context.responsive<double>(
+      mobile: 22,
+      tablet: 26,
+      desktop: 28,
+    );
+    final iconSize = context.responsive<double>(
+      mobile: 24,
+      tablet: 28,
+      desktop: 32,
+    );
+    final iconPadding = context.responsive<double>(
+      mobile: 10,
+      tablet: 14,
+      desktop: 16,
+    );
+    final cardPadding = context.responsive<double>(
+      mobile: 14,
+      tablet: 18,
+      desktop: 20,
+    );
+
     return Card(
       elevation: 2,
-      margin: const EdgeInsets.all(8),
+      margin: EdgeInsets.symmetric(
+        horizontal: context.isMobile ? 6 : 8,
+        vertical: 4,
+      ),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(cardPadding),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           gradient: LinearGradient(
@@ -227,8 +294,8 @@ class StatCard extends StatelessWidget {
                 children: [
                   Text(
                     value,
-                    style: const TextStyle(
-                      fontSize: 28,
+                    style: TextStyle(
+                      fontSize: valueFontSize,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -237,7 +304,7 @@ class StatCard extends StatelessWidget {
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: context.isMobile ? 12 : 14,
                       color: Colors.white.withValues(alpha: 0.9),
                     ),
                   ),
@@ -246,7 +313,7 @@ class StatCard extends StatelessWidget {
                     Text(
                       subtitle!,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: context.isMobile ? 10 : 12,
                         color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
@@ -255,12 +322,12 @@ class StatCard extends StatelessWidget {
               ),
             ),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(iconPadding),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, size: 32, color: Colors.white),
+              child: Icon(icon, size: iconSize, color: Colors.white),
             ),
           ],
         ),
@@ -299,6 +366,8 @@ class _AdminTableState extends State<AdminTable> {
     final startIndex = _currentPage * widget.rowsPerPage;
     final endIndex = (startIndex + widget.rowsPerPage).clamp(0, totalRows);
     final visibleRows = widget.rows.sublist(startIndex, endIndex);
+    final dataRowHeight = context.isMobile ? 48.0 : 56.0;
+    final headingRowHeight = context.isMobile ? 52.0 : 64.0;
 
     return Column(
       children: [
@@ -349,45 +418,55 @@ class _AdminTableState extends State<AdminTable> {
           ),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: DataTable(
-            headingRowColor: WidgetStateProperty.all(
-              Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF2C1E38)
-                  : AppColors.darkGray,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: MediaQuery.of(context).size.width -
+                  (context.isTabletOrAbove ? context.sidebarWidth + 48 : 24),
             ),
-            headingTextStyle: TextStyle(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFFE0D5F0)
-                  : Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-            decoration: widget.bordered
-                ? BoxDecoration(
-                    border: Border.all(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFF3D2048)
-                          : AppColors.lightGray,
+            child: DataTable(
+              dataRowMinHeight: dataRowHeight,
+              dataRowMaxHeight: dataRowHeight + 16,
+              headingRowHeight: headingRowHeight,
+              headingRowColor: WidgetStateProperty.all(
+                Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF2C1E38)
+                    : AppColors.darkGray,
+              ),
+              headingTextStyle: TextStyle(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFE0D5F0)
+                    : Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: context.isMobile ? 12 : 14,
+              ),
+              decoration: widget.bordered
+                  ? BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF3D2048)
+                            : AppColors.lightGray,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    )
+                  : null,
+              columns: widget.headers
+                  .map((header) => DataColumn(label: Text(header)))
+                  .toList(),
+              rows: visibleRows
+                  .asMap()
+                  .entries
+                  .map(
+                    (entry) => DataRow(
+                      color: widget.striped && (startIndex + entry.key).isOdd
+                          ? WidgetStateProperty.all(
+                              AppColors.lightGray.withValues(alpha: 0.3),
+                            )
+                          : null,
+                      cells: entry.value.map(DataCell.new).toList(),
                     ),
-                    borderRadius: BorderRadius.circular(8),
                   )
-                : null,
-            columns: widget.headers
-                .map((header) => DataColumn(label: Text(header)))
-                .toList(),
-            rows: visibleRows
-                .asMap()
-                .entries
-                .map(
-                  (entry) => DataRow(
-                    color: widget.striped && (startIndex + entry.key).isOdd
-                        ? WidgetStateProperty.all(
-                            AppColors.lightGray.withValues(alpha: 0.3),
-                          )
-                        : null,
-                    cells: entry.value.map(DataCell.new).toList(),
-                  ),
-                )
-                .toList(),
+                  .toList(),
+            ),
           ),
         ),
       ],
@@ -419,17 +498,21 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fontSize = context.isMobile ? 11.0 : 12.0;
+    final hPadding = context.isMobile ? 8.0 : 12.0;
+    final vPadding = context.isMobile ? 4.0 : 6.0;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: hPadding, vertical: vPadding),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
-          fontSize: 12,
+          fontSize: fontSize,
           fontWeight: FontWeight.w500,
         ),
       ),
