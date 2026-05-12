@@ -106,7 +106,7 @@ class Time {
     final end = checkout ?? DateTime.now();
 
     // تحديد بداية "يوم الفندق" لعملية تسجيل الدخول
-    DateTime startOfCheckinHotelDay = DateTime(
+    final DateTime startOfCheckinHotelDay = DateTime(
       checkin.year,
       checkin.month,
       checkin.day,
