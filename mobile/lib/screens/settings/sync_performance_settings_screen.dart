@@ -242,7 +242,7 @@ class _SyncPerformanceSettingsScreenState
           );
         }
 
-        final settings = snapshot.data;
+        final settings = snapshot.data!;
 
         return Card(
           child: Padding(
@@ -314,7 +314,7 @@ class _SyncPerformanceSettingsScreenState
           );
         }
 
-        final stats = snapshot.data;
+        final stats = snapshot.data!;
 
         return Card(
           child: Padding(
