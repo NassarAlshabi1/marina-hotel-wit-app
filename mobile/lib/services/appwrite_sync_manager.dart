@@ -119,10 +119,11 @@ class AppwriteSyncManager {
       final info = appwriteService.getProjectInfo();
       final dbId = info['databaseId'] ?? AppwriteConfig.databaseId;
 
+      // ✅ جلب عدة سجلات لضمان دقة الكشف — سجل واحد قد يكون sentinel
       final list = await appwriteService.databases.listDocuments(
         databaseId: dbId,
         collectionId: AppwriteConfig.roomsCollectionId,
-        queries: [Query.limit(1)],
+        queries: [Query.limit(5)],
       );
 
       if (list.documents.isEmpty) {
@@ -130,19 +131,40 @@ class AppwriteSyncManager {
         return false;
       }
 
-      final data = list.documents.first.data;
-      final raw =
-          data['lastModified'] ?? data['last_modified'] ?? data['last_modified_epoch'];
+      // ✅ فحص عدة سجلات وتجاهل sentinel values للكشف الدقيق
+      int millisCount = 0;
+      int secondsCount = 0;
 
-      final value = raw is int
-          ? raw
-          : raw is num
-          ? raw.toInt()
-          : raw is String
-          ? int.tryParse(raw)
-          : null;
+      for (final doc in list.documents) {
+        final data = doc.data;
+        final raw =
+            data['lastModified'] ?? data['last_modified'] ?? data['last_modified_epoch'];
 
-      final isMillis = value != null && value > 10000000000;
+        final value = raw is int
+            ? raw
+            : raw is num
+            ? raw.toInt()
+            : raw is String
+            ? int.tryParse(raw)
+            : null;
+
+        if (value == null) continue;
+
+        // تجاهل القيم الخفيرة (sentinel) من الإحصاء
+        if (_isSentinelValue(value)) continue;
+
+        // عتبة مرنة: القيم أعلى من 10_000_000_000 هي بالملي ثانية
+        // 10_000_000_000 ثانية = عام 2286 (غير واقعي كثواني)
+        // لكن كملي ثانية = عام 1970 (واقعي كملي ثانية)
+        if (value > 10000000000) {
+          millisCount++;
+        } else {
+          secondsCount++;
+        }
+      }
+
+      // ✅ قرار بالأغلبية بدلاً من سجل واحد
+      final isMillis = millisCount > secondsCount;
       _remoteEpochIsMillis = isMillis;
       return isMillis;
     } catch (_) {
@@ -153,7 +175,15 @@ class AppwriteSyncManager {
 
   /// قيمة خفيرة (_sentinel_) تُستخدم كـ lastModified في بعض السجلات القديمة
   /// يجب استبعادها من نتائج Delta Sync لتجنب السحب المتكرر
-  static const int _sentinelLastModified = 9999999999;
+  /// ⚠️ مهم: هذه القيمة بالثواني (9999999999 ثانية ≈ عام 2286)
+  /// إذا كان السيرفر يستخدم الملي ثانية، فالمكافئ هو 9999999999000
+  static const int _sentinelLastModifiedSeconds = 9999999999;
+  static const int _sentinelLastModifiedMillis = 9999999999000;
+
+  /// فحص ما إذا كانت القيمة هي sentinel value (بغض النظر عن وحدة الوقت)
+  bool _isSentinelValue(int value) {
+    return value == _sentinelLastModifiedSeconds || value == _sentinelLastModifiedMillis;
+  }
 
   Future<List<String>> _buildDeltaQueries(int lastPullTs) async {
     if (lastPullTs <= 0) {
@@ -161,15 +191,17 @@ class AppwriteSyncManager {
     }
     final cutoffSeconds = lastPullTs - 5;
     final isMillis = await _isRemoteEpochMillis();
+    // ✅ استخدام sentinel value المناسب لوحدة الوقت
+    final sentinelValue = isMillis ? _sentinelLastModifiedMillis : _sentinelLastModifiedSeconds;
     if (isMillis) {
       return [
         Query.greaterThan('lastModified', cutoffSeconds * 1000),
-        Query.notEqual('lastModified', _sentinelLastModified),
+        Query.notEqual('lastModified', sentinelValue),
       ];
     }
     return [
       Query.greaterThan('lastModified', cutoffSeconds),
-      Query.notEqual('lastModified', _sentinelLastModified),
+      Query.notEqual('lastModified', sentinelValue),
     ];
   }
 
@@ -1422,7 +1454,8 @@ class AppwriteSyncManager {
         final incomingLastModified = _asInt(data['lastModified']);
 
         // تجاهل السجلات ذات القيمة الخفيرة (بيانات فاسدة من إصدار سابق)
-        if (incomingLastModified == _sentinelLastModified) {
+        // ✅ فحص كلا النوعين: ثواني أو ملي ثانية
+        if (_isSentinelValue(incomingLastModified)) {
           _logger.debug(
             'Skipping payment ${doc.$id}: sentinel lastModified detected',
             tag: 'SYNC',
@@ -2160,15 +2193,17 @@ class AppwriteSyncManager {
   }) {
     if (lastPullTs > 0) {
       final cutoff = lastPullTs - 5;
+      // ✅ استخدام sentinel value المناسب لوحدة الوقت
+      final sentinelValue = remoteEpochIsMillis ? _sentinelLastModifiedMillis : _sentinelLastModifiedSeconds;
       if (remoteEpochIsMillis) {
         return [
           Query.greaterThan('lastModified', cutoff * 1000),
-          Query.notEqual('lastModified', _sentinelLastModified),
+          Query.notEqual('lastModified', sentinelValue),
         ];
       }
       return [
         Query.greaterThan('lastModified', cutoff),
-        Query.notEqual('lastModified', _sentinelLastModified),
+        Query.notEqual('lastModified', sentinelValue),
       ];
     }
     return []; // full fetch
