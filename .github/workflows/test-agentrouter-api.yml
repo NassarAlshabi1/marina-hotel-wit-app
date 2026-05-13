@@ -1,0 +1,43 @@
+name: Test AgentRouter API
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test AgentRouter API
+        env:
+          AGENTROUTER_API_KEY: ${{ secrets.AGENTROUTER_API_KEY }}
+        run: |
+          echo "=== Testing AgentRouter API from GitHub Actions ==="
+          echo "Runner IP info:"
+          curl -s https://api.ipify.org || echo "Could not get IP"
+          echo ""
+          echo "=== Sending test request to AgentRouter ==="
+          RESPONSE=$(curl -s -w "\n---HTTP_CODE:%{http_code}---" \
+            -X POST "https://agentrouter.org/v1/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $AGENTROUTER_API_KEY" \
+            -d '{
+              "model": "claude-sonnet-4-20250514",
+              "messages": [{"role": "user", "content": "Say OK"}],
+              "max_tokens": 5
+            }' 2>&1)
+          
+          HTTP_CODE=$(echo "$RESPONSE" | grep -oP '---HTTP_CODE:\K[0-9]+')
+          BODY=$(echo "$RESPONSE" | sed '/---HTTP_CODE/d')
+          
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response (first 500 chars):"
+          echo "$BODY" | head -c 500
+          echo ""
+          
+          if echo "$BODY" | grep -q "aliyun_waf"; then
+            echo "❌ BLOCKED: Aliyun WAF is still intercepting the request!"
+          elif echo "$BODY" | grep -q "content"; then
+            echo "✅ SUCCESS: AgentRouter API is working!"
+          else
+            echo "⚠️ UNKNOWN: Unexpected response"
+          fi
