@@ -147,7 +147,12 @@ class NightsAdapter
         fallback: lastModified,
       ),
       version: _vInt(json, 'version', src, fallback: 1),
-      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
+      // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
+      // مما يمنع _cleanupOutboxAfterPull من تنظيف عناصر outbox بشكل صحيح
+      origin: src == Source.appwrite || src == Source.drive
+          ? const d.Value('server')
+          : _vStr(json, 'origin', src, fallback: 'server'),
       vectorClock: _vStr(
         json,
         'vectorClock',
