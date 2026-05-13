@@ -1,5 +1,6 @@
 # Claude Issue Triage - تصنيف تلقائي للـ Issues
-# يقوم بتحليل الـ Issues الجديدة وإضافة labels مناسبة
+# يستخدم Anthropic API الرسمي مباشرة
+# يتطلب ANTHROPIC_API_KEY في GitHub Secrets
 
 name: Claude Issue Triage
 
@@ -20,11 +21,8 @@ jobs:
 
       - name: Auto-triage Issue
         uses: anthropics/claude-code-action@v1
-        env:
-          ANTHROPIC_BASE_URL: "https://agentrouter.org/"
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.AGENTROUTER_API_KEY }}
         with:
-          anthropic_api_key: ${{ secrets.AGENTROUTER_API_KEY }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             You are an issue triage assistant. Analyze the following issue and add appropriate labels.
