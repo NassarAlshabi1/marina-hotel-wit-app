@@ -42,7 +42,11 @@ jobs:
         run: flutter pub run build_runner build --delete-conflicting-outputs
 
       - name: Build debug APK
-        run: flutter build apk --debug
+        run: >
+          flutter build apk --debug
+          --dart-define=BASE_API_URL=http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
+          --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
+          --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
 
       - name: Upload debug artifact
         uses: actions/upload-artifact@v4

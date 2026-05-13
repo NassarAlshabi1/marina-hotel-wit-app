@@ -352,7 +352,12 @@ class GeminiService {
   DateTime? _contextBuiltAt;
   static const _contextCacheDuration = Duration(seconds: 30);
 
-  Future<String> _buildHotelContext() async {
+  /// بناء سياق الفندق — عام ليُستخدم من خدمات أخرى
+  Future<String> buildHotelContext() => _buildHotelContextImpl();
+
+  Future<String> _buildHotelContext() => _buildHotelContextImpl();
+
+  Future<String> _buildHotelContextImpl() async {
     // إعادة استخدام السياق المخزّن مؤقتاً
     if (_cachedContext != null && _contextBuiltAt != null) {
       final elapsed = DateTime.now().difference(_contextBuiltAt!);
@@ -1704,7 +1709,12 @@ class GeminiService {
   //  System Prompt
   // ───────────────────────────────────────────────────────────
 
-  String _buildSystemPrompt() {
+  /// بناء System Prompt — عام ليُستخدم من خدمات أخرى
+  String buildSystemPrompt() => _systemPromptImpl();
+
+  String _buildSystemPrompt() => _systemPromptImpl();
+
+  String _systemPromptImpl() {
     final today = DateTime.now().toIso8601String().split('T')[0];
     return '''
 أنت "ماريانا" — مساعد ذكي متقدم لنظام إدارة فندق Marina Hotel. أنت مستشار فندقي محترف يتحدث باللغة العربية فقط.

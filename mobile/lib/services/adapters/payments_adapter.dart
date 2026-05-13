@@ -88,9 +88,14 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
         src,
         altKey: 'payment_id',
       ),
+      // ✅ إصلاح حرج: لا نستخدم bookingLocalId الخام من الجهاز البعيد
+      // معرّف الزيادة التلقائية يختلف بين الأجهزة — bookingLocalId=5 على جهاز A ≠ جهاز B
+      // إذا فشل resolveBooking، نترك الحقل فارغاً و bookingUuidCache يُحفظ لإعادة الربط لاحقاً
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId)
-          : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+          : (src == Source.appwrite || src == Source.drive)
+              ? const d.Value.absent()
+              : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
       serverBookingId: _vInt(
         json,
         'serverBookingId',
@@ -150,7 +155,12 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       deletedAt: _vInt(json, 'deletedAt', src),
       lastModified: d.Value(lastModified),
       version: _vInt(json, 'version', src, fallback: 1),
-      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
+      // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
+      // مما يمنع _cleanupOutboxAfterPull من تنظيف عناصر outbox بشكل صحيح
+      origin: src == Source.appwrite || src == Source.drive
+          ? const d.Value('server')
+          : _vStr(json, 'origin', src, fallback: 'server'),
       vectorClock: _vStr(
         json,
         'vectorClock',

@@ -50,9 +50,13 @@ jobs:
       - name: Generate code (e.g., using Freezed, json_serializable)
         run: flutter pub run build_runner build --delete-conflicting-outputs
 
-      - name: Build staging APK  
+      - name: Build staging APK
         # Uses unified keystore with consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
-        run: flutter build apk --release
+        run: >
+          flutter build apk --release
+          --dart-define=BASE_API_URL=http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
+          --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
+          --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
 
       - name: Upload staging artifact
         uses: actions/upload-artifact@v4

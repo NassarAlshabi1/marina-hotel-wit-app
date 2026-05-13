@@ -172,9 +172,15 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       if (existing == null) {
         return 0;
       }
+      // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
+      // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
+      final effectiveLastModified =
+          originIsServer && data.lastModified.present
+              ? data.lastModified
+              : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
-        lastModified: Value(now),
+        lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
       final rows = await (update(
@@ -203,9 +209,15 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       if (existing == null) {
         return 0;
       }
+      // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
+      // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
+      final effectiveLastModified =
+          originIsServer && data.lastModified.present
+              ? data.lastModified
+              : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
-        lastModified: Value(now),
+        lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
       final rows = await (update(
@@ -240,9 +252,15 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       if (existing == null) {
         return 0;
       }
+      // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
+      // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
+      final effectiveLastModified =
+          originIsServer && data.lastModified.present
+              ? data.lastModified
+              : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
-        lastModified: Value(now),
+        lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
       final rows = await (update(

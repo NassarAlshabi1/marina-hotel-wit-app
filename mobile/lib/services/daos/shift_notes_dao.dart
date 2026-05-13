@@ -87,6 +87,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     String? shiftType,
     String? expiresAt,
     bool originIsServer = false,
+    int? serverLastModified,
   }) async {
     return transaction(() async {
       final existing = await (select(
@@ -97,6 +98,12 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       }
 
       final now = Time.nowEpoch();
+      // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
+      // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
+      final effectiveLastModified =
+          originIsServer && serverLastModified != null
+              ? Value(serverLastModified)
+              : Value(now);
       final companion = ShiftNotesCompanion(
         title: title != null ? Value(title) : const Value.absent(),
         content: content != null ? Value(content) : const Value.absent(),
@@ -104,7 +111,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
         shiftType: shiftType != null ? Value(shiftType) : const Value.absent(),
         expiresAt: expiresAt != null ? Value(expiresAt) : const Value.absent(),
         updatedAt: Value(now),
-        lastModified: Value(now),
+        lastModified: effectiveLastModified,
       );
 
       final rows = await (update(
@@ -145,7 +152,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
   }
 
   // وضع علامة مقروء
-  Future<bool> markAsRead(int id, {bool originIsServer = false}) async {
+  Future<bool> markAsRead(int id, {bool originIsServer = false, int? serverLastModified}) async {
     return transaction(() async {
       final existing = await (select(
         shiftNotes,
@@ -155,12 +162,18 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       }
 
       final now = Time.nowEpoch();
+      // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
+      // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
+      final effectiveLastModified =
+          originIsServer && serverLastModified != null
+              ? Value(serverLastModified)
+              : Value(now);
       final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
           .write(
             ShiftNotesCompanion(
               isRead: const Value(1),
               updatedAt: Value(now),
-              lastModified: Value(now),
+              lastModified: effectiveLastModified,
             ),
           );
 
@@ -179,7 +192,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
   }
 
   // وضع علامة غير مقروء
-  Future<bool> markAsUnread(int id, {bool originIsServer = false}) async {
+  Future<bool> markAsUnread(int id, {bool originIsServer = false, int? serverLastModified}) async {
     return transaction(() async {
       final existing = await (select(
         shiftNotes,
@@ -189,12 +202,18 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       }
 
       final now = Time.nowEpoch();
+      // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
+      // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
+      final effectiveLastModified =
+          originIsServer && serverLastModified != null
+              ? Value(serverLastModified)
+              : Value(now);
       final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
           .write(
             ShiftNotesCompanion(
               isRead: const Value(0),
               updatedAt: Value(now),
-              lastModified: Value(now),
+              lastModified: effectiveLastModified,
             ),
           );
 

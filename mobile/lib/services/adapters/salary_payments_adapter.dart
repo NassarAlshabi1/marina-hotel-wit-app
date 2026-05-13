@@ -28,9 +28,20 @@ class SalaryPaymentsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
+    // ✅ حل FK دورة الراتب - التحقق من وجود الدورة محلياً قبل الإدراج
+    final remoteCycleId =
+        _asInt(json, 'cycleId', src) ?? _asInt(json, 'cycle_id', src);
+    final cycleUuid =
+        _asString(json, 'cycleLocalUuid', src) ??
+        _asString(json, 'cycle_local_uuid', src);
+    final resolvedCycleId = await resolver.resolveSalaryCycle(
+      localId: remoteCycleId,
+      uuid: cycleUuid,
+    );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
+      salaryCycleLocalId: resolvedCycleId,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
     );
@@ -57,7 +68,12 @@ class SalaryPaymentsAdapter
             IdGen.uuid(),
       ),
       serverId: _vInt(json, 'serverId', src),
-      cycleId: _vInt(json, 'cycleId', src, altKey: 'cycle_id', fallback: 0),
+      // ✅ إصلاح: استخدام salaryCycleLocalId المحلول بدل القيمة الخامة
+      // إذا لم يتم حل الدورة (لا توجد محلياً)، نستخدم القيمة الخامة وسيتم
+      // التقاط الخطأ في _syncSalaryPayments لتخطي السجل
+      cycleId: refs.salaryCycleLocalId != null
+          ? d.Value(refs.salaryCycleLocalId!)
+          : _vInt(json, 'cycleId', src, altKey: 'cycle_id', fallback: 0),
       amount: _vInt(json, 'amount', src, fallback: 0),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       paymentDateIso: _vStr(
@@ -84,7 +100,12 @@ class SalaryPaymentsAdapter
         fallback: lastModified,
       ),
       version: _vInt(json, 'version', src, fallback: 1),
-      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
+      // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
+      // مما يمنع _cleanupOutboxAfterPull من تنظيف عناصر outbox بشكل صحيح
+      origin: src == Source.appwrite || src == Source.drive
+          ? const d.Value('server')
+          : _vStr(json, 'origin', src, fallback: 'server'),
       vectorClock: _vStr(
         json,
         'vectorClock',

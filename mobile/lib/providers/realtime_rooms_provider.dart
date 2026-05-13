@@ -5,6 +5,7 @@ import '../repositories/room_repository.dart';
 import '../services/appwrite_logger.dart';
 import '../services/appwrite_realtime_service.dart';
 import '../services/local_db.dart';
+import '../utils/status_utils.dart';
 
 /// Provider للغرف مع دعم Realtime Updates
 ///
@@ -34,11 +35,13 @@ class RealTimeRoomsProvider extends ChangeNotifier {
   String? get error => _error;
   int get roomCount => _rooms.length;
 
+  /// ✅ استخدام StatusUtils بدلاً من مطابقة النص المباشر
+  /// لضمان دعم جميع متغيرات الحالة (شاغرة، شاغره، متاحة، إلخ)
   List<Room> get availableRooms =>
-      _rooms.where((r) => r.status == 'شاغرة').toList();
+      _rooms.where((r) => StatusUtils.isRoomAvailable(r.status)).toList();
 
   List<Room> get occupiedRooms =>
-      _rooms.where((r) => r.status == 'محجوزة').toList();
+      _rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).toList();
 
   /// تحميل الغرف
   Future<void> loadRooms() async {

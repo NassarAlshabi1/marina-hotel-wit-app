@@ -41,4 +41,66 @@ class IdResolver {
     }
     return null;
   }
+
+  /// حل مرجع الموظف - التحقق من وجود الموظف محلياً
+  /// يُستخدم في salary_withdrawals و salary_cycles للتحقق من FK
+  Future<int?> resolveEmployee({
+    int? localId,
+    String? uuid,
+  }) async {
+    // البحث بالـ UUID أولاً
+    if (uuid != null && uuid.isNotEmpty) {
+      final row =
+          await (db.select(db.employees)
+                ..where((e) => e.localUuid.equals(uuid))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+    }
+    // البحث بالـ id المحلي
+    if (localId != null) {
+      final row =
+          await (db.select(db.employees)
+                ..where((e) => e.id.equals(localId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+    }
+    return null;
+  }
+
+  /// حل مرجع دورة الراتب - التحقق من وجود الدورة محلياً
+  /// يُستخدم في salary_payments للتحقق من FK
+  Future<int?> resolveSalaryCycle({
+    int? localId,
+    String? uuid,
+  }) async {
+    // البحث بالـ UUID أولاً
+    if (uuid != null && uuid.isNotEmpty) {
+      final row =
+          await (db.select(db.salaryCycles)
+                ..where((c) => c.localUuid.equals(uuid))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+    }
+    // البحث بالـ id المحلي
+    if (localId != null) {
+      final row =
+          await (db.select(db.salaryCycles)
+                ..where((c) => c.id.equals(localId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+    }
+    return null;
+  }
 }

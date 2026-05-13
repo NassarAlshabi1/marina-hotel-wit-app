@@ -28,9 +28,20 @@ class SalaryCyclesAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
+    // ✅ حل FK الموظف - التحقق من وجود الموظف محلياً قبل الإدراج
+    final remoteEmployeeId =
+        _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
+    final employeeUuid =
+        _asString(json, 'employeeLocalUuid', src) ??
+        _asString(json, 'employee_local_uuid', src);
+    final resolvedEmployeeId = await resolver.resolveEmployee(
+      localId: remoteEmployeeId,
+      uuid: employeeUuid,
+    );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
+      employeeLocalId: resolvedEmployeeId,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
     );
@@ -57,13 +68,12 @@ class SalaryCyclesAdapter
             IdGen.uuid(),
       ),
       serverId: _vInt(json, 'serverId', src),
-      employeeId: _vInt(
-        json,
-        'employeeId',
-        src,
-        altKey: 'employee_id',
-        fallback: 0,
-      ),
+      // ✅ إصلاح: استخدام employeeLocalId المحلول بدل القيمة الخامة
+      // إذا لم يتم حل الموظف (لا يوجد محلياً)، نستخدم القيمة الخامة وسيتم
+      // التقاط الخطأ في _syncSalaryCycles لتخطي السجل
+      employeeId: refs.employeeLocalId != null
+          ? d.Value(refs.employeeLocalId!)
+          : _vInt(json, 'employeeId', src, altKey: 'employee_id', fallback: 0),
       cycleKey: _vStr(json, 'cycleKey', src, altKey: 'cycle_key', fallback: ''),
       hotelDayStart: _vStr(
         json,
@@ -116,7 +126,12 @@ class SalaryCyclesAdapter
         fallback: lastModified,
       ),
       version: _vInt(json, 'version', src, fallback: 1),
-      origin: _vStr(json, 'origin', src, fallback: 'server'),
+      // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
+      // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
+      // مما يمنع _cleanupOutboxAfterPull من تنظيف عناصر outbox بشكل صحيح
+      origin: src == Source.appwrite || src == Source.drive
+          ? const d.Value('server')
+          : _vStr(json, 'origin', src, fallback: 'server'),
       vectorClock: _vStr(
         json,
         'vectorClock',

@@ -1,0 +1,92 @@
+# Claude Issue Triage - تصنيف تلقائي للـ Issues
+# يستخدم FreeModel API (OpenAI-compatible) مع gpt-5.4-mini
+# يتطلب FREEMODEL_API_KEY في GitHub Secrets
+
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Auto-triage Issue
+        env:
+          FREEMODEL_API_KEY: ${{ secrets.FREEMODEL_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import json
+          import urllib.request
+          import subprocess
+          import os
+
+          api_key = os.environ["FREEMODEL_API_KEY"]
+          title = os.environ["ISSUE_TITLE"]
+          body = os.environ.get("ISSUE_BODY", "")
+          number = os.environ["ISSUE_NUMBER"]
+
+          prompt = f"""Analyze this GitHub issue and determine appropriate labels.
+
+          Title: {title}
+          Body: {body}
+
+          Available labels: bug, enhancement, question, documentation, help wanted, good first issue, priority: high, priority: low
+
+          Respond with ONLY the label names separated by commas, nothing else. Example: bug, priority: high"""
+
+          payload = {
+              "model": "gpt-5.4-mini",
+              "messages": [
+                  {"role": "system", "content": "You are an issue triage assistant. Respond with label names only, separated by commas."},
+                  {"role": "user", "content": prompt}
+              ],
+              "max_tokens": 100,
+              "temperature": 0.1
+          }
+
+          req = urllib.request.Request(
+              "https://api.freemodel.dev/v1/chat/completions",
+              data=json.dumps(payload).encode(),
+              headers={
+                  "Content-Type": "application/json",
+                  "Authorization": f"Bearer {api_key}"
+              },
+              method="POST"
+          )
+
+          try:
+              with urllib.request.urlopen(req, timeout=60) as resp:
+                  response = json.loads(resp.read().decode())
+              labels_str = response["choices"][0]["message"]["content"].strip()
+              print(f"Suggested labels: {labels_str}")
+          except Exception as e:
+              print(f"API call failed: {e}")
+              labels_str = ""
+
+          if labels_str:
+              labels = [l.strip() for l in labels_str.split(",") if l.strip()]
+              for label in labels:
+                  result = subprocess.run(
+                      ["gh", "issue", "edit", number, "--add-label", label],
+                      capture_output=True, text=True
+                  )
+                  if result.returncode == 0:
+                      print(f"Added label: {label}")
+                  else:
+                      print(f"Could not add label '{label}': {result.stderr.strip()}")
+          else:
+              print("Could not determine labels")
+          PYTHON_SCRIPT

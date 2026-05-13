@@ -99,9 +99,15 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
         return 0;
       }
       final now = Time.nowEpoch();
+      // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
+      // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
+      final effectiveLastModified =
+          originIsServer && data.lastModified.present
+              ? data.lastModified
+              : Value(now);
       final companion = data.copyWith(
         updatedAt: Value(now),
-        lastModified: Value(now),
+        lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
       final rows = await (update(

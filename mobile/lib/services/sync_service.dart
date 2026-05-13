@@ -425,6 +425,8 @@ class SyncService {
                     : const d.Value.absent(),
                 serverId: d.Value(_asInt(serverId)),
                 origin: const d.Value('server'),
+                // ✅ إصلاح: تمرير serverTs كـ lastModified لمنع إعادة الرفع
+                lastModified: d.Value(serverTs),
               ),
               originIsServer: true,
             );
@@ -515,6 +517,8 @@ class SyncService {
                     ? d.Value(_asInt(data['calculated_nights'])!)
                     : const d.Value.absent(),
                 origin: const d.Value('server'),
+                // ✅ إصلاح: تمرير serverTs كـ lastModified لمنع إعادة الرفع
+                lastModified: d.Value(serverTs),
               ),
               originIsServer: true,
             );
@@ -579,6 +583,8 @@ class SyncService {
                 isActive: d.Value((data['is_active'] as num? ?? 1).toInt()),
                 serverId: d.Value(nid),
                 origin: const d.Value('server'),
+                // ✅ إصلاح: تمرير serverTs كـ lastModified لمنع إعادة الرفع
+                lastModified: d.Value(serverTs),
               ),
               originIsServer: true,
             );
@@ -626,6 +632,8 @@ class SyncService {
                 status: d.Value(data['status'] as String? ?? le.status),
                 serverId: d.Value(sid),
                 origin: const d.Value('server'),
+                // ✅ إصلاح: تمرير serverTs كـ lastModified لمنع إعادة الرفع
+                lastModified: d.Value(serverTs),
               ),
               originIsServer: true,
             );
@@ -675,6 +683,8 @@ class SyncService {
                 date: d.Value(data['date'] as String? ?? lx.date),
                 serverId: d.Value(xid),
                 origin: const d.Value('server'),
+                // ✅ إصلاح: تمرير serverTs كـ lastModified لمنع إعادة الرفع
+                lastModified: d.Value(serverTs),
               ),
               originIsServer: true,
             );
@@ -731,6 +741,8 @@ class SyncService {
                 ),
                 serverId: d.Value(cid),
                 origin: const d.Value('server'),
+                // ✅ إصلاح: تمرير serverTs كـ lastModified لمنع إعادة الرفع
+                lastModified: d.Value(serverTs),
               ),
               originIsServer: true,
             );
@@ -791,6 +803,8 @@ class SyncService {
                 ),
                 serverId: d.Value(pid),
                 origin: const d.Value('server'),
+                // ✅ إصلاح: تمرير serverTs كـ lastModified لمنع إعادة الرفع
+                lastModified: d.Value(serverTs),
               ),
               originIsServer: true,
             );

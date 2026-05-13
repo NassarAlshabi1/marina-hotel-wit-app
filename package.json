@@ -20,7 +20,10 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@daytonaio/sdk": "^0.21.5",
+    "@daytonaio/sdk": "^0.175.0",
     "node-appwrite": "^20.3.0"
+  },
+  "overrides": {
+    "protobufjs": "^7.5.0"
   }
 }

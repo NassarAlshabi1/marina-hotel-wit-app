@@ -1,15 +1,14 @@
 import 'dart:developer' as developer;
 
 import 'package:appwrite/appwrite.dart';
-import 'package:drift/drift.dart' as drift;
 
-import '../utils/status_utils.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_service.dart';
 import 'local_db.dart';
+import 'repositories/rooms_repository.dart';
 
 /// ✅ خدمة السحب الشامل من Appwrite
 /// تجلب جميع البيانات بدون أي فلترة - كل الجداول وكل الحقول
@@ -48,8 +47,9 @@ class AppwriteFullPull {
 
     final result = FullPullResult(success: true, message: 'تم السحب بنجاح');
 
-    // تعطيل FOREIGN KEY مؤقتاً
-    await _database!.customStatement('PRAGMA foreign_keys=OFF');
+    // ✅ لا نعطل FK - بل نرتب السحب بشكل صحيح ونتخطى السجلات اليتيمة
+    // PRAGMA foreign_keys=OFF كان يسمح بإدراج بيانات فاسدة (يتيمة)
+    // الآن نحافظ على قيود FK ونتخطى السجلات التي تشير لآباء غير موجودين
 
     try {
       // ترتيب السحب حسب العلاقات
@@ -81,20 +81,32 @@ class AppwriteFullPull {
 
       _logger.info('✅ ${result.message}', tag: 'FULL_PULL');
     } finally {
-      // إعادة تفعيل FOREIGN KEY
-      await _database!.customStatement('PRAGMA foreign_keys=ON');
-
-      // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+      // ✅ فحص سلامة FK بعد السحب
       try {
         final violations = await _database!.customSelect(
           'PRAGMA foreign_key_check',
           readsFrom: Set.unmodifiable({}),
         ).get();
         if (violations.isNotEmpty) {
-          developer.log(
-            '⚠️ FK violations after sync: ${violations.length} rows',
-            name: 'SyncSafety',
+          _logger.warning(
+            '⚠️ ${violations.length} انتهاك FK بعد السحب الشامل',
+            tag: 'FULL_PULL',
           );
+          // حذف السجلات اليتيمة تلقائياً
+          for (final row in violations) {
+            final table = row.data['table']?.toString() ?? '';
+            final rowId = row.data['rowid']?.toString() ?? '';
+            try {
+              await _database!.customStatement(
+                'DELETE FROM $table WHERE rowid = ?',
+                [int.tryParse(rowId)],
+              );
+              _logger.info(
+                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
+                tag: 'FULL_PULL',
+              );
+            } catch (_) {}
+          }
         }
       } catch (_) {}
     }
@@ -107,109 +119,109 @@ class AppwriteFullPull {
     final reg = _adapterRegistry!;
 
     return [
-      // 1. الغرف أولاً
+      // 1. الغرف أولاً (Bookings.roomNumber → Rooms.roomNumber)
       _PullEntity(
         name: 'rooms',
         collectionId: AppwriteConfig.roomsCollectionId,
         repo: reg.rooms,
       ),
-      // 2. الموظفين
+      // 2. الموظفين (SalaryCycles.employeeId, SalaryWithdrawals.employeeId → Employees.id)
       _PullEntity(
         name: 'employees',
         collectionId: AppwriteConfig.employeesCollectionId,
         repo: reg.employees,
       ),
-      // 3. الحجوزات
+      // 3. الحجوزات (تعتمد على الغرف)
       _PullEntity(
         name: 'bookings',
         collectionId: AppwriteConfig.bookingsCollectionId,
         repo: reg.bookings,
       ),
-      // 4. ليالي الحجز
-      _PullEntity(
-        name: 'booking_nights',
-        collectionId: AppwriteConfig.bookingNightsCollectionId,
-        repo: reg.nights,
-      ),
-      // 5. ملاحظات الحجز
-      _PullEntity(
-        name: 'booking_notes',
-        collectionId: AppwriteConfig.bookingNotesCollectionId,
-        repo: reg.bookingNotes,
-      ),
-      // 6. المدفوعات
-      _PullEntity(
-        name: 'payments',
-        collectionId: AppwriteConfig.paymentsCollectionId,
-        repo: reg.payments,
-      ),
-      // 7. المصروفات
-      _PullEntity(
-        name: 'expenses',
-        collectionId: AppwriteConfig.expensesCollectionId,
-        repo: reg.expenses,
-      ),
-      // 8. الديون
-      _PullEntity(
-        name: 'debts',
-        collectionId: AppwriteConfig.debtsCollectionId,
-        repo: reg.debts,
-      ),
-      // 9. المعاملات النقدية
+      // 4. المعاملات النقدية (يجب أن تسبق المدفوعات - FK: payments.cashTransactionLocalId)
       _PullEntity(
         name: 'cash_transactions',
         collectionId: AppwriteConfig.cashTransactionsCollectionId,
         repo: reg.cashTransactions,
       ),
-      // 10. دورات الرواتب
+      // 5. ليالي الحجز (تعتمد على الحجوزات)
+      _PullEntity(
+        name: 'booking_nights',
+        collectionId: AppwriteConfig.bookingNightsCollectionId,
+        repo: reg.nights,
+      ),
+      // 6. ملاحظات الحجز (تعتمد على الحجوزات)
+      _PullEntity(
+        name: 'booking_notes',
+        collectionId: AppwriteConfig.bookingNotesCollectionId,
+        repo: reg.bookingNotes,
+      ),
+      // 7. المدفوعات (تعتمد على الحجوزات والمعاملات النقدية)
+      _PullEntity(
+        name: 'payments',
+        collectionId: AppwriteConfig.paymentsCollectionId,
+        repo: reg.payments,
+      ),
+      // 8. المصروفات
+      _PullEntity(
+        name: 'expenses',
+        collectionId: AppwriteConfig.expensesCollectionId,
+        repo: reg.expenses,
+      ),
+      // 9. الديون (تعتمد على الحجوزات)
+      _PullEntity(
+        name: 'debts',
+        collectionId: AppwriteConfig.debtsCollectionId,
+        repo: reg.debts,
+      ),
+      // 10. دورات الرواتب (تعتمد على الموظفين)
       _PullEntity(
         name: 'salary_cycles',
         collectionId: AppwriteConfig.salaryCyclesCollectionId,
         repo: reg.salaryCycles,
       ),
-      // 11. مدفوعات الرواتب
+      // 11. مدفوعات الرواتب (تعتمد على دورات الرواتب)
       _PullEntity(
         name: 'salary_payments',
         collectionId: AppwriteConfig.salaryPaymentsCollectionId,
         repo: reg.salaryPayments,
       ),
-      // 12. سحوبات الرواتب
+      // 12. سحوبات الرواتب (تعتمد على الموظفين)
       _PullEntity(
         name: 'salary_withdrawals',
         collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
         repo: reg.salaryWithdrawals,
       ),
-      // 13. ملاحظات الورديات
+      // 13. ملاحظات الورديات (لا FK)
       _PullEntity(
         name: 'shift_notes',
         collectionId: AppwriteConfig.shiftNotesCollectionId,
         repo: reg.shiftNotes,
       ),
-      // 14. تعديلات الأسعار
+      // 14. تعديلات الأسعار (لا FK)
       _PullEntity(
         name: 'price_adjustments',
         collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
         repo: reg.priceAdjustments,
       ),
-      // 15. تعديلات أسعار الحجوزات
+      // 15. تعديلات أسعار الحجوزات (bookingLocalId → Bookings.id)
       _PullEntity(
         name: 'booking_price_adjustments',
         collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
         repo: reg.bookingPriceAdjustments,
       ),
-      // 16. سجلات التدقيق
+      // 16. سجلات التدقيق (لا FK)
       _PullEntity(
         name: 'audit_logs',
         collectionId: AppwriteConfig.auditLogsCollectionId,
         repo: reg.auditLogs,
       ),
-      // 17. إلغاءات الدفع
+      // 17. إلغاءات الدفع (لا FK — يستخدم UUID فقط)
       _PullEntity(
         name: 'payment_voids',
         collectionId: AppwriteConfig.paymentVoidsCollectionId,
         repo: reg.paymentVoids,
       ),
-      // 18. معلومات الضيوف
+      // 18. معلومات الضيوف (لا FK)
       _PullEntity(
         name: 'guest_infos',
         collectionId: AppwriteConfig.guestInfosCollectionId,
@@ -346,37 +358,14 @@ class AppwriteFullPull {
   }
 
   /// تحديث حالة إشغال الغرف
+  /// ✅ يستخدم RoomsRepository.refreshAllRoomOccupancy() لضمان:
+  /// - تحديث version و lastModified مع كل تغيير
+  /// - التحقق من الحالة الحالية قبل التحديث (تجنب التحديثات غير الضرورية)
+  /// - دعم جميع حالات الغرف (شاغرة، محجوزة، صيانة، إلخ) عبر StatusUtils
   Future<void> _refreshRoomOccupancy() async {
     try {
-      final bookings = await _database!.select(_database!.bookings).get();
-
-      final occupiedRooms = <String>{};
-      for (final booking in bookings) {
-        // ✅ استخدام StatusUtils للتحقق من الحجوزات النشطة
-        // يدعم جميع حالات الحجز: محجوزة، نشط، active، confirmed، مؤقت، إلخ
-        if (booking.deletedAt == null &&
-            StatusUtils.isActiveBooking(booking.status)) {
-          occupiedRooms.add(booking.roomNumber);
-        }
-      }
-
-      final rooms = await _database!.select(_database!.rooms).get();
-
-      for (final room in rooms) {
-        if (room.deletedAt != null) {
-          continue;
-        }
-
-        final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
-        final newStatus = shouldBeOccupied ? 'محجوزة' : 'شاغرة';
-
-        if (room.status != newStatus) {
-          final query = _database!.update(_database!.rooms)
-            ..where((t) => t.id.equals(room.id));
-          await query.write(RoomsCompanion(status: drift.Value(newStatus)));
-        }
-      }
-
+      final roomsRepo = RoomsRepository(_database!);
+      await roomsRepo.refreshAllRoomOccupancy(originIsServer: true);
       _logger.info('🔄 تم تحديث حالة إشغال الغرف', tag: 'FULL_PULL');
     } catch (e) {
       _logger.warning('⚠️ فشل تحديث حالة الإشغال: $e', tag: 'FULL_PULL');

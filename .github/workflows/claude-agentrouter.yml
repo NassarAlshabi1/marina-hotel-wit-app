@@ -1,0 +1,131 @@
+# Claude Code - تفاعل مع @claude في Issues و PRs
+# يستخدم FreeModel API (OpenAI-compatible) مع gpt-5.4
+# يتطلب FREEMODEL_API_KEY في GitHub Secrets
+
+name: Claude Code (AgentRouter)
+
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Process @claude mention
+        env:
+          FREEMODEL_API_KEY: ${{ secrets.FREEMODEL_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          REVIEW_BODY: ${{ github.event.review.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import json
+          import urllib.request
+          import subprocess
+          import os
+          import re
+
+          event_name = os.environ["EVENT_NAME"]
+          api_key = os.environ["FREEMODEL_API_KEY"]
+
+          # Determine context and prompt
+          if event_name == "issue_comment":
+              prompt = os.environ.get("COMMENT_BODY", "")
+              number = os.environ["ISSUE_NUMBER"]
+          elif event_name == "issues":
+              title = os.environ.get("ISSUE_TITLE", "")
+              body = os.environ.get("ISSUE_BODY", "")
+              prompt = f"Issue: {title}\n\n{body}"
+              number = os.environ["ISSUE_NUMBER"]
+          elif event_name == "pull_request_review":
+              prompt = os.environ.get("REVIEW_BODY", "")
+              number = os.environ.get("PR_NUMBER", os.environ.get("ISSUE_NUMBER"))
+          else:
+              print(f"Unknown event: {event_name}")
+              exit(0)
+
+          # Remove @claude from prompt
+          prompt = re.sub(r'@claude', '', prompt).strip()
+
+          if not prompt:
+              print("Empty prompt, skipping")
+              exit(0)
+
+          print(f"Processing @claude mention (event: {event_name})...")
+
+          # Call FreeModel API
+          payload = {
+              "model": "gpt-5.4",
+              "messages": [
+                  {"role": "system", "content": "You are Claude, an AI coding assistant. Help with coding questions, bug fixes, and code improvements. Be concise and helpful. Respond in the same language as the user."},
+                  {"role": "user", "content": prompt}
+              ],
+              "max_tokens": 4000,
+              "temperature": 0.3
+          }
+
+          req = urllib.request.Request(
+              "https://api.freemodel.dev/v1/chat/completions",
+              data=json.dumps(payload).encode(),
+              headers={
+                  "Content-Type": "application/json",
+                  "Authorization": f"Bearer {api_key}"
+              },
+              method="POST"
+          )
+
+          try:
+              with urllib.request.urlopen(req, timeout=120) as resp:
+                  response = json.loads(resp.read().decode())
+              reply = response["choices"][0]["message"]["content"]
+              print("Response generated successfully!")
+          except Exception as e:
+              print(f"API call failed: {e}")
+              reply = "Sorry, I couldn't process your request. The API call failed."
+
+          # Post response as comment
+          comment = f"""## Claude (FreeModel gpt-5.4)
+
+          {reply}
+
+          ---
+          *Powered by [FreeModel](https://freemodel.dev)*"""
+
+          with open("/tmp/reply_comment.md", "w") as f:
+              f.write(comment)
+
+          # Use gh issue comment (works for both issues and PRs)
+          result = subprocess.run(
+              ["gh", "issue", "comment", number, "--body-file", "/tmp/reply_comment.md"],
+              capture_output=True, text=True
+          )
+
+          if result.returncode == 0:
+              print("Reply posted successfully!")
+          else:
+              print(f"Failed to post comment: {result.stderr}")
+          PYTHON_SCRIPT
