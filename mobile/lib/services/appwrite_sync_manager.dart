@@ -22,6 +22,7 @@ import 'appwrite_error_handler.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_models.dart';
 import 'appwrite_service.dart';
+import 'appwrite_sync_utils.dart';
 import 'crashlytics_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
@@ -1035,19 +1036,8 @@ class AppwriteSyncManager {
           // إعادة تفعيل Foreign Keys بعد انتهاء السحب
           await database.customStatement('PRAGMA foreign_keys=ON');
 
-          // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
-          try {
-            final violations = await database.customSelect(
-              'PRAGMA foreign_key_check',
-              readsFrom: Set.unmodifiable({}),
-            ).get();
-            if (violations.isNotEmpty) {
-              developer.log(
-                '⚠️ FK violations after sync: ${violations.length} rows',
-                name: 'SyncSafety',
-              );
-            }
-          } catch (_) {}
+          // ✅ تحقق معزز من سلامة البيانات والمفاتيح الأجنبية بعد المزامنة
+          await _performPostSyncIntegrityCheck();
         }
       }
 
@@ -2186,7 +2176,7 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'serverId', room.serverId);
     _putIfNotNull(data, 'deletedAt', room.deletedAt);
     _putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
-    return data;
+    return AppwriteSyncUtils.sanitizePayload('rooms', data, collectionId: AppwriteConfig.roomsCollectionId);
   }
 
   Map<String, dynamic> _bookingToRemote(Booking booking) {
@@ -2231,7 +2221,7 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'hotelDayCheckin', booking.hotelDayCheckin);
     _putIfStringNotEmpty(data, 'hotelDayCheckout', booking.hotelDayCheckout);
     _putIfStringNotEmpty(data, 'vectorClock', booking.vectorClock);
-    return data;
+    return AppwriteSyncUtils.sanitizePayload('bookings', data, collectionId: AppwriteConfig.bookingsCollectionId);
   }
 
   Map<String, dynamic> _expenseToRemote(Expense expense) {
@@ -2251,7 +2241,7 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'cashTransactionId', expense.cashTransactionId);
     _putIfNotNull(data, 'serverId', expense.serverId);
     _putIfNotNull(data, 'deletedAt', expense.deletedAt);
-    return data;
+    return AppwriteSyncUtils.sanitizePayload('expenses', data, collectionId: AppwriteConfig.expensesCollectionId);
   }
 
   Map<String, dynamic> _paymentToRemote(Payment payment) {
@@ -2298,7 +2288,7 @@ class AppwriteSyncManager {
       _putIfNotNull(data, 'voidedAt', payment.voidedAt);
       _putIfStringNotEmpty(data, 'voidedBy', payment.voidedBy);
     }
-    return data;
+    return AppwriteSyncUtils.sanitizePayload('payments', data, collectionId: AppwriteConfig.paymentsCollectionId);
   }
 
   Map<String, dynamic> _debtToRemote(Debt debt) {
@@ -2328,7 +2318,7 @@ class AppwriteSyncManager {
     };
     _putIfNotNull(data, 'serverId', debt.serverId);
     _putIfNotNull(data, 'deletedAt', debt.deletedAt);
-    return data;
+    return AppwriteSyncUtils.sanitizePayload('debts', data, collectionId: AppwriteConfig.debtsCollectionId);
   }
 
   void _putIfNotNull<T>(Map<String, dynamic> map, String key, T? value) {
@@ -4649,3 +4639,58 @@ class AppwriteSyncManager {
     }
   }
 }
+
+  /// إجراء فحص شامل لسلامة البيانات بعد انتهاء المزامنة
+  Future<void> _performPostSyncIntegrityCheck() async {
+    try {
+      // 1. فحص انتهاكات المفاتيح الأجنبية (Foreign Key Violations)
+      final violations = await database.customSelect(
+        'PRAGMA foreign_key_check',
+        readsFrom: Set.unmodifiable({}),
+      ).get();
+
+      if (violations.isNotEmpty) {
+        _logger.warning(
+          '⚠️ تم اكتشاف ${violations.length} انتهاك للمفاتيح الأجنبية بعد المزامنة',
+          tag: 'SYNC_INTEGRITY',
+        );
+        
+        for (final row in violations) {
+          _logger.debug(
+            'FK Violation: Table=${row.data['table']}, RowId=${row.data['rowid']}, Parent=${row.data['parent']}',
+            tag: 'SYNC_INTEGRITY',
+          );
+        }
+
+        // تسجيل الأخطاء في Crashlytics للمراقبة
+        await CrashlyticsService.instance.recordSyncError(
+          operation: 'post_sync_integrity_check',
+          error: 'Foreign key violations detected: ${violations.length} rows',
+          context: {'violations_count': violations.length.toString()},
+        );
+      }
+
+      // 2. التحقق من السجلات اليتيمة (Orphan Records) التي قد تسبب مشاكل في الواجهة
+      // مثال: دفعات بدون حجوزات
+      final orphanPayments = await database.customSelect(
+        'SELECT COUNT(*) as count FROM payments WHERE booking_local_id IS NULL AND booking_uuid_cache IS NOT NULL',
+      ).getSingle();
+      
+      final orphanCount = orphanPayments.read<int>('count');
+      if (orphanCount > 0) {
+        _logger.warning(
+          '⚠️ يوجد $orphanCount دفعة يتيمة (بدون ربط بحجز محلي)',
+          tag: 'SYNC_INTEGRITY',
+        );
+      }
+
+      _logger.info('✅ اكتمل فحص سلامة البيانات بعد المزامنة', tag: 'SYNC_INTEGRITY');
+    } catch (e, st) {
+      _logger.error(
+        '❌ فشل إجراء فحص سلامة البيانات',
+        error: e,
+        stackTrace: st,
+        tag: 'SYNC_INTEGRITY',
+      );
+    }
+  }
