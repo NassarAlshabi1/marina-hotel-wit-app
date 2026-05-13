@@ -1381,7 +1381,7 @@ class AppwriteDeltaSync {
   Map<String, dynamic> _sanitizePayload(Map<String, dynamic> payload) {
     final result = <String, dynamic>{};
     payload.forEach((key, value) {
-      final camelKey = _toCamelCase(key);
+      final camelKey = AppwriteSyncUtils.toCamelCase(key);
       if (value != null) {
         result[camelKey] = value;
       }

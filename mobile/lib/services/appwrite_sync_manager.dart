@@ -4638,7 +4638,6 @@ class AppwriteSyncManager {
         return 'fuchsia';
     }
   }
-}
 
   /// إجراء فحص شامل لسلامة البيانات بعد انتهاء المزامنة
   Future<void> _performPostSyncIntegrityCheck() async {
@@ -4694,3 +4693,4 @@ class AppwriteSyncManager {
       );
     }
   }
+}

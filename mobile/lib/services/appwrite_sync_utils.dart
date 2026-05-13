@@ -24,12 +24,12 @@ class AppwriteSyncUtils {
 
     // 2. إزالة الحقول التقنية الخاصة بـ Drift أو Appwrite metadata إذا وجدت
     result.remove('id'); // المعرف المحلي التلقائي
-    result.remove('$id');
-    result.remove('$createdAt');
-    result.remove('$updatedAt');
-    result.remove('$permissions');
-    result.remove('$databaseId');
-    result.remove('$collectionId');
+    result.remove('\u0024id');
+    result.remove('\u0024createdAt');
+    result.remove('\u0024updatedAt');
+    result.remove('\u0024permissions');
+    result.remove('\u0024databaseId');
+    result.remove('\u0024collectionId');
 
     // 3. تحويل الأنواع المالية إذا لزم الأمر
     if (collectionId != null) {
