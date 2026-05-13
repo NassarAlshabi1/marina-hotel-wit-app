@@ -4767,7 +4767,56 @@ class AppwriteSyncManager {
 
         // ✅ إصلاح تلقائي: حذف السجلات التي تشير إلى آباء غير موجودين
         // هذه سجلات أيتيمة نتجت عن حجوزات محذوفة على أجهزة أخرى
-        await _autoFixForeignKeyViolations(violations);
+        // نستخدم soft delete (تعيين deletedAt) بدلاً من الحذف الفعلي
+        try {
+          for (final row in violations) {
+            final table = row.data['table']?.toString();
+            final rowId = row.data['rowid'];
+
+            if (table == null || rowId == null) continue;
+
+            _logger.info(
+              '🔧 إصلاح تلقائي: حذف سجل يتيم من $table (rowId=$rowId)',
+              tag: 'SYNC_INTEGRITY',
+            );
+
+            try {
+              final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+              if (table == 'payments') {
+                await (database.update(database.payments)
+                      ..where((t) => t.id.equals(rowId as int)))
+                    .write(PaymentsCompanion(
+                  deletedAt: drift.Value(nowEpoch),
+                ));
+              } else if (table == 'debts') {
+                await (database.update(database.debts)
+                      ..where((t) => t.id.equals(rowId as int)))
+                    .write(DebtsCompanion(
+                  deletedAt: drift.Value(nowEpoch),
+                ));
+              } else if (table == 'booking_nights') {
+                await (database.update(database.bookingNights)
+                      ..where((t) => t.id.equals(rowId as int)))
+                    .write(BookingNightsCompanion(
+                  deletedAt: drift.Value(nowEpoch),
+                ));
+              } else if (table == 'booking_price_adjustments') {
+                await (database.update(database.bookingPriceAdjustments)
+                      ..where((t) => t.id.equals(rowId as int)))
+                    .write(BookingPriceAdjustmentsCompanion(
+                  deletedAt: drift.Value(nowEpoch),
+                ));
+              }
+            } catch (fixError) {
+              _logger.warning(
+                '⚠️ فشل إصلاح سجل يتيم في $table (rowId=$rowId): $fixError',
+                tag: 'SYNC_INTEGRITY',
+              );
+            }
+          }
+        } catch (e) {
+          _logger.warning('⚠️ فشل إصلاح انتهاكات FK: $e', tag: 'SYNC_INTEGRITY');
+        }
       }
 
       // 2. التحقق من السجلات اليتيمة (Orphan Records) ومحاولة إصلاحها
@@ -4785,63 +4834,6 @@ class AppwriteSyncManager {
         stackTrace: st,
         tag: 'SYNC_INTEGRITY',
       );
-    }
-  }
-
-  /// إصلاح تلقائي لانتهاكات المفاتيح الأجنبية
-  /// يحذف السجلات التي تشير إلى آباء غير موجودين
-  Future<void> _autoFixForeignKeyViolations(List<QueryRow> violations) async {
-    try {
-      for (final row in violations) {
-        final table = row.data['table']?.toString();
-        final rowId = row.data['rowid'];
-
-        if (table == null || rowId == null) continue;
-
-        _logger.info(
-          '🔧 إصلاح تلقائي: حذف سجل يتيم من $table (rowId=$rowId)',
-          tag: 'SYNC_INTEGRITY',
-        );
-
-        // حذف السجل الأيتيم حسب نوع الجدول
-        // نستخدم soft delete (تعيين deletedAt) بدلاً من الحذف الفعلي
-        // للحفاظ على سجل التدقيق
-        try {
-          final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-          if (table == 'payments') {
-            await (database.update(database.payments)
-                  ..where((t) => t.id.equals(rowId as int)))
-                .write(PaymentsCompanion(
-              deletedAt: drift.Value(nowEpoch),
-            ));
-          } else if (table == 'debts') {
-            await (database.update(database.debts)
-                  ..where((t) => t.id.equals(rowId as int)))
-                .write(DebtsCompanion(
-              deletedAt: drift.Value(nowEpoch),
-            ));
-          } else if (table == 'booking_nights') {
-            await (database.update(database.bookingNights)
-                  ..where((t) => t.id.equals(rowId as int)))
-                .write(BookingNightsCompanion(
-              deletedAt: drift.Value(nowEpoch),
-            ));
-          } else if (table == 'booking_price_adjustments') {
-            await (database.update(database.bookingPriceAdjustments)
-                  ..where((t) => t.id.equals(rowId as int)))
-                .write(BookingPriceAdjustmentsCompanion(
-              deletedAt: drift.Value(nowEpoch),
-            ));
-          }
-        } catch (fixError) {
-          _logger.warning(
-            '⚠️ فشل إصلاح سجل يتيم في $table (rowId=$rowId): $fixError',
-            tag: 'SYNC_INTEGRITY',
-          );
-        }
-      }
-    } catch (e) {
-      _logger.warning('⚠️ فشل إصلاح انتهاكات FK: $e', tag: 'SYNC_INTEGRITY');
     }
   }
 
