@@ -8,6 +8,7 @@ import 'package:appwrite/models.dart' as models;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
+import 'package:sqlite3/sqlite3.dart' show SqliteException;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -691,6 +692,13 @@ class AppwriteSyncManager {
           }
 
           // مزامنة كل كولكشن بشكل مستقل — فشل واحد لا يوقف الباقي
+          // ✅ ترتيب السحب محسّن حسب علاقات FK:
+          // rooms ← bookings.roomNumber
+          // employees ← salary_cycles.employeeId, salary_withdrawals.employeeId
+          // bookings ← booking_nights.bookingLocalId, booking_notes.bookingId, payments.bookingLocalId, debts.bookingLocalId
+          // cash_transactions ← payments.cashTransactionLocalId
+          // salary_cycles ← salary_payments.cycleId
+
           try {
             recordsPulled += await _timePhase('syncRooms', () async {
               final rooms = await appwriteService.listRooms(queries: deltaQ, useCache: false);
@@ -703,22 +711,6 @@ class AppwriteSyncManager {
             _logger.error('❌ فشل سحب rooms', error: e, stackTrace: st, tag: 'SYNC');
             await CrashlyticsService.instance.recordSyncError(
               operation: 'pull_rooms', error: e.toString(), stackTrace: st, context: {'phase': 'sync'},
-            );
-          }
-
-          try {
-            recordsPulled += await _timePhase('syncBookings', () async {
-              final bookings = await appwriteService.listBookings(queries: deltaQ, useCache: false);
-              final bookingsSynced = await _syncBookings(bookings);
-              _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
-              return bookingsSynced;
-            }, phaseMs,);
-          } catch (e, st) {
-            failedCollections.add('bookings');
-            _logger.error('❌ فشل سحب bookings', error: e, stackTrace: st, tag: 'SYNC');
-            await CrashlyticsService.instance.recordSyncError(
-              operation: 'pull_bookings', error: e.toString(), stackTrace: st,
-              severity: CrashlyticsSeverity.fatal, context: {'phase': 'sync'},
             );
           }
 
@@ -741,19 +733,21 @@ class AppwriteSyncManager {
           }
 
           try {
-            recordsPulled += await _timePhase('syncExpenses', () async {
-              final expenses = await appwriteService.listExpenses(queries: deltaQ, useCache: false);
-              final expensesSynced = await _syncExpenses(expenses);
-              _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
-              return expensesSynced;
+            recordsPulled += await _timePhase('syncBookings', () async {
+              final bookings = await appwriteService.listBookings(queries: deltaQ, useCache: false);
+              final bookingsSynced = await _syncBookings(bookings);
+              _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
+              return bookingsSynced;
             }, phaseMs,);
           } catch (e, st) {
-            failedCollections.add('expenses');
-            _logger.error('❌ فشل سحب expenses', error: e, stackTrace: st, tag: 'SYNC');
+            failedCollections.add('bookings');
+            _logger.error('❌ فشل سحب bookings', error: e, stackTrace: st, tag: 'SYNC');
+            await CrashlyticsService.instance.recordSyncError(
+              operation: 'pull_bookings', error: e.toString(), stackTrace: st,
+              severity: CrashlyticsSeverity.fatal, context: {'phase': 'sync'},
+            );
           }
 
-          // ✅ ترتيب صحيح: cash_transactions قبل payments لأن payments.cashTransactionLocalId
-          // يشير إلى cash_transactions.id (FK constraint)
           try {
             recordsPulled += await _timePhase('syncCashTransactions', () async {
               final cashTransactions = await appwriteService.listCashTransactions(queries: deltaQ, useCache: false);
@@ -767,66 +761,15 @@ class AppwriteSyncManager {
           }
 
           try {
-            recordsPulled += await _timePhase('syncPayments', () async {
-              final payments = await appwriteService.listPayments(queries: deltaQ, useCache: false);
-              final paymentsSynced = await _syncPayments(payments);
-              _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
-              return paymentsSynced;
+            recordsPulled += await _timePhase('syncExpenses', () async {
+              final expenses = await appwriteService.listExpenses(queries: deltaQ, useCache: false);
+              final expensesSynced = await _syncExpenses(expenses);
+              _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
+              return expensesSynced;
             }, phaseMs,);
           } catch (e, st) {
-            failedCollections.add('payments');
-            _logger.error('❌ فشل سحب payments', error: e, stackTrace: st, tag: 'SYNC');
-          }
-
-          try {
-            recordsPulled += await _timePhase('syncDebts', () async {
-              final debts = await appwriteService.listDebts(queries: deltaQ, useCache: false);
-              final debtsSynced = await _syncDebts(debts);
-              _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
-              return debtsSynced;
-            }, phaseMs,);
-          } catch (e, st) {
-            failedCollections.add('debts');
-            _logger.error('❌ فشل سحب debts', error: e, stackTrace: st, tag: 'SYNC');
-          }
-
-          try {
-            recordsPulled += await _timePhase('syncGuestInfos', () async {
-              final guestInfos = await appwriteService.listGuestInfos(queries: deltaQ, useCache: false);
-              final synced = await _syncGuestInfos(guestInfos);
-              _logger.debug('Synced $synced guest_infos', tag: 'SYNC');
-              return synced;
-            }, phaseMs,);
-          } catch (e, st) {
-            failedCollections.add('guest_infos');
-            _logger.error('❌ فشل سحب guest_infos', error: e, stackTrace: st, tag: 'SYNC');
-          }
-
-          try {
-            recordsPulled += await _timePhase('syncSalaryWithdrawals', () async {
-              final salaryWithdrawals = await appwriteService.listSalaryWithdrawals(queries: deltaQ, useCache: false);
-              final synced = await _syncSalaryWithdrawals(salaryWithdrawals);
-              _logger.debug('Synced $synced salary_withdrawals', tag: 'SYNC');
-              return synced;
-            }, phaseMs,);
-          } catch (e, st) {
-            failedCollections.add('salary_withdrawals');
-            _logger.error('❌ فشل سحب salary_withdrawals', error: e, stackTrace: st, tag: 'SYNC');
-          }
-
-          try {
-            recordsPulled += await _timePhase('syncBookingPriceAdjustments', () async {
-              final adjustments = await appwriteService.listDocuments(
-                collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-                queries: deltaQ,
-              );
-              final adjustmentsSynced = await _syncBookingPriceAdjustments(adjustments);
-              _logger.debug('Synced $adjustmentsSynced booking price adjustments', tag: 'SYNC');
-              return adjustmentsSynced;
-            }, phaseMs,);
-          } catch (e, st) {
-            failedCollections.add('booking_price_adjustments');
-            _logger.error('❌ فشل سحب booking_price_adjustments', error: e, stackTrace: st, tag: 'SYNC');
+            failedCollections.add('expenses');
+            _logger.error('❌ فشل سحب expenses', error: e, stackTrace: st, tag: 'SYNC');
           }
 
           try {
@@ -869,6 +812,93 @@ class AppwriteSyncManager {
           }
 
           try {
+            recordsPulled += await _timePhase('syncPayments', () async {
+              final payments = await appwriteService.listPayments(queries: deltaQ, useCache: false);
+              final paymentsSynced = await _syncPayments(payments);
+              _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
+              return paymentsSynced;
+            }, phaseMs,);
+          } catch (e, st) {
+            failedCollections.add('payments');
+            _logger.error('❌ فشل سحب payments', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            recordsPulled += await _timePhase('syncDebts', () async {
+              final debts = await appwriteService.listDebts(queries: deltaQ, useCache: false);
+              final debtsSynced = await _syncDebts(debts);
+              _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
+              return debtsSynced;
+            }, phaseMs,);
+          } catch (e, st) {
+            failedCollections.add('debts');
+            _logger.error('❌ فشل سحب debts', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            recordsPulled += await _timePhase('syncSalaryCycles', () async {
+              final salaryCycles = await appwriteService.listSalaryCycles(queries: deltaQ, useCache: false);
+              final synced = await _syncSalaryCycles(salaryCycles);
+              _logger.debug('Synced $synced salary_cycles', tag: 'SYNC');
+              return synced;
+            }, phaseMs,);
+          } catch (e, st) {
+            failedCollections.add('salary_cycles');
+            _logger.error('❌ فشل سحب salary_cycles', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            recordsPulled += await _timePhase('syncSalaryPayments', () async {
+              final salaryPayments = await appwriteService.listSalaryPayments(queries: deltaQ, useCache: false);
+              final synced = await _syncSalaryPayments(salaryPayments);
+              _logger.debug('Synced $synced salary_payments', tag: 'SYNC');
+              return synced;
+            }, phaseMs,);
+          } catch (e, st) {
+            failedCollections.add('salary_payments');
+            _logger.error('❌ فشل سحب salary_payments', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            recordsPulled += await _timePhase('syncSalaryWithdrawals', () async {
+              final salaryWithdrawals = await appwriteService.listSalaryWithdrawals(queries: deltaQ, useCache: false);
+              final synced = await _syncSalaryWithdrawals(salaryWithdrawals);
+              _logger.debug('Synced $synced salary_withdrawals', tag: 'SYNC');
+              return synced;
+            }, phaseMs,);
+          } catch (e, st) {
+            failedCollections.add('salary_withdrawals');
+            _logger.error('❌ فشل سحب salary_withdrawals', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            recordsPulled += await _timePhase('syncGuestInfos', () async {
+              final guestInfos = await appwriteService.listGuestInfos(queries: deltaQ, useCache: false);
+              final synced = await _syncGuestInfos(guestInfos);
+              _logger.debug('Synced $synced guest_infos', tag: 'SYNC');
+              return synced;
+            }, phaseMs,);
+          } catch (e, st) {
+            failedCollections.add('guest_infos');
+            _logger.error('❌ فشل سحب guest_infos', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
+            recordsPulled += await _timePhase('syncBookingPriceAdjustments', () async {
+              final adjustments = await appwriteService.listDocuments(
+                collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+                queries: deltaQ,
+              );
+              final adjustmentsSynced = await _syncBookingPriceAdjustments(adjustments);
+              _logger.debug('Synced $adjustmentsSynced booking price adjustments', tag: 'SYNC');
+              return adjustmentsSynced;
+            }, phaseMs,);
+          } catch (e, st) {
+            failedCollections.add('booking_price_adjustments');
+            _logger.error('❌ فشل سحب booking_price_adjustments', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          try {
             recordsPulled += await _timePhase('syncShiftNotes', () async {
               final shiftNotes = await appwriteService.listShiftNotes(queries: deltaQ, useCache: false);
               final synced = await _syncShiftNotes(shiftNotes);
@@ -890,30 +920,6 @@ class AppwriteSyncManager {
           } catch (e, st) {
             failedCollections.add('blacklist');
             _logger.error('❌ فشل سحب blacklist', error: e, stackTrace: st, tag: 'SYNC');
-          }
-
-          try {
-            recordsPulled += await _timePhase('syncSalaryCycles', () async {
-              final salaryCycles = await appwriteService.listSalaryCycles(queries: deltaQ, useCache: false);
-              final synced = await _syncSalaryCycles(salaryCycles);
-              _logger.debug('Synced $synced salary cycles', tag: 'SYNC');
-              return synced;
-            }, phaseMs,);
-          } catch (e, st) {
-            failedCollections.add('salary_cycles');
-            _logger.error('❌ فشل سحب salary_cycles', error: e, stackTrace: st, tag: 'SYNC');
-          }
-
-          try {
-            recordsPulled += await _timePhase('syncSalaryPayments', () async {
-              final salaryPayments = await appwriteService.listSalaryPayments(queries: deltaQ, useCache: false);
-              final synced = await _syncSalaryPayments(salaryPayments);
-              _logger.debug('Synced $synced salary payments', tag: 'SYNC');
-              return synced;
-            }, phaseMs,);
-          } catch (e, st) {
-            failedCollections.add('salary_payments');
-            _logger.error('❌ فشل سحب salary_payments', error: e, stackTrace: st, tag: 'SYNC');
           }
 
           try {
@@ -2095,6 +2101,8 @@ class AppwriteSyncManager {
   Future<int> _syncSalaryWithdrawals(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    final deferred = <Map<String, dynamic>>[];
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -2110,11 +2118,45 @@ class AppwriteSyncManager {
           continue;
         }
 
+        // ✅ التحقق من وجود الموظف محلياً قبل الإدراج
+        // إذا كان الموظف غير موجود (تم حذفه من Appwrite)، نتخطى السجل
+        final remoteEmployeeId =
+            data['employeeId'] as int? ?? data['employee_id'] as int?;
+        if (remoteEmployeeId != null) {
+          final employee = await (database.select(database.employees)
+                ..where((e) => e.id.equals(remoteEmployeeId))
+                ..limit(1))
+              .getSingleOrNull();
+          if (employee == null) {
+            _logger.warning(
+              '⏭️ تخطي salary_withdrawal ${doc.$id}: الموظف $remoteEmployeeId غير موجود محلياً (سجل يتيم - تم حذف الموظف)',
+              tag: 'SYNC',
+            );
+            continue;
+          }
+        }
+
         await _adapterRegistry.salaryWithdrawals.upsertFromJson(
           data,
           src: Source.appwrite,
         );
         processed++;
+      } on SqliteException catch (e) {
+        if (e.resultCode == 787) {
+          // FK constraint failed - تأجيل السجل لإعادة المحاولة لاحقاً
+          final data = Map<String, dynamic>.from(doc.data);
+          data['localUuid'] ??= doc.$id;
+          deferred.add(data);
+          _logger.warning(
+            '⏳ تأجيل salary_withdrawal ${doc.$id}: FK constraint failed - سيتم إعادة المحاولة',
+            tag: 'SYNC',
+          );
+        } else {
+          _logger.warning(
+            'Failed to sync salary_withdrawal ${doc.$id}: $e',
+            tag: 'SYNC',
+          );
+        }
       } catch (e) {
         _logger.warning(
           'Failed to sync salary_withdrawal ${doc.$id}: $e',
@@ -2122,6 +2164,29 @@ class AppwriteSyncManager {
         );
       }
     }
+
+    // ✅ إعادة محاولة السجلات المؤجلة بعد اكتمال باقي السجلات
+    if (deferred.isNotEmpty) {
+      _logger.info(
+        '🔄 إعادة محاولة ${deferred.length} سجل salary_withdrawals مؤجل...',
+        tag: 'SYNC',
+      );
+      for (final data in deferred) {
+        try {
+          await _adapterRegistry.salaryWithdrawals.upsertFromJson(
+            data,
+            src: Source.appwrite,
+          );
+          processed++;
+        } catch (e) {
+          _logger.warning(
+            '⏭️ فشل نهائي لـ salary_withdrawal (يتيم): الموظف ${data['employeeId'] ?? data['employee_id']} غير موجود - $e',
+            tag: 'SYNC',
+          );
+        }
+      }
+    }
+
     return processed;
   }
 
@@ -4297,6 +4362,8 @@ class AppwriteSyncManager {
   Future<int> _syncSalaryCycles(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    final deferred = <Map<String, dynamic>>[];
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -4312,11 +4379,43 @@ class AppwriteSyncManager {
           continue;
         }
 
+        // ✅ التحقق من وجود الموظف محلياً قبل الإدراج
+        final remoteEmployeeId =
+            data['employeeId'] as int? ?? data['employee_id'] as int?;
+        if (remoteEmployeeId != null) {
+          final employee = await (database.select(database.employees)
+                ..where((e) => e.id.equals(remoteEmployeeId))
+                ..limit(1))
+              .getSingleOrNull();
+          if (employee == null) {
+            _logger.warning(
+              '⏭️ تخطي salary_cycle ${doc.$id}: الموظف $remoteEmployeeId غير موجود محلياً (سجل يتيم)',
+              tag: 'SYNC',
+            );
+            continue;
+          }
+        }
+
         await _adapterRegistry.salaryCycles.upsertFromJson(
           data,
           src: Source.appwrite,
         );
         processed++;
+      } on SqliteException catch (e) {
+        if (e.resultCode == 787) {
+          final data = Map<String, dynamic>.from(doc.data);
+          data['localUuid'] ??= doc.$id;
+          deferred.add(data);
+          _logger.warning(
+            '⏳ تأجيل salary_cycle ${doc.$id}: FK constraint failed',
+            tag: 'SYNC',
+          );
+        } else {
+          _logger.warning(
+            'Failed to sync salary cycle ${doc.$id}: $e',
+            tag: 'SYNC',
+          );
+        }
       } catch (e) {
         _logger.warning(
           'Failed to sync salary cycle ${doc.$id}: $e',
@@ -4324,12 +4423,37 @@ class AppwriteSyncManager {
         );
       }
     }
+
+    // ✅ إعادة محاولة السجلات المؤجلة
+    if (deferred.isNotEmpty) {
+      _logger.info(
+        '🔄 إعادة محاولة ${deferred.length} سجل salary_cycles مؤجل...',
+        tag: 'SYNC',
+      );
+      for (final data in deferred) {
+        try {
+          await _adapterRegistry.salaryCycles.upsertFromJson(
+            data,
+            src: Source.appwrite,
+          );
+          processed++;
+        } catch (e) {
+          _logger.warning(
+            '⏭️ فشل نهائي لـ salary_cycle (يتيم): $e',
+            tag: 'SYNC',
+          );
+        }
+      }
+    }
+
     return processed;
   }
 
   Future<int> _syncSalaryPayments(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    final deferred = <Map<String, dynamic>>[];
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -4345,11 +4469,43 @@ class AppwriteSyncManager {
           continue;
         }
 
+        // ✅ التحقق من وجود دورة الراتب محلياً قبل الإدراج
+        final remoteCycleId =
+            data['cycleId'] as int? ?? data['cycle_id'] as int?;
+        if (remoteCycleId != null) {
+          final cycle = await (database.select(database.salaryCycles)
+                ..where((c) => c.id.equals(remoteCycleId))
+                ..limit(1))
+              .getSingleOrNull();
+          if (cycle == null) {
+            _logger.warning(
+              '⏭️ تخطي salary_payment ${doc.$id}: دورة الراتب $remoteCycleId غير موجودة محلياً (سجل يتيم)',
+              tag: 'SYNC',
+            );
+            continue;
+          }
+        }
+
         await _adapterRegistry.salaryPayments.upsertFromJson(
           data,
           src: Source.appwrite,
         );
         processed++;
+      } on SqliteException catch (e) {
+        if (e.resultCode == 787) {
+          final data = Map<String, dynamic>.from(doc.data);
+          data['localUuid'] ??= doc.$id;
+          deferred.add(data);
+          _logger.warning(
+            '⏳ تأجيل salary_payment ${doc.$id}: FK constraint failed',
+            tag: 'SYNC',
+          );
+        } else {
+          _logger.warning(
+            'Failed to sync salary payment ${doc.$id}: $e',
+            tag: 'SYNC',
+          );
+        }
       } catch (e) {
         _logger.warning(
           'Failed to sync salary payment ${doc.$id}: $e',
@@ -4357,6 +4513,29 @@ class AppwriteSyncManager {
         );
       }
     }
+
+    // ✅ إعادة محاولة السجلات المؤجلة
+    if (deferred.isNotEmpty) {
+      _logger.info(
+        '🔄 إعادة محاولة ${deferred.length} سجل salary_payments مؤجل...',
+        tag: 'SYNC',
+      );
+      for (final data in deferred) {
+        try {
+          await _adapterRegistry.salaryPayments.upsertFromJson(
+            data,
+            src: Source.appwrite,
+          );
+          processed++;
+        } catch (e) {
+          _logger.warning(
+            '⏭️ فشل نهائي لـ salary_payment (يتيم): $e',
+            tag: 'SYNC',
+          );
+        }
+      }
+    }
+
     return processed;
   }
 
@@ -4752,16 +4931,69 @@ class AppwriteSyncManager {
         );
         
         for (final row in violations) {
+          final table = row.data['table']?.toString() ?? '';
+          final rowId = row.data['rowid']?.toString() ?? '';
+          final parent = row.data['parent']?.toString() ?? '';
           _logger.debug(
-            'FK Violation: Table=${row.data['table']}, RowId=${row.data['rowid']}, Parent=${row.data['parent']}',
+            'FK Violation: Table=$table, RowId=$rowId, Parent=$parent',
             tag: 'SYNC_INTEGRITY',
           );
+
+          // ✅ إصلاح تلقائي: حذف السجلات اليتيمة (التي تشير لآباء غير موجودين)
+          try {
+            if (table == 'salary_withdrawals' || table == 'salary_cycles') {
+              // حذف السجل الذي يشير لموظف غير موجود
+              await database.customStatement(
+                'DELETE FROM $table WHERE rowid = ?',
+                [int.tryParse(rowId)],
+              );
+              _logger.info(
+                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
+                tag: 'SYNC_INTEGRITY',
+              );
+            } else if (table == 'salary_payments') {
+              // حذف السجل الذي يشير لدورة راتب غير موجودة
+              await database.customStatement(
+                'DELETE FROM $table WHERE rowid = ?',
+                [int.tryParse(rowId)],
+              );
+              _logger.info(
+                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
+                tag: 'SYNC_INTEGRITY',
+              );
+            } else if (table == 'payments' && parent == 'bookings') {
+              // دفعة تشير لحجز غير موجود - إزالة FK فقط (لأن bookingLocalId nullable)
+              await database.customStatement(
+                'UPDATE payments SET booking_local_id = NULL, booking_uuid_cache = NULL WHERE rowid = ?',
+                [int.tryParse(rowId)],
+              );
+              _logger.info(
+                '🧹 تم إزالة ربط الدفعة اليتيمة بالحجز (rowid=$rowId)',
+                tag: 'SYNC_INTEGRITY',
+              );
+            } else if (table == 'debts' && parent == 'bookings') {
+              // دين يشير لحجز غير موجود - إزالة FK فقط (لأن bookingLocalId nullable)
+              await database.customStatement(
+                'UPDATE debts SET booking_local_id = NULL WHERE rowid = ?',
+                [int.tryParse(rowId)],
+              );
+              _logger.info(
+                '🧹 تم إزالة ربط الدين اليتيم بالحجز (rowid=$rowId)',
+                tag: 'SYNC_INTEGRITY',
+              );
+            }
+          } catch (fixError) {
+            _logger.warning(
+              '⚠️ فشل إصلاح سجل يتيم في $table: $fixError',
+              tag: 'SYNC_INTEGRITY',
+            );
+          }
         }
 
         // تسجيل الأخطاء في Crashlytics للمراقبة
         await CrashlyticsService.instance.recordSyncError(
           operation: 'post_sync_integrity_check',
-          error: 'Foreign key violations detected: ${violations.length} rows',
+          error: 'Foreign key violations detected and auto-fixed: ${violations.length} rows',
           context: {'violations_count': violations.length.toString()},
         );
 
@@ -4819,12 +5051,52 @@ class AppwriteSyncManager {
         }
       }
 
-      // 2. التحقق من السجلات اليتيمة (Orphan Records) ومحاولة إصلاحها
-      // مثال: دفعات بدون حجوزات لكن لديها bookingUuidCache
-      await _autoFixOrphanPaymentsByUuidCache();
-      await _autoFixOrphanDebtsByUuidCache();
-      await _autoFixOrphanBookingNightsByUuidCache();
-      await _autoFixOrphanBookingPriceAdjustmentsByUuidCache();
+      // 2. التحقق من السجلات اليتيمة - باستخدام JOIN بدل الأعمدة غير الموجودة
+      // ✅ إصلاح: استخدام LEFT JOIN للتحقق من وجود الحجز بدلاً من booking_uuid_cache
+      // (booking_uuid_cache موجود فقط في جدول payments وليس في جدول debts)
+      final orphanPayments = await database.customSelect('''
+        SELECT COUNT(*) as count FROM payments p
+        LEFT JOIN bookings b ON p.booking_local_id = b.id
+        WHERE p.booking_local_id IS NOT NULL AND b.id IS NULL AND p.deleted_at IS NULL
+      ''').getSingle();
+      
+      final orphanPayCount = orphanPayments.read<int>('count');
+      if (orphanPayCount > 0) {
+        _logger.warning(
+          '⚠️ يوجد $orphanPayCount دفعة يتيمة (بدون ربط بحجز موجود)',
+          tag: 'SYNC_INTEGRITY',
+        );
+      }
+
+      // 3. التحقق من سحوبات الرواتب اليتيمة
+      final orphanWithdrawals = await database.customSelect('''
+        SELECT COUNT(*) as count FROM salary_withdrawals sw
+        LEFT JOIN employees e ON sw.employee_id = e.id
+        WHERE e.id IS NULL AND sw.deleted_at IS NULL
+      ''').getSingle();
+
+      final orphanWdCount = orphanWithdrawals.read<int>('count');
+      if (orphanWdCount > 0) {
+        _logger.warning(
+          '⚠️ يوجد $orphanWdCount سحب راتب يتيم (بدون موظف موجود)',
+          tag: 'SYNC_INTEGRITY',
+        );
+      }
+
+      // 4. التحقق من دورات الرواتب اليتيمة
+      final orphanCycles = await database.customSelect('''
+        SELECT COUNT(*) as count FROM salary_cycles sc
+        LEFT JOIN employees e ON sc.employee_id = e.id
+        WHERE e.id IS NULL AND sc.deleted_at IS NULL
+      ''').getSingle();
+
+      final orphanCycleCount = orphanCycles.read<int>('count');
+      if (orphanCycleCount > 0) {
+        _logger.warning(
+          '⚠️ يوجد $orphanCycleCount دورة راتب يتيمة (بدون موظف موجود)',
+          tag: 'SYNC_INTEGRITY',
+        );
+      }
 
       _logger.info('✅ اكتمل فحص سلامة البيانات بعد المزامنة', tag: 'SYNC_INTEGRITY');
     } catch (e, st) {

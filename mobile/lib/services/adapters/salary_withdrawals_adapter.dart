@@ -28,9 +28,20 @@ class SalaryWithdrawalsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
+    // ✅ حل FK الموظف - التحقق من وجود الموظف محلياً قبل الإدراج
+    final remoteEmployeeId =
+        _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
+    final employeeUuid =
+        _asString(json, 'employeeLocalUuid', src) ??
+        _asString(json, 'employee_local_uuid', src);
+    final resolvedEmployeeId = await resolver.resolveEmployee(
+      localId: remoteEmployeeId,
+      uuid: employeeUuid,
+    );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
+      employeeLocalId: resolvedEmployeeId,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
     );
@@ -72,7 +83,12 @@ class SalaryWithdrawalsAdapter
             IdGen.uuid(),
       ),
       serverId: _vInt(json, 'serverId', src),
-      employeeId: _vInt(json, 'employeeId', src, altKey: 'employee_id'),
+      // ✅ إصلاح: استخدام employeeLocalId المحلول بدل القيمة الخام من Appwrite
+      // إذا لم يتم حل الموظف (لا يوجد محلياً)، نستخدم القيمة الخامة وسيتم
+      // التقاط الخطأ في _syncSalaryWithdrawals لتخطي السجل
+      employeeId: refs.employeeLocalId != null
+          ? d.Value(refs.employeeLocalId!)
+          : _vInt(json, 'employeeId', src, altKey: 'employee_id'),
       amount: _vDouble(json, 'amount', src, fallback: 0),
       withdrawDate: d.Value(wd),
       reason: reasonVal != null ? d.Value(reasonVal) : const d.Value.absent(),

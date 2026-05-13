@@ -47,9 +47,9 @@ class AppwriteFullPull {
 
     final result = FullPullResult(success: true, message: 'تم السحب بنجاح');
 
-    // ✅ إصلاح حرج: لا نعطل PRAGMA foreign_keys أثناء السحب
-    // تعطيلها كان يسمح بإدخال سجلات أبناء بدون آباء (مدفوعات بدون حجوزات)
-    // ترتيب السحب (غرف → حجوزات → مدفوعات) يضمن وجود الآباء قبل الأبناء
+    // ✅ لا نعطل FK - بل نرتب السحب بشكل صحيح ونتخطى السجلات اليتيمة
+    // PRAGMA foreign_keys=OFF كان يسمح بإدراج بيانات فاسدة (يتيمة)
+    // الآن نحافظ على قيود FK ونتخطى السجلات التي تشير لآباء غير موجودين
 
     try {
       // ترتيب السحب حسب العلاقات
@@ -81,22 +81,32 @@ class AppwriteFullPull {
 
       _logger.info('✅ ${result.message}', tag: 'FULL_PULL');
     } finally {
-      // ✅ تحقق من سلامة المفاتيح الأجنبية بعد السحب
-      // (لم نعد نعطل FK، لذا لا حاجة لإعادة تفعيله)
+      // ✅ فحص سلامة FK بعد السحب
       try {
         final violations = await _database!.customSelect(
           'PRAGMA foreign_key_check',
           readsFrom: Set.unmodifiable({}),
         ).get();
         if (violations.isNotEmpty) {
-          developer.log(
-            '⚠️ FK violations after sync: ${violations.length} rows',
-            name: 'SyncSafety',
-          );
           _logger.warning(
-            '⚠️ تم اكتشاف ${violations.length} انتهاك للمفاتيح الأجنبية بعد السحب الشامل',
+            '⚠️ ${violations.length} انتهاك FK بعد السحب الشامل',
             tag: 'FULL_PULL',
           );
+          // حذف السجلات اليتيمة تلقائياً
+          for (final row in violations) {
+            final table = row.data['table']?.toString() ?? '';
+            final rowId = row.data['rowid']?.toString() ?? '';
+            try {
+              await _database!.customStatement(
+                'DELETE FROM $table WHERE rowid = ?',
+                [int.tryParse(rowId)],
+              );
+              _logger.info(
+                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
+                tag: 'FULL_PULL',
+              );
+            } catch (_) {}
+          }
         }
       } catch (_) {}
     }
@@ -121,62 +131,61 @@ class AppwriteFullPull {
         collectionId: AppwriteConfig.employeesCollectionId,
         repo: reg.employees,
       ),
-      // 3. الحجوزات (Payments.bookingLocalId, Debts.bookingLocalId, BookingNights.bookingLocalId, BookingNotes.bookingId, BookingPriceAdjustments.bookingLocalId → Bookings.id)
+      // 3. الحجوزات (تعتمد على الغرف)
       _PullEntity(
         name: 'bookings',
         collectionId: AppwriteConfig.bookingsCollectionId,
         repo: reg.bookings,
       ),
-      // 4. المعاملات النقدية (Payments.cashTransactionLocalId → CashTransactions.id)
-      // ✅ إصلاح: يجب أن يكون قبل payments لتلبية FK constraint
+      // 4. المعاملات النقدية (يجب أن تسبق المدفوعات - FK: payments.cashTransactionLocalId)
       _PullEntity(
         name: 'cash_transactions',
         collectionId: AppwriteConfig.cashTransactionsCollectionId,
         repo: reg.cashTransactions,
       ),
-      // 5. ليالي الحجز (bookingLocalId → Bookings.id, NOT NULL)
+      // 5. ليالي الحجز (تعتمد على الحجوزات)
       _PullEntity(
         name: 'booking_nights',
         collectionId: AppwriteConfig.bookingNightsCollectionId,
         repo: reg.nights,
       ),
-      // 6. ملاحظات الحجز (bookingId → Bookings.id)
+      // 6. ملاحظات الحجز (تعتمد على الحجوزات)
       _PullEntity(
         name: 'booking_notes',
         collectionId: AppwriteConfig.bookingNotesCollectionId,
         repo: reg.bookingNotes,
       ),
-      // 7. المدفوعات (bookingLocalId → Bookings.id, cashTransactionLocalId → CashTransactions.id)
+      // 7. المدفوعات (تعتمد على الحجوزات والمعاملات النقدية)
       _PullEntity(
         name: 'payments',
         collectionId: AppwriteConfig.paymentsCollectionId,
         repo: reg.payments,
       ),
-      // 8. المصروفات (لا FK)
+      // 8. المصروفات
       _PullEntity(
         name: 'expenses',
         collectionId: AppwriteConfig.expensesCollectionId,
         repo: reg.expenses,
       ),
-      // 9. الديون (bookingLocalId → Bookings.id)
+      // 9. الديون (تعتمد على الحجوزات)
       _PullEntity(
         name: 'debts',
         collectionId: AppwriteConfig.debtsCollectionId,
         repo: reg.debts,
       ),
-      // 10. دورات الرواتب (employeeId → Employees.id)
+      // 10. دورات الرواتب (تعتمد على الموظفين)
       _PullEntity(
         name: 'salary_cycles',
         collectionId: AppwriteConfig.salaryCyclesCollectionId,
         repo: reg.salaryCycles,
       ),
-      // 11. مدفوعات الرواتب (cycleId → SalaryCycles.id)
+      // 11. مدفوعات الرواتب (تعتمد على دورات الرواتب)
       _PullEntity(
         name: 'salary_payments',
         collectionId: AppwriteConfig.salaryPaymentsCollectionId,
         repo: reg.salaryPayments,
       ),
-      // 12. سحوبات الرواتب (employeeId → Employees.id)
+      // 12. سحوبات الرواتب (تعتمد على الموظفين)
       _PullEntity(
         name: 'salary_withdrawals',
         collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
