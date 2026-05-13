@@ -1,6 +1,6 @@
 # Claude Code - تفاعل مع @claude في Issues و PRs
-# يستخدم Anthropic API الرسمي مباشرة
-# يتطلب ANTHROPIC_API_KEY في GitHub Secrets
+# يستخدم FreeModel API (OpenAI-compatible) مع gpt-5.4
+# يتطلب FREEMODEL_API_KEY في GitHub Secrets
 
 name: Claude Code (AgentRouter)
 
@@ -21,19 +21,71 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: write
+      contents: read
       pull-requests: write
       issues: write
-      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_args: "--model claude-sonnet-4-5-20250929"
+      - name: Process @claude mention
+        run: |
+          # Determine the context and prompt
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            PROMPT="${{ github.event.comment.body }}"
+            CONTEXT="Issue comment"
+            NUMBER="${{ github.event.issue.number }}"
+          elif [ "${{ github.event_name }}" = "issues" ]; then
+            PROMPT="Issue: ${{ github.event.issue.title }}\n\n${{ github.event.issue.body }}"
+            CONTEXT="New issue"
+            NUMBER="${{ github.event.issue.number }}"
+          elif [ "${{ github.event_name }}" = "pull_request_review" ]; then
+            PROMPT="${{ github.event.review.body }}"
+            CONTEXT="PR review"
+            NUMBER="${{ github.event.pull_request.number }}"
+          fi
+          
+          # Remove @claude from prompt
+          PROMPT=$(echo "$PROMPT" | sed 's/@claude//g')
+          
+          echo "Context: $CONTEXT"
+          echo "Processing @claude mention..."
+          
+          # Call FreeModel API
+          RESPONSE=$(curl -s -X POST "https://api.freemodel.dev/v1/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.FREEMODEL_API_KEY }}" \
+            -d "$(jq -n \
+              --arg model "gpt-5.4" \
+              --arg prompt "$PROMPT" \
+              '{
+                model: $model,
+                messages: [
+                  {role: "system", content: "You are Claude, an AI coding assistant. Help with coding questions, bug fixes, and code improvements. Be concise and helpful."},
+                  {role: "user", content: $prompt}
+                ],
+                max_tokens: 4000,
+                temperature: 0.3
+              }' )")
+          
+          REPLY=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+          
+          if [ -z "$REPLY" ]; then
+            echo "❌ API call failed"
+            echo "$RESPONSE" | head -20
+            REPLY="⚠️ Sorry, I couldn't process your request. The API call failed."
+          fi
+          
+          # Post response as comment
+          COMMENT="## 🤖 Claude (FreeModel gpt-5.4)
+
+          $REPLY
+
+          ---
+          *Powered by [FreeModel](https://freemodel.dev)*"
+          
+          echo "$COMMENT" | gh issue comment "$NUMBER" --body-file -
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
