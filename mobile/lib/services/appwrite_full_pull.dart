@@ -109,109 +109,110 @@ class AppwriteFullPull {
     final reg = _adapterRegistry!;
 
     return [
-      // 1. الغرف أولاً
+      // 1. الغرف أولاً (Bookings.roomNumber → Rooms.roomNumber)
       _PullEntity(
         name: 'rooms',
         collectionId: AppwriteConfig.roomsCollectionId,
         repo: reg.rooms,
       ),
-      // 2. الموظفين
+      // 2. الموظفين (SalaryCycles.employeeId, SalaryWithdrawals.employeeId → Employees.id)
       _PullEntity(
         name: 'employees',
         collectionId: AppwriteConfig.employeesCollectionId,
         repo: reg.employees,
       ),
-      // 3. الحجوزات
+      // 3. الحجوزات (Payments.bookingLocalId, Debts.bookingLocalId, BookingNights.bookingLocalId, BookingNotes.bookingId, BookingPriceAdjustments.bookingLocalId → Bookings.id)
       _PullEntity(
         name: 'bookings',
         collectionId: AppwriteConfig.bookingsCollectionId,
         repo: reg.bookings,
       ),
-      // 4. ليالي الحجز
-      _PullEntity(
-        name: 'booking_nights',
-        collectionId: AppwriteConfig.bookingNightsCollectionId,
-        repo: reg.nights,
-      ),
-      // 5. ملاحظات الحجز
-      _PullEntity(
-        name: 'booking_notes',
-        collectionId: AppwriteConfig.bookingNotesCollectionId,
-        repo: reg.bookingNotes,
-      ),
-      // 6. المدفوعات
-      _PullEntity(
-        name: 'payments',
-        collectionId: AppwriteConfig.paymentsCollectionId,
-        repo: reg.payments,
-      ),
-      // 7. المصروفات
-      _PullEntity(
-        name: 'expenses',
-        collectionId: AppwriteConfig.expensesCollectionId,
-        repo: reg.expenses,
-      ),
-      // 8. الديون
-      _PullEntity(
-        name: 'debts',
-        collectionId: AppwriteConfig.debtsCollectionId,
-        repo: reg.debts,
-      ),
-      // 9. المعاملات النقدية
+      // 4. المعاملات النقدية (Payments.cashTransactionLocalId → CashTransactions.id)
+      // ✅ إصلاح: يجب أن يكون قبل payments لتلبية FK constraint
       _PullEntity(
         name: 'cash_transactions',
         collectionId: AppwriteConfig.cashTransactionsCollectionId,
         repo: reg.cashTransactions,
       ),
-      // 10. دورات الرواتب
+      // 5. ليالي الحجز (bookingLocalId → Bookings.id, NOT NULL)
+      _PullEntity(
+        name: 'booking_nights',
+        collectionId: AppwriteConfig.bookingNightsCollectionId,
+        repo: reg.nights,
+      ),
+      // 6. ملاحظات الحجز (bookingId → Bookings.id)
+      _PullEntity(
+        name: 'booking_notes',
+        collectionId: AppwriteConfig.bookingNotesCollectionId,
+        repo: reg.bookingNotes,
+      ),
+      // 7. المدفوعات (bookingLocalId → Bookings.id, cashTransactionLocalId → CashTransactions.id)
+      _PullEntity(
+        name: 'payments',
+        collectionId: AppwriteConfig.paymentsCollectionId,
+        repo: reg.payments,
+      ),
+      // 8. المصروفات (لا FK)
+      _PullEntity(
+        name: 'expenses',
+        collectionId: AppwriteConfig.expensesCollectionId,
+        repo: reg.expenses,
+      ),
+      // 9. الديون (bookingLocalId → Bookings.id)
+      _PullEntity(
+        name: 'debts',
+        collectionId: AppwriteConfig.debtsCollectionId,
+        repo: reg.debts,
+      ),
+      // 10. دورات الرواتب (employeeId → Employees.id)
       _PullEntity(
         name: 'salary_cycles',
         collectionId: AppwriteConfig.salaryCyclesCollectionId,
         repo: reg.salaryCycles,
       ),
-      // 11. مدفوعات الرواتب
+      // 11. مدفوعات الرواتب (cycleId → SalaryCycles.id)
       _PullEntity(
         name: 'salary_payments',
         collectionId: AppwriteConfig.salaryPaymentsCollectionId,
         repo: reg.salaryPayments,
       ),
-      // 12. سحوبات الرواتب
+      // 12. سحوبات الرواتب (employeeId → Employees.id)
       _PullEntity(
         name: 'salary_withdrawals',
         collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
         repo: reg.salaryWithdrawals,
       ),
-      // 13. ملاحظات الورديات
+      // 13. ملاحظات الورديات (لا FK)
       _PullEntity(
         name: 'shift_notes',
         collectionId: AppwriteConfig.shiftNotesCollectionId,
         repo: reg.shiftNotes,
       ),
-      // 14. تعديلات الأسعار
+      // 14. تعديلات الأسعار (لا FK)
       _PullEntity(
         name: 'price_adjustments',
         collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
         repo: reg.priceAdjustments,
       ),
-      // 15. تعديلات أسعار الحجوزات
+      // 15. تعديلات أسعار الحجوزات (bookingLocalId → Bookings.id)
       _PullEntity(
         name: 'booking_price_adjustments',
         collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
         repo: reg.bookingPriceAdjustments,
       ),
-      // 16. سجلات التدقيق
+      // 16. سجلات التدقيق (لا FK)
       _PullEntity(
         name: 'audit_logs',
         collectionId: AppwriteConfig.auditLogsCollectionId,
         repo: reg.auditLogs,
       ),
-      // 17. إلغاءات الدفع
+      // 17. إلغاءات الدفع (لا FK — يستخدم UUID فقط)
       _PullEntity(
         name: 'payment_voids',
         collectionId: AppwriteConfig.paymentVoidsCollectionId,
         repo: reg.paymentVoids,
       ),
-      // 18. معلومات الضيوف
+      // 18. معلومات الضيوف (لا FK)
       _PullEntity(
         name: 'guest_infos',
         collectionId: AppwriteConfig.guestInfosCollectionId,

@@ -752,6 +752,20 @@ class AppwriteSyncManager {
             _logger.error('❌ فشل سحب expenses', error: e, stackTrace: st, tag: 'SYNC');
           }
 
+          // ✅ ترتيب صحيح: cash_transactions قبل payments لأن payments.cashTransactionLocalId
+          // يشير إلى cash_transactions.id (FK constraint)
+          try {
+            recordsPulled += await _timePhase('syncCashTransactions', () async {
+              final cashTransactions = await appwriteService.listCashTransactions(queries: deltaQ, useCache: false);
+              final synced = await _syncCashTransactions(cashTransactions);
+              _logger.debug('Synced $synced cash transactions', tag: 'SYNC');
+              return synced;
+            }, phaseMs,);
+          } catch (e, st) {
+            failedCollections.add('cash_transactions');
+            _logger.error('❌ فشل سحب cash_transactions', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
           try {
             recordsPulled += await _timePhase('syncPayments', () async {
               final payments = await appwriteService.listPayments(queries: deltaQ, useCache: false);
@@ -852,18 +866,6 @@ class AppwriteSyncManager {
           } catch (e, st) {
             failedCollections.add('booking_notes');
             _logger.error('❌ فشل سحب booking_notes', error: e, stackTrace: st, tag: 'SYNC');
-          }
-
-          try {
-            recordsPulled += await _timePhase('syncCashTransactions', () async {
-              final cashTransactions = await appwriteService.listCashTransactions(queries: deltaQ, useCache: false);
-              final synced = await _syncCashTransactions(cashTransactions);
-              _logger.debug('Synced $synced cash transactions', tag: 'SYNC');
-              return synced;
-            }, phaseMs,);
-          } catch (e, st) {
-            failedCollections.add('cash_transactions');
-            _logger.error('❌ فشل سحب cash_transactions', error: e, stackTrace: st, tag: 'SYNC');
           }
 
           try {
