@@ -463,7 +463,7 @@ class EnhancedPdfPreviewScreen extends ConsumerWidget {
           }
 
           return PdfPreview(
-            build: (format) => snapshot.data!,
+            build: (format) => snapshot.data,
             canChangePageFormat: false,
             canChangeOrientation: false,
           );

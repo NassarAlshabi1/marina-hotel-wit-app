@@ -1,7 +1,8 @@
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/appwrite_config.dart';
+import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 
 /// اختبار معالجة خطأ 404 في عملية الحذف
 /// ملاحظة: هذه اختبارات تكاملية تحتاج اتصال حقيقي بـ Appwrite
@@ -25,7 +26,7 @@ void main() {
       test(
         'deleteDocument يجب أن ينجح عند حذف مستند غير موجود (404)',
         () async {
-          final fakeDocumentId = 'non_existent_document_123456';
+          const fakeDocumentId = 'non_existent_document_123456';
 
           await expectLater(
             appwriteService.deleteDocument(
@@ -41,7 +42,7 @@ void main() {
       test(
         'deleteRoom يجب أن ينجح عند حذف غرفة غير موجودة',
         () async {
-          final fakeRoomId = 'fake_room_uuid_999';
+          const fakeRoomId = 'fake_room_uuid_999';
 
           await expectLater(appwriteService.deleteRoom(fakeRoomId), completes);
         },
@@ -51,7 +52,7 @@ void main() {
       test(
         'deleteBooking يجب أن ينجح عند حذف حجز غير موجود',
         () async {
-          final fakeBookingId = 'fake_booking_uuid_999';
+          const fakeBookingId = 'fake_booking_uuid_999';
 
           await expectLater(
             appwriteService.deleteBooking(fakeBookingId),
@@ -64,7 +65,7 @@ void main() {
       test(
         'deleteExpense يجب أن ينجح عند حذف مصروف غير موجود',
         () async {
-          final fakeExpenseId = 'fake_expense_uuid_999';
+          const fakeExpenseId = 'fake_expense_uuid_999';
 
           await expectLater(
             appwriteService.deleteExpense(fakeExpenseId),

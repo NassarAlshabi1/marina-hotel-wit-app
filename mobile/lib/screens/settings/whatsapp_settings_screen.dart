@@ -1148,7 +1148,7 @@ class _WhatsAppSettingsScreenState
       onPressed: () async {
         final data = await Clipboard.getData('text/plain');
         if (data?.text != null) {
-          setState(() => controller.text = data!.text!);
+          setState(() => controller.text = data!.text);
         }
       },
     );

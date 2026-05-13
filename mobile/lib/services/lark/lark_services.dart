@@ -1,5 +1,5 @@
 /// تصدير جميع خدمات Lark
-library lark_services;
+library;
 
 export 'lark_api_client.dart';
 export 'lark_config.dart';

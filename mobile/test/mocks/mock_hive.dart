@@ -6,11 +6,11 @@ import 'dart:typed_data';
 
 /// Mock لـ Hive Box
 class MockHiveBox<T> {
+
+  MockHiveBox(this.name);
   final Map<String, T> _data = {};
   final String name;
   final StreamController<String> _changeController = StreamController<String>.broadcast();
-
-  MockHiveBox(this.name);
 
   T? get(String key) => _data[key];
 
@@ -72,15 +72,15 @@ class MockHiveLazyBox<T> extends MockHiveBox<T> {
   Future<T?> getAsync(String key) async => get(key);
 
   Future<Map<String, T>> toMap() async => Map.fromEntries(
-    keys.map((k) => MapEntry(k, get(k)!)),
+    keys.map((k) => MapEntry(k, get(k) as T)),
   );
 }
 
 /// Mock لـ Hive
 class MockHive {
-  static final MockHive _instance = MockHive._internal();
   factory MockHive() => _instance;
   MockHive._internal();
+  static final MockHive _instance = MockHive._internal();
 
   final Map<String, MockHiveBox> _boxes = {};
   final Map<String, MockHiveLazyBox> _lazyBoxes = {};
@@ -134,9 +134,9 @@ class MockHiveCipher {
 
 /// Mock للـ Hive AES Cipher
 class MockHiveAesCipher implements MockHiveCipher {
-  final List<int> key;
 
   MockHiveAesCipher(this.key);
+  final List<int> key;
 
   @override
   Uint8List encrypt(Uint8List data) {
@@ -153,9 +153,9 @@ class MockHiveAesCipher implements MockHiveCipher {
 
 /// Mock للـ Hive Reader
 class MockHiveReader {
-  final Map<String, dynamic> _data;
 
   MockHiveReader(this._data);
+  final Map<String, dynamic> _data;
 
   dynamic read() => _data;
 }
