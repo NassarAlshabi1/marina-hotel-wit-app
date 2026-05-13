@@ -1,6 +1,6 @@
-# Claude Code Review - مراجعة تلقائية للـ Pull Requests
-# يستخدم Anthropic API الرسمي مباشرة
-# يتطلب ANTHROPIC_API_KEY في GitHub Secrets
+# AI Code Review - مراجعة تلقائية للـ Pull Requests
+# يستخدم FreeModel API (OpenAI-compatible) مع gpt-5.4
+# يتطلب FREEMODEL_API_KEY في GitHub Secrets
 
 name: Claude Code Review
 
@@ -21,26 +21,89 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Claude Code Review
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: |
-            You are a code reviewer. Review the following pull request changes and provide feedback.
+      - name: Get PR Diff
+        id: diff
+        run: |
+          DIFF=$(gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }})
+          # Truncate diff to avoid token limits (max ~120k chars)
+          echo "DIFF<<EOFDIFF" >> $GITHUB_OUTPUT
+          echo "$DIFF" | head -3000 >> $GITHUB_OUTPUT
+          echo "EOFDIFF" >> $GITHUB_OUTPUT
+          echo "Diff length: ${#DIFF} characters"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            PR Title: ${{ github.event.pull_request.title }}
-            PR Description: ${{ github.event.pull_request.body }}
-            PR Number: ${{ github.event.pull_request.number }}
+      - name: AI Code Review
+        id: review
+        run: |
+          # Prepare the review prompt
+          PROMPT='You are an expert code reviewer. Review the following pull request diff and provide constructive feedback.
 
-            Use 'gh pr diff' to see the changes and then post a review comment.
+          PR Title: ${{ github.event.pull_request.title }}
+          PR Description: ${{ github.event.pull_request.body }}
+          
+          Diff:
+          ```
+          ${{ steps.diff.outputs.DIFF }}
+          ```
+          
+          Review for:
+          1. 🐛 Bugs and potential issues
+          2. 🔒 Security vulnerabilities  
+          3. 📝 Code style and best practices
+          4. ⚡ Performance concerns
+          5. 🧪 Missing tests
+          
+          Provide your review in a clear, structured format with Markdown. Be specific about which files and lines have issues.'
+          
+          # Call FreeModel API
+          RESPONSE=$(curl -s -X POST "https://api.freemodel.dev/v1/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.FREEMODEL_API_KEY }}" \
+            -d "$(jq -n \
+              --arg model "gpt-5.4" \
+              --arg prompt "$PROMPT" \
+              '{
+                model: $model,
+                messages: [{role: "system", content: "You are an expert code reviewer. Be concise but thorough."}, {role: "user", content: $prompt}],
+                max_tokens: 4000,
+                temperature: 0.3
+              }' )")
+          
+          # Extract the review content
+          REVIEW=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+          
+          if [ -z "$REVIEW" ]; then
+            echo "❌ API call failed. Response:"
+            echo "$RESPONSE" | head -20
+            echo "REVIEW_FAILED=true" >> $GITHUB_ENV
+            exit 1
+          fi
+          
+          # Save review to file for multi-line output
+          echo "$REVIEW" > /tmp/review.md
+          echo "✅ Review generated successfully"
+          echo "REVIEW_FAILED=false" >> $GITHUB_ENV
 
-            Review for:
-            1. Bugs and potential issues
-            2. Security vulnerabilities
-            3. Code style and best practices
-            4. Performance concerns
-            5. Missing tests
+      - name: Post Review Comment
+        if: env.REVIEW_FAILED == 'false'
+        run: |
+          REVIEW=$(cat /tmp/review.md)
+          # Post as PR comment with header
+          COMMENT="## 🤖 AI Code Review (FreeModel gpt-5.4)
 
-            Post a summary comment on the PR with your findings using 'gh pr comment'.
-          claude_args: "--model claude-sonnet-4-5-20250929"
+          $REVIEW
+
+          ---
+          *This review was generated automatically by [FreeModel](https://freemodel.dev) using gpt-5.4.*"
+          
+          echo "$COMMENT" | gh pr comment ${{ github.event.pull_request.number }} --body-file -
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Review Failed Notification
+        if: env.REVIEW_FAILED == 'true'
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body "⚠️ **AI Code Review failed** - Could not generate review. Check workflow logs for details."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
