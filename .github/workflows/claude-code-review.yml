@@ -1,7 +1,6 @@
 # Claude Code Review - مراجعة تلقائية للـ Pull Requests
-# يقوم بمراجعة الكود وإضافة تعليقات
-# يتطلب ANTHROPIC_API_KEY في GitHub Secrets (مفتاح Anthropic مباشر)
-# أو AGENTROUTER_API_KEY مع ANTHROPIC_BASE_URL
+# يستخدم Anthropic API الرسمي مباشرة
+# يتطلب ANTHROPIC_API_KEY في GitHub Secrets
 
 name: Claude Code Review
 
@@ -24,11 +23,8 @@ jobs:
 
       - name: Claude Code Review
         uses: anthropics/claude-code-action@v1
-        env:
-          ANTHROPIC_BASE_URL: "https://agentrouter.org/"
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.AGENTROUTER_API_KEY }}
         with:
-          anthropic_api_key: ${{ secrets.AGENTROUTER_API_KEY }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             You are a code reviewer. Review the following pull request changes and provide feedback.
