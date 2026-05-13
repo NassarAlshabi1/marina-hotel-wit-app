@@ -1,6 +1,6 @@
-# Claude Code with AgentRouter
-# يتطلب إضافة AGENTROUTER_API_KEY في GitHub Secrets
-# Settings → Secrets and variables → Actions → New repository secret
+# Claude Code - تفاعل مع @claude في Issues و PRs
+# يستخدم Anthropic API الرسمي مباشرة
+# يتطلب ANTHROPIC_API_KEY في GitHub Secrets
 
 name: Claude Code (AgentRouter)
 
@@ -31,12 +31,9 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code via AgentRouter
+      - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
-        env:
-          ANTHROPIC_BASE_URL: "https://agentrouter.org/"
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.AGENTROUTER_API_KEY }}
         with:
-          anthropic_api_key: ${{ secrets.AGENTROUTER_API_KEY }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: "--model claude-sonnet-4-5-20250929"
