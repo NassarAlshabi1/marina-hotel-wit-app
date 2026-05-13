@@ -95,9 +95,10 @@ class BookingDerivedFieldsService {
           hotelDayCheckin: d.Value(calculation.hotelDayCheckin),
           hotelDayCheckout: d.Value(calculation.hotelDayCheckout),
           updatedAt: d.Value(stamp),
-          lastModified: d.Value(stamp),
+          // ✅ لا نحدّث lastModified للحقول المشتقة لأنها تُحسب محلياً
+          // وليست تغييراً من المستخدم. تحديث lastModified يجعل البيانات
+          // المحلية تبدو "أحدث" مما يمنع السحب من تحديثها في المزامنة القادمة.
           updatedAtIso: d.Value(stampIso),
-          lastModifiedEpoch: d.Value(stamp),
         ),
       );
     });

@@ -148,9 +148,9 @@ class EnhancedBookingCalculationService {
         hotelDayCheckin: d.Value(calculation.hotelDayCheckin),
         hotelDayCheckout: d.Value(calculation.hotelDayCheckout),
         updatedAt: d.Value(stamp),
-        lastModified: d.Value(stamp),
+        // ✅ لا نحدّث lastModified للحقول المشتقة — نفس السبب
+        // المذكور في BookingDerivedFieldsService.refreshForBooking
         updatedAtIso: d.Value(stampIso),
-        lastModifiedEpoch: d.Value(stamp),
       ),
     );
   }

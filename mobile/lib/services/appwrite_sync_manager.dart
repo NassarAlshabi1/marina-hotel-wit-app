@@ -2040,6 +2040,17 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.guestInfos)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+          continue;
+        }
+
         await _adapterRegistry.guestInfos.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -2096,6 +2107,17 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.salaryWithdrawals)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+          continue;
+        }
+
         await _adapterRegistry.salaryWithdrawals.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -2362,6 +2384,13 @@ class AppwriteSyncManager {
   /// يحذف عناصر outbox التي تتطابق مع بيانات تم سحبها فعلياً (بنفس entity + localUuid).
   /// المنطق: إذا السحابة أرسلت هذا السجل فلا حاجة لإعادة إرساله عبر outbox.
   /// ✅ فصل هندسي: يحذف فقط عناصر source='local' — لا يمس عناصر 'restore'
+  /// ✅ تنظيف outbox بعد السحب: يحذف فقط عناصر outbox التي تم سحب
+  /// بياناتها المطابقة من السحابة. لا يحذف عناصر outbox للبيانات
+  /// التي لم تُسحب (حماية التغييرات المحلية المشروعة).
+  ///
+  /// المنطق: إذا تم سحب بيانات من Appwrite وكان lastModified البعيد
+  /// أكبر من أو يساوي المحلي، فهذا يعني أن السحابة لديها نفس
+  /// البيانات أو أحدث، وبالتالي لا حاجة لإعادة إرسالها.
   Future<int> _cleanupOutboxAfterPull() async {
     int totalRemoved = 0;
 
@@ -2390,15 +2419,58 @@ class AppwriteSyncManager {
 
     for (final entity in entityUuidMap.keys) {
       try {
-        // جلب UUIDs من outbox لهذا الكيان فقط (source='local' فقط)
+        // جلب عناصر outbox المعلقة فقط (pending أو failed)
+        // لا نحذف العناصر في حالة 'processing' لأنها قيد الرفع حالياً
         final outboxEntries = await (database.select(database.outbox)
-              ..where((t) => t.entity.equals(entity) & t.source.equals('local')))
+              ..where((t) =>
+                  t.entity.equals(entity) &
+                  t.source.equals('local') &
+                  t.processingStatus.isIn(['pending', 'failed'])))
             .get();
 
         if (outboxEntries.isEmpty) continue;
 
-        final uuids = outboxEntries.map((e) => e.localUuid).toList();
-        final removed = await outboxDao.removePulledEntities(uuids, entity: entity);
+        // ✅ فحص كل عنصر: هل البيانات المحلية لا تزال أقدم من السحابة؟
+        // إذا كان outbox entry يمثل تغييراً محلياً لم يُرفع بعد،
+        // والسحابة ليس لديها بيانات أحدث لهذا localUuid،
+        // يجب إبقاء العنصر في outbox.
+        final uuidsToRemove = <String>[];
+        for (final entry in outboxEntries) {
+          // التحقق من وجود بيانات محلية أحدث من السحابة
+          // إذا كانت البيانات المحلية لا تزال تحتاج رفع، نبقي العنصر
+          final localData = await _getLocalLastModified(entity, entry.localUuid);
+          if (localData == null) {
+            // لا يوجد سجل محلي — ربما تم حذفه، نحذف outbox entry
+            uuidsToRemove.add(entry.localUuid);
+            continue;
+          }
+
+          if (localData > entry.clientTs) {
+            // البيانات المحلية أحدث من outbox entry — السحب حدّثها
+            // لا حاجة لإبقاء العنصر القديم
+            uuidsToRemove.add(entry.localUuid);
+          } else if (localData == entry.clientTs) {
+            // ✅ عندما يتساوى lastModified المحلي مع clientTs في outbox،
+            // نحتاج لتمييز حالتين:
+            // 1) التغيير محلي ولم يُرفع بعد → نبقي العنصر
+            // 2) البيانات قادمة من السيرفر (origin='server') →
+            //    السيرفر لديها نفس البيانات، لا حاجة لإعادة الرفع
+            final origin = await _getLocalOrigin(entity, entry.localUuid);
+            if (origin == 'server') {
+              // البيانات كانت قادمة من السيرفر → السيرفر لديها بالفعل
+              // لا حاجة لإبقاء عنصر outbox
+              uuidsToRemove.add(entry.localUuid);
+            }
+            // إذا origin == 'local' → التغيير المحلي لم يُرفع بعد → نبقي العنصر
+          }
+          // إذا كان localData < clientTs، التغيير المحلي لا يزال صالحاً
+          // يجب إبقاء العنصر ليُرفع
+        }
+
+        if (uuidsToRemove.isEmpty) continue;
+
+        final removed =
+            await outboxDao.removePulledEntities(uuidsToRemove, entity: entity);
         totalRemoved += removed;
       } catch (e) {
         _logger.warning('فشل تنظيف outbox للكيان $entity: $e', tag: 'SYNC');
@@ -2406,6 +2478,261 @@ class AppwriteSyncManager {
     }
 
     return totalRemoved;
+  }
+
+  /// جلب lastModified لسجل محلي بناءً على entity و localUuid
+  Future<int?> _getLocalLastModified(String entity, String localUuid) async {
+    switch (entity) {
+      case 'rooms':
+        return _getLocalRoomLastModified(localUuid);
+      case 'bookings':
+        return _getLocalBookingLastModified(localUuid);
+      case 'employees':
+        return _getLocalEmployeeLastModified(localUuid);
+      case 'expenses':
+        return _getLocalExpenseLastModified(localUuid);
+      case 'payments':
+        return _getLocalPaymentLastModified(localUuid);
+      case 'debts':
+        return _getLocalDebtLastModified(localUuid);
+      case 'guest_infos':
+        return _getLocalGuestInfoLastModified(localUuid);
+      case 'salary_withdrawals':
+        return _getLocalSalaryWithdrawalLastModified(localUuid);
+      case 'booking_price_adjustments':
+        return _getLocalBookingPriceAdjustmentLastModified(localUuid);
+      case 'shift_notes':
+      case 'blacklist':
+        return _getLocalShiftNoteLastModified(localUuid);
+      case 'booking_notes':
+        return _getLocalBookingNoteLastModified(localUuid);
+      case 'booking_nights':
+        return _getLocalBookingNightLastModified(localUuid);
+      case 'cash_transactions':
+        return _getLocalCashTransactionLastModified(localUuid);
+      case 'salary_cycles':
+        return _getLocalSalaryCycleLastModified(localUuid);
+      case 'salary_payments':
+        return _getLocalSalaryPaymentLastModified(localUuid);
+      case 'price_adjustments':
+        return _getLocalPriceAdjustmentLastModified(localUuid);
+      case 'audit_logs':
+        return _getLocalAuditLogLastModified(localUuid);
+      case 'payment_voids':
+        return _getLocalPaymentVoidLastModified(localUuid);
+      default:
+        // للكيانات غير المعروفة، نعيد null — الحذف الآمن
+        return null;
+    }
+  }
+
+  /// جلب حقل origin لسجل محلي بناءً على entity و localUuid
+  /// يُستخدم لتحديد ما إذا كانت البيانات قادمة من السيرفر ('server')
+  /// أو تم إنشاؤها محلياً ('local')
+  Future<String?> _getLocalOrigin(String entity, String localUuid) async {
+    try {
+      // استخدام استعلام SQL مباشر لتجنب مشاكل الأنواع العامة في Drift
+      final tableName = _entityToTableName(entity);
+      if (tableName == null) return null;
+
+      final rows = await database.customSelect(
+        "SELECT origin FROM $tableName WHERE local_uuid = ? LIMIT 1",
+        variables: [drift.Variable.withString(localUuid)],
+        readsFrom: Set.unmodifiable({}),
+      ).get();
+
+      if (rows.isEmpty) return null;
+      return rows.first.data['origin']?.toString();
+    } catch (e) {
+      _logger.debug('Failed to get origin for $entity/$localUuid: $e', tag: 'SYNC');
+      return null;
+    }
+  }
+
+  /// تحويل اسم الكيان إلى اسم الجدول في قاعدة البيانات
+  String? _entityToTableName(String entity) {
+    switch (entity) {
+      case 'rooms':
+        return 'rooms';
+      case 'bookings':
+        return 'bookings';
+      case 'employees':
+        return 'employees';
+      case 'expenses':
+        return 'expenses';
+      case 'payments':
+        return 'payments';
+      case 'debts':
+        return 'debts';
+      case 'guest_infos':
+        return 'guest_infos';
+      case 'salary_withdrawals':
+        return 'salary_withdrawals';
+      case 'booking_price_adjustments':
+        return 'booking_price_adjustments';
+      case 'shift_notes':
+      case 'blacklist':
+        return 'shift_notes';
+      case 'booking_notes':
+        return 'booking_notes';
+      case 'booking_nights':
+        return 'booking_nights';
+      case 'cash_transactions':
+        return 'cash_transactions';
+      case 'salary_cycles':
+        return 'salary_cycles';
+      case 'salary_payments':
+        return 'salary_payments';
+      case 'price_adjustments':
+        return 'price_adjustments';
+      case 'audit_logs':
+        return null; // AuditLogs لا تحتوي على حقل origin
+      case 'payment_voids':
+        return 'payment_voids';
+      default:
+        return null;
+    }
+  }
+
+  Future<int?> _getLocalRoomLastModified(String localUuid) async {
+    final row = await (database.select(database.rooms)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalBookingLastModified(String localUuid) async {
+    final row = await (database.select(database.bookings)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalEmployeeLastModified(String localUuid) async {
+    final row = await (database.select(database.employees)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalExpenseLastModified(String localUuid) async {
+    final row = await (database.select(database.expenses)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalPaymentLastModified(String localUuid) async {
+    final row = await _getPaymentByLocalUuid(localUuid);
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalDebtLastModified(String localUuid) async {
+    final row = await _getDebtByLocalUuid(localUuid);
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalGuestInfoLastModified(String localUuid) async {
+    final row = await (database.select(database.guestInfos)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalSalaryWithdrawalLastModified(String localUuid) async {
+    final row = await (database.select(database.salaryWithdrawals)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalBookingPriceAdjustmentLastModified(
+    String localUuid,
+  ) async {
+    final row = await (database.select(database.bookingPriceAdjustments)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalShiftNoteLastModified(String localUuid) async {
+    final row = await (database.select(database.shiftNotes)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalBookingNoteLastModified(String localUuid) async {
+    final row = await (database.select(database.bookingNotes)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalBookingNightLastModified(String localUuid) async {
+    final row = await (database.select(database.bookingNights)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalCashTransactionLastModified(String localUuid) async {
+    final row = await (database.select(database.cashTransactions)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalSalaryCycleLastModified(String localUuid) async {
+    final row = await (database.select(database.salaryCycles)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalSalaryPaymentLastModified(String localUuid) async {
+    final row = await (database.select(database.salaryPayments)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalPriceAdjustmentLastModified(String localUuid) async {
+    final row = await (database.select(database.priceAdjustments)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalAuditLogLastModified(String localUuid) async {
+    final row = await (database.select(database.auditLogs)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    // AuditLogs لا تحتوي على lastModified — نستخدم timestamp
+    return row?.timestamp;
+  }
+
+  Future<int?> _getLocalPaymentVoidLastModified(String localUuid) async {
+    final row = await (database.select(database.paymentVoids)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
   }
 
   /// قراءة آخر timestamp لسحب البيانات من جدول SyncState
@@ -3809,6 +4136,17 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.shiftNotes)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+          continue;
+        }
+
         await _adapterRegistry.shiftNotes.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -3831,6 +4169,17 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.bookingNotes)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+          continue;
+        }
+
         await _adapterRegistry.bookingNotes.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -3853,6 +4202,17 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.bookingNights)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+          continue;
+        }
+
         await _adapterRegistry.nights.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -3875,6 +4235,17 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.cashTransactions)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+          continue;
+        }
+
         await _adapterRegistry.cashTransactions.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -3897,6 +4268,17 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.salaryCycles)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+          continue;
+        }
+
         await _adapterRegistry.salaryCycles.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -3919,6 +4301,17 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.salaryPayments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+          continue;
+        }
+
         await _adapterRegistry.salaryPayments.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -3945,6 +4338,17 @@ class AppwriteSyncManager {
         data['localUuid'] ??= doc.$id;
         // إزالة id عند السحب من Appwrite لتجنب تعارض autoIncrement
         data.remove('id');
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.bookingPriceAdjustments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+          continue;
+        }
+
         final result = await _adapterRegistry.bookingPriceAdjustments.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -3981,6 +4385,17 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.priceAdjustments)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+          continue;
+        }
+
         await _adapterRegistry.priceAdjustments.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -4005,6 +4420,18 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        // AuditLog لا يحتوي على lastModified — نستخدم timestamp للمقارنة
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.auditLogs)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.timestamp)) {
+          continue;
+        }
+
         await _adapterRegistry.auditLogs.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -4175,6 +4602,17 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.paymentVoids)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+          continue;
+        }
+
         await _adapterRegistry.paymentVoids.upsertFromJson(
           data,
           src: Source.appwrite,

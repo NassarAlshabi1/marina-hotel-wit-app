@@ -362,6 +362,17 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   ),
                   child: Text(isActive ? 'إيقاف' : 'تفعيل'),
                 ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () =>
+                      _deleteEmployee(context, ref, employee),
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  color: Colors.red,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.red.withValues(alpha: 0.1),
+                  ),
+                  tooltip: 'حذف الموظف',
+                ),
               ],
             ),
           ],
@@ -754,6 +765,84 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _deleteEmployee(
+    BuildContext context,
+    WidgetRef ref,
+    Employee employee,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.delete_forever,
+                  color: Colors.red,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text('حذف الموظف'),
+            ],
+          ),
+          content: Text(
+            'هل أنت متأكد من حذف الموظف "${employee.name}"؟\n'
+            'سيتم حذف الموظف نهائياً ومزامنة الحذف مع السحابة.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('حذف'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final repo = ref.read(employeesRepoProvider);
+      await repo.delete(employee.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم حذف الموظف بنجاح'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل حذف الموظف: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _toggleEmployeeStatus(
