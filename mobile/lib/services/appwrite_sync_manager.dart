@@ -1000,7 +1000,7 @@ class AppwriteSyncManager {
                 tag: 'SYNC',
               );
             }
-          } catch (e, st) {
+          } catch (e) {
             _logger.warning(
               '⚠️ فشل تنظيف outbox بعد السحب: $e',
               tag: 'SYNC',
@@ -2536,7 +2536,7 @@ class AppwriteSyncManager {
       if (tableName == null) return null;
 
       final rows = await database.customSelect(
-        "SELECT origin FROM $tableName WHERE local_uuid = ? LIMIT 1",
+        'SELECT origin FROM $tableName WHERE local_uuid = ? LIMIT 1',
         variables: [drift.Variable.withString(localUuid)],
         readsFrom: Set.unmodifiable({}),
       ).get();
