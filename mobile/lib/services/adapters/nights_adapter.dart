@@ -73,9 +73,14 @@ class NightsAdapter
             IdGen.uuid(),
       ),
       serverId: _vInt(json, 'serverId', src),
+      // ✅ إصلاح حرج: لا نستخدم bookingLocalId الخام من الجهاز البعيد
+      // معرّف الزيادة التلقائية يختلف بين الأجهزة — bookingLocalId=5 على جهاز A ≠ جهاز B
+      // إذا فشل resolveBooking، نترك الحقل فارغاً و bookingUuidCache يُحفظ لإعادة الربط لاحقاً
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId!)
-          : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+          : (src == Source.appwrite || src == Source.drive)
+              ? const d.Value.absent()
+              : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
       hotelDayKey: _vStr(
         json,
         'hotelDayKey',

@@ -668,8 +668,11 @@ class AppwriteSyncManager {
       }
 
       if (pull) {
-        // تعطيل Foreign Keys مؤقتاً أثناء السحب لمنع خطأ constraint failed
-        await database.customStatement('PRAGMA foreign_keys=OFF');
+        // ✅ إصلاح حرج: لا نعطل PRAGMA foreign_keys أثناء السحب
+        // تعطيلها كان يسمح بإدخال سجلات أبناء بدون آباء (مدفوعات بدون حجوزات)
+        // مما يسبب انتهاكات FK بعد إعادة التفعيل ويجعل نمط التأجيل/إعادة المحاولة بلا فائدة
+        // ترتيب السحب (غرف → حجوزات → مدفوعات) يضمن وجود الآباء قبل الأبناء
+        // ونمط التأجيل في _syncPayments/_syncDebts يعالج الحالات الاستثنائية
         try {
           _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
           final failedCollections = <String>[];
@@ -1033,9 +1036,6 @@ class AppwriteSyncManager {
             );
           }
         } finally {
-          // إعادة تفعيل Foreign Keys بعد انتهاء السحب
-          await database.customStatement('PRAGMA foreign_keys=ON');
-
           // ✅ تحقق معزز من سلامة البيانات والمفاتيح الأجنبية بعد المزامنة
           await _performPostSyncIntegrityCheck();
         }
@@ -3069,27 +3069,24 @@ class AppwriteSyncManager {
     await pushLocalChanges();
   }
 
-  /// سحب جميع البيانات من Appwrite مع تعطيل Foreign Keys مؤقتاً
+  /// سحب جميع البيانات من Appwrite مع الحفاظ على Foreign Keys مفعّلة
   /// يُستخدم عند التثبيت الأول (المتابعة بدون مزامنة)
+  /// ✅ إصلاح: لم نعد نعطل FK — ترتيب السحب يضمن وجود الآباء قبل الأبناء
+  /// ونمط التأجيل/إعادة المحاولة يعالج الحالات الاستثنائية
   Future<void> pullAllDataWithDisabledFK() async {
     if (_currentStatus == SyncStatus.syncing) {
       _logger.warning('⏸️ تخطي السحب - المزامنة جارية', tag: 'SYNC');
       return;
     }
 
-    _logger.info('📥 سحب شامل مع تعطيل Foreign Keys...', tag: 'SYNC');
+    _logger.info('📥 سحب شامل مع الحفاظ على Foreign Keys مفعّلة...', tag: 'SYNC');
 
-    // تعطيل FOREIGN KEY مؤقتاً
-    await database.customStatement('PRAGMA foreign_keys=OFF');
-
+    // ✅ لم نعد نعطل FOREIGN KEY — ترتيب السحب + نمط التأجيل يكفيان
     try {
       await pullRemoteChanges();
       _logger.info('✅ تم السحب الشامل بنجاح', tag: 'SYNC');
     } finally {
-      // إعادة تفعيل FOREIGN KEY
-      await database.customStatement('PRAGMA foreign_keys=ON');
-
-      // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+      // ✅ تحقق من سلامة المفاتيح الأجنبية بعد السحب
       try {
         final violations = await database.customSelect(
           'PRAGMA foreign_key_check',
@@ -3101,6 +3098,8 @@ class AppwriteSyncManager {
             name: 'SyncSafety',
           );
         }
+        // تشغيل فحص السلامة الشامل مع الإصلاح التلقائي
+        await _performPostSyncIntegrityCheck();
       } catch (_) {}
     }
   }
@@ -4188,6 +4187,9 @@ class AppwriteSyncManager {
   Future<int> _syncBookingNights(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    final deferred = <models.Document>[];
+
+    // المرحلة الأولى: معالجة الليالي
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -4209,12 +4211,51 @@ class AppwriteSyncManager {
         );
         processed++;
       } catch (e) {
-        _logger.warning(
-          'Failed to sync booking night ${doc.$id}: $e',
-          tag: 'SYNC',
-        );
+        // ✅ تأجيل الليالي إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
+        // bookingLocalId هو NOT NULL في booking_nights، لذا إذا فشل resolveBooking
+        // سيحدث خطأ NOT NULL constraint بدلاً من FK constraint
+        if (e.toString().contains('FOREIGN KEY constraint failed') ||
+            e.toString().contains('NOT NULL constraint failed') ||
+            e.toString().contains('constraint failed')) {
+          _logger.debug(
+            'Deferring booking night ${doc.$id}: constraint failed (missing booking)',
+            tag: 'SYNC',
+          );
+          deferred.add(doc);
+        } else {
+          _logger.warning(
+            'Failed to sync booking night ${doc.$id}: $e',
+            tag: 'SYNC',
+          );
+        }
       }
     }
+
+    // المرحلة الثانية: إعادة محاولة الليالي المؤجلة
+    if (deferred.isNotEmpty) {
+      _logger.info(
+        'Retrying ${deferred.length} deferred booking nights after all bookings synced',
+        tag: 'SYNC',
+      );
+
+      for (final doc in deferred) {
+        try {
+          final data = Map<String, dynamic>.from(doc.data);
+          data['localUuid'] ??= doc.$id;
+          await _adapterRegistry.nights.upsertFromJson(
+            data,
+            src: Source.appwrite,
+          );
+          processed++;
+        } catch (e) {
+          _logger.warning(
+            'Failed to sync deferred booking night ${doc.$id} after retry: $e',
+            tag: 'SYNC',
+          );
+        }
+      }
+    }
+
     return processed;
   }
 
@@ -4322,6 +4363,9 @@ class AppwriteSyncManager {
   ) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    final deferred = <models.Document>[];
+
+    // المرحلة الأولى: معالجة تعديلات الأسعار
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -4357,12 +4401,62 @@ class AppwriteSyncManager {
         
         processed++;
       } catch (e) {
-        _logger.warning(
-          'Failed to sync booking price adjustment ${doc.$id}: $e',
-          tag: 'SYNC',
-        );
+        // ✅ تأجيل تعديل السعر إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
+        if (e.toString().contains('FOREIGN KEY constraint failed') ||
+            e.toString().contains('NOT NULL constraint failed') ||
+            e.toString().contains('constraint failed')) {
+          _logger.debug(
+            'Deferring booking price adjustment ${doc.$id}: constraint failed (missing booking)',
+            tag: 'SYNC',
+          );
+          deferred.add(doc);
+        } else {
+          _logger.warning(
+            'Failed to sync booking price adjustment ${doc.$id}: $e',
+            tag: 'SYNC',
+          );
+        }
       }
     }
+
+    // المرحلة الثانية: إعادة محاولة التعديلات المؤجلة
+    if (deferred.isNotEmpty) {
+      _logger.info(
+        'Retrying ${deferred.length} deferred booking price adjustments after all bookings synced',
+        tag: 'SYNC',
+      );
+
+      for (final doc in deferred) {
+        try {
+          final data = Map<String, dynamic>.from(doc.data);
+          data['localUuid'] ??= doc.$id;
+          data.remove('id');
+
+          final result = await _adapterRegistry.bookingPriceAdjustments.upsertFromJson(
+            data,
+            src: Source.appwrite,
+          );
+          
+          if (result > 0) {
+            final adj = await (database.select(database.bookingPriceAdjustments)
+              ..where((t) => t.id.equals(result)))
+              .getSingleOrNull();
+            
+            if (adj != null && adj.bookingLocalId != null) {
+              await _bookingsRepository.derivedFields.refreshForBookingId(adj.bookingLocalId!);
+            }
+          }
+          
+          processed++;
+        } catch (e) {
+          _logger.warning(
+            'Failed to sync deferred booking price adjustment ${doc.$id} after retry: $e',
+            tag: 'SYNC',
+          );
+        }
+      }
+    }
+
     return processed;
   }
 
@@ -4640,6 +4734,7 @@ class AppwriteSyncManager {
   }
 
   /// إجراء فحص شامل لسلامة البيانات بعد انتهاء المزامنة
+  /// ✅ إصلاح: أصبح يُصلح السجلات اليتيمة تلقائياً بدلاً من مجرد التسجيل
   Future<void> _performPostSyncIntegrityCheck() async {
     try {
       // 1. فحص انتهاكات المفاتيح الأجنبية (Foreign Key Violations)
@@ -4667,21 +4762,18 @@ class AppwriteSyncManager {
           error: 'Foreign key violations detected: ${violations.length} rows',
           context: {'violations_count': violations.length.toString()},
         );
+
+        // ✅ إصلاح تلقائي: حذف السجلات التي تشير إلى آباء غير موجودين
+        // هذه سجلات أيتيمة نتجت عن حجوزات محذوفة على أجهزة أخرى
+        await _autoFixForeignKeyViolations(violations);
       }
 
-      // 2. التحقق من السجلات اليتيمة (Orphan Records) التي قد تسبب مشاكل في الواجهة
-      // مثال: دفعات بدون حجوزات
-      final orphanPayments = await database.customSelect(
-        'SELECT COUNT(*) as count FROM payments WHERE booking_local_id IS NULL AND booking_uuid_cache IS NOT NULL',
-      ).getSingle();
-      
-      final orphanCount = orphanPayments.read<int>('count');
-      if (orphanCount > 0) {
-        _logger.warning(
-          '⚠️ يوجد $orphanCount دفعة يتيمة (بدون ربط بحجز محلي)',
-          tag: 'SYNC_INTEGRITY',
-        );
-      }
+      // 2. التحقق من السجلات اليتيمة (Orphan Records) ومحاولة إصلاحها
+      // مثال: دفعات بدون حجوزات لكن لديها bookingUuidCache
+      await _autoFixOrphanPaymentsByUuidCache();
+      await _autoFixOrphanDebtsByUuidCache();
+      await _autoFixOrphanBookingNightsByUuidCache();
+      await _autoFixOrphanBookingPriceAdjustmentsByUuidCache();
 
       _logger.info('✅ اكتمل فحص سلامة البيانات بعد المزامنة', tag: 'SYNC_INTEGRITY');
     } catch (e, st) {
@@ -4691,6 +4783,293 @@ class AppwriteSyncManager {
         stackTrace: st,
         tag: 'SYNC_INTEGRITY',
       );
+    }
+  }
+
+  /// إصلاح تلقائي لانتهاكات المفاتيح الأجنبية
+  /// يحذف السجلات التي تشير إلى آباء غير موجودين
+  Future<void> _autoFixForeignKeyViolations(List<QueryRow> violations) async {
+    try {
+      for (final row in violations) {
+        final table = row.data['table']?.toString();
+        final rowId = row.data['rowid'];
+
+        if (table == null || rowId == null) continue;
+
+        _logger.info(
+          '🔧 إصلاح تلقائي: حذف سجل يتيم من $table (rowId=$rowId)',
+          tag: 'SYNC_INTEGRITY',
+        );
+
+        // حذف السجل الأيتيم حسب نوع الجدول
+        // نستخدم soft delete (تعيين deletedAt) بدلاً من الحذف الفعلي
+        // للحفاظ على سجل التدقيق
+        try {
+          final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+          if (table == 'payments') {
+            await (database.update(database.payments)
+                  ..where((t) => t.id.equals(rowId as int)))
+                .write(PaymentsCompanion(
+              deletedAt: drift.Value(nowEpoch),
+            ));
+          } else if (table == 'debts') {
+            await (database.update(database.debts)
+                  ..where((t) => t.id.equals(rowId as int)))
+                .write(DebtsCompanion(
+              deletedAt: drift.Value(nowEpoch),
+            ));
+          } else if (table == 'booking_nights') {
+            await (database.update(database.bookingNights)
+                  ..where((t) => t.id.equals(rowId as int)))
+                .write(BookingNightsCompanion(
+              deletedAt: drift.Value(nowEpoch),
+            ));
+          } else if (table == 'booking_price_adjustments') {
+            await (database.update(database.bookingPriceAdjustments)
+                  ..where((t) => t.id.equals(rowId as int)))
+                .write(BookingPriceAdjustmentsCompanion(
+              deletedAt: drift.Value(nowEpoch),
+            ));
+          }
+        } catch (fixError) {
+          _logger.warning(
+            '⚠️ فشل إصلاح سجل يتيم في $table (rowId=$rowId): $fixError',
+            tag: 'SYNC_INTEGRITY',
+          );
+        }
+      }
+    } catch (e) {
+      _logger.warning('⚠️ فشل إصلاح انتهاكات FK: $e', tag: 'SYNC_INTEGRITY');
+    }
+  }
+
+  /// إصلاح المدفوعات اليتيمة عن طريق إعادة حل bookingUuidCache
+  Future<void> _autoFixOrphanPaymentsByUuidCache() async {
+    try {
+      // البحث عن مدفوعات بدون bookingLocalId لكن لديها bookingUuidCache
+      final orphans = await database.customSelect(
+        'SELECT id, booking_uuid_cache FROM payments WHERE booking_local_id IS NULL AND booking_uuid_cache IS NOT NULL AND deleted_at IS NULL',
+        readsFrom: Set.unmodifiable({}),
+      ).get();
+
+      if (orphans.isEmpty) return;
+
+      int fixed = 0;
+      for (final row in orphans) {
+        final paymentId = row.read<int>('id');
+        final bookingUuid = row.read<String?>('booking_uuid_cache');
+        if (bookingUuid == null || bookingUuid.isEmpty) continue;
+
+        // محاولة إيجاد الحجز بواسطة UUID
+        final booking = await (database.select(database.bookings)
+              ..where((b) => b.localUuid.equals(bookingUuid))
+              ..limit(1))
+            .getSingleOrNull();
+
+        if (booking != null) {
+          // ربط المدفوعة بالحجز المحلي
+          await (database.update(database.payments)
+                ..where((t) => t.id.equals(paymentId)))
+              .write(PaymentsCompanion(
+            bookingLocalId: drift.Value(booking.id),
+          ));
+          fixed++;
+          _logger.debug(
+            '🔧 ربط مدفوعة يتيمة: payment=$paymentId → booking=${booking.id}',
+            tag: 'SYNC_INTEGRITY',
+          );
+        }
+      }
+
+      if (fixed > 0) {
+        _logger.info(
+          '✅ تم إصلاح $fixed مدفوعة يتيمة بإعادة ربطها بحجوزاتها',
+          tag: 'SYNC_INTEGRITY',
+        );
+      }
+    } catch (e) {
+      _logger.warning('⚠️ فشل إصلاح المدفوعات اليتيمة: $e', tag: 'SYNC_INTEGRITY');
+    }
+  }
+
+  /// إصلاح الديون اليتيمة عن طريق إعادة حل bookingUuidCache
+  Future<void> _autoFixOrphanDebtsByUuidCache() async {
+    try {
+      final orphans = await database.customSelect(
+        'SELECT id, booking_uuid_cache FROM debts WHERE booking_local_id IS NULL AND booking_uuid_cache IS NOT NULL AND deleted_at IS NULL',
+        readsFrom: Set.unmodifiable({}),
+      ).get();
+
+      if (orphans.isEmpty) return;
+
+      int fixed = 0;
+      for (final row in orphans) {
+        final debtId = row.read<int>('id');
+        final bookingUuid = row.read<String?>('booking_uuid_cache');
+        if (bookingUuid == null || bookingUuid.isEmpty) continue;
+
+        final booking = await (database.select(database.bookings)
+              ..where((b) => b.localUuid.equals(bookingUuid))
+              ..limit(1))
+            .getSingleOrNull();
+
+        if (booking != null) {
+          await (database.update(database.debts)
+                ..where((t) => t.id.equals(debtId)))
+              .write(DebtsCompanion(
+            bookingLocalId: drift.Value(booking.id),
+          ));
+          fixed++;
+          _logger.debug(
+            '🔧 ربط دين يتيم: debt=$debtId → booking=${booking.id}',
+            tag: 'SYNC_INTEGRITY',
+          );
+        }
+      }
+
+      if (fixed > 0) {
+        _logger.info(
+          '✅ تم إصلاح $fixed دين يتيم بإعادة ربطه بحجوزاته',
+          tag: 'SYNC_INTEGRITY',
+        );
+      }
+    } catch (e) {
+      _logger.warning('⚠️ فشل إصلاح الديون اليتيمة: $e', tag: 'SYNC_INTEGRITY');
+    }
+  }
+
+  /// إصلاح الليالي اليتيمة عن طريق إعادة حل bookingUuidCache
+  Future<void> _autoFixOrphanBookingNightsByUuidCache() async {
+    try {
+      // booking_nights قد لا يملك booking_uuid_cache مباشرة،
+      // لكن يمكن البحث عن الليالي ذات bookingLocalId غير صالح
+      final orphans = await database.customSelect(
+        'SELECT bn.id, bn.booking_local_id, b.local_uuid as booking_uuid '
+        'FROM booking_nights bn '
+        'LEFT JOIN bookings b ON bn.booking_local_id = b.id '
+        'WHERE b.id IS NULL AND bn.deleted_at IS NULL',
+        readsFrom: Set.unmodifiable({}),
+      ).get();
+
+      if (orphans.isEmpty) return;
+
+      int fixed = 0;
+      for (final row in orphans) {
+        final nightId = row.read<int>('id');
+        final bookingUuid = row.read<String?>('booking_uuid');
+
+        if (bookingUuid == null || bookingUuid.isEmpty) {
+          // لا يوجد UUID للحجز — تعيين soft delete
+          final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+          await (database.update(database.bookingNights)
+                ..where((t) => t.id.equals(nightId)))
+              .write(BookingNightsCompanion(
+            deletedAt: drift.Value(nowEpoch),
+          ));
+          continue;
+        }
+
+        // محاولة إيجاد الحجز بواسطة UUID
+        final booking = await (database.select(database.bookings)
+              ..where((b) => b.localUuid.equals(bookingUuid))
+              ..limit(1))
+            .getSingleOrNull();
+
+        if (booking != null) {
+          await (database.update(database.bookingNights)
+                ..where((t) => t.id.equals(nightId)))
+              .write(BookingNightsCompanion(
+            bookingLocalId: drift.Value(booking.id),
+          ));
+          fixed++;
+          _logger.debug(
+            '🔧 ربط ليلة يتيمة: night=$nightId → booking=${booking.id}',
+            tag: 'SYNC_INTEGRITY',
+          );
+        } else {
+          // الحجز غير موجود — soft delete
+          final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+          await (database.update(database.bookingNights)
+                ..where((t) => t.id.equals(nightId)))
+              .write(BookingNightsCompanion(
+            deletedAt: drift.Value(nowEpoch),
+          ));
+        }
+      }
+
+      if (fixed > 0) {
+        _logger.info(
+          '✅ تم إصلاح $fixed ليلة يتيمة بإعادة ربطها بحجوزاتها',
+          tag: 'SYNC_INTEGRITY',
+        );
+      }
+    } catch (e) {
+      _logger.warning('⚠️ فشل إصلاح الليالي اليتيمة: $e', tag: 'SYNC_INTEGRITY');
+    }
+  }
+
+  /// إصلاح تعديلات الأسعار اليتيمة عن طريق إعادة حل bookingLocalUuid
+  Future<void> _autoFixOrphanBookingPriceAdjustmentsByUuidCache() async {
+    try {
+      final orphans = await database.customSelect(
+        'SELECT bpa.id, bpa.booking_local_uuid '
+        'FROM booking_price_adjustments bpa '
+        'LEFT JOIN bookings b ON bpa.booking_local_id = b.id '
+        'WHERE b.id IS NULL AND bpa.booking_local_id IS NOT NULL AND bpa.deleted_at IS NULL',
+        readsFrom: Set.unmodifiable({}),
+      ).get();
+
+      if (orphans.isEmpty) return;
+
+      int fixed = 0;
+      for (final row in orphans) {
+        final adjId = row.read<int>('id');
+        final bookingUuid = row.read<String?>('booking_local_uuid');
+
+        if (bookingUuid == null || bookingUuid.isEmpty) {
+          final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+          await (database.update(database.bookingPriceAdjustments)
+                ..where((t) => t.id.equals(adjId)))
+              .write(BookingPriceAdjustmentsCompanion(
+            deletedAt: drift.Value(nowEpoch),
+          ));
+          continue;
+        }
+
+        final booking = await (database.select(database.bookings)
+              ..where((b) => b.localUuid.equals(bookingUuid))
+              ..limit(1))
+            .getSingleOrNull();
+
+        if (booking != null) {
+          await (database.update(database.bookingPriceAdjustments)
+                ..where((t) => t.id.equals(adjId)))
+              .write(BookingPriceAdjustmentsCompanion(
+            bookingLocalId: drift.Value(booking.id),
+          ));
+          fixed++;
+          _logger.debug(
+            '🔧 ربط تعديل سعر يتيم: adj=$adjId → booking=${booking.id}',
+            tag: 'SYNC_INTEGRITY',
+          );
+        } else {
+          final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+          await (database.update(database.bookingPriceAdjustments)
+                ..where((t) => t.id.equals(adjId)))
+              .write(BookingPriceAdjustmentsCompanion(
+            deletedAt: drift.Value(nowEpoch),
+          ));
+        }
+      }
+
+      if (fixed > 0) {
+        _logger.info(
+          '✅ تم إصلاح $fixed تعديل سعر يتيم بإعادة ربطه بحجوزاته',
+          tag: 'SYNC_INTEGRITY',
+        );
+      }
+    } catch (e) {
+      _logger.warning('⚠️ فشل إصلاح تعديلات الأسعار اليتيمة: $e', tag: 'SYNC_INTEGRITY');
     }
   }
 }

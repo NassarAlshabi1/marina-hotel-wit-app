@@ -77,9 +77,14 @@ class BookingPriceAdjustmentsAdapter
         altKey: 'booking_local_uuid',
         fallback: refs.bookingUuidCache ?? '',
       ),
+      // ✅ إصلاح حرج: لا نستخدم bookingLocalId الخام من الجهاز البعيد
+      // معرّف الزيادة التلقائية يختلف بين الأجهزة — bookingLocalId=5 على جهاز A ≠ جهاز B
+      // إذا فشل resolveBooking، نترك الحقل فارغاً و bookingUuidCache/bookingLocalUuid يُحفظ لإعادة الربط لاحقاً
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId)
-          : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+          : (src == Source.appwrite || src == Source.drive)
+              ? const d.Value.absent()
+              : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
       roomNumber: _vStr(json, 'roomNumber', src, altKey: 'room_number'),
       adjustmentType: _vInt(
         json,

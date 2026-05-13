@@ -47,8 +47,9 @@ class AppwriteFullPull {
 
     final result = FullPullResult(success: true, message: 'تم السحب بنجاح');
 
-    // تعطيل FOREIGN KEY مؤقتاً
-    await _database!.customStatement('PRAGMA foreign_keys=OFF');
+    // ✅ إصلاح حرج: لا نعطل PRAGMA foreign_keys أثناء السحب
+    // تعطيلها كان يسمح بإدخال سجلات أبناء بدون آباء (مدفوعات بدون حجوزات)
+    // ترتيب السحب (غرف → حجوزات → مدفوعات) يضمن وجود الآباء قبل الأبناء
 
     try {
       // ترتيب السحب حسب العلاقات
@@ -80,10 +81,8 @@ class AppwriteFullPull {
 
       _logger.info('✅ ${result.message}', tag: 'FULL_PULL');
     } finally {
-      // إعادة تفعيل FOREIGN KEY
-      await _database!.customStatement('PRAGMA foreign_keys=ON');
-
-      // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
+      // ✅ تحقق من سلامة المفاتيح الأجنبية بعد السحب
+      // (لم نعد نعطل FK، لذا لا حاجة لإعادة تفعيله)
       try {
         final violations = await _database!.customSelect(
           'PRAGMA foreign_key_check',
@@ -93,6 +92,10 @@ class AppwriteFullPull {
           developer.log(
             '⚠️ FK violations after sync: ${violations.length} rows',
             name: 'SyncSafety',
+          );
+          _logger.warning(
+            '⚠️ تم اكتشاف ${violations.length} انتهاك للمفاتيح الأجنبية بعد السحب الشامل',
+            tag: 'FULL_PULL',
           );
         }
       } catch (_) {}
