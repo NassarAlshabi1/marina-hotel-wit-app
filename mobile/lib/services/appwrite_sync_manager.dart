@@ -8,9 +8,9 @@ import 'package:appwrite/models.dart' as models;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
-import 'package:sqlite3/sqlite3.dart' show SqliteException;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 import '../utils/app_logger.dart';
 import '../utils/id.dart';
