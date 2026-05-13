@@ -990,6 +990,23 @@ class AppwriteSyncManager {
             );
           }
 
+          // ✅ تنظيف outbox بعد السحب: إذا السحابة أرسلت نفس البيانات المحلية
+          // فلا حاجة لإعادة إرسالها عبر outbox — هذا يمنع حلقة المزامنة الدائرية
+          try {
+            final removed = await _cleanupOutboxAfterPull();
+            if (removed > 0) {
+              _logger.info(
+                '🧹 تم حذف $removed عنصر outbox مطابق للبيانات المسحوبة',
+                tag: 'SYNC',
+              );
+            }
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ فشل تنظيف outbox بعد السحب: $e',
+              tag: 'SYNC',
+            );
+          }
+
           // ✅ إعادة حساب حالة إشغال الغرف بناءً على الحجوزات النشطة
           // هذا يضمن أن الغرف التي تم تسجيل خروج نزلائها تظهر كـ "شاغرة"
           // والغرف التي بها حجوزات نشطة تظهر كـ "محجوزة" - بغض النظر عن
@@ -1336,6 +1353,36 @@ class AppwriteSyncManager {
     }
   }
 
+  /// ✅ فحص: هل البيانات البعيدة أحدث من المحلية؟
+  /// يُستخدم لتخطي التحديث غير الضروري عند سحب بيانات مطابقة من Appwrite.
+  /// إذا كان lastModified البعيد <= المحلي، فالبيانات مطابقة أو المحلية أحدث.
+  ///
+  /// هذا يمنع:
+  /// - كتابة غير ضرورية لبيانات مطابقة
+  /// - تغيير lastModified المحلي بدون سبب حقيقي
+  /// - حلقة المزامنة الدائرية (pull → update → push → pull → ...)
+  bool _isRemoteDataNewer(
+    Map<String, dynamic> remoteData,
+    int? localLastModified,
+  ) {
+    if (localLastModified == null) {
+      // لا يوجد سجل محلي — البيانات البعيدة "أحدث" (جديدة)
+      return true;
+    }
+
+    final remoteLastModified = _asIntNullable(remoteData['lastModified']) ??
+        _asIntNullable(remoteData['last_modified']) ??
+        _asIntNullable(remoteData['lastModifiedEpoch']);
+
+    if (remoteLastModified == null) {
+      // لا نعرف عمر البيانات البعيدة — نتابع بالتحديث احتياطاً
+      return true;
+    }
+
+    // البيانات البعيدة أحدث فقط إذا كان lastModified أكبر من المحلي
+    return remoteLastModified > localLastModified;
+  }
+
   Future<int> _syncRooms(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
@@ -1343,6 +1390,18 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existingRoom = await (database.select(database.rooms)
+              ..where((r) => r.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+
+        if (!_isRemoteDataNewer(data, existingRoom?.lastModified)) {
+          continue; // البيانات مطابقة — لا حاجة للتحديث
+        }
+
         await _adapterRegistry.rooms.upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
@@ -1369,6 +1428,11 @@ class AppwriteSyncManager {
             .getSingleOrNull();
         final oldStatus = existingBooking?.status;
         final oldRoomNumber = existingBooking?.roomNumber;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        if (!_isRemoteDataNewer(data, existingBooking?.lastModified)) {
+          continue; // البيانات مطابقة — لا حاجة للتحديث
+        }
 
         await _adapterRegistry.bookings.upsertFromJson(
           data,
@@ -1490,6 +1554,17 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.employees)
+              ..where((e) => e.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+          continue;
+        }
+
         await _adapterRegistry.employees.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -1509,6 +1584,17 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing = await (database.select(database.expenses)
+              ..where((e) => e.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+          continue;
+        }
+
         await _adapterRegistry.expenses.upsertFromJson(
           data,
           src: Source.appwrite,
