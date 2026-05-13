@@ -2,20 +2,24 @@ name: Test AgentRouter API
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [test-agentrouter]
 
 jobs:
   test-api:
     runs-on: ubuntu-latest
     steps:
+      - name: Get Runner IP
+        run: |
+          echo "Runner IP:"
+          curl -s https://api.ipify.org || echo "Could not get IP"
+          echo ""
+
       - name: Test AgentRouter API
         env:
           AGENTROUTER_API_KEY: ${{ secrets.AGENTROUTER_API_KEY }}
         run: |
           echo "=== Testing AgentRouter API from GitHub Actions ==="
-          echo "Runner IP info:"
-          curl -s https://api.ipify.org || echo "Could not get IP"
-          echo ""
-          echo "=== Sending test request to AgentRouter ==="
           RESPONSE=$(curl -s -w "\n---HTTP_CODE:%{http_code}---" \
             -X POST "https://agentrouter.org/v1/chat/completions" \
             -H "Content-Type: application/json" \
@@ -35,9 +39,10 @@ jobs:
           echo ""
           
           if echo "$BODY" | grep -q "aliyun_waf"; then
-            echo "❌ BLOCKED: Aliyun WAF is still intercepting the request!"
+            echo "::error::BLOCKED by Aliyun WAF!"
+            exit 1
           elif echo "$BODY" | grep -q "content"; then
-            echo "✅ SUCCESS: AgentRouter API is working!"
+            echo "::notice::SUCCESS - AgentRouter API is working!"
           else
-            echo "⚠️ UNKNOWN: Unexpected response"
+            echo "::warning::UNKNOWN response"
           fi
