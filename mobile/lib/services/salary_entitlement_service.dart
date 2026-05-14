@@ -1,4 +1,5 @@
 import 'local_db.dart';
+import '../utils/status_utils.dart';
 
 class SalaryEntitlement {
 
@@ -46,7 +47,12 @@ class SalaryEntitlementService {
   Future<List<SalaryEntitlement>> calculateAllEntitlements() async {
     final employees = await (_db.select(
       _db.employees,
-    )..where((e) => e.status.equals('active'))).get();
+    )..where(
+            (e) =>
+                e.deletedAt.isNull() &
+                e.status.isIn(StatusUtils.activeEmployeeStatuses),
+          ))
+        .get();
 
     final entitlements = <SalaryEntitlement>[];
     for (final employee in employees) {
@@ -74,7 +80,8 @@ class SalaryEntitlementService {
 
     final expenses = await (_db.select(
       _db.expenses,
-    )..where((e) => e.relatedId.equals(employee.id))).get();
+    )..where((e) => e.relatedId.equals(employee.id) & e.deletedAt.isNull()))
+        .get();
 
     double totalWithdrawals = 0;
     double totalDeductions = 0;
