@@ -406,7 +406,6 @@ class AppwriteFullPull {
             // ✅ استبدال employeeId البعيد بالمعرف المحلي الصحيح
             data['employeeId'] = employee.id;
           }
-          break;
 
         // ✅ salary_cycles: Employees ← SalaryCycles.employeeId (NOT NULL)
         // حل FK: id البعيد → id محلي ثم serverId
@@ -440,7 +439,6 @@ class AppwriteFullPull {
             // ✅ استبدال employeeId البعيد بالمعرف المحلي الصحيح
             data['employeeId'] = employee.id;
           }
-          break;
 
         // ✅ salary_payments: SalaryCycles ← SalaryPayments.cycleId (NOT NULL)
         case 'salary_payments':
