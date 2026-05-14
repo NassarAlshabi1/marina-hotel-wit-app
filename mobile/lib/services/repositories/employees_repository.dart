@@ -7,6 +7,7 @@ import '../crashlytics_service.dart';
 import '../daos/employees_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
+import '../../utils/status_utils.dart';
 
 class EmployeesRepository {
   EmployeesRepository(this.db)
@@ -20,6 +21,9 @@ class EmployeesRepository {
       dao.watchList(search: search);
   Stream<Employee?> watchOne(int id) => dao.watchById(id);
 
+  String _normalizeStatus(String status) =>
+      StatusUtils.canonicalEmployeeStatus(status);
+
   Future<int> create({
     required String name,
     double? basicSalary,
@@ -31,6 +35,7 @@ class EmployeesRepository {
   }) async {
     try {
     final s = salary ?? basicSalary ?? 0.0;
+    final normalizedStatus = _normalizeStatus(status);
     final result = await dao.insertOne(
       EmployeesCompanion(
         name: d.Value(name),
@@ -38,7 +43,7 @@ class EmployeesRepository {
         position: d.Value(position ?? 'موظف'),
         phone: d.Value(phone ?? ''),
         hireDate: d.Value(hireDate ?? ''),
-        status: d.Value(status),
+        status: d.Value(normalizedStatus),
       ),
     );
     unawaited(AutoBackupManager.instance.onDataChange(
@@ -81,7 +86,9 @@ class EmployeesRepository {
         position: position != null ? d.Value(position) : const d.Value.absent(),
         phone: phone != null ? d.Value(phone) : const d.Value.absent(),
         hireDate: hireDate != null ? d.Value(hireDate) : const d.Value.absent(),
-        status: status != null ? d.Value(status) : const d.Value.absent(),
+        status: status != null
+            ? d.Value(_normalizeStatus(status))
+            : const d.Value.absent(),
       ),
     );
     if (result > 0) {
@@ -123,7 +130,9 @@ class EmployeesRepository {
       position: position != null ? d.Value(position) : const d.Value.absent(),
       phone: phone != null ? d.Value(phone) : const d.Value.absent(),
       hireDate: hireDate != null ? d.Value(hireDate) : const d.Value.absent(),
-      status: status != null ? d.Value(status) : const d.Value.absent(),
+      status: status != null
+          ? d.Value(_normalizeStatus(status))
+          : const d.Value.absent(),
     ),
   );
 

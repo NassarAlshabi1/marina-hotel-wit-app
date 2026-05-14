@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
 import 'price_adjustment_service.dart';
+import '../utils/status_utils.dart';
 
 // ═══════════════════════════════════════════════════════════════
 //  أوامر AI
@@ -801,12 +802,14 @@ class GeminiService {
         s.writeln();
         s.writeln('═══ الموظفين والرواتب (${employees.length}) ═══');
 
-        final activeEmp = employees.where((e) => e.status == 'active').length;
-        final inactiveEmp = employees.where((e) => e.status != 'active').length;
+        final activeEmp =
+            employees.where((e) => StatusUtils.isEmployeeActive(e.status)).length;
+        final inactiveEmp = employees.length - activeEmp;
         s.writeln('نشط: $activeEmp | غير نشط: $inactiveEmp');
 
         // رواتب الموظفين النشطين
-        for (final emp in employees.where((e) => e.status == 'active')) {
+        for (final emp
+            in employees.where((e) => StatusUtils.isEmployeeActive(e.status))) {
           s.writeln('  [${emp.id}] ${emp.name} | ${emp.position} | الراتب: ${emp.basicSalary.toStringAsFixed(0)} ريال | ${emp.phone}');
         }
 
@@ -839,8 +842,11 @@ class GeminiService {
         }
 
         // إجمالي الرواتب المستحقة
-        final totalSalaries = employees.where((e) => e.status == 'active')
-            .fold<double>(0, (s, e) => s + e.basicSalary);
+        final totalSalaries =
+            employees.where((e) => StatusUtils.isEmployeeActive(e.status)).fold<double>(
+                  0,
+                  (s, e) => s + e.basicSalary,
+                );
         s.writeln();
         s.writeln('إجمالي الرواتب الشهرية: ${totalSalaries.toStringAsFixed(0)} ريال');
       }

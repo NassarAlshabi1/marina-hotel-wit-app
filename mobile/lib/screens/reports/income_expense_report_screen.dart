@@ -22,6 +22,7 @@ import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/status_utils.dart';
 import '../../widgets/report_date_filter.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
@@ -173,7 +174,9 @@ class _IncomeExpenseReportScreenState
       final unsettledDebtsAll = allDebts.where((d) => d.isSettled == 0).toList();
 
       final allEmployees = await employeesDao.list();
-      final employees = allEmployees.where((e) => e.status == 'active').toList();
+      final employees = allEmployees
+          .where((e) => StatusUtils.isEmployeeActive(e.status))
+          .toList();
 
       // بناء خريطة بين معرف الحجز واسم النزيل لاستخدامه في المدفوعات
       final bookingGuestMap = <int, String>{};
