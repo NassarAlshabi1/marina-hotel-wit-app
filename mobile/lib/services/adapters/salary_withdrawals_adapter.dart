@@ -28,23 +28,32 @@ class SalaryWithdrawalsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    // ✅ حل FK الموظف - التحقق من وجود الموظف محلياً قبل الإدراج
+    // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
     final remoteEmployeeId =
         _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
+    final employeeUuid =
+        _asString(json, 'employeeUuid', src) ??
+        _asString(json, 'employee_uuid', src) ??
+        _asString(json, 'employeeLocalUuid', src) ??
+        _asString(json, 'employee_local_uuid', src);
 
-    // ✅ حل المعرّف البعيد:
-    // 1) البحث بالـ id البعيد (قد يتطابق مع id المحلي إذا كان نفس الجهاز)
-    // 2) البحث بالـ serverId (id الأصلي من جهاز المصدر — يُملأ أثناء سحب الموظفين)
     int? resolvedEmployeeId;
 
-    // الطريقة 1: البحث بالـ id البعيد (كـ localId)
-    if (remoteEmployeeId != null) {
+    // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+    if (employeeUuid != null && employeeUuid.isNotEmpty) {
+      resolvedEmployeeId = await resolver.resolveEmployee(
+        uuid: employeeUuid,
+      );
+    }
+
+    // الطريقة 2: البحث بالـ id البعيد (كـ localId)
+    if (resolvedEmployeeId == null && remoteEmployeeId != null) {
       resolvedEmployeeId = await resolver.resolveEmployee(
         localId: remoteEmployeeId,
       );
     }
 
-    // الطريقة 2: البحث بالـ serverId في جدول الموظفين
+    // الطريقة 3: البحث بالـ serverId في جدول الموظفين
     if (resolvedEmployeeId == null && remoteEmployeeId != null) {
       try {
         final row = await (db.select(db.employees)

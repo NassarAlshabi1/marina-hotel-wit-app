@@ -28,17 +28,18 @@ class SalaryCyclesAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    // ✅ حل FK الموظف - التحقق من وجود الموظف محلياً قبل الإدراج
+    // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
     final remoteEmployeeId =
         _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
     final employeeUuid =
+        _asString(json, 'employeeUuid', src) ??
+        _asString(json, 'employee_uuid', src) ??
         _asString(json, 'employeeLocalUuid', src) ??
         _asString(json, 'employee_local_uuid', src);
 
-    // ✅ إصلاح دقيق: حل شامل للمعرّف البعيد (مثل salary_withdrawals_adapter)
     int? resolvedEmployeeId;
 
-    // الطريقة 1: البحث بالـ UUID
+    // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
     if (employeeUuid != null && employeeUuid.isNotEmpty) {
       resolvedEmployeeId = await resolver.resolveEmployee(
         uuid: employeeUuid,

@@ -2134,22 +2134,33 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ حل FK الموظف — البحث بالـ id البعيد ثم serverId
-        // serverId يخزّن الـ id الأصلي من جهاز المصدر (يُملأ أثناء سحب الموظفين)
+        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
         final remoteEmployeeId = _asIntSafe(data, 'employeeId') ??
             _asIntSafe(data, 'employee_id');
+        final employeeUuid = (data['employeeUuid'] as String?) ??
+            (data['employee_uuid'] as String?) ??
+            (data['employeeLocalUuid'] as String?) ??
+            (data['employee_local_uuid'] as String?);
 
         Employee? employee;
 
-        // الطريقة 1: البحث بالـ id البعيد كـ id محلي (يعمل إذا تطابقت المعرفات)
-        if (remoteEmployeeId != null) {
+        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+        if (employeeUuid != null && employeeUuid.isNotEmpty) {
+          employee = await (database.select(database.employees)
+                ..where((e) => e.localUuid.equals(employeeUuid))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        // الطريقة 2: البحث بالـ id البعيد كـ id محلي (يعمل إذا تطابقت المعرفات)
+        if (employee == null && remoteEmployeeId != null) {
           employee = await (database.select(database.employees)
                 ..where((e) => e.id.equals(remoteEmployeeId))
                 ..limit(1))
               .getSingleOrNull();
         }
 
-        // الطريقة 2: البحث بالـ serverId (id الأصلي من جهاز المصدر)
+        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
         if (employee == null && remoteEmployeeId != null) {
           employee = await (database.select(database.employees)
                 ..where((e) => e.serverId.equals(remoteEmployeeId))
@@ -2159,7 +2170,7 @@ class AppwriteSyncManager {
 
         if (employee == null) {
           _logger.warning(
-            '⏭️ تخطي salary_withdrawal ${doc.$id}: الموظف $remoteEmployeeId غير موجود محلياً (سجل يتيم)',
+            '⏭️ تخطي salary_withdrawal ${doc.$id}: الموظف $remoteEmployeeId (uuid=$employeeUuid) غير موجود محلياً (سجل يتيم)',
             tag: 'SYNC',
           );
           continue;
@@ -4412,22 +4423,33 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ حل FK الموظف — البحث بالـ id البعيد ثم serverId
-        // serverId يخزّن الـ id الأصلي من جهاز المصدر (يُملأ أثناء سحب الموظفين)
+        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
         final remoteEmployeeId =
             _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
+        final employeeUuid = (data['employeeUuid'] as String?) ??
+            (data['employee_uuid'] as String?) ??
+            (data['employeeLocalUuid'] as String?) ??
+            (data['employee_local_uuid'] as String?);
 
         Employee? employee;
 
-        // الطريقة 1: البحث بالـ id البعيد كـ id محلي
-        if (remoteEmployeeId != null) {
+        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+        if (employeeUuid != null && employeeUuid.isNotEmpty) {
+          employee = await (database.select(database.employees)
+                ..where((e) => e.localUuid.equals(employeeUuid))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        // الطريقة 2: البحث بالـ id البعيد كـ id محلي
+        if (employee == null && remoteEmployeeId != null) {
           employee = await (database.select(database.employees)
                 ..where((e) => e.id.equals(remoteEmployeeId))
                 ..limit(1))
               .getSingleOrNull();
         }
 
-        // الطريقة 2: البحث بالـ serverId (id الأصلي من جهاز المصدر)
+        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
         if (employee == null && remoteEmployeeId != null) {
           employee = await (database.select(database.employees)
                 ..where((e) => e.serverId.equals(remoteEmployeeId))
@@ -4437,7 +4459,7 @@ class AppwriteSyncManager {
 
         if (employee == null) {
           _logger.warning(
-            '⏭️ تخطي salary_cycle ${doc.$id}: الموظف $remoteEmployeeId غير موجود محلياً (سجل يتيم)',
+            '⏭️ تخطي salary_cycle ${doc.$id}: الموظف $remoteEmployeeId (uuid=$employeeUuid) غير موجود محلياً (سجل يتيم)',
             tag: 'SYNC',
           );
           continue;
