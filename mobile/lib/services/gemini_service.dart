@@ -6,10 +6,10 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../utils/status_utils.dart';
 import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
 import 'price_adjustment_service.dart';
-import '../utils/status_utils.dart';
 
 // ═══════════════════════════════════════════════════════════════
 //  أوامر AI

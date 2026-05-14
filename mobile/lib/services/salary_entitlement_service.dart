@@ -1,5 +1,5 @@
-import 'local_db.dart';
 import '../utils/status_utils.dart';
+import 'local_db.dart';
 
 class SalaryEntitlement {
 

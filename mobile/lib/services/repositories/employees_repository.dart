@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/status_utils.dart';
 import '../auto_backup_manager.dart';
 import '../crashlytics_service.dart';
 import '../daos/employees_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
-import '../../utils/status_utils.dart';
 
 class EmployeesRepository {
   EmployeesRepository(this.db)
