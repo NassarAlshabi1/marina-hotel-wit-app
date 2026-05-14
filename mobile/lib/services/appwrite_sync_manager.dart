@@ -4033,6 +4033,23 @@ class AppwriteSyncManager {
 
   Future<bool> _processEmployeeEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
+      // ✅ حذف ناعم: نبحث عن الموظف محلياً (بما فيه المحذوف ناعماً)
+      // إذا وُجد (deletedAt != null)، نُحدّث Appwrite بحقل deletedAt بدل الحذف الفعلي
+      // هذا يمنع فقدان الموظف على الأجهزة الأخرى وحل FK بشكل صحيح
+      final item = await _getEmployeeByLocalUuid(entry.localUuid);
+      if (item != null && item.deletedAt != null) {
+        // ✅ حذف ناعم — إرسال deletedAt إلى Appwrite
+        final payload = outboxDao.adapters.employees.adapter.toJson(
+          item,
+          src: Source.appwrite,
+        );
+        await appwriteService.upsertEmployee(
+          item.localUuid,
+          _addIdempotencyKey(payload, entry),
+        );
+        return true;
+      }
+      // الموظف غير موجود محلياً إطلاقاً — حذف فعلي من Appwrite
       await _deleteSilently(
         () => appwriteService.deleteEmployee(entry.localUuid),
       );
