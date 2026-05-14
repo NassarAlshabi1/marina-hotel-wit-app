@@ -386,7 +386,6 @@ class AppwriteFullPull {
               return false;
             }
           }
-          break;
 
         // ✅ salary_cycles: Employees ← SalaryCycles.employeeId (NOT NULL)
         case 'salary_cycles':
@@ -409,7 +408,6 @@ class AppwriteFullPull {
               return false;
             }
           }
-          break;
 
         // ✅ salary_payments: SalaryCycles ← SalaryPayments.cycleId (NOT NULL)
         case 'salary_payments':
@@ -432,7 +430,6 @@ class AppwriteFullPull {
               return false;
             }
           }
-          break;
 
         // باقي الجداول: FK nullable أو يُعالجها adapter بـ drift.Value.absent()
       }
