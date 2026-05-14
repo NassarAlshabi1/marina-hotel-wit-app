@@ -2125,31 +2125,52 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ إصلاح دقيق: التحقق من وجود الموظف محلياً قبل الإدراج
-        // نستخدم _asIntSafe بدل `as int?` لتجنب TypeError مع القيم الرقمية المختلفة
-        // (Appwrite قد يُرجع int أو double أو num)
+        // ✅ حل FK الموظف — 3 طرق بالترتيب:
+        // 1) البحث بالـ employeeLocalUuid (الأكثر موثوقية عبر الأجهزة)
+        // 2) البحث بالـ id البعيد كـ id محلي (يعمل إذا تطابقت المعرفات)
+        // 3) البحث بالـ id البعيد كـ serverId محلي
         final remoteEmployeeId = _asIntSafe(data, 'employeeId') ??
             _asIntSafe(data, 'employee_id');
-        if (remoteEmployeeId != null) {
-          // ✅ تحسين: البحث بالـ id أولاً، ثم بالـ serverId
-          // (الموظف المسحوب من Appwrite يُدرج بنفس قيمة id البعيدة)
-          var employee = await (database.select(database.employees)
+        final employeeLocalUuid = (data['employeeLocalUuid'] as String?) ??
+            (data['employee_local_uuid'] as String?);
+
+        Employee? employee;
+
+        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية — يعمل عبر الأجهزة المختلفة)
+        if (employeeLocalUuid != null && employeeLocalUuid.isNotEmpty) {
+          employee = await (database.select(database.employees)
+                ..where((e) => e.localUuid.equals(employeeLocalUuid))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        // الطريقة 2: البحث بالـ id البعيد كـ id محلي
+        if (employee == null && remoteEmployeeId != null) {
+          employee = await (database.select(database.employees)
                 ..where((e) => e.id.equals(remoteEmployeeId))
                 ..limit(1))
               .getSingleOrNull();
-          // إذا لم نجد بالـ id، نبحث بالـ serverId
-          employee ??= await (database.select(database.employees)
+        }
+
+        // الطريقة 3: البحث بالـ serverId
+        if (employee == null && remoteEmployeeId != null) {
+          employee = await (database.select(database.employees)
                 ..where((e) => e.serverId.equals(remoteEmployeeId))
                 ..limit(1))
               .getSingleOrNull();
-          if (employee == null) {
-            _logger.warning(
-              '⏭️ تخطي salary_withdrawal ${doc.$id}: الموظف $remoteEmployeeId غير موجود محلياً (سجل يتيم - تم حذف الموظف)',
-              tag: 'SYNC',
-            );
-            continue;
-          }
         }
+
+        if (employee == null) {
+          _logger.warning(
+            '⏭️ تخطي salary_withdrawal ${doc.$id}: الموظف $remoteEmployeeId (uuid=$employeeLocalUuid) غير موجود محلياً (سجل يتيم)',
+            tag: 'SYNC',
+          );
+          continue;
+        }
+
+        // ✅ استبدال employeeId البعيد بالمعرف المحلي للموظف
+        // هذا يضمن أن FK يشير للمعرف المحلي الصحيح
+        data['employeeId'] = employee.id;
 
         await _adapterRegistry.salaryWithdrawals.upsertFromJson(
           data,
@@ -2223,6 +2244,21 @@ class AppwriteSyncManager {
       withdrawal,
       src: Source.appwrite,
     );
+
+    // ✅ إضافة employeeLocalUuid للحمولة — يسمح بحل FK عبر الأجهزة
+    // البحث عن الموظف محلياً للحصول على localUuid
+    try {
+      final employee = await (database.select(database.employees)
+            ..where((e) => e.id.equals(withdrawal.employeeId))
+            ..limit(1))
+          .getSingleOrNull();
+      if (employee != null) {
+        payload['employeeLocalUuid'] = employee.localUuid;
+      }
+    } catch (_) {
+      // لا يمنع الدفع إذا فشل البحث
+    }
+
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
       documentId: withdrawal.localUuid,
@@ -4117,6 +4153,18 @@ class AppwriteSyncManager {
       item,
       src: Source.appwrite,
     );
+
+    // ✅ إضافة employeeLocalUuid للحمولة — يسمح بحل FK عبر الأجهزة
+    try {
+      final employee = await (database.select(database.employees)
+            ..where((e) => e.id.equals(item.employeeId))
+            ..limit(1))
+          .getSingleOrNull();
+      if (employee != null) {
+        payload['employeeLocalUuid'] = employee.localUuid;
+      }
+    } catch (_) {}
+
     await appwriteService.upsertSalaryCycle(
       item.localUuid,
       _addIdempotencyKey(payload, entry),
@@ -4394,22 +4442,48 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ التحقق من وجود الموظف محلياً قبل الإدراج
+        // ✅ حل FK الموظف — 3 طرق: UUID → id → serverId
         final remoteEmployeeId =
-            data['employeeId'] as int? ?? data['employee_id'] as int?;
-        if (remoteEmployeeId != null) {
-          final employee = await (database.select(database.employees)
+            _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
+        final employeeLocalUuid = (data['employeeLocalUuid'] as String?) ??
+            (data['employee_local_uuid'] as String?);
+
+        Employee? employee;
+
+        // الطريقة 1: البحث بالـ UUID
+        if (employeeLocalUuid != null && employeeLocalUuid.isNotEmpty) {
+          employee = await (database.select(database.employees)
+                ..where((e) => e.localUuid.equals(employeeLocalUuid))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        // الطريقة 2: البحث بالـ id البعيد
+        if (employee == null && remoteEmployeeId != null) {
+          employee = await (database.select(database.employees)
                 ..where((e) => e.id.equals(remoteEmployeeId))
                 ..limit(1))
               .getSingleOrNull();
-          if (employee == null) {
-            _logger.warning(
-              '⏭️ تخطي salary_cycle ${doc.$id}: الموظف $remoteEmployeeId غير موجود محلياً (سجل يتيم)',
-              tag: 'SYNC',
-            );
-            continue;
-          }
         }
+
+        // الطريقة 3: البحث بالـ serverId
+        if (employee == null && remoteEmployeeId != null) {
+          employee = await (database.select(database.employees)
+                ..where((e) => e.serverId.equals(remoteEmployeeId))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        if (employee == null) {
+          _logger.warning(
+            '⏭️ تخطي salary_cycle ${doc.$id}: الموظف $remoteEmployeeId (uuid=$employeeLocalUuid) غير موجود محلياً (سجل يتيم)',
+            tag: 'SYNC',
+          );
+          continue;
+        }
+
+        // ✅ استبدال employeeId البعيد بالمعرف المحلي الصحيح
+        data['employeeId'] = employee.id;
 
         await _adapterRegistry.salaryCycles.upsertFromJson(
           data,

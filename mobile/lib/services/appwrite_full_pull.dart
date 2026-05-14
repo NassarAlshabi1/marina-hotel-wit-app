@@ -365,48 +365,97 @@ class AppwriteFullPull {
 
       switch (entityName) {
         // ✅ salary_withdrawals: Employees ← SalaryWithdrawals.employeeId (NOT NULL)
+        // حل FK بـ 3 طرق: UUID → id → serverId
         case 'salary_withdrawals':
           final remoteEmployeeId = _asIntSafe(data, 'employeeId') ??
               _asIntSafe(data, 'employee_id');
-          if (remoteEmployeeId != null) {
-            // البحث بالـ id أولاً، ثم بالـ serverId
-            var employee = await (db.select(db.employees)
-                  ..where((e) => e.id.equals(remoteEmployeeId))
-                  ..limit(1))
-                .getSingleOrNull();
-            employee ??= await (db.select(db.employees)
-                  ..where((e) => e.serverId.equals(remoteEmployeeId))
-                  ..limit(1))
-                .getSingleOrNull();
+          final employeeLocalUuid = (data['employeeLocalUuid'] as String?) ??
+              (data['employee_local_uuid'] as String?);
+
+          if (remoteEmployeeId != null || (employeeLocalUuid != null && employeeLocalUuid.isNotEmpty)) {
+            Employee? employee;
+
+            // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+            if (employeeLocalUuid != null && employeeLocalUuid.isNotEmpty) {
+              employee = await (db.select(db.employees)
+                    ..where((e) => e.localUuid.equals(employeeLocalUuid))
+                    ..limit(1))
+                  .getSingleOrNull();
+            }
+
+            // الطريقة 2: البحث بالـ id البعيد كـ id محلي
+            if (employee == null && remoteEmployeeId != null) {
+              employee = await (db.select(db.employees)
+                    ..where((e) => e.id.equals(remoteEmployeeId))
+                    ..limit(1))
+                  .getSingleOrNull();
+            }
+
+            // الطريقة 3: البحث بالـ serverId
+            if (employee == null && remoteEmployeeId != null) {
+              employee = await (db.select(db.employees)
+                    ..where((e) => e.serverId.equals(remoteEmployeeId))
+                    ..limit(1))
+                  .getSingleOrNull();
+            }
+
             if (employee == null) {
               _logger.warning(
-                '⏭️ تخطي salary_withdrawal يتيم: الموظف $remoteEmployeeId غير موجود محلياً',
+                '⏭️ تخطي salary_withdrawal يتيم: الموظف $remoteEmployeeId (uuid=$employeeLocalUuid) غير موجود محلياً',
                 tag: 'FULL_PULL',
               );
               return false;
             }
+
+            // ✅ استبدال employeeId البعيد بالمعرف المحلي الصحيح
+            data['employeeId'] = employee.id;
           }
 
         // ✅ salary_cycles: Employees ← SalaryCycles.employeeId (NOT NULL)
+        // حل FK بـ 3 طرق: UUID → id → serverId
         case 'salary_cycles':
           final remoteEmployeeId = _asIntSafe(data, 'employeeId') ??
               _asIntSafe(data, 'employee_id');
-          if (remoteEmployeeId != null) {
-            var employee = await (db.select(db.employees)
-                  ..where((e) => e.id.equals(remoteEmployeeId))
-                  ..limit(1))
-                .getSingleOrNull();
-            employee ??= await (db.select(db.employees)
-                  ..where((e) => e.serverId.equals(remoteEmployeeId))
-                  ..limit(1))
-                .getSingleOrNull();
+          final employeeLocalUuid = (data['employeeLocalUuid'] as String?) ??
+              (data['employee_local_uuid'] as String?);
+
+          if (remoteEmployeeId != null || (employeeLocalUuid != null && employeeLocalUuid.isNotEmpty)) {
+            Employee? employee;
+
+            // الطريقة 1: البحث بالـ UUID
+            if (employeeLocalUuid != null && employeeLocalUuid.isNotEmpty) {
+              employee = await (db.select(db.employees)
+                    ..where((e) => e.localUuid.equals(employeeLocalUuid))
+                    ..limit(1))
+                  .getSingleOrNull();
+            }
+
+            // الطريقة 2: البحث بالـ id
+            if (employee == null && remoteEmployeeId != null) {
+              employee = await (db.select(db.employees)
+                    ..where((e) => e.id.equals(remoteEmployeeId))
+                    ..limit(1))
+                  .getSingleOrNull();
+            }
+
+            // الطريقة 3: البحث بالـ serverId
+            if (employee == null && remoteEmployeeId != null) {
+              employee = await (db.select(db.employees)
+                    ..where((e) => e.serverId.equals(remoteEmployeeId))
+                    ..limit(1))
+                  .getSingleOrNull();
+            }
+
             if (employee == null) {
               _logger.warning(
-                '⏭️ تخطي salary_cycle يتيم: الموظف $remoteEmployeeId غير موجود محلياً',
+                '⏭️ تخطي salary_cycle يتيم: الموظف $remoteEmployeeId (uuid=$employeeLocalUuid) غير موجود محلياً',
                 tag: 'FULL_PULL',
               );
               return false;
             }
+
+            // ✅ استبدال employeeId البعيد بالمعرف المحلي الصحيح
+            data['employeeId'] = employee.id;
           }
 
         // ✅ salary_payments: SalaryCycles ← SalaryPayments.cycleId (NOT NULL)
