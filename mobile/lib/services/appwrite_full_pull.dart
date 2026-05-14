@@ -1,6 +1,8 @@
 import 'dart:developer' as developer;
 
 import 'package:appwrite/appwrite.dart';
+import 'package:drift/drift.dart' as drift;
+import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
@@ -298,9 +300,29 @@ class AppwriteFullPull {
                 remoteData['local_uuid']?.toString() ??
                 doc.$id;
 
+            // ✅ إصلاح دقيق: فحص FK قبل الإدراج للجداول ذات القيود
+            // هذا يمنع انتهاكات FK عند سحب سجلات يتيمة (تشير لآباء محذوفين)
+            if (!await _fkPreCheck(entity.name, remoteData)) {
+              continue; // تخطي السجل اليتيم
+            }
+
             // حفظ السجل (upsert)
             await entity.repo!.upsertFromJson(remoteData, src: Source.appwrite);
             totalCount++;
+          } on SqliteException catch (e) {
+            // ✅ انتهاك FK — تخطي السجل بدلاً من إيقاف السحب
+            if (e.resultCode == 787) {
+              _logger.warning(
+                '⏭️ تخطي سجل يتيم من ${entity.name}: FK constraint failed - $e',
+                tag: 'FULL_PULL',
+              );
+            } else {
+              errorCount++;
+              _logger.warning(
+                '⚠️ فشل حفظ سجل من ${entity.name}: $e',
+                tag: 'FULL_PULL',
+              );
+            }
           } catch (e) {
             errorCount++;
             _logger.warning(
@@ -333,6 +355,104 @@ class AppwriteFullPull {
 
     result.totalPulled += totalCount;
     return totalCount;
+  }
+
+  /// ✅ فحص FK قبل الإدراج — يتحقق من وجود الآباء قبل إدراج الأبناء
+  /// يمنع انتهاكات FK عند سحب سجلات يتيمة (تشير لآباء محذوفين من Appwrite)
+  Future<bool> _fkPreCheck(String entityName, Map<String, dynamic> data) async {
+    try {
+      final db = _database!;
+
+      switch (entityName) {
+        // ✅ salary_withdrawals: Employees ← SalaryWithdrawals.employeeId (NOT NULL)
+        case 'salary_withdrawals':
+          final remoteEmployeeId = _asIntSafe(data, 'employeeId') ??
+              _asIntSafe(data, 'employee_id');
+          if (remoteEmployeeId != null) {
+            // البحث بالـ id أولاً، ثم بالـ serverId
+            var employee = await (db.select(db.employees)
+                  ..where((e) => e.id.equals(remoteEmployeeId))
+                  ..limit(1))
+                .getSingleOrNull();
+            employee ??= await (db.select(db.employees)
+                  ..where((e) => e.serverId.equals(remoteEmployeeId))
+                  ..limit(1))
+                .getSingleOrNull();
+            if (employee == null) {
+              _logger.warning(
+                '⏭️ تخطي salary_withdrawal يتيم: الموظف $remoteEmployeeId غير موجود محلياً',
+                tag: 'FULL_PULL',
+              );
+              return false;
+            }
+          }
+          break;
+
+        // ✅ salary_cycles: Employees ← SalaryCycles.employeeId (NOT NULL)
+        case 'salary_cycles':
+          final remoteEmployeeId = _asIntSafe(data, 'employeeId') ??
+              _asIntSafe(data, 'employee_id');
+          if (remoteEmployeeId != null) {
+            var employee = await (db.select(db.employees)
+                  ..where((e) => e.id.equals(remoteEmployeeId))
+                  ..limit(1))
+                .getSingleOrNull();
+            employee ??= await (db.select(db.employees)
+                  ..where((e) => e.serverId.equals(remoteEmployeeId))
+                  ..limit(1))
+                .getSingleOrNull();
+            if (employee == null) {
+              _logger.warning(
+                '⏭️ تخطي salary_cycle يتيم: الموظف $remoteEmployeeId غير موجود محلياً',
+                tag: 'FULL_PULL',
+              );
+              return false;
+            }
+          }
+          break;
+
+        // ✅ salary_payments: SalaryCycles ← SalaryPayments.cycleId (NOT NULL)
+        case 'salary_payments':
+          final remoteCycleId = _asIntSafe(data, 'cycleId') ??
+              _asIntSafe(data, 'cycle_id');
+          if (remoteCycleId != null) {
+            var cycle = await (db.select(db.salaryCycles)
+                  ..where((c) => c.id.equals(remoteCycleId))
+                  ..limit(1))
+                .getSingleOrNull();
+            cycle ??= await (db.select(db.salaryCycles)
+                  ..where((c) => c.serverId.equals(remoteCycleId))
+                  ..limit(1))
+                .getSingleOrNull();
+            if (cycle == null) {
+              _logger.warning(
+                '⏭️ تخطي salary_payment يتيم: الدورة $remoteCycleId غير موجودة محلياً',
+                tag: 'FULL_PULL',
+              );
+              return false;
+            }
+          }
+          break;
+
+        // باقي الجداول: FK nullable أو يُعالجها adapter بـ drift.Value.absent()
+      }
+    } catch (e) {
+      _logger.warning(
+        '⚠️ فشل فحص FK المسبق لـ $entityName: $e',
+        tag: 'FULL_PULL',
+      );
+    }
+    return true; // افتراض النجاح
+  }
+
+  /// تحويل آمن للقيمة الرقمية من Map
+  int? _asIntSafe(Map<String, dynamic> data, String key) {
+    final value = data[key];
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   /// ✅ تنظيف البيانات من حقول Appwrite الخاصة قبل الحفظ

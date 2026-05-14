@@ -1774,6 +1774,13 @@ class AppwriteSyncManager {
     return null;
   }
 
+  /// ✅ تحويل آمن للقيمة الرقمية من Map — يتعامل مع int/double/num/String
+  /// يُستخدم بدل `data['key'] as int?` الذي قد يرمي TypeError مع double
+  int? _asIntSafe(Map<String, dynamic> data, String key) {
+    final value = data[key];
+    return _asIntNullable(value);
+  }
+
   Future<int> _pushAllEntities() async {
     const batchSize = 200;
     int totalProcessed = 0;
@@ -2118,13 +2125,21 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ التحقق من وجود الموظف محلياً قبل الإدراج
-        // إذا كان الموظف غير موجود (تم حذفه من Appwrite)، نتخطى السجل
-        final remoteEmployeeId =
-            data['employeeId'] as int? ?? data['employee_id'] as int?;
+        // ✅ إصلاح دقيق: التحقق من وجود الموظف محلياً قبل الإدراج
+        // نستخدم _asIntSafe بدل `as int?` لتجنب TypeError مع القيم الرقمية المختلفة
+        // (Appwrite قد يُرجع int أو double أو num)
+        final remoteEmployeeId = _asIntSafe(data, 'employeeId') ??
+            _asIntSafe(data, 'employee_id');
         if (remoteEmployeeId != null) {
-          final employee = await (database.select(database.employees)
+          // ✅ تحسين: البحث بالـ id أولاً، ثم بالـ serverId
+          // (الموظف المسحوب من Appwrite يُدرج بنفس قيمة id البعيدة)
+          var employee = await (database.select(database.employees)
                 ..where((e) => e.id.equals(remoteEmployeeId))
+                ..limit(1))
+              .getSingleOrNull();
+          // إذا لم نجد بالـ id، نبحث بالـ serverId
+          employee ??= await (database.select(database.employees)
+                ..where((e) => e.serverId.equals(remoteEmployeeId))
                 ..limit(1))
               .getSingleOrNull();
           if (employee == null) {
@@ -5158,11 +5173,16 @@ class AppwriteSyncManager {
     }
   }
 
-  /// إصلاح الديون اليتيمة عن طريق إعادة حل bookingUuidCache
+  /// ✅ إصلاح الديون اليتيمة عن طريق LEFT JOIN
+  /// ملاحظة: جدول debts لا يملك عمود booking_uuid_cache (عكس payments)
+  /// لذا نستخدم LEFT JOIN للتحقق من وجود الحجز بدلاً من booking_uuid_cache
   Future<void> _autoFixOrphanDebtsByUuidCache() async {
     try {
+      // البحث عن ديون يتيمة: لها bookingLocalId لكن الحجز المقابل غير موجود
       final orphans = await database.customSelect(
-        'SELECT id, booking_uuid_cache FROM debts WHERE booking_local_id IS NULL AND booking_uuid_cache IS NOT NULL AND deleted_at IS NULL',
+        'SELECT d.id, d.booking_local_id FROM debts d '
+        'LEFT JOIN bookings b ON d.booking_local_id = b.id '
+        'WHERE d.booking_local_id IS NOT NULL AND b.id IS NULL AND d.deleted_at IS NULL',
         readsFrom: Set.unmodifiable({}),
       ).get();
 
@@ -5171,31 +5191,23 @@ class AppwriteSyncManager {
       int fixed = 0;
       for (final row in orphans) {
         final debtId = row.read<int>('id');
-        final bookingUuid = row.read<String?>('booking_uuid_cache');
-        if (bookingUuid == null || bookingUuid.isEmpty) continue;
 
-        final booking = await (database.select(database.bookings)
-              ..where((b) => b.localUuid.equals(bookingUuid))
-              ..limit(1))
-            .getSingleOrNull();
-
-        if (booking != null) {
-          await (database.update(database.debts)
-                ..where((t) => t.id.equals(debtId)))
-              .write(DebtsCompanion(
-            bookingLocalId: drift.Value(booking.id),
-          ));
-          fixed++;
-          _logger.debug(
-            '🔧 ربط دين يتيم: debt=$debtId → booking=${booking.id}',
-            tag: 'SYNC_INTEGRITY',
-          );
-        }
+        // إزالة FK غير الصالح — bookingLocalId في debts هو nullable
+        await (database.update(database.debts)
+              ..where((t) => t.id.equals(debtId)))
+            .write(DebtsCompanion(
+          bookingLocalId: const drift.Value.absent(),
+        ));
+        fixed++;
+        _logger.debug(
+          '🔧 إزالة ربط الدين اليتيم: debt=$debtId (bookingLocalId غير صالح)',
+          tag: 'SYNC_INTEGRITY',
+        );
       }
 
       if (fixed > 0) {
         _logger.info(
-          '✅ تم إصلاح $fixed دين يتيم بإعادة ربطه بحجوزاته',
+          '✅ تم إصلاح $fixed دين يتيم بإزالة ربطهم بحجوزات محذوفة',
           tag: 'SYNC_INTEGRITY',
         );
       }
