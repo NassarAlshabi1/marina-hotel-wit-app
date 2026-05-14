@@ -31,34 +31,20 @@ class SalaryWithdrawalsAdapter
     // ✅ حل FK الموظف - التحقق من وجود الموظف محلياً قبل الإدراج
     final remoteEmployeeId =
         _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
-    final employeeUuid =
-        _asString(json, 'employeeLocalUuid', src) ??
-        _asString(json, 'employee_local_uuid', src);
 
-    // ✅ إصلاح دقيق: حل شامل للمعرّف البعيد
-    // 1) البحث بالـ UUID أولاً (الأكثر موثوقية بين الأجهزة)
-    // 2) البحث بالـ id البعيد (قد يتطابق مع id المحلي إذا كان نفس الجهاز)
-    // 3) البحث بالـ id البعيد كحقل "id" في جدول الموظفين المحلي
-    //    (لأن الموظف المسحوب من Appwrite يحتفظ بقيمة id الأصلية)
+    // ✅ حل المعرّف البعيد:
+    // 1) البحث بالـ id البعيد (قد يتطابق مع id المحلي إذا كان نفس الجهاز)
+    // 2) البحث بالـ serverId (id الأصلي من جهاز المصدر — يُملأ أثناء سحب الموظفين)
     int? resolvedEmployeeId;
 
-    // الطريقة 1: البحث بالـ UUID
-    if (employeeUuid != null && employeeUuid.isNotEmpty) {
-      resolvedEmployeeId = await resolver.resolveEmployee(
-        uuid: employeeUuid,
-      );
-    }
-
-    // الطريقة 2: البحث بالـ id البعيد (كـ localId)
-    // هذا يعمل لأن الموظف المسحوب من Appwrite يُدرج بنفس قيمة id البعيدة
-    if (resolvedEmployeeId == null && remoteEmployeeId != null) {
+    // الطريقة 1: البحث بالـ id البعيد (كـ localId)
+    if (remoteEmployeeId != null) {
       resolvedEmployeeId = await resolver.resolveEmployee(
         localId: remoteEmployeeId,
       );
     }
 
-    // ✅ تحسين: إذا فشل الحل بالطرقتين، نحاول البحث في جدول الموظفين
-    // عن طريق مطابقة حقل id البعيد مع serverId المحلي (بعض الأجهزة تستخدم serverId)
+    // الطريقة 2: البحث بالـ serverId في جدول الموظفين
     if (resolvedEmployeeId == null && remoteEmployeeId != null) {
       try {
         final row = await (db.select(db.employees)

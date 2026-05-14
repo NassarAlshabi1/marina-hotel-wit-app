@@ -306,6 +306,16 @@ class AppwriteFullPull {
               continue; // تخطي السجل اليتيم
             }
 
+            // ✅ تخزين remote id كـ serverId للموظفين — يسمح بحل FK عبر الأجهزة
+            // salary_withdrawals و salary_cycles يستخدمان employeeId البعيد
+            // الذي يساوي id الموظف على جهاز المصدر
+            if (entity.name == 'employees') {
+              final remoteId = _asIntSafe(remoteData, 'id');
+              if (remoteId != null && remoteData['serverId'] == null) {
+                remoteData['serverId'] = remoteId;
+              }
+            }
+
             // حفظ السجل (upsert)
             await entity.repo!.upsertFromJson(remoteData, src: Source.appwrite);
             totalCount++;
@@ -365,43 +375,29 @@ class AppwriteFullPull {
 
       switch (entityName) {
         // ✅ salary_withdrawals: Employees ← SalaryWithdrawals.employeeId (NOT NULL)
-        // حل FK بـ 3 طرق: UUID → id → serverId
+        // حل FK: id البعيد → id محلي ثم serverId
         case 'salary_withdrawals':
           final remoteEmployeeId = _asIntSafe(data, 'employeeId') ??
               _asIntSafe(data, 'employee_id');
-          final employeeLocalUuid = (data['employeeLocalUuid'] as String?) ??
-              (data['employee_local_uuid'] as String?);
 
-          if (remoteEmployeeId != null || (employeeLocalUuid != null && employeeLocalUuid.isNotEmpty)) {
+          if (remoteEmployeeId != null) {
             Employee? employee;
 
-            // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
-            if (employeeLocalUuid != null && employeeLocalUuid.isNotEmpty) {
-              employee = await (db.select(db.employees)
-                    ..where((e) => e.localUuid.equals(employeeLocalUuid))
-                    ..limit(1))
-                  .getSingleOrNull();
-            }
+            // الطريقة 1: البحث بالـ id البعيد كـ id محلي
+            employee = await (db.select(db.employees)
+                  ..where((e) => e.id.equals(remoteEmployeeId))
+                  ..limit(1))
+                .getSingleOrNull();
 
-            // الطريقة 2: البحث بالـ id البعيد كـ id محلي
-            if (employee == null && remoteEmployeeId != null) {
-              employee = await (db.select(db.employees)
-                    ..where((e) => e.id.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-            }
-
-            // الطريقة 3: البحث بالـ serverId
-            if (employee == null && remoteEmployeeId != null) {
-              employee = await (db.select(db.employees)
-                    ..where((e) => e.serverId.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-            }
+            // الطريقة 2: البحث بالـ serverId (id الأصلي من جهاز المصدر)
+            employee ??= await (db.select(db.employees)
+                  ..where((e) => e.serverId.equals(remoteEmployeeId))
+                  ..limit(1))
+                .getSingleOrNull();
 
             if (employee == null) {
               _logger.warning(
-                '⏭️ تخطي salary_withdrawal يتيم: الموظف $remoteEmployeeId (uuid=$employeeLocalUuid) غير موجود محلياً',
+                '⏭️ تخطي salary_withdrawal يتيم: الموظف $remoteEmployeeId غير موجود محلياً',
                 tag: 'FULL_PULL',
               );
               return false;
@@ -410,45 +406,32 @@ class AppwriteFullPull {
             // ✅ استبدال employeeId البعيد بالمعرف المحلي الصحيح
             data['employeeId'] = employee.id;
           }
+          break;
 
         // ✅ salary_cycles: Employees ← SalaryCycles.employeeId (NOT NULL)
-        // حل FK بـ 3 طرق: UUID → id → serverId
+        // حل FK: id البعيد → id محلي ثم serverId
         case 'salary_cycles':
           final remoteEmployeeId = _asIntSafe(data, 'employeeId') ??
               _asIntSafe(data, 'employee_id');
-          final employeeLocalUuid = (data['employeeLocalUuid'] as String?) ??
-              (data['employee_local_uuid'] as String?);
 
-          if (remoteEmployeeId != null || (employeeLocalUuid != null && employeeLocalUuid.isNotEmpty)) {
+          if (remoteEmployeeId != null) {
             Employee? employee;
 
-            // الطريقة 1: البحث بالـ UUID
-            if (employeeLocalUuid != null && employeeLocalUuid.isNotEmpty) {
-              employee = await (db.select(db.employees)
-                    ..where((e) => e.localUuid.equals(employeeLocalUuid))
-                    ..limit(1))
-                  .getSingleOrNull();
-            }
+            // الطريقة 1: البحث بالـ id
+            employee = await (db.select(db.employees)
+                  ..where((e) => e.id.equals(remoteEmployeeId))
+                  ..limit(1))
+                .getSingleOrNull();
 
-            // الطريقة 2: البحث بالـ id
-            if (employee == null && remoteEmployeeId != null) {
-              employee = await (db.select(db.employees)
-                    ..where((e) => e.id.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-            }
-
-            // الطريقة 3: البحث بالـ serverId
-            if (employee == null && remoteEmployeeId != null) {
-              employee = await (db.select(db.employees)
-                    ..where((e) => e.serverId.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-            }
+            // الطريقة 2: البحث بالـ serverId
+            employee ??= await (db.select(db.employees)
+                  ..where((e) => e.serverId.equals(remoteEmployeeId))
+                  ..limit(1))
+                .getSingleOrNull();
 
             if (employee == null) {
               _logger.warning(
-                '⏭️ تخطي salary_cycle يتيم: الموظف $remoteEmployeeId (uuid=$employeeLocalUuid) غير موجود محلياً',
+                '⏭️ تخطي salary_cycle يتيم: الموظف $remoteEmployeeId غير موجود محلياً',
                 tag: 'FULL_PULL',
               );
               return false;
@@ -457,6 +440,7 @@ class AppwriteFullPull {
             // ✅ استبدال employeeId البعيد بالمعرف المحلي الصحيح
             data['employeeId'] = employee.id;
           }
+          break;
 
         // ✅ salary_payments: SalaryCycles ← SalaryPayments.cycleId (NOT NULL)
         case 'salary_payments':
