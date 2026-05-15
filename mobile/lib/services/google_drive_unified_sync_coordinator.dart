@@ -124,8 +124,8 @@ class GoogleDriveUnifiedSyncCoordinator {
   static const Duration _syncTimeout = Duration(minutes: 2);
   final _syncResultController = StreamController<SyncResult>.broadcast();
 
-  bool _pushEnabled = true;
-  bool _pullEnabled = true;
+  bool _pushEnabled = false;
+  bool _pullEnabled = false;
   int _debounceSeconds = _defaultDebounceSeconds;
   int _pullIntervalMinutes = _defaultPullIntervalMinutes;
   int _fullBackupIntervalHours = _defaultFullBackupHours;
