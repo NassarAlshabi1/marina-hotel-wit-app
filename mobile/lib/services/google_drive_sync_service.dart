@@ -12,6 +12,7 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 
 import '../data/sync_models.dart';
+import 'google_drive_sign_in_manager.dart';
 import 'sync_constants.dart';
 
 const _kPrimarySnapshotName = 'sync_data.json.gz';
@@ -167,13 +168,11 @@ class GoogleDriveSyncService {
     GoogleSignIn? googleSignIn,
     drive.DriveApi? driveApi,
     int shardSizeBytes = _kDefaultShardBytes,
-  }) : _googleSignIn =
-           googleSignIn ??
-           GoogleSignIn(scopes: const [drive.DriveApi.driveAppdataScope]),
+  }) : _signInManager = GoogleDriveSignInManager.instance,
        _driveApi = driveApi,
        _shardSizeBytes = shardSizeBytes;
 
-  final GoogleSignIn _googleSignIn;
+  final GoogleDriveSignInManager _signInManager;
   drive.DriveApi? _driveApi;
   final int _shardSizeBytes;
 
@@ -181,7 +180,7 @@ class GoogleDriveSyncService {
   String? _encryptionKey;
   bool _allowInteractiveSignIn = true;
 
-  GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
+  GoogleSignInAccount? get currentUser => _signInManager.currentUser;
 
   /// تهيئة الخدمة وخيار التشفير AES-256
   Future<void> init({
@@ -205,9 +204,7 @@ class GoogleDriveSyncService {
   /// تسجيل الدخول إلى Google Drive باستخدام Google Sign-In
   Future<GoogleSignInAccount?> signIn() async {
     try {
-      final account =
-          await _googleSignIn.signInSilently() ??
-          await _googleSignIn.signIn();
+      final account = await _signInManager.signIn();
       if (account == null) {
         return null;
       }
@@ -224,7 +221,7 @@ class GoogleDriveSyncService {
   /// تسجيل الخروج وإعادة ضبط العميل
   Future<void> signOut() async {
     try {
-      await _googleSignIn.signOut();
+      await _signInManager.signOut();
     } finally {
       _driveApi = null;
     }
@@ -423,9 +420,10 @@ class GoogleDriveSyncService {
       return _driveApi!;
     }
 
-    final account =
-        await _googleSignIn.signInSilently() ??
-        (_allowInteractiveSignIn ? await _googleSignIn.signIn() : null);
+    var account = await _signInManager.signInSilently();
+    if (account == null && _allowInteractiveSignIn) {
+      account = await _signInManager.signIn();
+    }
 
     if (account == null) {
       throw StateError('لم يتم تسجيل الدخول إلى Google Drive.');
