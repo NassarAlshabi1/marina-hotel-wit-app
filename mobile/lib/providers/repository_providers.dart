@@ -17,6 +17,7 @@ import '../services/repositories/rooms_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
 import '../services/repositories/simple_notes_repository.dart';
+import '../services/salary_advance_installments_service.dart';
 import '../services/sync_guardian.dart';
 import '../services/whatsapp_service.dart';
 import '../utils/env.dart';
@@ -74,6 +75,14 @@ final notesRepoProvider = Provider<NotesRepository>(
 );
 final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>(
   (ref) => SalaryWithdrawalsRepository(ref.read(databaseProvider)),
+);
+final salaryAdvanceInstallmentsServiceProvider =
+    Provider<SalaryAdvanceInstallmentsService>(
+  (ref) => SalaryAdvanceInstallmentsService(
+    ref.read(databaseProvider),
+    ref.read(expensesRepoProvider),
+    ref.read(salaryWithdrawalsRepoProvider),
+  ),
 );
 final simpleNotesRepoProvider = Provider<SimpleNotesRepository>(
   (ref) => SimpleNotesRepository(ref.read(databaseProvider)),
