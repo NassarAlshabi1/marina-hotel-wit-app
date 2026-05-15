@@ -216,7 +216,7 @@ class SyncService {
       'booking_nights': 3,
       'payments': 4,
       'debts': 5,
-      'hotel_day_ledger': 6,
+      // ❌ hotel_day_ledger — جدول محلي فقط، لا يتم مزامنته
     };
     int priority(String entity) => entityPriority[entity] ?? 10;
     data.sort((a, b) {
@@ -840,8 +840,9 @@ class SyncService {
         }
       case 'booking_nights':
         await _applyBookingNight(op, serverTs, data);
-      case 'hotel_day_ledger':
-        await _applyHotelDayLedger(op, serverTs, data);
+      // ❌ hotel_day_ledger — جدول محلي فقط، لا يتم مزامنته
+      // case 'hotel_day_ledger':
+      //   await _applyHotelDayLedger(op, serverTs, data);
     }
   }
 
@@ -970,6 +971,10 @@ class SyncService {
     }
   }
 
+  // ❌ hotel_day_ledger — جدول محلي فقط، لا يتم مزامنته
+  // تم تعطيل هذه الدالة لأن hotel_day_ledger غير موجود على Appwrite Cloud
+  // البيانات تُحسب محلياً فقط من خلال restore_fix_service.dart
+  /*
   Future<void> _applyHotelDayLedger(
     String op,
     int serverTs,
@@ -1088,6 +1093,7 @@ class SyncService {
       )..where((t) => t.id.equals(existing.id))).write(companion);
     }
   }
+  */
 
   Future<void> _ensureRoomExists(String roomNumber) async {
     if (roomNumber.isEmpty) {

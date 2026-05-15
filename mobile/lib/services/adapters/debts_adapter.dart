@@ -123,12 +123,15 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
         altKey: 'paid_amount',
         fallback: 0,
       ),
+      // ✅ remainingAmount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
+      // نقرأه من السحابة، وإذا لم يكن موجوداً نحسبه: totalAmount - paidAmount
       remainingAmount: _vDouble(
         json,
         'remainingAmount',
         src,
         altKey: 'remaining_amount',
-        fallback: 0,
+        fallback: (_asDouble(json, 'totalAmount', src, altKey: 'total_amount') ?? 0) -
+            (_asDouble(json, 'paidAmount', src, altKey: 'paid_amount') ?? 0),
       ),
       paymentDate: _vStr(
         json,
@@ -204,9 +207,11 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       _k(src, 'checkoutDate', 'checkout_date'): model.checkoutDate,
       _k(src, 'dateRecorded', 'date_recorded'): model.dateRecorded,
       _k(src, 'debtReason', 'debt_reason'): model.debtReason,
-      _k(src, 'totalAmount', 'total_amount'): model.totalAmount,
-      _k(src, 'paidAmount', 'paid_amount'): model.paidAmount,
-      _k(src, 'remainingAmount', 'remaining_amount'): model.remainingAmount.round(), // Appwrite: integer
+      _k(src, 'totalAmount', 'total_amount'): model.totalAmount, // Cloud: double ✓
+      _k(src, 'paidAmount', 'paid_amount'): model.paidAmount, // Cloud: double ✓
+      // ✅ remainingAmount أُضيف إلى Appwrite Cloud (2026-05-15)
+      // ⚠️ على Cloud هو integer — نحول من double إلى int عند الإرسال
+      _k(src, 'remainingAmount', 'remaining_amount'): model.remainingAmount.round(),
       _k(src, 'paymentDate', 'payment_date'): model.paymentDate,
       _k(src, 'isSettled', 'is_settled'): model.isSettled,
       _k(src, 'pledge', 'pledge'): model.pledge,

@@ -152,6 +152,8 @@ class SalaryPaymentsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'cycleId', 'cycle_id'): model.cycleId,
+      // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
+      // المحلي يستخدم IntColumn — النوع متطابق
       _k(src, 'amount', 'amount'): model.amount,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
       _k(src, 'paymentDateIso', 'payment_date_iso'): model.paymentDateIso,

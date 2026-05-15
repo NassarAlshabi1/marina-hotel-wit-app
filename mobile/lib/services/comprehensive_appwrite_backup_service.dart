@@ -43,7 +43,7 @@ class ComprehensiveAppwriteBackupService {
     AppwriteConfig.employeesCollectionId,
     AppwriteConfig.salaryCyclesCollectionId,
     AppwriteConfig.salaryPaymentsCollectionId,
-    AppwriteConfig.hotelDayLedgerCollectionId,
+    // ❌ hotelDayLedgerCollectionId — جدول محلي فقط، لا يتم مزامنته
     AppwriteConfig.shiftNotesCollectionId,
     AppwriteConfig.priceAdjustmentsCollectionId,
     AppwriteConfig.bookingPriceAdjustmentsCollectionId,
@@ -167,14 +167,9 @@ class ComprehensiveAppwriteBackupService {
       collectionsData[AppwriteConfig.salaryPaymentsCollectionId] =
           salaryPayments.map((e) => e.toJson()).toList();
 
-      // 13. Hotel Day Ledger
-      if (onProgress != null) {
-        onProgress('تصدير دفتر اليومية...', 0.88);
-      }
-      final ledger = await db.select(db.hotelDayLedger).get();
-      collectionsData[AppwriteConfig.hotelDayLedgerCollectionId] = ledger
-          .map((e) => e.toJson())
-          .toList();
+      // ❌ 13. Hotel Day Ledger — جدول محلي فقط، لا يتم تصديره إلى Appwrite
+      // البيانات تُحسب محلياً من خلال restore_fix_service.dart
+      // لا يوجد collection على Appwrite Cloud
 
       // 14. Price Adjustments
       if (onProgress != null) {

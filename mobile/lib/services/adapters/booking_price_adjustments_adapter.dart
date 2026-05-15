@@ -100,6 +100,8 @@ class BookingPriceAdjustmentsAdapter
         altKey: 'adjustment_mode',
         fallback: 'per_night',
       ),
+      // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
+      // نقرأه كـ double للمحلي (integer على Cloud → double محلياً)
       amount: _vDouble(json, 'amount', src, fallback: 0),
       effectiveHotelDay: _vStr(
         json,
@@ -161,7 +163,9 @@ class BookingPriceAdjustmentsAdapter
       _k(src, 'roomNumber', 'room_number'): model.roomNumber,
       _k(src, 'adjustmentType', 'adjustment_type'): model.adjustmentType,
       _k(src, 'adjustmentMode', 'adjustment_mode'): model.adjustmentMode,
-      _k(src, 'amount', 'amount'): model.amount.round(), // Appwrite: integer
+      // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15)
+      // ⚠️ على Cloud هو integer — نحول من double إلى int عند الإرسال
+      _k(src, 'amount', 'amount'): model.amount.round(),
       _k(src, 'effectiveHotelDay', 'effective_hotel_day'): model.effectiveHotelDay,
       _k(src, 'endHotelDay', 'end_hotel_day'): model.endHotelDay,
       _k(src, 'isActive', 'is_active'): model.isActive,

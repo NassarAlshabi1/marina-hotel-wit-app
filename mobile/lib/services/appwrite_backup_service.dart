@@ -39,7 +39,7 @@ class AppwriteBackupService {
     AppwriteConfig.employeesCollectionId,
     AppwriteConfig.salaryCyclesCollectionId,
     AppwriteConfig.salaryPaymentsCollectionId,
-    AppwriteConfig.hotelDayLedgerCollectionId,
+    // ❌ hotelDayLedgerCollectionId — جدول محلي فقط، لا يتم مزامنته
     AppwriteConfig.shiftNotesCollectionId,
     AppwriteConfig.priceAdjustmentsCollectionId,
     AppwriteConfig.bookingPriceAdjustmentsCollectionId,
