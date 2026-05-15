@@ -373,6 +373,11 @@ class GeminiService {
     final today = now.toIso8601String().split('T')[0];
 
     try {
+      s.writeln('═══ سياق الفندق (موسع) ═══');
+      s.writeln('تاريخ/وقت البناء: ${now.toIso8601String()}');
+      s.writeln('ملاحظة: البيانات أدناه حية من قاعدة البيانات، وقد تحتوي قوائم طويلة حسب حجم الفندق.');
+      s.writeln();
+
       // ═══════════════════════════════════════════════════════════
       //  1. بيانات الغرف الشاملة
       // ═══════════════════════════════════════════════════════════
@@ -509,9 +514,18 @@ class GeminiService {
         final totalDebt = debts.fold<double>(0, (s, d) => s + d.remainingAmount);
         s.writeln();
         s.writeln('═══ الديون غير المسددة (${debts.length}) | إجمالي: ${totalDebt.toStringAsFixed(0)} ريال ═══');
-        for (final d in debts.take(15)) {
+        for (final d in debts.take(50)) {
           final pledgeInfo = d.pledge != null && d.pledge!.isNotEmpty ? ' | رهن: ${d.pledge}' : '';
           s.writeln('  ${d.guestName}: متبقي ${d.remainingAmount.toStringAsFixed(0)} من ${d.totalAmount.toStringAsFixed(0)} ريال | سبب: ${d.debtReason}$pledgeInfo');
+        }
+
+        final topDebts = [...debts]
+          ..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
+        s.writeln();
+        s.writeln('أكبر الديون (أول 10):');
+        for (final d in topDebts.take(10)) {
+          final pledgeInfo = d.pledge != null && d.pledge!.isNotEmpty ? ' | رهن: ${d.pledge}' : '';
+          s.writeln('  ${d.guestName}: ${d.remainingAmount.toStringAsFixed(0)} ريال | سبب: ${d.debtReason}$pledgeInfo');
         }
       }
 
@@ -572,6 +586,27 @@ class GeminiService {
         s.writeln('توزيع المصروفات:');
         for (final entry in expensesByType.entries.toList()..sort((a, b) => b.value.compareTo(a.value))) {
           s.writeln('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+        }
+      }
+
+      if (todayPayments.isNotEmpty) {
+        final sorted = [...todayPayments]..sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
+        s.writeln();
+        s.writeln('تفاصيل المدفوعات اليوم (آخر ${sorted.length.clamp(0, 30)}):');
+        for (final p in sorted.take(30)) {
+          final room = p.roomNumber ?? '-';
+          final note = (p.notes != null && p.notes!.trim().isNotEmpty) ? ' | ملاحظة: ${p.notes}' : '';
+          s.writeln('  $room | ${p.amount.toStringAsFixed(0)} ريال | ${p.paymentMethod} | ${p.revenueType} | ${p.paymentDate}$note');
+        }
+      }
+
+      if (todayExpenses.isNotEmpty) {
+        final sorted = [...todayExpenses]..sort((a, b) => b.date.compareTo(a.date));
+        s.writeln();
+        s.writeln('تفاصيل المصروفات اليوم (آخر ${sorted.length.clamp(0, 30)}):');
+        for (final e in sorted.take(30)) {
+          final desc = (e.description != null && e.description!.trim().isNotEmpty) ? ' | ${e.description}' : '';
+          s.writeln('  ${e.expenseType}: ${e.amount.toStringAsFixed(0)} ريال | ${e.date}$desc');
         }
       }
 
@@ -657,8 +692,8 @@ class GeminiService {
           .get();
       if (recentAdjustments.isNotEmpty) {
         s.writeln();
-        s.writeln('═══ تعديلات أسعار حديثة (آخر ${recentAdjustments.length.clamp(0, 5)}) ═══');
-        for (final a in recentAdjustments.take(5)) {
+        s.writeln('═══ تعديلات أسعار حديثة (آخر ${recentAdjustments.length.clamp(0, 15)}) ═══');
+        for (final a in recentAdjustments.take(15)) {
           s.writeln('  ${a.targetType} | ${a.adjustmentType}: ${a.previousValue} -> ${a.newValue} | بواسطة: ${a.appliedBy} | ${a.reason ?? "بدون سبب"}');
         }
       }
@@ -866,6 +901,14 @@ class GeminiService {
       final cashOut = todayCashTransactions.where((t) => t.transactionType == 'expense')
           .fold<double>(0, (s, t) => s + t.amount);
       s.writeln('حركة الصندوق اليوم: دخول ${cashIn.toStringAsFixed(0)} | خروج ${cashOut.toStringAsFixed(0)} | صافي ${(cashIn - cashOut).toStringAsFixed(0)} ريال');
+      if (todayCashTransactions.isNotEmpty) {
+        final sorted = [...todayCashTransactions]..sort((a, b) => b.transactionTime.compareTo(a.transactionTime));
+        s.writeln('تفاصيل حركة الصندوق اليوم (آخر ${sorted.length.clamp(0, 30)}):');
+        for (final t in sorted.take(30)) {
+          final desc = (t.description != null && t.description!.trim().isNotEmpty) ? ' | ${t.description}' : '';
+          s.writeln('  ${t.transactionType}: ${t.amount.toStringAsFixed(0)} ريال | ${t.transactionTime}$desc');
+        }
+      }
 
       // المدفوعات المعلقة (غير مُطابقة)
       final pendingPayments = todayPayments.where((p) => p.isPendingBalance == true).toList();
@@ -956,6 +999,75 @@ class GeminiService {
       s.writeln('حالة ترحيل البيانات للسيرفر:');
       s.writeln('  بانتظار الرفع: ${pendingOutbox.length}');
       s.writeln('  فشل الرفع: ${failedOutbox.length}');
+      if (pendingOutbox.isNotEmpty) {
+        final sorted = [...pendingOutbox]..sort((a, b) => b.clientTs.compareTo(a.clientTs));
+        s.writeln('تفاصيل عناصر بانتظار الرفع (آخر ${sorted.length.clamp(0, 20)}):');
+        for (final o in sorted.take(20)) {
+          final err = (o.lastError != null && o.lastError!.trim().isNotEmpty) ? ' | آخر خطأ: ${o.lastError}' : '';
+          s.writeln('  ${o.entity}/${o.op} | uuid: ${o.localUuid} | محاولات: ${o.attempts} | مصدر: ${o.source} | الحالة: ${o.processingStatus}$err');
+        }
+      }
+      if (failedOutbox.isNotEmpty) {
+        final sorted = [...failedOutbox]..sort((a, b) => b.clientTs.compareTo(a.clientTs));
+        s.writeln('تفاصيل عناصر فشل الرفع (آخر ${sorted.length.clamp(0, 20)}):');
+        for (final o in sorted.take(20)) {
+          final err = (o.lastError != null && o.lastError!.trim().isNotEmpty) ? ' | آخر خطأ: ${o.lastError}' : '';
+          s.writeln('  ${o.entity}/${o.op} | uuid: ${o.localUuid} | محاولات: ${o.attempts} | مصدر: ${o.source} | الحالة: ${o.processingStatus}$err');
+        }
+      }
+
+      final syncStateRow = await (db.select(db.syncState)
+            ..where((s) => s.id.equals(1)))
+          .getSingleOrNull();
+      if (syncStateRow != null) {
+        s.writeln();
+        s.writeln('حالة المزامنة المحلية (SyncState):');
+        s.writeln('  آخر Pull: ${syncStateRow.lastPullTs} | آخر Push: ${syncStateRow.lastPushTs} | آخر ServerTs: ${syncStateRow.lastServerTs} | هل يجري مزامنة: ${syncStateRow.isSyncing}');
+      }
+
+      final syncQueuePending = await (db.select(db.syncQueue)
+            ..where((q) => q.status.equals('pending')))
+          .get();
+      if (syncQueuePending.isNotEmpty) {
+        s.writeln();
+        s.writeln('طابور المزامنة (pending): ${syncQueuePending.length}');
+        for (final q in syncQueuePending.take(20)) {
+          s.writeln('  ${q.targetTable}/${q.operation} | uuid: ${q.uuid} | ${q.createdAt} | جهاز: ${q.deviceId}');
+        }
+      }
+
+      final recentSyncLogs = await (db.select(db.syncLog)
+            ..orderBy([(l) => OrderingTerm.desc(l.createdAt)]))
+          .get();
+      if (recentSyncLogs.isNotEmpty) {
+        s.writeln();
+        s.writeln('سجل المزامنة (آخر ${recentSyncLogs.length.clamp(0, 10)}):');
+        for (final l in recentSyncLogs.take(10)) {
+          s.writeln('  ${l.direction} | جهاز: ${l.deviceId} | حالة: ${l.status} | ${l.createdAt} -> ${l.completedAt ?? "-"} | checksum: ${l.checksumMatched}');
+        }
+      }
+
+      final recentConflicts = await (db.select(db.syncConflicts)
+            ..orderBy([(c) => OrderingTerm.desc(c.createdAt)]))
+          .get();
+      if (recentConflicts.isNotEmpty) {
+        s.writeln();
+        s.writeln('تعارضات المزامنة (آخر ${recentConflicts.length.clamp(0, 10)}):');
+        for (final c in recentConflicts.take(10)) {
+          s.writeln('  ${c.targetTable} | uuid: ${c.uuid} | حل: ${c.resolution} | ${c.createdAt}');
+        }
+      }
+
+      final restoreFixes = await (db.select(db.restoreFixLog)
+            ..orderBy([(r) => OrderingTerm.desc(r.executedAt)]))
+          .get();
+      if (restoreFixes.isNotEmpty) {
+        s.writeln();
+        s.writeln('سجل إصلاحات الاستعادة (آخر ${restoreFixes.length.clamp(0, 10)}):');
+        for (final r in restoreFixes.take(10)) {
+          s.writeln('  ${r.fixType} | ${r.targetTable}#${r.targetRecordId} | ${r.fieldName}: ${r.oldValue ?? "-"} -> ${r.newValue ?? "-"} | سبب: ${r.reason}');
+        }
+      }
 
       // BookingNights — ليالي مرحّلة
       final recentNights = await (db.select(db.bookingNights)
@@ -963,8 +1075,8 @@ class GeminiService {
           .get();
       if (recentNights.isNotEmpty) {
         s.writeln();
-        s.writeln('آخر الليالي المُرحّلة (أول 3):');
-        for (final n in recentNights.take(3)) {
+        s.writeln('آخر الليالي المُرحّلة (أول ${recentNights.length.clamp(0, 10)}):');
+        for (final n in recentNights.take(10)) {
           s.writeln('  ${n.hotelDayKey}: غرفة محجوزة | سعر ${n.finalRate.toStringAsFixed(0)} ريال');
         }
       }
@@ -1737,6 +1849,7 @@ class GeminiService {
 - كن مختصراً ومفيداً — أجب بتركيز عالٍ دون إطالة
 - استخدم البيانات الحالية المقدمة لك في كل طلب — لا تتخيل أرقاماً
 - عند تقديم نصائح، استخدم الأرقام الفعلية من البيانات
+- عند ذكر أرقام أو قوائم، اذكر اسم القسم الذي استندت عليه (مثال: "ملخص اليوم" أو "الحجوزات النشطة")
 - إذا طلب المستخدم تعديل بيانات، أجب بالشرح المختصر ثم أضف JSON للأمر في نهاية رسالتك
 - لا تنفذ أوامر خطيرة (تعديل/حذف) بدون تأكيد المستخدم
 - أوامر التقارير تُنفذ فوراً بدون تأكيد
