@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 
-import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/daos/expenses_dao.dart';

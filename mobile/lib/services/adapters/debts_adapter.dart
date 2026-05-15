@@ -323,8 +323,11 @@ int? _asInt(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-double? _asDouble(Map<String, dynamic> json, String key, Source src) {
-  final v = _raw(json, key, src);
+double? _asDouble(Map<String, dynamic> json, String key, Source src, {String? altKey}) {
+  var v = _raw(json, key, src);
+  if (v == null && altKey != null) {
+    v = _raw(json, altKey, src);
+  }
   if (v is double) {
     return v;
   }
