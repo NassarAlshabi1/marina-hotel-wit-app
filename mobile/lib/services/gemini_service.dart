@@ -408,14 +408,101 @@ class GeminiService {
         s.writeln('  ${entry.key}: ${entry.value.length} غرفة | متوسط ${avg.toStringAsFixed(0)} | أقل ${min.toStringAsFixed(0)} | أعلى ${max.toStringAsFixed(0)} ريال');
       }
 
+      if (allRooms.isNotEmpty) {
+        final typeStatusStats = <String, Map<String, int>>{};
+        for (final r in allRooms) {
+          final row = typeStatusStats.putIfAbsent(r.type, () => <String, int>{
+                'available': 0,
+                'occupied': 0,
+                'maintenance': 0,
+                'cleaning': 0,
+                'other': 0,
+              });
+          final status = r.status;
+          if (row.containsKey(status)) {
+            row[status] = (row[status] ?? 0) + 1;
+          } else {
+            row['other'] = (row['other'] ?? 0) + 1;
+          }
+        }
+
+        s.writeln();
+        s.writeln('تفصيل الإشغال حسب النوع:');
+        for (final entry in typeStatusStats.entries.toList()
+          ..sort((a, b) => a.key.compareTo(b.key))) {
+          final m = entry.value;
+          final t = (m.values.fold<int>(0, (s, v) => s + v));
+          final occ = (m['occupied'] ?? 0);
+          final occRate = t > 0 ? (occ / t * 100) : 0.0;
+          s.writeln(
+              '  ${entry.key}: إجمالي $t | إشغال $occ (${occRate.toStringAsFixed(0)}%) | شاغر ${m['available'] ?? 0} | تنظيف ${m['cleaning'] ?? 0} | صيانة ${m['maintenance'] ?? 0}');
+        }
+
+        final prices = allRooms.map((r) => r.price).toList()..sort();
+        double percentile(double p) {
+          if (prices.isEmpty) return 0;
+          final idx = p * (prices.length - 1);
+          final lo = idx.floor();
+          final hi = idx.ceil();
+          if (lo == hi) return prices[lo];
+          final frac = idx - lo;
+          return prices[lo] + (prices[hi] - prices[lo]) * frac;
+        }
+
+        final minPrice = prices.first;
+        final maxPrice = prices.last;
+        final p10 = percentile(0.10);
+        final p25 = percentile(0.25);
+        final p50 = percentile(0.50);
+        final p75 = percentile(0.75);
+        final p90 = percentile(0.90);
+        s.writeln();
+        s.writeln(
+            'إحصائيات الأسعار (لكل الغرف): أقل ${minPrice.toStringAsFixed(0)} | 10% ${p10.toStringAsFixed(0)} | 25% ${p25.toStringAsFixed(0)} | متوسط/وسيط ${p50.toStringAsFixed(0)} | 75% ${p75.toStringAsFixed(0)} | 90% ${p90.toStringAsFixed(0)} | أعلى ${maxPrice.toStringAsFixed(0)} ريال');
+      }
+
       // الغرف الشاغرة مرتبة بالسعر
       final availableRooms = allRooms.where((r) => r.status == 'available').toList()
         ..sort((a, b) => a.price.compareTo(b.price));
       if (availableRooms.isNotEmpty) {
         s.writeln();
-        s.writeln('الغرف الشاغرة (${availableRooms.length}):');
-        for (final r in availableRooms) {
+        final limit = availableRooms.length < 120 ? availableRooms.length : 120;
+        s.writeln('الغرف الشاغرة (${availableRooms.length}) — عرض أول $limit:');
+        for (final r in availableRooms.take(limit)) {
           s.writeln('  ${r.roomNumber}: ${r.type} | ${r.price.toStringAsFixed(0)} ريال');
+        }
+        if (availableRooms.length > limit) {
+          s.writeln('  ... (${availableRooms.length - limit} غرفة أخرى)');
+        }
+      }
+
+      final maintenanceRooms =
+          allRooms.where((r) => r.status == 'maintenance').toList()
+            ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+      if (maintenanceRooms.isNotEmpty) {
+        final limit = maintenanceRooms.length < 80 ? maintenanceRooms.length : 80;
+        s.writeln();
+        s.writeln('غرف تحت الصيانة (${maintenanceRooms.length}) — عرض أول $limit:');
+        for (final r in maintenanceRooms.take(limit)) {
+          s.writeln('  ${r.roomNumber}: ${r.type} | ${r.price.toStringAsFixed(0)} ريال');
+        }
+        if (maintenanceRooms.length > limit) {
+          s.writeln('  ... (${maintenanceRooms.length - limit} غرفة أخرى)');
+        }
+      }
+
+      final cleaningRooms =
+          allRooms.where((r) => r.status == 'cleaning').toList()
+            ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+      if (cleaningRooms.isNotEmpty) {
+        final limit = cleaningRooms.length < 80 ? cleaningRooms.length : 80;
+        s.writeln();
+        s.writeln('غرف بحاجة تنظيف (${cleaningRooms.length}) — عرض أول $limit:');
+        for (final r in cleaningRooms.take(limit)) {
+          s.writeln('  ${r.roomNumber}: ${r.type} | ${r.price.toStringAsFixed(0)} ريال');
+        }
+        if (cleaningRooms.length > limit) {
+          s.writeln('  ... (${cleaningRooms.length - limit} غرفة أخرى)');
         }
       }
 
@@ -431,7 +518,8 @@ class GeminiService {
       if (activeBookings.isNotEmpty) {
         s.writeln();
         s.writeln('═══ الحجوزات النشطة (${activeBookings.length}) ═══');
-        for (final b in activeBookings) {
+        final limit = activeBookings.length < 200 ? activeBookings.length : 200;
+        for (final b in activeBookings.take(limit)) {
           final totalPaid = b.totalPaidCached;
           final totalDue = b.totalDueCached;
           final remaining = b.remainingBalanceCached;
@@ -459,6 +547,9 @@ class GeminiService {
             s.writeln('    خصم: ${discount.toStringAsFixed(0)} ريال ($discountLabel)');
           }
         }
+        if (activeBookings.length > limit) {
+          s.writeln('... (تم عرض أول $limit من ${activeBookings.length})');
+        }
 
         // إحصائيات الضيوف الحاليين
         final nationalities = <String, int>{};
@@ -474,6 +565,36 @@ class GeminiService {
         final notPaid = activeBookings.where((b) => b.totalPaidCached == 0).length;
         final overdueCount = activeBookings.where((b) => b.isOverdue).length;
         s.writeln('حالة الدفع: مكتمل $fullyPaid | جزئي $partialPaid | لم يدفع $notPaid | متأخر $overdueCount');
+
+        final overdueBookings = activeBookings
+            .where((b) => b.isOverdue)
+            .toList()
+          ..sort((a, b) => b.remainingBalanceCached.compareTo(a.remainingBalanceCached));
+        if (overdueBookings.isNotEmpty) {
+          final overdueLimit =
+              overdueBookings.length < 50 ? overdueBookings.length : 50;
+          s.writeln();
+          s.writeln('الحجوزات المتأخرة في الدفع (${overdueBookings.length}) — عرض أول $overdueLimit:');
+          for (final b in overdueBookings.take(overdueLimit)) {
+            s.writeln(
+                '  [${b.roomNumber}] ${b.guestName} | متبقي ${b.remainingBalanceCached.toStringAsFixed(0)} ريال | دخول ${b.checkinDate.split('T').first}');
+          }
+        }
+
+        final remainingBookings = activeBookings
+            .where((b) => b.remainingBalanceCached > 0.5)
+            .toList()
+          ..sort((a, b) => b.remainingBalanceCached.compareTo(a.remainingBalanceCached));
+        if (remainingBookings.isNotEmpty) {
+          final remLimit =
+              remainingBookings.length < 50 ? remainingBookings.length : 50;
+          s.writeln();
+          s.writeln('أكبر المتبقيات على الحجوزات (${remainingBookings.length}) — عرض أول $remLimit:');
+          for (final b in remainingBookings.take(remLimit)) {
+            s.writeln(
+                '  [${b.roomNumber}] ${b.guestName} | متبقي ${b.remainingBalanceCached.toStringAsFixed(0)} ريال | مستحق ${b.totalDueCached.toStringAsFixed(0)} | مدفوع ${b.totalPaidCached.toStringAsFixed(0)}');
+          }
+        }
       }
 
       // ═══════════════════════════════════════════════════════════
@@ -592,8 +713,9 @@ class GeminiService {
       if (todayPayments.isNotEmpty) {
         final sorted = [...todayPayments]..sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
         s.writeln();
-        s.writeln('تفاصيل المدفوعات اليوم (آخر ${sorted.length.clamp(0, 30)}):');
-        for (final p in sorted.take(30)) {
+        final limit = sorted.length < 60 ? sorted.length : 60;
+        s.writeln('تفاصيل المدفوعات اليوم (آخر $limit من ${sorted.length}):');
+        for (final p in sorted.take(limit)) {
           final room = p.roomNumber ?? '-';
           final note = (p.notes != null && p.notes!.trim().isNotEmpty) ? ' | ملاحظة: ${p.notes}' : '';
           s.writeln('  $room | ${p.amount.toStringAsFixed(0)} ريال | ${p.paymentMethod} | ${p.revenueType} | ${p.paymentDate}$note');
@@ -603,8 +725,9 @@ class GeminiService {
       if (todayExpenses.isNotEmpty) {
         final sorted = [...todayExpenses]..sort((a, b) => b.date.compareTo(a.date));
         s.writeln();
-        s.writeln('تفاصيل المصروفات اليوم (آخر ${sorted.length.clamp(0, 30)}):');
-        for (final e in sorted.take(30)) {
+        final limit = sorted.length < 60 ? sorted.length : 60;
+        s.writeln('تفاصيل المصروفات اليوم (آخر $limit من ${sorted.length}):');
+        for (final e in sorted.take(limit)) {
           final desc = (e.description != null && e.description!.trim().isNotEmpty) ? ' | ${e.description}' : '';
           s.writeln('  ${e.expenseType}: ${e.amount.toStringAsFixed(0)} ريال | ${e.date}$desc');
         }
@@ -635,8 +758,8 @@ class GeminiService {
       //  7. الإيرادات التاريخية — آخر 7 أيام (اتجاه الإيرادات)
       // ═══════════════════════════════════════════════════════════
       s.writeln();
-      s.writeln('═══ اتجاه الإيرادات (آخر 7 أيام) ═══');
-      for (var i = 6; i >= 0; i--) {
+      s.writeln('═══ اتجاه الإيرادات (آخر 14 يوم) ═══');
+      for (var i = 13; i >= 0; i--) {
         final pastDate = now.subtract(Duration(days: i)).toIso8601String().split('T')[0];
         final dayPayments = await (db.select(db.payments)
               ..where((p) => p.paymentDate.like('$pastDate%'))
@@ -662,9 +785,36 @@ class GeminiService {
           .get();
       if (ledgerEntries.isNotEmpty) {
         s.writeln();
-        s.writeln('═══ دفتر اليوم الفندقي (آخر ${ledgerEntries.length.clamp(0, 5)} أيام) ═══');
-        for (final l in ledgerEntries.take(5)) {
+        final limit = ledgerEntries.length < 10 ? ledgerEntries.length : 10;
+        s.writeln('═══ دفتر اليوم الفندقي (آخر $limit) ═══');
+        for (final l in ledgerEntries.take(limit)) {
           s.writeln('  ${l.hotelDayKey}: دخل ${l.totalIncome.toStringAsFixed(0)} | مصروفات ${l.totalExpenses.toStringAsFixed(0)} | إشغال ${l.occupancyRate.toStringAsFixed(0)}% | حجوزات ${l.bookingsProcessed} | مدفوعات ${l.paymentsProcessed}');
+        }
+
+        final last30Limit = ledgerEntries.length < 30 ? ledgerEntries.length : 30;
+        final last30 = ledgerEntries.take(last30Limit).toList();
+        final totalIncome30 = last30.fold<double>(0, (s, e) => s + e.totalIncome);
+        final totalExp30 = last30.fold<double>(0, (s, e) => s + e.totalExpenses);
+        final avgIncome30 = last30.isNotEmpty ? totalIncome30 / last30.length : 0.0;
+        final avgExp30 = last30.isNotEmpty ? totalExp30 / last30.length : 0.0;
+        final avgOcc30 = last30.isNotEmpty
+            ? last30.fold<double>(0, (s, e) => s + e.occupancyRate) / last30.length
+            : 0.0;
+        final bestIncomeDay = [...last30]
+          ..sort((a, b) => b.totalIncome.compareTo(a.totalIncome));
+        final worstIncomeDay = [...last30]
+          ..sort((a, b) => a.totalIncome.compareTo(b.totalIncome));
+        s.writeln();
+        s.writeln('ملخص دفتر اليوم (آخر $last30Limit يوم):');
+        s.writeln('  إجمالي دخل: ${totalIncome30.toStringAsFixed(0)} | إجمالي مصروفات: ${totalExp30.toStringAsFixed(0)} | صافي: ${(totalIncome30 - totalExp30).toStringAsFixed(0)} ريال');
+        s.writeln('  متوسط يومي: دخل ${avgIncome30.toStringAsFixed(0)} | مصروفات ${avgExp30.toStringAsFixed(0)} | إشغال ${avgOcc30.toStringAsFixed(0)}%');
+        if (bestIncomeDay.isNotEmpty) {
+          final d = bestIncomeDay.first;
+          s.writeln('  أعلى دخل: ${d.hotelDayKey} = ${d.totalIncome.toStringAsFixed(0)} ريال');
+        }
+        if (worstIncomeDay.isNotEmpty) {
+          final d = worstIncomeDay.first;
+          s.writeln('  أقل دخل: ${d.hotelDayKey} = ${d.totalIncome.toStringAsFixed(0)} ريال');
         }
       }
 
@@ -692,8 +842,9 @@ class GeminiService {
           .get();
       if (recentAdjustments.isNotEmpty) {
         s.writeln();
-        s.writeln('═══ تعديلات أسعار حديثة (آخر ${recentAdjustments.length.clamp(0, 15)}) ═══');
-        for (final a in recentAdjustments.take(15)) {
+        final limit = recentAdjustments.length < 30 ? recentAdjustments.length : 30;
+        s.writeln('═══ تعديلات أسعار حديثة (آخر $limit) ═══');
+        for (final a in recentAdjustments.take(limit)) {
           s.writeln('  ${a.targetType} | ${a.adjustmentType}: ${a.previousValue} -> ${a.newValue} | بواسطة: ${a.appliedBy} | ${a.reason ?? "بدون سبب"}');
         }
       }
@@ -903,8 +1054,9 @@ class GeminiService {
       s.writeln('حركة الصندوق اليوم: دخول ${cashIn.toStringAsFixed(0)} | خروج ${cashOut.toStringAsFixed(0)} | صافي ${(cashIn - cashOut).toStringAsFixed(0)} ريال');
       if (todayCashTransactions.isNotEmpty) {
         final sorted = [...todayCashTransactions]..sort((a, b) => b.transactionTime.compareTo(a.transactionTime));
-        s.writeln('تفاصيل حركة الصندوق اليوم (آخر ${sorted.length.clamp(0, 30)}):');
-        for (final t in sorted.take(30)) {
+        final limit = sorted.length < 60 ? sorted.length : 60;
+        s.writeln('تفاصيل حركة الصندوق اليوم (آخر $limit من ${sorted.length}):');
+        for (final t in sorted.take(limit)) {
           final desc = (t.description != null && t.description!.trim().isNotEmpty) ? ' | ${t.description}' : '';
           s.writeln('  ${t.transactionType}: ${t.amount.toStringAsFixed(0)} ريال | ${t.transactionTime}$desc');
         }
@@ -1001,16 +1153,18 @@ class GeminiService {
       s.writeln('  فشل الرفع: ${failedOutbox.length}');
       if (pendingOutbox.isNotEmpty) {
         final sorted = [...pendingOutbox]..sort((a, b) => b.clientTs.compareTo(a.clientTs));
-        s.writeln('تفاصيل عناصر بانتظار الرفع (آخر ${sorted.length.clamp(0, 20)}):');
-        for (final o in sorted.take(20)) {
+        final limit = sorted.length < 50 ? sorted.length : 50;
+        s.writeln('تفاصيل عناصر بانتظار الرفع (آخر $limit من ${sorted.length}):');
+        for (final o in sorted.take(limit)) {
           final err = (o.lastError != null && o.lastError!.trim().isNotEmpty) ? ' | آخر خطأ: ${o.lastError}' : '';
           s.writeln('  ${o.entity}/${o.op} | uuid: ${o.localUuid} | محاولات: ${o.attempts} | مصدر: ${o.source} | الحالة: ${o.processingStatus}$err');
         }
       }
       if (failedOutbox.isNotEmpty) {
         final sorted = [...failedOutbox]..sort((a, b) => b.clientTs.compareTo(a.clientTs));
-        s.writeln('تفاصيل عناصر فشل الرفع (آخر ${sorted.length.clamp(0, 20)}):');
-        for (final o in sorted.take(20)) {
+        final limit = sorted.length < 50 ? sorted.length : 50;
+        s.writeln('تفاصيل عناصر فشل الرفع (آخر $limit من ${sorted.length}):');
+        for (final o in sorted.take(limit)) {
           final err = (o.lastError != null && o.lastError!.trim().isNotEmpty) ? ' | آخر خطأ: ${o.lastError}' : '';
           s.writeln('  ${o.entity}/${o.op} | uuid: ${o.localUuid} | محاولات: ${o.attempts} | مصدر: ${o.source} | الحالة: ${o.processingStatus}$err');
         }
@@ -1031,7 +1185,8 @@ class GeminiService {
       if (syncQueuePending.isNotEmpty) {
         s.writeln();
         s.writeln('طابور المزامنة (pending): ${syncQueuePending.length}');
-        for (final q in syncQueuePending.take(20)) {
+        final limit = syncQueuePending.length < 50 ? syncQueuePending.length : 50;
+        for (final q in syncQueuePending.take(limit)) {
           s.writeln('  ${q.targetTable}/${q.operation} | uuid: ${q.uuid} | ${q.createdAt} | جهاز: ${q.deviceId}');
         }
       }
@@ -1041,8 +1196,9 @@ class GeminiService {
           .get();
       if (recentSyncLogs.isNotEmpty) {
         s.writeln();
-        s.writeln('سجل المزامنة (آخر ${recentSyncLogs.length.clamp(0, 10)}):');
-        for (final l in recentSyncLogs.take(10)) {
+        final limit = recentSyncLogs.length < 20 ? recentSyncLogs.length : 20;
+        s.writeln('سجل المزامنة (آخر $limit):');
+        for (final l in recentSyncLogs.take(limit)) {
           s.writeln('  ${l.direction} | جهاز: ${l.deviceId} | حالة: ${l.status} | ${l.createdAt} -> ${l.completedAt ?? "-"} | checksum: ${l.checksumMatched}');
         }
       }
@@ -1052,8 +1208,9 @@ class GeminiService {
           .get();
       if (recentConflicts.isNotEmpty) {
         s.writeln();
-        s.writeln('تعارضات المزامنة (آخر ${recentConflicts.length.clamp(0, 10)}):');
-        for (final c in recentConflicts.take(10)) {
+        final limit = recentConflicts.length < 20 ? recentConflicts.length : 20;
+        s.writeln('تعارضات المزامنة (آخر $limit):');
+        for (final c in recentConflicts.take(limit)) {
           s.writeln('  ${c.targetTable} | uuid: ${c.uuid} | حل: ${c.resolution} | ${c.createdAt}');
         }
       }
@@ -1063,8 +1220,9 @@ class GeminiService {
           .get();
       if (restoreFixes.isNotEmpty) {
         s.writeln();
-        s.writeln('سجل إصلاحات الاستعادة (آخر ${restoreFixes.length.clamp(0, 10)}):');
-        for (final r in restoreFixes.take(10)) {
+        final limit = restoreFixes.length < 20 ? restoreFixes.length : 20;
+        s.writeln('سجل إصلاحات الاستعادة (آخر $limit):');
+        for (final r in restoreFixes.take(limit)) {
           s.writeln('  ${r.fixType} | ${r.targetTable}#${r.targetRecordId} | ${r.fieldName}: ${r.oldValue ?? "-"} -> ${r.newValue ?? "-"} | سبب: ${r.reason}');
         }
       }
@@ -1075,8 +1233,9 @@ class GeminiService {
           .get();
       if (recentNights.isNotEmpty) {
         s.writeln();
-        s.writeln('آخر الليالي المُرحّلة (أول ${recentNights.length.clamp(0, 10)}):');
-        for (final n in recentNights.take(10)) {
+        final limit = recentNights.length < 20 ? recentNights.length : 20;
+        s.writeln('آخر الليالي المُرحّلة (أول $limit):');
+        for (final n in recentNights.take(limit)) {
           s.writeln('  ${n.hotelDayKey}: غرفة محجوزة | سعر ${n.finalRate.toStringAsFixed(0)} ريال');
         }
       }
@@ -1850,6 +2009,7 @@ class GeminiService {
 - استخدم البيانات الحالية المقدمة لك في كل طلب — لا تتخيل أرقاماً
 - عند تقديم نصائح، استخدم الأرقام الفعلية من البيانات
 - عند ذكر أرقام أو قوائم، اذكر اسم القسم الذي استندت عليه (مثال: "ملخص اليوم" أو "الحجوزات النشطة")
+- اعرض النتائج بأسلوب مهني: ملخص تنفيذي (3–6 نقاط) ثم تفاصيل مرتبطة مباشرة بسؤال المستخدم ثم توصيات عملية قابلة للتنفيذ
 - إذا طلب المستخدم تعديل بيانات، أجب بالشرح المختصر ثم أضف JSON للأمر في نهاية رسالتك
 - لا تنفذ أوامر خطيرة (تعديل/حذف) بدون تأكيد المستخدم
 - أوامر التقارير تُنفذ فوراً بدون تأكيد
@@ -1878,7 +2038,7 @@ class GeminiService {
 - الديون: إجمالي وتفاصيل كل دين مع معلومات الرهن
 - الإيرادات والمصروفات: تفصيل حسب النوع وطريقة الدفع
 - المؤشرات المالية: نسبة الإشغال، نسبة التحصيل، المتوسطات
-- اتجاه الإيرادات: آخر 7 أيام لمقارنة الأداء
+- اتجاه الإيرادات: آخر 14 يوم لمقارنة الأداء
 - دفتر اليوم الفندقي: ملخص يومي شامل
 - ملاحظات الوردية: تنبيهات وملاحظات من الموظفين
 - تعديلات الأسعار: سجل التغييرات الأخيرة
@@ -1886,7 +2046,7 @@ class GeminiService {
 - اليوم الفندقي: قاعدة 14:00 وتوزيع الحجوزات حسب الأيام
 - الموظفين والرواتب: بيانات الموظفين ودورات الرواتب والمسحوبات
 - التسويات المالية: حركات الصندوق والمدفوعات المعلقة والملغاة
-- ترحيل البيانات: دفتر اليوم وAutoFix والمزامنة مع السيرفر
+- ترحيل البيانات: دفتر اليوم وAutoFix والمزامنة مع السيرفر وسجلات المزامنة والتعارضات
 
 ═══ صيغ JSON للأوامر المدعومة ═══
 
