@@ -2091,7 +2091,15 @@ class GeminiService {
 
 12. طلب تقرير (يُنفذ فوراً بدون تأكيد):
 {"action": "report", "report_type": "daily"}
-- report_type: daily, revenue, occupancy, debts, expenses, room_prices
+- report_type: daily, revenue, expenses, payroll, finance, occupancy, debts, room_prices
+- date_from/date_to اختياريان بصيغة YYYY-MM-DD
+- إذا أُرسل date_from فقط يتم اعتباره نفس date_to
+- يمكن استخدام date_from بقيم: today, day, this_week, last_week, this_month, last_month, week, month
+
+أمثلة:
+{"action": "report", "report_type": "finance", "date_from": "2026-05-01", "date_to": "2026-05-31"}
+{"action": "report", "report_type": "expenses", "date_from": "2026-05-10", "date_to": "2026-05-10"}
+{"action": "report", "report_type": "payroll", "date_from": "today"}
 
 ═══ مرجع البيانات ═══
 - حالات الغرف: available (شاغرة), occupied (محجوزة), cleaning (تنظيف), maintenance (صيانة), reserved (محجوزة مسبقاً)
@@ -2264,19 +2272,81 @@ class GeminiService {
     String? dateTo,
   ) async {
     try {
+      final today = DateTime.now().toIso8601String().split('T')[0];
+
+      String? resolvedFrom = dateFrom;
+      String? resolvedTo = dateTo;
+
+      if (resolvedFrom != null && resolvedTo == null) {
+        resolvedTo = resolvedFrom;
+      }
+
+      if (resolvedFrom == 'today' || resolvedFrom == 'day') {
+        resolvedFrom = today;
+        resolvedTo = today;
+      }
+
+      if (resolvedFrom == 'week' || resolvedFrom == 'this_week') {
+        final now = DateTime.now();
+        final start = now.subtract(Duration(days: now.weekday - 1));
+        resolvedFrom =
+            '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+        resolvedTo = today;
+      }
+
+      if (resolvedFrom == 'last_week') {
+        final now = DateTime.now();
+        final startThisWeek = now.subtract(Duration(days: now.weekday - 1));
+        final startLastWeek = startThisWeek.subtract(const Duration(days: 7));
+        final endLastWeek = startThisWeek.subtract(const Duration(days: 1));
+        resolvedFrom =
+            '${startLastWeek.year}-${startLastWeek.month.toString().padLeft(2, '0')}-${startLastWeek.day.toString().padLeft(2, '0')}';
+        resolvedTo =
+            '${endLastWeek.year}-${endLastWeek.month.toString().padLeft(2, '0')}-${endLastWeek.day.toString().padLeft(2, '0')}';
+      }
+
+      if (resolvedFrom == 'month' || resolvedFrom == 'this_month') {
+        final now = DateTime.now();
+        resolvedFrom =
+            '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+        resolvedTo = today;
+      }
+
+      if (resolvedFrom == 'last_month') {
+        final now = DateTime.now();
+        final firstThisMonth = DateTime(now.year, now.month, 1);
+        final lastMonthEnd = firstThisMonth.subtract(const Duration(days: 1));
+        final lastMonthStart = DateTime(lastMonthEnd.year, lastMonthEnd.month, 1);
+        resolvedFrom =
+            '${lastMonthStart.year}-${lastMonthStart.month.toString().padLeft(2, '0')}-${lastMonthStart.day.toString().padLeft(2, '0')}';
+        resolvedTo =
+            '${lastMonthEnd.year}-${lastMonthEnd.month.toString().padLeft(2, '0')}-${lastMonthEnd.day.toString().padLeft(2, '0')}';
+      }
+
+      if (resolvedFrom == null && resolvedTo == null) {
+        final now = DateTime.now();
+        resolvedFrom =
+            '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+        resolvedTo = today;
+      }
+
       switch (reportType) {
         case 'daily':
           return await _generateDailyReport(db);
         case 'revenue':
-          return await _generateRevenueReport(db, dateFrom, dateTo);
+          return await _generateRevenueReport(db, resolvedFrom, resolvedTo);
         case 'occupancy':
           return await _generateOccupancyReport(db);
         case 'debts':
           return await _generateDebtsReport(db);
         case 'expenses':
-          return await _generateExpensesReport(db, dateFrom, dateTo);
+          return await _generateExpensesReport(db, resolvedFrom, resolvedTo);
         case 'room_prices':
           return await _generateRoomPricesReport(db);
+        case 'finance':
+          return await _generateFinanceReport(db, resolvedFrom, resolvedTo);
+        case 'payroll':
+          return await _generatePayrollReport(db, resolvedFrom, resolvedTo);
         default:
           return 'نوع التقرير غير معروف: $reportType';
       }
@@ -2292,17 +2362,26 @@ class GeminiService {
 
     // الإيرادات
     final todayPayments = await (db.select(db.payments)
-          ..where((p) => p.paymentDate.equals(today))
+          ..where((p) => p.paymentDate.like('$today%'))
           ..where((p) => p.isVoided.equals(false)))
         .get();
     final totalIncome = todayPayments.fold<double>(0, (s, p) => s + p.amount);
 
     // المصروفات
     final todayExpenses = await (db.select(db.expenses)
-          ..where((e) => e.date.equals(today)))
+          ..where((e) => e.date.like('$today%')))
         .get();
     final totalExpenses =
         todayExpenses.fold<double>(0, (s, e) => s + e.amount);
+
+    final payrollPayments = await (db.select(db.salaryPayments)
+          ..where((p) => p.paymentDateIso.like('$today%')))
+        .get();
+    final payrollWithdrawals = await (db.select(db.salaryWithdrawals)
+          ..where((w) => w.withdrawDate.like('$today%')))
+        .get();
+    final totalPayroll = payrollPayments.fold<int>(0, (s, p) => s + p.amount) +
+        payrollWithdrawals.fold<double>(0, (s, w) => s + w.amount).round();
 
     // الغرف
     final allRooms = await db.select(db.rooms).get();
@@ -2318,8 +2397,11 @@ class GeminiService {
         '💰 الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${todayPayments.length} دفعة)',);
     lines.add(
         '📉 المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${todayExpenses.length} مصروف)',);
+    lines.add('👥 الرواتب/السلف: ${totalPayroll.toStringAsFixed(0)} ريال',);
     lines.add(
         '📊 صافي الربح: ${(totalIncome - totalExpenses).toStringAsFixed(0)} ريال',);
+    lines.add(
+        '📌 صافي بعد الرواتب: ${(totalIncome - totalExpenses - totalPayroll).toStringAsFixed(0)} ريال',);
     lines.add('');
     lines.add(
         '🏠 إجمالي الغرف: $total | شاغرة: $available | مشغولة: $occupied',);
@@ -2327,17 +2409,27 @@ class GeminiService {
 
     // حجوزات جديدة اليوم
     final todayBookings = await (db.select(db.bookings)
-          ..where((b) => b.checkinDate.equals(today))
+          ..where((b) => b.checkinDate.like('$today%'))
           ..where((b) => b.deletedAt.isNull()))
         .get();
     lines.add('📋 حجوزات جديدة اليوم: ${todayBookings.length}');
 
     // خروج اليوم
     final todayCheckouts = await (db.select(db.bookings)
-          ..where((b) => b.actualCheckout.equals(today))
+          ..where((b) => b.actualCheckout.like('$today%'))
           ..where((b) => b.deletedAt.isNull()))
         .get();
     lines.add('🚪 تسجيلات خروج اليوم: ${todayCheckouts.length}');
+
+    final employees = await (db.select(db.employees)
+          ..where((e) => e.deletedAt.isNull()))
+        .get();
+    if (employees.isNotEmpty) {
+      final activeEmp =
+          employees.where((e) => StatusUtils.isEmployeeActive(e.status)).length;
+      final inactiveEmp = employees.length - activeEmp;
+      lines.add('👤 الموظفون: إجمالي ${employees.length} | نشط $activeEmp | غير نشط $inactiveEmp');
+    }
 
     return lines.join('\n');
   }
@@ -2348,13 +2440,14 @@ class GeminiService {
     final dateFrom =
         from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
     final dateTo = to ?? now.toIso8601String().split('T')[0];
+    final dateToEnd = '${dateTo}T23:59:59.999';
 
     final lines =
         <String>['💰 تقرير الإيرادات: $dateFrom إلى $dateTo', ''];
 
     final payments = await (db.select(db.payments)
           ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
-          ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateTo))
+          ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
           ..where((p) => p.isVoided.equals(false)))
         .get();
 
@@ -2386,6 +2479,229 @@ class GeminiService {
     for (final entry in byType.entries) {
       lines.add('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
     }
+
+    return lines.join('\n');
+  }
+
+  Future<String> _generatePayrollReport(
+    AppDatabase db,
+    String? from,
+    String? to,
+  ) async {
+    final now = DateTime.now();
+    final dateFrom =
+        from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+    final dateTo = to ?? now.toIso8601String().split('T')[0];
+    final dateToEnd = '${dateTo}T23:59:59.999';
+
+    final lines = <String>[
+      '👥 تقرير الرواتب والموظفين: $dateFrom إلى $dateTo',
+      '',
+    ];
+
+    final employees = await (db.select(db.employees)
+          ..where((e) => e.deletedAt.isNull()))
+        .get();
+    if (employees.isNotEmpty) {
+      final activeEmp =
+          employees.where((e) => StatusUtils.isEmployeeActive(e.status)).length;
+      final inactiveEmp = employees.length - activeEmp;
+      final totalBaseSalaries = employees
+          .where((e) => StatusUtils.isEmployeeActive(e.status))
+          .fold<double>(0, (s, e) => s + e.basicSalary);
+      lines.add('👤 الموظفون: إجمالي ${employees.length} | نشط $activeEmp | غير نشط $inactiveEmp');
+      lines.add(
+          '💼 إجمالي الرواتب الأساسية (للنشطين): ${totalBaseSalaries.toStringAsFixed(0)} ريال',);
+    } else {
+      lines.add('لا يوجد موظفون مسجلون.');
+    }
+
+    lines.add('');
+
+    final salaryPayments = await (db.select(db.salaryPayments)
+          ..where((p) => p.paymentDateIso.isBiggerOrEqualValue(dateFrom))
+          ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd)))
+        .get();
+    final withdrawals = await (db.select(db.salaryWithdrawals)
+          ..where((w) => w.withdrawDate.isBiggerOrEqualValue(dateFrom))
+          ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd)))
+        .get();
+
+    final totalSalaryPayments =
+        salaryPayments.fold<int>(0, (s, p) => s + p.amount);
+    final totalWithdrawals =
+        withdrawals.fold<double>(0, (s, w) => s + w.amount).round();
+
+    lines.add(
+        '💸 مدفوعات رواتب خلال الفترة: ${totalSalaryPayments.toStringAsFixed(0)} ريال (${salaryPayments.length})',);
+    lines.add(
+        '💳 سلف/مسحوبات خلال الفترة: ${totalWithdrawals.toStringAsFixed(0)} ريال (${withdrawals.length})',);
+    lines.add(
+        '📌 إجمالي المصروف على الموظفين: ${(totalSalaryPayments + totalWithdrawals).toStringAsFixed(0)} ريال',);
+
+    if (employees.isNotEmpty && (salaryPayments.isNotEmpty || withdrawals.isNotEmpty)) {
+      final byEmpPaid = <int, double>{};
+      final cycles = await db.select(db.salaryCycles).get();
+      final cycleById = {for (final c in cycles) c.id: c};
+
+      for (final p in salaryPayments) {
+        final cycle = cycleById[p.cycleId];
+        if (cycle != null) {
+          byEmpPaid[cycle.employeeId] =
+              (byEmpPaid[cycle.employeeId] ?? 0) + p.amount;
+        }
+      }
+      for (final w in withdrawals) {
+        byEmpPaid[w.employeeId] = (byEmpPaid[w.employeeId] ?? 0) + w.amount;
+      }
+
+      final empById = {for (final e in employees) e.id: e};
+      final sorted = byEmpPaid.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+
+      lines.add('');
+      lines.add('تفصيل حسب الموظف (الأعلى أولاً):');
+      final limit = sorted.length < 50 ? sorted.length : 50;
+      for (final entry in sorted.take(limit)) {
+        final emp = empById[entry.key];
+        final name = emp?.name ?? 'موظف غير معروف';
+        final pos = emp?.position ?? '';
+        lines.add(
+            '  $name ${pos.isNotEmpty ? "($pos)" : ""}: ${entry.value.toStringAsFixed(0)} ريال',);
+      }
+      if (sorted.length > limit) {
+        lines.add('  ... (${sorted.length - limit} موظف/سجل آخر)');
+      }
+    }
+
+    if (employees.isNotEmpty) {
+      lines.add('');
+      lines.add('قائمة الموظفين (مختصر):');
+      final active = employees
+          .where((e) => StatusUtils.isEmployeeActive(e.status))
+          .toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+      final inactive = employees
+          .where((e) => !StatusUtils.isEmployeeActive(e.status))
+          .toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+
+      final showActive = active.length < 60 ? active.length : 60;
+      for (final e in active.take(showActive)) {
+        lines.add(
+            '  ✓ ${e.name} | ${e.position} | ${e.basicSalary.toStringAsFixed(0)} ريال | ${e.phone}',);
+      }
+      if (active.length > showActive) {
+        lines.add('  ... (${active.length - showActive} موظف نشط آخر)');
+      }
+
+      if (inactive.isNotEmpty) {
+        final showInactive = inactive.length < 30 ? inactive.length : 30;
+        lines.add('');
+        lines.add('غير النشطين (أول $showInactive):');
+        for (final e in inactive.take(showInactive)) {
+          lines.add('  ✗ ${e.name} | ${e.position} | ${e.phone}');
+        }
+        if (inactive.length > showInactive) {
+          lines.add('  ... (${inactive.length - showInactive} موظف غير نشط آخر)');
+        }
+      }
+    }
+
+    return lines.join('\n');
+  }
+
+  Future<String> _generateFinanceReport(
+    AppDatabase db,
+    String? from,
+    String? to,
+  ) async {
+    final now = DateTime.now();
+    final dateFrom =
+        from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+    final dateTo = to ?? now.toIso8601String().split('T')[0];
+    final dateToEnd = '${dateTo}T23:59:59.999';
+
+    final lines = <String>[
+      '📊 تقرير مالي شامل: $dateFrom إلى $dateTo',
+      '',
+    ];
+
+    final payments = await (db.select(db.payments)
+          ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
+          ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
+          ..where((p) => p.isVoided.equals(false)))
+        .get();
+
+    final expenses = await (db.select(db.expenses)
+          ..where((e) => e.date.isBiggerOrEqualValue(dateFrom))
+          ..where((e) => e.date.isSmallerOrEqualValue(dateToEnd))
+          ..where((e) => e.deletedAt.isNull()))
+        .get();
+
+    final salaryPayments = await (db.select(db.salaryPayments)
+          ..where((p) => p.paymentDateIso.isBiggerOrEqualValue(dateFrom))
+          ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd)))
+        .get();
+    final withdrawals = await (db.select(db.salaryWithdrawals)
+          ..where((w) => w.withdrawDate.isBiggerOrEqualValue(dateFrom))
+          ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd)))
+        .get();
+
+    final totalIncome = payments.fold<double>(0, (s, p) => s + p.amount);
+    final totalExpenses = expenses.fold<double>(0, (s, e) => s + e.amount);
+    final totalPayroll =
+        salaryPayments.fold<int>(0, (s, p) => s + p.amount) +
+            withdrawals.fold<double>(0, (s, w) => s + w.amount).round();
+
+    final netBeforePayroll = totalIncome - totalExpenses;
+    final netAfterPayroll = netBeforePayroll - totalPayroll;
+
+    lines.add('ملخص تنفيذي:');
+    lines.add('  - الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${payments.length})');
+    lines.add('  - المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${expenses.length})');
+    lines.add('  - الرواتب/السلف: ${totalPayroll.toStringAsFixed(0)} ريال');
+    lines.add('  - صافي قبل الرواتب: ${netBeforePayroll.toStringAsFixed(0)} ريال');
+    lines.add('  - صافي بعد الرواتب: ${netAfterPayroll.toStringAsFixed(0)} ريال');
+
+    final byRevenueType = <String, double>{};
+    final byPayMethod = <String, double>{};
+    for (final p in payments) {
+      byRevenueType[p.revenueType] =
+          (byRevenueType[p.revenueType] ?? 0) + p.amount;
+      byPayMethod[p.paymentMethod] =
+          (byPayMethod[p.paymentMethod] ?? 0) + p.amount;
+    }
+
+    final byExpenseType = <String, double>{};
+    for (final e in expenses) {
+      byExpenseType[e.expenseType] =
+          (byExpenseType[e.expenseType] ?? 0) + e.amount;
+    }
+
+    lines.add('');
+    lines.add('تفصيل الإيرادات حسب النوع:');
+    for (final entry in byRevenueType.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value))) {
+      lines.add('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+    }
+
+    lines.add('');
+    lines.add('تفصيل الإيرادات حسب طريقة الدفع:');
+    for (final entry in byPayMethod.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value))) {
+      lines.add('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+    }
+
+    lines.add('');
+    lines.add('تفصيل المصروفات حسب الفئة:');
+    for (final entry in byExpenseType.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value))) {
+      lines.add('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
+    }
+
+    lines.add('');
+    lines.add(await _generatePayrollReport(db, dateFrom, dateTo));
 
     return lines.join('\n');
   }
@@ -2487,13 +2803,15 @@ class GeminiService {
     final dateFrom =
         from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
     final dateTo = to ?? now.toIso8601String().split('T')[0];
+    final dateToEnd = '${dateTo}T23:59:59.999';
 
     final lines =
         <String>['📉 تقرير المصروفات: $dateFrom إلى $dateTo', ''];
 
     final expenses = await (db.select(db.expenses)
           ..where((e) => e.date.isBiggerOrEqualValue(dateFrom))
-          ..where((e) => e.date.isSmallerOrEqualValue(dateTo)))
+          ..where((e) => e.date.isSmallerOrEqualValue(dateToEnd))
+          ..where((e) => e.deletedAt.isNull())))
         .get();
 
     if (expenses.isEmpty) {
