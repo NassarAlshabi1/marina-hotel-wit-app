@@ -106,10 +106,7 @@ class GoogleDriveSignInManager {
     try {
       // محاولة صامتة أولاً
       var account = await client.signInSilently();
-      if (account == null) {
-        // محاولة تفاعلية
-        account = await client.signIn();
-      }
+      account ??= await client.signIn();
       if (account != null) {
         await persistSignInState(account);
       }

@@ -165,7 +165,6 @@ class _GoogleAuthClient extends http.BaseClient {
 /// خدمة التعامل مع Google Drive (appDataFolder) ورفع اللقطات المجزأة
 class GoogleDriveSyncService {
   GoogleDriveSyncService({
-    GoogleSignIn? googleSignIn,
     drive.DriveApi? driveApi,
     int shardSizeBytes = _kDefaultShardBytes,
   }) : _signInManager = GoogleDriveSignInManager.instance,
