@@ -951,28 +951,38 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
-    final employeeId = _asInt(data['employeeId']);
-    if (employeeId == null) return;
+    // ✅ حل FK للموظف: UUID → id → serverId (مثل Full Pull)
+    final resolvedEmployeeId = await _resolveEmployeeId(db, data);
+    if (resolvedEmployeeId == null) return; // يتيم — تخطي
 
     final incomingLastModified =
         _asInt(data['lastModified']) ?? Time.nowEpoch();
+    final createdAt = _asInt(data['createdAt']) ?? Time.nowEpoch();
 
     final companion = SalaryWithdrawalsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
-      employeeId: d.Value(employeeId),
+      employeeId: d.Value(resolvedEmployeeId),
       amount: d.Value(_asDouble(data['amount'])),
       withdrawDate: d.Value(_asString(data['withdrawDate']) ?? ''),
       reason: _nullableValue<String>(_asString(data['reason'])),
       hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
       withdrawalType: _nullableValue<String>(_asString(data['withdrawalType'])),
       description: _nullableValue<String>(_asString(data['description'])),
-      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      createdAt: d.Value(createdAt),
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(incomingLastModified),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? createdAt),
+      lastModifiedEpoch: d.Value(
+        _asInt(data['lastModifiedEpoch']) ?? incomingLastModified,
+      ),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
     );
 
     await db.into(db.salaryWithdrawals).insertOnConflictUpdate(companion);
@@ -1108,19 +1118,31 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
-    final employeeId = _asInt(data['employeeId']);
-    if (employeeId == null) return;
+    // ✅ حل FK للموظف: UUID → id → serverId (مثل Full Pull)
+    final resolvedEmployeeId = await _resolveEmployeeId(db, data);
+    if (resolvedEmployeeId == null) return; // يتيم — تخطي
+
+    final createdAt = _asInt(data['createdAt']) ?? Time.nowEpoch();
+    final lastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
 
     final companion = SalaryCyclesCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
-      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      createdAt: d.Value(createdAt),
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
-      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      lastModified: d.Value(lastModified),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? createdAt),
+      lastModifiedEpoch: d.Value(
+        _asInt(data['lastModifiedEpoch']) ?? lastModified,
+      ),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
-      employeeId: d.Value(employeeId),
+      origin: const d.Value('server'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      employeeId: d.Value(resolvedEmployeeId),
       cycleKey: d.Value(_asString(data['cycleKey']) ?? ''),
       hotelDayStart: _nullableValue<String>(_asString(data['hotelDayStart'])),
       hotelDayEnd: _nullableValue<String>(_asString(data['hotelDayEnd'])),
@@ -1428,6 +1450,54 @@ class AppwriteDeltaSync {
 
   d.Value<T?> _nullableValue<T>(T? value) {
     return value == null ? const d.Value.absent() : d.Value(value);
+  }
+
+  /// حل FK للموظف من البيانات البعيدة: UUID → id → serverId
+  /// يُرجع المعرف المحلي أو null إذا كان السجل يتيم
+  Future<int?> _resolveEmployeeId(
+    AppDatabase db,
+    Map<String, dynamic> data,
+  ) async {
+    final remoteEmployeeId = _asInt(data['employeeId']) ??
+        _asInt(data['employee_id']);
+    final employeeUuid = _asString(data['employeeUuid']) ??
+        _asString(data['employee_uuid']) ??
+        _asString(data['employeeLocalUuid']) ??
+        _asString(data['employee_local_uuid']);
+
+    if (remoteEmployeeId == null && (employeeUuid == null || employeeUuid.isEmpty)) {
+      return null;
+    }
+
+    Employee? employee;
+
+    // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+    if (employeeUuid != null && employeeUuid.isNotEmpty) {
+      employee = await (db.select(db.employees)
+            ..where((e) => e.localUuid.equals(employeeUuid))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    // الطريقة 2: البحث بالـ id البعيد كـ id محلي
+    if (employee == null && remoteEmployeeId != null) {
+      employee = await (db.select(db.employees)
+            ..where((e) => e.id.equals(remoteEmployeeId))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
+    if (employee == null && remoteEmployeeId != null) {
+      employee = await (db.select(db.employees)
+            ..where((e) => e.serverId.equals(remoteEmployeeId))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    if (employee == null) return null; // يتيم
+
+    return employee.id;
   }
 
   int? _asInt(dynamic value) {

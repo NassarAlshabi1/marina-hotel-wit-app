@@ -2255,6 +2255,15 @@ class AppwriteSyncManager {
       withdrawal,
       src: Source.appwrite,
     );
+    // ✅ إضافة employeeUuid لربط السلف بالموضف عبر الأجهزة
+    final employee = await (database.select(database.employees)
+          ..where((e) => e.id.equals(withdrawal.employeeId))
+          ..limit(1))
+        .getSingleOrNull();
+    if (employee != null) {
+      payload['employeeUuid'] = employee.localUuid;
+      payload['employeeLocalUuid'] = employee.localUuid;
+    }
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
       documentId: withdrawal.localUuid,
@@ -4220,6 +4229,15 @@ class AppwriteSyncManager {
       item,
       src: Source.appwrite,
     );
+    // ✅ إضافة employeeUuid لربط دورة الراتب بالموظف عبر الأجهزة
+    final employee = await (database.select(database.employees)
+          ..where((e) => e.id.equals(item.employeeId))
+          ..limit(1))
+        .getSingleOrNull();
+    if (employee != null) {
+      payload['employeeUuid'] = employee.localUuid;
+      payload['employeeLocalUuid'] = employee.localUuid;
+    }
     await appwriteService.upsertSalaryCycle(
       item.localUuid,
       _addIdempotencyKey(payload, entry),
