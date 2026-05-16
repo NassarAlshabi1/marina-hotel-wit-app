@@ -431,7 +431,7 @@ class GeminiService {
         for (final entry in typeStatusStats.entries.toList()
           ..sort((a, b) => a.key.compareTo(b.key))) {
           final m = entry.value;
-          final t = (m.values.fold<int>(0, (s, v) => s + v));
+          final t = m.values.fold<int>(0, (s, v) => s + v);
           final occ = m['occupied'] ?? 0;
           final occRate = t > 0 ? (occ / t * 100) : 0.0;
           s.writeln(
