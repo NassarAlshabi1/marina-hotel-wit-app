@@ -28,16 +28,46 @@ class SalaryWithdrawalsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    // ✅ حل FK الموظف - التحقق من وجود الموظف محلياً قبل الإدراج
+    // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
     final remoteEmployeeId =
         _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
     final employeeUuid =
+        _asString(json, 'employeeUuid', src) ??
+        _asString(json, 'employee_uuid', src) ??
         _asString(json, 'employeeLocalUuid', src) ??
         _asString(json, 'employee_local_uuid', src);
-    final resolvedEmployeeId = await resolver.resolveEmployee(
-      localId: remoteEmployeeId,
-      uuid: employeeUuid,
-    );
+
+    int? resolvedEmployeeId;
+
+    // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+    if (employeeUuid != null && employeeUuid.isNotEmpty) {
+      resolvedEmployeeId = await resolver.resolveEmployee(
+        uuid: employeeUuid,
+      );
+    }
+
+    // الطريقة 2: البحث بالـ id البعيد (كـ localId)
+    if (resolvedEmployeeId == null && remoteEmployeeId != null) {
+      resolvedEmployeeId = await resolver.resolveEmployee(
+        localId: remoteEmployeeId,
+      );
+    }
+
+    // الطريقة 3: البحث بالـ serverId في جدول الموظفين
+    if (resolvedEmployeeId == null && remoteEmployeeId != null) {
+      try {
+        final row = await (db.select(db.employees)
+              ..where((e) => e.serverId.equals(remoteEmployeeId))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          resolvedEmployeeId = row.id;
+        }
+      } catch (_) {
+        // serverId قد لا يكون له فهرس — تجاهل الأخطاء
+      }
+    }
+
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
@@ -83,12 +113,18 @@ class SalaryWithdrawalsAdapter
             IdGen.uuid(),
       ),
       serverId: _vInt(json, 'serverId', src),
-      // ✅ إصلاح: استخدام employeeLocalId المحلول بدل القيمة الخام من Appwrite
-      // إذا لم يتم حل الموظف (لا يوجد محلياً)، نستخدم القيمة الخامة وسيتم
-      // التقاط الخطأ في _syncSalaryWithdrawals لتخطي السجل
+      // ✅ إصلاح دقيق: استخدام employeeLocalId المحلول بدل القيمة الخام من Appwrite
+      // إذا لم يتم حل الموظف (لا يوجد محلياً — يتيم أو محذوف)، نتخطى الحقل
+      // تماماً بـ d.Value.absent() لمنع إدراج قيمة FK غير صالحة.
+      // ملاحظة: employeeId هو NOT NULL، لذا إدراج بـ absent سيفشل بـ NOT NULL constraint
+      // بدلاً من FK constraint — وهذا أفضل لأنه يُمكّن المتصل من التقاط الخطأ
+      // وتخطي السجل بدلاً من إدراج بيانات فاسدة.
+      // المتصل (_syncSalaryWithdrawals / AppwriteFullPull) يفحص قبل الإدراج.
       employeeId: refs.employeeLocalId != null
           ? d.Value(refs.employeeLocalId!)
-          : _vInt(json, 'employeeId', src, altKey: 'employee_id'),
+          : (src == Source.appwrite || src == Source.drive)
+              ? const d.Value.absent() // يتيم — لا نستخدم القيمة الخامة البعيدة
+              : _vInt(json, 'employeeId', src, altKey: 'employee_id'),
       amount: _vDouble(json, 'amount', src, fallback: 0),
       withdrawDate: d.Value(wd),
       reason: reasonVal != null ? d.Value(reasonVal) : const d.Value.absent(),

@@ -21,6 +21,7 @@ import 'appwrite_sync_manager.dart';
 import 'auto_backup_task.dart';
 import 'backup_serializers.dart';
 import 'google_drive_logger.dart';
+import 'google_drive_sign_in_manager.dart';
 import 'local_db.dart';
 import 'restore_fix_service.dart';
 
@@ -132,15 +133,10 @@ class GoogleAuthClient extends http.BaseClient {
 
 class GoogleDriveBackupService {
 
-  GoogleDriveBackupService() {
-    _initializeGoogleSignIn();
-  }
+  GoogleDriveBackupService();
   static const String _backupFolderName = 'MarinaHotelBackups';
   static const String _backupFilePrefix = 'marina_hotel_backup_';
-  static const List<String> _scopes = [
-    drive.DriveApi.driveFileScope,
-    drive.DriveApi.driveAppdataScope,
-  ];
+  // الصلاحيات مُعرَّفة في GoogleDriveSignInManager كنسخة موحّدة
 
   /// تحويل رموز خطأ Google Sign-In إلى رسائل عربية واضحة
   static String _getArabicErrorMessage(Object error) {
@@ -169,24 +165,18 @@ class GoogleDriveBackupService {
   static const String _prefsAutoBackupFrequencyKey = 'auto_backup_frequency';
   static const String _prefsAutoBackupTimeKey = 'auto_backup_time';
 
-  GoogleSignIn? _googleSignIn;
+  /// كائن GoogleSignIn الموحّد — يُشاركه جميع الخدمات
+  final GoogleDriveSignInManager _signInManager =
+      GoogleDriveSignInManager.instance;
   drive.DriveApi? _driveApi;
   String? _backupFolderId;
   final GoogleDriveLogger _logger = GoogleDriveLogger();
 
-  void _initializeGoogleSignIn() {
-    _googleSignIn = GoogleSignIn(scopes: _scopes);
-  }
-
   Future<void> _ensureDriveClient() async {
-    if (_googleSignIn == null) {
-      _initializeGoogleSignIn();
-    }
-
-    GoogleSignInAccount? account = _googleSignIn?.currentUser;
+    GoogleSignInAccount? account = _signInManager.currentUser;
     if (account == null) {
       try {
-        account = await _googleSignIn?.signInSilently();
+        account = await _signInManager.signInSilently();
       } catch (e) {
         _log('⚠️ فشل signInSilently أثناء تحديث الاعتماديات: $e');
       }
@@ -219,16 +209,12 @@ class GoogleDriveBackupService {
 
   Future<GoogleSignInAccount?> signInForDrive() async {
     try {
-      if (_googleSignIn == null) {
-        throw Exception('Google Sign-In لم يتم تهيئته بشكل صحيح');
-      }
-
       _log('🔄 محاولة تسجيل الدخول الصامت...');
-      GoogleSignInAccount? account = await _googleSignIn!.signInSilently();
+      GoogleSignInAccount? account = await _signInManager.signInSilently();
 
       if (account == null) {
         _log('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
-        account = await _googleSignIn!.signIn();
+        account = await _signInManager.signIn();
       }
 
       if (account != null) {
@@ -238,7 +224,7 @@ class GoogleDriveBackupService {
         _driveApi = drive.DriveApi(client);
 
         _log('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
-        _log('🔧 النطاقات المطلوبة: ${_scopes.join(', ')}');
+        _log('🔧 النطاقات المطلوبة: ${kGoogleDriveScopes.join(', ')}');
       } else {
         _log('⚠️ تم إلغاء تسجيل الدخول أو فشل');
       }
@@ -257,13 +243,8 @@ class GoogleDriveBackupService {
   /// محاولة استعادة جلسة تسجيل الدخول بشكل صامت
   Future<GoogleSignInAccount?> attemptSilentSignIn() async {
     try {
-      if (_googleSignIn == null) {
-        _initializeGoogleSignIn();
-      }
-
       _log('🔄 محاولة استعادة جلسة Google Drive...');
-      final GoogleSignInAccount? account = await _googleSignIn!
-          .signInSilently();
+      final GoogleSignInAccount? account = await _signInManager.signInSilently();
 
       if (account != null) {
         _log('🔑 الحصول على رؤوس المصادقة...');
@@ -286,10 +267,7 @@ class GoogleDriveBackupService {
   /// محاولة تسجيل الدخول بهدوء للاستخدام في الخلفية (Alarm Callback)
   Future<bool> signInSilentlyIfNeeded() async {
     try {
-      if (_googleSignIn == null) {
-        _initializeGoogleSignIn();
-      }
-      final account = await _googleSignIn!.signInSilently();
+      final account = await _signInManager.signInSilently();
 
       if (account != null) {
         final headers = await account.authHeaders;
@@ -309,7 +287,7 @@ class GoogleDriveBackupService {
 
   Future<void> signOut() async {
     try {
-      await _googleSignIn?.signOut();
+      await _signInManager.signOut();
       _driveApi = null;
       _backupFolderId = null;
       _log('✅ تم تسجيل الخروج من Google Drive');
@@ -320,10 +298,10 @@ class GoogleDriveBackupService {
     }
   }
 
-  GoogleSignInAccount? get currentUser => _googleSignIn?.currentUser;
-  GoogleSignIn? get googleSignIn => _googleSignIn;
+  GoogleSignInAccount? get currentUser => _signInManager.currentUser;
+  GoogleSignIn get googleSignIn => _signInManager.client;
 
-  bool get isSignedIn => _googleSignIn?.currentUser != null;
+  bool get isSignedIn => _signInManager.isSignedIn;
 
   Future<String> getOrCreateBackupFolder() async {
     if (_backupFolderId != null) {

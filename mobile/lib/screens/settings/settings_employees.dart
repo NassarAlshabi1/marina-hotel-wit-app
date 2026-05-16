@@ -9,6 +9,7 @@ import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/status_utils.dart';
 import '../employees/salary_entitlements_screen.dart';
 
 class SettingsEmployeesScreen extends ConsumerWidget {
@@ -109,10 +110,11 @@ class SettingsEmployeesScreen extends ConsumerWidget {
   }
 
   Widget _buildEmployeeStats(List<Employee> employees) {
-    final activeEmployees = employees.where((e) => e.status == 'نشط').length;
+    final activeEmployees =
+        employees.where((e) => StatusUtils.isEmployeeActive(e.status)).length;
     final inactiveEmployees = employees.length - activeEmployees;
     final totalSalaries = employees
-        .where((e) => e.status == 'نشط')
+        .where((e) => StatusUtils.isEmployeeActive(e.status))
         .fold<double>(0.0, (sum, e) => sum + e.salary);
 
     return Container(
@@ -217,7 +219,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     WidgetRef ref,
     Employee employee,
   ) {
-    final isActive = employee.status == 'نشط';
+    final isActive = StatusUtils.isEmployeeActive(employee.status);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -271,7 +273,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     ),
                   ),
                   child: Text(
-                    employee.status,
+                    StatusUtils.employeeStatusLabel(employee.status),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -850,7 +852,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     WidgetRef ref,
     Employee employee,
   ) async {
-    final newStatus = employee.status == 'نشط' ? 'غير نشط' : 'نشط';
+    final newStatus =
+        StatusUtils.isEmployeeActive(employee.status) ? 'غير نشط' : 'نشط';
 
     try {
       final repo = ref.read(employeesRepoProvider);

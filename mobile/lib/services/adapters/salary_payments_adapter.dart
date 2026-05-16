@@ -34,10 +34,37 @@ class SalaryPaymentsAdapter
     final cycleUuid =
         _asString(json, 'cycleLocalUuid', src) ??
         _asString(json, 'cycle_local_uuid', src);
-    final resolvedCycleId = await resolver.resolveSalaryCycle(
-      localId: remoteCycleId,
-      uuid: cycleUuid,
-    );
+
+    // ✅ إصلاح دقيق: حل شامل للمعرّف البعيد
+    int? resolvedCycleId;
+
+    // الطريقة 1: البحث بالـ UUID
+    if (cycleUuid != null && cycleUuid.isNotEmpty) {
+      resolvedCycleId = await resolver.resolveSalaryCycle(
+        uuid: cycleUuid,
+      );
+    }
+
+    // الطريقة 2: البحث بالـ id البعيد (كـ localId)
+    if (resolvedCycleId == null && remoteCycleId != null) {
+      resolvedCycleId = await resolver.resolveSalaryCycle(
+        localId: remoteCycleId,
+      );
+    }
+
+    // الطريقة 3: البحث بالـ serverId
+    if (resolvedCycleId == null && remoteCycleId != null) {
+      try {
+        final row = await (db.select(db.salaryCycles)
+              ..where((c) => c.serverId.equals(remoteCycleId))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          resolvedCycleId = row.id;
+        }
+      } catch (_) {}
+    }
+
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
@@ -68,12 +95,14 @@ class SalaryPaymentsAdapter
             IdGen.uuid(),
       ),
       serverId: _vInt(json, 'serverId', src),
-      // ✅ إصلاح: استخدام salaryCycleLocalId المحلول بدل القيمة الخامة
-      // إذا لم يتم حل الدورة (لا توجد محلياً)، نستخدم القيمة الخامة وسيتم
-      // التقاط الخطأ في _syncSalaryPayments لتخطي السجل
+      // ✅ إصلاح دقيق: استخدام salaryCycleLocalId المحلول بدل القيمة الخامة
+      // إذا لم يتم حل الدورة (لا توجد محلياً — يتيمة)، نتخطى الحقل بـ absent()
+      // لمنع إدراج قيمة FK غير صالحة (0 أو معرّف بعيد لا يتطابق محلياً)
       cycleId: refs.salaryCycleLocalId != null
           ? d.Value(refs.salaryCycleLocalId!)
-          : _vInt(json, 'cycleId', src, altKey: 'cycle_id', fallback: 0),
+          : (src == Source.appwrite || src == Source.drive)
+              ? const d.Value.absent() // يتيمة — لا نستخدم القيمة الخامة البعيدة
+              : _vInt(json, 'cycleId', src, altKey: 'cycle_id', fallback: 0),
       amount: _vInt(json, 'amount', src, fallback: 0),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       paymentDateIso: _vStr(
@@ -123,6 +152,8 @@ class SalaryPaymentsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'cycleId', 'cycle_id'): model.cycleId,
+      // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
+      // المحلي يستخدم IntColumn — النوع متطابق
       _k(src, 'amount', 'amount'): model.amount,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
       _k(src, 'paymentDateIso', 'payment_date_iso'): model.paymentDateIso,

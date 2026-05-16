@@ -113,8 +113,8 @@ class SmartSyncManager {
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getBool(_prefsEnabledKey);
     if (stored == null) {
-      _isEnabled = true;
-      await prefs.setBool(_prefsEnabledKey, true);
+      _isEnabled = false;
+      await prefs.setBool(_prefsEnabledKey, false);
     } else {
       _isEnabled = stored;
     }
@@ -605,10 +605,10 @@ class SmartSyncManager {
   Future<bool> isEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     if (!prefs.containsKey(_prefsEnabledKey)) {
-      await prefs.setBool(_prefsEnabledKey, true);
-      return true;
+      await prefs.setBool(_prefsEnabledKey, false);
+      return false;
     }
-    return prefs.getBool(_prefsEnabledKey) ?? true;
+    return prefs.getBool(_prefsEnabledKey) ?? false;
   }
 
   /// تنفيذ مزامنة فورية (Push + Pull)

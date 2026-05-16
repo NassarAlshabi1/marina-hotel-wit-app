@@ -28,16 +28,44 @@ class SalaryCyclesAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    // ✅ حل FK الموظف - التحقق من وجود الموظف محلياً قبل الإدراج
+    // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
     final remoteEmployeeId =
         _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
     final employeeUuid =
+        _asString(json, 'employeeUuid', src) ??
+        _asString(json, 'employee_uuid', src) ??
         _asString(json, 'employeeLocalUuid', src) ??
         _asString(json, 'employee_local_uuid', src);
-    final resolvedEmployeeId = await resolver.resolveEmployee(
-      localId: remoteEmployeeId,
-      uuid: employeeUuid,
-    );
+
+    int? resolvedEmployeeId;
+
+    // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+    if (employeeUuid != null && employeeUuid.isNotEmpty) {
+      resolvedEmployeeId = await resolver.resolveEmployee(
+        uuid: employeeUuid,
+      );
+    }
+
+    // الطريقة 2: البحث بالـ id البعيد (كـ localId)
+    if (resolvedEmployeeId == null && remoteEmployeeId != null) {
+      resolvedEmployeeId = await resolver.resolveEmployee(
+        localId: remoteEmployeeId,
+      );
+    }
+
+    // الطريقة 3: البحث بالـ serverId
+    if (resolvedEmployeeId == null && remoteEmployeeId != null) {
+      try {
+        final row = await (db.select(db.employees)
+              ..where((e) => e.serverId.equals(remoteEmployeeId))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          resolvedEmployeeId = row.id;
+        }
+      } catch (_) {}
+    }
+
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
@@ -68,12 +96,14 @@ class SalaryCyclesAdapter
             IdGen.uuid(),
       ),
       serverId: _vInt(json, 'serverId', src),
-      // ✅ إصلاح: استخدام employeeLocalId المحلول بدل القيمة الخامة
-      // إذا لم يتم حل الموظف (لا يوجد محلياً)، نستخدم القيمة الخامة وسيتم
-      // التقاط الخطأ في _syncSalaryCycles لتخطي السجل
+      // ✅ إصلاح دقيق: استخدام employeeLocalId المحلول بدل القيمة الخامة
+      // إذا لم يتم حل الموظف (لا يوجد محلياً — يتيم)، نتخطى الحقل بـ absent()
+      // لمنع إدراج قيمة FK غير صالحة (0 أو معرّف بعيد لا يتطابق محلياً)
       employeeId: refs.employeeLocalId != null
           ? d.Value(refs.employeeLocalId!)
-          : _vInt(json, 'employeeId', src, altKey: 'employee_id', fallback: 0),
+          : (src == Source.appwrite || src == Source.drive)
+              ? const d.Value.absent() // يتيم — لا نستخدم القيمة الخامة البعيدة
+              : _vInt(json, 'employeeId', src, altKey: 'employee_id', fallback: 0),
       cycleKey: _vStr(json, 'cycleKey', src, altKey: 'cycle_key', fallback: ''),
       hotelDayStart: _vStr(
         json,

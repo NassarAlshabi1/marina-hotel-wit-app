@@ -25,7 +25,8 @@ class AppwriteConfig {
   static const String bookingNotesCollectionId = 'booking_notes';
   static const String cashTransactionsCollectionId = 'cash_transactions';
   static const String bookingNightsCollectionId = 'booking_nights';
-  static const String hotelDayLedgerCollectionId = 'hotel_day_ledger';
+  // ❌ hotel_day_ledger — جدول محلي فقط، لا يتم مزامنته، غير موجود على Appwrite Cloud
+  // تم إزالة hotelDayLedgerCollectionId لأنه لا وجود له على السحابة
   static const String salaryCyclesCollectionId = 'salary_cycles';
   static const String salaryPaymentsCollectionId = 'salary_payments';
   static const String shiftNotesCollectionId = 'shift_notes';

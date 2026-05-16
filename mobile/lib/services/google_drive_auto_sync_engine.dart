@@ -643,7 +643,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
 
     if (!prefs.containsKey(_prefsEnabledKey)) {
-      await prefs.setBool(_prefsEnabledKey, true);
+      await prefs.setBool(_prefsEnabledKey, false);
     }
     if (!prefs.containsKey(_prefsDebounceSecondsKey)) {
       await prefs.setInt(_prefsDebounceSecondsKey, 5);

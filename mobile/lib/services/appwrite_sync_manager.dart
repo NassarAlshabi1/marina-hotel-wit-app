@@ -1563,6 +1563,15 @@ class AppwriteSyncManager {
           continue;
         }
 
+        // ✅ تخزين remote id كـ serverId — يسمح بحل FK عبر الأجهزة
+        // salary_withdrawals و salary_cycles يستخدمان employeeId البعيد
+        // الذي يساوي id الموظف على جهاز المصدر. بتخزينه في serverId
+        // يمكن حل FK بالبحث عن serverId = remoteEmployeeId
+        final remoteId = _asIntSafe(data, 'id');
+        if (remoteId != null && data['serverId'] == null) {
+          data['serverId'] = remoteId;
+        }
+
         await _adapterRegistry.employees.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -1772,6 +1781,13 @@ class AppwriteSyncManager {
       }
     }
     return null;
+  }
+
+  /// ✅ تحويل آمن للقيمة الرقمية من Map — يتعامل مع int/double/num/String
+  /// يُستخدم بدل `data['key'] as int?` الذي قد يرمي TypeError مع double
+  int? _asIntSafe(Map<String, dynamic> data, String key) {
+    final value = data[key];
+    return _asIntNullable(value);
   }
 
   Future<int> _pushAllEntities() async {
@@ -2118,23 +2134,51 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ التحقق من وجود الموظف محلياً قبل الإدراج
-        // إذا كان الموظف غير موجود (تم حذفه من Appwrite)، نتخطى السجل
-        final remoteEmployeeId =
-            data['employeeId'] as int? ?? data['employee_id'] as int?;
-        if (remoteEmployeeId != null) {
-          final employee = await (database.select(database.employees)
+        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
+        final remoteEmployeeId = _asIntSafe(data, 'employeeId') ??
+            _asIntSafe(data, 'employee_id');
+        final employeeUuid = (data['employeeUuid'] as String?) ??
+            (data['employee_uuid'] as String?) ??
+            (data['employeeLocalUuid'] as String?) ??
+            (data['employee_local_uuid'] as String?);
+
+        Employee? employee;
+
+        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+        if (employeeUuid != null && employeeUuid.isNotEmpty) {
+          employee = await (database.select(database.employees)
+                ..where((e) => e.localUuid.equals(employeeUuid))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        // الطريقة 2: البحث بالـ id البعيد كـ id محلي (يعمل إذا تطابقت المعرفات)
+        if (employee == null && remoteEmployeeId != null) {
+          employee = await (database.select(database.employees)
                 ..where((e) => e.id.equals(remoteEmployeeId))
                 ..limit(1))
               .getSingleOrNull();
-          if (employee == null) {
-            _logger.warning(
-              '⏭️ تخطي salary_withdrawal ${doc.$id}: الموظف $remoteEmployeeId غير موجود محلياً (سجل يتيم - تم حذف الموظف)',
-              tag: 'SYNC',
-            );
-            continue;
-          }
         }
+
+        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
+        if (employee == null && remoteEmployeeId != null) {
+          employee = await (database.select(database.employees)
+                ..where((e) => e.serverId.equals(remoteEmployeeId))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        if (employee == null) {
+          _logger.warning(
+            '⏭️ تخطي salary_withdrawal ${doc.$id}: الموظف $remoteEmployeeId (uuid=$employeeUuid) غير موجود محلياً (سجل يتيم)',
+            tag: 'SYNC',
+          );
+          continue;
+        }
+
+        // ✅ استبدال employeeId البعيد بالمعرف المحلي للموظف
+        // هذا يضمن أن FK يشير للمعرف المحلي الصحيح
+        data['employeeId'] = employee.id;
 
         await _adapterRegistry.salaryWithdrawals.upsertFromJson(
           data,
@@ -2827,16 +2871,6 @@ class AppwriteSyncManager {
     }
   }
 
-  /// بناء قائمة queries للـ Delta Sync
-  /// إذا كان lastPullTs > 0 تُرجع فلتر lastModified، وإلا تُرجع قائمة فارغة (full fetch)
-  List<String> _deltaQueries(int lastPullTs) {
-    if (lastPullTs > 0) {
-      // نطرح 5 ثوان كـ margin لتجنب فقدان بيانات بسبب اختلاف الساعات
-      final cutoff = lastPullTs - 5;
-      return [Query.greaterThan('lastModified', cutoff)];
-    }
-    return [];
-  }
 
   /// الحصول على قائمة الأجهزة المسجلة
   /// [limit] عدد الأجهزة المطلوبة (افتراضياً 2)
@@ -3989,6 +4023,23 @@ class AppwriteSyncManager {
 
   Future<bool> _processEmployeeEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
+      // ✅ حذف ناعم: نبحث عن الموظف محلياً (بما فيه المحذوف ناعماً)
+      // إذا وُجد (deletedAt != null)، نُحدّث Appwrite بحقل deletedAt بدل الحذف الفعلي
+      // هذا يمنع فقدان الموظف على الأجهزة الأخرى وحل FK بشكل صحيح
+      final item = await _getEmployeeByLocalUuid(entry.localUuid);
+      if (item != null && item.deletedAt != null) {
+        // ✅ حذف ناعم — إرسال deletedAt إلى Appwrite
+        final payload = outboxDao.adapters.employees.adapter.toJson(
+          item,
+          src: Source.appwrite,
+        );
+        await appwriteService.upsertEmployee(
+          item.localUuid,
+          _addIdempotencyKey(payload, entry),
+        );
+        return true;
+      }
+      // الموظف غير موجود محلياً إطلاقاً — حذف فعلي من Appwrite
       await _deleteSilently(
         () => appwriteService.deleteEmployee(entry.localUuid),
       );
@@ -4379,22 +4430,50 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ التحقق من وجود الموظف محلياً قبل الإدراج
+        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
         final remoteEmployeeId =
-            data['employeeId'] as int? ?? data['employee_id'] as int?;
-        if (remoteEmployeeId != null) {
-          final employee = await (database.select(database.employees)
+            _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
+        final employeeUuid = (data['employeeUuid'] as String?) ??
+            (data['employee_uuid'] as String?) ??
+            (data['employeeLocalUuid'] as String?) ??
+            (data['employee_local_uuid'] as String?);
+
+        Employee? employee;
+
+        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+        if (employeeUuid != null && employeeUuid.isNotEmpty) {
+          employee = await (database.select(database.employees)
+                ..where((e) => e.localUuid.equals(employeeUuid))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        // الطريقة 2: البحث بالـ id البعيد كـ id محلي
+        if (employee == null && remoteEmployeeId != null) {
+          employee = await (database.select(database.employees)
                 ..where((e) => e.id.equals(remoteEmployeeId))
                 ..limit(1))
               .getSingleOrNull();
-          if (employee == null) {
-            _logger.warning(
-              '⏭️ تخطي salary_cycle ${doc.$id}: الموظف $remoteEmployeeId غير موجود محلياً (سجل يتيم)',
-              tag: 'SYNC',
-            );
-            continue;
-          }
         }
+
+        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
+        if (employee == null && remoteEmployeeId != null) {
+          employee = await (database.select(database.employees)
+                ..where((e) => e.serverId.equals(remoteEmployeeId))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        if (employee == null) {
+          _logger.warning(
+            '⏭️ تخطي salary_cycle ${doc.$id}: الموظف $remoteEmployeeId (uuid=$employeeUuid) غير موجود محلياً (سجل يتيم)',
+            tag: 'SYNC',
+          );
+          continue;
+        }
+
+        // ✅ استبدال employeeId البعيد بالمعرف المحلي الصحيح
+        data['employeeId'] = employee.id;
 
         await _adapterRegistry.salaryCycles.upsertFromJson(
           data,
@@ -5106,236 +5185,6 @@ class AppwriteSyncManager {
         stackTrace: st,
         tag: 'SYNC_INTEGRITY',
       );
-    }
-  }
-
-  /// إصلاح المدفوعات اليتيمة عن طريق إعادة حل bookingUuidCache
-  Future<void> _autoFixOrphanPaymentsByUuidCache() async {
-    try {
-      // البحث عن مدفوعات بدون bookingLocalId لكن لديها bookingUuidCache
-      final orphans = await database.customSelect(
-        'SELECT id, booking_uuid_cache FROM payments WHERE booking_local_id IS NULL AND booking_uuid_cache IS NOT NULL AND deleted_at IS NULL',
-        readsFrom: Set.unmodifiable({}),
-      ).get();
-
-      if (orphans.isEmpty) return;
-
-      int fixed = 0;
-      for (final row in orphans) {
-        final paymentId = row.read<int>('id');
-        final bookingUuid = row.read<String?>('booking_uuid_cache');
-        if (bookingUuid == null || bookingUuid.isEmpty) continue;
-
-        // محاولة إيجاد الحجز بواسطة UUID
-        final booking = await (database.select(database.bookings)
-              ..where((b) => b.localUuid.equals(bookingUuid))
-              ..limit(1))
-            .getSingleOrNull();
-
-        if (booking != null) {
-          // ربط المدفوعة بالحجز المحلي
-          await (database.update(database.payments)
-                ..where((t) => t.id.equals(paymentId)))
-              .write(PaymentsCompanion(
-            bookingLocalId: drift.Value(booking.id),
-          ));
-          fixed++;
-          _logger.debug(
-            '🔧 ربط مدفوعة يتيمة: payment=$paymentId → booking=${booking.id}',
-            tag: 'SYNC_INTEGRITY',
-          );
-        }
-      }
-
-      if (fixed > 0) {
-        _logger.info(
-          '✅ تم إصلاح $fixed مدفوعة يتيمة بإعادة ربطها بحجوزاتها',
-          tag: 'SYNC_INTEGRITY',
-        );
-      }
-    } catch (e) {
-      _logger.warning('⚠️ فشل إصلاح المدفوعات اليتيمة: $e', tag: 'SYNC_INTEGRITY');
-    }
-  }
-
-  /// إصلاح الديون اليتيمة عن طريق إعادة حل bookingUuidCache
-  Future<void> _autoFixOrphanDebtsByUuidCache() async {
-    try {
-      final orphans = await database.customSelect(
-        'SELECT id, booking_uuid_cache FROM debts WHERE booking_local_id IS NULL AND booking_uuid_cache IS NOT NULL AND deleted_at IS NULL',
-        readsFrom: Set.unmodifiable({}),
-      ).get();
-
-      if (orphans.isEmpty) return;
-
-      int fixed = 0;
-      for (final row in orphans) {
-        final debtId = row.read<int>('id');
-        final bookingUuid = row.read<String?>('booking_uuid_cache');
-        if (bookingUuid == null || bookingUuid.isEmpty) continue;
-
-        final booking = await (database.select(database.bookings)
-              ..where((b) => b.localUuid.equals(bookingUuid))
-              ..limit(1))
-            .getSingleOrNull();
-
-        if (booking != null) {
-          await (database.update(database.debts)
-                ..where((t) => t.id.equals(debtId)))
-              .write(DebtsCompanion(
-            bookingLocalId: drift.Value(booking.id),
-          ));
-          fixed++;
-          _logger.debug(
-            '🔧 ربط دين يتيم: debt=$debtId → booking=${booking.id}',
-            tag: 'SYNC_INTEGRITY',
-          );
-        }
-      }
-
-      if (fixed > 0) {
-        _logger.info(
-          '✅ تم إصلاح $fixed دين يتيم بإعادة ربطه بحجوزاته',
-          tag: 'SYNC_INTEGRITY',
-        );
-      }
-    } catch (e) {
-      _logger.warning('⚠️ فشل إصلاح الديون اليتيمة: $e', tag: 'SYNC_INTEGRITY');
-    }
-  }
-
-  /// إصلاح الليالي اليتيمة عن طريق إعادة حل bookingUuidCache
-  Future<void> _autoFixOrphanBookingNightsByUuidCache() async {
-    try {
-      // booking_nights قد لا يملك booking_uuid_cache مباشرة،
-      // لكن يمكن البحث عن الليالي ذات bookingLocalId غير صالح
-      final orphans = await database.customSelect(
-        'SELECT bn.id, bn.booking_local_id, b.local_uuid as booking_uuid '
-        'FROM booking_nights bn '
-        'LEFT JOIN bookings b ON bn.booking_local_id = b.id '
-        'WHERE b.id IS NULL AND bn.deleted_at IS NULL',
-        readsFrom: Set.unmodifiable({}),
-      ).get();
-
-      if (orphans.isEmpty) return;
-
-      int fixed = 0;
-      for (final row in orphans) {
-        final nightId = row.read<int>('id');
-        final bookingUuid = row.read<String?>('booking_uuid');
-
-        if (bookingUuid == null || bookingUuid.isEmpty) {
-          // لا يوجد UUID للحجز — تعيين soft delete
-          final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-          await (database.update(database.bookingNights)
-                ..where((t) => t.id.equals(nightId)))
-              .write(BookingNightsCompanion(
-            deletedAt: drift.Value(nowEpoch),
-          ));
-          continue;
-        }
-
-        // محاولة إيجاد الحجز بواسطة UUID
-        final booking = await (database.select(database.bookings)
-              ..where((b) => b.localUuid.equals(bookingUuid))
-              ..limit(1))
-            .getSingleOrNull();
-
-        if (booking != null) {
-          await (database.update(database.bookingNights)
-                ..where((t) => t.id.equals(nightId)))
-              .write(BookingNightsCompanion(
-            bookingLocalId: drift.Value(booking.id),
-          ));
-          fixed++;
-          _logger.debug(
-            '🔧 ربط ليلة يتيمة: night=$nightId → booking=${booking.id}',
-            tag: 'SYNC_INTEGRITY',
-          );
-        } else {
-          // الحجز غير موجود — soft delete
-          final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-          await (database.update(database.bookingNights)
-                ..where((t) => t.id.equals(nightId)))
-              .write(BookingNightsCompanion(
-            deletedAt: drift.Value(nowEpoch),
-          ));
-        }
-      }
-
-      if (fixed > 0) {
-        _logger.info(
-          '✅ تم إصلاح $fixed ليلة يتيمة بإعادة ربطها بحجوزاتها',
-          tag: 'SYNC_INTEGRITY',
-        );
-      }
-    } catch (e) {
-      _logger.warning('⚠️ فشل إصلاح الليالي اليتيمة: $e', tag: 'SYNC_INTEGRITY');
-    }
-  }
-
-  /// إصلاح تعديلات الأسعار اليتيمة عن طريق إعادة حل bookingLocalUuid
-  Future<void> _autoFixOrphanBookingPriceAdjustmentsByUuidCache() async {
-    try {
-      final orphans = await database.customSelect(
-        'SELECT bpa.id, bpa.booking_local_uuid '
-        'FROM booking_price_adjustments bpa '
-        'LEFT JOIN bookings b ON bpa.booking_local_id = b.id '
-        'WHERE b.id IS NULL AND bpa.booking_local_id IS NOT NULL AND bpa.deleted_at IS NULL',
-        readsFrom: Set.unmodifiable({}),
-      ).get();
-
-      if (orphans.isEmpty) return;
-
-      int fixed = 0;
-      for (final row in orphans) {
-        final adjId = row.read<int>('id');
-        final bookingUuid = row.read<String?>('booking_local_uuid');
-
-        if (bookingUuid == null || bookingUuid.isEmpty) {
-          final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-          await (database.update(database.bookingPriceAdjustments)
-                ..where((t) => t.id.equals(adjId)))
-              .write(BookingPriceAdjustmentsCompanion(
-            deletedAt: drift.Value(nowEpoch),
-          ));
-          continue;
-        }
-
-        final booking = await (database.select(database.bookings)
-              ..where((b) => b.localUuid.equals(bookingUuid))
-              ..limit(1))
-            .getSingleOrNull();
-
-        if (booking != null) {
-          await (database.update(database.bookingPriceAdjustments)
-                ..where((t) => t.id.equals(adjId)))
-              .write(BookingPriceAdjustmentsCompanion(
-            bookingLocalId: drift.Value(booking.id),
-          ));
-          fixed++;
-          _logger.debug(
-            '🔧 ربط تعديل سعر يتيم: adj=$adjId → booking=${booking.id}',
-            tag: 'SYNC_INTEGRITY',
-          );
-        } else {
-          final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-          await (database.update(database.bookingPriceAdjustments)
-                ..where((t) => t.id.equals(adjId)))
-              .write(BookingPriceAdjustmentsCompanion(
-            deletedAt: drift.Value(nowEpoch),
-          ));
-        }
-      }
-
-      if (fixed > 0) {
-        _logger.info(
-          '✅ تم إصلاح $fixed تعديل سعر يتيم بإعادة ربطه بحجوزاته',
-          tag: 'SYNC_INTEGRITY',
-        );
-      }
-    } catch (e) {
-      _logger.warning('⚠️ فشل إصلاح تعديلات الأسعار اليتيمة: $e', tag: 'SYNC_INTEGRITY');
     }
   }
 }

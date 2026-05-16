@@ -7,6 +7,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/status_utils.dart';
 import '../../utils/theme.dart';
 
 class EmployeesListScreen extends ConsumerStatefulWidget {
@@ -50,7 +51,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final list = snapshot.data;
+                final list = snapshot.data ?? <Employee>[];
 
                 if (list.isEmpty) {
                   return _buildEmptyState();
@@ -234,7 +235,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         TextEditingController(text: existing?.position ?? 'موظف');
     final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
 
-    String status = existing?.status ?? 'نشط';
+    String status = existing != null
+        ? StatusUtils.employeeStatusLabel(existing.status)
+        : 'نشط';
     DateTime? hireDate;
     if (existing != null && existing.hireDate.isNotEmpty) {
       hireDate = DateTime.tryParse(existing.hireDate);
@@ -550,7 +553,7 @@ class _EmployeeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isActive = employee.status == 'نشط';
+    final isActive = StatusUtils.isEmployeeActive(employee.status);
     final statusColor = isActive ? AppColors.successColor : AppColors.dangerColor;
 
     return Card(

@@ -3,12 +3,19 @@ import '../utils/hotel_date_helper.dart';
 /// فئة أدوات موحدة لمعالجة البيانات قبل إرسالها أو بعد سحبها من Appwrite
 class AppwriteSyncUtils {
   /// الحقول التي يجب تحويلها إلى أعداد صحيحة (بناءً على قيود Appwrite الحالية)
-  /// ملاحظة: يفضل مستقبلاً تغيير هذه الحقول في Appwrite إلى double
+  /// ⚠️ تم التحديث بناءً على فحص Appwrite Cloud الفعلي (2026-05-15)
+  /// - cash_transactions.amount: integer على Cloud ✓
+  /// - salary_withdrawals.amount: integer على Cloud ✓
+  /// - payment_voids.voidedAmount: integer على Cloud ✓
+  /// - booking_price_adjustments.amount: integer على Cloud ✓ (أُضيف 2026-05-15)
+  /// - debts.remainingAmount: integer على Cloud ✓ (أُضيف 2026-05-15)
+  /// - debts.totalAmount/paidAmount: double على Cloud (لا تحتاج تحويل)
   static const Map<String, Set<String>> _intAmountFields = {
-    'booking_price_adjustments': {'amount'},
     'cash_transactions': {'amount'},
     'salary_withdrawals': {'amount'},
-    'debts': {'amount', 'remainingAmount'},
+    'payment_voids': {'voidedAmount'},
+    'booking_price_adjustments': {'amount'},
+    'debts': {'remainingAmount'},
   };
 
   /// تطهير البيانات وإزالة الحقول غير المدعومة أو المحسوبة
@@ -51,6 +58,25 @@ class AppwriteSyncUtils {
     for (final field in intFields) {
       if (result.containsKey(field) && result[field] is num) {
         result[field] = (result[field] as num).round();
+      }
+    }
+    return result;
+  }
+
+  /// تحويل حقول المبالغ من أعداد صحيحة (Cloud) إلى double (محلي)
+  /// يُستخدم عند سحب البيانات من Appwrite Cloud إلى قاعدة البيانات المحلية
+  static Map<String, dynamic> convertAmountTypesFromAppwrite(
+    String collectionId,
+    Map<String, dynamic> payload,
+  ) {
+    final intFields = _intAmountFields[collectionId];
+    if (intFields == null || intFields.isEmpty) return payload;
+
+    final result = Map<String, dynamic>.from(payload);
+    for (final field in intFields) {
+      if (result.containsKey(field) && result[field] is num) {
+        // تحويل integer إلى double للمحلي (مثلاً 5000 → 5000.0)
+        result[field] = (result[field] as num).toDouble();
       }
     }
     return result;

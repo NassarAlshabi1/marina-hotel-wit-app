@@ -207,7 +207,9 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      // ✅ تم إضافة الحقول التالية إلى Appwrite Cloud (2026-05-15)
       _k(src, 'discountAmount', 'discount_amount'): model.discountAmount,
+      // ⚠️ discountStartDate على Cloud هو datetime — نرسل ISO string وهو متوافق
       _k(src, 'discountStartDate', 'discount_start_date'): model.discountStartDate,
       _k(src, 'isVoided', 'is_voided'): model.isVoided,
       _k(src, 'voidedAt', 'voided_at'): model.voidedAt,

@@ -3,7 +3,6 @@ import 'package:appwrite/models.dart' as models;
 import 'package:drift/drift.dart' as d;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../utils/hotel_date_helper.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
 import 'appwrite_config.dart';
@@ -1376,17 +1375,6 @@ class AppwriteDeltaSync {
   Future<void> _updateBookingNightsPullTs(int ts) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('delta_sync_last_pull_booking_nights', ts);
-  }
-
-  Map<String, dynamic> _sanitizePayload(Map<String, dynamic> payload) {
-    final result = <String, dynamic>{};
-    payload.forEach((key, value) {
-      final camelKey = AppwriteSyncUtils.toCamelCase(key);
-      if (value != null) {
-        result[camelKey] = value;
-      }
-    });
-    return result;
   }
 
   // تم نقل _intAmountFields إلى AppwriteSyncUtils.

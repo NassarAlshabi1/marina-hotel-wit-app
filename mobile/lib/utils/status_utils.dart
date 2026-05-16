@@ -48,6 +48,16 @@ class StatusUtils {
     'provisional',
   ];
 
+  static final Set<String> _activeEmployeeStatuses = {
+    'نشط',
+    'active',
+  }.map(_normalize).toSet();
+
+  static const List<String> activeEmployeeStatuses = [
+    'نشط',
+    'active',
+  ];
+
   static final Set<String> _provisionalStatuses = {
     'مؤقت',
     'provisional',
@@ -63,6 +73,15 @@ class StatusUtils {
 
   static bool isActiveBooking(String status) =>
       _activeBookingStatuses.contains(_normalize(status));
+
+  static bool isEmployeeActive(String status) =>
+      _activeEmployeeStatuses.contains(_normalize(status));
+
+  static String employeeStatusLabel(String status) =>
+      isEmployeeActive(status) ? 'نشط' : 'غير نشط';
+
+  static String canonicalEmployeeStatus(String status) =>
+      isEmployeeActive(status) ? 'active' : 'inactive';
 
   static bool isProvisional(String status) =>
       _provisionalStatuses.contains(_normalize(status));

@@ -139,6 +139,12 @@ class AppwriteSchemaVerifier {
         {'key': 'nightlyRate', 'type': 'double', 'default': 0},
         {'key': 'sequence', 'type': 'integer', 'default': 0},
         {'key': 'isProcessedByAutoFix', 'type': 'boolean', 'default': false},
+        // ✅ الحقول التالية أُضيفت إلى Appwrite Cloud (2026-05-15)
+        {'key': 'baseRate', 'type': 'double', 'default': 0},
+        {'key': 'adjustment', 'type': 'double', 'default': 0},
+        {'key': 'finalRate', 'type': 'double', 'default': 0},
+        {'key': 'appliedAdjustmentUuid', 'type': 'string', 'size': 36},
+        {'key': 'appliedAdjustmentsJson', 'type': 'string', 'size': 5000},
       ],
     },
     'employees': {
@@ -190,19 +196,20 @@ class AppwriteSchemaVerifier {
         {
           'key': 'localUuid',
           'type': 'string',
-          'size': 36,
+          'size': 100,
           'required': true,
-          'unique': true,
         },
         {'key': 'registerId', 'type': 'integer'},
         {
           'key': 'transactionType',
           'type': 'string',
-          'size': 20,
+          'size': 100,
           'required': true,
         },
-        {'key': 'amount', 'type': 'double', 'required': true},
-        {'key': 'referenceType', 'type': 'string', 'size': 50},
+        // ⚠️ amount على Appwrite Cloud هو integer (وليس double)
+        // كود المزامنة يحول القيمة تلقائياً عبر AppwriteSyncUtils.convertAmountTypesForAppwrite
+        {'key': 'amount', 'type': 'integer', 'required': false},
+        {'key': 'referenceType', 'type': 'string', 'size': 100},
         {'key': 'referenceId', 'type': 'integer'},
         {'key': 'description', 'type': 'string', 'size': 500},
         {
@@ -221,9 +228,8 @@ class AppwriteSchemaVerifier {
         {
           'key': 'localUuid',
           'type': 'string',
-          'size': 36,
+          'size': 100,
           'required': true,
-          'unique': true,
         },
         {'key': 'serverPaymentId', 'type': 'integer'},
         {'key': 'bookingLocalId', 'type': 'integer'},
@@ -235,17 +241,25 @@ class AppwriteSchemaVerifier {
         {
           'key': 'paymentMethod',
           'type': 'string',
-          'size': 20,
+          'size': 100,
           'required': true,
         },
-        {'key': 'revenueType', 'type': 'string', 'size': 20, 'required': true},
+        {'key': 'revenueType', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'cashTransactionLocalId', 'type': 'integer'},
         {'key': 'cashTransactionServerId', 'type': 'integer'},
         {'key': 'referenceNumber', 'type': 'string', 'size': 100},
         {'key': 'hotelDayKey', 'type': 'string', 'size': 50},
         {'key': 'isPendingBalance', 'type': 'boolean', 'default': false},
-        {'key': 'linkedDebtUuid', 'type': 'string', 'size': 50},
-        {'key': 'bookingUuidCache', 'type': 'string', 'size': 50},
+        {'key': 'linkedDebtUuid', 'type': 'string', 'size': 100},
+        {'key': 'bookingUuidCache', 'type': 'string', 'size': 100},
+        // ✅ تم إضافة الحقول التالية إلى Appwrite Cloud (2026-05-15)
+        {'key': 'discountAmount', 'type': 'double'},
+        // ⚠️ discountStartDate على Cloud هو datetime (وليس string)
+        // كود المزامنة يرسل ISO string وهو متوافق مع datetime
+        {'key': 'discountStartDate', 'type': 'string', 'size': 50},
+        {'key': 'isVoided', 'type': 'boolean', 'default': false},
+        {'key': 'voidedAt', 'type': 'integer'},
+        {'key': 'voidedBy', 'type': 'string', 'size': 100},
       ],
     },
     'debts': {
@@ -255,25 +269,26 @@ class AppwriteSchemaVerifier {
         {
           'key': 'localUuid',
           'type': 'string',
-          'size': 36,
+          'size': 100,
           'required': true,
-          'unique': true,
         },
         {'key': 'bookingLocalId', 'type': 'integer'},
         {'key': 'guestName', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'checkinDate', 'type': 'string', 'size': 50, 'required': true},
-        {'key': 'checkoutDate', 'type': 'string', 'size': 50, 'required': true},
+        {'key': 'checkoutDate', 'type': 'string', 'size': 50},
         {'key': 'dateRecorded', 'type': 'string', 'size': 50, 'default': ''},
         {'key': 'debtReason', 'type': 'string', 'size': 200, 'default': ''},
         {'key': 'totalAmount', 'type': 'double', 'required': true},
         {'key': 'paidAmount', 'type': 'double', 'required': true},
-        {'key': 'remainingAmount', 'type': 'double', 'required': true},
-        {'key': 'paymentDate', 'type': 'string', 'size': 50, 'required': true},
+        // ✅ remainingAmount أُضيف إلى Appwrite Cloud (2026-05-15)
+        // ⚠️ على Cloud هو integer (وليس double) — كود المزامنة يحول تلقائياً
+        {'key': 'remainingAmount', 'type': 'integer', 'required': true},
+        {'key': 'paymentDate', 'type': 'string', 'size': 50},
         {'key': 'isSettled', 'type': 'integer', 'default': 0},
         {'key': 'pledge', 'type': 'string', 'size': 200},
         {'key': 'pledgeType', 'type': 'string', 'size': 50},
         {'key': 'note', 'type': 'string', 'size': 500},
-        {'key': 'debtUuid', 'type': 'string', 'size': 50},
+        {'key': 'debtUuid', 'type': 'string', 'size': 100},
         {'key': 'hotelDayOpened', 'type': 'string', 'size': 50},
         {'key': 'hotelDayClosed', 'type': 'string', 'size': 50},
         {'key': 'isFromAutoFix', 'type': 'boolean', 'default': false},
@@ -313,7 +328,9 @@ class AppwriteSchemaVerifier {
           'unique': true,
         },
         {'key': 'cycleId', 'type': 'integer', 'required': true},
-        {'key': 'amount', 'type': 'double', 'default': 0},
+        // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
+        // المحلي يستخدم IntColumn لذلك النوع متطابق
+        {'key': 'amount', 'type': 'integer', 'default': 0},
         {'key': 'hotelDayKey', 'type': 'string', 'size': 50},
         {
           'key': 'paymentDateIso',
@@ -325,35 +342,10 @@ class AppwriteSchemaVerifier {
         {'key': 'isAutoGenerated', 'type': 'boolean', 'default': false},
       ],
     },
-    'hotel_day_ledger': {
-      'name': 'Hotel Day Ledger',
-      'includeSyncFields': true,
-      'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
-        {
-          'key': 'hotelDayKey',
-          'type': 'string',
-          'size': 50,
-          'required': true,
-          'unique': true,
-        },
-        {'key': 'totalIncome', 'type': 'double', 'default': 0},
-        {'key': 'totalExpenses', 'type': 'double', 'default': 0},
-        {'key': 'pendingBalances', 'type': 'double', 'default': 0},
-        {'key': 'occupancyRate', 'type': 'double', 'default': 0},
-        {'key': 'bookingsProcessed', 'type': 'integer', 'default': 0},
-        {'key': 'paymentsProcessed', 'type': 'integer', 'default': 0},
-        {'key': 'debtsProcessed', 'type': 'integer', 'default': 0},
-        {'key': 'expensesProcessed', 'type': 'integer', 'default': 0},
-        {'key': 'status', 'type': 'string', 'size': 20, 'default': 'draft'},
-      ],
-    },
+    // ❌ hotel_day_ledger — جدول محلي فقط، لا يتم مزامنته أبداً
+    // غير موجود على Appwrite Cloud ولن يُضاف لأنه بيانات محسوبة محلياً
+    // البيانات تُعاد حسابها من خلال restore_fix_service.dart
+    // 'hotel_day_ledger': { ... },
     'shift_notes': {
       'name': 'Shift Notes',
       'includeSyncFields': false,
@@ -429,37 +421,82 @@ class AppwriteSchemaVerifier {
       'name': 'Payment Voids',
       'includeSyncFields': true,
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
-        {'key': 'originalPaymentUuid', 'type': 'string', 'size': 36, 'required': true},
+        {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true},
+        {'key': 'originalPaymentUuid', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'originalPaymentId', 'type': 'integer', 'required': true},
-        {'key': 'bookingUuid', 'type': 'string', 'size': 36, 'required': true},
-        {'key': 'voidedAmount', 'type': 'double', 'required': true},
+        {'key': 'bookingUuid', 'type': 'string', 'size': 100, 'required': true},
+        // ⚠️ voidedAmount على Appwrite Cloud هو integer (وليس double)
+        {'key': 'voidedAmount', 'type': 'integer', 'required': true},
         {'key': 'voidReason', 'type': 'string', 'size': 500, 'required': true},
         {'key': 'voidedBy', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'voidedAt', 'type': 'integer', 'required': true},
-        {'key': 'voidedAtIso', 'type': 'string', 'size': 30, 'required': true},
-        {'key': 'hotelDayKey', 'type': 'string', 'size': 10, 'required': true},
-        {'key': 'reversalPaymentUuid', 'type': 'string', 'size': 36},
+        {'key': 'voidedAtIso', 'type': 'string', 'size': 50, 'required': true},
+        {'key': 'hotelDayKey', 'type': 'string', 'size': 50, 'required': true},
+        {'key': 'reversalPaymentUuid', 'type': 'string', 'size': 100},
         {'key': 'approvedBy', 'type': 'string', 'size': 100},
+        // حقول إضافية على Cloud
+        {'key': 'paymentUuid', 'type': 'string', 'size': 100},
+        {'key': 'note', 'type': 'string', 'size': 500},
+        {'key': 'originalAmount', 'type': 'integer'},
       ],
     },
     'booking_price_adjustments': {
       'name': 'Booking Price Adjustments',
       'includeSyncFields': true,
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
-        {'key': 'bookingLocalUuid', 'type': 'string', 'size': 36, 'required': true},
+        {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true},
+        {'key': 'bookingLocalUuid', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'bookingLocalId', 'type': 'integer'},
         {'key': 'adjustmentType', 'type': 'integer', 'required': true}, // 0=discount, 1=surcharge
-        {'key': 'adjustmentMode', 'type': 'string', 'size': 20, 'default': 'per_night'}, // per_night, total, percentage
-        {'key': 'amount', 'type': 'double', 'required': true},
-        {'key': 'effectiveHotelDay', 'type': 'string', 'size': 10, 'required': true},
-        {'key': 'endHotelDay', 'type': 'string', 'size': 10},
+        {'key': 'adjustmentMode', 'type': 'string', 'size': 20, 'default': 'per_night'},
+        // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15)
+        // ⚠️ على Cloud هو integer (وليس double) — كود المزامنة يحول تلقائياً
+        {'key': 'amount', 'type': 'integer', 'required': true},
+        // ✅ roomNumber أُضيف إلى Appwrite Cloud (2026-05-15)
+        {'key': 'roomNumber', 'type': 'string', 'size': 20},
+        {'key': 'effectiveHotelDay', 'type': 'string', 'size': 50, 'required': true},
+        {'key': 'endHotelDay', 'type': 'string', 'size': 50},
         {'key': 'isActive', 'type': 'boolean', 'default': true},
         {'key': 'reason', 'type': 'string', 'size': 500},
         {'key': 'appliedBy', 'type': 'string', 'size': 100},
-        {'key': 'cancelledAt', 'type': 'string', 'size': 30},
+        {'key': 'cancelledAt', 'type': 'string', 'size': 50},
         {'key': 'cancelledBy', 'type': 'string', 'size': 100},
+      ],
+    },
+    'salary_withdrawals': {
+      'name': 'Salary Withdrawals',
+      'includeSyncFields': true,
+      'attributes': [
+        {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true},
+        {'key': 'employeeId', 'type': 'integer', 'required': true},
+        // ⚠️ amount على Appwrite Cloud هو integer (وليس double)
+        // كود المزامنة يحول القيمة تلقائياً عبر AppwriteSyncUtils.convertAmountTypesForAppwrite
+        {'key': 'amount', 'type': 'integer', 'required': true},
+        // ⚠️ بنية salary_withdrawals على Cloud مختلفة عن المحلي
+        // Cloud يستخدم: action, date, note, expenseId, name
+        // المحلي يستخدم: withdrawDate, reason, hotelDayKey, withdrawalType, description
+        // الحقول التالية موجودة على Cloud:
+        {'key': 'action', 'type': 'string', 'required': true},
+        {'key': 'date', 'type': 'string', 'required': true},
+        {'key': 'note', 'type': 'string'},
+        {'key': 'expenseId', 'type': 'integer'},
+        {'key': 'name', 'type': 'string'},
+      ],
+    },
+    'guest_infos': {
+      'name': 'Guest Infos',
+      'includeSyncFields': true,
+      'attributes': [
+        {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true},
+        {'key': 'roomNumber', 'type': 'string', 'required': true},
+        {'key': 'guestName', 'type': 'string', 'required': true},
+        {'key': 'nationality', 'type': 'string', 'required': true},
+        {'key': 'idNumber', 'type': 'string', 'required': true},
+        {'key': 'idType', 'type': 'string'},
+        {'key': 'issueDate', 'type': 'string'},
+        {'key': 'issuePlace', 'type': 'string'},
+        {'key': 'governorate', 'type': 'string'},
+        {'key': 'notes', 'type': 'string'},
       ],
     },
   };
