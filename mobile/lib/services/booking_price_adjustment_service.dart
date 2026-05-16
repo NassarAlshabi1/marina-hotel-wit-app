@@ -27,8 +27,7 @@ enum AdjustmentType {
 
 enum AdjustmentMode {
   perNight('per_night'),
-  total('total'),
-  percentage('percentage');
+  total('total');
 
   const AdjustmentMode(this.value);
   final String value;
@@ -237,8 +236,6 @@ class BookingPriceAdjustmentService {
           return 0;
         }
         return sign * (amount.toDouble() / totalNights);
-      case AdjustmentMode.percentage:
-        return sign * (baseRate * amount / 100);
     }
   }
 

@@ -193,10 +193,7 @@ class EnhancedBookingCalculationService {
         final isDiscount = adj.adjustmentType == 0;
         
         int adjAmount = rawAmount;
-        if (adj.adjustmentMode == 'percentage') {
-          // ─── نسبة مئوية: المبلغ = baseRate × النسبة / 100 ───
-          adjAmount = (baseRate * rawAmount / 100).round();
-        } else if (adj.adjustmentMode == 'total') {
+        if (adj.adjustmentMode == 'total') {
           final nightsInRange = _countNightsInRange(
             segments,
             effectiveDate,

@@ -222,7 +222,6 @@ class StayBalanceCalculator {
       priceAdjustments,
       checkinDateOnly,
       manualCheckout,
-      baseRate,
     );
 
     // ─── حساب بداية يوم الفندق الأول (قاعدة 14:00) ───
@@ -376,7 +375,6 @@ class StayBalanceCalculator {
     List<BookingPriceAdjustment>? adjustments,
     DateTime checkinDateOnly,
     DateTime? manualCheckout,
-    double baseRate,
   ) {
     if (adjustments == null || adjustments.isEmpty) {
       return const {};
@@ -409,19 +407,7 @@ class StayBalanceCalculator {
       final isDiscount = adj.adjustmentType == 0;
       final rawAmount = adj.amount;
 
-      if (adj.adjustmentMode == 'percentage') {
-        // ─── نسبة مئوية: المبلغ = baseRate × النسبة / 100 لكل ليلة ───
-        final double percentAmount = baseRate * rawAmount / 100;
-        DateTime night = effDateOnly;
-        int safetyCounter = 0;
-        while (!night.isAfter(adjEnd) && safetyCounter < 3650) {
-          final key = Time.dateToString(night);
-          final signed = isDiscount ? -percentAmount : percentAmount;
-          map[key] = (map[key] ?? 0.0) + signed;
-          night = night.add(const Duration(days: 1));
-          safetyCounter++;
-        }
-      } else if (adj.adjustmentMode == 'total') {
+      if (adj.adjustmentMode == 'total') {
         // توزيع إجمالي المبلغ بالتساوي على ليالي النطاق
         final daysInRange = adjEnd.difference(effDateOnly).inDays + 1;
         if (daysInRange <= 0) {
