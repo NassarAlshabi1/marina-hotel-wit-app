@@ -4550,19 +4550,41 @@ class AppwriteSyncManager {
 
         // ✅ التحقق من وجود دورة الراتب محلياً قبل الإدراج
         final remoteCycleId =
-            data['cycleId'] as int? ?? data['cycle_id'] as int?;
-        if (remoteCycleId != null) {
-          final cycle = await (database.select(database.salaryCycles)
+            _asIntSafe(data, 'cycleId') ?? _asIntSafe(data, 'cycle_id');
+        final cycleUuid = (data['cycleLocalUuid'] as String?) ??
+            (data['cycle_local_uuid'] as String?);
+
+        SalaryCycle? cycle;
+        if (cycleUuid != null && cycleUuid.isNotEmpty) {
+          cycle = await (database.select(database.salaryCycles)
+                ..where((c) => c.localUuid.equals(cycleUuid))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        if (cycle == null && remoteCycleId != null) {
+          cycle = await (database.select(database.salaryCycles)
                 ..where((c) => c.id.equals(remoteCycleId))
                 ..limit(1))
               .getSingleOrNull();
-          if (cycle == null) {
-            _logger.warning(
-              '⏭️ تخطي salary_payment ${doc.$id}: دورة الراتب $remoteCycleId غير موجودة محلياً (سجل يتيم)',
-              tag: 'SYNC',
-            );
-            continue;
-          }
+          cycle ??= await (database.select(database.salaryCycles)
+                ..where((c) => c.serverId.equals(remoteCycleId))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        if (cycle == null &&
+            (remoteCycleId != null ||
+                (cycleUuid != null && cycleUuid.isNotEmpty))) {
+          _logger.warning(
+            '⏭️ تخطي salary_payment ${doc.$id}: دورة الراتب $remoteCycleId (uuid=$cycleUuid) غير موجودة محلياً (سجل يتيم)',
+            tag: 'SYNC',
+          );
+          continue;
+        }
+
+        if (cycle != null) {
+          data['cycleId'] = cycle.id;
         }
 
         await _adapterRegistry.salaryPayments.upsertFromJson(
