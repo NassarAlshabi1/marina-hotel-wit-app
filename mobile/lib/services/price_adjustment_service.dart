@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../utils/time.dart';
 import 'auto_backup_manager.dart';
 import 'booking_derived_fields_service.dart';
+import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 
 class PriceAdjustmentService {
@@ -56,16 +57,55 @@ class PriceAdjustmentService {
 
     await db.into(db.priceAdjustments).insert(adjustmentRecord);
 
+    // ─── إنشاء outbox entry لمزامنة price_adjustments ───
+    // بدون هذا الإدخال، تغييرات سعر الغرفة لا تُرفع إلى Appwrite
+    final outboxDao = OutboxDao(db);
+    await outboxDao.merge(
+      entity: 'price_adjustments',
+      op: 'create',
+      localUuid: adjustmentUuid,
+      payload: {
+        'targetType': 'room',
+        'targetUuid': room.localUuid,
+        'adjustmentType': 'price_change',
+        'previousValue': oldPrice.round(),
+        'newValue': newPrice.round(),
+        'reason': reason,
+        'effectiveDate': effectiveDate.toIso8601String(),
+        'appliedBy': appliedBy,
+        'hotelDayKey': effectiveHotelDay,
+        'isReversed': false,
+      },
+      clientTs: Time.nowEpoch(),
+    );
+
     // ─── إصلاح BUG #1: تحديث سعر الغرفة في جدول rooms ───
     // كان الخطأ: لم يُحدَّث room.price، فأي إعادة حساب عبر
     // EnhancedBookingCalculationService كانت تقرأ السعر القديم
     // وتمسح تعديلات nightlyRate اليدوية.
+    //
+    // ─── إصلاح BUG المزامنة: إنشاء outbox entry لتحديث الغرفة ───
+    // التحديث المباشر لـ rooms يتجاوز RoomsDao ولا يُنشئ outbox entry،
+    // لذلك نُنشئه يدوياً لضمان مزامنة السعر الجديد.
     await (db.update(db.rooms)..where((r) => r.roomNumber.equals(roomNumber)))
         .write(RoomsCompanion(
           price: Value(newPrice),
           updatedAt: Value(Time.nowEpoch()),
           lastModified: Value(Time.nowEpoch()),
         ),);
+
+    // إنشاء outbox entry لتحديث سعر الغرفة
+    await outboxDao.merge(
+      entity: 'rooms',
+      op: 'update',
+      localUuid: room.localUuid,
+      serverId: room.serverId,
+      payload: {
+        'room_number': roomNumber,
+        'price': newPrice,
+      },
+      clientTs: Time.nowEpoch(),
+    );
 
     final activeBookings = await _getActiveBookingsForRoom(roomNumber);
 

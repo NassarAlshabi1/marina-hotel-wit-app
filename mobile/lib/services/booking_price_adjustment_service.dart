@@ -390,6 +390,7 @@ class BookingPriceAdjustmentService {
       op: 'update',
       localUuid: adjustmentUuid,
       payload: {
+        'isActive': !fullyCancelled,
         'endHotelDay': effectiveEnd,
         'cancelledAt': nowIso,
         'cancelledBy': cancelledBy,

@@ -403,6 +403,16 @@ class BookingsRepository {
     final now = Time.nowEpoch();
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
+    // جلب السجلات قبل التحديث لإنشاء outbox entries
+    final orphans = await (db.select(db.bookingPriceAdjustments)
+          ..where((a) => a.bookingLocalId.equals(bookingId))
+          ..where((a) => a.isActive.equals(true))
+          ..where((a) => a.deletedAt.isNull())
+          ..where((a) => a.reason.equals('legacy_discount')))
+        .get();
+
+    if (orphans.isEmpty) return;
+
     await (db.update(db.bookingPriceAdjustments)
           ..where((a) => a.bookingLocalId.equals(bookingId))
           ..where((a) => a.isActive.equals(true))
@@ -419,6 +429,23 @@ class BookingsRepository {
         lastModifiedEpoch: d.Value(now),
       ),
     );
+
+    // ─── إنشاء outbox entries لمزامنة التعديلات المُلغاة ───
+    // بدون هذا، إلغاء legacy_discount لن يُزامن إلى الأجهزة الأخرى
+    final outboxDao = OutboxDao(db);
+    for (final orphan in orphans) {
+      await outboxDao.merge(
+        entity: 'booking_price_adjustments',
+        op: 'update',
+        localUuid: orphan.localUuid,
+        payload: {
+          'isActive': false,
+          'cancelledAt': nowIso,
+          'cancelledBy': 'auto_cleanup',
+        },
+        clientTs: now,
+      );
+    }
   }
 
   /// الحصول على أي حجز نشط للغرفة (التحقق من جميع حالات الحجز النشط)

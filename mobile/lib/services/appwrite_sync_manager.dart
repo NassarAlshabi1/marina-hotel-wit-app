@@ -24,6 +24,7 @@ import 'appwrite_logger.dart';
 import 'appwrite_models.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_utils.dart';
+import 'booking_derived_fields_service.dart';
 import 'crashlytics_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
@@ -1858,6 +1859,8 @@ class AppwriteSyncManager {
           return await _processSalaryWithdrawalEntry(entry);
         case 'blacklist':
           return await _processBlacklistEntry(entry);
+        case 'price_adjustments':
+          return await _processPriceAdjustmentEntry(entry);
         default:
           _logger.warning(
             'Unknown outbox entity: ${entry.entity}',
@@ -3865,6 +3868,70 @@ class AppwriteSyncManager {
         .getSingleOrNull();
   }
 
+  // ─── PriceAdjustments ─────────────────────────────────────────────────
+
+  Future<bool> _processPriceAdjustmentEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+
+    // جلب السجل المحلي للحصول على البيانات الكاملة
+    final localRow = await (database.select(database.priceAdjustments)
+          ..where((t) => t.localUuid.equals(entry.localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (localRow == null) {
+      // السجل غير موجود محلياً — نحذف من Appwrite أيضاً
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+
+    final payload = _priceAdjustmentToRemote(localRow);
+    await appwriteService.upsertDocument(
+      collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+      documentId: localRow.localUuid,
+      data: _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Map<String, dynamic> _priceAdjustmentToRemote(PriceAdjustment row) {
+    final now = Time.nowEpoch();
+    return {
+      'localUuid': row.localUuid,
+      'targetType': row.targetType,
+      'targetUuid': row.targetUuid,
+      'adjustmentType': row.adjustmentType,
+      'previousValue': row.previousValue,
+      'newValue': row.newValue,
+      'reason': row.reason,
+      'effectiveDate': row.effectiveDate,
+      'appliedBy': row.appliedBy,
+      'hotelDayKey': row.hotelDayKey,
+      'isReversed': row.isReversed,
+      'reversedAt': row.reversedAt,
+      'reversedBy': row.reversedBy,
+      'createdAt': row.createdAt,
+      'updatedAt': now,
+      'lastModified': now,
+      'origin': 'mobile',
+      'syncTimestamp': now,
+      if (row.serverId != null) 'serverId': row.serverId,
+    };
+  }
+
   Map<String, dynamic> _blacklistToRemote(ShiftNote item) {
     Map<String, dynamic> extra = {};
     try {
@@ -4744,6 +4811,47 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+
+        // ✅ إعادة حساب الحجوزات المتأثرة بعد سحب تغيير سعر الغرفة
+        final targetType = data['targetType'] as String? ?? '';
+        final targetUuid = data['targetUuid'] as String? ?? '';
+        if (targetType == 'room' && targetUuid.isNotEmpty) {
+          try {
+            // تحديث سعر الغرفة المحلي
+            final room = await (database.select(database.rooms)
+                  ..where((r) => r.localUuid.equals(targetUuid))
+                  ..limit(1))
+                .getSingleOrNull();
+            if (room != null) {
+              final newValue = data['newValue'];
+              if (newValue != null) {
+                await (database.update(database.rooms)
+                      ..where((r) => r.localUuid.equals(targetUuid)))
+                    .write(RoomsCompanion(
+                      price: drift.Value((newValue as num).toDouble()),
+                      updatedAt: drift.Value(Time.nowEpoch()),
+                      lastModified: drift.Value(Time.nowEpoch()),
+                    ),);
+              }
+              // إعادة حساب الحجوزات النشطة للغرفة
+              final activeBookings = await (database.select(database.bookings)
+                    ..where((b) => b.roomNumber.equals(room.roomNumber))
+                    ..where((b) => b.deletedAt.isNull())
+                    ..where((b) => b.actualCheckout.isNull()))
+                  .get();
+              for (final booking in activeBookings) {
+                await BookingDerivedFieldsService(database)
+                    .refreshForBookingId(booking.id, forceRebuild: true);
+              }
+            }
+          } catch (e) {
+            _logger.warning(
+              'فشل إعادة حساب الحجوزات بعد سحب price_adjustment $localUuid: $e',
+              tag: 'SYNC',
+            );
+          }
+        }
+
         processed++;
       } catch (e) {
         _logger.warning(
