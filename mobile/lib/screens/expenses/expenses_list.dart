@@ -447,6 +447,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           ? CurrencyFormatter.formatAmount(existing.amount)
           : '',
     );
+    final installments = TextEditingController();
     DateTime selectedDate;
     try {
       selectedDate = DateTime.parse(existing?.date ?? Time.hotelDayKey());
@@ -456,7 +457,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     try {
     String dialogSalaryAction = _salaryWithdrawAction;
-    final installments = TextEditingController();
     bool startNextMonth = true;
     selectedType = existing?.expenseType ?? 'اخرى';
 

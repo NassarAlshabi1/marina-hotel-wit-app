@@ -729,7 +729,7 @@ class GeminiService {
         final limit = sorted.length < 60 ? sorted.length : 60;
         s.writeln('تفاصيل المصروفات اليوم (آخر $limit من ${sorted.length}):');
         for (final e in sorted.take(limit)) {
-          final desc = (e.description != null && e.description!.trim().isNotEmpty) ? ' | ${e.description}' : '';
+          final desc = e.description.trim().isNotEmpty ? ' | ${e.description}' : '';
           s.writeln('  ${e.expenseType}: ${e.amount.toStringAsFixed(0)} ريال | ${e.date}$desc');
         }
       }
@@ -2824,7 +2824,7 @@ class GeminiService {
     final expenses = await (db.select(db.expenses)
           ..where((e) => e.date.isBiggerOrEqualValue(dateFrom))
           ..where((e) => e.date.isSmallerOrEqualValue(dateToEnd))
-          ..where((e) => e.deletedAt.isNull())))
+          ..where((e) => e.deletedAt.isNull()))
         .get();
 
     if (expenses.isEmpty) {
