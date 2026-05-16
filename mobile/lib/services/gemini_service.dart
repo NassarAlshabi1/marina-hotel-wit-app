@@ -655,6 +655,7 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       final todayPayments = await (db.select(db.payments)
             ..where((p) => p.paymentDate.like('$today%'))
+            ..where((p) => p.deletedAt.isNull())
             ..where((p) => p.isVoided.equals(false)))
           .get();
       final todayExpenses = await (db.select(db.expenses)
@@ -763,6 +764,7 @@ class GeminiService {
         final pastDate = now.subtract(Duration(days: i)).toIso8601String().split('T')[0];
         final dayPayments = await (db.select(db.payments)
               ..where((p) => p.paymentDate.like('$pastDate%'))
+              ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false)))
             .get();
         final dayExpenses = await (db.select(db.expenses)
@@ -1015,6 +1017,7 @@ class GeminiService {
 
         // المسحوبات الأخيرة
         final recentWithdrawals = await (db.select(db.salaryWithdrawals)
+              ..where((w) => w.deletedAt.isNull())
               ..orderBy([(w) => OrderingTerm.desc(w.id)]))
             .get();
         if (recentWithdrawals.isNotEmpty) {
@@ -2363,22 +2366,26 @@ class GeminiService {
     // الإيرادات
     final todayPayments = await (db.select(db.payments)
           ..where((p) => p.paymentDate.like('$today%'))
+          ..where((p) => p.deletedAt.isNull())
           ..where((p) => p.isVoided.equals(false)))
         .get();
     final totalIncome = todayPayments.fold<double>(0, (s, p) => s + p.amount);
 
     // المصروفات
     final todayExpenses = await (db.select(db.expenses)
-          ..where((e) => e.date.like('$today%')))
+          ..where((e) => e.date.like('$today%'))
+          ..where((e) => e.deletedAt.isNull()))
         .get();
     final totalExpenses =
         todayExpenses.fold<double>(0, (s, e) => s + e.amount);
 
     final payrollPayments = await (db.select(db.salaryPayments)
-          ..where((p) => p.paymentDateIso.like('$today%')))
+          ..where((p) => p.paymentDateIso.like('$today%'))
+          ..where((p) => p.deletedAt.isNull()))
         .get();
     final payrollWithdrawals = await (db.select(db.salaryWithdrawals)
-          ..where((w) => w.withdrawDate.like('$today%')))
+          ..where((w) => w.withdrawDate.like('$today%'))
+          ..where((w) => w.deletedAt.isNull()))
         .get();
     final totalPayroll = payrollPayments.fold<int>(0, (s, p) => s + p.amount) +
         payrollWithdrawals.fold<double>(0, (s, w) => s + w.amount).round();
@@ -2448,6 +2455,7 @@ class GeminiService {
     final payments = await (db.select(db.payments)
           ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
           ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
+          ..where((p) => p.deletedAt.isNull())
           ..where((p) => p.isVoided.equals(false)))
         .get();
 
@@ -2520,11 +2528,13 @@ class GeminiService {
 
     final salaryPayments = await (db.select(db.salaryPayments)
           ..where((p) => p.paymentDateIso.isBiggerOrEqualValue(dateFrom))
-          ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd)))
+          ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd))
+          ..where((p) => p.deletedAt.isNull()))
         .get();
     final withdrawals = await (db.select(db.salaryWithdrawals)
           ..where((w) => w.withdrawDate.isBiggerOrEqualValue(dateFrom))
-          ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd)))
+          ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd))
+          ..where((w) => w.deletedAt.isNull()))
         .get();
 
     final totalSalaryPayments =
@@ -2630,6 +2640,7 @@ class GeminiService {
     final payments = await (db.select(db.payments)
           ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
           ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
+          ..where((p) => p.deletedAt.isNull())
           ..where((p) => p.isVoided.equals(false)))
         .get();
 
@@ -2641,11 +2652,13 @@ class GeminiService {
 
     final salaryPayments = await (db.select(db.salaryPayments)
           ..where((p) => p.paymentDateIso.isBiggerOrEqualValue(dateFrom))
-          ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd)))
+          ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd))
+          ..where((p) => p.deletedAt.isNull()))
         .get();
     final withdrawals = await (db.select(db.salaryWithdrawals)
           ..where((w) => w.withdrawDate.isBiggerOrEqualValue(dateFrom))
-          ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd)))
+          ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd))
+          ..where((w) => w.deletedAt.isNull()))
         .get();
 
     final totalIncome = payments.fold<double>(0, (s, p) => s + p.amount);
