@@ -113,7 +113,7 @@ class SalaryAdvanceInstallmentsService {
 
   DateTime _addMonthsPreserveDay(DateTime base, int monthsToAdd) {
     final targetMonth = base.month + monthsToAdd;
-    final firstOfTarget = DateTime(base.year, targetMonth, 1);
+    final firstOfTarget = DateTime(base.year, targetMonth);
     final lastDay = DateTime(firstOfTarget.year, firstOfTarget.month + 1, 0).day;
     final day = base.day <= lastDay ? base.day : lastDay;
     return DateTime(firstOfTarget.year, firstOfTarget.month, day);
