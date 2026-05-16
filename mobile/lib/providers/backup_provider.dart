@@ -1267,7 +1267,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
               localBackupPath ??
               (tempSqlitePath = await SqliteBackupRestore.backupDatabase());
           final sqliteFile = File(sqlitePath);
-          if (!sqliteFile.existsSync()) {
+          if (!await sqliteFile.exists()) {
             throw Exception(
               'تعذر العثور على ملف النسخة الاحتياطية SQLite لرفعه',
             );

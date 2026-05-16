@@ -16,7 +16,7 @@ void main() {
     VectorClock? remoteClock,
     String table = 'bookings',
   }) {
-    final now = DateTime.utc(2025, 1, 1, 0, 0, 0);
+    final now = DateTime.utc(2025);
     return ConflictContext(
       table: table,
       uuid: 'u1',
@@ -45,7 +45,7 @@ void main() {
       local: local,
       remote: remote,
       localTs: DateTime.utc(2025, 1, 2),
-      remoteTs: DateTime.utc(2025, 1, 1),
+      remoteTs: DateTime.utc(2025),
     );
 
     final result = resolver.resolve(context);
@@ -64,7 +64,7 @@ void main() {
     final context = ctx(
       local: local,
       remote: remote,
-      localTs: DateTime.utc(2025, 1, 1),
+      localTs: DateTime.utc(2025),
       remoteTs: DateTime.utc(2025, 1, 2),
     );
 
@@ -84,10 +84,9 @@ void main() {
     final context = ctx(
       local: local,
       remote: remote,
-      localTs: DateTime.utc(2025, 1, 1),
-      remoteTs: DateTime.utc(2025, 1, 1),
+      localTs: DateTime.utc(2025),
+      remoteTs: DateTime.utc(2025),
       localPriority: 200,
-      remotePriority: 100,
     );
 
     final result = resolver.resolve(context);
@@ -108,7 +107,7 @@ void main() {
       remote: remote,
       localClock: VectorClock({'d1': 2}),
       remoteClock: VectorClock({'d1': 1}),
-      localTs: DateTime.utc(2025, 1, 1),
+      localTs: DateTime.utc(2025),
       remoteTs: DateTime.utc(2025, 1, 2),
     );
 
@@ -122,7 +121,7 @@ void main() {
       localClock: VectorClock({'d1': 1}),
       remoteClock: VectorClock({'d1': 2}),
       localTs: DateTime.utc(2025, 1, 2),
-      remoteTs: DateTime.utc(2025, 1, 1),
+      remoteTs: DateTime.utc(2025),
     );
 
     final r2 = resolver.resolve(contextLocalBefore);
@@ -151,10 +150,9 @@ void main() {
       final context = ctx(
         local: local,
         remote: remote,
-        table: 'bookings',
         localClock: VectorClock({'a': 1}),
         remoteClock: VectorClock({'b': 1}),
-        localTs: DateTime.utc(2025, 1, 1, 0, 0, 0),
+        localTs: DateTime.utc(2025),
         remoteTs: DateTime.utc(2025, 1, 1, 0, 0, 10),
       );
 
@@ -163,7 +161,7 @@ void main() {
       expect(result.mergedData, isNotNull);
       expect(result.winner, result.mergedData);
 
-      final merged = result.mergedData!;
+      final merged = result.mergedData;
       expect(merged['status'], 'remote');
       expect(merged['notes'], 'Remote note');
       expect(merged['guestName'], 'Remote Name');
