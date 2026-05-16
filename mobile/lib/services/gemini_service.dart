@@ -2317,7 +2317,7 @@ class GeminiService {
 
       if (resolvedFrom == 'last_month') {
         final now = DateTime.now();
-        final firstThisMonth = DateTime(now.year, now.month, 1);
+        final firstThisMonth = DateTime(now.year, now.month);
         final lastMonthEnd = firstThisMonth.subtract(const Duration(days: 1));
         final lastMonthStart = DateTime(lastMonthEnd.year, lastMonthEnd.month, 1);
         resolvedFrom =
