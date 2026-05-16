@@ -28,43 +28,20 @@ class SalaryCyclesAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
-    final remoteEmployeeId =
-        _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
-    final employeeUuid =
-        _asString(json, 'employeeUuid', src) ??
-        _asString(json, 'employee_uuid', src) ??
-        _asString(json, 'employeeLocalUuid', src) ??
-        _asString(json, 'employee_local_uuid', src);
+    // ✅ حل FK الموظف بالترتيب: UUID -> id -> serverId -> employeeId
+    final remoteEmployeeUuid = _asString(json, 'employeeUuid', src) ?? 
+                               _asString(json, 'employee_uuid', src) ??
+                               _asString(json, 'employeeLocalUuid', src) ??
+                               _asString(json, 'employee_local_uuid', src);
+    final remoteEmployeeId = _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
+    final remoteServerId = _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
 
-    int? resolvedEmployeeId;
-
-    // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
-    if (employeeUuid != null && employeeUuid.isNotEmpty) {
-      resolvedEmployeeId = await resolver.resolveEmployee(
-        uuid: employeeUuid,
-      );
-    }
-
-    // الطريقة 2: البحث بالـ id البعيد (كـ localId)
-    if (resolvedEmployeeId == null && remoteEmployeeId != null) {
-      resolvedEmployeeId = await resolver.resolveEmployee(
-        localId: remoteEmployeeId,
-      );
-    }
-
-    // الطريقة 3: البحث بالـ serverId
-    if (resolvedEmployeeId == null && remoteEmployeeId != null) {
-      try {
-        final row = await (db.select(db.employees)
-              ..where((e) => e.serverId.equals(remoteEmployeeId))
-              ..limit(1))
-            .getSingleOrNull();
-        if (row != null) {
-          resolvedEmployeeId = row.id;
-        }
-      } catch (_) {}
-    }
+    final resolvedEmployeeId = await resolver.resolveEmployee(
+      uuid: remoteEmployeeUuid,
+      localId: remoteEmployeeId,
+      serverId: remoteServerId,
+      employeeId: remoteEmployeeId,
+    );
 
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
