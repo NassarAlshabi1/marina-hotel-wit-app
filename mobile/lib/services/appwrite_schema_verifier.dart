@@ -164,6 +164,9 @@ class AppwriteSchemaVerifier {
         {'key': 'phone', 'type': 'string', 'size': 50, 'default': ''},
         {'key': 'hireDate', 'type': 'string', 'size': 50, 'default': ''},
         {'key': 'status', 'type': 'string', 'size': 20, 'required': true},
+        // ✅ حقول إنهاء الخدمة (Migration 39)
+        {'key': 'terminationDate', 'type': 'string', 'size': 50},
+        {'key': 'terminationReason', 'type': 'string', 'size': 200},
       ],
     },
     'expenses': {
@@ -472,15 +475,20 @@ class AppwriteSchemaVerifier {
         // ⚠️ amount على Appwrite Cloud هو integer (وليس double)
         // كود المزامنة يحول القيمة تلقائياً عبر AppwriteSyncUtils.convertAmountTypesForAppwrite
         {'key': 'amount', 'type': 'integer', 'required': true},
-        // ⚠️ بنية salary_withdrawals على Cloud مختلفة عن المحلي
-        // Cloud يستخدم: action, date, note, expenseId, name
-        // المحلي يستخدم: withdrawDate, reason, hotelDayKey, withdrawalType, description
-        // الحقول التالية موجودة على Cloud:
-        {'key': 'action', 'type': 'string', 'required': true},
-        {'key': 'date', 'type': 'string', 'required': true},
-        {'key': 'note', 'type': 'string'},
+        // ✅ الحقول المحلية المتوافقة مع Adapter (2026-05-17)
+        {'key': 'withdrawDate', 'type': 'string', 'size': 50, 'required': true},
+        {'key': 'reason', 'type': 'string', 'size': 500},
+        {'key': 'hotelDayKey', 'type': 'string', 'size': 50},
+        {'key': 'withdrawalType', 'type': 'string', 'size': 50},
+        {'key': 'description', 'type': 'string', 'size': 500},
+        // ✅ حقول employeeUuid لحل FK عبر الأجهزة
+        {'key': 'employeeUuid', 'type': 'string', 'size': 100},
+        // الحقول القديمة على Cloud (للتوافق العكسي)
+        {'key': 'action', 'type': 'string', 'size': 50},
+        {'key': 'date', 'type': 'string', 'size': 50},
+        {'key': 'note', 'type': 'string', 'size': 500},
         {'key': 'expenseId', 'type': 'integer'},
-        {'key': 'name', 'type': 'string'},
+        {'key': 'name', 'type': 'string', 'size': 100},
       ],
     },
     'guest_infos': {
