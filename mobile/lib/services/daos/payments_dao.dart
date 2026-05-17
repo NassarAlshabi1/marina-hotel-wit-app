@@ -258,8 +258,10 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
             ),
           );
       if (rows > 0 && !originIsServer) {
+        // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
+        // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
         await _mergeOutbox(
-          op: 'delete',
+          op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
           clientTs: now,

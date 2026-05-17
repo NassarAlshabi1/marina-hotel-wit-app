@@ -102,17 +102,19 @@ class DeltaSyncService {
 
         if (deletedAt != null && deletedAt > normalizedSince) {
           payload['deleted_at'] = deletedAt;
+          // ✅ نستخدم 'update' بدلاً من 'delete' — softDelete يحدّث deletedAt
+          // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
           changes.add(
             DeltaSyncChange(
               entity: config.entity,
-              operation: 'delete',
+              operation: 'update',
               data: payload,
               rowHash: rowHash,
               localUuid: localUuid,
               clientTimestamp: clientTs,
             ),
           );
-          debugPrint('إرسال كـ DELETE: ${config.entity}/$localUuid');
+          debugPrint('إرسال كـ UPDATE (softDelete): ${config.entity}/$localUuid');
         } else {
           final isFirstSyncForTable = !hasMirror;
           final isNewRecordInMirror = previous == null;
@@ -175,17 +177,20 @@ class DeltaSyncService {
         final deleteStamp = previousDeletedAt ?? nowTs;
         payload['deleted_at'] = deleteStamp;
         payload['row_hash'] = previous.rowHash;
+        // ✅ نستخدم 'update' بدلاً من 'delete' — hardDelete حقيقي يحتاج 'delete'
+        // لكن السجلات المفقودة من المرآة قد تكون softDelete أو hardDelete
+        // نستخدم 'update' ليتم تحديث المستند في Appwrite بدلاً من حذفه
         changes.add(
           DeltaSyncChange(
             entity: config.entity,
-            operation: 'delete',
+            operation: 'update',
             data: payload,
             rowHash: previous.rowHash,
             localUuid: uuid,
             clientTimestamp: deleteStamp,
           ),
         );
-        debugPrint('إرسال كـ DELETE: ${config.entity}/$uuid');
+        debugPrint('إرسال كـ UPDATE (missing→softDelete): ${config.entity}/$uuid');
       }
 
       snapshot[config.entity] = tableSnapshot;
