@@ -416,11 +416,14 @@ class AppwriteDeltaSync {
 
       // ✅ معالجة المستندات المسحوبة
       for (final doc in documents) {
-        final data = Map<String, dynamic>.from(doc.data);
+        var data = Map<String, dynamic>.from(doc.data);
         final sourceDeviceId = data['deviceId'] as String?;
 
         // تخطي المستندات التي أرسلها هذا الجهاز نفسه
         if (sourceDeviceId == _deviceId) continue;
+
+        // ✅ تحويل أنواع المبالغ من integer (Cloud) إلى double (محلي)
+        data = AppwriteSyncUtils.convertAmountTypesFromAppwrite(collectionId, data);
 
         // ✅ استخراج $updatedAt من Appwrite (متوفر دائماً في كل مستند)
         // نستخدمه كمرجع زمني أساسي لفحص التعارضات
@@ -845,7 +848,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('server'),
+      origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       name: d.Value(name),
       basicSalary: d.Value(_asDouble(data['basicSalary'])),
@@ -1050,7 +1053,7 @@ class AppwriteDeltaSync {
         _asInt(data['lastModifiedEpoch']) ?? incomingLastModified,
       ),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('server'),
+      origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
     );
 
@@ -1229,7 +1232,7 @@ class AppwriteDeltaSync {
         _asInt(data['lastModifiedEpoch']) ?? lastModified,
       ),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('server'),
+      origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       employeeId: d.Value(resolvedEmployeeId),
       cycleKey: d.Value(_asString(data['cycleKey']) ?? ''),
