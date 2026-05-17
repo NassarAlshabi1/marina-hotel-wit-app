@@ -311,6 +311,8 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
           phone: Value(employee.phone),
           hireDate: Value(employee.hireDate),
           status: Value(employee.status),
+          terminationDate: Value(employee.terminationDate),
+          terminationReason: Value(employee.terminationReason),
           localUuid: Value(employee.localUuid),
           serverId: Value(employee.serverId),
           createdAt: Value(employee.createdAt),

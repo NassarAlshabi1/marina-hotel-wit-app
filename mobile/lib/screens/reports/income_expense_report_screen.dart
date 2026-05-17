@@ -61,6 +61,7 @@ class _IncomeExpenseReportScreenState
   int _unsettledDebtsCount = 0;
   double _unsettledDebtsAmount = 0;
   int _activeEmployeesCount = 0;
+  int _terminatedEmployeesCount = 0;
   double _totalSalaryObligation = 0;
   // الديون غير المسددة في الفترة المحددة فقط
   int _unsettledDebtsInPeriodCount = 0;
@@ -177,6 +178,9 @@ class _IncomeExpenseReportScreenState
       final employees = allEmployees
           .where((e) => StatusUtils.isEmployeeActive(e.status))
           .toList();
+      final terminatedEmployees = allEmployees
+          .where((e) => StatusUtils.isEmployeeTerminated(e.status))
+          .toList();
 
       // بناء خريطة بين معرف الحجز واسم النزيل لاستخدامه في المدفوعات
       final bookingGuestMap = <int, String>{};
@@ -227,6 +231,7 @@ class _IncomeExpenseReportScreenState
           unsettledDebtsInPeriodCount: debtsInPeriod.where((d) => d.isSettled == 0).length,
           unsettledDebtsInPeriodAmount: debtsInPeriod.where((d) => d.isSettled == 0).fold<double>(0, (s, d) => s + d.remainingAmount),
           activeEmployeesCount: employees.length,
+          terminatedEmployeesCount: terminatedEmployees.length,
           totalSalaryObligation: employees.fold<double>(0, (s, e) => s + e.basicSalary),
         ),
       );
@@ -248,6 +253,7 @@ class _IncomeExpenseReportScreenState
           _unsettledDebtsInPeriodCount = result.unsettledDebtsInPeriodCount;
           _unsettledDebtsInPeriodAmount = result.unsettledDebtsInPeriodAmount;
           _activeEmployeesCount = result.activeEmployeesCount;
+          _terminatedEmployeesCount = result.terminatedEmployeesCount;
           _totalSalaryObligation = result.totalSalaryObligation;
           _loading = false;
         });
@@ -680,6 +686,7 @@ class _IncomeExpenseReportScreenState
               columnWidths: [200, 130],
               data: [
                 ['عدد الموظفين النشطين', '$_activeEmployeesCount موظف'],
+                ['عدد الموظفين المنهية خدمتهم', '$_terminatedEmployeesCount موظف'],
                 ['إجمالي الالتزامات الرواتب الشهرية',
                   EnhancedPdfUtils.formatNumber(_totalSalaryObligation),],
                 ['الرواتب المدفوعة في الفترة',
@@ -1518,6 +1525,7 @@ class _IncomeExpenseReportScreenState
               columnWidths: [200, 130],
               data: [
                 ['عدد الموظفين النشطين', '$_activeEmployeesCount موظف'],
+                ['عدد الموظفين المنهية خدمتهم', '$_terminatedEmployeesCount موظف'],
                 ['إجمالي الالتزامات الرواتب الشهرية',
                   EnhancedPdfUtils.formatNumber(_totalSalaryObligation),],
                 ['الرواتب المدفوعة في الفترة',
@@ -2516,6 +2524,7 @@ class _ReportParams {
     this.unsettledDebtsInPeriodCount = 0,
     this.unsettledDebtsInPeriodAmount = 0,
     this.activeEmployeesCount = 0,
+    this.terminatedEmployeesCount = 0,
     this.totalSalaryObligation = 0,
   });
   final List<Map<String, dynamic>> payments;
@@ -2531,6 +2540,7 @@ class _ReportParams {
   final int unsettledDebtsInPeriodCount;
   final double unsettledDebtsInPeriodAmount;
   final int activeEmployeesCount;
+  final int terminatedEmployeesCount;
   final double totalSalaryObligation;
 }
 
@@ -2552,6 +2562,7 @@ class _ReportResult {
     this.unsettledDebtsInPeriodCount = 0,
     this.unsettledDebtsInPeriodAmount = 0,
     this.activeEmployeesCount = 0,
+    this.terminatedEmployeesCount = 0,
     this.totalSalaryObligation = 0,
   });
   final List<_IncomeEntry> incomeEntries;
@@ -2569,6 +2580,7 @@ class _ReportResult {
   final int unsettledDebtsInPeriodCount;
   final double unsettledDebtsInPeriodAmount;
   final int activeEmployeesCount;
+  final int terminatedEmployeesCount;
   final double totalSalaryObligation;
 }
 
@@ -2702,6 +2714,7 @@ _ReportResult _processReportData(_ReportParams params) {
     unsettledDebtsInPeriodCount: params.unsettledDebtsInPeriodCount,
     unsettledDebtsInPeriodAmount: params.unsettledDebtsInPeriodAmount,
     activeEmployeesCount: params.activeEmployeesCount,
+    terminatedEmployeesCount: params.terminatedEmployeesCount,
     totalSalaryObligation: params.totalSalaryObligation,
   );
 }

@@ -948,210 +948,223 @@ class _EmployeeCard extends StatelessWidget {
     final statusColor = Color(StatusUtils.employeeStatusColor(employee.status));
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
+      margin: const EdgeInsets.symmetric(vertical: 2),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: statusColor.withValues(alpha: 0.2)),
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
             children: [
-              Row(
-                children: [
-                  // صورة رمزية للموظف
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: statusColor.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Icon(
-                      isTerminated ? Icons.person_off : Icons.person,
-                      color: statusColor,
-                      size: 24,
-                    ),
+              // صورة رمزية للموظف
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: statusColor.withValues(alpha: 0.3),
                   ),
-                  const SizedBox(width: 12),
+                ),
+                child: Icon(
+                  isTerminated ? Icons.person_off : Icons.person,
+                  color: statusColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
 
-                  // بيانات الموظف
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              // بيانات الموظف
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                employee.name,
+                        Expanded(
+                          child: Text(
+                            employee.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              decoration: isTerminated ? TextDecoration.lineThrough : null,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isActive
+                                    ? Icons.check_circle
+                                    : isTerminated
+                                        ? Icons.person_off
+                                        : Icons.cancel,
+                                size: 11,
+                                color: statusColor,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                statusLabel,
                                 style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  decoration: isTerminated ? TextDecoration.lineThrough : null,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    isActive
-                                        ? Icons.check_circle
-                                        : isTerminated
-                                            ? Icons.person_off
-                                            : Icons.cancel,
-                                    size: 12,
-                                    color: statusColor,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    statusLabel,
-                                    style: TextStyle(
-                                      color: statusColor,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            // المنصب
-                            if (employee.position.isNotEmpty &&
-                                employee.position != 'موظف') ...[
-                              const Icon(
-                                Icons.badge,
-                                size: 13,
-                                color: AppColors.textSecondary,
-                              ),
-                              const SizedBox(width: 3),
-                              Text(
-                                employee.position,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(width: 10),
-                            ],
-                            // الراتب
-                            const Icon(
-                              Icons.attach_money,
-                              size: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              CurrencyFormatter.formatAmount(employee.basicSalary),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        // رقم الهاتف
-                        if (employee.phone.isNotEmpty) ...[
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.phone,
-                                size: 13,
-                                color: AppColors.textSecondary,
-                              ),
-                              const SizedBox(width: 3),
-                              Text(
-                                employee.phone,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
                                 ),
                               ),
                             ],
                           ),
-                        ],
-                        // تاريخ وسبب إنهاء الخدمة
-                        if (isTerminated && employee.terminationDate != null && employee.terminationDate!.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.event_busy,
-                                size: 13,
-                                color: Colors.red,
-                              ),
-                              const SizedBox(width: 3),
-                              Text(
-                                'إنهاء: ${employee.terminationDate}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                        ),
                       ],
                     ),
-                  ),
-
-                  // أزرار العمليات
-                  Column(
-                    children: [
-                      if (onTerminate != null)
-                        IconButton(
-                          onPressed: onTerminate,
-                          icon: const Icon(Icons.person_off, size: 20),
-                          color: Colors.red,
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.red.withValues(alpha: 0.1),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        // المنصب
+                        if (employee.position.isNotEmpty &&
+                            employee.position != 'موظف') ...[
+                          const Icon(
+                            Icons.badge,
+                            size: 12,
+                            color: AppColors.textSecondary,
                           ),
-                          tooltip: 'إنهاء خدمة',
-                        ),
-                      if (onReactivate != null)
-                        IconButton(
-                          onPressed: onReactivate,
-                          icon: const Icon(Icons.person_add, size: 20),
-                          color: Colors.green,
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.green.withValues(alpha: 0.1),
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              employee.position,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          tooltip: 'إعادة تفعيل',
+                          const SizedBox(width: 8),
+                        ],
+                        // الراتب
+                        const Icon(
+                          Icons.attach_money,
+                          size: 12,
+                          color: AppColors.textSecondary,
                         ),
-                      IconButton(
-                        onPressed: onDelete,
-                        icon: const Icon(Icons.delete_outline, size: 20),
-                        color: AppColors.dangerColor,
-                        style: IconButton.styleFrom(
-                          backgroundColor: AppColors.dangerColor.withValues(alpha: 0.1),
+                        const SizedBox(width: 2),
+                        Text(
+                          CurrencyFormatter.formatAmount(employee.basicSalary),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
-                        tooltip: 'حذف',
+                      ],
+                    ),
+                    // رقم الهاتف
+                    if (employee.phone.isNotEmpty) ...[
+                      const SizedBox(height: 1),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.phone,
+                            size: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            employee.phone,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
+                    // تاريخ وسبب إنهاء الخدمة
+                    if (isTerminated && employee.terminationDate != null && employee.terminationDate!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.event_busy,
+                            size: 12,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            'إنهاء: ${employee.terminationDate}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // أزرار العمليات
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (onTerminate != null)
+                    SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: IconButton(
+                        onPressed: onTerminate,
+                        icon: const Icon(Icons.person_off, size: 16),
+                        color: Colors.red,
+                        padding: EdgeInsets.zero,
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.red.withValues(alpha: 0.1),
+                        ),
+                        tooltip: 'إنهاء خدمة',
+                      ),
+                    ),
+                  if (onReactivate != null)
+                    SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: IconButton(
+                        onPressed: onReactivate,
+                        icon: const Icon(Icons.person_add, size: 16),
+                        color: Colors.green,
+                        padding: EdgeInsets.zero,
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.green.withValues(alpha: 0.1),
+                        ),
+                        tooltip: 'إعادة تفعيل',
+                      ),
+                    ),
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_outline, size: 16),
+                      color: AppColors.dangerColor,
+                      padding: EdgeInsets.zero,
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.dangerColor.withValues(alpha: 0.1),
+                      ),
+                      tooltip: 'حذف',
+                    ),
                   ),
                 ],
               ),
