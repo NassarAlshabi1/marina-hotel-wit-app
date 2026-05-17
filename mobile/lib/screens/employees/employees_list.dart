@@ -948,25 +948,25 @@ class _EmployeeCard extends StatelessWidget {
     final statusColor = Color(StatusUtils.employeeStatusColor(employee.status));
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 2),
+      margin: const EdgeInsets.symmetric(vertical: 1),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: statusColor.withValues(alpha: 0.2)),
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: statusColor.withValues(alpha: 0.15)),
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           child: Row(
             children: [
               // صورة رمزية للموظف
               Container(
-                width: 36,
-                height: 36,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: statusColor.withValues(alpha: 0.3),
                   ),
@@ -974,10 +974,10 @@ class _EmployeeCard extends StatelessWidget {
                 child: Icon(
                   isTerminated ? Icons.person_off : Icons.person,
                   color: statusColor,
-                  size: 20,
+                  size: 16,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 6),
 
               // بيانات الموظف
               Expanded(
@@ -991,7 +991,7 @@ class _EmployeeCard extends StatelessWidget {
                             employee.name,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: 12,
                               decoration: isTerminated ? TextDecoration.lineThrough : null,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -999,12 +999,12 @@ class _EmployeeCard extends StatelessWidget {
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1,
+                            horizontal: 4,
+                            vertical: 0,
                           ),
                           decoration: BoxDecoration(
                             color: statusColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -1015,16 +1015,16 @@ class _EmployeeCard extends StatelessWidget {
                                     : isTerminated
                                         ? Icons.person_off
                                         : Icons.cancel,
-                                size: 11,
+                                size: 10,
                                 color: statusColor,
                               ),
-                              const SizedBox(width: 3),
+                              const SizedBox(width: 2),
                               Text(
                                 statusLabel,
                                 style: TextStyle(
                                   color: statusColor,
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 10,
+                                  fontSize: 9,
                                 ),
                               ),
                             ],
@@ -1032,7 +1032,7 @@ class _EmployeeCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Row(
                       children: [
                         // المنصب
@@ -1040,7 +1040,7 @@ class _EmployeeCard extends StatelessWidget {
                             employee.position != 'موظف') ...[
                           const Icon(
                             Icons.badge,
-                            size: 12,
+                            size: 10,
                             color: AppColors.textSecondary,
                           ),
                           const SizedBox(width: 2),
@@ -1048,25 +1048,25 @@ class _EmployeeCard extends StatelessWidget {
                             child: Text(
                               employee.position,
                               style: const TextStyle(
-                                fontSize: 11,
+                                fontSize: 10,
                                 color: AppColors.textSecondary,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                         ],
                         // الراتب
                         const Icon(
                           Icons.attach_money,
-                          size: 12,
+                          size: 10,
                           color: AppColors.textSecondary,
                         ),
-                        const SizedBox(width: 2),
+                        const SizedBox(width: 1),
                         Text(
                           CurrencyFormatter.formatAmount(employee.basicSalary),
                           style: const TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             color: AppColors.textSecondary,
                           ),
                         ),
@@ -1079,14 +1079,14 @@ class _EmployeeCard extends StatelessWidget {
                         children: [
                           const Icon(
                             Icons.phone,
-                            size: 12,
+                            size: 10,
                             color: AppColors.textSecondary,
                           ),
-                          const SizedBox(width: 2),
+                          const SizedBox(width: 1),
                           Text(
                             employee.phone,
                             style: const TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               color: AppColors.textSecondary,
                             ),
                           ),
@@ -1095,19 +1095,19 @@ class _EmployeeCard extends StatelessWidget {
                     ],
                     // تاريخ وسبب إنهاء الخدمة
                     if (isTerminated && employee.terminationDate != null && employee.terminationDate!.isNotEmpty) ...[
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 1),
                       Row(
                         children: [
                           const Icon(
                             Icons.event_busy,
-                            size: 12,
+                            size: 10,
                             color: Colors.red,
                           ),
-                          const SizedBox(width: 2),
+                          const SizedBox(width: 1),
                           Text(
                             'إنهاء: ${employee.terminationDate}',
                             style: const TextStyle(
-                              fontSize: 10,
+                              fontSize: 9,
                               color: Colors.red,
                             ),
                           ),
@@ -1124,11 +1124,11 @@ class _EmployeeCard extends StatelessWidget {
                 children: [
                   if (onTerminate != null)
                     SizedBox(
-                      width: 32,
-                      height: 32,
+                      width: 26,
+                      height: 26,
                       child: IconButton(
                         onPressed: onTerminate,
-                        icon: const Icon(Icons.person_off, size: 16),
+                        icon: const Icon(Icons.person_off, size: 13),
                         color: Colors.red,
                         padding: EdgeInsets.zero,
                         style: IconButton.styleFrom(
@@ -1139,11 +1139,11 @@ class _EmployeeCard extends StatelessWidget {
                     ),
                   if (onReactivate != null)
                     SizedBox(
-                      width: 32,
-                      height: 32,
+                      width: 26,
+                      height: 26,
                       child: IconButton(
                         onPressed: onReactivate,
-                        icon: const Icon(Icons.person_add, size: 16),
+                        icon: const Icon(Icons.person_add, size: 13),
                         color: Colors.green,
                         padding: EdgeInsets.zero,
                         style: IconButton.styleFrom(
@@ -1153,11 +1153,11 @@ class _EmployeeCard extends StatelessWidget {
                       ),
                     ),
                   SizedBox(
-                    width: 32,
-                    height: 32,
+                    width: 26,
+                    height: 26,
                     child: IconButton(
                       onPressed: onDelete,
-                      icon: const Icon(Icons.delete_outline, size: 16),
+                      icon: const Icon(Icons.delete_outline, size: 13),
                       color: AppColors.dangerColor,
                       padding: EdgeInsets.zero,
                       style: IconButton.styleFrom(
