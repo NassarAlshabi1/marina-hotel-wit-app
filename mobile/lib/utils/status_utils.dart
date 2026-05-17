@@ -58,6 +58,25 @@ class StatusUtils {
     'active',
   ];
 
+  /// حالات إنهاء الخدمة
+  static final Set<String> _terminatedEmployeeStatuses = {
+    'مفصول',
+    'terminated',
+    'استقالة',
+    'resigned',
+    'استغناء',
+    'laid_off',
+  }.map(_normalize).toSet();
+
+  static const List<String> terminatedEmployeeStatuses = [
+    'مفصول',
+    'terminated',
+    'استقالة',
+    'resigned',
+    'استغناء',
+    'laid_off',
+  ];
+
   static final Set<String> _provisionalStatuses = {
     'مؤقت',
     'provisional',
@@ -77,11 +96,48 @@ class StatusUtils {
   static bool isEmployeeActive(String status) =>
       _activeEmployeeStatuses.contains(_normalize(status));
 
-  static String employeeStatusLabel(String status) =>
-      isEmployeeActive(status) ? 'نشط' : 'غير نشط';
+  /// هل الموظف مفصول / مستغنى عنه / استقال؟
+  static bool isEmployeeTerminated(String status) =>
+      _terminatedEmployeeStatuses.contains(_normalize(status));
 
-  static String canonicalEmployeeStatus(String status) =>
-      isEmployeeActive(status) ? 'active' : 'inactive';
+  /// تسمية عرض الحالة بالعربية مع دعم حالات إنهاء الخدمة
+  static String employeeStatusLabel(String status) {
+    if (isEmployeeActive(status)) return 'نشط';
+    if (_normalize(status) == _normalize('مفصول') || _normalize(status) == _normalize('terminated')) return 'مفصول';
+    if (_normalize(status) == _normalize('استقالة') || _normalize(status) == _normalize('resigned')) return 'استقالة';
+    if (_normalize(status) == _normalize('استغناء') || _normalize(status) == _normalize('laid_off')) return 'استغناء';
+    if (_normalize(status) == _normalize('مجمد') || _normalize(status) == _normalize('frozen')) return 'مجمد';
+    return 'غير نشط';
+  }
+
+  static String canonicalEmployeeStatus(String status) {
+    if (isEmployeeActive(status)) return 'active';
+    if (_normalize(status) == _normalize('مفصول') || _normalize(status) == _normalize('terminated')) return 'terminated';
+    if (_normalize(status) == _normalize('استقالة') || _normalize(status) == _normalize('resigned')) return 'resigned';
+    if (_normalize(status) == _normalize('استغناء') || _normalize(status) == _normalize('laid_off')) return 'laid_off';
+    if (_normalize(status) == _normalize('مجمد') || _normalize(status) == _normalize('frozen')) return 'frozen';
+    return 'inactive';
+  }
+
+  /// تحويل الحالة الكانونية إلى عربية
+  static String canonicalToArabic(String canonical) {
+    switch (canonical) {
+      case 'active': return 'نشط';
+      case 'terminated': return 'مفصول';
+      case 'resigned': return 'استقالة';
+      case 'laid_off': return 'استغناء';
+      case 'frozen': return 'مجمد';
+      default: return 'غير نشط';
+    }
+  }
+
+  /// لون الحالة
+  static int employeeStatusColor(String status) {
+    if (isEmployeeActive(status)) return 0xFF4CAF50; // أخضر
+    if (isEmployeeTerminated(status)) return 0xFFF44336; // أحمر
+    if (_normalize(status) == _normalize('مجمد')) return 0xFFFF9800; // برتقالي
+    return 0xFF9E9E9E; // رمادي
+  }
 
   static bool isProvisional(String status) =>
       _provisionalStatuses.contains(_normalize(status));

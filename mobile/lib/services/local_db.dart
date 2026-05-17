@@ -141,6 +141,8 @@ class Employees extends Table with SyncFields {
   TextColumn get phone => text().withDefault(const Constant(''))();
   TextColumn get hireDate => text().withDefault(const Constant(''))();
   TextColumn get status => text()();
+  TextColumn get terminationDate => text().nullable()();
+  TextColumn get terminationReason => text().nullable()();
 
   // فهرس لتسريع البحث بالاسم والحالة
   List<Index> get indexes => [
@@ -778,7 +780,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 38;
+  int get schemaVersion => 39;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1887,6 +1889,33 @@ class AppDatabase extends _$AppDatabase {
           'Migration 38: added source column to outbox table',
           name: 'db.migration',
         );
+      }
+      // === Migration 39: إضافة حقول إنهاء الخدمة للموظفين ===
+      if (from < 39) {
+        try {
+          await m.addColumn(employees, employees.terminationDate);
+          developer.log(
+            'Migration 39: added employees.terminationDate',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 39: add employees.terminationDate failed: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.addColumn(employees, employees.terminationReason);
+          developer.log(
+            'Migration 39: added employees.terminationReason',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 39: add employees.terminationReason failed: $e',
+            name: 'db.migration',
+          );
+        }
       }
     },
   );

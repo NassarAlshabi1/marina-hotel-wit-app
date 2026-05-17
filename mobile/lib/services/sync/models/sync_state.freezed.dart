@@ -12,7 +12,8 @@ part of 'sync_state.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 /// @nodoc
 mixin _$SyncState {
@@ -35,13 +36,14 @@ abstract class $SyncStateCopyWith<$Res> {
   factory $SyncStateCopyWith(SyncState value, $Res Function(SyncState) then) =
       _$SyncStateCopyWithImpl<$Res, SyncState>;
   @useResult
-  $Res call(
-      {SyncStatus status,
-      int progress,
-      String? message,
-      DateTime? lastSyncTime,
-      int pendingChanges,
-      String? error});
+  $Res call({
+    SyncStatus status,
+    int progress,
+    String? message,
+    DateTime? lastSyncTime,
+    int pendingChanges,
+    String? error,
+  });
 }
 
 /// @nodoc
@@ -66,32 +68,35 @@ class _$SyncStateCopyWithImpl<$Res, $Val extends SyncState>
     Object? pendingChanges = null,
     Object? error = freezed,
   }) {
-    return _then(_value.copyWith(
-      status: null == status
-          ? _value.status
-          : status // ignore: cast_nullable_to_non_nullable
-              as SyncStatus,
-      progress: null == progress
-          ? _value.progress
-          : progress // ignore: cast_nullable_to_non_nullable
-              as int,
-      message: freezed == message
-          ? _value.message
-          : message // ignore: cast_nullable_to_non_nullable
-              as String?,
-      lastSyncTime: freezed == lastSyncTime
-          ? _value.lastSyncTime
-          : lastSyncTime // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      pendingChanges: null == pendingChanges
-          ? _value.pendingChanges
-          : pendingChanges // ignore: cast_nullable_to_non_nullable
-              as int,
-      error: freezed == error
-          ? _value.error
-          : error // ignore: cast_nullable_to_non_nullable
-              as String?,
-    ) as $Val);
+    return _then(
+      _value.copyWith(
+            status: null == status
+                ? _value.status
+                : status // ignore: cast_nullable_to_non_nullable
+                      as SyncStatus,
+            progress: null == progress
+                ? _value.progress
+                : progress // ignore: cast_nullable_to_non_nullable
+                      as int,
+            message: freezed == message
+                ? _value.message
+                : message // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            lastSyncTime: freezed == lastSyncTime
+                ? _value.lastSyncTime
+                : lastSyncTime // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
+            pendingChanges: null == pendingChanges
+                ? _value.pendingChanges
+                : pendingChanges // ignore: cast_nullable_to_non_nullable
+                      as int,
+            error: freezed == error
+                ? _value.error
+                : error // ignore: cast_nullable_to_non_nullable
+                      as String?,
+          )
+          as $Val,
+    );
   }
 }
 
@@ -99,17 +104,19 @@ class _$SyncStateCopyWithImpl<$Res, $Val extends SyncState>
 abstract class _$$SyncStateImplCopyWith<$Res>
     implements $SyncStateCopyWith<$Res> {
   factory _$$SyncStateImplCopyWith(
-          _$SyncStateImpl value, $Res Function(_$SyncStateImpl) then) =
-      __$$SyncStateImplCopyWithImpl<$Res>;
+    _$SyncStateImpl value,
+    $Res Function(_$SyncStateImpl) then,
+  ) = __$$SyncStateImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call(
-      {SyncStatus status,
-      int progress,
-      String? message,
-      DateTime? lastSyncTime,
-      int pendingChanges,
-      String? error});
+  $Res call({
+    SyncStatus status,
+    int progress,
+    String? message,
+    DateTime? lastSyncTime,
+    int pendingChanges,
+    String? error,
+  });
 }
 
 /// @nodoc
@@ -117,8 +124,9 @@ class __$$SyncStateImplCopyWithImpl<$Res>
     extends _$SyncStateCopyWithImpl<$Res, _$SyncStateImpl>
     implements _$$SyncStateImplCopyWith<$Res> {
   __$$SyncStateImplCopyWithImpl(
-      _$SyncStateImpl _value, $Res Function(_$SyncStateImpl) _then)
-      : super(_value, _then);
+    _$SyncStateImpl _value,
+    $Res Function(_$SyncStateImpl) _then,
+  ) : super(_value, _then);
 
   /// Create a copy of SyncState
   /// with the given fields replaced by the non-null parameter values.
@@ -132,46 +140,48 @@ class __$$SyncStateImplCopyWithImpl<$Res>
     Object? pendingChanges = null,
     Object? error = freezed,
   }) {
-    return _then(_$SyncStateImpl(
-      status: null == status
-          ? _value.status
-          : status // ignore: cast_nullable_to_non_nullable
-              as SyncStatus,
-      progress: null == progress
-          ? _value.progress
-          : progress // ignore: cast_nullable_to_non_nullable
-              as int,
-      message: freezed == message
-          ? _value.message
-          : message // ignore: cast_nullable_to_non_nullable
-              as String?,
-      lastSyncTime: freezed == lastSyncTime
-          ? _value.lastSyncTime
-          : lastSyncTime // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      pendingChanges: null == pendingChanges
-          ? _value.pendingChanges
-          : pendingChanges // ignore: cast_nullable_to_non_nullable
-              as int,
-      error: freezed == error
-          ? _value.error
-          : error // ignore: cast_nullable_to_non_nullable
-              as String?,
-    ));
+    return _then(
+      _$SyncStateImpl(
+        status: null == status
+            ? _value.status
+            : status // ignore: cast_nullable_to_non_nullable
+                  as SyncStatus,
+        progress: null == progress
+            ? _value.progress
+            : progress // ignore: cast_nullable_to_non_nullable
+                  as int,
+        message: freezed == message
+            ? _value.message
+            : message // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        lastSyncTime: freezed == lastSyncTime
+            ? _value.lastSyncTime
+            : lastSyncTime // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        pendingChanges: null == pendingChanges
+            ? _value.pendingChanges
+            : pendingChanges // ignore: cast_nullable_to_non_nullable
+                  as int,
+        error: freezed == error
+            ? _value.error
+            : error // ignore: cast_nullable_to_non_nullable
+                  as String?,
+      ),
+    );
   }
 }
 
 /// @nodoc
 
 class _$SyncStateImpl extends _SyncState with DiagnosticableTreeMixin {
-  const _$SyncStateImpl(
-      {required this.status,
-      this.progress = 0,
-      this.message,
-      this.lastSyncTime,
-      this.pendingChanges = 0,
-      this.error})
-      : super._();
+  const _$SyncStateImpl({
+    required this.status,
+    this.progress = 0,
+    this.message,
+    this.lastSyncTime,
+    this.pendingChanges = 0,
+    this.error,
+  }) : super._();
 
   @override
   final SyncStatus status;
@@ -223,8 +233,15 @@ class _$SyncStateImpl extends _SyncState with DiagnosticableTreeMixin {
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, status, progress, message,
-      lastSyncTime, pendingChanges, error);
+  int get hashCode => Object.hash(
+    runtimeType,
+    status,
+    progress,
+    message,
+    lastSyncTime,
+    pendingChanges,
+    error,
+  );
 
   /// Create a copy of SyncState
   /// with the given fields replaced by the non-null parameter values.
@@ -236,13 +253,14 @@ class _$SyncStateImpl extends _SyncState with DiagnosticableTreeMixin {
 }
 
 abstract class _SyncState extends SyncState {
-  const factory _SyncState(
-      {required final SyncStatus status,
-      final int progress,
-      final String? message,
-      final DateTime? lastSyncTime,
-      final int pendingChanges,
-      final String? error}) = _$SyncStateImpl;
+  const factory _SyncState({
+    required final SyncStatus status,
+    final int progress,
+    final String? message,
+    final DateTime? lastSyncTime,
+    final int pendingChanges,
+    final String? error,
+  }) = _$SyncStateImpl;
   const _SyncState._() : super._();
 
   @override
@@ -291,15 +309,17 @@ mixin _$SyncSettings {
 /// @nodoc
 abstract class $SyncSettingsCopyWith<$Res> {
   factory $SyncSettingsCopyWith(
-          SyncSettings value, $Res Function(SyncSettings) then) =
-      _$SyncSettingsCopyWithImpl<$Res, SyncSettings>;
+    SyncSettings value,
+    $Res Function(SyncSettings) then,
+  ) = _$SyncSettingsCopyWithImpl<$Res, SyncSettings>;
   @useResult
-  $Res call(
-      {bool autoSyncEnabled,
-      int syncIntervalMinutes,
-      bool syncOnWifiOnly,
-      bool compressData,
-      SyncPriority defaultPriority});
+  $Res call({
+    bool autoSyncEnabled,
+    int syncIntervalMinutes,
+    bool syncOnWifiOnly,
+    bool compressData,
+    SyncPriority defaultPriority,
+  });
 }
 
 /// @nodoc
@@ -323,28 +343,31 @@ class _$SyncSettingsCopyWithImpl<$Res, $Val extends SyncSettings>
     Object? compressData = null,
     Object? defaultPriority = null,
   }) {
-    return _then(_value.copyWith(
-      autoSyncEnabled: null == autoSyncEnabled
-          ? _value.autoSyncEnabled
-          : autoSyncEnabled // ignore: cast_nullable_to_non_nullable
-              as bool,
-      syncIntervalMinutes: null == syncIntervalMinutes
-          ? _value.syncIntervalMinutes
-          : syncIntervalMinutes // ignore: cast_nullable_to_non_nullable
-              as int,
-      syncOnWifiOnly: null == syncOnWifiOnly
-          ? _value.syncOnWifiOnly
-          : syncOnWifiOnly // ignore: cast_nullable_to_non_nullable
-              as bool,
-      compressData: null == compressData
-          ? _value.compressData
-          : compressData // ignore: cast_nullable_to_non_nullable
-              as bool,
-      defaultPriority: null == defaultPriority
-          ? _value.defaultPriority
-          : defaultPriority // ignore: cast_nullable_to_non_nullable
-              as SyncPriority,
-    ) as $Val);
+    return _then(
+      _value.copyWith(
+            autoSyncEnabled: null == autoSyncEnabled
+                ? _value.autoSyncEnabled
+                : autoSyncEnabled // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            syncIntervalMinutes: null == syncIntervalMinutes
+                ? _value.syncIntervalMinutes
+                : syncIntervalMinutes // ignore: cast_nullable_to_non_nullable
+                      as int,
+            syncOnWifiOnly: null == syncOnWifiOnly
+                ? _value.syncOnWifiOnly
+                : syncOnWifiOnly // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            compressData: null == compressData
+                ? _value.compressData
+                : compressData // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            defaultPriority: null == defaultPriority
+                ? _value.defaultPriority
+                : defaultPriority // ignore: cast_nullable_to_non_nullable
+                      as SyncPriority,
+          )
+          as $Val,
+    );
   }
 }
 
@@ -352,16 +375,18 @@ class _$SyncSettingsCopyWithImpl<$Res, $Val extends SyncSettings>
 abstract class _$$SyncSettingsImplCopyWith<$Res>
     implements $SyncSettingsCopyWith<$Res> {
   factory _$$SyncSettingsImplCopyWith(
-          _$SyncSettingsImpl value, $Res Function(_$SyncSettingsImpl) then) =
-      __$$SyncSettingsImplCopyWithImpl<$Res>;
+    _$SyncSettingsImpl value,
+    $Res Function(_$SyncSettingsImpl) then,
+  ) = __$$SyncSettingsImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call(
-      {bool autoSyncEnabled,
-      int syncIntervalMinutes,
-      bool syncOnWifiOnly,
-      bool compressData,
-      SyncPriority defaultPriority});
+  $Res call({
+    bool autoSyncEnabled,
+    int syncIntervalMinutes,
+    bool syncOnWifiOnly,
+    bool compressData,
+    SyncPriority defaultPriority,
+  });
 }
 
 /// @nodoc
@@ -369,8 +394,9 @@ class __$$SyncSettingsImplCopyWithImpl<$Res>
     extends _$SyncSettingsCopyWithImpl<$Res, _$SyncSettingsImpl>
     implements _$$SyncSettingsImplCopyWith<$Res> {
   __$$SyncSettingsImplCopyWithImpl(
-      _$SyncSettingsImpl _value, $Res Function(_$SyncSettingsImpl) _then)
-      : super(_value, _then);
+    _$SyncSettingsImpl _value,
+    $Res Function(_$SyncSettingsImpl) _then,
+  ) : super(_value, _then);
 
   /// Create a copy of SyncSettings
   /// with the given fields replaced by the non-null parameter values.
@@ -383,40 +409,43 @@ class __$$SyncSettingsImplCopyWithImpl<$Res>
     Object? compressData = null,
     Object? defaultPriority = null,
   }) {
-    return _then(_$SyncSettingsImpl(
-      autoSyncEnabled: null == autoSyncEnabled
-          ? _value.autoSyncEnabled
-          : autoSyncEnabled // ignore: cast_nullable_to_non_nullable
-              as bool,
-      syncIntervalMinutes: null == syncIntervalMinutes
-          ? _value.syncIntervalMinutes
-          : syncIntervalMinutes // ignore: cast_nullable_to_non_nullable
-              as int,
-      syncOnWifiOnly: null == syncOnWifiOnly
-          ? _value.syncOnWifiOnly
-          : syncOnWifiOnly // ignore: cast_nullable_to_non_nullable
-              as bool,
-      compressData: null == compressData
-          ? _value.compressData
-          : compressData // ignore: cast_nullable_to_non_nullable
-              as bool,
-      defaultPriority: null == defaultPriority
-          ? _value.defaultPriority
-          : defaultPriority // ignore: cast_nullable_to_non_nullable
-              as SyncPriority,
-    ));
+    return _then(
+      _$SyncSettingsImpl(
+        autoSyncEnabled: null == autoSyncEnabled
+            ? _value.autoSyncEnabled
+            : autoSyncEnabled // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        syncIntervalMinutes: null == syncIntervalMinutes
+            ? _value.syncIntervalMinutes
+            : syncIntervalMinutes // ignore: cast_nullable_to_non_nullable
+                  as int,
+        syncOnWifiOnly: null == syncOnWifiOnly
+            ? _value.syncOnWifiOnly
+            : syncOnWifiOnly // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        compressData: null == compressData
+            ? _value.compressData
+            : compressData // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        defaultPriority: null == defaultPriority
+            ? _value.defaultPriority
+            : defaultPriority // ignore: cast_nullable_to_non_nullable
+                  as SyncPriority,
+      ),
+    );
   }
 }
 
 /// @nodoc
 @JsonSerializable()
 class _$SyncSettingsImpl with DiagnosticableTreeMixin implements _SyncSettings {
-  const _$SyncSettingsImpl(
-      {this.autoSyncEnabled = true,
-      this.syncIntervalMinutes = 5,
-      this.syncOnWifiOnly = true,
-      this.compressData = true,
-      this.defaultPriority = SyncPriority.normal});
+  const _$SyncSettingsImpl({
+    this.autoSyncEnabled = true,
+    this.syncIntervalMinutes = 5,
+    this.syncOnWifiOnly = true,
+    this.compressData = true,
+    this.defaultPriority = SyncPriority.normal,
+  });
 
   factory _$SyncSettingsImpl.fromJson(Map<String, dynamic> json) =>
       _$$SyncSettingsImplFromJson(json);
@@ -473,8 +502,14 @@ class _$SyncSettingsImpl with DiagnosticableTreeMixin implements _SyncSettings {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, autoSyncEnabled,
-      syncIntervalMinutes, syncOnWifiOnly, compressData, defaultPriority);
+  int get hashCode => Object.hash(
+    runtimeType,
+    autoSyncEnabled,
+    syncIntervalMinutes,
+    syncOnWifiOnly,
+    compressData,
+    defaultPriority,
+  );
 
   /// Create a copy of SyncSettings
   /// with the given fields replaced by the non-null parameter values.
@@ -486,19 +521,18 @@ class _$SyncSettingsImpl with DiagnosticableTreeMixin implements _SyncSettings {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$SyncSettingsImplToJson(
-      this,
-    );
+    return _$$SyncSettingsImplToJson(this);
   }
 }
 
 abstract class _SyncSettings implements SyncSettings {
-  const factory _SyncSettings(
-      {final bool autoSyncEnabled,
-      final int syncIntervalMinutes,
-      final bool syncOnWifiOnly,
-      final bool compressData,
-      final SyncPriority defaultPriority}) = _$SyncSettingsImpl;
+  const factory _SyncSettings({
+    final bool autoSyncEnabled,
+    final int syncIntervalMinutes,
+    final bool syncOnWifiOnly,
+    final bool compressData,
+    final SyncPriority defaultPriority,
+  }) = _$SyncSettingsImpl;
 
   factory _SyncSettings.fromJson(Map<String, dynamic> json) =
       _$SyncSettingsImpl.fromJson;

@@ -784,14 +784,22 @@ class AppwriteDeltaSync {
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       name: d.Value(name),
       basicSalary: d.Value(_asDouble(data['basicSalary'])),
       position: d.Value(_asString(data['position']) ?? ''),
       phone: d.Value(_asString(data['phone']) ?? ''),
       hireDate: d.Value(_asString(data['hireDate']) ?? ''),
       status: d.Value(_asString(data['status']) ?? ''),
+      terminationDate: _nullableValue<String>(_asString(data['terminationDate'])),
+      terminationReason: _nullableValue<String>(_asString(data['terminationReason'])),
     );
 
     await db.into(db.employees).insertOnConflictUpdate(companion);
