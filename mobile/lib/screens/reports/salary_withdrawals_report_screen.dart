@@ -131,10 +131,10 @@ class _SalaryWithdrawalsReportScreenState
     // لمنع إدراج سحوبات الصباح من اليوم السابق خطأً
     // نستخدم HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
     final fromHotelDay = _fromDate != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: _fromDate!)
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _fromDate)
         : null;
     final toHotelDay = _toDate != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate!)
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
         : null;
 
     if (fromHotelDay != null) {

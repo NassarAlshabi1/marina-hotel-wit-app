@@ -10,8 +10,8 @@ import '../../models/payment_models.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
-import '../../utils/status_utils.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../payments/booking_checkout_screen.dart';
 
@@ -68,7 +68,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           return const Center(child: CircularProgressIndicator());
         }
 
-        final payments = snapshot.data!;
+        final payments = snapshot.data;
 
         return StreamBuilder<List<db.Booking>>(
           stream: ref.read(bookingsRepoProvider).watchList(),

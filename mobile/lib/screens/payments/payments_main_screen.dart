@@ -10,8 +10,8 @@ import '../../providers/repository_providers.dart';
 import '../../services/crashlytics_service.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
-import '../../utils/status_utils.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import 'booking_checkout_screen.dart';
 import 'payment_history_screen.dart';
@@ -111,7 +111,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
           );
         }
 
-        final payments = snapshot.data!;
+        final payments = snapshot.data;
         return SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),

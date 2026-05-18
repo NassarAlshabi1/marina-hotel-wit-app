@@ -206,10 +206,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     //   _toDate  = 19-May 13:59 → toHotelDay   = "2026-05-18" ✓
     //   → فقط مصروفات hotelDayKey="2026-05-18" ✅
     final fromHotelDay = _fromDate != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: _fromDate!)
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _fromDate)
         : null;
     final toHotelDay = _toDate != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate!)
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
         : null;
     final selectedType =
         widget.showTypeFilter &&
