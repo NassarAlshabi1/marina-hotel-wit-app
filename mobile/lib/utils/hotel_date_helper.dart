@@ -180,24 +180,21 @@ class HotelDateHelper {
 
   // ─── الحقول المحسوبة (لا تُزامن إلى Appwrite) ───────────────
 
-  /// الحقول المحسوبة في جدول الحجوزات (bookings).
+  /// الحقول المحسوبة في جدول الحجوزات (bookings) — لا تُزامن إلى Appwrite.
   ///
-  /// هذه الحقول تُحسب محلياً من البيانات الأساسية (checkin, checkout, rate...)
-  /// ويجب **ألا تُدفع إلى Appwrite** لأنها تختلف من جهاز لآخر.
-  /// بعد كل عملية سحب (pull)، يجب إعادة حسابها محلياً.
+  /// هذه الحقول تعتمد على الوقت الحالي وتختلف من جهاز لآخر،
+  /// لذا لا تُدفع إلى Appwrite ويُعاد حسابها محلياً بعد كل سحب.
+  ///
+  /// ⚠️ تم إزالة الحقول التالية من هذه القائمة لأنها موجودة في Appwrite
+  /// Cloud مع بيانات ويجب مزامنتها بين الأجهزة (موجودة في _bookingToRemote):
+  /// - calculatedNights, totalNightsCached, totalDueCached, totalPaidCached,
+  ///   remainingBalanceCached, isFullyPaid, hotelDayCheckin, hotelDayCheckout
   static const bookingComputedFields = <String>{
-    'calculatedNights',
-    'totalNightsCached',
-    'stayDurationIso',
-    'lastNightEpoch',
-    'isOverdue',
-    'needsCheckoutReview',
-    'totalDueCached',
-    'totalPaidCached',
-    'remainingBalanceCached',
-    'isFullyPaid',
-    'hotelDayCheckin',
-    'hotelDayCheckout',
+    // ── حقول ديناميكية تعتمد على الوقت الحالي — لا تُزامن ──
+    'stayDurationIso',   // حساب مدة البقاء — يختلف حسب وقت الاستعلام
+    'lastNightEpoch',    // حساب آخر ليلة — يختلف حسب وقت الاستعلام
+    'isOverdue',         // يعتمد على الوقت الحالي
+    'needsCheckoutReview', // يعتمد على الوقت الحالي
   };
 
   /// فحص هل حقل معين في الحجوزات هو حقل محسوب (لا يُزامن).

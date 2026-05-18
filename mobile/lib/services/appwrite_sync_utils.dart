@@ -38,15 +38,24 @@ class AppwriteSyncUtils {
     result.remove('\u0024databaseId');
     result.remove('\u0024collectionId');
 
-    // 3. تحويل أسماء الحقول من snake_case إلى camelCase
-    //    ⚠️ حرج: Appwrite Cloud يستخدم camelCase في جميع المجموعات
+    // 3. إزالة حقول Delta Sync الداخلية التي لا وجود لها في مخطط Appwrite
+    //    هذه الحقول تُضاف بواسطة DeltaSyncService.compute() و _preparePayload()
+    result.remove('row_hash');       // حقل داخلي — ليس في أي مجموعة Appwrite
+    result.remove('client_ts');      // حقل داخلي
+
+    // 4. تحويل أسماء الحقول من snake_case إلى camelCase
+    //    ⚠️ حرج: Appwrite Cloud يستخدم camelCase في جميع المجموعات المتزامنة
     //    (deletedAt, lastModified, localUuid, إلخ)
     //    بينما Delta Sync Push يرسل snake_case (deleted_at, last_modified, local_uuid)
     //    بدون هذا التحويل، يتجاهل Appwrite الحقول مثل deleted_at → الجهاز الآخر
     //    لا يرى softDelete → يرى 30 بدلاً من 15
     result = _convertKeysToCamelCase(result);
 
-    // 4. تحويل الأنواع المالية إذا لزم الأمر
+    // 5. بعد التحويل: إزالة الحقول الداخلية بأسمائها camelCase
+    result.remove('rowHash');        // من row_hash
+    result.remove('clientTs');       // من client_ts
+
+    // 6. تحويل الأنواع المالية إذا لزم الأمر
     if (collectionId != null) {
       result = convertAmountTypesForAppwrite(collectionId, result);
     }

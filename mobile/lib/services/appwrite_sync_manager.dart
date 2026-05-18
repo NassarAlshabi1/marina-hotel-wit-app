@@ -2344,6 +2344,10 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'hotelDayCheckin', booking.hotelDayCheckin);
     _putIfStringNotEmpty(data, 'hotelDayCheckout', booking.hotelDayCheckout);
     _putIfStringNotEmpty(data, 'vectorClock', booking.vectorClock);
+    // ✅ حقول SyncFields المضافة حديثاً إلى Appwrite Cloud
+    _putIfStringNotEmpty(data, 'deletedAtIso', booking.deletedAtIso);
+    _putIfNotNull(data, 'createdAtEpoch', booking.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', booking.lastModifiedEpoch);
     return AppwriteSyncUtils.sanitizePayload('bookings', data, collectionId: AppwriteConfig.bookingsCollectionId);
   }
 
@@ -2431,7 +2435,7 @@ class AppwriteSyncManager {
       'checkinDate': debt.checkinDate,
       'totalAmount': debt.totalAmount,
       'paidAmount': debt.paidAmount,
-      'remainingAmount': debt.remainingAmount.round(), // Appwrite: integer
+      'remainingAmount': debt.remainingAmount.round(), // ✅ Appwrite: integer
       // ── Required sync fields ──
       // ✅ تم حذف vector_clock/sync_vector_clock/sync_version/sync_origin
       // — حقول مكررة وقديمة، يُرسل vectorClock/version/origin بأسمائهم الصحيحة
@@ -2456,8 +2460,13 @@ class AppwriteSyncManager {
     };
     _putIfNotNull(data, 'serverId', debt.serverId);
     _putIfNotNull(data, 'deletedAt', debt.deletedAt);
+    _putIfStringNotEmpty(data, 'deletedAtIso', debt.deletedAtIso);
     _putIfStringNotEmpty(data, 'hotelDayOpened', debt.hotelDayOpened);
     _putIfStringNotEmpty(data, 'hotelDayClosed', debt.hotelDayClosed);
+    // ✅ حقول SyncFields المضافة حديثاً إلى Appwrite Cloud
+    data['vectorClock'] = debt.vectorClock;
+    _putIfNotNull(data, 'createdAtEpoch', debt.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', debt.lastModifiedEpoch);
     return AppwriteSyncUtils.sanitizePayload('debts', data, collectionId: AppwriteConfig.debtsCollectionId);
   }
 
@@ -3761,7 +3770,7 @@ class AppwriteSyncManager {
       'lastModified': note.lastModified, // مطلوب للـ Delta Sync
       'createdBy': note.createdBy,
       'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
-      'note': note.content, // مطلوب — يوازي content
+      // ✅ تم حذف حقل 'note' المكرر — Appwrite shift_notes لا يملكه (يستخدم content)
     };
     _putIfStringNotEmpty(data, 'expiresAt', note.expiresAt);
     return data;
