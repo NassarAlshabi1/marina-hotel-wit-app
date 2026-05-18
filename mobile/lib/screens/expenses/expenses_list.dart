@@ -125,7 +125,15 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 if (expensesData == null) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final filteredExpenses = expensesData;
+                // ── فلتر البحث بالوصف ──
+                final filteredExpenses = _searchQuery.isEmpty
+                    ? expensesData
+                    : expensesData.where((expense) {
+                        final q = _searchQuery.toLowerCase();
+                        return expense.description.toLowerCase().contains(q) ||
+                            expense.expenseType.toLowerCase().contains(q) ||
+                            (employeeNames[expense.relatedId]?.toLowerCase().contains(q) ?? false);
+                      }).toList();
 
                 return RefreshIndicator(
                   onRefresh: () async {
@@ -134,6 +142,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                   child: ListView(
                     padding: const EdgeInsets.all(12),
                     children: [
+                      _buildSearchBar(),
+                      const SizedBox(height: 8),
                       _buildCompactFiltersCard(),
                       const SizedBox(height: 8),
                       _buildCompactSummaryCard(
@@ -173,6 +183,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   bool _filterActive = false;
+  String _searchQuery = '';
+  Timer? _debounceTimer;
+  final _searchController = TextEditingController();
 
   Stream<List<Expense>> _buildExpensesStream() {
     final repo = ref.read(expensesRepoProvider);
@@ -233,6 +246,46 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       }
       _expensesStream = _buildExpensesStream();
     });
+  }
+
+  /// شريط البحث بالوصف
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        decoration: InputDecoration(
+          hintText: 'ابحث بالوصف أو النوع أو اسم الموظف...',
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+          prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.clear, color: Colors.grey.shade500, size: 20),
+                  onPressed: () {
+                    _searchController.clear();
+                    _debounceTimer?.cancel();
+                    setState(() => _searchQuery = '');
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          isDense: true,
+        ),
+        onChanged: (value) {
+          _debounceTimer?.cancel();
+          _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+            setState(() => _searchQuery = value);
+          });
+        },
+      ),
+    );
   }
 
   Widget _buildCompactFiltersCard() {
@@ -882,6 +935,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     } catch (e) {
       debugPrint('WhatsApp salary notification error: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _searchController.dispose();
+    super.dispose();
   }
 
   bool _isSalaryAction(String? type) {
