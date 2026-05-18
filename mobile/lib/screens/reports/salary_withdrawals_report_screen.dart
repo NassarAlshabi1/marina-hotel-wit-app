@@ -11,6 +11,7 @@ import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 
@@ -125,18 +126,24 @@ class _SalaryWithdrawalsReportScreenState
     var query = db.select(db.salaryWithdrawals)
       ..where((tbl) => tbl.deletedAt.isNull());
 
-    final fromStr = _fromDate != null
+    // ✅ إصلاح: فلترة بـ hotelDayKey بدلاً من withdrawDate التقويمي
+    // لمنع إدراج سحوبات الصباح من اليوم السابق خطأً
+    final fromHotelDay = _fromDate != null
         ? DateFormat('yyyy-MM-dd').format(_fromDate!)
         : null;
-    final toStr = _toDate != null
-        ? DateFormat('yyyy-MM-dd').format(_toDate!)
+    final toHotelDay = _toDate != null
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate!)
         : null;
 
-    if (fromStr != null) {
-      query = query..where((tbl) => tbl.withdrawDate.isBiggerOrEqualValue(fromStr));
+    if (fromHotelDay != null) {
+      query = query..where((tbl) =>
+          (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+          (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)));
     }
-    if (toStr != null) {
-      query = query..where((tbl) => tbl.withdrawDate.isSmallerOrEqualValue('${toStr}T23:59:59'));
+    if (toHotelDay != null) {
+      query = query..where((tbl) =>
+          (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+          (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)));
     }
 
     // فلترة حسب الموظف المحدد

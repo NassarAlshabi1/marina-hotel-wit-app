@@ -22,6 +22,7 @@ import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../../widgets/report_date_filter.dart';
 
@@ -111,12 +112,14 @@ class _IncomeExpenseReportScreenState
         excludePendingBalance: true,
       );
 
-      // المصروفات: تُخزن بتاريخ بدون وقت (yyyy-MM-dd)
-      // نطاق التاريخ يشمل كل الأيام من بداية اليوم الفندقي الأول
-      // إلى نهاية اليوم الفندقي الأخير
-      final expenseFromStr = DateFormat('yyyy-MM-dd').format(fromDate);
-      final expenseToStr = DateFormat('yyyy-MM-dd').format(toDate);
-      final expenses = await expensesDao.list(from: expenseFromStr, to: expenseToStr);
+      // ✅ إصلاح: المصروفات تُفلتر بـ hotelDayKey بدلاً من date التقويمي
+      // لمنع إدراج مصروفات الصباح التي تنتمي لليوم الفندقي السابق
+      final fromHotelDay = DateFormat('yyyy-MM-dd').format(fromDate);
+      final toHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: toDate);
+      final expenses = await expensesDao.listFilteredByHotelDay(
+        fromHotelDay: fromHotelDay,
+        toHotelDay: toHotelDay,
+      );
 
       // بيانات إضافية للتقرير التفصيلي للدورة المالية
       final bookingsDao = BookingsDao(db, outboxDao);

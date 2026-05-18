@@ -13,6 +13,7 @@ import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
@@ -195,11 +196,19 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   Future<_ExpensesReportResult> _loadExpensesReport(AppDatabase db) async {
     final outboxDao = OutboxDao(db);
     final expensesDao = ExpensesDao(db, outboxDao);
-    final fromStr = _fromDate != null
+    // ✅ إصلاح حرج: تحويل نطاق التاريخ إلى مفاتيح أيام فندقية
+    // الفلتر يعطي نطاق 14:00→13:59 لكن listFiltered القديمة تفلتر
+    // بحقل date التقويمي فتشمل مصروفات الصباح من اليوم السابق خطأً
+    //
+    // مثال: فلتر "اليوم" عند 10:00 صباح 2026-05-19:
+    //   _fromDate = 18-May 14:00 → fromHotelDay = "2026-05-18"
+    //   _toDate  = 19-May 13:59 → toHotelDay   = "2026-05-18"
+    //   → فقط مصروفات hotelDayKey="2026-05-18" ✅
+    final fromHotelDay = _fromDate != null
         ? DateFormat('yyyy-MM-dd').format(_fromDate!)
         : null;
-    final toStr = _toDate != null
-        ? DateFormat('yyyy-MM-dd').format(_toDate!)
+    final toHotelDay = _toDate != null
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate!)
         : null;
     final selectedType =
         widget.showTypeFilter &&
@@ -211,9 +220,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // هل نعرض الكل (بدون فلتر نوع)؟
     final showAll = selectedType == null;
 
-    var expenses = await expensesDao.listFiltered(
-      from: fromStr,
-      to: toStr,
+    // ✅ فلترة بحقل hotelDayKey بدلاً من date التقويمي
+    var expenses = await expensesDao.listFilteredByHotelDay(
+      fromHotelDay: fromHotelDay,
+      toHotelDay: toHotelDay,
       expenseType: selectedType,
     );
 
@@ -238,11 +248,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       try {
         var swQuery = db.select(db.salaryWithdrawals)
           ..where((tbl) => tbl.deletedAt.isNull());
-        if (fromStr != null) {
-          swQuery = swQuery..where((tbl) => tbl.withdrawDate.isBiggerOrEqualValue(fromStr));
+        // ✅ إصلاح: فلترة salary_withdrawals بـ hotelDayKey أيضاً
+        if (fromHotelDay != null) {
+          swQuery = swQuery..where((tbl) =>
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)));
         }
-        if (toStr != null) {
-          swQuery = swQuery..where((tbl) => tbl.withdrawDate.isSmallerOrEqualValue('${toStr}T23:59:59'));
+        if (toHotelDay != null) {
+          swQuery = swQuery..where((tbl) =>
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)));
         }
         salaryWithdrawals = await swQuery.get();
         // إضافة أرقام الموظفين من salary_withdrawals

@@ -66,6 +66,50 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
+  /// فلترة حسب نطاق الأيام الفندقية — الطريقة الصحيحة للتقارير
+  ///
+  /// على عكس [listFiltered] التي تفلتر بحقل [date] التقويمي
+  /// (وتشمل مصروفات الصباح التي تنتمي لليوم الفندقي السابق)،
+  /// هذه الدالة تفلتر بحقل [hotelDayKey] وهو المفتاح الصحيح.
+  ///
+  /// مثال: إذا كان اليوم الفندقي "2026-05-18" والوقت 10:00 صباحاً
+  /// فإن listFiltered(from:"2026-05-18") تجلب مصروفات صباح 18 مايو
+  /// التي تنتمي لليوم الفندقي 17 مايو — بينما هذه الدالة تجلب فقط
+  /// المصروفات التي hotelDayKey فيها بين fromHotelDay و toHotelDay.
+  Future<List<Expense>> listFilteredByHotelDay({
+    String? fromHotelDay,
+    String? toHotelDay,
+    String? expenseType,
+    bool includeDeleted = false,
+  }) async {
+    final q = select(expenses);
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+
+    if (fromHotelDay != null) {
+      // hotelDayKey >= fromHotelDay، مع fallback لحقل date عند كون hotelDayKey فارغاً
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.date.isBiggerOrEqualValue(fromHotelDay)));
+    }
+    if (toHotelDay != null) {
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.date.isSmallerOrEqualValue(toHotelDay)));
+    }
+    if (expenseType != null && expenseType.isNotEmpty) {
+      q.where((t) => t.expenseType.equals(expenseType));
+    }
+
+    q.orderBy([(t) => OrderingTerm.desc(t.date)]);
+    return q.get();
+  }
+
   Stream<List<Expense>> watchList({bool includeDeleted = false}) {
     final q = select(expenses);
     if (!includeDeleted) {
