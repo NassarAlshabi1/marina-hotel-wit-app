@@ -137,9 +137,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   Future<void> _loadExpenseTypes() async {
     final db = ref.read(databaseProvider);
+    final tbl = db.expenses.actualTableName;
+    final typeCol = db.expenses.expenseType.name;
+    final deletedCol = db.expenses.deletedAt.name;
     final query = await db
         .customSelect(
-          'SELECT DISTINCT expense_type FROM expenses WHERE deleted_at IS NULL',
+          'SELECT DISTINCT $typeCol AS expense_type FROM $tbl WHERE $deletedCol IS NULL',
         )
         .get();
     final types =
