@@ -126,10 +126,12 @@ class _IncomeExpenseReportScreenState
       final debtsDao = DebtsDao(db, outboxDao);
       final employeesDao = EmployeesDao(db, outboxDao);
 
-      // الحجوزات: فلترة بنطاق تاريخ checkin
+      // الحجوزات: فلترة بنطاق تاريخ checkin (تاريخ فقط بدون وقت)
+      final bookingFromStr = DateFormat('yyyy-MM-dd').format(fromDate);
+      final bookingToStr = DateFormat('yyyy-MM-dd').format(toDate);
       final bookings = await bookingsDao.list(
-        from: expenseFromStr,
-        to: expenseToStr,
+        from: bookingFromStr,
+        to: bookingToStr,
       );
 
       // الديون: فلترة بتاريخ التسجيل ضمن الفترة المحددة
