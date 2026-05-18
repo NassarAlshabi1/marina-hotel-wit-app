@@ -28,6 +28,13 @@ class ExpensesRepository {
     String? expenseType,
   }) => dao.listFiltered(from: from, to: to, expenseType: expenseType);
 
+  /// البحث المتقدم مع دعم البحث النصي في الوصف ونوع المصروف
+  Future<List<Expense>> listWithSearch({
+    String? search,
+    String? from,
+    String? to,
+  }) => dao.list(search: search, from: from, to: to);
+
   Future<int> create({
     required String expenseType,
     int? relatedId,

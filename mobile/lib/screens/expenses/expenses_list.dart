@@ -125,15 +125,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 if (expensesData == null) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                // ── فلتر البحث بالوصف ──
-                final filteredExpenses = _searchQuery.isEmpty
-                    ? expensesData
-                    : expensesData.where((expense) {
-                        final q = _searchQuery.toLowerCase();
-                        return expense.description.toLowerCase().contains(q) ||
-                            expense.expenseType.toLowerCase().contains(q) ||
-                            (employeeNames[expense.relatedId]?.toLowerCase().contains(q) ?? false);
-                      }).toList();
+                // البحث يتم على مستوى قاعدة البيانات الآن
+                final filteredExpenses = expensesData;
 
                 return RefreshIndicator(
                   onRefresh: () async {
@@ -198,7 +191,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     }
     final fromStr = _fromDate != null ? Time.dateToString(_fromDate!) : null;
     final toStr = _toDate != null ? Time.dateToString(_toDate!) : null;
-    return Stream.fromFuture(repo.listFiltered(from: fromStr, to: toStr));
+    // استخدام دالة البحث المتقدمة من DAO مع دعم البحث النصي
+    return Stream.fromFuture(
+      repo.listWithSearch(
+        search: _searchQuery.isNotEmpty ? _searchQuery : null,
+        from: fromStr,
+        to: toStr,
+      ),
+    );
   }
 
   void _refreshExpensesStream() {
@@ -248,7 +248,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     });
   }
 
-  /// شريط البحث بالوصف
+  /// شريط البحث بالوصف مع دعم البحث المتقدم
   Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -261,7 +261,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         controller: _searchController,
         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         decoration: InputDecoration(
-          hintText: 'ابحث بالوصف أو النوع أو اسم الموظف...',
+          hintText: 'ابحث بالوصف أو النوع...',
           hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
           prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
           suffixIcon: _searchQuery.isNotEmpty
@@ -270,7 +270,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                   onPressed: () {
                     _searchController.clear();
                     _debounceTimer?.cancel();
-                    setState(() => _searchQuery = '');
+                    setState(() {
+                      _searchQuery = '';
+                      _refreshExpensesStream();
+                    });
                   },
                 )
               : null,
@@ -281,7 +284,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         onChanged: (value) {
           _debounceTimer?.cancel();
           _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-            setState(() => _searchQuery = value);
+            setState(() {
+              _searchQuery = value;
+              _refreshExpensesStream();
+            });
           });
         },
       ),
