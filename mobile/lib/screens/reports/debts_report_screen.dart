@@ -35,8 +35,6 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
 
   List<Debt> _rows = [];
   List<_GuestDebtSummary> _guestSummaries = [];
-  // ignore: unused_field
-  List<_MonthlyDebtSummary> _monthlySummaries = [];
 
   double _totalDebt = 0;
   double _totalPaid = 0;
@@ -68,27 +66,23 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     try {
       final db = ref.read(databaseProvider);
       final query = db.select(db.debts);
-      final allDebts = await query.get();
-      final filtered = <Debt>[];
+      query.where((t) => t.deletedAt.isNull());
       final fromFilter = _fromDate;
       final toFilter = _toDate;
-      for (final debt in allDebts) {
-        final paymentDate = _parseDateTime(debt.paymentDate);
-        if (fromFilter != null && paymentDate.isBefore(fromFilter)) {
-          continue;
-        }
-        if (toFilter != null && paymentDate.isAfter(toFilter)) {
-          continue;
-        }
-        filtered.add(debt);
+      if (fromFilter != null && toFilter != null) {
+        final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(fromFilter);
+        final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(toFilter);
+        query.where((t) =>
+            t.paymentDate.isBiggerOrEqualValue(fromStr) &
+            t.paymentDate.isSmallerOrEqualValue(toStr));
       }
+      final filtered = await query.get();
       filtered.sort(
         (a, b) => _parseDateTime(
           b.paymentDate,
         ).compareTo(_parseDateTime(a.paymentDate)),
       );
       final guestMap = <String, _GuestDebtSummary>{};
-      final monthlyMap = <String, _MonthlyDebtSummary>{};
       double totalDebt = 0;
       double totalPaid = 0;
       double totalRemaining = 0;
@@ -103,24 +97,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         guestEntry.totalAmount += debt.totalAmount;
         guestEntry.paidAmount += debt.paidAmount;
         guestEntry.remainingAmount += debt.remainingAmount;
-        final date = _parseDateTime(debt.paymentDate);
-        final monthKey =
-            '${date.year}-${date.month.toString().padLeft(2, '0')}';
-        final monthEntry = monthlyMap.putIfAbsent(
-          monthKey,
-          () => _MonthlyDebtSummary(
-            label: monthKey,
-            month: DateTime(date.year, date.month),
-          ),
-        );
-        monthEntry.totalAmount += debt.totalAmount;
-        monthEntry.paidAmount += debt.paidAmount;
-        monthEntry.remainingAmount += debt.remainingAmount;
       }
       final guestSummaries = guestMap.values.toList()
         ..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
-      final monthlySummaries = monthlyMap.values.toList()
-        ..sort((a, b) => a.month.compareTo(b.month));
       _unreturnedCounts.clear();
       for (final debt in filtered) {
         _unreturnedCounts[debt.id] = 0;
@@ -128,7 +107,6 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       setState(() {
         _rows = filtered;
         _guestSummaries = guestSummaries;
-        _monthlySummaries = monthlySummaries;
         _totalDebt = totalDebt;
         _totalPaid = totalPaid;
         _totalRemaining = totalRemaining;
@@ -361,7 +339,6 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                   _fromDate = range.from;
                   _toDate = range.to;
                 });
-                _fetchReport();
               },
             ),
             Wrap(

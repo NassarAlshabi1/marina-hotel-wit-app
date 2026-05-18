@@ -116,25 +116,14 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
 
-    // الهندسة الدقيقة: تقرير الدخل يستخدم نطاقاً زمنياً يبدأ من 14:00 في تاريخ البداية
-    // وينتهي في 13:59:59 في تاريخ النهاية.
-    final hotelStart = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day, 14);
-    final hotelEnd = DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 13, 59, 59);
-    
-    final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelStart);
-    final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelEnd);
+    final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(_fromDate!);
+    final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(_toDate!);
 
-    // استخدام list() مع نفس الفلاتر الصارمة لتقرير الدخل
-    final payments = await paymentsDao.list(
+    final filteredPayments = await paymentsDao.listForReport(
       from: fromStr,
       to: toStr,
-      excludeVoided: true,
-      excludePendingBalance: true,
+      roomNumber: _selectedRoom,
     );
-    // فلترة حسب الغرفة في الذاكرة إذا تم اختيار غرفة محددة
-    final filteredPayments = _selectedRoom != null && _selectedRoom!.isNotEmpty
-        ? payments.where((p) => p.roomNumber == _selectedRoom).toList()
-        : payments;
 
     final bookingIds = filteredPayments
         .map((p) => p.bookingLocalId)
@@ -167,12 +156,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
     for (final payment in filteredPayments) {
       final paymentDate = _parseDateTime(payment.paymentDate);
-      
-      // التحقق الهندسي: هل التاريخ يقع فعلياً ضمن النطاق الفندقي؟
-      // (نفس منطق isWithinRange في تقرير الدخل)
-      if (paymentDate.isBefore(hotelStart) || paymentDate.isAfter(hotelEnd)) {
-        continue;
-      }
 
       final booking = bookingMap[payment.bookingLocalId];
       final roomNumber =
@@ -332,7 +315,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           _fromDate = range.from;
           _toDate = range.to;
         });
-        _fetchReport();
       },
       onExportPdf: _exportPdf,
       onSearch: _fetchReport,
@@ -364,7 +346,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               setState(() {
                 _selectedRoom = value;
               });
-              _fetchReport();
             },
           ),
         ),

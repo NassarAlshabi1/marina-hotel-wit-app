@@ -515,12 +515,14 @@ class _SalaryWithdrawalsReportScreenState
     switch (_sortBy) {
       case 'amount':
         entries.sort((a, b) => b.value.totalAmount.compareTo(a.value.totalAmount));
+        break;
       case 'employee':
         entries.sort((a, b) {
           final aName = a.value.employee?.name ?? '';
           final bName = b.value.employee?.name ?? '';
           return aName.compareTo(bName);
         });
+        break;
       case 'date':
       default:
         // ترتيب حسب أحدث معاملة
@@ -533,13 +535,14 @@ class _SalaryWithdrawalsReportScreenState
               : DateTime(2000);
           return bDate.compareTo(aDate);
         });
+        break;
     }
 
     for (int i = 0; i < entries.length; i++) {
       final group = entries[i].value;
       widgets.add(_buildEmployeeCard(group, rank: i + 1));
       if (i < entries.length - 1) {
-        const SizedBox(height: 8);
+        widgets.add(const SizedBox(height: 8));
       }
     }
 

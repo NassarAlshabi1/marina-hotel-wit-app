@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -36,6 +38,7 @@ class _GuestPaymentsDetailReportScreenState
   String _sortBy = 'room'; // room, name, remaining
   bool _showOnlyActive = true;
   bool _isLoading = true;
+  Timer? _searchDebounce;
 
   /// خريطة تعديلات الأسعار النشطة مجمّعة حسب معرّف الحجز
   /// تُحدّث عند كل استدعاء لـ _refreshData()
@@ -123,6 +126,12 @@ double _getOverdueCost(Booking b) {
   void initState() {
     super.initState();
     _refreshData();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _refreshData() async {
@@ -256,7 +265,13 @@ double _getOverdueCost(Booking b) {
               hintStyle: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey[500]),
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(icon: const Icon(Icons.clear, size: 20), onPressed: () => setState(() => _searchQuery = ''))
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: () {
+                        _searchDebounce?.cancel();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
                   : null,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -264,7 +279,15 @@ double _getOverdueCost(Booking b) {
               filled: true,
               fillColor: Colors.grey.shade50,
             ),
-            onChanged: (v) => setState(() => _searchQuery = v),
+            onChanged: (v) {
+              _searchDebounce?.cancel();
+              _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+                if (!mounted) {
+                  return;
+                }
+                setState(() => _searchQuery = v);
+              });
+            },
           ),
           const SizedBox(height: 8),
           SingleChildScrollView(

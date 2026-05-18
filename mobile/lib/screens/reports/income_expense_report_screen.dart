@@ -44,6 +44,7 @@ class _IncomeExpenseReportScreenState
   DateTime? _toDate;
 
   bool _loading = false;
+  String? _errorMessage;
   bool _detailedMode = false;
 
   List<_IncomeEntry> _incomeEntries = [];
@@ -79,7 +80,13 @@ class _IncomeExpenseReportScreenState
   }
 
   Future<void> _fetchReport() async {
-    setState(() => _loading = true);
+    if (_loading) {
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
     try {
       final db = ref.read(databaseProvider);
       final outboxDao = OutboxDao(db);
@@ -187,15 +194,16 @@ class _IncomeExpenseReportScreenState
           .where((e) => StatusUtils.isEmployeeTerminated(e.status))
           .toList();
 
-      // بناء خريطة بين معرف الحجز واسم النزيل لاستخدامه في المدفوعات
       final bookingGuestMap = <int, String>{};
-      for (final b in bookings) {
-        bookingGuestMap[b.id] = b.guestName;
-      }
-      // جلب كل الحجوزات لبناء خريطة شاملة (لأن بعض المدفوعات قد تكون لحجوزات خارج الفترة)
-      final allBookings = await bookingsDao.list(includeDeleted: true);
-      for (final b in allBookings) {
-        bookingGuestMap.putIfAbsent(b.id, () => b.guestName);
+      final paymentBookingIds =
+          payments.map((p) => p.bookingLocalId).whereType<int>().toSet();
+      if (paymentBookingIds.isNotEmpty) {
+        final paymentBookings = await (db.select(
+          db.bookings,
+        )..where((tbl) => tbl.id.isIn(paymentBookingIds.toList()))).get();
+        for (final b in paymentBookings) {
+          bookingGuestMap[b.id] = b.guestName;
+        }
       }
 
       final result = await compute(
@@ -265,7 +273,10 @@ class _IncomeExpenseReportScreenState
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+          _errorMessage = 'تعذر تحميل التقرير. حاول التحديث مرة أخرى.';
+        });
       }
     }
   }
@@ -2221,6 +2232,25 @@ class _IncomeExpenseReportScreenState
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
+                  : _errorMessage != null
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          EmptyState(
+                            title: 'تعذر تحميل التقرير',
+                            message: _errorMessage,
+                            icon: Icons.error_outline,
+                          ),
+                          const SizedBox(height: 10),
+                          ElevatedButton.icon(
+                            onPressed: _fetchReport,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('إعادة المحاولة'),
+                          ),
+                        ],
+                      ),
+                    )
                   : (_incomeEntries.isEmpty && _expenseEntries.isEmpty)
                   ? const EmptyState(
                       title: 'لا توجد بيانات',
