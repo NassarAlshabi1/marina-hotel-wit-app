@@ -129,12 +129,12 @@ class _SalaryWithdrawalsReportScreenState
 
     // ✅ إصلاح: فلترة بـ hotelDayKey بدلاً من withdrawDate التقويمي
     // لمنع إدراج سحوبات الصباح من اليوم السابق خطأً
-    // نستخدم Time.hotelDayKey لأنها تتعامل مع 14:00:00 كحد فندقي صحيح
+    // نستخدم HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
     final fromHotelDay = _fromDate != null
-        ? Time.hotelDayKey(now: _fromDate)
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _fromDate!)
         : null;
     final toHotelDay = _toDate != null
-        ? Time.hotelDayKey(now: _toDate)
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate!)
         : null;
 
     if (fromHotelDay != null) {

@@ -11,6 +11,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 import '../payments/booking_checkout_screen.dart';
 
@@ -111,7 +112,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   // ─── بطاقة يوم الفندق ───
   Widget _buildHotelDayCard() {
     final now = DateTime.now();
-    final hotelDay = Time.hotelDayKey();
+    final hotelDay = HotelTimeEngine.getHotelDayKey();
     final cutoff = now.hour >= 14;
     return Container(
       padding: const EdgeInsets.all(10),
@@ -358,7 +359,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
   // ─── مدفوعات اليوم (مجمّعة حسب الغرفة ومفصلة) ───
   Widget _buildTodayPayments(List<db.Payment> payments) {
-    final hotelDay = Time.hotelDayKey();
+    final hotelDay = HotelTimeEngine.getHotelDayKey();
     final todayPayments = payments
         .where((p) {
           if (p.isVoided) {
@@ -912,7 +913,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         ..writeln('المبلغ: ${CurrencyFormatter.formatAmount(amount)}')
         ..writeln('طريقة الدفع: $method')
         ..writeln('التاريخ: ${Time.nowIso()}')
-        ..writeln('اليوم الفندقي: ${Time.hotelDayKey()}')
+        ..writeln('اليوم الفندقي: ${HotelTimeEngine.getHotelDayKey()}')
         ..writeln(notes.isNotEmpty ? 'ملاحظات: $notes' : '');
 
       final result = await whatsappService.sendMessage(

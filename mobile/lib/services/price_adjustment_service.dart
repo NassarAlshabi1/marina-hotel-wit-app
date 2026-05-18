@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 import 'auto_backup_manager.dart';
 import 'booking_derived_fields_service.dart';
@@ -24,7 +25,7 @@ class PriceAdjustmentService {
   }) async {
     final now = DateTime.now();
     final effectiveDate = effectiveFrom ?? now;
-    final effectiveHotelDay = Time.hotelDayKey(now: effectiveDate);
+    final effectiveHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: effectiveDate);
 
     final room = await (db.select(db.rooms)
           ..where((r) => r.roomNumber.equals(roomNumber)))
@@ -203,7 +204,7 @@ class PriceAdjustmentService {
       newState: Value(details),
       performedBy: Value(performedBy),
       deviceId: const Value('app'),
-      hotelDayKey: Value(Time.hotelDayKey(now: now)),
+      hotelDayKey: Value(HotelTimeEngine.getHotelDayKey(dateTime: now)),
       timestamp: Value(Time.nowEpoch()),
       timestampIso: Value(now.toIso8601String()),
       isFinancial: const Value(true),
@@ -236,7 +237,7 @@ class PriceAdjustmentService {
     DateTime? effectiveFrom,
   }) async {
     final effectiveDate = effectiveFrom ?? DateTime.now();
-    final effectiveHotelDay = Time.hotelDayKey(now: effectiveDate);
+    final effectiveHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: effectiveDate);
 
     final activeBookings = await _getActiveBookingsForRoom(roomNumber);
 

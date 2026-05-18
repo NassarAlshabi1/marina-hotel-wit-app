@@ -12,6 +12,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
@@ -65,6 +66,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   final DateFormat _dateFormat = DateFormat('yyyy/MM/dd');
   DateTime? _fromDate;
   DateTime? _toDate;
+  String? _selectedFilterType;
   String? selectedType;
   late Stream<List<Expense>> _expensesStream;
   static const String _salaryType = 'رواتب';
@@ -137,6 +139,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     children: [
                       _buildSearchBar(),
                       const SizedBox(height: 8),
+                      _buildTypeFilterRow(),
+                      const SizedBox(height: 6),
                       _buildCompactFiltersCard(),
                       const SizedBox(height: 8),
                       _buildCompactSummaryCard(
@@ -183,23 +187,28 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   Stream<List<Expense>> _buildExpensesStream() {
     final repo = ref.read(expensesRepoProvider);
     if (!_filterActive) {
-      // الافتراضي: عرض مصروفات اليوم الفندقي فقط (فلترة دقيقة بـ hotelDayKey)
-      final hotelDay = Time.hotelDayKey();
+      // الافتراضي: عرض مصروفات اليوم الفندقي فقط
+      // ✅ استخدام HotelTimeEngine للتوافق مع hotelDayKey المُخزن في قاعدة البيانات
+      final hotelDay = HotelTimeEngine.getHotelDayKey();
       return Stream.fromFuture(
         repo.listFilteredByHotelDay(
           fromHotelDay: hotelDay,
           toHotelDay: hotelDay,
+          expenseType: _selectedFilterType,
           search: _searchQuery.isNotEmpty ? _searchQuery : null,
         ),
       );
     }
-    // ✅ إصلاح: فلترة بنطاق الأيام الفندقية بدلاً من التاريخ التقويمي
-    final fromHotelDay = _fromDate != null ? Time.hotelDayKey(now: _fromDate) : null;
-    final toHotelDay = _toDate != null ? Time.hotelDayKey(now: _toDate) : null;
+    // ✅ إصلاح: المستخدم يختار تاريخ تقويمي — نستخدمه مباشرة كمفتاح يوم فندقي
+    // لا نحتاج Time.hotelDayKey لأن المنتقي يعطي تاريخ بدون وقت (منتصف الليل)
+    // وتحويله يُنتج اليوم السابق خطأً
+    final fromHotelDay = _fromDate != null ? Time.dateToString(_fromDate!) : null;
+    final toHotelDay = _toDate != null ? Time.dateToString(_toDate!) : null;
     return Stream.fromFuture(
       repo.listFilteredByHotelDay(
         fromHotelDay: fromHotelDay,
         toHotelDay: toHotelDay,
+        expenseType: _selectedFilterType,
         search: _searchQuery.isNotEmpty ? _searchQuery : null,
       ),
     );
@@ -298,8 +307,83 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     );
   }
 
+  /// صف فلتر نوع المصروف (قائمة منسدلة)
+  Widget _buildTypeFilterRow() {
+    final types = _expenseTypes;
+    final dropdownTextColor = Theme.of(context).textTheme.bodyMedium?.color;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.filter_list, size: 14, color: Colors.indigo.shade700),
+          const SizedBox(width: 6),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                value: _selectedFilterType,
+                hint: Text(
+                  'كل الأنواع',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
+                ),
+                isDense: true,
+                isExpanded: true,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: dropdownTextColor),
+                items: [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text(
+                      'كل الأنواع',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                    ),
+                  ),
+                  ...types.map(
+                    (type) => DropdownMenuItem<String?>(
+                      value: type,
+                      child: Text(
+                        type,
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: dropdownTextColor),
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedFilterType = value;
+                    _refreshExpensesStream();
+                  });
+                },
+              ),
+            ),
+          ),
+          if (_selectedFilterType != null) ...[
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTap: () => setState(() {
+                _selectedFilterType = null;
+                _refreshExpensesStream();
+              }),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(Icons.close, size: 12, color: Colors.red.shade700),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildCompactFiltersCard() {
-    final hotelDay = Time.hotelDayKey();
+    final hotelDay = HotelTimeEngine.getHotelDayKey();
     final fromDisplay = (_filterActive && _fromDate != null)
         ? _dateFormat.format(_fromDate!)
         : hotelDay;
@@ -528,7 +612,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final installments = TextEditingController();
     DateTime selectedDate;
     try {
-      selectedDate = DateTime.parse(existing?.date ?? Time.hotelDayKey());
+      // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
+      selectedDate = DateTime.parse(existing?.date ?? HotelTimeEngine.getHotelDayKey());
     } catch (_) {
       selectedDate = DateTime.now();
     }
@@ -804,8 +889,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               amount: signedAmount,
               date: trimmedDate,
               note: trimmedDescription,
-              // ✅ إصلاح: حساب hotelDayKey بدلاً من استخدام التاريخ التقويمي
-              hotelDayKey: Time.hotelDayKeyFromIso(trimmedDate),
+              // ✅ إصلاح: استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
+              hotelDayKey: HotelTimeEngine.getHotelDayKeyFromIso(trimmedDate),
             );
           }
         }
@@ -829,8 +914,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
-            // ✅ إصلاح: حساب hotelDayKey بدلاً من استخدام التاريخ التقويمي
-            hotelDayKey: Time.hotelDayKeyFromIso(trimmedDate),
+            // ✅ إصلاح: استخدام HotelTimeEngine للتوابق مع البيانات المُخزنة
+            hotelDayKey: HotelTimeEngine.getHotelDayKeyFromIso(trimmedDate),
           );
         } else {
           await salaryRepo.deleteByExpenseId(existing.id);

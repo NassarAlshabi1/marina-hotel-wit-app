@@ -21,6 +21,7 @@ import '../../utils/currency_formatter.dart';
 import '../../utils/date_parser.dart';
 import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 
@@ -409,7 +410,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       .where((p) => !p.isVoided)
                       .fold<double>(0, (s, p) => s + p.amount);
                   // حساب المدفوعات في اليوم الفندقي الحالي لهذا الحجز
-                  final hotelDay = Time.hotelDayKey();
+                  final hotelDay = HotelTimeEngine.getHotelDayKey();
                   final todayPaidAmount = dbPayments
                       .where((p) =>
                           !p.isVoided &&
@@ -2715,7 +2716,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// تسجيل خروجه فيتم احتساب يوم إضافي بالخطأ
   void _showCancelTodayPaymentDialog(BookingPaymentSummary summary) {
     final paymentsRepo = ref.read(paymentsRepoProvider);
-    final hotelDay = Time.hotelDayKey();
+    final hotelDay = HotelTimeEngine.getHotelDayKey();
 
     // عرض نافذة التأكيد مع تفاصيل الدفعات
     showDialog<void>(

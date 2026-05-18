@@ -11,6 +11,7 @@ import '../../services/crashlytics_service.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 import 'booking_checkout_screen.dart';
 import 'payment_history_screen.dart';
@@ -133,7 +134,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
   Widget _buildQuickStats(List<db.Payment> payments) {
     final today = DateTime.now();
-    final hotelDay = Time.hotelDayKey();
+    final hotelDay = HotelTimeEngine.getHotelDayKey();
     final startOfMonth = DateTime(today.year, today.month);
 
     // حساب المبالغ
@@ -290,7 +291,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
   Widget _buildRecentPayments(List<db.Payment> payments) {
     // عرض مدفوعات اليوم الفندقي الحالي
-    final hotelDay = Time.hotelDayKey();
+    final hotelDay = HotelTimeEngine.getHotelDayKey();
     final todayPayments = payments.where((p) {
       if (p.isVoided) {
         return false;

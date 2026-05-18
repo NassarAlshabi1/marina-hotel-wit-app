@@ -22,6 +22,7 @@ import '../services/sync_guardian.dart';
 import '../services/whatsapp_service.dart';
 import '../utils/env.dart';
 import '../utils/status_utils.dart';
+import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 
 // إضافة Auto Backup Providers
@@ -200,14 +201,16 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
 // Daily Statistics Providers — تحديث فوري عبر Stream من قاعدة البيانات
 final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
   final paymentsRepo = ref.watch(paymentsRepoProvider);
-  final hotelDay = Time.hotelDayKey();
+  // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
+  final hotelDay = HotelTimeEngine.getHotelDayKey();
   // الفلتر على مستوى قاعدة البيانات بدلاً من تحميل كل المدفوعات
   return paymentsRepo.watchTotalByHotelDayKey(hotelDay);
 });
 
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
   final expensesRepo = ref.watch(expensesRepoProvider);
-  final hotelDay = Time.hotelDayKey();
+  // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
+  final hotelDay = HotelTimeEngine.getHotelDayKey();
   // الفلتر على مستوى قاعدة البيانات — لا نحمّل جميع المصروفات
   return expensesRepo.watchByHotelDayKey(hotelDay).map((expenses) {
     return expenses.fold<double>(0, (sum, e) => sum + e.amount);
@@ -215,7 +218,8 @@ final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
 });
 
 final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {
-  final hotelDay = Time.hotelDayKey();
+  // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
+  final hotelDay = HotelTimeEngine.getHotelDayKey();
   final repo = ref.watch(expensesRepoProvider);
   final total = await repo.getTotalByHotelDayKey(hotelDay);
   final expenses = await repo.listFiltered(from: hotelDay, to: hotelDay);

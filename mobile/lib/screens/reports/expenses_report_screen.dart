@@ -197,22 +197,19 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   Future<_ExpensesReportResult> _loadExpensesReport(AppDatabase db) async {
     final outboxDao = OutboxDao(db);
     final expensesDao = ExpensesDao(db, outboxDao);
-    // ✅ إصلاح حرج: تحويل نطاق التاريخ إلى مفاتيح أيام فندقية
-    // الفلتر يعطي نطاق 14:00→13:59 لكن listFiltered القديمة تفلتر
-    // بحقل date التقويمي فتشمل مصروفات الصباح من اليوم السابق خطأً
+    // ✅ إصلاح: تحويل نطاق التاريخ إلى مفاتيح أيام فندقية
+    // نستخدم HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
+    // لأن ExpensesRepository.create() يخزن hotelDayKey باستخدام HotelTimeEngine
     //
     // مثال: فلتر "اليوم" عند 10:00 صباح 2026-05-19:
-    //   _fromDate = 18-May 14:00 → fromHotelDay = "2026-05-18"
-    //   _toDate  = 19-May 13:59 → toHotelDay   = "2026-05-18"
+    //   _fromDate = 18-May 14:00 → fromHotelDay = "2026-05-18" ✓
+    //   _toDate  = 19-May 13:59 → toHotelDay   = "2026-05-18" ✓
     //   → فقط مصروفات hotelDayKey="2026-05-18" ✅
-    //
-    // نستخدم Time.hotelDayKey لأنها تتعامل مع 14:00:00 كحد فندقي صحيح
-    // (عكس HotelTimeEngine.getHotelDayKey التي تعتبر 14:00:00 بالضبط = يوم سابق)
     final fromHotelDay = _fromDate != null
-        ? Time.hotelDayKey(now: _fromDate)
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _fromDate!)
         : null;
     final toHotelDay = _toDate != null
-        ? Time.hotelDayKey(now: _toDate)
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate!)
         : null;
     final selectedType =
         widget.showTypeFilter &&

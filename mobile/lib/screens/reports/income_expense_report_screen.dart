@@ -115,9 +115,11 @@ class _IncomeExpenseReportScreenState
 
       // ✅ إصلاح: المصروفات تُفلتر بـ hotelDayKey بدلاً من date التقويمي
       // لمنع إدراج مصروفات الصباح التي تنتمي لليوم الفندقي السابق
-      // نستخدم Time.hotelDayKey لأنها تتعامل مع 14:00:00 كحد فندقي صحيح
-      final fromHotelDay = Time.hotelDayKey(now: fromDate);
-      final toHotelDay = Time.hotelDayKey(now: toDate);
+      // ✅ إصلاح: استخدام HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
+      // ExpensesRepository.create() يخزن hotelDayKey باستخدام HotelTimeEngine
+      // فلابد أن تكون الفلترة بنفس الدالة لتطابق المفاتيح
+      final fromHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: fromDate);
+      final toHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: toDate);
       final expenses = await expensesDao.listFilteredByHotelDay(
         fromHotelDay: fromHotelDay,
         toHotelDay: toHotelDay,

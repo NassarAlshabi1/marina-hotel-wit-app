@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../utils/status_utils.dart';
+import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
@@ -1629,7 +1630,7 @@ class GeminiService {
               amount: Value(amount),
               date: Value(expenseDate),
               // ✅ إصلاح: حساب hotelDayKey من الوقت الفعلي بدلاً من التاريخ التقويمي
-              hotelDayKey: Value(Time.hotelDayKey()),
+              hotelDayKey: Value(HotelTimeEngine.getHotelDayKey()),
               localUuid: Value(uuid),
               createdAt: Value(now.millisecondsSinceEpoch),
               updatedAt: Value(now.millisecondsSinceEpoch),

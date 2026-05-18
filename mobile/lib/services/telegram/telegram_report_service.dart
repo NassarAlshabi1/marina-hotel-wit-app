@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
 import '../remote_config_service.dart';
@@ -84,7 +85,7 @@ class TelegramReportService {
       }
 
       // منع الإرسال المتكرر
-      final hotelDayKey = Time.hotelDayKey();
+      final hotelDayKey = HotelTimeEngine.getHotelDayKey();
       final lastSent = await TelegramConfig.getLastReportSent();
       if (lastSent == hotelDayKey) {
         debugPrint('⏭️ WhatsApp: تم إرسال تقرير اليوم بالفعل');
@@ -129,7 +130,7 @@ class TelegramReportService {
       final success = await _sendViaCallMeBot(message);
 
       if (success) {
-        final hotelDayKey = Time.hotelDayKey();
+        final hotelDayKey = HotelTimeEngine.getHotelDayKey();
         await TelegramConfig.setLastReportSent(hotelDayKey);
       }
 
@@ -144,7 +145,7 @@ class TelegramReportService {
   Future<TelegramDailyReportData?> _gatherReportData() async {
     try {
       final db = DatabaseManager.instance;
-      final hotelDayKey = Time.hotelDayKey();
+      final hotelDayKey = HotelTimeEngine.getHotelDayKey();
 
       // ── حالة الغرف ──
       final roomsQuery = await db.select(db.rooms).get();
