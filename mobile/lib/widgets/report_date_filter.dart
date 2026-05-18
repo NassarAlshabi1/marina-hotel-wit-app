@@ -59,28 +59,27 @@ class DateFilterController {
         final range = HotelTimeEngine.getHotelDayRange(now);
         return DateRange(from: range['start'], to: range['end']);
       case 'week':
-        final weekStart = now.subtract(Duration(days: now.weekday - 1));
-        final hotelWeekStart = HotelTimeEngine.getHotelDay(weekStart);
+        final weekStart = DateTime(now.year, now.month, now.day)
+            .subtract(Duration(days: now.weekday - 1));
+        final rangeEnd = HotelTimeEngine.getHotelDayRange(now)['end'];
         return DateRange(
-          from: DateTime(hotelWeekStart.year, hotelWeekStart.month,
-              hotelWeekStart.day, 14,),
-          to: DateTime(now.year, now.month, now.day, 23, 59, 59),
+          from: DateTime(weekStart.year, weekStart.month, weekStart.day, 14),
+          to: rangeEnd,
         );
       case 'month':
         final monthStart = DateTime(now.year, now.month);
-        final hotelMonthStart = HotelTimeEngine.getHotelDay(monthStart);
+        final rangeEnd = HotelTimeEngine.getHotelDayRange(now)['end'];
         return DateRange(
-          from: DateTime(hotelMonthStart.year, hotelMonthStart.month,
-              hotelMonthStart.day, 14,),
-          to: DateTime(now.year, now.month, now.day, 23, 59, 59),
+          from:
+              DateTime(monthStart.year, monthStart.month, monthStart.day, 14),
+          to: rangeEnd,
         );
       case 'year':
         final yearStart = DateTime(now.year);
-        final hotelYearStart = HotelTimeEngine.getHotelDay(yearStart);
+        final rangeEnd = HotelTimeEngine.getHotelDayRange(now)['end'];
         return DateRange(
-          from: DateTime(hotelYearStart.year, hotelYearStart.month,
-              hotelYearStart.day, 14,),
-          to: DateTime(now.year, now.month, now.day, 23, 59, 59),
+          from: DateTime(yearStart.year, yearStart.month, yearStart.day, 14),
+          to: rangeEnd,
         );
       default:
         return getDefaultHotelDayRange();
@@ -228,7 +227,7 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
         } else {
           // ضبط الساعة 13:59:59 تلقائياً
           _toDate =
-              DateTime(picked.year, picked.month, picked.day, 13, 59, 59);
+              DateTime(picked.year, picked.month, picked.day, 13, 59, 59, 999);
           if (_toDate.isBefore(_fromDate)) {
             _fromDate = _toDate.subtract(const Duration(days: 1));
             _fromDate = DateTime(
@@ -251,37 +250,45 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
         DateTime(hotelDay.year, hotelDay.month, hotelDay.day, 14);
     return _fromDate.year == expectedFrom.year &&
         _fromDate.month == expectedFrom.month &&
-        _fromDate.day == expectedFrom.day;
+        _fromDate.day == expectedFrom.day &&
+        _fromDate.hour == expectedFrom.hour;
   }
 
   /// هل الفلتر الحالي مطابق لبداية الأسبوع الحالي؟
   bool _isThisWeekActive() {
     final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    final hotelWeekStart = HotelTimeEngine.getHotelDay(weekStart);
-    return _fromDate.year == hotelWeekStart.year &&
-        _fromDate.month == hotelWeekStart.month &&
-        _fromDate.day == hotelWeekStart.day;
+    final weekStart = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: now.weekday - 1));
+    final expectedFrom =
+        DateTime(weekStart.year, weekStart.month, weekStart.day, 14);
+    return _fromDate.year == expectedFrom.year &&
+        _fromDate.month == expectedFrom.month &&
+        _fromDate.day == expectedFrom.day &&
+        _fromDate.hour == expectedFrom.hour;
   }
 
   /// هل الفلتر الحالي مطابق لبداية الشهر الحالي؟
   bool _isThisMonthActive() {
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month);
-    final hotelMonthStart = HotelTimeEngine.getHotelDay(monthStart);
-    return _fromDate.year == hotelMonthStart.year &&
-        _fromDate.month == hotelMonthStart.month &&
-        _fromDate.day == hotelMonthStart.day;
+    final expectedFrom =
+        DateTime(monthStart.year, monthStart.month, monthStart.day, 14);
+    return _fromDate.year == expectedFrom.year &&
+        _fromDate.month == expectedFrom.month &&
+        _fromDate.day == expectedFrom.day &&
+        _fromDate.hour == expectedFrom.hour;
   }
 
   /// هل الفلتر الحالي مطابق لبداية السنة الحالية؟
   bool _isThisYearActive() {
     final now = DateTime.now();
     final yearStart = DateTime(now.year);
-    final hotelYearStart = HotelTimeEngine.getHotelDay(yearStart);
-    return _fromDate.year == hotelYearStart.year &&
-        _fromDate.month == hotelYearStart.month &&
-        _fromDate.day == hotelYearStart.day;
+    final expectedFrom =
+        DateTime(yearStart.year, yearStart.month, yearStart.day, 14);
+    return _fromDate.year == expectedFrom.year &&
+        _fromDate.month == expectedFrom.month &&
+        _fromDate.day == expectedFrom.day &&
+        _fromDate.hour == expectedFrom.hour;
   }
 
   // ═══════════════════════════════════════════════════════════════

@@ -186,7 +186,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       // الافتراضي: عرض مصروفات اليوم الفندقي فقط
       final hotelDay = Time.hotelDayKey();
       return Stream.fromFuture(
-        repo.listFiltered(from: hotelDay, to: hotelDay),
+        _searchQuery.trim().isNotEmpty
+            ? repo.listWithSearch(
+                search: _searchQuery,
+                from: hotelDay,
+                to: hotelDay,
+              )
+            : repo.listFiltered(from: hotelDay, to: hotelDay),
       );
     }
     final fromStr = _fromDate != null ? Time.dateToString(_fromDate!) : null;

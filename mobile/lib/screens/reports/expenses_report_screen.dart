@@ -138,7 +138,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   Future<void> _loadExpenseTypes() async {
     final db = ref.read(databaseProvider);
     final query = await db
-        .customSelect('SELECT DISTINCT expense_type FROM expenses')
+        .customSelect(
+          'SELECT DISTINCT expense_type FROM expenses WHERE deleted_at IS NULL',
+        )
         .get();
     final types =
         query.map((row) => row.data['expense_type'] as String).toList()..sort();

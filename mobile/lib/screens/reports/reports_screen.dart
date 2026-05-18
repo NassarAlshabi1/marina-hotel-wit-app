@@ -9,7 +9,9 @@ import '../../providers/core_providers.dart';
 import '../../providers/performance_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/crashlytics_service.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/time.dart';
 import 'debts_report_screen.dart';
 import 'expenses_report_screen.dart';
 import 'guest_payments_detail_report_screen.dart';
@@ -29,6 +31,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   /// الذاكرة المؤقتة
   Map<String, dynamic>? _cachedRooms;
+  Map<String, dynamic>? _cachedBookings;
   Map<String, dynamic>? _cachedFinancials;
   bool _loading = true;
   String? _loadError;
@@ -69,6 +72,22 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       );
       final rooms = roomsData['rooms'] as List;
 
+      final bookingsData = await PerformanceTimer.measure(
+        'reports_load_bookings',
+        perf,
+        () async {
+          if (!force && _cachedBookings != null) {
+            return _cachedBookings!;
+          }
+          final bookings = await db.select(db.bookings).get();
+          final result = {'bookings': bookings};
+          _cachedBookings = result;
+          return result;
+        },
+        recordsProcessed: 1,
+      );
+      final bookings = bookingsData['bookings'] as List;
+
       // 2. تحميل البيانات المالية (مع cache)
       final finData = await PerformanceTimer.measure(
         'reports_load_financials',
@@ -107,9 +126,49 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       // 3. بناء الرسوم البيانية
       final total = rooms.isEmpty ? 1 : rooms.length;
 
+      final todayHotelDay = HotelTimeEngine.getHotelDay(DateTime.now());
+      final dayKeys = List.generate(7, (i) {
+        final day = todayHotelDay.subtract(Duration(days: 6 - i));
+        return Time.dateToString(day);
+      });
+
+      final occupiedByDay = <String, Set<String>>{
+        for (final k in dayKeys) k: <String>{},
+      };
+
+      for (final b in bookings) {
+        if (b.deletedAt != null) {
+          continue;
+        }
+        final startKey = (b.hotelDayCheckin != null &&
+                (b.hotelDayCheckin as String).trim().isNotEmpty)
+            ? b.hotelDayCheckin as String
+            : Time.hotelDayKeyFromIso(b.checkinDate as String);
+
+        final String endKey;
+        if (b.hotelDayCheckout != null &&
+            (b.hotelDayCheckout as String).trim().isNotEmpty) {
+          endKey = b.hotelDayCheckout as String;
+        } else {
+          final rawCheckout = (b.actualCheckout != null &&
+                  (b.actualCheckout as String).trim().isNotEmpty)
+              ? b.actualCheckout as String
+              : (b.checkoutDate as String?);
+          endKey = rawCheckout != null && rawCheckout.trim().isNotEmpty
+              ? Time.hotelDayKeyFromIso(rawCheckout)
+              : dayKeys.last;
+        }
+
+        for (final k in dayKeys) {
+          if (k.compareTo(startKey) >= 0 && k.compareTo(endKey) <= 0) {
+            occupiedByDay[k]!.add(b.roomNumber as String);
+          }
+        }
+      }
+
       final daily = List.generate(7, (i) {
-        final busy =
-            rooms.where((r) => StatusUtils.isRoomOccupied(r.status as String)).length;
+        final key = dayKeys[i];
+        final busy = occupiedByDay[key]!.length;
         final occ = (busy * 100 / total).round().toDouble();
         return BarChartGroupData(
           x: i,
