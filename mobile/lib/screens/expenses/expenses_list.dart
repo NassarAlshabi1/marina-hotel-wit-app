@@ -194,8 +194,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       );
     }
     // ✅ إصلاح: فلترة بنطاق الأيام الفندقية بدلاً من التاريخ التقويمي
-    final fromHotelDay = _fromDate != null ? Time.hotelDayKey(now: _fromDate!) : null;
-    final toHotelDay = _toDate != null ? Time.hotelDayKey(now: _toDate!) : null;
+    final fromHotelDay = _fromDate != null ? Time.hotelDayKey(now: _fromDate) : null;
+    final toHotelDay = _toDate != null ? Time.hotelDayKey(now: _toDate) : null;
     return Stream.fromFuture(
       repo.listFilteredByHotelDay(
         fromHotelDay: fromHotelDay,

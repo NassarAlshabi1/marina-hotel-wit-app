@@ -12,8 +12,8 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
-import '../../utils/time.dart';
 import '../../utils/report_pdf_builder.dart';
+import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 
 /// بيانات معاملة واحدة من جدول salary_withdrawals
@@ -131,10 +131,10 @@ class _SalaryWithdrawalsReportScreenState
     // لمنع إدراج سحوبات الصباح من اليوم السابق خطأً
     // نستخدم Time.hotelDayKey لأنها تتعامل مع 14:00:00 كحد فندقي صحيح
     final fromHotelDay = _fromDate != null
-        ? Time.hotelDayKey(now: _fromDate!)
+        ? Time.hotelDayKey(now: _fromDate)
         : null;
     final toHotelDay = _toDate != null
-        ? Time.hotelDayKey(now: _toDate!)
+        ? Time.hotelDayKey(now: _toDate)
         : null;
 
     if (fromHotelDay != null) {

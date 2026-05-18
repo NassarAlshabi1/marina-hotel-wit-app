@@ -14,8 +14,8 @@ import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
-import '../../utils/time.dart';
 import '../../utils/report_pdf_builder.dart';
+import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
 
@@ -209,10 +209,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // نستخدم Time.hotelDayKey لأنها تتعامل مع 14:00:00 كحد فندقي صحيح
     // (عكس HotelTimeEngine.getHotelDayKey التي تعتبر 14:00:00 بالضبط = يوم سابق)
     final fromHotelDay = _fromDate != null
-        ? Time.hotelDayKey(now: _fromDate!)
+        ? Time.hotelDayKey(now: _fromDate)
         : null;
     final toHotelDay = _toDate != null
-        ? Time.hotelDayKey(now: _toDate!)
+        ? Time.hotelDayKey(now: _toDate)
         : null;
     final selectedType =
         widget.showTypeFilter &&
