@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 import '../auto_backup_manager.dart';
 import '../crashlytics_service.dart';
@@ -35,6 +36,19 @@ class ExpensesRepository {
     String? to,
   }) => dao.list(search: search, from: from, to: to);
 
+  /// فلترة بـ hotelDayKey مع دعم البحث النصي — الطريقة الدقيقة
+  Future<List<Expense>> listFilteredByHotelDay({
+    String? fromHotelDay,
+    String? toHotelDay,
+    String? expenseType,
+    String? search,
+  }) => dao.listFilteredByHotelDay(
+    fromHotelDay: fromHotelDay,
+    toHotelDay: toHotelDay,
+    expenseType: expenseType,
+    search: search,
+  );
+
   Future<int> create({
     required String expenseType,
     int? relatedId,
@@ -44,9 +58,9 @@ class ExpensesRepository {
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      final hotelDayKey = normalizedDate.isNotEmpty
-          ? normalizedDate
-          : Time.hotelDayKey();
+      // ✅ إصلاح: حساب hotelDayKey من التاريخ الكامل (مع الوقت) بدلاً من التاريخ التقويمي
+      // مصروف الساعة 10:00 صباحاً ينتمي لليوم الفندقي السابق (قبل 14:00)
+      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(date);
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -86,9 +100,8 @@ class ExpensesRepository {
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      final hotelDayKey = normalizedDate.isNotEmpty
-          ? normalizedDate
-          : Time.hotelDayKey();
+      // ✅ إصلاح: حساب hotelDayKey من التاريخ الكامل (مع الوقت) بدلاً من التاريخ التقويمي
+      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(date);
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -145,8 +158,9 @@ class ExpensesRepository {
           date: normalizedDate != null
               ? d.Value(normalizedDate)
               : const d.Value.absent(),
-          hotelDayKey: normalizedDate != null
-              ? d.Value(normalizedDate)
+          // ✅ إصلاح: حساب hotelDayKey من التاريخ الكامل (مع الوقت) بدلاً من التاريخ التقويمي
+          hotelDayKey: date != null
+              ? d.Value(HotelTimeEngine.getHotelDayKeyFromIso(date))
               : const d.Value.absent(),
         ),
       );
@@ -240,5 +254,31 @@ class ExpensesRepository {
       readsFrom: {db.expenses},
     ).getSingle();
     return (result.data['total'] as num).toDouble();
+  }
+
+  /// إصلاح سجلات المصروفات القديمة التي تحتوي على hotelDayKey خاطئ
+  /// (كان يُعيَّن بالتاريخ التقويمي بدلاً من مفتاح اليوم الفندقي)
+  ///
+  /// يُستدعى مرة واحدة عند تشغيل التطبيق لتصحيح البيانات التاريخية.
+  Future<int> backfillHotelDayKeys() async {
+    final allExpenses = await dao.list(includeDeleted: true);
+    int fixed = 0;
+    for (final expense in allExpenses) {
+      if (expense.hotelDayKey == null || expense.hotelDayKey!.isEmpty) {
+        continue;
+      }
+      final correctKey = HotelTimeEngine.getHotelDayKeyFromIso(expense.date);
+      if (expense.hotelDayKey != correctKey) {
+        await (db.update(db.expenses)
+              ..where((t) => t.id.equals(expense.id)))
+            .write(
+          ExpensesCompanion(
+            hotelDayKey: d.Value(correctKey),
+          ),
+        );
+        fixed++;
+      }
+    }
+    return fixed;
   }
 }

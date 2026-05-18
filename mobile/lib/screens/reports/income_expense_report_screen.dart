@@ -24,6 +24,7 @@ import '../../services/daos/payments_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
@@ -114,8 +115,9 @@ class _IncomeExpenseReportScreenState
 
       // ✅ إصلاح: المصروفات تُفلتر بـ hotelDayKey بدلاً من date التقويمي
       // لمنع إدراج مصروفات الصباح التي تنتمي لليوم الفندقي السابق
-      final fromHotelDay = DateFormat('yyyy-MM-dd').format(fromDate);
-      final toHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: toDate);
+      // نستخدم Time.hotelDayKey لأنها تتعامل مع 14:00:00 كحد فندقي صحيح
+      final fromHotelDay = Time.hotelDayKey(now: fromDate);
+      final toHotelDay = Time.hotelDayKey(now: toDate);
       final expenses = await expensesDao.listFilteredByHotelDay(
         fromHotelDay: fromHotelDay,
         toHotelDay: toHotelDay,

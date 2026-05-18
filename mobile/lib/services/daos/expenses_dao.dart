@@ -80,6 +80,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     String? fromHotelDay,
     String? toHotelDay,
     String? expenseType,
+    String? search,
     bool includeDeleted = false,
   }) async {
     final q = select(expenses);
@@ -104,6 +105,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     }
     if (expenseType != null && expenseType.isNotEmpty) {
       q.where((t) => t.expenseType.equals(expenseType));
+    }
+    if (search != null && search.trim().isNotEmpty) {
+      final s = '%${search.trim()}%';
+      q.where((t) => t.description.like(s) | t.expenseType.like(s));
     }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);

@@ -183,20 +183,24 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   Stream<List<Expense>> _buildExpensesStream() {
     final repo = ref.read(expensesRepoProvider);
     if (!_filterActive) {
-      // الافتراضي: عرض مصروفات اليوم الفندقي فقط
+      // الافتراضي: عرض مصروفات اليوم الفندقي فقط (فلترة دقيقة بـ hotelDayKey)
       final hotelDay = Time.hotelDayKey();
       return Stream.fromFuture(
-        repo.listFiltered(from: hotelDay, to: hotelDay),
+        repo.listFilteredByHotelDay(
+          fromHotelDay: hotelDay,
+          toHotelDay: hotelDay,
+          search: _searchQuery.isNotEmpty ? _searchQuery : null,
+        ),
       );
     }
-    final fromStr = _fromDate != null ? Time.dateToString(_fromDate!) : null;
-    final toStr = _toDate != null ? Time.dateToString(_toDate!) : null;
-    // استخدام دالة البحث المتقدمة من DAO مع دعم البحث النصي
+    // ✅ إصلاح: فلترة بنطاق الأيام الفندقية بدلاً من التاريخ التقويمي
+    final fromHotelDay = _fromDate != null ? Time.hotelDayKey(now: _fromDate!) : null;
+    final toHotelDay = _toDate != null ? Time.hotelDayKey(now: _toDate!) : null;
     return Stream.fromFuture(
-      repo.listWithSearch(
+      repo.listFilteredByHotelDay(
+        fromHotelDay: fromHotelDay,
+        toHotelDay: toHotelDay,
         search: _searchQuery.isNotEmpty ? _searchQuery : null,
-        from: fromStr,
-        to: toStr,
       ),
     );
   }
@@ -800,7 +804,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               amount: signedAmount,
               date: trimmedDate,
               note: trimmedDescription,
-              hotelDayKey: trimmedDate,
+              // ✅ إصلاح: حساب hotelDayKey بدلاً من استخدام التاريخ التقويمي
+              hotelDayKey: Time.hotelDayKeyFromIso(trimmedDate),
             );
           }
         }
@@ -824,7 +829,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
-            hotelDayKey: trimmedDate,
+            // ✅ إصلاح: حساب hotelDayKey بدلاً من استخدام التاريخ التقويمي
+            hotelDayKey: Time.hotelDayKeyFromIso(trimmedDate),
           );
         } else {
           await salaryRepo.deleteByExpenseId(existing.id);
