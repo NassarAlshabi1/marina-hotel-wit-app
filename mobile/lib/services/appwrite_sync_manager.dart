@@ -2408,14 +2408,18 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
     _putIfNotNull(data, 'serverId', payment.serverId);
     _putIfNotNull(data, 'deletedAt', payment.deletedAt);
+    _putIfStringNotEmpty(data, 'deletedAtIso', payment.deletedAtIso);
     _putIfStringNotEmpty(data, 'linkedDebtUuid', payment.linkedDebtUuid);
     _putIfNotNull(data, 'discountAmount', payment.discountAmount);
     _putIfStringNotEmpty(data, 'discountStartDate', payment.discountStartDate);
-    if (payment.isVoided) {
-      data['isVoided'] = true;
-      _putIfNotNull(data, 'voidedAt', payment.voidedAt);
-      _putIfStringNotEmpty(data, 'voidedBy', payment.voidedBy);
-    }
+    // ✅ إرسال isVoided دائماً (حتى لو false) لضمان المزامنة الصحيحة
+    data['isVoided'] = payment.isVoided;
+    _putIfNotNull(data, 'voidedAt', payment.voidedAt);
+    _putIfStringNotEmpty(data, 'voidedBy', payment.voidedBy);
+    // ✅ إرسال حقول SyncFields الإضافية المتوفرة في Appwrite Cloud
+    _putIfNotNull(data, 'createdAtEpoch', payment.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', payment.lastModifiedEpoch);
+    data['vectorClock'] = payment.vectorClock;
     return AppwriteSyncUtils.sanitizePayload('payments', data, collectionId: AppwriteConfig.paymentsCollectionId);
   }
 

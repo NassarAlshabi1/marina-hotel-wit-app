@@ -38,11 +38,44 @@ class AppwriteSyncUtils {
     result.remove('\u0024databaseId');
     result.remove('\u0024collectionId');
 
-    // 3. تحويل الأنواع المالية إذا لزم الأمر
+    // 3. تحويل أسماء الحقول من snake_case إلى camelCase
+    //    ⚠️ حرج: Appwrite Cloud يستخدم camelCase في جميع المجموعات
+    //    (deletedAt, lastModified, localUuid, إلخ)
+    //    بينما Delta Sync Push يرسل snake_case (deleted_at, last_modified, local_uuid)
+    //    بدون هذا التحويل، يتجاهل Appwrite الحقول مثل deleted_at → الجهاز الآخر
+    //    لا يرى softDelete → يرى 30 بدلاً من 15
+    result = _convertKeysToCamelCase(result);
+
+    // 4. تحويل الأنواع المالية إذا لزم الأمر
     if (collectionId != null) {
       result = convertAmountTypesForAppwrite(collectionId, result);
     }
 
+    return result;
+  }
+
+  /// تحويل جميع مفاتيح الخريطة من snake_case إلى camelCase بشكل متكرر
+  /// الحقول التي لا تحتوي على _ تُترك كما هي (مثل amount, notes)
+  static Map<String, dynamic> _convertKeysToCamelCase(
+    Map<String, dynamic> input,
+  ) {
+    final result = <String, dynamic>{};
+    for (final entry in input.entries) {
+      final camelKey = toCamelCase(entry.key);
+      final value = entry.value;
+      if (value is Map<String, dynamic>) {
+        result[camelKey] = _convertKeysToCamelCase(value);
+      } else if (value is List) {
+        result[camelKey] = value.map((item) {
+          if (item is Map<String, dynamic>) {
+            return _convertKeysToCamelCase(item);
+          }
+          return item;
+        }).toList();
+      } else {
+        result[camelKey] = value;
+      }
+    }
     return result;
   }
 
