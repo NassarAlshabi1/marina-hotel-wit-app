@@ -2384,8 +2384,8 @@ class AppwriteSyncManager {
       'lastModified': payment.lastModified,
       'version': payment.version,
       'origin': payment.origin,
-      'sync_version': payment.version,
-      'sync_vector_clock': payment.vectorClock,
+      // ✅ تم حذف sync_version و sync_vector_clock — حقول مكررة وقديمة
+      // version و vectorClock يُرسلان بأسمائهما الصحيحة
       'hotelDayKey': payment.hotelDayKey ?? '',
       'isPendingBalance': payment.isPendingBalance,
     };
@@ -2433,10 +2433,8 @@ class AppwriteSyncManager {
       'paidAmount': debt.paidAmount,
       'remainingAmount': debt.remainingAmount.round(), // Appwrite: integer
       // ── Required sync fields ──
-      'vector_clock': debt.vectorClock,
-      'sync_vector_clock': debt.vectorClock,
-      'sync_version': debt.version,
-      'sync_origin': debt.origin,
+      // ✅ تم حذف vector_clock/sync_vector_clock/sync_version/sync_origin
+      // — حقول مكررة وقديمة، يُرسل vectorClock/version/origin بأسمائهم الصحيحة
       // ── Business fields ──
       'bookingLocalId': debt.bookingLocalId,
       'checkoutDate': debt.checkoutDate,
