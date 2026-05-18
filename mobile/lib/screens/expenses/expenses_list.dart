@@ -442,11 +442,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   ) {
     final date = _parseExpenseDate(expense.date);
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 4),
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: InkWell(
         onTap: () => _edit(existing: expense, employees: employees),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -457,29 +459,32 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       expense.description.isNotEmpty
                           ? expense.description
                           : 'مصروف بدون وصف',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     CurrencyFormatter.formatAmount(expense.amount),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.red,
+                      fontSize: 14,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
+              const SizedBox(height: 4),
+              Row(
                 children: [
-                  _buildMetaChip(Icons.category, expense.expenseType),
-                  _buildMetaChip(
-                    Icons.calendar_today,
-                    _dateFormat.format(date),
-                  ),
-                  _buildMetaChip(Icons.person, employeeName ?? 'بدون موظف'),
+                  _buildSmallMeta(Icons.category, expense.expenseType),
+                  const SizedBox(width: 10),
+                  _buildSmallMeta(Icons.calendar_today, _dateFormat.format(date)),
+                  if (employeeName != null) ...[
+                    const SizedBox(width: 10),
+                    Expanded(child: _buildSmallMeta(Icons.person, employeeName)),
+                  ],
                 ],
               ),
             ],
@@ -489,11 +494,21 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     );
   }
 
-  Widget _buildMetaChip(IconData icon, String label) {
-    return Chip(
-      avatar: Icon(icon, size: 16),
-      label: Text(label),
-      visualDensity: VisualDensity.compact,
+  Widget _buildSmallMeta(IconData icon, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 10, color: Colors.grey.shade600),
+        const SizedBox(width: 3),
+        Flexible(
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 
