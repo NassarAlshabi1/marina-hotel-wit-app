@@ -118,7 +118,13 @@ class _IncomeExpenseReportScreenState
       // ✅ إصلاح: استخدام HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
       // ExpensesRepository.create() يخزن hotelDayKey باستخدام HotelTimeEngine
       // فلابد أن تكون الفلترة بنفس الدالة لتطابق المفاتيح
-      final fromHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: fromDate);
+      //
+      // ⚠️ ملاحظة حرجة: getHotelDayKey تعتبر 14:00:00 بالضبط نهاية اليوم السابق
+      // (14:00:01 = بداية اليوم الجديد). بما أن fromDate يأتي دائماً بوقت 14:00:00
+      // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
+      // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
+      final fromHotelDay = HotelTimeEngine.getHotelDayKey(
+          dateTime: fromDate.add(const Duration(seconds: 1)));
       final toHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: toDate);
       final expenses = await expensesDao.listFilteredByHotelDay(
         fromHotelDay: fromHotelDay,

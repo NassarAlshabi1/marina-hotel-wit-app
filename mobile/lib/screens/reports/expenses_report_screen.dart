@@ -201,12 +201,18 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // نستخدم HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
     // لأن ExpensesRepository.create() يخزن hotelDayKey باستخدام HotelTimeEngine
     //
+    // ⚠️ ملاحظة حرجة: getHotelDayKey تعتبر 14:00:00 بالضبط نهاية اليوم السابق
+    // (14:00:01 = بداية اليوم الجديد). بما أن _fromDate يأتي دائماً بوقت 14:00:00
+    // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
+    // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
+    //
     // مثال: فلتر "اليوم" عند 10:00 صباح 2026-05-19:
-    //   _fromDate = 18-May 14:00 → fromHotelDay = "2026-05-18" ✓
+    //   _fromDate = 18-May 14:00 → +1s → fromHotelDay = "2026-05-18" ✓
     //   _toDate  = 19-May 13:59 → toHotelDay   = "2026-05-18" ✓
     //   → فقط مصروفات hotelDayKey="2026-05-18" ✅
     final fromHotelDay = _fromDate != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: _fromDate)
+        ? HotelTimeEngine.getHotelDayKey(
+            dateTime: _fromDate!.add(const Duration(seconds: 1)))
         : null;
     final toHotelDay = _toDate != null
         ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)

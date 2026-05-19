@@ -13,7 +13,6 @@ import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
-import '../../utils/time.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -69,7 +68,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   String? _selectedFilterType;
   String? selectedType;
   late Stream<List<Expense>> _expensesStream;
-  StreamSubscription<List<Expense>>? _streamSubscription;
   static const String _salaryType = 'رواتب';
   static const String _salaryWithdrawAction = 'سحب من الراتب';
   static const String _salaryDeductionAction = 'خصم من الراتب';
@@ -185,19 +183,31 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   Timer? _debounceTimer;
   final _searchController = TextEditingController();
 
-  /// حساب مفتاح اليوم الفندقي من تاريخ المنتقي (بدون وقت)
+  /// حساب مفتاح اليوم الفندقي من تاريخ المنتقي
+  ///
   /// المنتقي يعطي تاريخ بدون وقت (منتصف الليل) — تحويله بـ HotelTimeEngine
-  /// يُنتج اليوم السابق خطأً. لذلك نستخدم التاريخ مباشرة كمفتاح.
-  /// لكن نحتاج مراعاة أن مصروف الصباح (قبل 14:00) يُخزّن بيوم فندقي سابق.
+  /// مباشرة يُنتج اليوم السابق خطأً لأن منتصف الليل < 14:00.
+  ///
+  /// ✅ الإصلاح: نمرّر الوقت 14:00:01 لضمان أن getHotelDayKey يُعيد
+  /// مفتاح اليوم الفندقي الصحيح المطابق للتاريخ التقويمي المختار.
+  /// هذا يضمن أن اختيار "19 مايو" يعرض مصروفات hotelDayKey="2026-05-19"
+  /// (أي المصروفات من 14:00 يوم 19 إلى 13:59 يوم 20).
   String _hotelDayKeyFromDate(DateTime date) {
-    return Time.dateToString(date);
+    return HotelTimeEngine.getHotelDayKey(
+        dateTime: DateTime(date.year, date.month, date.day, 14, 0, 1));
   }
 
   Stream<List<Expense>> _buildExpensesStream() {
     final repo = ref.read(expensesRepoProvider);
-    // ✅ إصلاح: كلا المسارين يستخدمان نفس المنطق — hotelDayKey
+    // ✅ إصلاح: كلا المسارين يستخدمان نفس المنطق — hotelDayKey عبر HotelTimeEngine
+    //
     // الافتراضي: نستخدم HotelTimeEngine.getHotelDayKey() الذي يعتمد على الوقت الحالي
-    // يدوي: نستخدم التاريخ المختار مباشرة كمفتاح يوم فندقي
+    // → عند 10:00 صباح 19 مايو: hotelDay = "2026-05-18" (اليوم الفندقي الحالي)
+    //
+    // يدوي: نستخدم _hotelDayKeyFromDate() الذي يمرّر 14:00:01 من التاريخ المختار
+    // → اختيار 19 مايو: hotelDay = "2026-05-19" (يوم فندقي يبدأ 14:00 من نفس اليوم)
+    //
+    // هذا يضمن الاتساق: كلا المسارين يستخدمان HotelTimeEngine.getHotelDayKey()
     if (!_filterActive) {
       final hotelDay = HotelTimeEngine.getHotelDayKey();
       return Stream.fromFuture(
@@ -249,19 +259,23 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     }
     setState(() {
       _filterActive = true;
+      // ✅ إصلاح: ضبط الأوقات حسب حدود اليوم الفندقي (14:00/13:59)
+      // بدلاً من منتصف الليل/23:59 الذي لا يتطابق مع اليوم الفندقي
       if (isFrom) {
-        _fromDate = DateTime(picked.year, picked.month, picked.day);
-        // إذا لم يكن "إلى" محدد، اجعله نفس تاريخ "من"
-        _toDate ??= DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+        // "من" = بداية اليوم الفندقي (14:00)
+        _fromDate = DateTime(picked.year, picked.month, picked.day, 14);
+        // إذا لم يكن "إلى" محدد، اجعله نهاية نفس اليوم الفندقي
+        _toDate ??= DateTime(picked.year, picked.month, picked.day + 1, 13, 59, 59);
         if (_fromDate!.isAfter(_toDate!)) {
-          _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+          _toDate = DateTime(picked.year, picked.month, picked.day + 1, 13, 59, 59);
         }
       } else {
-        _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
-        // إذا لم يكن "من" محدد، اجعله نفس تاريخ "إلى"
-        _fromDate ??= DateTime(picked.year, picked.month, picked.day);
+        // "إلى" = نهاية اليوم الفندقي (13:59 من اليوم التالي)
+        _toDate = DateTime(picked.year, picked.month, picked.day + 1, 13, 59, 59);
+        // إذا لم يكن "من" محدد، اجعله بداية نفس اليوم الفندقي
+        _fromDate ??= DateTime(picked.year, picked.month, picked.day, 14);
         if (_toDate!.isBefore(_fromDate!)) {
-          _fromDate = DateTime(picked.year, picked.month, picked.day);
+          _fromDate = DateTime(picked.year, picked.month, picked.day, 14);
         }
       }
       _expensesStream = _buildExpensesStream();
@@ -1058,7 +1072,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
   @override
   void dispose() {
-    _streamSubscription?.cancel();
     _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
