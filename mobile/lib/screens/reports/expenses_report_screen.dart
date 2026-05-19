@@ -98,6 +98,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   String? _selectedType;
   double _totalAmount = 0;
 
+  /// ✅ بحث نصي بالوصف أو النوع — يُمرّر لمستوى قاعدة البيانات
+  String _searchQuery = '';
+  Timer? _debounceTimer;
+  final _searchController = TextEditingController();
+
   /// النتائج مجمعة حسب النوع
   Map<String, List<_ExpenseReportRow>> _grouped = {};
   Map<String, double> _typeSubtotals = {};
@@ -227,11 +232,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // هل نعرض الكل (بدون فلتر نوع)؟
     final showAll = selectedType == null;
 
-    // ✅ فلترة بحقل hotelDayKey بدلاً من date التقويمي
+    // ✅ فلترة بحقل hotelDayKey بدلاً من date التقويمي + بحث نصي
     var expenses = await expensesDao.listFilteredByHotelDay(
       fromHotelDay: fromHotelDay,
       toHotelDay: toHotelDay,
       expenseType: selectedType,
+      search: _searchQuery.isNotEmpty ? _searchQuery : null,
     );
 
     if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
@@ -584,8 +590,72 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     ),);
   }
 
+  /// ✅ شريط البحث بالوصف أو النوع — تصميم رشيق ومضغوط (نفس expenses_list)
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        decoration: InputDecoration(
+          hintText: 'ابحث بالوصف أو النوع...',
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 4, right: 4),
+            child: Icon(Icons.search, color: Colors.grey.shade500, size: 18),
+          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? Padding(
+                  padding: const EdgeInsets.only(left: 4, right: 4),
+                  child: IconButton(
+                    icon: Icon(Icons.clear, color: Colors.grey.shade500, size: 16),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                    onPressed: () {
+                      _searchController.clear();
+                      _debounceTimer?.cancel();
+                      setState(() {
+                        _searchQuery = '';
+                      });
+                      _fetchReport();
+                    },
+                  ),
+                )
+              : null,
+          suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 28),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 6),
+          isDense: true,
+        ),
+        onChanged: (value) {
+          _debounceTimer?.cancel();
+          _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+            setState(() {
+              _searchQuery = value;
+            });
+            _fetchReport();
+          });
+        },
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final dropdownTextColor = Theme.of(context).textTheme.bodyMedium?.color;
     return ReportPageScaffold(
       title: widget.title,
       filterController: _filterController,
@@ -597,37 +667,50 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         _fetchReport();
       },
       onExportPdf: _exportPdf,
-      onSearch: _fetchReport,
+      // ✅ بدون زر بحث — الفلترة تلقائية
       isPdfEnabled: _rows.isNotEmpty,
       isLoading: _loading,
+      searchBar: _buildSearchBar(),
       filterWidgets: [
         if (widget.showTypeFilter)
           SizedBox(
             width: 160,
-            child: DropdownButtonFormField<String?>(
-              initialValue: _selectedType,
-              decoration: InputDecoration(
-                labelText: widget.typeLabel,
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                value: _selectedType,
+                hint: Text(
+                  'كل الأنواع',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                ),
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              ),
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
-              items: [
-                DropdownMenuItem<String?>(
-                  child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
-                ),
-                ..._availableTypes.map(
-                  (type) => DropdownMenuItem<String?>(
-                    value: type,
-                    child: Text(type, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
+                isExpanded: true,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: dropdownTextColor),
+                items: [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text(
+                      'كل الأنواع',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                    ),
                   ),
-                ),
-              ],
-              onChanged: (value) {
-                setState(() {
-                  _selectedType = value;
-                });
-              },
+                  ..._availableTypes.map(
+                    (type) => DropdownMenuItem<String?>(
+                      value: type,
+                      child: Text(
+                        type,
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: dropdownTextColor),
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedType = value;
+                  });
+                  // ✅ فلترة تلقائية عند تغيير النوع
+                  _fetchReport();
+                },
+              ),
             ),
           ),
       ],
