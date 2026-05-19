@@ -68,6 +68,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   String? _selectedFilterType;
   String? selectedType;
   late Stream<List<Expense>> _expensesStream;
+  int _streamVersion = 0;
   static const String _salaryType = 'رواتب';
   static const String _salaryWithdrawAction = 'سحب من الراتب';
   static const String _salaryDeductionAction = 'خصم من الراتب';
@@ -93,9 +94,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   Widget build(BuildContext context) {
     final employeesAsync = ref.watch(employeesListProvider);
 
-    final todaySummary = ref.watch(todayExpensesSummaryProvider);
-    final todayData = todaySummary.valueOrNull ?? (count: 0, total: 0.0);
-
     return wrapWithSyncOnExit(
       child: AppScaffold(
         title: 'المصروفات',
@@ -115,6 +113,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               for (final emp in employees) emp.id: emp.name,
             };
             return StreamBuilder<List<Expense>>(
+              key: ValueKey(_streamVersion),
               stream: _expensesStream,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
@@ -128,6 +127,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 }
                 // البحث يتم على مستوى قاعدة البيانات الآن
                 final filteredExpenses = expensesData;
+                // ✅ إصلاح: حساب الإحصائيات من القائمة المفلترة فعلياً
+                // بدلاً من todayExpensesSummaryProvider الذي يعرض بيانات اليوم الحالي فقط
+                final filteredTotal = filteredExpenses.fold<double>(0, (sum, e) => sum + e.amount);
+                final filteredCount = filteredExpenses.length;
 
                 return RefreshIndicator(
                   onRefresh: () async {
@@ -143,8 +146,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       _buildCompactFiltersCard(),
                       const SizedBox(height: 8),
                       _buildCompactSummaryCard(
-                        totalAmount: todayData.total,
-                        count: todayData.count,
+                        totalAmount: filteredTotal,
+                        count: filteredCount,
                       ),
                       const SizedBox(height: 10),
                       if (filteredExpenses.isEmpty)
@@ -232,9 +235,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   void _refreshExpensesStream() {
-    setState(() {
-      _expensesStream = _buildExpensesStream();
-    });
+    _streamVersion++;
+    _expensesStream = _buildExpensesStream();
+    setState(() {});
   }
 
   DateTime _parseExpenseDate(String value) {
@@ -278,41 +281,52 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           _fromDate = DateTime(picked.year, picked.month, picked.day, 14);
         }
       }
+      _streamVersion++;
       _expensesStream = _buildExpensesStream();
     });
   }
 
-  /// شريط البحث بالوصف مع دعم البحث المتقدم
+  /// شريط البحث بالوصف — تصميم رشيق ومضغوط
   Widget _buildSearchBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: TextField(
         controller: _searchController,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
         decoration: InputDecoration(
           hintText: 'ابحث بالوصف أو النوع...',
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-          prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 4, right: 4),
+            child: Icon(Icons.search, color: Colors.grey.shade500, size: 18),
+          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 28, minHeight: 28),
           suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: Icon(Icons.clear, color: Colors.grey.shade500, size: 20),
-                  onPressed: () {
-                    _searchController.clear();
-                    _debounceTimer?.cancel();
-                    setState(() {
-                      _searchQuery = '';
-                      _refreshExpensesStream();
-                    });
-                  },
+              ? Padding(
+                  padding: const EdgeInsets.only(left: 4, right: 4),
+                  child: IconButton(
+                    icon: Icon(Icons.clear, color: Colors.grey.shade500, size: 16),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                    onPressed: () {
+                      _searchController.clear();
+                      _debounceTimer?.cancel();
+                      setState(() {
+                        _searchQuery = '';
+                        _refreshExpensesStream();
+                      });
+                    },
+                  ),
                 )
               : null,
+          suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 28),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          contentPadding: const EdgeInsets.symmetric(vertical: 6),
           isDense: true,
         ),
         onChanged: (value) {
