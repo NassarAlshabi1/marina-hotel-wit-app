@@ -950,7 +950,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             : null,
                       ),
                       onTap: () async {
-                        final controller = _checkinDateControllers[booking.id]!;
+                        final controller = _checkinDateControllers[booking.id];
                         await _pickDate(controller);
                         setState(() {});
                       },
