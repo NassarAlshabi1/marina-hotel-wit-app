@@ -647,7 +647,7 @@ class GeminiService {
         s.writeln();
         s.writeln('أكبر الديون (أول 10):');
         for (final d in topDebts.take(10)) {
-          final pledgeInfo = d.pledge.isNotEmpty ? ' | رهن: ${d.pledge}' : '';
+          final pledgeInfo = (d.pledge?.isNotEmpty ?? false) ? ' | رهن: ${d.pledge}' : '';
           s.writeln('  ${d.guestName}: ${d.remainingAmount.toStringAsFixed(0)} ريال | سبب: ${d.debtReason}$pledgeInfo');
         }
       }
@@ -720,7 +720,7 @@ class GeminiService {
         s.writeln('تفاصيل المدفوعات اليوم (آخر $limit من ${sorted.length}):');
         for (final p in sorted.take(limit)) {
           final room = p.roomNumber ?? '-';
-          final note = (p.notes.trim().isNotEmpty) ? ' | ملاحظة: ${p.notes}' : '';
+          final note = (p.notes?.trim().isNotEmpty ?? false) ? ' | ملاحظة: ${p.notes}' : '';
           s.writeln('  $room | ${p.amount.toStringAsFixed(0)} ريال | ${p.paymentMethod} | ${p.revenueType} | ${p.paymentDate}$note');
         }
       }
@@ -1062,7 +1062,7 @@ class GeminiService {
         final limit = sorted.length < 60 ? sorted.length : 60;
         s.writeln('تفاصيل حركة الصندوق اليوم (آخر $limit من ${sorted.length}):');
         for (final t in sorted.take(limit)) {
-          final desc = (t.description.trim().isNotEmpty) ? ' | ${t.description}' : '';
+          final desc = (t.description?.trim().isNotEmpty ?? false) ? ' | ${t.description}' : '';
           s.writeln('  ${t.transactionType}: ${t.amount.toStringAsFixed(0)} ريال | ${t.transactionTime}$desc');
         }
       }
@@ -1161,7 +1161,7 @@ class GeminiService {
         final limit = sorted.length < 50 ? sorted.length : 50;
         s.writeln('تفاصيل عناصر بانتظار الرفع (آخر $limit من ${sorted.length}):');
         for (final o in sorted.take(limit)) {
-          final err = (o.lastError.trim().isNotEmpty) ? ' | آخر خطأ: ${o.lastError}' : '';
+          final err = (o.lastError?.trim().isNotEmpty ?? false) ? ' | آخر خطأ: ${o.lastError}' : '';
           s.writeln('  ${o.entity}/${o.op} | uuid: ${o.localUuid} | محاولات: ${o.attempts} | مصدر: ${o.source} | الحالة: ${o.processingStatus}$err');
         }
       }
@@ -1170,7 +1170,7 @@ class GeminiService {
         final limit = sorted.length < 50 ? sorted.length : 50;
         s.writeln('تفاصيل عناصر فشل الرفع (آخر $limit من ${sorted.length}):');
         for (final o in sorted.take(limit)) {
-          final err = (o.lastError.trim().isNotEmpty) ? ' | آخر خطأ: ${o.lastError}' : '';
+          final err = (o.lastError?.trim().isNotEmpty ?? false) ? ' | آخر خطأ: ${o.lastError}' : '';
           s.writeln('  ${o.entity}/${o.op} | uuid: ${o.localUuid} | محاولات: ${o.attempts} | مصدر: ${o.source} | الحالة: ${o.processingStatus}$err');
         }
       }

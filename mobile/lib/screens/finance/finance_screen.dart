@@ -93,7 +93,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 const SizedBox(height: 8),
 
                 // ─── مدفوعات اليوم ───
-                _buildTodayPayments(payments),
+                _buildTodayPayments(payments ?? []),
 
                 const SizedBox(height: 8),
 

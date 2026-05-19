@@ -119,12 +119,12 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // الإحصائيات السريعة
-                _buildQuickStats(payments),
+                _buildQuickStats(payments ?? []),
 
                 const SizedBox(height: 16),
 
                 // المدفوعات الأخيرة
-                _buildRecentPayments(payments),
+                _buildRecentPayments(payments ?? []),
               ],
             ),
           );
