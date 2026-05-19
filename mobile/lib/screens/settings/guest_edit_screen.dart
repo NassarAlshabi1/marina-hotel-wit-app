@@ -1008,6 +1008,17 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                               adj.reason == null) {
                             return false;
                           }
+                          
+                          // فلتر إضافي: تخطي التعديلات التي انتهت بالفعل
+                          // إذا كان endHotelDay محدداً وأقل من اليوم الفندقي الحالي،
+                          // فهذا يعني أن التخفيض/الزيادة انتهى ولا يجب عرض زر الإنهاء
+                          if (adj.endHotelDay != null && adj.endHotelDay!.isNotEmpty) {
+                            final todayHotelDay = HotelTimeEngine.getHotelDayKey();
+                            if (adj.endHotelDay!.compareTo(todayHotelDay) < 0) {
+                              return false; // التعديل انتهى بالفعل
+                            }
+                          }
+                          
                           return true;
                         }).toList();
 
