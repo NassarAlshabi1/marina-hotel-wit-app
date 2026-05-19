@@ -8,6 +8,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/repositories/payments_repository.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/status_utils.dart';
 import 'guest_info.dart';
@@ -951,7 +952,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                       ),
                       onTap: () async {
                         final controller = _checkinDateControllers[booking.id];
-                        await _pickDate(controller);
+                        if (controller != null) {
+                          await _pickDate(controller);
+                        }
                         setState(() {});
                       },
                     ),
