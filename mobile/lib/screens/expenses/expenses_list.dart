@@ -69,6 +69,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   String? _selectedFilterType;
   String? selectedType;
   late Stream<List<Expense>> _expensesStream;
+  StreamSubscription<List<Expense>>? _streamSubscription;
   static const String _salaryType = 'رواتب';
   static const String _salaryWithdrawAction = 'سحب من الراتب';
   static const String _salaryDeductionAction = 'خصم من الراتب';
@@ -184,11 +185,20 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   Timer? _debounceTimer;
   final _searchController = TextEditingController();
 
+  /// حساب مفتاح اليوم الفندقي من تاريخ المنتقي (بدون وقت)
+  /// المنتقي يعطي تاريخ بدون وقت (منتصف الليل) — تحويله بـ HotelTimeEngine
+  /// يُنتج اليوم السابق خطأً. لذلك نستخدم التاريخ مباشرة كمفتاح.
+  /// لكن نحتاج مراعاة أن مصروف الصباح (قبل 14:00) يُخزّن بيوم فندقي سابق.
+  String _hotelDayKeyFromDate(DateTime date) {
+    return Time.dateToString(date);
+  }
+
   Stream<List<Expense>> _buildExpensesStream() {
     final repo = ref.read(expensesRepoProvider);
+    // ✅ إصلاح: كلا المسارين يستخدمان نفس المنطق — hotelDayKey
+    // الافتراضي: نستخدم HotelTimeEngine.getHotelDayKey() الذي يعتمد على الوقت الحالي
+    // يدوي: نستخدم التاريخ المختار مباشرة كمفتاح يوم فندقي
     if (!_filterActive) {
-      // الافتراضي: عرض مصروفات اليوم الفندقي فقط
-      // ✅ استخدام HotelTimeEngine للتوافق مع hotelDayKey المُخزن في قاعدة البيانات
       final hotelDay = HotelTimeEngine.getHotelDayKey();
       return Stream.fromFuture(
         repo.listFilteredByHotelDay(
@@ -199,11 +209,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         ),
       );
     }
-    // ✅ إصلاح: المستخدم يختار تاريخ تقويمي — نستخدمه مباشرة كمفتاح يوم فندقي
-    // لا نحتاج Time.hotelDayKey لأن المنتقي يعطي تاريخ بدون وقت (منتصف الليل)
-    // وتحويله يُنتج اليوم السابق خطأً
-    final fromHotelDay = _fromDate != null ? Time.dateToString(_fromDate!) : null;
-    final toHotelDay = _toDate != null ? Time.dateToString(_toDate!) : null;
+    final fromHotelDay = _fromDate != null ? _hotelDayKeyFromDate(_fromDate!) : null;
+    final toHotelDay = _toDate != null ? _hotelDayKeyFromDate(_toDate!) : null;
     return Stream.fromFuture(
       repo.listFilteredByHotelDay(
         fromHotelDay: fromHotelDay,
@@ -1051,6 +1058,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
   @override
   void dispose() {
+    _streamSubscription?.cancel();
     _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();

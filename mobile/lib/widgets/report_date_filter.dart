@@ -61,26 +61,36 @@ class DateFilterController {
       case 'week':
         final weekStart = now.subtract(Duration(days: now.weekday - 1));
         final hotelWeekStart = HotelTimeEngine.getHotelDay(weekStart);
+        // ✅ إصلاح: نهاية النطاق يجب أن تكون 13:59 وليس 23:59
+        // اليوم الفندقي ينتهي الساعة 13:59، وليس 23:59
+        final hotelToday = HotelTimeEngine.getHotelDay(now);
         return DateRange(
           from: DateTime(hotelWeekStart.year, hotelWeekStart.month,
               hotelWeekStart.day, 14,),
-          to: DateTime(now.year, now.month, now.day, 23, 59, 59),
+          to: DateTime(hotelToday.year, hotelToday.month,
+              hotelToday.day + 1, 13, 59, 59),
         );
       case 'month':
         final monthStart = DateTime(now.year, now.month);
         final hotelMonthStart = HotelTimeEngine.getHotelDay(monthStart);
+        // ✅ إصلاح: نهاية النطاق يجب أن تكون 13:59 وليس 23:59
+        final hotelTodayMonth = HotelTimeEngine.getHotelDay(now);
         return DateRange(
           from: DateTime(hotelMonthStart.year, hotelMonthStart.month,
               hotelMonthStart.day, 14,),
-          to: DateTime(now.year, now.month, now.day, 23, 59, 59),
+          to: DateTime(hotelTodayMonth.year, hotelTodayMonth.month,
+              hotelTodayMonth.day + 1, 13, 59, 59),
         );
       case 'year':
         final yearStart = DateTime(now.year);
         final hotelYearStart = HotelTimeEngine.getHotelDay(yearStart);
+        // ✅ إصلاح: نهاية النطاق يجب أن تكون 13:59 وليس 23:59
+        final hotelTodayYear = HotelTimeEngine.getHotelDay(now);
         return DateRange(
           from: DateTime(hotelYearStart.year, hotelYearStart.month,
               hotelYearStart.day, 14,),
-          to: DateTime(now.year, now.month, now.day, 23, 59, 59),
+          to: DateTime(hotelTodayYear.year, hotelTodayYear.month,
+              hotelTodayYear.day + 1, 13, 59, 59),
         );
       default:
         return getDefaultHotelDayRange();

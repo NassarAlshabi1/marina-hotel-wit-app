@@ -2594,36 +2594,10 @@ class _ReportResult {
 }
 
 _ReportResult _processReportData(_ReportParams params) {
-  // نطاق الفلترة: من fromDate → toDate يأتي مباشرة من ويدجت الفلترة
-  // - اليوم الفندقي: 14:00 → 13:59 اليوم التالي
-  // - الأسبوع: 14:00 بداية الأسبوع → 13:59 اليوم
-  // - الشهر/السنة: بداية الفترة → نهاية اليوم
-  // - يدوي: ما يختاره المستخدم
-  final hotelStart = params.fromDate;
-  final hotelEnd = params.toDate;
-
-  bool isWithinRange(DateTime date) {
-    // دعم تواريخ بدون وقت (كما في المصروفات) ومع وقت (كما في المدفوعات)
-    final normalizedDate = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      date.hour,
-      date.minute,
-      date.second,
-    );
-    // المصروفات بتاريخ بدون وقت تعتبر ضمن يوم الفندق إذا تطابق التاريخ
-    final dateOnly = DateTime(date.year, date.month, date.day);
-    final hotelStartDateOnly = DateTime(hotelStart.year, hotelStart.month, hotelStart.day);
-    final hotelEndDateOnly = DateTime(hotelEnd.year, hotelEnd.month, hotelEnd.day);
-    final isDateOnly = date.hour == 0 && date.minute == 0 && date.second == 0;
-    if (isDateOnly) {
-      // تاريخ بدون وقت: يتضمن إذا كان ضمن أي يوم من أيام الفندق
-      return !dateOnly.isBefore(hotelStartDateOnly) && !dateOnly.isAfter(hotelEndDateOnly);
-    }
-    // تاريخ مع وقت: فحص دقيق ضمن نطاق 14:00 → 13:59
-    return !normalizedDate.isBefore(hotelStart) && !normalizedDate.isAfter(hotelEnd);
-  }
+  // ✅ إصلاح: إزالة الفلترة المزدوجة — البيانات مُفلترة مسبقاً من SQL
+  // المدفوعات: مُفلترة بنطاق زمني كامل من paymentsDao.list()
+  // المصروفات: مُفلترة بـ hotelDayKey من expensesDao.listFilteredByHotelDay()
+  // لا حاجة لإعادة الفلترة في Dart — كان يسبب استبعاد بيانات صحيحة
 
   bool isSalaryExpense(String type) {
     final normalized = type.trim();
@@ -2649,9 +2623,7 @@ _ReportResult _processReportData(_ReportParams params) {
     } catch (_) {
       continue;
     }
-    if (!isWithinRange(dt)) {
-      continue;
-    }
+    // ✅ إزالة isWithinRange — البيانات مُفلترة مسبقاً من SQL
     final room = (p['roomNumber'] ?? '').toString().trim();
     final desc = room.isNotEmpty
         ? 'دفعة من حجز رقم $room'
@@ -2683,9 +2655,7 @@ _ReportResult _processReportData(_ReportParams params) {
     } catch (_) {
       continue;
     }
-    if (!isWithinRange(dt)) {
-      continue;
-    }
+    // ✅ إزالة isWithinRange — البيانات مُفلترة مسبقاً من SQL
     final type = (e['type'] ?? '').toString();
     expenseList.add(
       _ExpenseEntry(

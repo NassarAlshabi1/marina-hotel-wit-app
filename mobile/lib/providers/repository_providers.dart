@@ -222,7 +222,13 @@ final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {
   final hotelDay = HotelTimeEngine.getHotelDayKey();
   final repo = ref.watch(expensesRepoProvider);
   final total = await repo.getTotalByHotelDayKey(hotelDay);
-  final expenses = await repo.listFiltered(from: hotelDay, to: hotelDay);
+  // ✅ إصلاح: استخدام listFilteredByHotelDay بدلاً من listFiltered
+  // listFiltered تُفلتر بحقل date التقويمي بينما getTotalByHotelDayKey تُفلتر بـ hotelDayKey
+  // هذا يسبب عدم تطابق بين count و total
+  final expenses = await repo.listFilteredByHotelDay(
+    fromHotelDay: hotelDay,
+    toHotelDay: hotelDay,
+  );
   return (count: expenses.length, total: total);
 });
 final bookingPaymentsProvider = StreamProvider.family.autoDispose<List<Payment>, int>(
