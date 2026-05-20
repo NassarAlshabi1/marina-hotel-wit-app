@@ -28,15 +28,19 @@ class NightsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
+    // ✅ استخراج UUID الحجز المرجعي — المفتاح الرئيسي لحل FK عبر الأجهزة
     final bookingUuid =
         _asString(json, 'bookingUuidCache', src) ??
         _asString(json, 'booking_uuid_cache', src) ??
         _asString(json, 'booking_uuid', src);
+    // ✅ استخراج معرّف الحجز البعيد — حل FK إضافي
     final serverBookingId =
         _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
+    // ✅ bookingLocalId من الجهاز البعيد — غير موثوق عبر الأجهزة لكن نحفظه
     final localId =
         _asInt(json, 'bookingLocalId', src) ??
         _asInt(json, 'booking_local_id', src);
+    // ✅ حل FK: UUID → serverBookingId → localId
     final resolvedId = await resolver.resolveBooking(
       localId: localId,
       serverId: serverBookingId,
@@ -47,6 +51,7 @@ class NightsAdapter
     return ResolveResult(
       bookingLocalId: resolvedId,
       bookingUuidCache: bookingUuid,
+      serverBookingId: serverBookingId,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
     );
@@ -73,14 +78,23 @@ class NightsAdapter
             IdGen.uuid(),
       ),
       serverId: _vInt(json, 'serverId', src),
-      // ✅ إصلاح حرج: لا نستخدم bookingLocalId الخام من الجهاز البعيد
-      // معرّف الزيادة التلقائية يختلف بين الأجهزة — bookingLocalId=5 على جهاز A ≠ جهاز B
-      // إذا فشل resolveBooking، نترك الحقل فارغاً و bookingUuidCache يُحفظ لإعادة الربط لاحقاً
+      // ✅ إصلاح حرج: bookingLocalId أصبح nullable
+      // إذا فشل resolveBooking (الحجز لم يصل بعد)، نُخزّن NULL
+      // و bookingUuidCache + serverBookingId يُحفظان لإعادة الربط لاحقاً
+      // نفس نمط Payments.bookingLocalId
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId!)
           : (src == Source.appwrite || src == Source.drive)
-              ? const d.Value.absent()
+              ? const d.Value(null) // ✅ NULL بدلاً من absent — العمود أصبح nullable
               : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+      // ✅ حفظ UUID الحجز المرجعي لحل FK لاحقاً
+      bookingUuidCache: refs.bookingUuidCache != null
+          ? d.Value(refs.bookingUuidCache!)
+          : _vStr(json, 'bookingUuidCache', src, altKey: 'booking_uuid_cache'),
+      // ✅ حفظ معرّف الحجز البعيد لحل FK لاحقاً
+      serverBookingId: refs.serverBookingId != null
+          ? d.Value(refs.serverBookingId!)
+          : _vInt(json, 'serverBookingId', src, altKey: 'server_booking_id'),
       hotelDayKey: _vStr(
         json,
         'hotelDayKey',
@@ -174,7 +188,11 @@ class NightsAdapter
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
+      // ✅ bookingLocalId أصبح nullable — نرسله فقط إذا كان غير null
       _k(src, 'bookingLocalId', 'booking_local_id'): model.bookingLocalId,
+      // ✅ حقول حل FK عبر الأجهزة
+      _k(src, 'bookingUuidCache', 'booking_uuid_cache'): model.bookingUuidCache,
+      _k(src, 'serverBookingId', 'server_booking_id'): model.serverBookingId,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
       _k(src, 'nightStart', 'night_start'): model.nightStart,
       _k(src, 'nightEnd', 'night_end'): model.nightEnd,

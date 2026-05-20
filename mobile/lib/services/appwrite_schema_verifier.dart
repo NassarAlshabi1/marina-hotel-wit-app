@@ -125,36 +125,24 @@ class AppwriteSchemaVerifier {
       'name': 'Booking Nights',
       'includeSyncFields': true,
       'attributes': [
-        // ✅ محدث ليتطابق مع Appwrite Cloud الفعلي (2026-05-21)
-        {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true, 'unique': true},
+        // ✅ يطابق مخطط Delta الكنسي (Final_setup_all_collections.js) بدقة خارقة
+        {'key': 'localUuid', 'type': 'string', 'size': 64, 'required': true, 'unique': true},
         {'key': 'bookingLocalId', 'type': 'integer', 'required': true},
-        {'key': 'hotelDayKey', 'type': 'string', 'size': 50, 'required': true},
-        {'key': 'nightStart', 'type': 'string', 'size': 50, 'required': true},
-        // ✅ nightEnd = required:false على Cloud (تم تغييره في 2026-03-20)
-        {'key': 'nightEnd', 'type': 'string', 'size': 50, 'required': false},
-        // ✅ Cloud يستخدم 'double' (يتوافق مع Drift RealColumn)
-        {'key': 'nightlyRate', 'type': 'double', 'default': 0},
-        {'key': 'sequence', 'type': 'integer', 'default': 0},
-        // ✅ Cloud default = true لكننا نستخدم false محلياً — لا مشكلة في السحب
-        {'key': 'isProcessedByAutoFix', 'type': 'boolean', 'default': true},
-        {'key': 'baseRate', 'type': 'double', 'default': 0},
-        {'key': 'adjustment', 'type': 'double', 'default': 0},
-        {'key': 'finalRate', 'type': 'double', 'default': 0},
-        {'key': 'appliedAdjustmentUuid', 'type': 'string', 'size': 36},
-        {'key': 'appliedAdjustmentsJson', 'type': 'string', 'size': 5000},
-        // ✅ حقول Cloud الإضافية (ليست في Delta لكنها موجودة فعلياً)
-        {'key': 'idempotencyKey', 'type': 'string', 'size': 200},
-        {'key': 'syncTimestamp', 'type': 'integer', 'default': 0},
-        {'key': 'deviceId', 'type': 'string', 'size': 100, 'default': ''},
-        // ✅ حقول snake_case مكررة (من migration قديم)
-        {'key': 'created_at', 'type': 'datetime'},
-        {'key': 'updated_at', 'type': 'datetime'},
-        {'key': 'deleted_at', 'type': 'datetime'},
-        {'key': 'vector_clock', 'type': 'string', 'size': 500},
-        {'key': 'device_id', 'type': 'string', 'size': 100},
-        {'key': 'sync_timestamp', 'type': 'integer'},
-        {'key': 'last_modified', 'type': 'integer'},
-        {'key': 'timestamp', 'type': 'integer'},
+        {'key': 'hotelDayKey', 'type': 'string', 'size': 20, 'required': true},
+        {'key': 'nightStart', 'type': 'string', 'size': 20, 'required': true},
+        {'key': 'nightEnd', 'type': 'string', 'size': 20, 'required': true},
+        {'key': 'nightlyRate', 'type': 'float', 'required': false, 'default': 0.0},
+        {'key': 'sequence', 'type': 'integer', 'required': false, 'default': 0},
+        {'key': 'isProcessedByAutoFix', 'type': 'boolean', 'required': false, 'default': false},
+        {'key': 'baseRate', 'type': 'float', 'required': false, 'default': 0.0},
+        {'key': 'adjustment', 'type': 'float', 'required': false, 'default': 0.0},
+        {'key': 'finalRate', 'type': 'float', 'required': false, 'default': 0.0},
+        {'key': 'appliedAdjustmentUuid', 'type': 'string', 'required': false, 'size': 64},
+        {'key': 'appliedAdjustmentsJson', 'type': 'string', 'required': false, 'size': 10000},
+        // ✅ حقول حل FK عبر الأجهزة — ليست في Delta لكن ضرورية للمزامنة
+        // نفس نمط Payments
+        {'key': 'bookingUuidCache', 'type': 'string', 'required': false, 'size': 64},
+        {'key': 'serverBookingId', 'type': 'integer', 'required': false},
       ],
     },
     'employees': {
@@ -520,21 +508,22 @@ class AppwriteSchemaVerifier {
   };
 
   static final _syncFields = [
-    {'key': 'serverId', 'type': 'integer'},
+    // ✅ يطابق مخطط Delta الكنسي (Final_setup_all_collections.js) بدقة خارقة
+    {'key': 'localUuid', 'type': 'string', 'size': 64, 'required': true, 'unique': true},
+    {'key': 'serverId', 'type': 'integer', 'required': false},
     {'key': 'createdAt', 'type': 'integer', 'required': true},
     {'key': 'updatedAt', 'type': 'integer', 'required': true},
-    {'key': 'deletedAt', 'type': 'integer'},
+    {'key': 'deletedAt', 'type': 'integer', 'required': false},
     {'key': 'lastModified', 'type': 'integer', 'required': true},
-    {'key': 'createdAtIso', 'type': 'string', 'size': 50},
-    {'key': 'updatedAtIso', 'type': 'string', 'size': 50},
-    {'key': 'deletedAtIso', 'type': 'string', 'size': 50},
-    {'key': 'createdAtEpoch', 'type': 'integer', 'default': 0},
-    {'key': 'lastModifiedEpoch', 'type': 'integer', 'default': 0},
-    {'key': 'syncTimestamp', 'type': 'integer', 'default': 0},
-    {'key': 'deviceId', 'type': 'string', 'size': 100, 'default': ''},
-    {'key': 'version', 'type': 'integer', 'default': 1},
-    {'key': 'origin', 'type': 'string', 'size': 20, 'default': 'local'},
-    {'key': 'vectorClock', 'type': 'string', 'size': 500, 'default': '{}'},
+    {'key': 'createdAtIso', 'type': 'string', 'size': 30, 'required': false},
+    {'key': 'updatedAtIso', 'type': 'string', 'size': 30, 'required': false},
+    {'key': 'deletedAtIso', 'type': 'string', 'size': 30, 'required': false},
+    {'key': 'version', 'type': 'integer', 'required': false, 'default': 1},
+    {'key': 'origin', 'type': 'string', 'size': 20, 'required': false, 'default': 'local'},
+    {'key': 'vectorClock', 'type': 'string', 'size': 2000, 'required': false, 'default': '{}'},
+    // ✅ حقول إضافية يستخدمها الكود محلياً (ليست في Delta لكن ضرورية)
+    {'key': 'createdAtEpoch', 'type': 'integer', 'required': false, 'default': 0},
+    {'key': 'lastModifiedEpoch', 'type': 'integer', 'required': false, 'default': 0},
   ];
 
   /// التحقق من جميع Collections والـ Attributes

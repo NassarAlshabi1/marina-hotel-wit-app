@@ -3663,7 +3663,10 @@ class AppwriteSyncManager {
 
   Map<String, dynamic> _bookingNightToRemote(BookingNight night) {
     final data = <String, dynamic>{
-      'bookingLocalId': night.bookingLocalId,
+      'localUuid': night.localUuid,
+      // ✅ bookingLocalId أصبح nullable — نرسله فقط إذا كان غير null
+      // Cloud يتطلب bookingLocalId (required: true) لكننا نرسل قيمة الحقل المحلي
+      if (night.bookingLocalId != null) 'bookingLocalId': night.bookingLocalId,
       'hotelDayKey': night.hotelDayKey,
       'nightStart': night.nightStart,
       'nightEnd': night.nightEnd,
@@ -3673,18 +3676,27 @@ class AppwriteSyncManager {
       'baseRate': night.baseRate,
       'adjustment': night.adjustment,
       'finalRate': night.finalRate,
-      'localUuid': night.localUuid,
       'createdAt': night.createdAt,
       'updatedAt': night.updatedAt,
       'lastModified': night.lastModified,
       'version': night.version,
       'origin': night.origin,
       'vectorClock': night.vectorClock,
+      // ✅ حقول حل FK عبر الأجهزة — يسمح للأجهزة الأخرى بحل bookingLocalId
+      // عبر UUID أو serverId بدلاً من الاعتماد على المعرف المحلي فقط
+      'createdAtEpoch': night.createdAtEpoch,
+      'lastModifiedEpoch': night.lastModifiedEpoch,
     };
     _putIfNotNull(data, 'serverId', night.serverId);
     _putIfNotNull(data, 'deletedAt', night.deletedAt);
+    // ✅ إرسال bookingUuidCache و serverBookingId لحل FK عبر الأجهزة
+    _putIfStringNotEmpty(data, 'bookingUuidCache', night.bookingUuidCache);
+    _putIfNotNull(data, 'serverBookingId', night.serverBookingId);
     _putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
     _putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
+    _putIfStringNotEmpty(data, 'createdAtIso', night.createdAtIso);
+    _putIfStringNotEmpty(data, 'updatedAtIso', night.updatedAtIso);
+    _putIfStringNotEmpty(data, 'deletedAtIso', night.deletedAtIso);
     return data;
   }
 
@@ -4234,13 +4246,14 @@ class AppwriteSyncManager {
     return true;
   }
 
-  /// ✅ تحويل BookingNight إلى بيانات Cloud — يطابق هيكل Appwrite الفعلي بدقة
-  /// يُرسل كل الحقول التي يملكها Cloud (بما فيها الحقول الاختيارية)
+  /// ✅ تحويل BookingNight إلى بيانات Cloud — يطابق هيكل Delta بدقة خارقة
+  /// يُرسل كل الحقول التي يملكها Delta + حقول حل FK الإضافية
   /// وينظّف payload عبر sanitizePayload لإزالة الحقول غير المدعومة
   Map<String, dynamic> _bookingNightToRemote(BookingNight night) {
     final data = <String, dynamic>{
       'localUuid': night.localUuid,
-      'bookingLocalId': night.bookingLocalId,
+      // ✅ bookingLocalId أصبح nullable — نرسله فقط إذا كان غير null
+      if (night.bookingLocalId != null) 'bookingLocalId': night.bookingLocalId,
       'hotelDayKey': night.hotelDayKey,
       'nightStart': night.nightStart,
       'nightEnd': night.nightEnd,
@@ -4256,12 +4269,15 @@ class AppwriteSyncManager {
       'version': night.version,
       'origin': night.origin,
       'vectorClock': night.vectorClock,
-      // ✅ حقول SyncFields الاختيارية — يرسلها فقط إذا ليست null
+      // ✅ حقول SyncFields الاختيارية
       'createdAtEpoch': night.createdAtEpoch,
       'lastModifiedEpoch': night.lastModifiedEpoch,
     };
     _putIfNotNull(data, 'serverId', night.serverId);
     _putIfNotNull(data, 'deletedAt', night.deletedAt);
+    // ✅ حقول حل FK عبر الأجهزة — يسمح للأجهزة الأخرى بحل bookingLocalId
+    _putIfStringNotEmpty(data, 'bookingUuidCache', night.bookingUuidCache);
+    _putIfNotNull(data, 'serverBookingId', night.serverBookingId);
     _putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
     _putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
     _putIfStringNotEmpty(data, 'createdAtIso', night.createdAtIso);
@@ -4484,11 +4500,10 @@ class AppwriteSyncManager {
         );
         processed++;
       } catch (e) {
-        // ✅ تأجيل الليالي إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
-        // bookingLocalId هو NOT NULL في booking_nights، لذا إذا فشل resolveBooking
-        // سيحدث خطأ NOT NULL constraint بدلاً من FK constraint
+        // ✅ تأجيل الليالي إذا كان الخطأ FK constraint
+        // bookingLocalId أصبح nullable — لن يحدث NOT NULL constraint بعد الآن
+        // لكن قد يحدث FK constraint إذا كانت القيمة غير صحيحة
         if (e.toString().contains('FOREIGN KEY constraint failed') ||
-            e.toString().contains('NOT NULL constraint failed') ||
             e.toString().contains('constraint failed')) {
           _logger.debug(
             'Deferring booking night ${doc.$id}: constraint failed (missing booking)',
@@ -4529,7 +4544,96 @@ class AppwriteSyncManager {
       }
     }
 
+    // ✅ المرحلة الثالثة: backfill — حل الليالي اليتيمة (bookingLocalId = NULL)
+    // بعد مزامنة الحجوزات، نحاول ربط الليالي التي لم يُحل FK لها
+    await _backfillOrphanNights();
+
     return processed;
+  }
+
+  /// ✅ حل الليالي اليتيمة (bookingLocalId = NULL) بعد مزامنة الحجوزات
+  /// يبحث عن الليالي التي لها bookingUuidCache أو serverBookingId
+  /// ويحاول ربطها بالحجز المحلي المناسب
+  Future<int> _backfillOrphanNights() async {
+    try {
+      // جلب الليالي اليتيمة (bookingLocalId = NULL ولم تُحذف)
+      final orphans = await (database.select(database.bookingNights)
+            ..where((t) =>
+                t.bookingLocalId.isNull() &
+                t.deletedAt.isNull()))
+          .get();
+
+      if (orphans.isEmpty) return 0;
+
+      _logger.info(
+        '🔗 محاولة ربط ${orphans.length} ليلة يتيمة (bookingLocalId=NULL)',
+        tag: 'SYNC_BACKFILL',
+      );
+
+      var resolved = 0;
+      for (final night in orphans) {
+        Booking? booking;
+
+        // الطريقة 1: حل عبر bookingUuidCache (الأكثر موثوقية)
+        if (night.bookingUuidCache != null && night.bookingUuidCache!.isNotEmpty) {
+          booking = await (database.select(database.bookings)
+                ..where((b) => b.localUuid.equals(night.bookingUuidCache!))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        // الطريقة 2: حل عبر serverBookingId (معرّف الحجز البعيد)
+        if (booking == null && night.serverBookingId != null) {
+          booking = await (database.select(database.bookings)
+                ..where((b) => b.serverBookingId.equals(night.serverBookingId!))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        // الطريقة 3: حل عبر serverId (معرّف الحجز على السيرفر)
+        if (booking == null && night.serverBookingId != null) {
+          booking = await (database.select(database.bookings)
+                ..where((b) => b.serverId.equals(night.serverBookingId!))
+                ..limit(1))
+              .getSingleOrNull();
+        }
+
+        if (booking != null) {
+          // ✅ ربط الليلة بالحجز المحلي
+          await (database.update(database.bookingNights)
+                ..where((t) => t.id.equals(night.id)))
+              .write(BookingNightsCompanion(
+            bookingLocalId: drift.Value(booking.id),
+          ));
+          resolved++;
+          _logger.debug(
+            '✅ ربط ليلة يتيمة ${night.localUuid} بالحجز ${booking.id}',
+            tag: 'SYNC_BACKFILL',
+          );
+        } else {
+          _logger.debug(
+            '⏳ ليلة يتيمة ${night.localUuid} — لم يُعثر على الحجز بعد '
+            '(uuidCache=${night.bookingUuidCache}, serverBookingId=${night.serverBookingId})',
+            tag: 'SYNC_BACKFILL',
+          );
+        }
+      }
+
+      if (resolved > 0) {
+        _logger.info(
+          '✅ تم ربط $resolved من ${orphans.length} ليلة يتيمة',
+          tag: 'SYNC_BACKFILL',
+        );
+      }
+
+      return resolved;
+    } catch (e) {
+      _logger.warning(
+        '⚠️ فشل backfill الليالي اليتيمة: $e',
+        tag: 'SYNC_BACKFILL',
+      );
+      return 0;
+    }
   }
 
   Future<int> _syncCashTransactions(List<models.Document> documents) async {

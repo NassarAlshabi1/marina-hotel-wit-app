@@ -494,6 +494,68 @@ class AppwriteFullPull {
               return false;
             }
           }
+          break;
+
+        // ✅ booking_nights: Bookings ← BookingNights.bookingLocalId (nullable بعد v40)
+        // نحاول حل FK عبر UUID/serverId قبل الإدراج
+        case 'booking_nights': {
+          final bookingUuid = (data['bookingUuidCache'] as String?) ??
+              (data['booking_uuid_cache'] as String?) ??
+              (data['booking_uuid'] as String?);
+          final serverBookingId = _asIntSafe(data, 'serverBookingId') ??
+              _asIntSafe(data, 'server_booking_id') ??
+              _asIntSafe(data, 'booking_id');
+          final rawBookingLocalId = _asIntSafe(data, 'bookingLocalId') ??
+              _asIntSafe(data, 'booking_local_id');
+
+          // محاولة حل FK
+          Booking? booking;
+
+          // الطريقة 1: حل عبر UUID (الأكثر موثوقية عبر الأجهزة)
+          if (bookingUuid != null && bookingUuid.isNotEmpty) {
+            booking = await (db.select(db.bookings)
+                  ..where((b) => b.localUuid.equals(bookingUuid))
+                  ..limit(1))
+                .getSingleOrNull();
+          }
+
+          // الطريقة 2: حل عبر serverBookingId
+          if (booking == null && serverBookingId != null) {
+            booking = await (db.select(db.bookings)
+                  ..where((b) => b.serverBookingId.equals(serverBookingId))
+                  ..limit(1))
+                .getSingleOrNull();
+          }
+
+          // الطريقة 3: حل عبر serverId
+          if (booking == null && serverBookingId != null) {
+            booking = await (db.select(db.bookings)
+                  ..where((b) => b.serverId.equals(serverBookingId))
+                  ..limit(1))
+                .getSingleOrNull();
+          }
+
+          // الطريقة 4: المطابقة المباشرة بـ bookingLocalId
+          if (booking == null && rawBookingLocalId != null) {
+            booking = await (db.select(db.bookings)
+                  ..where((b) => b.id.equals(rawBookingLocalId))
+                  ..limit(1))
+                .getSingleOrNull();
+          }
+
+          if (booking != null) {
+            // ✅ استبدال bookingLocalId البعيد بالمعرف المحلي الصحيح
+            data['bookingLocalId'] = booking.id;
+            // ✅ حفظ بيانات الحل للأجهزة الأخرى
+            data['bookingUuidCache'] = booking.localUuid;
+            if (booking.serverBookingId != null) {
+              data['serverBookingId'] = booking.serverBookingId;
+            }
+          }
+          // ✅ bookingLocalId أصبح nullable — يمكن تخزين الليلة بدون حجز
+          // سيتم ربطها لاحقاً عبر backfill عند وصول الحجز
+          break;
+        }
 
         // باقي الجداول: FK nullable أو يُعالجها adapter بـ drift.Value.absent()
       }

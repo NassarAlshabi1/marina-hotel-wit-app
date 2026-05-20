@@ -353,7 +353,14 @@ class ShiftNotes extends Table with SyncFields {
 @DataClassName('BookingNight')
 class BookingNights extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get bookingLocalId => integer().references(Bookings, #id)();
+  // ✅ nullable: عند السحب من جهاز آخر، قد لا يكون الحجز موجوداً محلياً بعد
+  // يتم ملؤه لاحقاً عبر backfill عندما يصل الحجز
+  IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
+  // ✅ UUID الحجز المرجعي — يُستخدم لحل FK عبر الأجهزة
+  // نفس نمط Payments.bookingUuidCache
+  TextColumn get bookingUuidCache => text().nullable()();
+  // ✅ معرّف الحجز البعيد — حل FK إضافي عبر serverId
+  IntColumn get serverBookingId => integer().nullable()();
   TextColumn get hotelDayKey => text()();
   TextColumn get nightStart => text()();
   TextColumn get nightEnd => text()();
@@ -367,10 +374,9 @@ class BookingNights extends Table with SyncFields {
   TextColumn get appliedAdjustmentUuid => text().nullable()();
   TextColumn get appliedAdjustmentsJson => text().nullable()();
 
-  @override
-  List<Set<Column>>? get uniqueKeys => [
-    {bookingLocalId, hotelDayKey},
-  ];
+  // ✅ تم إزالة uniqueKeys لأن bookingLocalId أصبح nullable
+  // SQLite لا يدعم قيود UNIQUE على أعمدة NULL بشكل موثوق
+  // التفرد يضمنه localUuid (من SyncFields)
 }
 
 @DataClassName('HotelDayLedgerEntry')
@@ -780,7 +786,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 39;
+  int get schemaVersion => 40;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1913,6 +1919,79 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 39: add employees.terminationReason failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+
+      // === Migration 40: BookingNights — nullable bookingLocalId + bookingUuidCache + serverBookingId ===
+      // يجعل bookingLocalId قابلاً للقيم الفارغة حتى يمكن تخزين الليالي
+      // التي سُحبت من أجهزة أخرى قبل وصول الحجز المرجعي
+      // ويضيف bookingUuidCache و serverBookingId لحل FK عبر الأجهزة
+      if (from < 40) {
+        try {
+          // جعل booking_local_id قابل للقيم الفارغة
+          // SQLite لا يدعم ALTER COLUMN — نستخدم إعادة الإنشاء
+          await m.database.customStatement(
+            'ALTER TABLE booking_nights RENAME TO booking_nights_old_v39',
+          );
+          await m.createTable(bookingNights);
+          // نسخ البيانات القديمة (جميع الأعمدة المشتركة)
+          await m.database.customStatement('''
+            INSERT INTO booking_nights (
+              id, booking_local_id, hotel_day_key, night_start, night_end,
+              nightly_rate, sequence, is_processed_by_auto_fix,
+              base_rate, adjustment, final_rate,
+              applied_adjustment_uuid, applied_adjustments_json,
+              local_uuid, server_id, created_at, updated_at, deleted_at,
+              last_modified, created_at_iso, updated_at_iso, deleted_at_iso,
+              created_at_epoch, last_modified_epoch, version, origin, vector_clock
+            )
+            SELECT
+              id, booking_local_id, hotel_day_key, night_start, night_end,
+              nightly_rate, sequence, is_processed_by_auto_fix,
+              base_rate, adjustment, final_rate,
+              applied_adjustment_uuid, applied_adjustments_json,
+              local_uuid, server_id, created_at, updated_at, deleted_at,
+              last_modified, created_at_iso, updated_at_iso, deleted_at_iso,
+              created_at_epoch, last_modified_epoch, version, origin, vector_clock
+            FROM booking_nights_old_v39
+          ''');
+          await m.database.customStatement(
+            'DROP TABLE booking_nights_old_v39',
+          );
+          // إعادة إنشاء الفهارس
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_booking_nights_hotel_day ON booking_nights (hotel_day_key)',
+          );
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_booking_nights_booking ON booking_nights (booking_local_id, hotel_day_key)',
+          );
+          // ملء bookingUuidCache من الحجوزات الموجودة
+          await m.database.customStatement('''
+            UPDATE booking_nights
+            SET booking_uuid_cache = (
+              SELECT b.local_uuid FROM bookings b WHERE b.id = booking_nights.booking_local_id
+            )
+            WHERE booking_local_id IS NOT NULL
+              AND booking_uuid_cache IS NULL
+          ''');
+          // ملء serverBookingId من الحجوزات الموجودة
+          await m.database.customStatement('''
+            UPDATE booking_nights
+            SET server_booking_id = (
+              SELECT b.server_id FROM bookings b WHERE b.id = booking_nights.booking_local_id
+            )
+            WHERE booking_local_id IS NOT NULL
+              AND server_booking_id IS NULL
+          ''');
+          developer.log(
+            'Migration 40: BookingNights nullable bookingLocalId + bookingUuidCache + serverBookingId',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 40: BookingNights migration failed: $e',
             name: 'db.migration',
           );
         }

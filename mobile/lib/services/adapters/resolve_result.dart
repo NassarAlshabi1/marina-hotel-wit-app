@@ -2,6 +2,7 @@ class ResolveResult {
   const ResolveResult({
     this.bookingLocalId,
     this.bookingUuidCache,
+    this.serverBookingId,
     this.employeeLocalId,
     this.salaryCycleLocalId,
     this.createdAtEpoch,
@@ -10,6 +11,10 @@ class ResolveResult {
 
   final int? bookingLocalId;
   final String? bookingUuidCache;
+
+  /// ✅ معرّف الحجز البعيد — لحل FK عبر الأجهزة (serverBookingId)
+  /// نفس نمط Payments.serverBookingId
+  final int? serverBookingId;
 
   /// معرّف الموظف المحلي بعد الحل (لـ FK: salary_withdrawals, salary_cycles)
   final int? employeeLocalId;
@@ -25,6 +30,7 @@ class ResolveResult {
   ResolveResult copyWith({
     int? bookingLocalId,
     String? bookingUuidCache,
+    int? serverBookingId,
     int? employeeLocalId,
     int? salaryCycleLocalId,
     int? createdAtEpoch,
@@ -33,6 +39,7 @@ class ResolveResult {
     return ResolveResult(
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
       bookingUuidCache: bookingUuidCache ?? this.bookingUuidCache,
+      serverBookingId: serverBookingId ?? this.serverBookingId,
       employeeLocalId: employeeLocalId ?? this.employeeLocalId,
       salaryCycleLocalId: salaryCycleLocalId ?? this.salaryCycleLocalId,
       createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,

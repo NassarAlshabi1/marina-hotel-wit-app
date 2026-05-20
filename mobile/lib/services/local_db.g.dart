@@ -14167,12 +14167,34 @@ class $BookingNightsTable extends BookingNights
   late final GeneratedColumn<int> bookingLocalId = GeneratedColumn<int>(
     'booking_local_id',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'REFERENCES bookings (id)',
     ),
+  );
+  static const VerificationMeta _bookingUuidCacheMeta = const VerificationMeta(
+    'bookingUuidCache',
+  );
+  @override
+  late final GeneratedColumn<String> bookingUuidCache = GeneratedColumn<String>(
+    'booking_uuid_cache',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverBookingIdMeta = const VerificationMeta(
+    'serverBookingId',
+  );
+  @override
+  late final GeneratedColumn<int> serverBookingId = GeneratedColumn<int>(
+    'server_booking_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _hotelDayKeyMeta = const VerificationMeta(
     'hotelDayKey',
@@ -14321,6 +14343,8 @@ class $BookingNightsTable extends BookingNights
     vectorClock,
     id,
     bookingLocalId,
+    bookingUuidCache,
+    serverBookingId,
     hotelDayKey,
     nightStart,
     nightEnd,
@@ -14469,8 +14493,24 @@ class $BookingNightsTable extends BookingNights
           _bookingLocalIdMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_bookingLocalIdMeta);
+    }
+    if (data.containsKey('booking_uuid_cache')) {
+      context.handle(
+        _bookingUuidCacheMeta,
+        bookingUuidCache.isAcceptableOrUnknown(
+          data['booking_uuid_cache']!,
+          _bookingUuidCacheMeta,
+        ),
+      );
+    }
+    if (data.containsKey('server_booking_id')) {
+      context.handle(
+        _serverBookingIdMeta,
+        serverBookingId.isAcceptableOrUnknown(
+          data['server_booking_id']!,
+          _serverBookingIdMeta,
+        ),
+      );
     }
     if (data.containsKey('hotel_day_key')) {
       context.handle(
@@ -14705,7 +14745,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
   final String origin;
   final String vectorClock;
   final int id;
-  final int bookingLocalId;
+  final int? bookingLocalId;
+  final String? bookingUuidCache;
+  final int? serverBookingId;
   final String hotelDayKey;
   final String nightStart;
   final String nightEnd;
@@ -14733,7 +14775,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     required this.origin,
     required this.vectorClock,
     required this.id,
-    required this.bookingLocalId,
+    this.bookingLocalId,
+    this.bookingUuidCache,
+    this.serverBookingId,
     required this.hotelDayKey,
     required this.nightStart,
     required this.nightEnd,
@@ -14774,7 +14818,15 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['id'] = Variable<int>(id);
-    map['booking_local_id'] = Variable<int>(bookingLocalId);
+    if (!nullToAbsent || bookingLocalId != null) {
+      map['booking_local_id'] = Variable<int>(bookingLocalId);
+    }
+    if (!nullToAbsent || bookingUuidCache != null) {
+      map['booking_uuid_cache'] = Variable<String>(bookingUuidCache);
+    }
+    if (!nullToAbsent || serverBookingId != null) {
+      map['server_booking_id'] = Variable<int>(serverBookingId);
+    }
     map['hotel_day_key'] = Variable<String>(hotelDayKey);
     map['night_start'] = Variable<String>(nightStart);
     map['night_end'] = Variable<String>(nightEnd);
@@ -14822,7 +14874,15 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       id: Value(id),
-      bookingLocalId: Value(bookingLocalId),
+      bookingLocalId: bookingLocalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bookingLocalId),
+      bookingUuidCache: bookingUuidCache == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bookingUuidCache),
+      serverBookingId: serverBookingId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverBookingId),
       hotelDayKey: Value(hotelDayKey),
       nightStart: Value(nightStart),
       nightEnd: Value(nightEnd),
@@ -14862,7 +14922,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       id: serializer.fromJson<int>(json['id']),
-      bookingLocalId: serializer.fromJson<int>(json['bookingLocalId']),
+      bookingLocalId: serializer.fromJson<int?>(json['bookingLocalId']),
+      bookingUuidCache: serializer.fromJson<String?>(json['bookingUuidCache']),
+      serverBookingId: serializer.fromJson<int?>(json['serverBookingId']),
       hotelDayKey: serializer.fromJson<String>(json['hotelDayKey']),
       nightStart: serializer.fromJson<String>(json['nightStart']),
       nightEnd: serializer.fromJson<String>(json['nightEnd']),
@@ -14901,7 +14963,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'id': serializer.toJson<int>(id),
-      'bookingLocalId': serializer.toJson<int>(bookingLocalId),
+      'bookingLocalId': serializer.toJson<int?>(bookingLocalId),
+      'bookingUuidCache': serializer.toJson<String?>(bookingUuidCache),
+      'serverBookingId': serializer.toJson<int?>(serverBookingId),
       'hotelDayKey': serializer.toJson<String>(hotelDayKey),
       'nightStart': serializer.toJson<String>(nightStart),
       'nightEnd': serializer.toJson<String>(nightEnd),
@@ -14936,7 +15000,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     String? origin,
     String? vectorClock,
     int? id,
-    int? bookingLocalId,
+    Value<int?> bookingLocalId = const Value.absent(),
+    Value<String?> bookingUuidCache = const Value.absent(),
+    Value<int?> serverBookingId = const Value.absent(),
     String? hotelDayKey,
     String? nightStart,
     String? nightEnd,
@@ -14964,7 +15030,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     id: id ?? this.id,
-    bookingLocalId: bookingLocalId ?? this.bookingLocalId,
+    bookingLocalId: bookingLocalId.present ? bookingLocalId.value : this.bookingLocalId,
+    bookingUuidCache: bookingUuidCache.present ? bookingUuidCache.value : this.bookingUuidCache,
+    serverBookingId: serverBookingId.present ? serverBookingId.value : this.serverBookingId,
     hotelDayKey: hotelDayKey ?? this.hotelDayKey,
     nightStart: nightStart ?? this.nightStart,
     nightEnd: nightEnd ?? this.nightEnd,
@@ -15127,6 +15195,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           other.vectorClock == this.vectorClock &&
           other.id == this.id &&
           other.bookingLocalId == this.bookingLocalId &&
+          other.bookingUuidCache == this.bookingUuidCache &&
+          other.serverBookingId == this.serverBookingId &&
           other.hotelDayKey == this.hotelDayKey &&
           other.nightStart == this.nightStart &&
           other.nightEnd == this.nightEnd &&
@@ -15156,7 +15226,9 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<int> id;
-  final Value<int> bookingLocalId;
+  final Value<int?> bookingLocalId;
+  final Value<String?> bookingUuidCache;
+  final Value<int?> serverBookingId;
   final Value<String> hotelDayKey;
   final Value<String> nightStart;
   final Value<String> nightEnd;
@@ -15185,6 +15257,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.vectorClock = const Value.absent(),
     this.id = const Value.absent(),
     this.bookingLocalId = const Value.absent(),
+    this.bookingUuidCache = const Value.absent(),
+    this.serverBookingId = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
     this.nightStart = const Value.absent(),
     this.nightEnd = const Value.absent(),
@@ -15213,7 +15287,9 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.id = const Value.absent(),
-    required int bookingLocalId,
+    int? bookingLocalId,
+    String? bookingUuidCache,
+    int? serverBookingId,
     required String hotelDayKey,
     required String nightStart,
     required String nightEnd,
@@ -15230,6 +15306,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
        updatedAt = Value(updatedAt),
        lastModified = Value(lastModified),
        bookingLocalId = Value(bookingLocalId),
+       bookingUuidCache = Value(bookingUuidCache),
+       serverBookingId = Value(serverBookingId),
        hotelDayKey = Value(hotelDayKey),
        nightStart = Value(nightStart),
        nightEnd = Value(nightEnd);
@@ -15250,6 +15328,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Expression<String>? vectorClock,
     Expression<int>? id,
     Expression<int>? bookingLocalId,
+    Expression<String>? bookingUuidCache,
+    Expression<int>? serverBookingId,
     Expression<String>? hotelDayKey,
     Expression<String>? nightStart,
     Expression<String>? nightEnd,
@@ -15279,6 +15359,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (id != null) 'id': id,
       if (bookingLocalId != null) 'booking_local_id': bookingLocalId,
+      if (bookingUuidCache != null) 'booking_uuid_cache': bookingUuidCache,
+      if (serverBookingId != null) 'server_booking_id': serverBookingId,
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
       if (nightStart != null) 'night_start': nightStart,
       if (nightEnd != null) 'night_end': nightEnd,
@@ -15312,7 +15394,9 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<int>? id,
-    Value<int>? bookingLocalId,
+    Value<int?>? bookingLocalId,
+    Value<String?>? bookingUuidCache,
+    Value<int?>? serverBookingId,
     Value<String>? hotelDayKey,
     Value<String>? nightStart,
     Value<String>? nightEnd,
@@ -15342,6 +15426,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
       vectorClock: vectorClock ?? this.vectorClock,
       id: id ?? this.id,
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
+      bookingUuidCache: bookingUuidCache ?? this.bookingUuidCache,
+      serverBookingId: serverBookingId ?? this.serverBookingId,
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
       nightStart: nightStart ?? this.nightStart,
       nightEnd: nightEnd ?? this.nightEnd,
@@ -15408,6 +15494,12 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     }
     if (bookingLocalId.present) {
       map['booking_local_id'] = Variable<int>(bookingLocalId.value);
+    }
+    if (bookingUuidCache.present) {
+      map['booking_uuid_cache'] = Variable<String>(bookingUuidCache.value);
+    }
+    if (serverBookingId.present) {
+      map['server_booking_id'] = Variable<int>(serverBookingId.value);
     }
     if (hotelDayKey.present) {
       map['hotel_day_key'] = Variable<String>(hotelDayKey.value);
