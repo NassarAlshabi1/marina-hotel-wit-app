@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:developer' as developer;
+import 'dart:ui';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
@@ -15,6 +17,7 @@ void appwriteAutoSyncCallbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) async {
     try {
       WidgetsFlutterBinding.ensureInitialized();
+      DartPluginRegistrant.ensureInitialized();
 
       final prefs = await SharedPreferences.getInstance();
       final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
@@ -34,7 +37,14 @@ void appwriteAutoSyncCallbackDispatcher() {
       }
 
       return success;
-    } catch (e) {
+    } catch (error, stackTrace) {
+      developer.log(
+        'Appwrite auto-sync background task failed',
+        name: 'AppwriteAutoSyncTask',
+        error: error is Exception ? error.runtimeType.toString() : error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
       return false;
     }
   });
@@ -118,9 +128,9 @@ class AppwriteAutoSyncTask {
     if (!pending && !force) {
       return;
     }
-    await UnifiedSyncOrchestrator.instance.syncNow(
+    final success = await UnifiedSyncOrchestrator.instance.syncNow(
       reason: 'pending_appwrite_sync',
     );
-    await prefs.setBool(_kPendingFlagKey, false);
+    await prefs.setBool(_kPendingFlagKey, !success);
   }
 }

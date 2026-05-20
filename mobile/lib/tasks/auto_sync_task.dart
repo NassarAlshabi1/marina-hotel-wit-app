@@ -126,9 +126,9 @@ class AutoSyncTask {
     if (!pending && !force) {
       return;
     }
-    await UnifiedSyncOrchestrator.instance.syncNow(
+    final success = await UnifiedSyncOrchestrator.instance.syncNow(
       reason: 'pending_sync',
     );
-    await prefs.setBool(_kPendingFlagKey, false);
+    await prefs.setBool(_kPendingFlagKey, !success);
   }
 }
