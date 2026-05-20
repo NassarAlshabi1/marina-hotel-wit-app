@@ -1067,7 +1067,9 @@ class AppwriteDeltaSync {
   ) async {
     // ✅ حل FK للحجز: UUID → localId → serverId
     final resolvedBookingId = await _resolveBookingId(db, data);
-    if (resolvedBookingId == null) return; // يتيم — تخطي
+    // bookingLocalId هو NOT NULL — لا يمكن حفظ يتيم بدون FK
+    // يتم تأجيله في _syncBookingNights للمحاولة لاحقاً
+    if (resolvedBookingId == null) return;
 
     final now = Time.nowEpoch();
     final createdAt = _asInt(data['createdAt']) ?? now;
@@ -1095,6 +1097,7 @@ class AppwriteDeltaSync {
       nightEnd: d.Value(_asString(data['nightEnd']) ?? ''),
       nightlyRate: d.Value(_asDouble(data['nightlyRate'])),
       sequence: d.Value(_asInt(data['sequence']) ?? 0),
+      // ✅ Cloud default = true لكننا نصر على false كقيمة محلية افتراضية
       isProcessedByAutoFix: d.Value(_asBool(data['isProcessedByAutoFix']) ?? false),
       baseRate: d.Value(_asDouble(data['baseRate'])),
       adjustment: d.Value(_asDouble(data['adjustment'])),

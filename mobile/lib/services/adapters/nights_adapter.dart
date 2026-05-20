@@ -185,8 +185,17 @@ class NightsAdapter
       _k(src, 'baseRate', 'base_rate'): model.baseRate,
       _k(src, 'adjustment', 'adjustment'): model.adjustment,
       _k(src, 'finalRate', 'final_rate'): model.finalRate,
+      // ✅ إرسال الحقول الاختيارية حتى لو كانت null — Cloud يعتمد عليها
       _k(src, 'appliedAdjustmentUuid', 'applied_adjustment_uuid'):
           model.appliedAdjustmentUuid,
+      _k(src, 'appliedAdjustmentsJson', 'applied_adjustments_json'):
+          model.appliedAdjustmentsJson,
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,

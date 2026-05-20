@@ -125,26 +125,36 @@ class AppwriteSchemaVerifier {
       'name': 'Booking Nights',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
+        // ✅ محدث ليتطابق مع Appwrite Cloud الفعلي (2026-05-21)
+        {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true, 'unique': true},
         {'key': 'bookingLocalId', 'type': 'integer', 'required': true},
         {'key': 'hotelDayKey', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'nightStart', 'type': 'string', 'size': 50, 'required': true},
-        {'key': 'nightEnd', 'type': 'string', 'size': 50, 'required': true},
+        // ✅ nightEnd = required:false على Cloud (تم تغييره في 2026-03-20)
+        {'key': 'nightEnd', 'type': 'string', 'size': 50, 'required': false},
+        // ✅ Cloud يستخدم 'double' (يتوافق مع Drift RealColumn)
         {'key': 'nightlyRate', 'type': 'double', 'default': 0},
         {'key': 'sequence', 'type': 'integer', 'default': 0},
-        {'key': 'isProcessedByAutoFix', 'type': 'boolean', 'default': false},
-        // ✅ الحقول التالية أُضيفت إلى Appwrite Cloud (2026-05-15)
+        // ✅ Cloud default = true لكننا نستخدم false محلياً — لا مشكلة في السحب
+        {'key': 'isProcessedByAutoFix', 'type': 'boolean', 'default': true},
         {'key': 'baseRate', 'type': 'double', 'default': 0},
         {'key': 'adjustment', 'type': 'double', 'default': 0},
         {'key': 'finalRate', 'type': 'double', 'default': 0},
         {'key': 'appliedAdjustmentUuid', 'type': 'string', 'size': 36},
         {'key': 'appliedAdjustmentsJson', 'type': 'string', 'size': 5000},
+        // ✅ حقول Cloud الإضافية (ليست في Delta لكنها موجودة فعلياً)
+        {'key': 'idempotencyKey', 'type': 'string', 'size': 200},
+        {'key': 'syncTimestamp', 'type': 'integer', 'default': 0},
+        {'key': 'deviceId', 'type': 'string', 'size': 100, 'default': ''},
+        // ✅ حقول snake_case مكررة (من migration قديم)
+        {'key': 'created_at', 'type': 'datetime'},
+        {'key': 'updated_at', 'type': 'datetime'},
+        {'key': 'deleted_at', 'type': 'datetime'},
+        {'key': 'vector_clock', 'type': 'string', 'size': 500},
+        {'key': 'device_id', 'type': 'string', 'size': 100},
+        {'key': 'sync_timestamp', 'type': 'integer'},
+        {'key': 'last_modified', 'type': 'integer'},
+        {'key': 'timestamp', 'type': 'integer'},
       ],
     },
     'employees': {

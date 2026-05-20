@@ -4226,15 +4226,52 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.nights.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _bookingNightToRemote(item);
     await appwriteService.upsertBookingNight(
       item.localUuid,
       _addIdempotencyKey(payload, entry),
     );
     return true;
+  }
+
+  /// ✅ تحويل BookingNight إلى بيانات Cloud — يطابق هيكل Appwrite الفعلي بدقة
+  /// يُرسل كل الحقول التي يملكها Cloud (بما فيها الحقول الاختيارية)
+  /// وينظّف payload عبر sanitizePayload لإزالة الحقول غير المدعومة
+  Map<String, dynamic> _bookingNightToRemote(BookingNight night) {
+    final data = <String, dynamic>{
+      'localUuid': night.localUuid,
+      'bookingLocalId': night.bookingLocalId,
+      'hotelDayKey': night.hotelDayKey,
+      'nightStart': night.nightStart,
+      'nightEnd': night.nightEnd,
+      'nightlyRate': night.nightlyRate,
+      'sequence': night.sequence,
+      'isProcessedByAutoFix': night.isProcessedByAutoFix,
+      'baseRate': night.baseRate,
+      'adjustment': night.adjustment,
+      'finalRate': night.finalRate,
+      'createdAt': night.createdAt,
+      'updatedAt': night.updatedAt,
+      'lastModified': night.lastModified,
+      'version': night.version,
+      'origin': night.origin,
+      'vectorClock': night.vectorClock,
+      // ✅ حقول SyncFields الاختيارية — يرسلها فقط إذا ليست null
+      'createdAtEpoch': night.createdAtEpoch,
+      'lastModifiedEpoch': night.lastModifiedEpoch,
+    };
+    _putIfNotNull(data, 'serverId', night.serverId);
+    _putIfNotNull(data, 'deletedAt', night.deletedAt);
+    _putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
+    _putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
+    _putIfStringNotEmpty(data, 'createdAtIso', night.createdAtIso);
+    _putIfStringNotEmpty(data, 'updatedAtIso', night.updatedAtIso);
+    _putIfStringNotEmpty(data, 'deletedAtIso', night.deletedAtIso);
+    return AppwriteSyncUtils.sanitizePayload(
+      'booking_nights',
+      data,
+      collectionId: AppwriteConfig.bookingNightsCollectionId,
+    );
   }
 
   Future<BookingNight?> _getBookingNightByLocalUuid(String uuid) {
