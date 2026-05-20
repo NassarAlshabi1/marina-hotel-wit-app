@@ -6,35 +6,43 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20  # زيادة timeout
-    
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+
     steps:
     - uses: actions/checkout@v4
-    
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.41.0'
         channel: 'stable'
-        
+
     - name: Install dependencies
       run: |
         flutter clean
         flutter pub get
-        
+
     - name: Generate code
       run: |
-        flutter packages pub run build_runner build --delete-conflicting-outputs
-        
+        flutter pub run build_runner build --delete-conflicting-outputs
+
     - name: Build APK
       run: |
-        flutter build apk --release --verbose
+        flutter build apk --release
       env:
-        # حل مشاكل Android memory
         GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
-        
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-release.apk
-        path: build/app/outputs/flutter-apk/app-release.apk
+        path: mobile/build/app/outputs/flutter-apk/app-release.apk
