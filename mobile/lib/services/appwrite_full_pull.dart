@@ -494,7 +494,6 @@ class AppwriteFullPull {
               return false;
             }
           }
-          break;
 
         // ✅ booking_nights: Bookings ← BookingNights.bookingLocalId (nullable بعد v40)
         // نحاول حل FK عبر UUID/serverId قبل الإدراج
