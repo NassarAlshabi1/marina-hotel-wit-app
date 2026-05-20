@@ -41,7 +41,7 @@ void appwriteAutoSyncCallbackDispatcher() {
       developer.log(
         'Appwrite auto-sync background task failed',
         name: 'AppwriteAutoSyncTask',
-        error: error is Exception ? error.runtimeType.toString() : error,
+        error: error,
         stackTrace: stackTrace,
         level: 1000,
       );
