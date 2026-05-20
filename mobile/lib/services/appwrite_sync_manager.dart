@@ -3661,45 +3661,6 @@ class AppwriteSyncManager {
     return data;
   }
 
-  Map<String, dynamic> _bookingNightToRemote(BookingNight night) {
-    final data = <String, dynamic>{
-      'localUuid': night.localUuid,
-      // ✅ bookingLocalId أصبح nullable — نرسله فقط إذا كان غير null
-      // Cloud يتطلب bookingLocalId (required: true) لكننا نرسل قيمة الحقل المحلي
-      if (night.bookingLocalId != null) 'bookingLocalId': night.bookingLocalId,
-      'hotelDayKey': night.hotelDayKey,
-      'nightStart': night.nightStart,
-      'nightEnd': night.nightEnd,
-      'nightlyRate': night.nightlyRate,
-      'sequence': night.sequence,
-      'isProcessedByAutoFix': night.isProcessedByAutoFix,
-      'baseRate': night.baseRate,
-      'adjustment': night.adjustment,
-      'finalRate': night.finalRate,
-      'createdAt': night.createdAt,
-      'updatedAt': night.updatedAt,
-      'lastModified': night.lastModified,
-      'version': night.version,
-      'origin': night.origin,
-      'vectorClock': night.vectorClock,
-      // ✅ حقول حل FK عبر الأجهزة — يسمح للأجهزة الأخرى بحل bookingLocalId
-      // عبر UUID أو serverId بدلاً من الاعتماد على المعرف المحلي فقط
-      'createdAtEpoch': night.createdAtEpoch,
-      'lastModifiedEpoch': night.lastModifiedEpoch,
-    };
-    _putIfNotNull(data, 'serverId', night.serverId);
-    _putIfNotNull(data, 'deletedAt', night.deletedAt);
-    // ✅ إرسال bookingUuidCache و serverBookingId لحل FK عبر الأجهزة
-    _putIfStringNotEmpty(data, 'bookingUuidCache', night.bookingUuidCache);
-    _putIfNotNull(data, 'serverBookingId', night.serverBookingId);
-    _putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
-    _putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
-    _putIfStringNotEmpty(data, 'createdAtIso', night.createdAtIso);
-    _putIfStringNotEmpty(data, 'updatedAtIso', night.updatedAtIso);
-    _putIfStringNotEmpty(data, 'deletedAtIso', night.deletedAtIso);
-    return data;
-  }
-
   Map<String, dynamic> _cashTransactionToRemote(CashTransaction transaction) {
     final data = <String, dynamic>{
       'transactionType': transaction.transactionType,
