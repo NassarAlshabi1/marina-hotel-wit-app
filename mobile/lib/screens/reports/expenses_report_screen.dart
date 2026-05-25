@@ -143,8 +143,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   Future<void> _loadExpenseTypes() async {
     final db = ref.read(databaseProvider);
+    // ✅ إصلاح: استبعاد المصروفات المحذوفة لمنع ظهور أنواع وهمية في القائمة المنسدلة
     final query = await db
-        .customSelect('SELECT DISTINCT expense_type FROM expenses')
+        .customSelect(
+          'SELECT DISTINCT expense_type FROM expenses WHERE deleted_at IS NULL',
+        )
         .get();
     final types =
         query.map((row) => row.data['expense_type'] as String).toList()..sort();
@@ -321,10 +324,23 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         for (final expense in expenses) {
           if (swExpenseIds.contains(expense.id)) continue; // تمت معالجته
           if (!_isSalaryType(expense.expenseType)) continue;
-          // مطابقة: نفس الموظف + نفس المبلغ + نفس التاريخ
-          if (expense.relatedId == sw.employeeId &&
-              expense.amount == sw.amount.abs() &&
-              expense.date == sw.withdrawDate) {
+          // ✅ إصلاح: مطابقة مرنة
+          // 1. نفس الموظف
+          final sameEmployee = expense.relatedId == sw.employeeId;
+          // 2. مطابقة المبلغ بتسامح 0.01 (double vs int)
+          final sameAmount = (expense.amount - sw.amount.abs()).abs() < 0.01;
+          // 3. مطابقة التاريخ: نقارن فقط جزء التاريخ (بدون الوقت)
+          //    expense.date قد يكون "2026-05-18 10:30:00" بينما
+          //    sw.withdrawDate قد يكون "2026-05-18" فقط
+          final expenseDatePart = expense.date.length >= 10
+              ? expense.date.substring(0, 10)
+              : expense.date;
+          final withdrawDatePart = sw.withdrawDate.length >= 10
+              ? sw.withdrawDate.substring(0, 10)
+              : sw.withdrawDate;
+          final sameDate = expenseDatePart == withdrawDatePart;
+
+          if (sameEmployee && sameAmount && sameDate) {
             swExpenseIds.add(expense.id);
             break;
           }

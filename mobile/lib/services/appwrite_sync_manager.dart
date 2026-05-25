@@ -4370,6 +4370,10 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'cancelledAt', adj.cancelledAt);
     _putIfStringNotEmpty(data, 'cancelledBy', adj.cancelledBy);
     _putIfNotNull(data, 'deletedAt', adj.deletedAt);
+    // ✅ حقول SyncFields Iso — موجودة في Cloud schema عبر syncFields.attributes
+    _putIfStringNotEmpty(data, 'createdAtIso', adj.createdAtIso);
+    _putIfStringNotEmpty(data, 'updatedAtIso', adj.updatedAtIso);
+    _putIfStringNotEmpty(data, 'deletedAtIso', adj.deletedAtIso);
     _putIfNotNull(data, 'createdAtEpoch', adj.createdAtEpoch);
     _putIfNotNull(data, 'lastModifiedEpoch', adj.lastModifiedEpoch);
     return AppwriteSyncUtils.sanitizePayload(
