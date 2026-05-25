@@ -14605,10 +14605,6 @@ class $BookingNightsTable extends BookingNights
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  List<Set<GeneratedColumn>> get uniqueKeys => [
-    {bookingLocalId, hotelDayKey},
-  ];
-  @override
   BookingNight map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return BookingNight(
@@ -14675,7 +14671,15 @@ class $BookingNightsTable extends BookingNights
       bookingLocalId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}booking_local_id'],
-      )!,
+      ),
+      bookingUuidCache: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}booking_uuid_cache'],
+      ),
+      serverBookingId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_booking_id'],
+      ),
       hotelDayKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}hotel_day_key'],
@@ -15030,9 +15034,15 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     id: id ?? this.id,
-    bookingLocalId: bookingLocalId.present ? bookingLocalId.value : this.bookingLocalId,
-    bookingUuidCache: bookingUuidCache.present ? bookingUuidCache.value : this.bookingUuidCache,
-    serverBookingId: serverBookingId.present ? serverBookingId.value : this.serverBookingId,
+    bookingLocalId: bookingLocalId.present
+        ? bookingLocalId.value
+        : this.bookingLocalId,
+    bookingUuidCache: bookingUuidCache.present
+        ? bookingUuidCache.value
+        : this.bookingUuidCache,
+    serverBookingId: serverBookingId.present
+        ? serverBookingId.value
+        : this.serverBookingId,
     hotelDayKey: hotelDayKey ?? this.hotelDayKey,
     nightStart: nightStart ?? this.nightStart,
     nightEnd: nightEnd ?? this.nightEnd,
@@ -15083,6 +15093,12 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       bookingLocalId: data.bookingLocalId.present
           ? data.bookingLocalId.value
           : this.bookingLocalId,
+      bookingUuidCache: data.bookingUuidCache.present
+          ? data.bookingUuidCache.value
+          : this.bookingUuidCache,
+      serverBookingId: data.serverBookingId.present
+          ? data.serverBookingId.value
+          : this.serverBookingId,
       hotelDayKey: data.hotelDayKey.present
           ? data.hotelDayKey.value
           : this.hotelDayKey,
@@ -15130,6 +15146,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           ..write('vectorClock: $vectorClock, ')
           ..write('id: $id, ')
           ..write('bookingLocalId: $bookingLocalId, ')
+          ..write('bookingUuidCache: $bookingUuidCache, ')
+          ..write('serverBookingId: $serverBookingId, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('nightStart: $nightStart, ')
           ..write('nightEnd: $nightEnd, ')
@@ -15163,6 +15181,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     vectorClock,
     id,
     bookingLocalId,
+    bookingUuidCache,
+    serverBookingId,
     hotelDayKey,
     nightStart,
     nightEnd,
@@ -15287,9 +15307,9 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.id = const Value.absent(),
-    int? bookingLocalId,
-    String? bookingUuidCache,
-    int? serverBookingId,
+    this.bookingLocalId = const Value.absent(),
+    this.bookingUuidCache = const Value.absent(),
+    this.serverBookingId = const Value.absent(),
     required String hotelDayKey,
     required String nightStart,
     required String nightEnd,
@@ -15305,9 +15325,6 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
        lastModified = Value(lastModified),
-       bookingLocalId = Value(bookingLocalId),
-       bookingUuidCache = Value(bookingUuidCache),
-       serverBookingId = Value(serverBookingId),
        hotelDayKey = Value(hotelDayKey),
        nightStart = Value(nightStart),
        nightEnd = Value(nightEnd);
@@ -15562,6 +15579,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
           ..write('vectorClock: $vectorClock, ')
           ..write('id: $id, ')
           ..write('bookingLocalId: $bookingLocalId, ')
+          ..write('bookingUuidCache: $bookingUuidCache, ')
+          ..write('serverBookingId: $serverBookingId, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('nightStart: $nightStart, ')
           ..write('nightEnd: $nightEnd, ')
@@ -20266,6 +20285,40 @@ class $SalaryPaymentsTable extends SalaryPayments
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _employeeIdMeta = const VerificationMeta(
+    'employeeId',
+  );
+  @override
+  late final GeneratedColumn<int> employeeId = GeneratedColumn<int>(
+    'employee_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES employees (id)',
+    ),
+  );
+  static const VerificationMeta _paymentDateMeta = const VerificationMeta(
+    'paymentDate',
+  );
+  @override
+  late final GeneratedColumn<String> paymentDate = GeneratedColumn<String>(
+    'payment_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -20289,6 +20342,9 @@ class $SalaryPaymentsTable extends SalaryPayments
     paymentDateIso,
     method,
     isAutoGenerated,
+    employeeId,
+    paymentDate,
+    notes,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -20467,6 +20523,27 @@ class $SalaryPaymentsTable extends SalaryPayments
         ),
       );
     }
+    if (data.containsKey('employee_id')) {
+      context.handle(
+        _employeeIdMeta,
+        employeeId.isAcceptableOrUnknown(data['employee_id']!, _employeeIdMeta),
+      );
+    }
+    if (data.containsKey('payment_date')) {
+      context.handle(
+        _paymentDateMeta,
+        paymentDate.isAcceptableOrUnknown(
+          data['payment_date']!,
+          _paymentDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
     return context;
   }
 
@@ -20560,6 +20637,18 @@ class $SalaryPaymentsTable extends SalaryPayments
         DriftSqlType.bool,
         data['${effectivePrefix}is_auto_generated'],
       )!,
+      employeeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}employee_id'],
+      ),
+      paymentDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payment_date'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
     );
   }
 
@@ -20591,6 +20680,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
   final String paymentDateIso;
   final String? method;
   final bool isAutoGenerated;
+  final int? employeeId;
+  final String? paymentDate;
+  final String? notes;
   const SalaryPayment({
     required this.localUuid,
     this.serverId,
@@ -20613,6 +20705,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     required this.paymentDateIso,
     this.method,
     required this.isAutoGenerated,
+    this.employeeId,
+    this.paymentDate,
+    this.notes,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -20652,6 +20747,15 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       map['method'] = Variable<String>(method);
     }
     map['is_auto_generated'] = Variable<bool>(isAutoGenerated);
+    if (!nullToAbsent || employeeId != null) {
+      map['employee_id'] = Variable<int>(employeeId);
+    }
+    if (!nullToAbsent || paymentDate != null) {
+      map['payment_date'] = Variable<String>(paymentDate);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
     return map;
   }
 
@@ -20692,6 +20796,15 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           ? const Value.absent()
           : Value(method),
       isAutoGenerated: Value(isAutoGenerated),
+      employeeId: employeeId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(employeeId),
+      paymentDate: paymentDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paymentDate),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
     );
   }
 
@@ -20722,6 +20835,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       paymentDateIso: serializer.fromJson<String>(json['paymentDateIso']),
       method: serializer.fromJson<String?>(json['method']),
       isAutoGenerated: serializer.fromJson<bool>(json['isAutoGenerated']),
+      employeeId: serializer.fromJson<int?>(json['employeeId']),
+      paymentDate: serializer.fromJson<String?>(json['paymentDate']),
+      notes: serializer.fromJson<String?>(json['notes']),
     );
   }
   @override
@@ -20749,6 +20865,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       'paymentDateIso': serializer.toJson<String>(paymentDateIso),
       'method': serializer.toJson<String?>(method),
       'isAutoGenerated': serializer.toJson<bool>(isAutoGenerated),
+      'employeeId': serializer.toJson<int?>(employeeId),
+      'paymentDate': serializer.toJson<String?>(paymentDate),
+      'notes': serializer.toJson<String?>(notes),
     };
   }
 
@@ -20774,6 +20893,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     String? paymentDateIso,
     Value<String?> method = const Value.absent(),
     bool? isAutoGenerated,
+    Value<int?> employeeId = const Value.absent(),
+    Value<String?> paymentDate = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
   }) => SalaryPayment(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -20796,6 +20918,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     paymentDateIso: paymentDateIso ?? this.paymentDateIso,
     method: method.present ? method.value : this.method,
     isAutoGenerated: isAutoGenerated ?? this.isAutoGenerated,
+    employeeId: employeeId.present ? employeeId.value : this.employeeId,
+    paymentDate: paymentDate.present ? paymentDate.value : this.paymentDate,
+    notes: notes.present ? notes.value : this.notes,
   );
   SalaryPayment copyWithCompanion(SalaryPaymentsCompanion data) {
     return SalaryPayment(
@@ -20840,6 +20965,13 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       isAutoGenerated: data.isAutoGenerated.present
           ? data.isAutoGenerated.value
           : this.isAutoGenerated,
+      employeeId: data.employeeId.present
+          ? data.employeeId.value
+          : this.employeeId,
+      paymentDate: data.paymentDate.present
+          ? data.paymentDate.value
+          : this.paymentDate,
+      notes: data.notes.present ? data.notes.value : this.notes,
     );
   }
 
@@ -20866,7 +20998,10 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('paymentDateIso: $paymentDateIso, ')
           ..write('method: $method, ')
-          ..write('isAutoGenerated: $isAutoGenerated')
+          ..write('isAutoGenerated: $isAutoGenerated, ')
+          ..write('employeeId: $employeeId, ')
+          ..write('paymentDate: $paymentDate, ')
+          ..write('notes: $notes')
           ..write(')'))
         .toString();
   }
@@ -20894,6 +21029,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     paymentDateIso,
     method,
     isAutoGenerated,
+    employeeId,
+    paymentDate,
+    notes,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -20919,7 +21057,10 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           other.hotelDayKey == this.hotelDayKey &&
           other.paymentDateIso == this.paymentDateIso &&
           other.method == this.method &&
-          other.isAutoGenerated == this.isAutoGenerated);
+          other.isAutoGenerated == this.isAutoGenerated &&
+          other.employeeId == this.employeeId &&
+          other.paymentDate == this.paymentDate &&
+          other.notes == this.notes);
 }
 
 class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
@@ -20944,6 +21085,9 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
   final Value<String> paymentDateIso;
   final Value<String?> method;
   final Value<bool> isAutoGenerated;
+  final Value<int?> employeeId;
+  final Value<String?> paymentDate;
+  final Value<String?> notes;
   const SalaryPaymentsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -20966,6 +21110,9 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     this.paymentDateIso = const Value.absent(),
     this.method = const Value.absent(),
     this.isAutoGenerated = const Value.absent(),
+    this.employeeId = const Value.absent(),
+    this.paymentDate = const Value.absent(),
+    this.notes = const Value.absent(),
   });
   SalaryPaymentsCompanion.insert({
     required String localUuid,
@@ -20989,6 +21136,9 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     required String paymentDateIso,
     this.method = const Value.absent(),
     this.isAutoGenerated = const Value.absent(),
+    this.employeeId = const Value.absent(),
+    this.paymentDate = const Value.absent(),
+    this.notes = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -21017,6 +21167,9 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     Expression<String>? paymentDateIso,
     Expression<String>? method,
     Expression<bool>? isAutoGenerated,
+    Expression<int>? employeeId,
+    Expression<String>? paymentDate,
+    Expression<String>? notes,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -21040,6 +21193,9 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
       if (paymentDateIso != null) 'payment_date_iso': paymentDateIso,
       if (method != null) 'method': method,
       if (isAutoGenerated != null) 'is_auto_generated': isAutoGenerated,
+      if (employeeId != null) 'employee_id': employeeId,
+      if (paymentDate != null) 'payment_date': paymentDate,
+      if (notes != null) 'notes': notes,
     });
   }
 
@@ -21065,6 +21221,9 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     Value<String>? paymentDateIso,
     Value<String?>? method,
     Value<bool>? isAutoGenerated,
+    Value<int?>? employeeId,
+    Value<String?>? paymentDate,
+    Value<String?>? notes,
   }) {
     return SalaryPaymentsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -21088,6 +21247,9 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
       paymentDateIso: paymentDateIso ?? this.paymentDateIso,
       method: method ?? this.method,
       isAutoGenerated: isAutoGenerated ?? this.isAutoGenerated,
+      employeeId: employeeId ?? this.employeeId,
+      paymentDate: paymentDate ?? this.paymentDate,
+      notes: notes ?? this.notes,
     );
   }
 
@@ -21157,6 +21319,15 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     if (isAutoGenerated.present) {
       map['is_auto_generated'] = Variable<bool>(isAutoGenerated.value);
     }
+    if (employeeId.present) {
+      map['employee_id'] = Variable<int>(employeeId.value);
+    }
+    if (paymentDate.present) {
+      map['payment_date'] = Variable<String>(paymentDate.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
     return map;
   }
 
@@ -21183,7 +21354,10 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('paymentDateIso: $paymentDateIso, ')
           ..write('method: $method, ')
-          ..write('isAutoGenerated: $isAutoGenerated')
+          ..write('isAutoGenerated: $isAutoGenerated, ')
+          ..write('employeeId: $employeeId, ')
+          ..write('paymentDate: $paymentDate, ')
+          ..write('notes: $notes')
           ..write(')'))
         .toString();
   }
@@ -36370,6 +36544,27 @@ final class $$EmployeesTableReferences
     );
   }
 
+  static MultiTypedResultKey<$SalaryPaymentsTable, List<SalaryPayment>>
+  _salaryPaymentsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.salaryPayments,
+    aliasName: $_aliasNameGenerator(
+      db.employees.id,
+      db.salaryPayments.employeeId,
+    ),
+  );
+
+  $$SalaryPaymentsTableProcessedTableManager get salaryPaymentsRefs {
+    final manager = $$SalaryPaymentsTableTableManager(
+      $_db,
+      $_db.salaryPayments,
+    ).filter((f) => f.employeeId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_salaryPaymentsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
   static MultiTypedResultKey<$SalaryWithdrawalsTable, List<SalaryWithdrawal>>
   _salaryWithdrawalsRefsTable(_$AppDatabase db) =>
       MultiTypedResultKey.fromTable(
@@ -36535,6 +36730,31 @@ class $$EmployeesTableFilterComposer
           }) => $$SalaryCyclesTableFilterComposer(
             $db: $db,
             $table: $db.salaryCycles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> salaryPaymentsRefs(
+    Expression<bool> Function($$SalaryPaymentsTableFilterComposer f) f,
+  ) {
+    final $$SalaryPaymentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.salaryPayments,
+      getReferencedColumn: (t) => t.employeeId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalaryPaymentsTableFilterComposer(
+            $db: $db,
+            $table: $db.salaryPayments,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -36818,6 +37038,31 @@ class $$EmployeesTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> salaryPaymentsRefs<T extends Object>(
+    Expression<T> Function($$SalaryPaymentsTableAnnotationComposer a) f,
+  ) {
+    final $$SalaryPaymentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.salaryPayments,
+      getReferencedColumn: (t) => t.employeeId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalaryPaymentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.salaryPayments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> salaryWithdrawalsRefs<T extends Object>(
     Expression<T> Function($$SalaryWithdrawalsTableAnnotationComposer a) f,
   ) {
@@ -36860,6 +37105,7 @@ class $$EmployeesTableTableManager
           Employee,
           PrefetchHooks Function({
             bool salaryCyclesRefs,
+            bool salaryPaymentsRefs,
             bool salaryWithdrawalsRefs,
           })
         > {
@@ -36983,11 +37229,16 @@ class $$EmployeesTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({salaryCyclesRefs = false, salaryWithdrawalsRefs = false}) {
+              ({
+                salaryCyclesRefs = false,
+                salaryPaymentsRefs = false,
+                salaryWithdrawalsRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (salaryCyclesRefs) db.salaryCycles,
+                    if (salaryPaymentsRefs) db.salaryPayments,
                     if (salaryWithdrawalsRefs) db.salaryWithdrawals,
                   ],
                   addJoins: null,
@@ -37008,6 +37259,27 @@ class $$EmployeesTableTableManager
                                 table,
                                 p0,
                               ).salaryCyclesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.employeeId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (salaryPaymentsRefs)
+                        await $_getPrefetchedData<
+                          Employee,
+                          $EmployeesTable,
+                          SalaryPayment
+                        >(
+                          currentTable: table,
+                          referencedTable: $$EmployeesTableReferences
+                              ._salaryPaymentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$EmployeesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).salaryPaymentsRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.employeeId == item.id,
@@ -37057,6 +37329,7 @@ typedef $$EmployeesTableProcessedTableManager =
       Employee,
       PrefetchHooks Function({
         bool salaryCyclesRefs,
+        bool salaryPaymentsRefs,
         bool salaryWithdrawalsRefs,
       })
     >;
@@ -40291,7 +40564,9 @@ typedef $$BookingNightsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<int> id,
-      required int bookingLocalId,
+      Value<int?> bookingLocalId,
+      Value<String?> bookingUuidCache,
+      Value<int?> serverBookingId,
       required String hotelDayKey,
       required String nightStart,
       required String nightEnd,
@@ -40321,7 +40596,9 @@ typedef $$BookingNightsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<int> id,
-      Value<int> bookingLocalId,
+      Value<int?> bookingLocalId,
+      Value<String?> bookingUuidCache,
+      Value<int?> serverBookingId,
       Value<String> hotelDayKey,
       Value<String> nightStart,
       Value<String> nightEnd,
@@ -40348,9 +40625,9 @@ final class $$BookingNightsTableReferences
         $_aliasNameGenerator(db.bookingNights.bookingLocalId, db.bookings.id),
       );
 
-  $$BookingsTableProcessedTableManager get bookingLocalId {
-    final $_column = $_itemColumn<int>('booking_local_id')!;
-
+  $$BookingsTableProcessedTableManager? get bookingLocalId {
+    final $_column = $_itemColumn<int>('booking_local_id');
+    if ($_column == null) return null;
     final manager = $$BookingsTableTableManager(
       $_db,
       $_db.bookings,
@@ -40444,6 +40721,16 @@ class $$BookingNightsTableFilterComposer
 
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bookingUuidCache => $composableBuilder(
+    column: $table.bookingUuidCache,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverBookingId => $composableBuilder(
+    column: $table.serverBookingId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -40610,6 +40897,16 @@ class $$BookingNightsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get bookingUuidCache => $composableBuilder(
+    column: $table.bookingUuidCache,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverBookingId => $composableBuilder(
+    column: $table.serverBookingId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get hotelDayKey => $composableBuilder(
     column: $table.hotelDayKey,
     builder: (column) => ColumnOrderings(column),
@@ -40757,6 +41054,16 @@ class $$BookingNightsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<String> get bookingUuidCache => $composableBuilder(
+    column: $table.bookingUuidCache,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get serverBookingId => $composableBuilder(
+    column: $table.serverBookingId,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get hotelDayKey => $composableBuilder(
     column: $table.hotelDayKey,
     builder: (column) => column,
@@ -40871,7 +41178,9 @@ class $$BookingNightsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<int> id = const Value.absent(),
-                Value<int> bookingLocalId = const Value.absent(),
+                Value<int?> bookingLocalId = const Value.absent(),
+                Value<String?> bookingUuidCache = const Value.absent(),
+                Value<int?> serverBookingId = const Value.absent(),
                 Value<String> hotelDayKey = const Value.absent(),
                 Value<String> nightStart = const Value.absent(),
                 Value<String> nightEnd = const Value.absent(),
@@ -40900,6 +41209,8 @@ class $$BookingNightsTableTableManager
                 vectorClock: vectorClock,
                 id: id,
                 bookingLocalId: bookingLocalId,
+                bookingUuidCache: bookingUuidCache,
+                serverBookingId: serverBookingId,
                 hotelDayKey: hotelDayKey,
                 nightStart: nightStart,
                 nightEnd: nightEnd,
@@ -40929,7 +41240,9 @@ class $$BookingNightsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<int> id = const Value.absent(),
-                required int bookingLocalId,
+                Value<int?> bookingLocalId = const Value.absent(),
+                Value<String?> bookingUuidCache = const Value.absent(),
+                Value<int?> serverBookingId = const Value.absent(),
                 required String hotelDayKey,
                 required String nightStart,
                 required String nightEnd,
@@ -40958,6 +41271,8 @@ class $$BookingNightsTableTableManager
                 vectorClock: vectorClock,
                 id: id,
                 bookingLocalId: bookingLocalId,
+                bookingUuidCache: bookingUuidCache,
+                serverBookingId: serverBookingId,
                 hotelDayKey: hotelDayKey,
                 nightStart: nightStart,
                 nightEnd: nightEnd,
@@ -43567,6 +43882,9 @@ typedef $$SalaryPaymentsTableCreateCompanionBuilder =
       required String paymentDateIso,
       Value<String?> method,
       Value<bool> isAutoGenerated,
+      Value<int?> employeeId,
+      Value<String?> paymentDate,
+      Value<String?> notes,
     });
 typedef $$SalaryPaymentsTableUpdateCompanionBuilder =
     SalaryPaymentsCompanion Function({
@@ -43591,6 +43909,9 @@ typedef $$SalaryPaymentsTableUpdateCompanionBuilder =
       Value<String> paymentDateIso,
       Value<String?> method,
       Value<bool> isAutoGenerated,
+      Value<int?> employeeId,
+      Value<String?> paymentDate,
+      Value<String?> notes,
     });
 
 final class $$SalaryPaymentsTableReferences
@@ -43614,6 +43935,25 @@ final class $$SalaryPaymentsTableReferences
       $_db.salaryCycles,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_cycleIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $EmployeesTable _employeeIdTable(_$AppDatabase db) =>
+      db.employees.createAlias(
+        $_aliasNameGenerator(db.salaryPayments.employeeId, db.employees.id),
+      );
+
+  $$EmployeesTableProcessedTableManager? get employeeId {
+    final $_column = $_itemColumn<int>('employee_id');
+    if ($_column == null) return null;
+    final manager = $$EmployeesTableTableManager(
+      $_db,
+      $_db.employees,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_employeeIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -43730,6 +44070,16 @@ class $$SalaryPaymentsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get paymentDate => $composableBuilder(
+    column: $table.paymentDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$SalaryCyclesTableFilterComposer get cycleId {
     final $$SalaryCyclesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -43744,6 +44094,29 @@ class $$SalaryPaymentsTableFilterComposer
           }) => $$SalaryCyclesTableFilterComposer(
             $db: $db,
             $table: $db.salaryCycles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$EmployeesTableFilterComposer get employeeId {
+    final $$EmployeesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeId,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableFilterComposer(
+            $db: $db,
+            $table: $db.employees,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -43863,6 +44236,16 @@ class $$SalaryPaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get paymentDate => $composableBuilder(
+    column: $table.paymentDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SalaryCyclesTableOrderingComposer get cycleId {
     final $$SalaryCyclesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -43877,6 +44260,29 @@ class $$SalaryPaymentsTableOrderingComposer
           }) => $$SalaryCyclesTableOrderingComposer(
             $db: $db,
             $table: $db.salaryCycles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$EmployeesTableOrderingComposer get employeeId {
+    final $$EmployeesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeId,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableOrderingComposer(
+            $db: $db,
+            $table: $db.employees,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -43976,6 +44382,14 @@ class $$SalaryPaymentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get paymentDate => $composableBuilder(
+    column: $table.paymentDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
   $$SalaryCyclesTableAnnotationComposer get cycleId {
     final $$SalaryCyclesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -43990,6 +44404,29 @@ class $$SalaryPaymentsTableAnnotationComposer
           }) => $$SalaryCyclesTableAnnotationComposer(
             $db: $db,
             $table: $db.salaryCycles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$EmployeesTableAnnotationComposer get employeeId {
+    final $$EmployeesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeId,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.employees,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -44013,7 +44450,7 @@ class $$SalaryPaymentsTableTableManager
           $$SalaryPaymentsTableUpdateCompanionBuilder,
           (SalaryPayment, $$SalaryPaymentsTableReferences),
           SalaryPayment,
-          PrefetchHooks Function({bool cycleId})
+          PrefetchHooks Function({bool cycleId, bool employeeId})
         > {
   $$SalaryPaymentsTableTableManager(
     _$AppDatabase db,
@@ -44051,6 +44488,9 @@ class $$SalaryPaymentsTableTableManager
                 Value<String> paymentDateIso = const Value.absent(),
                 Value<String?> method = const Value.absent(),
                 Value<bool> isAutoGenerated = const Value.absent(),
+                Value<int?> employeeId = const Value.absent(),
+                Value<String?> paymentDate = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
               }) => SalaryPaymentsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -44073,6 +44513,9 @@ class $$SalaryPaymentsTableTableManager
                 paymentDateIso: paymentDateIso,
                 method: method,
                 isAutoGenerated: isAutoGenerated,
+                employeeId: employeeId,
+                paymentDate: paymentDate,
+                notes: notes,
               ),
           createCompanionCallback:
               ({
@@ -44097,6 +44540,9 @@ class $$SalaryPaymentsTableTableManager
                 required String paymentDateIso,
                 Value<String?> method = const Value.absent(),
                 Value<bool> isAutoGenerated = const Value.absent(),
+                Value<int?> employeeId = const Value.absent(),
+                Value<String?> paymentDate = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
               }) => SalaryPaymentsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -44119,6 +44565,9 @@ class $$SalaryPaymentsTableTableManager
                 paymentDateIso: paymentDateIso,
                 method: method,
                 isAutoGenerated: isAutoGenerated,
+                employeeId: employeeId,
+                paymentDate: paymentDate,
+                notes: notes,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -44128,7 +44577,7 @@ class $$SalaryPaymentsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({cycleId = false}) {
+          prefetchHooksCallback: ({cycleId = false, employeeId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -44162,6 +44611,20 @@ class $$SalaryPaymentsTableTableManager
                               )
                               as T;
                     }
+                    if (employeeId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.employeeId,
+                                referencedTable: $$SalaryPaymentsTableReferences
+                                    ._employeeIdTable(db),
+                                referencedColumn:
+                                    $$SalaryPaymentsTableReferences
+                                        ._employeeIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
 
                     return state;
                   },
@@ -44186,7 +44649,7 @@ typedef $$SalaryPaymentsTableProcessedTableManager =
       $$SalaryPaymentsTableUpdateCompanionBuilder,
       (SalaryPayment, $$SalaryPaymentsTableReferences),
       SalaryPayment,
-      PrefetchHooks Function({bool cycleId})
+      PrefetchHooks Function({bool cycleId, bool employeeId})
     >;
 typedef $$OutboxTableCreateCompanionBuilder =
     OutboxCompanion Function({

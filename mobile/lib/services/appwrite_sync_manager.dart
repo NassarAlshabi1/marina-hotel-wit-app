@@ -2290,15 +2290,16 @@ class AppwriteSyncManager {
       'lastModified': room.lastModified,
       'version': room.version,
       'origin': room.origin,
-      // حقول مطلوبة إضافية من Appwrite schema
+      // ✅ حقول موجودة في Cloud Schema — كانت ناقصة
       'roomType': room.type,
-      'basePrice': room.price,
-      'floor': 1,
-      'bedsCount': 1,
+      'cleaningStatus': room.cleaningStatus,
+      'requiresMaintenance': room.requiresMaintenance,
     };
     _putIfNotNull(data, 'serverId', room.serverId);
     _putIfNotNull(data, 'deletedAt', room.deletedAt);
     _putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
+    _putIfStringNotEmpty(data, 'lastCleanedHotelDay', room.lastCleanedHotelDay);
+    _putIfStringNotEmpty(data, 'lastOccupiedHotelDay', room.lastOccupiedHotelDay);
     return AppwriteSyncUtils.sanitizePayload('rooms', data, collectionId: AppwriteConfig.roomsCollectionId);
   }
 
@@ -2378,7 +2379,8 @@ class AppwriteSyncManager {
 
   Map<String, dynamic> _paymentToRemote(Payment payment) {
     final data = <String, dynamic>{
-      'amount': payment.amount,
+      // ✅ Cloud يتوقع integer — نحوّل من double إلى int
+      'amount': payment.amount.round(),
       'paymentDate': payment.paymentDate,
       'paymentMethod': payment.paymentMethod,
       'revenueType': payment.revenueType,
@@ -3723,7 +3725,12 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'deletedAt', payment.deletedAt);
     _putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
     _putIfStringNotEmpty(data, 'method', payment.method);
-    return data;
+    // ✅ حقول موجودة في Cloud Schema — كانت ناقصة
+    _putIfNotNull(data, 'employeeId', payment.employeeId);
+    _putIfStringNotEmpty(data, 'paymentDate', payment.paymentDate);
+    _putIfStringNotEmpty(data, 'notes', payment.notes);
+    data['vectorClock'] = payment.vectorClock;
+    return AppwriteSyncUtils.sanitizePayload('salary_payments', data, collectionId: AppwriteConfig.salaryPaymentsCollectionId);
   }
 
   Map<String, dynamic> _shiftNoteToRemote(ShiftNote note) {
@@ -4319,10 +4326,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.bookingPriceAdjustments.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _bookingPriceAdjustmentToRemote(item);
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
       documentId: item.localUuid,
@@ -4336,6 +4340,43 @@ class AppwriteSyncManager {
           ..where((t) => t.localUuid.equals(uuid))
           ..limit(1))
         .getSingleOrNull();
+  }
+
+  /// ✅ تحويل BookingPriceAdjustment إلى Map لإرساله إلى Appwrite Cloud
+  /// يطابق مخطط Delta بدقة — يمر عبر sanitizePayload
+  Map<String, dynamic> _bookingPriceAdjustmentToRemote(BookingPriceAdjustment adj) {
+    final data = <String, dynamic>{
+      'localUuid': adj.localUuid,
+      'bookingLocalUuid': adj.bookingLocalUuid,
+      'effectiveHotelDay': adj.effectiveHotelDay,
+      'adjustmentType': adj.adjustmentType,
+      'adjustmentMode': adj.adjustmentMode,
+      // ✅ Cloud يتوقع integer — نحوّل من double إلى int
+      'amount': adj.amount.round(),
+      'isActive': adj.isActive,
+      'createdAt': adj.createdAt,
+      'updatedAt': adj.updatedAt,
+      'lastModified': adj.lastModified,
+      'version': adj.version,
+      'origin': adj.origin,
+      'vectorClock': adj.vectorClock,
+    };
+    _putIfNotNull(data, 'serverId', adj.serverId);
+    _putIfNotNull(data, 'bookingLocalId', adj.bookingLocalId);
+    _putIfStringNotEmpty(data, 'roomNumber', adj.roomNumber);
+    _putIfStringNotEmpty(data, 'endHotelDay', adj.endHotelDay);
+    _putIfStringNotEmpty(data, 'reason', adj.reason);
+    _putIfStringNotEmpty(data, 'appliedBy', adj.appliedBy);
+    _putIfStringNotEmpty(data, 'cancelledAt', adj.cancelledAt);
+    _putIfStringNotEmpty(data, 'cancelledBy', adj.cancelledBy);
+    _putIfNotNull(data, 'deletedAt', adj.deletedAt);
+    _putIfNotNull(data, 'createdAtEpoch', adj.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', adj.lastModifiedEpoch);
+    return AppwriteSyncUtils.sanitizePayload(
+      'booking_price_adjustments',
+      data,
+      collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+    );
   }
 
   /// تحميل جميع البيانات من الخادم
