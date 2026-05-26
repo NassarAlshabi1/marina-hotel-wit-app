@@ -35,7 +35,13 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   @override
   void initState() {
     super.initState();
-    _refreshBookingNights();
+    // ✅ إصلاح: حذف _refreshBookingNights() من initState
+    // كان يعيد حساب الليالي بـ DateTime.now() كل مرة تُفتح فيها الشاشة
+    // مما يغيّر المبلغ الإجمالي والمتبقي للحجوزات النشطة بدون سبب
+    // الآن cached values تتحدث فقط عند:
+    // 1. إضافة/إلغاء دفعة (repository يُسمي refreshForBookingId تلقائياً)
+    // 2. تغير اليوم الفندقي (HotelDayTicker)
+    // 3. سحب الشاشة للأسفل (RefreshIndicator)
     _startHotelDayAutoRefresh();
   }
 
