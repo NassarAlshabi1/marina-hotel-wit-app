@@ -115,7 +115,7 @@ class GuestPaymentCalculationService {
           ..where((p) => p.bookingLocalId.equals(booking.id))
           ..where((p) => p.deletedAt.isNull())
           ..where((p) => p.isVoided.equals(false))
-          ..where((p) => p.isPendingBalance.equals(false))
+          ..where((p) => p.isPendingBalance.equals(false) | p.isPendingBalance.isNull())
           ..where((p) =>
               p.revenueType.equals('room') |
               p.revenueType.equals('') |

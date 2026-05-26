@@ -259,7 +259,7 @@ class BookingComputedStreamService {
           )
           ..where((p) => p.deletedAt.isNull())
           ..where((p) => p.isVoided.equals(false))
-          ..where((p) => p.isPendingBalance.equals(false))
+          ..where((p) => p.isPendingBalance.equals(false) | p.isPendingBalance.isNull())
           ..where(
             (p) =>
                 p.revenueType.equals('room') |
@@ -282,7 +282,7 @@ class BookingComputedStreamService {
     return (db.select(db.payments)
           ..where((p) => p.deletedAt.isNull())
           ..where((p) => p.isVoided.equals(false))
-          ..where((p) => p.isPendingBalance.equals(false))
+          ..where((p) => p.isPendingBalance.equals(false) | p.isPendingBalance.isNull())
           ..where(
             (p) =>
                 p.revenueType.equals('room') |

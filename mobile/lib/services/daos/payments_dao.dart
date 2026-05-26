@@ -34,7 +34,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.isVoided.equals(false));
     }
     if (excludePendingBalance) {
-      q.where((t) => t.isPendingBalance.equals(false));
+      q.where((t) => t.isPendingBalance.equals(false) | t.isPendingBalance.isNull());
     }
     if (bookingLocalId != null) {
       q.where((t) => t.bookingLocalId.equals(bookingLocalId));
@@ -67,7 +67,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     }
     // استبعاد المدفوعات المُلغاة والمعلقة من التقارير المالية
     q.where((t) => t.isVoided.equals(false));
-    q.where((t) => t.isPendingBalance.equals(false));
+    q.where((t) => t.isPendingBalance.equals(false) | t.isPendingBalance.isNull());
 
     if (from != null && to != null) {
       q.where(
