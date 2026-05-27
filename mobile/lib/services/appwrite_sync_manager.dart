@@ -2300,6 +2300,11 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
     _putIfStringNotEmpty(data, 'lastCleanedHotelDay', room.lastCleanedHotelDay);
     _putIfStringNotEmpty(data, 'lastOccupiedHotelDay', room.lastOccupiedHotelDay);
+    // ✅ حقول SyncFields ناقصة — كانت مفقودة من _roomToRemote
+    _putIfStringNotEmpty(data, 'deletedAtIso', room.deletedAtIso);
+    _putIfNotNull(data, 'createdAtEpoch', room.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', room.lastModifiedEpoch);
+    data['vectorClock'] = room.vectorClock;
     return AppwriteSyncUtils.sanitizePayload('rooms', data, collectionId: AppwriteConfig.roomsCollectionId);
   }
 
@@ -2379,8 +2384,8 @@ class AppwriteSyncManager {
 
   Map<String, dynamic> _paymentToRemote(Payment payment) {
     final data = <String, dynamic>{
-      // ✅ Cloud يتوقع integer — نحوّل من double إلى int
-      'amount': payment.amount.round(),
+      // ✅ إرسال amount كـ double للحفاظ على الكسور (مثلاً 150.75)
+      'amount': payment.amount,
       'paymentDate': payment.paymentDate,
       'paymentMethod': payment.paymentMethod,
       'revenueType': payment.revenueType,
@@ -2422,6 +2427,9 @@ class AppwriteSyncManager {
     data['isVoided'] = payment.isVoided;
     _putIfNotNull(data, 'voidedAt', payment.voidedAt);
     _putIfStringNotEmpty(data, 'voidedBy', payment.voidedBy);
+    // ✅ حقول SyncFields Iso — موجودة في Cloud schema عبر syncFields.attributes
+    _putIfStringNotEmpty(data, 'createdAtIso', payment.createdAtIso);
+    _putIfStringNotEmpty(data, 'updatedAtIso', payment.updatedAtIso);
     // ✅ إرسال حقول SyncFields الإضافية المتوفرة في Appwrite Cloud
     _putIfNotNull(data, 'createdAtEpoch', payment.createdAtEpoch);
     _putIfNotNull(data, 'lastModifiedEpoch', payment.lastModifiedEpoch);
@@ -3729,6 +3737,10 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'employeeId', payment.employeeId);
     _putIfStringNotEmpty(data, 'paymentDate', payment.paymentDate);
     _putIfStringNotEmpty(data, 'notes', payment.notes);
+    // ✅ حقول SyncFields ناقصة — كانت مفقودة من _salaryPaymentToRemote
+    _putIfStringNotEmpty(data, 'deletedAtIso', payment.deletedAtIso);
+    _putIfNotNull(data, 'createdAtEpoch', payment.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', payment.lastModifiedEpoch);
     data['vectorClock'] = payment.vectorClock;
     return AppwriteSyncUtils.sanitizePayload('salary_payments', data, collectionId: AppwriteConfig.salaryPaymentsCollectionId);
   }
