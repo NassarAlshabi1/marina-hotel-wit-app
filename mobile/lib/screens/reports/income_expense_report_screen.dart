@@ -24,7 +24,6 @@ import '../../services/daos/payments_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
-import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
@@ -209,6 +208,11 @@ class _IncomeExpenseReportScreenState
               .map(
                 (p) => {
                   'date': p.paymentDate,
+                  // ✅ إصلاح خارق: تمرير hotelDayKey للتجميع الصحيح
+                  // بدلاً من التجميع بالتاريخ التقويمي الذي يُسبب خطأ:
+                  // دفعة في 10:00 صباح 18 مايو تنتمي لليوم الفندقي 17 مايو
+                  // لكن التجميع بالتاريخ التقويمي يضعها تحت "18 مايو" — خطأ!
+                  'hotelDayKey': p.hotelDayKey ?? '',
                   'roomNumber': p.roomNumber ?? '',
                   'guestName': p.bookingLocalId != null
                       ? (bookingGuestMap[p.bookingLocalId] ?? '')
@@ -223,6 +227,8 @@ class _IncomeExpenseReportScreenState
               .map(
                 (e) => {
                   'date': e.date,
+                  // ✅ إصلاح خارق: تمرير hotelDayKey للتجميع الصحيح
+                  'hotelDayKey': e.hotelDayKey ?? '',
                   'type': e.expenseType,
                   'description': e.description,
                   'amount': e.amount,
@@ -290,7 +296,25 @@ class _IncomeExpenseReportScreenState
   }
 
   // ===== تجميع البيانات =====
-  String _getGroupKey(DateTime date, String groupBy) {
+  // ✅ إصلاح خارق: استخدام hotelDayKey للتجميع اليومي بدلاً من التاريخ التقويمي
+  // دفعة في 10:00 صباح 18 مايو → hotelDayKey = "2026-05-17" (قبل الساعة 14:00)
+  // التجميع بالتاريخ التقويمي يضعها تحت "18 مايو" — خطأ!
+  // التجميع بـ hotelDayKey يضعها تحت "17 مايو" — صحيح!
+  String _getGroupKey(_IncomeEntry entry, String groupBy) {
+    if (groupBy == 'daily' && entry.hotelDayKey.isNotEmpty) {
+      return entry.hotelDayKey; // التجميع باليوم الفندقي
+    }
+    return _getGroupKeyFromDate(entry.date, groupBy);
+  }
+
+  String _getGroupKeyForExpense(_ExpenseEntry entry, String groupBy) {
+    if (groupBy == 'daily' && entry.hotelDayKey.isNotEmpty) {
+      return entry.hotelDayKey; // التجميع باليوم الفندقي
+    }
+    return _getGroupKeyFromDate(entry.date, groupBy);
+  }
+
+  String _getGroupKeyFromDate(DateTime date, String groupBy) {
     switch (groupBy) {
       case 'daily':
         return DateFormat('yyyy-MM-dd').format(date);
@@ -336,11 +360,11 @@ class _IncomeExpenseReportScreenState
     final expenseMap = <String, List<_ExpenseEntry>>{};
 
     for (final e in _incomeEntries) {
-      final key = _getGroupKey(e.date, groupBy);
+      final key = _getGroupKey(e, groupBy);
       incomeMap.putIfAbsent(key, () => []).add(e);
     }
     for (final e in _expenseEntries) {
-      final key = _getGroupKey(e.date, groupBy);
+      final key = _getGroupKeyForExpense(e, groupBy);
       expenseMap.putIfAbsent(key, () => []).add(e);
     }
 
@@ -2473,6 +2497,7 @@ class _IncomeEntry {
     this.guestName = '',
     this.paymentMethod = '',
     this.revenueType = '',
+    this.hotelDayKey = '',
   });
 
   final DateTime date;
@@ -2482,6 +2507,9 @@ class _IncomeEntry {
   final String guestName;
   final String paymentMethod;
   final String revenueType;
+  // ✅ إصلاح خارق: مفتاح اليوم الفندقي للتجميع الصحيح
+  // بدلاً من التجميع بالتاريخ التقويمي
+  final String hotelDayKey;
 }
 
 class _ExpenseEntry {
@@ -2491,6 +2519,7 @@ class _ExpenseEntry {
     required this.description,
     required this.amount,
     required this.isSalary,
+    this.hotelDayKey = '',
   });
 
   final DateTime date;
@@ -2498,6 +2527,8 @@ class _ExpenseEntry {
   final String description;
   final double amount;
   final bool isSalary;
+  // ✅ إصلاح خارق: مفتاح اليوم الفندقي للتجميع الصحيح
+  final String hotelDayKey;
 }
 
 class _CombinedEntry {
@@ -2638,6 +2669,8 @@ _ReportResult _processReportData(_ReportParams params) {
         guestName: (p['guestName'] ?? '').toString(),
         paymentMethod: (p['paymentMethod'] ?? '').toString(),
         revenueType: (p['revenueType'] ?? '').toString(),
+        // ✅ إصلاح خارق: تمرير hotelDayKey للتجميع حسب اليوم الفندقي
+        hotelDayKey: (p['hotelDayKey'] ?? '').toString(),
       ),
     );
   }
@@ -2665,6 +2698,8 @@ _ReportResult _processReportData(_ReportParams params) {
         description: (e['description'] ?? '').toString(),
         amount: ((e['amount'] ?? 0) as num).toDouble(),
         isSalary: isSalaryExpense(type),
+        // ✅ إصلاح خارق: تمرير hotelDayKey للتجميع حسب اليوم الفندقي
+        hotelDayKey: (e['hotelDayKey'] ?? '').toString(),
       ),
     );
   }
