@@ -42,12 +42,17 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (revenueType != null && revenueType.isNotEmpty) {
       q.where((t) => t.revenueType.equals(revenueType));
     }
-    if (from != null && to != null) {
-      q.where(
-        (t) =>
-            t.paymentDate.isBiggerOrEqualValue(from) &
-            t.paymentDate.isSmallerOrEqualValue(to),
-      );
+    // ✅ إصلاح: إضافة like للمقارنة لأن paymentDate قد يحتوي على وقت
+    // "2026-05-18 10:30:00" <= "2026-05-18" تُعطي FALSE في SQLite
+    if (from != null) {
+      q.where((t) =>
+          t.paymentDate.isBiggerOrEqualValue(from) |
+          t.paymentDate.like('$from%'));
+    }
+    if (to != null) {
+      q.where((t) =>
+          t.paymentDate.isSmallerOrEqualValue(to) |
+          t.paymentDate.like('$to%'));
     }
     q.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
@@ -69,12 +74,17 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
     q.where((t) => t.isPendingBalance.equals(false) | t.isPendingBalance.isNull());
 
-    if (from != null && to != null) {
-      q.where(
-        (t) =>
-            t.paymentDate.isBiggerOrEqualValue(from) &
-            t.paymentDate.isSmallerOrEqualValue(to),
-      );
+    // ✅ إصلاح: إضافة like للمقارنة لأن paymentDate قد يحتوي على وقت
+    // "2026-05-18 10:30:00" <= "2026-05-18" تُعطي FALSE في SQLite
+    if (from != null) {
+      q.where((t) =>
+          t.paymentDate.isBiggerOrEqualValue(from) |
+          t.paymentDate.like('$from%'));
+    }
+    if (to != null) {
+      q.where((t) =>
+          t.paymentDate.isSmallerOrEqualValue(to) |
+          t.paymentDate.like('$to%'));
     }
 
     if (roomNumber != null && roomNumber.isNotEmpty) {
@@ -188,20 +198,24 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.isPendingBalance.equals(false) | t.isPendingBalance.isNull());
     }
 
-    // فلترة بنطاق hotelDayKey مع fallback لحقل paymentDate
+    // ✅ إصلاح خارق: فلترة بنطاق hotelDayKey مع fallback لحقل paymentDate
+    // إضافة like ('$fromHotelDay%') للمقارنة لأن paymentDate قد يحتوي على وقت
+    // مثل "2026-05-18 10:30:00" والمقارنة النصية <= "2026-05-18" تُعطي FALSE
     if (fromHotelDay != null) {
       q.where((t) =>
           (t.hotelDayKey.isNotNull() &
               t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
           (t.hotelDayKey.isNull() &
-              t.paymentDate.isBiggerOrEqualValue(fromHotelDay)));
+              (t.paymentDate.isBiggerOrEqualValue(fromHotelDay) |
+               t.paymentDate.like('$fromHotelDay%'))));
     }
     if (toHotelDay != null) {
       q.where((t) =>
           (t.hotelDayKey.isNotNull() &
               t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
           (t.hotelDayKey.isNull() &
-              t.paymentDate.isSmallerOrEqualValue(toHotelDay)));
+              (t.paymentDate.isSmallerOrEqualValue(toHotelDay) |
+               t.paymentDate.like('$toHotelDay%'))));
     }
 
     if (roomNumber != null && roomNumber.isNotEmpty) {

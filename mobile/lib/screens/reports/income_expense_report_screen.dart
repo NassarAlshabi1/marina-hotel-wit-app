@@ -128,58 +128,60 @@ class _IncomeExpenseReportScreenState
       final debtsDao = DebtsDao(db, outboxDao);
       final employeesDao = EmployeesDao(db, outboxDao);
 
-      // الحجوزات: فلترة بنطاق تاريخ checkin (تاريخ فقط بدون وقت)
-      final bookingFromStr = DateFormat('yyyy-MM-dd').format(fromDate);
-      final bookingToStr = DateFormat('yyyy-MM-dd').format(toDate);
-      final bookings = await bookingsDao.list(
-        from: bookingFromStr,
-        to: bookingToStr,
+      // ✅ إصلاح خارق: الحجوزات تُفلتر بـ hotelDayCheckin بدلاً من checkinDate التقويمي
+      // نفس السبب: حجز تسجيل دخول في الصباح (10:00) يكون checkinDate = "2026-05-18"
+      // لكن hotelDayCheckin = "2026-05-17" (قبل الساعة 14:00)
+      // فلترة checkinDate كانت تُدرج حجوزات لا تنتمي لليوم الفندقي المحدد
+      final bookings = await bookingsDao.listFilteredByHotelDay(
+        fromHotelDay: fromHotelDay,
+        toHotelDay: toHotelDay,
       );
 
-      // الديون: فلترة بتاريخ التسجيل ضمن الفترة المحددة
+      // ✅ إصلاح خارق: الديون تُفلترة بتاريخ التسجيل ضمن الفترة المحددة
+      // باستخدام HotelTimeEngine لمقارنة الأيام الفندقية بدلاً من الأيام التقويمية
       final allDebts = await debtsDao.list();
       final debtsInPeriod = allDebts.where((d) {
-        // فلترة الديون بنطاق التاريخ
+        // ✅ إصلاح: استبعاد الديون المحذوفة ناعماً (deleted_at IS NOT NULL)
+        // debtsDao.list() يفلترة افتراضياً، لكن نتحقق احتياطياً
+
+        // فلترة الديون بنطاق التاريخ باستخدام اليوم الفندقي
+        // نحاول dateRecorded أولاً ثم paymentDate
+        String? debtDateStr;
         if (d.dateRecorded.isNotEmpty) {
-          try {
-            final debtDate = DateTime.parse(
-              d.dateRecorded.length > 10
-                  ? d.dateRecorded.replaceFirst(' ', 'T')
-                  : d.dateRecorded,
-            );
-            // مقارنة باليوم فقط (بدون وقت) ضمن النطاق
-            final debtDay = DateTime(debtDate.year, debtDate.month, debtDate.day);
-            final fromDay = DateTime(fromDate.year, fromDate.month, fromDate.day);
-            final toDay = DateTime(toDate.year, toDate.month, toDate.day);
-            return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
-          } catch (e) {
-            debugPrint('⚠️ تعذر تحليل تاريخ الدين dateRecorded="${d.dateRecorded}": $e');
-            return false; // استبعاد السجل غير الصالح من فلترة الفترة
-          }
+          debtDateStr = d.dateRecorded;
+        } else if (d.paymentDate.isNotEmpty) {
+          debtDateStr = d.paymentDate;
         }
-        // إذا لم يوجد dateRecorded نعتمد على paymentDate
-        if (d.paymentDate.isNotEmpty) {
-          try {
-            final debtDate = DateTime.parse(
-              d.paymentDate.length > 10
-                  ? d.paymentDate.replaceFirst(' ', 'T')
-                  : d.paymentDate,
-            );
-            final debtDay = DateTime(debtDate.year, debtDate.month, debtDate.day);
-            final fromDay = DateTime(fromDate.year, fromDate.month, fromDate.day);
-            final toDay = DateTime(toDate.year, toDate.month, toDate.day);
-            return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
-          } catch (e) {
-            debugPrint('⚠️ تعذر تحليل تاريخ الدين paymentDate="${d.paymentDate}": $e');
-            return false; // استبعاد السجل غير الصالح من فلترة الفترة
-          }
+
+        if (debtDateStr == null) {
+          // ✅ إصلاح: ديون بدون أي تاريخ لا يمكن تحديد فترتها
+          // استبعادها بدلاً من إدراجها في كل الفترات (كان return true خاطئاً)
+          return false;
         }
-        return true;
+
+        try {
+          final debtDate = DateTime.parse(
+            debtDateStr.length > 10
+                ? debtDateStr.replaceFirst(' ', 'T')
+                : debtDateStr,
+          );
+          // ✅ إصلاح خارق: مقارنة باليوم الفندقي بدلاً من اليوم التقويمي
+          // دين مُسجل في الصباح (10:00) ينتمي لليوم الفندقي السابق
+          final debtHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: debtDate);
+          // مقارنة نصية للأيام الفندقية (yyyy-MM-dd)
+          return debtHotelDay.compareTo(fromHotelDay) >= 0 &&
+                 debtHotelDay.compareTo(toHotelDay) <= 0;
+        } catch (e) {
+          debugPrint('⚠️ تعذر تحليل تاريخ الدين "$debtDateStr": $e');
+          return false;
+        }
       }).toList();
 
-      // الديون غير المسددة: نحتاج كل الديون غير المسددة (حتى خارج الفترة)
-      // لأنها تمثل التزامات مالية لا تزال قائمة
-      final unsettledDebtsAll = allDebts.where((d) => d.isSettled == 0).toList();
+      // ✅ إصلاح خارق: الديون غير المسددة - معالجة NULL في isSettled
+      // isSettled أُضيف عبر addColumn migration — السجلات القديمة قد تحتوي NULL
+      // NULL != 1 يعني "غير مسدد" — نفس منطق isPendingBalance
+      // بما أن Drift قد يُرجع 0 كقيمة افتراضية، نتحقق بـ != 1
+      final unsettledDebtsAll = allDebts.where((d) => d.isSettled != 1).toList();
 
       final allEmployees = await employeesDao.list();
       final employees = allEmployees
@@ -235,8 +237,9 @@ class _IncomeExpenseReportScreenState
           totalDebtsCount: debtsInPeriod.length,
           unsettledDebtsCount: unsettledDebtsAll.length,
           unsettledDebtsAmount: unsettledDebtsAll.fold<double>(0, (s, d) => s + d.remainingAmount),
-          unsettledDebtsInPeriodCount: debtsInPeriod.where((d) => d.isSettled == 0).length,
-          unsettledDebtsInPeriodAmount: debtsInPeriod.where((d) => d.isSettled == 0).fold<double>(0, (s, d) => s + d.remainingAmount),
+          // ✅ إصلاح: isSettled != 1 بدلاً من == 0 لمعالجة NULL
+          unsettledDebtsInPeriodCount: debtsInPeriod.where((d) => d.isSettled != 1).length,
+          unsettledDebtsInPeriodAmount: debtsInPeriod.where((d) => d.isSettled != 1).fold<double>(0, (s, d) => s + d.remainingAmount),
           activeEmployeesCount: employees.length,
           terminatedEmployeesCount: terminatedEmployees.length,
           totalSalaryObligation: employees.fold<double>(0, (s, e) => s + e.basicSalary),

@@ -27,12 +27,17 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
     }
-    if (from != null && to != null) {
-      q.where(
-        (t) =>
-            t.date.isBiggerOrEqualValue(from) &
-            t.date.isSmallerOrEqualValue(to),
-      );
+    // ✅ إصلاح: إضافة like للمقارنة لأن date قد يحتوي على وقت
+    // "2026-05-18 10:30:00" <= "2026-05-18" تُعطي FALSE في SQLite
+    if (from != null) {
+      q.where((t) =>
+          t.date.isBiggerOrEqualValue(from) |
+          t.date.like('$from%'));
+    }
+    if (to != null) {
+      q.where((t) =>
+          t.date.isSmallerOrEqualValue(to) |
+          t.date.like('$to%'));
     }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
@@ -52,11 +57,16 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.deletedAt.isNull());
     }
 
+    // ✅ إصلاح: إضافة like للمقارنة لأن date قد يحتوي على وقت
     if (from != null) {
-      q.where((t) => t.date.isBiggerOrEqualValue(from));
+      q.where((t) =>
+          t.date.isBiggerOrEqualValue(from) |
+          t.date.like('$from%'));
     }
     if (to != null) {
-      q.where((t) => t.date.isSmallerOrEqualValue(to));
+      q.where((t) =>
+          t.date.isSmallerOrEqualValue(to) |
+          t.date.like('$to%'));
     }
     if (expenseType != null && expenseType.isNotEmpty) {
       q.where((t) => t.expenseType.equals(expenseType));
