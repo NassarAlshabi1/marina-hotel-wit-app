@@ -61,7 +61,7 @@ class ReportPageScaffold extends StatelessWidget {
             ),
             if (searchBar != null) ...[
               const SizedBox(height: 6),
-              searchBar!,
+              searchBar,
             ],
             Wrap(
               spacing: 8,
