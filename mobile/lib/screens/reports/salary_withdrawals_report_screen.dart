@@ -138,16 +138,16 @@ class _SalaryWithdrawalsReportScreenState
 
     if (fromHotelDay != null) {
       query = query..where((tbl) =>
-          (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+          (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay))) |
           (tbl.hotelDayKey.isNull() &
-              (tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay) |
+              (tbl.withdrawDate.isBiggerOrEqual(Variable(fromHotelDay)) |
                tbl.withdrawDate.like('$fromHotelDay%'))));
     }
     if (toHotelDay != null) {
       query = query..where((tbl) =>
-          (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+          (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay))) |
           (tbl.hotelDayKey.isNull() &
-              (tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay) |
+              (tbl.withdrawDate.isSmallerOrEqual(Variable(toHotelDay)) |
                tbl.withdrawDate.like('$toHotelDay%'))));
     }
 

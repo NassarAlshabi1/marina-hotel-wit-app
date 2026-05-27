@@ -2553,8 +2553,8 @@ class GeminiService {
         <String>['💰 تقرير الإيرادات: $dateFrom إلى $dateTo', ''];
 
     final payments = await (db.select(db.payments)
-          ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
-          ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
+          ..where((p) => p.paymentDate.isBiggerOrEqual(Variable(dateFrom)))
+          ..where((p) => p.paymentDate.isSmallerOrEqual(Variable(dateToEnd)))
           ..where((p) => p.deletedAt.isNull())
           ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull()))
         .get();
@@ -2627,13 +2627,13 @@ class GeminiService {
     lines.add('');
 
     final salaryPayments = await (db.select(db.salaryPayments)
-          ..where((p) => p.paymentDateIso.isBiggerOrEqualValue(dateFrom))
-          ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd))
+          ..where((p) => p.paymentDateIso.isBiggerOrEqual(Variable(dateFrom)))
+          ..where((p) => p.paymentDateIso.isSmallerOrEqual(Variable(dateToEnd)))
           ..where((p) => p.deletedAt.isNull()))
         .get();
     final withdrawals = await (db.select(db.salaryWithdrawals)
-          ..where((w) => w.withdrawDate.isBiggerOrEqualValue(dateFrom))
-          ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd))
+          ..where((w) => w.withdrawDate.isBiggerOrEqual(Variable(dateFrom)))
+          ..where((w) => w.withdrawDate.isSmallerOrEqual(Variable(dateToEnd)))
           ..where((w) => w.deletedAt.isNull()))
         .get();
 
@@ -2738,26 +2738,26 @@ class GeminiService {
     ];
 
     final payments = await (db.select(db.payments)
-          ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
-          ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
+          ..where((p) => p.paymentDate.isBiggerOrEqual(Variable(dateFrom)))
+          ..where((p) => p.paymentDate.isSmallerOrEqual(Variable(dateToEnd)))
           ..where((p) => p.deletedAt.isNull())
           ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull()))
         .get();
 
     final expenses = await (db.select(db.expenses)
-          ..where((e) => e.date.isBiggerOrEqualValue(dateFrom))
-          ..where((e) => e.date.isSmallerOrEqualValue(dateToEnd))
+          ..where((e) => e.date.isBiggerOrEqual(Variable(dateFrom)))
+          ..where((e) => e.date.isSmallerOrEqual(Variable(dateToEnd)))
           ..where((e) => e.deletedAt.isNull()))
         .get();
 
     final salaryPayments = await (db.select(db.salaryPayments)
-          ..where((p) => p.paymentDateIso.isBiggerOrEqualValue(dateFrom))
-          ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd))
+          ..where((p) => p.paymentDateIso.isBiggerOrEqual(Variable(dateFrom)))
+          ..where((p) => p.paymentDateIso.isSmallerOrEqual(Variable(dateToEnd)))
           ..where((p) => p.deletedAt.isNull()))
         .get();
     final withdrawals = await (db.select(db.salaryWithdrawals)
-          ..where((w) => w.withdrawDate.isBiggerOrEqualValue(dateFrom))
-          ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd))
+          ..where((w) => w.withdrawDate.isBiggerOrEqual(Variable(dateFrom)))
+          ..where((w) => w.withdrawDate.isSmallerOrEqual(Variable(dateToEnd)))
           ..where((w) => w.deletedAt.isNull()))
         .get();
 
@@ -2922,8 +2922,8 @@ class GeminiService {
         <String>['📉 تقرير المصروفات: $dateFrom إلى $dateTo', ''];
 
     final expenses = await (db.select(db.expenses)
-          ..where((e) => e.date.isBiggerOrEqualValue(dateFrom))
-          ..where((e) => e.date.isSmallerOrEqualValue(dateToEnd))
+          ..where((e) => e.date.isBiggerOrEqual(Variable(dateFrom)))
+          ..where((e) => e.date.isSmallerOrEqual(Variable(dateToEnd)))
           ..where((e) => e.deletedAt.isNull()))
         .get();
 

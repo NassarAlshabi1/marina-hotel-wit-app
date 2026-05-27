@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -76,12 +77,12 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       if (_fromDate != null) {
         final fromStr = _dateFormat.format(_fromDate!);
         query = query..where((tbl) =>
-            tbl.paymentDate.isBiggerOrEqualValue(fromStr));
+            tbl.paymentDate.isBiggerOrEqual(Variable(fromStr)));
       }
       if (_toDate != null) {
         final toStr = _dateFormat.format(_toDate!);
         query = query..where((tbl) =>
-            tbl.paymentDate.isSmallerOrEqualValue(toStr));
+            tbl.paymentDate.isSmallerOrEqual(Variable(toStr)));
       }
 
       final filtered = await query.get();

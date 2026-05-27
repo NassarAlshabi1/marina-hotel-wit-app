@@ -40,8 +40,8 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     if (from != null && to != null) {
       q.where(
         (t) =>
-            t.checkinDate.isBiggerOrEqualValue(from) &
-            t.checkinDate.isSmallerOrEqualValue(to),
+            t.checkinDate.isBiggerOrEqual(Variable(from)) &
+            t.checkinDate.isSmallerOrEqual(Variable(to)),
       );
     }
     if (search != null && search.trim().isNotEmpty) {
@@ -205,17 +205,17 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       // إضافة like لأن checkinDate قد يحتوي على وقت
       q.where((t) =>
           (t.hotelDayCheckin.isNotNull() &
-              t.hotelDayCheckin.isBiggerOrEqualValue(fromHotelDay)) |
+              t.hotelDayCheckin.isBiggerOrEqual(Variable(fromHotelDay))) |
           (t.hotelDayCheckin.isNull() &
-              (t.checkinDate.isBiggerOrEqualValue(fromHotelDay) |
+              (t.checkinDate.isBiggerOrEqual(Variable(fromHotelDay)) |
                t.checkinDate.like('$fromHotelDay%'))));
     }
     if (toHotelDay != null) {
       q.where((t) =>
           (t.hotelDayCheckin.isNotNull() &
-              t.hotelDayCheckin.isSmallerOrEqualValue(toHotelDay)) |
+              t.hotelDayCheckin.isSmallerOrEqual(Variable(toHotelDay))) |
           (t.hotelDayCheckin.isNull() &
-              (t.checkinDate.isSmallerOrEqualValue(toHotelDay) |
+              (t.checkinDate.isSmallerOrEqual(Variable(toHotelDay)) |
                t.checkinDate.like('$toHotelDay%'))));
     }
 

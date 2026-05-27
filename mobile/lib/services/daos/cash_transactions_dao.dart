@@ -28,8 +28,8 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     if (from != null && to != null) {
       q.where(
         (t) =>
-            t.transactionTime.isBiggerOrEqualValue(from) &
-            t.transactionTime.isSmallerOrEqualValue(to),
+            t.transactionTime.isBiggerOrEqual(Variable(from)) &
+            t.transactionTime.isSmallerOrEqual(Variable(to)),
       );
     }
     q.orderBy([

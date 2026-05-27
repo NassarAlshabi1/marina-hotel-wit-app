@@ -46,12 +46,12 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     // "2026-05-18 10:30:00" <= "2026-05-18" تُعطي FALSE في SQLite
     if (from != null) {
       q.where((t) =>
-          t.paymentDate.isBiggerOrEqualValue(from) |
+          t.paymentDate.isBiggerOrEqual(Variable(from)) |
           t.paymentDate.like('$from%'));
     }
     if (to != null) {
       q.where((t) =>
-          t.paymentDate.isSmallerOrEqualValue(to) |
+          t.paymentDate.isSmallerOrEqual(Variable(to)) |
           t.paymentDate.like('$to%'));
     }
     q.orderBy([
@@ -78,12 +78,12 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     // "2026-05-18 10:30:00" <= "2026-05-18" تُعطي FALSE في SQLite
     if (from != null) {
       q.where((t) =>
-          t.paymentDate.isBiggerOrEqualValue(from) |
+          t.paymentDate.isBiggerOrEqual(Variable(from)) |
           t.paymentDate.like('$from%'));
     }
     if (to != null) {
       q.where((t) =>
-          t.paymentDate.isSmallerOrEqualValue(to) |
+          t.paymentDate.isSmallerOrEqual(Variable(to)) |
           t.paymentDate.like('$to%'));
     }
 
@@ -204,17 +204,17 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (fromHotelDay != null) {
       q.where((t) =>
           (t.hotelDayKey.isNotNull() &
-              t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+              t.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay))) |
           (t.hotelDayKey.isNull() &
-              (t.paymentDate.isBiggerOrEqualValue(fromHotelDay) |
+              (t.paymentDate.isBiggerOrEqual(Variable(fromHotelDay)) |
                t.paymentDate.like('$fromHotelDay%'))));
     }
     if (toHotelDay != null) {
       q.where((t) =>
           (t.hotelDayKey.isNotNull() &
-              t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+              t.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay))) |
           (t.hotelDayKey.isNull() &
-              (t.paymentDate.isSmallerOrEqualValue(toHotelDay) |
+              (t.paymentDate.isSmallerOrEqual(Variable(toHotelDay)) |
                t.paymentDate.like('$toHotelDay%'))));
     }
 

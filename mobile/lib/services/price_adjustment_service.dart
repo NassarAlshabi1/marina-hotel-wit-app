@@ -119,7 +119,7 @@ class PriceAdjustmentService {
       final nightsBefore = await (db.select(db.bookingNights)
             ..where((n) => n.bookingLocalId.equals(booking.id))
             ..where((n) => n.deletedAt.isNull())
-            ..where((n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay)))
+            ..where((n) => n.hotelDayKey.isBiggerOrEqual(Variable(effectiveHotelDay)))
           .get();
 
       final oldTotal = nightsBefore.fold<double>(0, (sum, n) => sum + n.nightlyRate);
@@ -225,8 +225,8 @@ class PriceAdjustmentService {
     String endDate,
   ) async {
     return (db.select(db.priceAdjustments)
-          ..where((p) => p.hotelDayKey.isBiggerOrEqualValue(startDate))
-          ..where((p) => p.hotelDayKey.isSmallerOrEqualValue(endDate))
+          ..where((p) => p.hotelDayKey.isBiggerOrEqual(Variable(startDate)))
+          ..where((p) => p.hotelDayKey.isSmallerOrEqual(Variable(endDate)))
           ..orderBy([(p) => OrderingTerm.desc(p.createdAt)]))
         .get();
   }
@@ -250,7 +250,7 @@ class PriceAdjustmentService {
       final nights = await (db.select(db.bookingNights)
             ..where((n) => n.bookingLocalId.equals(booking.id))
             ..where((n) => n.deletedAt.isNull())
-            ..where((n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay)))
+            ..where((n) => n.hotelDayKey.isBiggerOrEqual(Variable(effectiveHotelDay)))
           .get();
 
       if (nights.isEmpty) {

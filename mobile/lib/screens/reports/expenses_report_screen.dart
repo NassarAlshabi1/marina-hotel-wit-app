@@ -266,16 +266,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         // ✅ إصلاح: فلترة salary_withdrawals بـ hotelDayKey أيضاً
         if (fromHotelDay != null) {
           swQuery = swQuery..where((tbl) =>
-              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay))) |
               (tbl.hotelDayKey.isNull() &
-                  (tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay) |
+                  (tbl.withdrawDate.isBiggerOrEqual(Variable(fromHotelDay)) |
                    tbl.withdrawDate.like('$fromHotelDay%'))));
         }
         if (toHotelDay != null) {
           swQuery = swQuery..where((tbl) =>
-              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay))) |
               (tbl.hotelDayKey.isNull() &
-                  (tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay) |
+                  (tbl.withdrawDate.isSmallerOrEqual(Variable(toHotelDay)) |
                    tbl.withdrawDate.like('$toHotelDay%'))));
         }
         salaryWithdrawals = await swQuery.get();

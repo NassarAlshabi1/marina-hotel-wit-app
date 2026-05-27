@@ -514,7 +514,7 @@ class BookingPriceAdjustmentService {
     final bookings = await (db.select(db.bookings)
           ..where((b) => b.deletedAt.isNull())
           ..where((b) => b.actualCheckout.isNull())
-          ..where((b) => b.checkinDate.isSmallerOrEqualValue(cutoffStr)))
+          ..where((b) => b.checkinDate.isSmallerOrEqual(Variable(cutoffStr))))
         .get();
 
     final result = <Booking>[];
@@ -543,10 +543,10 @@ class BookingPriceAdjustmentService {
       ..where((a) => a.deletedAt.isNull());
 
     if (fromHotelDay != null) {
-      query.where((a) => a.effectiveHotelDay.isBiggerOrEqualValue(fromHotelDay));
+      query.where((a) => a.effectiveHotelDay.isBiggerOrEqual(Variable(fromHotelDay)));
     }
     if (toHotelDay != null) {
-      query.where((a) => a.effectiveHotelDay.isSmallerOrEqualValue(toHotelDay));
+      query.where((a) => a.effectiveHotelDay.isSmallerOrEqual(Variable(toHotelDay)));
     }
 
     final adjustments = await query.get();
