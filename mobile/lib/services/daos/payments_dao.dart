@@ -31,7 +31,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.deletedAt.isNull());
     }
     if (excludeVoided) {
-      q.where((t) => t.isVoided.equals(false));
+      q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
     }
     if (excludePendingBalance) {
       q.where((t) => t.isPendingBalance.equals(false) | t.isPendingBalance.isNull());
@@ -66,7 +66,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.deletedAt.isNull());
     }
     // استبعاد المدفوعات المُلغاة والمعلقة من التقارير المالية
-    q.where((t) => t.isVoided.equals(false));
+    q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
     q.where((t) => t.isPendingBalance.equals(false) | t.isPendingBalance.isNull());
 
     if (from != null && to != null) {
@@ -113,7 +113,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     final q = select(payments);
     q.where((t) => t.deletedAt.isNull());
     if (!includeVoided) {
-      q.where((t) => t.isVoided.equals(false));
+      q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
     }
     // حالة 1: hotelDayKey يطابق اليوم
     q.where(
@@ -136,7 +136,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.deletedAt.isNull());
     }
     if (!includeVoided) {
-      q.where((t) => t.isVoided.equals(false));
+      q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
     }
     q.where((t) => t.paymentDate.like('$date%'));
     return q.get();
@@ -153,7 +153,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.deletedAt.isNull());
     }
     if (!includeVoided) {
-      q.where((t) => t.isVoided.equals(false));
+      q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
     }
 
     final byKey = payments.hotelDayKey.equals(hotelDayKey);
@@ -167,6 +167,50 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.revenueType.equals(revenueType));
     }
 
+    return q.get();
+  }
+
+  /// فلترة المدفوعات بنطاق hotelDayKey مع استبعاد الملغاة والمعلقة
+  /// يُستخدم في شاشات التقارير لضمان دقة الفلترة الفندقية
+  Future<List<Payment>> listFilteredByHotelDay({
+    String? fromHotelDay,
+    String? toHotelDay,
+    bool excludeVoided = false,
+    bool excludePendingBalance = false,
+    String? roomNumber,
+  }) async {
+    final q = select(payments);
+    q.where((t) => t.deletedAt.isNull());
+    if (excludeVoided) {
+      q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
+    }
+    if (excludePendingBalance) {
+      q.where((t) => t.isPendingBalance.equals(false) | t.isPendingBalance.isNull());
+    }
+
+    // فلترة بنطاق hotelDayKey مع fallback لحقل paymentDate
+    if (fromHotelDay != null) {
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.paymentDate.isBiggerOrEqualValue(fromHotelDay)));
+    }
+    if (toHotelDay != null) {
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.paymentDate.isSmallerOrEqualValue(toHotelDay)));
+    }
+
+    if (roomNumber != null && roomNumber.isNotEmpty) {
+      q.where((t) => t.roomNumber.equals(roomNumber));
+    }
+
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+    ]);
     return q.get();
   }
 

@@ -102,30 +102,22 @@ class _IncomeExpenseReportScreenState
       final fromDate = _fromDate!;
       final toDate = _toDate!;
 
-      // المدفوعات: فلترة بنطاق زمني كامل (مع الوقت)
-      final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(fromDate);
-      final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(toDate);
+      // ✅ إصلاح: استخدام hotelDayKey للمدفوعات أيضاً بدلاً من مقارنة paymentDate كنص
+      // نفس السبب: مقارنة نصية "2026-05-18 10:30:00" >= "2026-05-18 14:00:00" خاطئة
+      final fromHotelDay = HotelTimeEngine.getHotelDayKey(
+          dateTime: fromDate.add(const Duration(seconds: 1)));
+      final toHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: toDate);
 
-      final payments = await paymentsDao.list(
-        from: fromStr,
-        to: toStr,
+      final payments = await paymentsDao.listFilteredByHotelDay(
+        fromHotelDay: fromHotelDay,
+        toHotelDay: toHotelDay,
         excludeVoided: true,
         excludePendingBalance: true,
       );
 
       // ✅ إصلاح: المصروفات تُفلتر بـ hotelDayKey بدلاً من date التقويمي
       // لمنع إدراج مصروفات الصباح التي تنتمي لليوم الفندقي السابق
-      // ✅ إصلاح: استخدام HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
-      // ExpensesRepository.create() يخزن hotelDayKey باستخدام HotelTimeEngine
-      // فلابد أن تكون الفلترة بنفس الدالة لتطابق المفاتيح
-      //
-      // ⚠️ ملاحظة حرجة: getHotelDayKey تعتبر 14:00:00 بالضبط نهاية اليوم السابق
-      // (14:00:01 = بداية اليوم الجديد). بما أن fromDate يأتي دائماً بوقت 14:00:00
-      // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
-      // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
-      final fromHotelDay = HotelTimeEngine.getHotelDayKey(
-          dateTime: fromDate.add(const Duration(seconds: 1)));
-      final toHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: toDate);
+      // fromHotelDay/toHotelDay تم حسابهما أعلاه
       final expenses = await expensesDao.listFilteredByHotelDay(
         fromHotelDay: fromHotelDay,
         toHotelDay: toHotelDay,

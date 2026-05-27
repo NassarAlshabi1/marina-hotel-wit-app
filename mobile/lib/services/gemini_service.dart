@@ -658,7 +658,7 @@ class GeminiService {
       final todayPayments = await (db.select(db.payments)
             ..where((p) => p.paymentDate.like('$today%'))
             ..where((p) => p.deletedAt.isNull())
-            ..where((p) => p.isVoided.equals(false)))
+            ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull()))
           .get();
       final todayExpenses = await (db.select(db.expenses)
             ..where((e) => e.date.like('$today%'))
@@ -767,7 +767,7 @@ class GeminiService {
         final dayPayments = await (db.select(db.payments)
               ..where((p) => p.paymentDate.like('$pastDate%'))
               ..where((p) => p.deletedAt.isNull())
-              ..where((p) => p.isVoided.equals(false)))
+              ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull()))
             .get();
         final dayExpenses = await (db.select(db.expenses)
               ..where((e) => e.date.like('$pastDate%'))
@@ -2468,7 +2468,7 @@ class GeminiService {
     final todayPayments = await (db.select(db.payments)
           ..where((p) => p.paymentDate.like('$today%'))
           ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false)))
+          ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull()))
         .get();
     final totalIncome = todayPayments.fold<double>(0, (s, p) => s + p.amount);
 
@@ -2557,7 +2557,7 @@ class GeminiService {
           ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
           ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
           ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false)))
+          ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull()))
         .get();
 
     final totalIncome =
@@ -2742,7 +2742,7 @@ class GeminiService {
           ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
           ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
           ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false)))
+          ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull()))
         .get();
 
     final expenses = await (db.select(db.expenses)

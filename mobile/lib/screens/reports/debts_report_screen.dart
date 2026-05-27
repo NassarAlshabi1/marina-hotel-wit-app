@@ -67,21 +67,24 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     });
     try {
       final db = ref.read(databaseProvider);
-      final query = db.select(db.debts);
-      final allDebts = await query.get();
-      final filtered = <Debt>[];
-      final fromFilter = _fromDate;
-      final toFilter = _toDate;
-      for (final debt in allDebts) {
-        final paymentDate = _parseDateTime(debt.paymentDate);
-        if (fromFilter != null && paymentDate.isBefore(fromFilter)) {
-          continue;
-        }
-        if (toFilter != null && paymentDate.isAfter(toFilter)) {
-          continue;
-        }
-        filtered.add(debt);
+      // ✅ إصلاح: فلترة على مستوى DB بدلاً من تحميل كل الديون ثم الفلترة في الذاكرة
+      // + استبعاد الديون المحذوفة (deletedAt IS NULL)
+      var query = db.select(db.debts)
+        ..where((tbl) => tbl.deletedAt.isNull());
+
+      // فلترة بنطاق التاريخ على مستوى DB
+      if (_fromDate != null) {
+        final fromStr = _dateFormat.format(_fromDate!);
+        query = query..where((tbl) =>
+            tbl.paymentDate.isBiggerOrEqualValue(fromStr));
       }
+      if (_toDate != null) {
+        final toStr = _dateFormat.format(_toDate!);
+        query = query..where((tbl) =>
+            tbl.paymentDate.isSmallerOrEqualValue(toStr));
+      }
+
+      final filtered = await query.get();
       filtered.sort(
         (a, b) => _parseDateTime(
           b.paymentDate,

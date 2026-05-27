@@ -236,7 +236,7 @@ class OptimizedQueries {
     final today = _todayKey();
     final query = db.select(db.payments)
       ..where((p) => p.paymentDate.equals(today) &
-                    p.isVoided.equals(false),);
+                    (p.isVoided.equals(false) | p.isVoided.isNull()),);
     final result = await query.get();
     
     return result.fold<double>(0, (sum, p) => sum + p.amount);

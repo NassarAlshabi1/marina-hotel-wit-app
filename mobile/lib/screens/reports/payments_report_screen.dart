@@ -12,6 +12,7 @@ import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
@@ -116,18 +117,18 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
 
-    // الهندسة الدقيقة: تقرير الدخل يستخدم نطاقاً زمنياً يبدأ من 14:00 في تاريخ البداية
-    // وينتهي في 13:59:59 في تاريخ النهاية.
-    final hotelStart = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day, 14);
-    final hotelEnd = DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 13, 59, 59);
-    
-    final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelStart);
-    final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelEnd);
+    // ✅ إصلاح: استخدام hotelDayKey للفلترة بدلاً من مقارنة paymentDate كنص
+    // مقارنة النصوص "2026-05-18 10:30:00" >= "2026-05-18 14:00:00" تُعطي نتائج خاطئة
+    // لأن الساعة 10:30 أقل من 14:00 لكن المقارنة النصية تعتبرها أكبر!
+    // hotelDayKey يُخزن كـ "yyyy-MM-dd" دائماً فيُحسب من قاعدة الساعة 14:00 تلقائياً
+    final fromHotelDay = HotelTimeEngine.getHotelDayKey(
+        dateTime: _fromDate!.add(const Duration(seconds: 1)));
+    final toHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: _toDate!);
 
-    // استخدام list() مع نفس الفلاتر الصارمة لتقرير الدخل
-    final payments = await paymentsDao.list(
-      from: fromStr,
-      to: toStr,
+    // استخدام listByHotelDayKey للفلترة الدقيقة
+    final payments = await paymentsDao.listFilteredByHotelDay(
+      fromHotelDay: fromHotelDay,
+      toHotelDay: toHotelDay,
       excludeVoided: true,
       excludePendingBalance: true,
     );
@@ -168,11 +169,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     for (final payment in filteredPayments) {
       final paymentDate = _parseDateTime(payment.paymentDate);
       
-      // التحقق الهندسي: هل التاريخ يقع فعلياً ضمن النطاق الفندقي؟
-      // (نفس منطق isWithinRange في تقرير الدخل)
-      if (paymentDate.isBefore(hotelStart) || paymentDate.isAfter(hotelEnd)) {
-        continue;
-      }
+      // ✅ تمت الفلترة بـ hotelDayKey على مستوى DB — لا حاجة لفلترة إضافية بالتاريخ
 
       final booking = bookingMap[payment.bookingLocalId];
       final roomNumber =

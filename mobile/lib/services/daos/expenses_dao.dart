@@ -90,18 +90,23 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
 
     if (fromHotelDay != null) {
       // hotelDayKey >= fromHotelDay، مع fallback لحقل date عند كون hotelDayKey فارغاً
+      // ✅ إصلاح: استخدام like بدلاً من isBiggerOrEqualValue للمقارنة
+      // لأن date قد يحتوي على وقت مثل "2026-05-18 10:30:00"
+      // والمقارنة النصية "2026-05-18" >= "2026-05-18 10:30:00" تُعطي نتيجة خاطئة
       q.where((t) =>
           (t.hotelDayKey.isNotNull() &
               t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
           (t.hotelDayKey.isNull() &
-              t.date.isBiggerOrEqualValue(fromHotelDay)));
+              (t.date.isBiggerOrEqualValue(fromHotelDay) |
+               t.date.like('$fromHotelDay%'))));
     }
     if (toHotelDay != null) {
       q.where((t) =>
           (t.hotelDayKey.isNotNull() &
               t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
           (t.hotelDayKey.isNull() &
-              t.date.isSmallerOrEqualValue(toHotelDay)));
+              (t.date.isSmallerOrEqualValue(toHotelDay) |
+               t.date.like('$toHotelDay%'))));
     }
     if (expenseType != null && expenseType.isNotEmpty) {
       q.where((t) => t.expenseType.equals(expenseType));

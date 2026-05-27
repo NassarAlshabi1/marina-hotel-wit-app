@@ -336,7 +336,7 @@ class EnhancedBookingCalculationService {
                     p.bookingUuidCache.equals(booking.localUuid)),
               )
               ..where((p) => p.deletedAt.isNull())
-              ..where((p) => p.isVoided.equals(false))
+              ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull())
               ..where((p) => p.isPendingBalance.equals(false) | p.isPendingBalance.isNull())
               ..where(
                 (p) =>
