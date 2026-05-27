@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../utils/currency_formatter.dart';
 import '../remote_config_service.dart';
 import 'telegram_config.dart';
 
@@ -173,7 +174,7 @@ class WhatsAppNotificationService {
       }
 
       if (event.amount != null && event.amount! > 0) {
-        buffer.writeln('💵 المبلغ: *\$${event.amount!.toStringAsFixed(2)}*');
+        buffer.writeln('💵 المبلغ: *${CurrencyFormatter.formatAmount(event.amount!)} ريال*');
       }
 
       if (event.details != null && event.details!.isNotEmpty) {
@@ -229,7 +230,7 @@ class WhatsAppNotificationService {
       details.writeln('🌙 الليالي: $nights');
     }
     if (totalDue != null) {
-      details.writeln('💰 الإجمالي: \$${totalDue.toStringAsFixed(2)}');
+      details.writeln('💰 الإجمالي: ${CurrencyFormatter.formatAmount(totalDue)} ريال');
     }
 
     return sendEventNotification(WhatsAppEvent(
@@ -277,10 +278,10 @@ class WhatsAppNotificationService {
       details.writeln('🌙 الليالي الفعلية: $actualNights');
     }
     if (totalPaid != null) {
-      details.writeln('💰 المدفوع: \$${totalPaid.toStringAsFixed(2)}');
+      details.writeln('💰 المدفوع: ${CurrencyFormatter.formatAmount(totalPaid)} ريال');
     }
     if (remaining != null && remaining > 0) {
-      details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
+      details.writeln('⚠️ المتبقي: ${CurrencyFormatter.formatAmount(remaining)} ريال');
     }
 
     return sendEventNotification(WhatsAppEvent(
@@ -304,7 +305,7 @@ class WhatsAppNotificationService {
     details.writeln('💳 طريقة الدفع: $paymentMethod');
     if (remaining != null) {
       if (remaining > 0) {
-        details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
+        details.writeln('⚠️ المتبقي: ${CurrencyFormatter.formatAmount(remaining)} ريال');
       } else {
         details.writeln('✅ مسدد بالكامل');
       }
@@ -364,7 +365,7 @@ class WhatsAppNotificationService {
       details.writeln('➕ ليالي إضافية: $extraNights');
     }
     if (extraCharge != null) {
-      details.writeln('💵 تكلفة إضافية: \$${extraCharge.toStringAsFixed(2)}');
+      details.writeln('💵 تكلفة إضافية: ${CurrencyFormatter.formatAmount(extraCharge)} ريال');
     }
 
     return sendEventNotification(WhatsAppEvent(

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../local_db.dart';
 import '../remote_config_service.dart';
@@ -370,11 +371,11 @@ class TelegramReportService {
     buffer.writeln();
     buffer.writeln('💰 ملخص مالي');
     buffer.writeln(
-        '┌ الإيرادات: \$${data.todayRevenue.toStringAsFixed(2)}',);
+        '┌ الإيرادات: ${CurrencyFormatter.formatAmount(data.todayRevenue)} ريال',);
     buffer.writeln(
-        '├ المصروفات: \$${data.todayExpenses.toStringAsFixed(2)}',);
+        '├ المصروفات: ${CurrencyFormatter.formatAmount(data.todayExpenses)} ريال',);
     buffer.writeln(
-        '└ صافي الربح: \$${data.netProfit.toStringAsFixed(2)}',);
+        '└ صافي الربح: ${CurrencyFormatter.formatAmount(data.netProfit)} ريال',);
 
     // الديون
     buffer.writeln();

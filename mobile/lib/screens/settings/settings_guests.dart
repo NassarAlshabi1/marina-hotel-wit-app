@@ -5,6 +5,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/sync_service.dart';
+import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import 'guest_edit_screen.dart';
@@ -478,7 +479,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
     return _buildDetailRow(
       'سعر الغرفة',
-      basePrice.toStringAsFixed(2),
+      '${CurrencyFormatter.formatAmount(basePrice)} ريال',
       Icons.hotel_class,
     );
   }
