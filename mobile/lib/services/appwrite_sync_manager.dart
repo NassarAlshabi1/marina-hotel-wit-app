@@ -34,6 +34,7 @@ import 'sync_constants.dart';
 import 'sync_core/sync_metrics.dart';
 import 'sync_enums.dart';
 import 'sync_mutex.dart';
+import 'sync_locks.dart';
 import 'telegram/whatsapp_notification_service.dart';
 
 /// حالة المزامنة
@@ -543,22 +544,25 @@ class AppwriteSyncManager {
   ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
   Future<SyncResult> sync({bool push = true, bool pull = true}) async {
-    if (!await _mutex.acquire()) {
-      _logger.warning('Failed to acquire sync mutex', tag: 'SYNC');
-      return SyncResult(
-        status: SyncStatus.failed,
-        errorMessage: 'Sync mutex timeout',
-        timestamp: DateTime.now(),
-        duration: Duration.zero,
-      );
-    }
+    // ✅ قفل مشترك مع AppwriteDeltaSync — منع المزامنة المتزامنة بين الخدمتين
+    final canStart = await SyncLocks.appwriteSyncLock.synchronized(() async {
+      if (!await _mutex.acquire()) {
+        _logger.warning('Failed to acquire sync mutex', tag: 'SYNC');
+        return false;
+      }
 
-    if (_currentStatus == SyncStatus.syncing) {
-      _logger.warning('Sync already in progress', tag: 'SYNC');
-      _mutex.release();
+      if (_currentStatus == SyncStatus.syncing) {
+        _logger.warning('Sync already in progress', tag: 'SYNC');
+        _mutex.release();
+        return false;
+      }
+      return true;
+    });
+
+    if (!canStart) {
       return SyncResult(
         status: SyncStatus.failed,
-        errorMessage: 'Sync already in progress',
+        errorMessage: 'Sync already in progress (shared lock)',
         timestamp: DateTime.now(),
         duration: Duration.zero,
       );
@@ -1358,6 +1362,13 @@ class AppwriteSyncManager {
   ///
   /// هذا يمنع:
   /// - كتابة غير ضرورية لبيانات مطابقة
+  /// تصفية المستندات القادمة من الجهاز نفسه لمنع صدى المزامنة
+  /// نفس المنطق المستخدم في AppwriteDeltaSync.pullDeltaChanges
+  bool _isFromOwnDevice(Map<String, dynamic> data) {
+    final sourceDeviceId = data['deviceId'] as String?;
+    return sourceDeviceId != null && sourceDeviceId == _currentDeviceId;
+  }
+
   /// - تغيير lastModified المحلي بدون سبب حقيقي
   /// - حلقة المزامنة الدائرية (pull → update → push → pull → ...)
   bool _isRemoteDataNewer(
@@ -1390,6 +1401,9 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
 
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
+
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
         final existingRoom = await (database.select(database.rooms)
@@ -1419,6 +1433,9 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
 
         // ✅ حفظ حالة الحجز القديمة قبل التحديث لمقارنتها
         final localUuid = (data['localUuid'] as String?) ?? '';
@@ -1554,6 +1571,9 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
 
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
+
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
         final existing = await (database.select(database.employees)
@@ -1593,6 +1613,9 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
 
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
+
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
         final existing = await (database.select(database.expenses)
@@ -1625,6 +1648,9 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
 
         // Financial immutability: if local payment exists and is newer, keep local
         final localUuid = (data['localUuid'] as String?) ?? '';
@@ -1670,6 +1696,10 @@ class AppwriteSyncManager {
         try {
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
+
+          // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+          if (_isFromOwnDevice(data)) continue;
+
           await _adapterRegistry.payments.upsertFromJson(
             data,
             src: Source.appwrite,
@@ -1697,6 +1727,9 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
 
         // Financial immutability: if local debt exists and is newer, keep local
         final localUuid = (data['localUuid'] as String?) ?? '';
@@ -1739,6 +1772,10 @@ class AppwriteSyncManager {
         try {
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
+
+          // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+          if (_isFromOwnDevice(data)) continue;
+
           await _adapterRegistry.debts.upsertFromJson(
             data,
             src: Source.appwrite,
@@ -2058,6 +2095,9 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
 
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
+
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
         final existing = await (database.select(database.guestInfos)
@@ -2127,6 +2167,9 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
 
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
+
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
         final existing = await (database.select(database.salaryWithdrawals)
@@ -2193,6 +2236,10 @@ class AppwriteSyncManager {
           // FK constraint failed - تأجيل السجل لإعادة المحاولة لاحقاً
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
+
+          // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+          if (_isFromOwnDevice(data)) continue;
+
           deferred.add(data);
           _logger.warning(
             '⏳ تأجيل salary_withdrawal ${doc.$id}: FK constraint failed - سيتم إعادة المحاولة',
@@ -4433,6 +4480,9 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
 
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
+
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
         final existing = await (database.select(database.shiftNotes)
@@ -4465,6 +4515,9 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
@@ -4501,6 +4554,9 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
@@ -4548,6 +4604,10 @@ class AppwriteSyncManager {
         try {
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
+
+          // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+          if (_isFromOwnDevice(data)) continue;
+
           await _adapterRegistry.nights.upsertFromJson(
             data,
             src: Source.appwrite,
@@ -4662,6 +4722,9 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
 
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
+
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
         final existing = await (database.select(database.cashTransactions)
@@ -4696,6 +4759,9 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
@@ -4761,6 +4827,10 @@ class AppwriteSyncManager {
         if (e.resultCode == 787) {
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
+
+          // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+          if (_isFromOwnDevice(data)) continue;
+
           deferred.add(data);
           _logger.warning(
             '⏳ تأجيل salary_cycle ${doc.$id}: FK constraint failed',
@@ -4815,6 +4885,9 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
 
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
+
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
         final existing = await (database.select(database.salaryPayments)
@@ -4841,6 +4914,10 @@ class AppwriteSyncManager {
         if (e.resultCode == 787) {
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
+
+          // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+          if (_isFromOwnDevice(data)) continue;
+
           deferred.add(data);
           _logger.warning(
             '⏳ تأجيل salary_payment ${doc.$id}: FK constraint failed',
@@ -4897,6 +4974,10 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
+
         // إزالة id عند السحب من Appwrite لتجنب تعارض autoIncrement
         data.remove('id');
 
@@ -4957,6 +5038,10 @@ class AppwriteSyncManager {
         try {
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
+
+          // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+          if (_isFromOwnDevice(data)) continue;
+
           data.remove('id');
 
           final result = await _adapterRegistry.bookingPriceAdjustments.upsertFromJson(
@@ -4996,6 +5081,9 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
@@ -5072,6 +5160,9 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         // AuditLog لا يحتوي على lastModified — نستخدم timestamp للمقارنة
@@ -5254,6 +5345,9 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+
+        // ✅ تخطي المستندات من الجهاز نفسه لمنع صدى المزامنة
+        if (_isFromOwnDevice(data)) continue;
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';

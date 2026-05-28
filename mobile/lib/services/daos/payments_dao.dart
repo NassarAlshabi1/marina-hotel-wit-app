@@ -42,17 +42,12 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (revenueType != null && revenueType.isNotEmpty) {
       q.where((t) => t.revenueType.equals(revenueType));
     }
-    // ✅ إصلاح: إضافة like للمقارنة لأن paymentDate قد يحتوي على وقت
-    // "2026-05-18 10:30:00" <= "2026-05-18" تُعطي FALSE في SQLite
-    if (from != null) {
-      q.where((t) =>
-          t.paymentDate.isBiggerOrEqual(Variable(from)) |
-          t.paymentDate.like('$from%'));
-    }
-    if (to != null) {
-      q.where((t) =>
-          t.paymentDate.isSmallerOrEqual(Variable(to)) |
-          t.paymentDate.like('$to%'));
+    if (from != null && to != null) {
+      q.where(
+        (t) =>
+            t.paymentDate.isBiggerOrEqual(Variable(from)) &
+            t.paymentDate.isSmallerOrEqual(Variable(to)),
+      );
     }
     q.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
@@ -74,17 +69,12 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
     q.where((t) => t.isPendingBalance.equals(false) | t.isPendingBalance.isNull());
 
-    // ✅ إصلاح: إضافة like للمقارنة لأن paymentDate قد يحتوي على وقت
-    // "2026-05-18 10:30:00" <= "2026-05-18" تُعطي FALSE في SQLite
-    if (from != null) {
-      q.where((t) =>
-          t.paymentDate.isBiggerOrEqual(Variable(from)) |
-          t.paymentDate.like('$from%'));
-    }
-    if (to != null) {
-      q.where((t) =>
-          t.paymentDate.isSmallerOrEqual(Variable(to)) |
-          t.paymentDate.like('$to%'));
+    if (from != null && to != null) {
+      q.where(
+        (t) =>
+            t.paymentDate.isBiggerOrEqual(Variable(from)) &
+            t.paymentDate.isSmallerOrEqual(Variable(to)),
+      );
     }
 
     if (roomNumber != null && roomNumber.isNotEmpty) {

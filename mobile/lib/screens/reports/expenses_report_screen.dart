@@ -267,13 +267,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         // فلترة salary_withdrawals بـ hotelDayKey أيضاً
         if (fromHotelDay != null) {
           swQuery = swQuery..where((tbl) =>
-              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)));
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay))) |
+              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isBiggerOrEqual(Variable(fromHotelDay))));
         }
         if (toHotelDay != null) {
           swQuery = swQuery..where((tbl) =>
-              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)));
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay))) |
+              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isSmallerOrEqual(Variable(toHotelDay))));
         }
         salaryWithdrawals = await swQuery.get();
         // إضافة أرقام الموظفين من salary_withdrawals

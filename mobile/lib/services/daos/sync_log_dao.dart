@@ -223,7 +223,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     final cutoff = DateTime.now().subtract(olderThan);
     
     final query = delete(syncLog)
-      ..where((t) => t.createdAt.isSmallerThanValue(cutoff.toIso8601String()));
+      ..where((t) => t.createdAt.isSmallerThan(Variable(cutoff.toIso8601String())));
     
     return query.go();
   }

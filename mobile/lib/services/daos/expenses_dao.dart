@@ -27,17 +27,12 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
     }
-    // ✅ إصلاح: إضافة like للمقارنة لأن date قد يحتوي على وقت
-    // "2026-05-18 10:30:00" <= "2026-05-18" تُعطي FALSE في SQLite
-    if (from != null) {
-      q.where((t) =>
-          t.date.isBiggerOrEqual(Variable(from)) |
-          t.date.like('$from%'));
-    }
-    if (to != null) {
-      q.where((t) =>
-          t.date.isSmallerOrEqual(Variable(to)) |
-          t.date.like('$to%'));
+    if (from != null && to != null) {
+      q.where(
+        (t) =>
+            t.date.isBiggerOrEqual(Variable(from)) &
+            t.date.isSmallerOrEqual(Variable(to)),
+      );
     }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
@@ -59,14 +54,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
 
     // ✅ إصلاح: إضافة like للمقارنة لأن date قد يحتوي على وقت
     if (from != null) {
-      q.where((t) =>
-          t.date.isBiggerOrEqual(Variable(from)) |
-          t.date.like('$from%'));
+      q.where((t) => t.date.isBiggerOrEqual(Variable(from)));
     }
     if (to != null) {
-      q.where((t) =>
-          t.date.isSmallerOrEqual(Variable(to)) |
-          t.date.like('$to%'));
+      q.where((t) => t.date.isSmallerOrEqual(Variable(to)));
     }
     if (expenseType != null && expenseType.isNotEmpty) {
       q.where((t) => t.expenseType.equals(expenseType));
@@ -107,16 +98,14 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
           (t.hotelDayKey.isNotNull() &
               t.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay))) |
           (t.hotelDayKey.isNull() &
-              (t.date.isBiggerOrEqual(Variable(fromHotelDay)) |
-               t.date.like('$fromHotelDay%'))));
+              t.date.isBiggerOrEqual(Variable(fromHotelDay))));
     }
     if (toHotelDay != null) {
       q.where((t) =>
           (t.hotelDayKey.isNotNull() &
               t.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay))) |
           (t.hotelDayKey.isNull() &
-              (t.date.isSmallerOrEqual(Variable(toHotelDay)) |
-               t.date.like('$toHotelDay%'))));
+              t.date.isSmallerOrEqual(Variable(toHotelDay))));
     }
     if (expenseType != null && expenseType.isNotEmpty) {
       q.where((t) => t.expenseType.equals(expenseType));

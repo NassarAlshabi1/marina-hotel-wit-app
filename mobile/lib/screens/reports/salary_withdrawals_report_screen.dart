@@ -139,16 +139,12 @@ class _SalaryWithdrawalsReportScreenState
     if (fromHotelDay != null) {
       query = query..where((tbl) =>
           (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay))) |
-          (tbl.hotelDayKey.isNull() &
-              (tbl.withdrawDate.isBiggerOrEqual(Variable(fromHotelDay)) |
-               tbl.withdrawDate.like('$fromHotelDay%'))));
+          (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isBiggerOrEqual(Variable(fromHotelDay))));
     }
     if (toHotelDay != null) {
       query = query..where((tbl) =>
           (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay))) |
-          (tbl.hotelDayKey.isNull() &
-              (tbl.withdrawDate.isSmallerOrEqual(Variable(toHotelDay)) |
-               tbl.withdrawDate.like('$toHotelDay%'))));
+          (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isSmallerOrEqual(Variable(toHotelDay))));
     }
 
     // فلترة حسب الموظف المحدد
