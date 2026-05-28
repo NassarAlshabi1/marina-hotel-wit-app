@@ -256,12 +256,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         .toSet();
 
     // ─── عند اختيار الكل: سحب سحوبات الرواتب من salary_withdrawals ───
+    // كل سحب راتب يُنشئ سجلين: expenses + salary_withdrawals
+    // لمنع التكرار: عند showAll نعرض الرواتب من salary_withdrawals فقط
+    // ونستبعد مصروفات الرواتب من جدول expenses بالكامل
+    final bool salaryFromWithdrawals = showAll;
     List<SalaryWithdrawal> salaryWithdrawals = [];
-    if (showAll) {
+    if (salaryFromWithdrawals) {
       try {
         var swQuery = db.select(db.salaryWithdrawals)
           ..where((tbl) => tbl.deletedAt.isNull());
-        // ✅ إصلاح: فلترة salary_withdrawals بـ hotelDayKey أيضاً
+        // فلترة salary_withdrawals بـ hotelDayKey أيضاً
         if (fromHotelDay != null) {
           swQuery = swQuery..where((tbl) =>
               (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
@@ -296,47 +300,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     double totalAmount = 0;
     bool hasSalaryData = false;
 
-    // ─── جمع أرقام معرّفات المصروفات المرتبطة بسحوبات الرواتب ───
-    // لمنع العد المزدوج: المصروف المرتبط بـ salary_withdrawal لا يُضاف من جدول expenses
-    // ✅ إصلاح: إذا كان reason فارغاً أو لا يحتوي على exp_(\d+)،
-    // نحاول مطابقة المصروف بنوع راتب + نفس الموظف + نفس المبلغ والتاريخ
-    final swExpenseIds = <int>{};
-    if (showAll) {
-      for (final sw in salaryWithdrawals) {
-        if (sw.reason != null) {
-          final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
-          if (match != null) {
-            swExpenseIds.add(int.parse(match.group(1)!));
-          }
-        }
-      }
-      // ✅ إصلاح عد مزدوج: مطابقة إضافية بنوع الراتب + الموظف + المبلغ
-      // عندما لا يكون reason بنمط exp_(\d+)
-      for (final sw in salaryWithdrawals) {
-        if (sw.reason != null) {
-          final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
-          if (match != null) continue; // تمت معالجته أعلاه
-        }
-        // البحث عن مصروف مطابق في قائمة expenses
-        for (final expense in expenses) {
-          if (swExpenseIds.contains(expense.id)) continue; // تمت معالجته
-          if (!_isSalaryType(expense.expenseType)) continue;
-          // مطابقة: نفس الموظف + نفس المبلغ + نفس التاريخ
-          if (expense.relatedId == sw.employeeId &&
-              expense.amount == sw.amount.abs() &&
-              expense.date == sw.withdrawDate) {
-            swExpenseIds.add(expense.id);
-            break;
-          }
-        }
-      }
-    }
-
-    // ─── إضافة مصروفات جدول expenses (مع استبعاد المرتبطة بسحوبات الرواتب) ───
+    // ─── إضافة مصروفات جدول expenses (مع استبعاد مصروفات الرواتب عند showAll) ───
+    // عند showAll: مصروفات الرواتب تُعرض من salary_withdrawals فقط
+    // لمنع التكرار نهائياً
     for (final expense in expenses) {
-      // تخطّي المصروفات الرواتب التي لها سجل مقابل في salary_withdrawals
-      // لأنها ستُضاف من هناك (لمنع العد المزدوج)
-      if (showAll && _isSalaryType(expense.expenseType) && swExpenseIds.contains(expense.id)) {
+      if (salaryFromWithdrawals && _isSalaryType(expense.expenseType)) {
         hasSalaryData = true;
         continue;
       }
