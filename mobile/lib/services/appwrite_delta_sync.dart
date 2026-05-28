@@ -1031,107 +1031,6 @@ class AppwriteDeltaSync {
     await db.into(db.guestInfos).insertOnConflictUpdate(companion);
   }
 
-  /// مزامنة القائمة السوداء — تُخزن محلياً في جدول shift_notes مع createdBy='blacklist'
-  /// نفس المنطق المستخدم في AppwriteSyncManager._syncBlacklist
-  Future<void> _applyBlacklistChange(
-    AppDatabase db,
-    String localUuid,
-    Map<String, dynamic> data,
-  ) async {
-    final name = _asString(data['name']) ?? '';
-    if (name.isEmpty) return;
-
-    // تحويل بيانات Appwrite إلى صيغة shift_notes المحلية
-    final content = jsonEncode({
-      'nationality': _asString(data['nationality']) ?? '',
-      'nationalId': _asString(data['nationalId']) ?? '',
-      'phone': _asString(data['phone']) ?? '',
-      'reason': _asString(data['reason']) ?? '',
-      'notes': _asString(data['notes']) ?? '',
-      'reportedBy': _asString(data['reportedBy']) ?? 'police',
-      'active': _asBool(data['active']) ?? true,
-    });
-
-    // Appwrite blacklist: createdAt/updatedAt/deletedAt قد تكون STRING (ISO)
-    final createdAtIso = _asString(data['createdAt']) ??
-        _asString(data['createdAtIso']) ??
-        DateTime.now().toIso8601String();
-    final updatedAtIso = _asString(data['updatedAt']) ??
-        _asString(data['updatedAtIso']) ??
-        createdAtIso;
-
-    // تحويل ISO إلى epoch seconds
-    int createdAtEpoch;
-    try {
-      createdAtEpoch = DateTime.parse(createdAtIso).millisecondsSinceEpoch ~/ 1000;
-    } catch (_) {
-      createdAtEpoch = _asInt(data['createdAt']) ?? Time.nowEpoch();
-    }
-    int updatedAtEpoch;
-    try {
-      updatedAtEpoch = DateTime.parse(updatedAtIso).millisecondsSinceEpoch ~/ 1000;
-    } catch (_) {
-      updatedAtEpoch = _asInt(data['updatedAt']) ?? Time.nowEpoch();
-    }
-
-    final lastModified = _asInt(data['lastModified']) ?? updatedAtEpoch;
-    final incomingDeletedAt = _asString(data['deletedAt']);
-
-    // معالجة الحذف الناعم
-    if (incomingDeletedAt != null && incomingDeletedAt.isNotEmpty) {
-      int? deletedAtEpoch;
-      try {
-        deletedAtEpoch = DateTime.parse(incomingDeletedAt).millisecondsSinceEpoch ~/ 1000;
-      } catch (_) {
-        deletedAtEpoch = _asInt(data['deletedAt']);
-      }
-      if (deletedAtEpoch != null && deletedAtEpoch > 0) {
-        final existing = await (db.select(db.shiftNotes)
-              ..where((t) => t.localUuid.equals(localUuid)))
-            .getSingleOrNull();
-        if (existing != null) {
-          await (db.delete(db.shiftNotes)
-                ..where((t) => t.localUuid.equals(localUuid)))
-              .go();
-        }
-        return;
-      }
-    }
-
-    final companion = ShiftNotesCompanion(
-      title: d.Value(name),
-      content: d.Value(content),
-      priority: const d.Value('high'),
-      shiftType: const d.Value('all'),
-      createdAt: d.Value(createdAtEpoch),
-      createdAtIso: d.Value(createdAtIso),
-      updatedAt: d.Value(updatedAtEpoch),
-      lastModified: d.Value(lastModified),
-      expiresAt: const d.Value(null),
-      isRead: const d.Value(0),
-      createdBy: const d.Value('blacklist'),
-      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
-      serverId: _nullableValue<int>(_asInt(data['serverId'])),
-      version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
-      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
-      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
-    );
-
-    // upsert: البحث عن سجل موجود بنفس localUuid
-    final existing = await (db.select(db.shiftNotes)
-          ..where((t) => t.localUuid.equals(localUuid)))
-        .getSingleOrNull();
-
-    if (existing != null) {
-      await (db.update(db.shiftNotes)
-            ..where((t) => t.localUuid.equals(localUuid)))
-          .write(companion);
-    } else {
-      await db.into(db.shiftNotes).insert(companion);
-    }
-  }
-
   Future<void> _applySalaryWithdrawalChange(
     AppDatabase db,
     String localUuid,
@@ -1556,6 +1455,13 @@ class AppwriteDeltaSync {
               ..limit(1))
             .getSingleOrNull();
         return row?.lastModified;
+      case 'blacklist':
+        // القائمة السوداء تُخزن في جدول shift_notes مع createdBy='blacklist'
+        final blRow = await (db.select(db.shiftNotes)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return blRow?.lastModified;
       default:
         return null;
     }
@@ -1612,6 +1518,8 @@ class AppwriteDeltaSync {
         return AppwriteConfig.guestInfosCollectionId;
       case 'salary_withdrawals':
         return AppwriteConfig.salaryWithdrawalsCollectionId;
+      case 'blacklist':
+        return AppwriteConfig.blacklistCollectionId;
       default:
         return null;
     }
