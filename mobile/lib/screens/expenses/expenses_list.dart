@@ -72,11 +72,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   static const String _salaryType = 'رواتب';
   static const String _salaryWithdrawAction = 'سحب من الراتب';
   static const String _salaryDeductionAction = 'خصم من الراتب';
-  static const String _salaryAdvanceAction = 'سلفة';
   static const List<String> _salaryActions = [
     _salaryWithdrawAction,
     _salaryDeductionAction,
-    _salaryAdvanceAction,
   ];
   @override
   void initState() {
@@ -644,7 +642,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           ? CurrencyFormatter.formatAmount(existing.amount)
           : '',
     );
-    final installments = TextEditingController();
     DateTime selectedDate;
     try {
       // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
@@ -655,7 +652,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     try {
     String dialogSalaryAction = _salaryWithdrawAction;
-    bool startNextMonth = true;
     selectedType = existing?.expenseType ?? 'اخرى';
 
     if (existing != null && _isSalaryAction(existing.expenseType)) {
@@ -755,27 +751,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                           setState(() => dialogSalaryAction = value);
                         },
                       ),
-                      if (existing == null &&
-                          dialogSalaryAction == _salaryAdvanceAction) ...[
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: installments,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'عدد الأقساط',
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        CheckboxListTile(
-                          value: startNextMonth,
-                          onChanged: (v) => setState(() {
-                            startNextMonth = v ?? true;
-                          }),
-                          title: const Text('ابدأ الخصم من الشهر القادم'),
-                          controlAffinity: ListTileControlAffinity.leading,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ],
+
                     ],
                   ],
                   const SizedBox(height: 12),
@@ -846,20 +822,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     );
                     return;
                   }
-                  if (existing == null &&
-                      selectedType == _salaryType &&
-                      dialogSalaryAction == _salaryAdvanceAction) {
-                    final count = int.tryParse(installments.text.trim()) ?? 0;
-                    if (count <= 0) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(
-                          content: const Text('يجب إدخال عدد الأقساط'),
-                          backgroundColor: Theme.of(ctx).colorScheme.error,
-                        ),
-                      );
-                      return;
-                    }
-                  }
+
                   Navigator.pop(ctx, true);
                 },
                 child: const Text('حفظ'),
@@ -890,21 +853,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     try {
       if (existing == null) {
-        if (isSalaryExpense &&
-            selectedEmployeeId != null &&
-            dialogSalaryAction == _salaryAdvanceAction) {
-          final count = int.tryParse(installments.text.trim()) ?? 0;
-          await ref
-              .read(salaryAdvanceInstallmentsServiceProvider)
-              .createInstallmentAdvance(
-                employeeId: selectedEmployeeId!,
-                totalAmount: parsedAmount,
-                advanceDate: trimmedDate,
-                description: trimmedDescription,
-                installments: count,
-                startNextMonth: startNextMonth,
-              );
-        } else {
           final newId = await repo.create(
             expenseType: savedType,
             relatedId: isSalaryExpense ? selectedEmployeeId : null,
@@ -964,9 +912,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
       // إرسال رسالة واتساب للموظف عند تسجيل مصروف راتب
       if (isSalaryExpense && selectedEmployeeId != null && mounted) {
-        final waAction = dialogSalaryAction == _salaryAdvanceAction
-            ? _salaryAdvanceAction
-            : savedType;
+        final waAction = savedType;
         unawaited(_sendSalaryExpenseWhatsApp(
           employeeId: selectedEmployeeId!,
           action: waAction,
@@ -989,7 +935,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     } finally {
       description.dispose();
       amount.dispose();
-      installments.dispose();
     }
   }
 
@@ -1020,9 +965,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
       final actionText = action == _salaryDeductionAction
           ? 'خصم'
-          : action == _salaryAdvanceAction
-              ? 'سلفة'
-              : 'سحب';
+          : 'سحب';
 
       // حساب الراتب المتبقي
       String remainingText = '';
@@ -1100,7 +1043,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         normalized == 'سحب راتب' ||
         normalized == _salaryWithdrawAction ||
         normalized == _salaryDeductionAction ||
-        normalized == _salaryAdvanceAction ||
+        normalized == 'سلفة' ||
         normalized == 'خصم راتب';
   }
 
@@ -1109,18 +1052,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     if (normalized == _salaryDeductionAction || normalized == 'خصم راتب') {
       return _salaryDeductionAction;
     }
-    if (normalized == _salaryAdvanceAction) {
-      return _salaryAdvanceAction;
-    }
     return _salaryWithdrawAction;
   }
 
   String _deriveSalaryExpenseType(String action) {
     if (action == _salaryDeductionAction) {
       return _salaryDeductionAction;
-    }
-    if (action == _salaryAdvanceAction) {
-      return _salaryAdvanceAction;
     }
     return 'سحب راتب';
   }
