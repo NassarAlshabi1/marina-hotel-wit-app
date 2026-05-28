@@ -650,7 +650,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       selectedDate = DateTime.now();
     }
 
-    try {
     String dialogSalaryAction = _salaryWithdrawAction;
     selectedType = existing?.expenseType ?? 'اخرى';
 
@@ -853,29 +852,27 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     try {
       if (existing == null) {
-          final newId = await repo.create(
-            expenseType: savedType,
-            relatedId: isSalaryExpense ? selectedEmployeeId : null,
-            description: trimmedDescription,
-            amount: parsedAmount,
-            date: trimmedDate,
-          );
+        final newId = await repo.create(
+          expenseType: savedType,
+          relatedId: isSalaryExpense ? selectedEmployeeId : null,
+          description: trimmedDescription,
+          amount: parsedAmount,
+          date: trimmedDate,
+        );
 
-          if (isSalaryExpense && selectedEmployeeId != null) {
-            final signedAmount = savedType == _salaryDeductionAction
-                ? -parsedAmount
-                : parsedAmount;
-            await salaryRepo.saveFromExpense(
-              expenseId: newId,
-              employeeId: selectedEmployeeId!,
-              action: savedType,
-              amount: signedAmount,
-              date: trimmedDate,
-              note: trimmedDescription,
-              // ✅ إصلاح: استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
-              hotelDayKey: HotelTimeEngine.getHotelDayKeyFromIso(trimmedDate),
-            );
-          }
+        if (isSalaryExpense && selectedEmployeeId != null) {
+          final signedAmount = savedType == _salaryDeductionAction
+              ? -parsedAmount
+              : parsedAmount;
+          await salaryRepo.saveFromExpense(
+            expenseId: newId,
+            employeeId: selectedEmployeeId!,
+            action: savedType,
+            amount: signedAmount,
+            date: trimmedDate,
+            note: trimmedDescription,
+            hotelDayKey: HotelTimeEngine.getHotelDayKeyFromIso(trimmedDate),
+          );
         }
       } else {
         await repo.update(
@@ -897,7 +894,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
-            // ✅ إصلاح: استخدام HotelTimeEngine للتوابق مع البيانات المُخزنة
             hotelDayKey: HotelTimeEngine.getHotelDayKeyFromIso(trimmedDate),
           );
         } else {
@@ -931,7 +927,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           backgroundColor: Colors.red.shade900,
         ),
       );
-    }
     } finally {
       description.dispose();
       amount.dispose();
