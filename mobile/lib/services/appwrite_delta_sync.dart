@@ -1684,6 +1684,118 @@ class AppwriteDeltaSync {
     return value == null ? const d.Value.absent() : d.Value(value);
   }
 
+  /// تطبيق تغييرات القائمة السوداء (blacklist) — مخزنة في shiftNotes مع createdBy='blacklist'
+  Future<void> _applyBlacklistChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final name = _asString(data['name']);
+    if (name == null || name.isEmpty) return;
+
+    // تحويل بيانات Appwrite إلى صيغة shift_notes المحلية
+    final content = _encodeBlacklistContent(data);
+
+    // Appwrite blacklist: createdAt/updatedAt/deletedAt هي STRING (ISO)
+    final createdAtIso = _asString(data['createdAt']) ??
+        _asString(data['createdAtIso']) ??
+        DateTime.now().toIso8601String();
+    final updatedAtIso = _asString(data['updatedAt']) ??
+        _asString(data['updatedAtIso']) ??
+        createdAtIso;
+
+    // تحويل ISO إلى epoch seconds
+    int createdAtEpoch;
+    try {
+      createdAtEpoch = DateTime.parse(createdAtIso).millisecondsSinceEpoch ~/ 1000;
+    } catch (_) {
+      createdAtEpoch = Time.nowEpoch();
+    }
+    int updatedAtEpoch;
+    try {
+      updatedAtEpoch = DateTime.parse(updatedAtIso).millisecondsSinceEpoch ~/ 1000;
+    } catch (_) {
+      updatedAtEpoch = Time.nowEpoch();
+    }
+
+    final lastModified = _asInt(data['lastModified']) ?? createdAtEpoch;
+
+    // معالجة الحذف الناعم
+    final deletedAtVal = data['deletedAt'];
+    if (deletedAtVal != null) {
+      int? deletedAtEpoch;
+      final deletedAtStr = _asString(deletedAtVal);
+      if (deletedAtStr != null && deletedAtStr.isNotEmpty) {
+        try {
+          deletedAtEpoch = DateTime.parse(deletedAtStr).millisecondsSinceEpoch ~/ 1000;
+        } catch (_) {
+          deletedAtEpoch = _asInt(deletedAtVal);
+        }
+      } else {
+        deletedAtEpoch = _asInt(deletedAtVal);
+      }
+      if (deletedAtEpoch != null && deletedAtEpoch > 0) {
+        // حذف السجل المحلي
+        final existing = await (db.select(db.shiftNotes)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (existing != null) {
+          await (db.delete(db.shiftNotes)
+                ..where((t) => t.localUuid.equals(localUuid)))
+              .go();
+        }
+        return;
+      }
+    }
+
+    final companion = ShiftNotesCompanion(
+      title: d.Value(name),
+      content: d.Value(content),
+      priority: const d.Value('high'),
+      shiftType: const d.Value('all'),
+      createdAt: d.Value(createdAtEpoch),
+      createdAtIso: d.Value(createdAtIso),
+      updatedAt: d.Value(updatedAtEpoch),
+      lastModified: d.Value(lastModified),
+      expiresAt: const d.Value(null),
+      isRead: const d.Value(0),
+      createdBy: const d.Value('blacklist'),
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+    );
+
+    // upsert: البحث عن سجل موجود بنفس localUuid
+    final existing = await (db.select(db.shiftNotes)
+          ..where((t) => t.localUuid.equals(localUuid)))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      await (db.update(db.shiftNotes)
+            ..where((t) => t.localUuid.equals(localUuid)))
+          .write(companion);
+    } else {
+      await db.into(db.shiftNotes).insert(companion);
+    }
+  }
+
+  /// تحويل محتوى القائمة السوداء إلى JSON string
+  String _encodeBlacklistContent(Map<String, dynamic> data) {
+    final Map<String, dynamic> content = {
+      'nationality': _asString(data['nationality']) ?? '',
+      'nationalId': _asString(data['nationalId']) ?? '',
+      'phone': _asString(data['phone']) ?? '',
+      'reason': _asString(data['reason']) ?? '',
+      'notes': _asString(data['notes']) ?? '',
+      'reportedBy': _asString(data['reportedBy']) ?? 'police',
+      'active': _asBool(data['active']) ?? true,
+    };
+    try {
+      return jsonEncode(content);
+    } catch (_) {
+      return '{}';
+    }
+  }
+
   /// حل FK للموظف من البيانات البعيدة: UUID → id → serverId
   /// يُرجع المعرف المحلي أو null إذا كان السجل يتيم
   Future<int?> _resolveEmployeeId(
