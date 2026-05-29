@@ -7,6 +7,7 @@ import 'appwrite_config_manager.dart';
 import 'appwrite_error_handler.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
+import 'appwrite/sync_rate_limiter.dart';
 
 /// خدمة Appwrite الأساسية - CRUD Operations
 class AppwriteService {
@@ -22,6 +23,7 @@ class AppwriteService {
   final _errorHandler = AppwriteErrorHandler();
   final _cache = AppwriteCacheManager();
   final _networkHelper = AppwriteNetworkHelper();
+  final _rateLimiter = SyncRateLimiter();
 
   bool _initialized = false;
 
@@ -113,12 +115,18 @@ class AppwriteService {
       );
 
       Future<List<models.Document>> performOperation() async {
-        final documentList = await _databases.listDocuments(
-          databaseId: AppwriteConfigManager.databaseId,
-          collectionId: collectionId,
-          queries: pagedQueries,
+        // Rate-limited read operation
+        return _rateLimiter.execute(
+          endpoint: 'read',
+          operation: () async {
+            final documentList = await _databases.listDocuments(
+              databaseId: AppwriteConfigManager.databaseId,
+              collectionId: collectionId,
+              queries: pagedQueries,
+            );
+            return documentList.documents;
+          },
         );
-        return documentList.documents;
       }
 
       final pageDocs = useRetry
@@ -221,51 +229,63 @@ class AppwriteService {
   }) async {
     final dbId = AppwriteConfigManager.databaseId;
 
-    // نحاول التحديث أولاً (Optimistic) — 404 متوقع في Upsert
-    try {
-      return await _databases.updateDocument(
-        databaseId: dbId,
-        collectionId: collectionId,
-        documentId: documentId,
-        data: data,
-      );
-    } on AppwriteException catch (e) {
-      // 404 Not Found -> Create (هذا السلوك الطبيعي لـ Upsert)
-      if (e.code == 404 || e.toString().contains('document_not_found')) {
-        return _networkHelper.withRetryAndTimeout(
-          operation: () => _databases.createDocument(
+    // Rate-limited upsert operation
+    return _rateLimiter.execute(
+      endpoint: 'write',
+      operation: () async {
+        // نحاول التحديث أولاً (Optimistic) — 404 متوقع في Upsert
+        try {
+          return await _databases.updateDocument(
             databaseId: dbId,
             collectionId: collectionId,
             documentId: documentId,
             data: data,
-          ),
-          operationName: 'createDocument',
-        );
-      }
-      rethrow;
-    }
+          );
+        } on AppwriteException catch (e) {
+          // 404 Not Found -> Create (هذا السلوك الطبيعي لـ Upsert)
+          if (e.code == 404 || e.toString().contains('document_not_found')) {
+            return _networkHelper.withRetryAndTimeout(
+              operation: () => _databases.createDocument(
+                databaseId: dbId,
+                collectionId: collectionId,
+                documentId: documentId,
+                data: data,
+              ),
+              operationName: 'createDocument',
+            );
+          }
+          rethrow;
+        }
+      },
+    );
   }
 
   Future<void> _deleteDocumentInternal({
     required String collectionId,
     required String documentId,
   }) async {
-    try {
-      await _networkHelper.withRetryAndTimeout(
-        operation: () => _databases.deleteDocument(
-          databaseId: AppwriteConfigManager.databaseId,
-          collectionId: collectionId,
-          documentId: documentId,
-        ),
-        operationName: 'deleteDocument',
-      );
-    } on AppwriteException catch (e) {
-      if (e.code == 404) {
-        // Already deleted, ignore
-        return;
-      }
-      rethrow;
-    }
+    // Rate-limited delete operation
+    return _rateLimiter.execute(
+      endpoint: 'write',
+      operation: () async {
+        try {
+          await _networkHelper.withRetryAndTimeout(
+            operation: () => _databases.deleteDocument(
+              databaseId: AppwriteConfigManager.databaseId,
+              collectionId: collectionId,
+              documentId: documentId,
+            ),
+            operationName: 'deleteDocument',
+          );
+        } on AppwriteException catch (e) {
+          if (e.code == 404) {
+            // Already deleted, ignore
+            return;
+          }
+          rethrow;
+        }
+      },
+    );
   }
 
   // ---------------------------------------------------------------------------
