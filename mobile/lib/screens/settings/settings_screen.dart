@@ -205,13 +205,24 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 20),
 
-          // قسم إعدادات عامة
-          _buildSectionTitle('إعدادات عامة', Icons.settings),
+          // قسم إعدادات WhatsApp
+          _buildSectionTitle('إعدادات WhatsApp', Icons.chat_bubble, color: const Color(0xFF25D366)),
           _buildSettingsGrid(context, [
+            _SettingsItem(
+              title: 'رسالة الدفع',
+              subtitle: 'تخصيص نص رسالة الدفع',
+              icon: Icons.message,
+              color: Colors.green,
+              onTap: () => Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(builder: (context) => const WhatsAppSettingsScreen(),
+                ),
+              ),
+            ),
             _SettingsItem(
               title: 'تذكير المتبقي',
               subtitle: 'تذكير واتساب بالمتأخر للحجوزات النشطة',
-              icon: Icons.payment,
+              icon: Icons.notifications_active,
               color: Colors.blue,
               onTap: () => Navigator.push<void>(
                 context,
@@ -222,7 +233,7 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsItem(
               title: 'تنبيه تأخر الدفع',
               subtitle: 'إرسال تنبيه واتساب للديون المتأخرة',
-              icon: Icons.notifications_active,
+              icon: Icons.warning,
               color: Colors.red,
               onTap: () => Navigator.push<void>(
                 context,
@@ -231,21 +242,9 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             _SettingsItem(
-              title: 'رسالة الواتساب',
-              subtitle: 'تخصيص نص رسالة الدفع',
-              icon: Icons.message,
-              color: Colors.green,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const WhatsAppSettingsScreen(),
-                ),
-              ),
-            ),
-
-            _SettingsItem(
-              title: 'واتساب',
+              title: 'التقارير اليومية',
               subtitle: 'الإشعارات الفورية والتقارير اليومية',
-              icon: Icons.chat,
+              icon: Icons.summarize,
               color: const Color(0xFF25D366),
               onTap: () => Navigator.push<void>(
                 context,
@@ -253,6 +252,13 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
             ),
+          ]),
+
+          const SizedBox(height: 20),
+
+          // قسم إعدادات عامة
+          _buildSectionTitle('إعدادات عامة', Icons.settings),
+          _buildSettingsGrid(context, [
             _SettingsItem(
               title: 'المظهر',
               subtitle: 'الوضع الليلي والألوان',
@@ -406,19 +412,20 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionTitle(String title, IconData icon) {
+  Widget _buildSectionTitle(String title, IconData icon, {Color? color}) {
+    final effectiveColor = color ?? Colors.blue;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, color: Colors.blue, size: 24),
+          Icon(icon, color: effectiveColor, size: 24),
           const SizedBox(width: 8),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.blue,
+              color: effectiveColor,
             ),
           ),
         ],
