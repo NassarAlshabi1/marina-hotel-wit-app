@@ -288,6 +288,75 @@ class PaymentsRepository {
     }
   }
 
+  /// ✅ إصلاح: إضافة دالة لإلغاء المدفوعات (void)
+  /// تُستخدم لإلغاء مدفوعة مع_reason ولضمان عدم احتسابها في التقارير
+  Future<int> voidPayment(int id, String reason) async {
+    try {
+      final payment = await (db.select(db.payments)..where((p) => p.id.equals(id))).getSingleOrNull();
+      final bookingId = payment?.bookingLocalId;
+
+      final result = await db.transaction(() async {
+        final rows = await dao.voidPayment(id, reason);
+        if (rows > 0 && bookingId != null) {
+          await derivedFields.refreshForBookingId(bookingId);
+        }
+        return rows;
+      });
+
+      if (result > 0) {
+        unawaited(AutoBackupManager.instance.onDataChange(
+          'payments',
+          'VOID',
+          recordData: {'id': id},
+        ),);
+      }
+      return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'PaymentsRepository',
+        action: 'voidPayment',
+        error: e,
+        stackTrace: stack,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
+  }
+
+  /// ✅ إصلاح: إضافة دالة لاستعادة المدفوعات الملغاة (unvoid)
+  Future<int> unvoidPayment(int id) async {
+    try {
+      final payment = await (db.select(db.payments)..where((p) => p.id.equals(id))).getSingleOrNull();
+      final bookingId = payment?.bookingLocalId;
+
+      final result = await db.transaction(() async {
+        final rows = await dao.unvoidPayment(id);
+        if (rows > 0 && bookingId != null) {
+          await derivedFields.refreshForBookingId(bookingId);
+        }
+        return rows;
+      });
+
+      if (result > 0) {
+        unawaited(AutoBackupManager.instance.onDataChange(
+          'payments',
+          'UNVOID',
+          recordData: {'id': id},
+        ),);
+      }
+      return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'PaymentsRepository',
+        action: 'unvoidPayment',
+        error: e,
+        stackTrace: stack,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
+  }
+
   // دوال النسخ الاحتياطي
 
   /// تصدير بيانات المدفوعات

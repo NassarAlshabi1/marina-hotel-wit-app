@@ -689,6 +689,11 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       return;
     }
 
+    // ✅ إصلاح: حفظ مرجع الـ Navigator قبل الـ async await
+    // لمنع مشاكل Race Condition عند استخدام dialogContext بعد await
+    final navigator = Navigator.of(dialogContext);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     setState(() => _isSavingPayment = true);
 
     try {
@@ -717,9 +722,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       );
 
       if (mounted) {
-        // ignore: use_build_context_synchronously
-        Navigator.pop(dialogContext);
-        ScaffoldMessenger.of(context).showSnackBar(
+        // ✅ إصلاح: استخدام المرجع المحفوظ لـ Navigator
+        navigator.pop();
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text(
               'تم تسجيل الدفعة ${CurrencyFormatter.formatAmount(parsedAmount)} بنجاح',
@@ -737,9 +742,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         extra: {'amount': amountText, 'method': method.name},
       );
       if (mounted) {
-        // ignore: use_build_context_synchronously
-        Navigator.pop(dialogContext);
-        ScaffoldMessenger.of(context).showSnackBar(
+        // ✅ إصلاح: استخدام المرجع المحفوظ لـ Navigator
+        navigator.pop();
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل الدفعة: $e'),
             backgroundColor: Colors.red,

@@ -43,7 +43,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   late TextEditingController _phoneController;
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
   double _remainingAmount = 0;
-  late String _currentGuestPhone;
+  String _currentGuestPhone = '';  // ✅ إصلاح: تهيئة بسلسلة فارغة
   bool _isSavingPayment = false;
   double _debtAmount = 0;
   StreamSubscription<void>? _hotelDayTickerSub;
@@ -2215,11 +2215,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     try {
+      // ✅ إصلاح: استخدام guestPhone من الحجز كـ fallback
+      final phoneToUse = _currentGuestPhone.isNotEmpty
+          ? _currentGuestPhone
+          : widget.booking.guestPhone;
       final receipt = Receipt(
         receiptNumber: 'REC${DateTime.now().millisecondsSinceEpoch}',
         payment: payment,
         guestName: widget.booking.guestName,
-        guestPhone: _currentGuestPhone,
+        guestPhone: phoneToUse,
         roomNumber: widget.booking.roomNumber,
         generatedAt: DateTime.now(),
       );
@@ -2239,6 +2243,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
     final messenger = ScaffoldMessenger.of(context);
     try {
+      // ✅ إصلاح: استخدام guestPhone من الحجز كـ fallback
+      final phoneToUse = _currentGuestPhone.isNotEmpty
+          ? _currentGuestPhone
+          : widget.booking.guestPhone;
       final checkin =
           DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
       final plannedCheckout = widget.booking.checkoutDate != null
@@ -2255,7 +2263,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         invoiceNumber: 'INV${DateTime.now().millisecondsSinceEpoch}',
         bookingId: widget.booking.localUuid,
         guestName: widget.booking.guestName,
-        guestPhone: _currentGuestPhone,
+        guestPhone: phoneToUse,
         roomNumber: widget.booking.roomNumber,
         checkinDate: checkin,
         checkoutDate: checkout,
