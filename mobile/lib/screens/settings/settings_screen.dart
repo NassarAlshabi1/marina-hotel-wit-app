@@ -158,8 +158,8 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             _SettingsItem(
-              title: 'Appwrite',
-              subtitle: 'المزامنة السحابية',
+              title: 'Appwrite Sync',
+              subtitle: 'مزامنة البيانات السحابية',
               icon: Icons.cloud_sync,
               color: Colors.pink,
               onTap: () => Navigator.push<void>(
@@ -169,8 +169,8 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             _SettingsItem(
-              title: 'PHP API',
-              subtitle: 'إعدادات الخادم والاتصال',
+              title: 'API الخادم',
+              subtitle: 'إعدادات الاتصال بالخادم',
               icon: Icons.api,
               color: Colors.indigo,
               onTap: () => Navigator.push<void>(
