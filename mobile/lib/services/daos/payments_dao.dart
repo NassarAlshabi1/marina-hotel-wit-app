@@ -406,6 +406,82 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     return result.read(payments.id.count()) ?? 0;
   }
 
+  /// ✅ إصلاح: إضافة دالة لإلغاء المدفوعات (void payment)
+  /// تُستخدم لإلغاء مدفوعة مع_reason ولضمان عدم احتسابها في التقارير
+  Future<int> voidPayment(
+    int id,
+    String reason, {
+    bool originIsServer = false,
+  }) async {
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) {
+        return 0;
+      }
+      if (existing.isVoided) {
+        return 0; // Already voided
+      }
+
+      final comp = PaymentsCompanion(
+        isVoided: const Value(true),
+        voidedAt: Value(now),
+        notes: existing.notes != null
+            ? Value('${existing.notes}\n[ملغاة]: $reason')
+            : Value('[ملغاة]: $reason'),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        version: Value(existing.version + 1),
+      );
+
+      final rows = await (update(payments)..where((t) => t.id.equals(id))).write(comp);
+
+      if (rows > 0 && !originIsServer) {
+        await _mergeOutbox(
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
+  }
+
+  /// ✅ إصلاح: إضافة دالة لاستعادة المدفوعات الملغاة (unvoid)
+  Future<int> unvoidPayment(int id, {bool originIsServer = false}) async {
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) {
+        return 0;
+      }
+      if (!existing.isVoided) {
+        return 0; // Not voided
+      }
+
+      final comp = PaymentsCompanion(
+        isVoided: const Value(false),
+        voidedAt: const Value(null),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        version: Value(existing.version + 1),
+      );
+
+      final rows = await (update(payments)..where((t) => t.id.equals(id))).write(comp);
+
+      if (rows > 0 && !originIsServer) {
+        await _mergeOutbox(
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
+  }
+
   /// مسح جميع البيانات
   Future<void> clearAllData() async {
     await delete(payments).go();

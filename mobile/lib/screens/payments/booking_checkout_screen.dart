@@ -95,6 +95,12 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     final paymentsRepo = ref.watch(paymentsRepoProvider);
     final roomsRepo = ref.watch(roomsRepoProvider);
 
+    // ✅ إصلاح: استخدام HotelDateHelper بدلاً من DateTime.now()
+    // لضمان اتساق الحسابات عند إعادة فتح الشاشة
+    // اليوم الفندقي (14:00 -> 14:00) يضمن ثبات الحسابات
+    final now = HotelDateHelper.getHotelDay(DateTime.now());
+    final hotelDayNow = HotelDateHelper.getHotelDayKey();
+
     return wrapWithSyncOnExit(
       child: AppScaffold(
         title: 'دفع الحجز',
@@ -117,9 +123,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                           checkout: plannedCheckout,
                         )
                       : 1);
-            // إذا لم يسجل النزيل خروج، نستخدم الوقت الحالي لحساب الليالي
-            // حتى يتم تطبيق قاعدة الساعة 14:00 (إضافة ليلة إذا تجاوزت الساعة 14)
-            final effectiveCheckout = actualCheckout ?? DateTime.now();
+            // ✅ إصلاح: استخدام تاريخ اليوم الفندقي بدلاً من DateTime.now()
+            // هذا يضمن اتساق الحسابات عند إعادة فتح الشاشة في أوقات مختلفة
+            //Guest who hasn't checked out: use HotelDay for consistent calculations
+            final effectiveCheckout = actualCheckout ?? now;
             final hasNotCheckedOut = actualCheckout == null;
             final nowIsAfterCutoff = HotelDateHelper.isNowAfterCutoff();
             final actualNights = checkin != null
@@ -152,7 +159,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 final nightTotal = nights.isNotEmpty
                     ? nights.fold<double>(0, (sum, n) => sum + n.nightlyRate)
                     : (() {
-                        final checkout = actualCheckout ?? DateTime.now();
+                        // ✅ إصلاح: استخدام effectiveCheckout (الذي هو now أو actualCheckout)
+                        final checkout = effectiveCheckout;
                         if (discount > 0 && discountType == 'per_night' && checkin != null) {
                           final discountedNights = _countNightsWithDiscount(
                             checkin,
