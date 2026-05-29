@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
 
 class FileManagementService {
@@ -56,16 +55,15 @@ class FileManagementService {
       final exportDir = await _getExportDirectory();
       final timestamp = DateTime.now();
 
-      // إنشاء البيانات الخلاصة
-      final backupService = GoogleDriveBackupService();
-      final backupData = await backupService.exportDatabaseToJson();
+      // إنشاء البيانات الخلاصة من قاعدة البيانات المحلية
+      final db = LocalBackupService();
+      final backupData = await db.exportDatabaseToJson();
 
       // إنشاء تقرير قابل للقراءة
       final report = {
         'تقرير_مارينا_هوتيل': {
           'معلومات_عامة': {
             'تاريخ_التقرير': timestamp.toIso8601String(),
-            'إصدار_التطبيق': backupData['metadata']['app_version'],
             'إجمالي_السجلات': backupData['metadata']['total_records'],
           },
           'ملخص_البيانات': {
@@ -324,9 +322,9 @@ class FileManagementService {
     String tableKey,
   ) async {
     try {
-      // الحصول على البيانات من الخدمة
-      final backupService = GoogleDriveBackupService();
-      final backupData = await backupService.exportDatabaseToJson();
+      // الحصول على البيانات من قاعدة البيانات المحلية
+      final db = LocalBackupService();
+      final backupData = await db.exportDatabaseToJson();
 
       if (!backupData.containsKey(tableKey) || backupData[tableKey] is! List) {
         debugPrint('⚠️ لا توجد بيانات للجدول: $tableName');

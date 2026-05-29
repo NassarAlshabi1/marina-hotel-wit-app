@@ -2,7 +2,6 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
-import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
 
 class AutoBackupTask {
@@ -236,14 +235,13 @@ void callbackDispatcher() {
 
       // قراءة إعدادات النسخ التلقائي
       final prefs = await SharedPreferences.getInstance();
-      final enableGoogleDrive = prefs.getBool('auto_backup_enabled') ?? false;
       final enableLocal = prefs.getBool('auto_local_backup_enabled') ?? true;
 
       final localBackupService = LocalBackupService();
       final backupFormat = await localBackupService.getPreferredBackupFormat();
       bool success = true;
 
-      // تنفيذ النسخ المحلي إذا كان مُفعلاً
+      // تنفيذ النسخ المحلي
       if (enableLocal) {
         try {
           debugPrint('📱 بدء النسخ الاحتياطي المحلي...');
@@ -252,28 +250,6 @@ void callbackDispatcher() {
         } catch (e) {
           debugPrint('❌ خطأ في النسخ الاحتياطي المحلي: $e');
           success = false;
-        }
-      }
-
-      // تنفيذ النسخ السحابي إذا كان مُفعلاً ومتصل
-      if (enableGoogleDrive) {
-        try {
-          debugPrint('☁️ بدء النسخ الاحتياطي السحابي...');
-          final driveBackupService = GoogleDriveBackupService();
-          if (!driveBackupService.isSignedIn) {
-            await driveBackupService.attemptSilentSignIn();
-          }
-          if (driveBackupService.isSignedIn) {
-            await driveBackupService.performAutoBackup();
-            debugPrint('✅ تم النسخ الاحتياطي السحابي بنجاح');
-          } else {
-            debugPrint(
-              '⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي',
-            );
-          }
-        } catch (e) {
-          debugPrint('❌ خطأ في النسخ الاحتياطي السحابي: $e');
-          // عدم فشل المهمة إذا فشل النسخ السحابي فقط
         }
       }
 
