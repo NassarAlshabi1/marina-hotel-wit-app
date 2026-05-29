@@ -62,6 +62,7 @@ class SettingsScreen extends ConsumerWidget {
           // بطاقة الإحصائيات السريعة
           _buildQuickStatsCard(
             context,
+            ref,
             roomsAsync,
             bookingsAsync,
             employeesAsync,
@@ -128,6 +129,13 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
             ),
+          ]),
+
+          const SizedBox(height: 20),
+
+          // قسم الأمان
+          _buildSectionTitle('الأمان', Icons.shield, color: Colors.red),
+          _buildSettingsGrid(context, [
             _SettingsItem(
               title: 'القائمة السوداء',
               subtitle: 'إضافة/إدارة الأشخاص المطلوبين',
@@ -181,7 +189,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             _SettingsItem(
               title: 'النسخ الاحتياطي',
-              subtitle: 'محلي · Google Drive · Appwrite',
+              subtitle: 'جدولة وحفظ نسخة احتياطية',
               icon: Icons.backup,
               color: Colors.deepOrange,
               onTap: () => Navigator.push<void>(
@@ -192,7 +200,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             _SettingsItem(
               title: 'حماية البيانات',
-              subtitle: 'إعدادات المزامنة (Push/Pull)',
+              subtitle: 'سياسة المزامنة وحل التعارضات',
               icon: Icons.security,
               color: Colors.teal,
               onTap: () => Navigator.push<void>(
@@ -310,6 +318,7 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildQuickStatsCard(
     BuildContext context,
+    WidgetRef ref,
     AsyncValue<List<Room>> roomsAsync,
     AsyncValue<List<Booking>> bookingsAsync,
     AsyncValue<List<Employee>> employeesAsync,
@@ -333,6 +342,17 @@ class SettingsScreen extends ConsumerWidget {
                 const Text(
                   'إحصائيات سريعة',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'تحديث',
+                  onPressed: () {
+                    ref.invalidate(roomsListProvider);
+                    ref.invalidate(bookingsListProvider);
+                    ref.invalidate(employeesListProvider);
+                    ref.invalidate(usersCountProvider);
+                  },
                 ),
               ],
             ),
