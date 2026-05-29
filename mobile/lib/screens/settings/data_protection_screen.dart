@@ -1267,20 +1267,26 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                 title: const Text('النسخ الاحتياطي المجدول يومياً'),
                 subtitle: Text(
                   _scheduledEnabled
-                      ? 'وقت التنفيذ ${_scheduledTime.format(context)}'
+                      ? 'الساعة ${_scheduledTime.format(context)}'
                       : 'غير مفعل',
                 ),
                 value: _scheduledEnabled,
                 onChanged: _backupBusy ? null : _toggleScheduledBackup,
               ),
-              ListTile(
-                leading: const Icon(Icons.access_time),
-                title: const Text('وقت التنفيذ'),
-                subtitle: Text(_scheduledTime.format(context)),
-                trailing: const Icon(Icons.edit),
-                enabled: !_backupBusy,
-                onTap: _backupBusy ? null : _selectTime,
-              ),
+              if (_scheduledEnabled)
+                ListTile(
+                  leading: const Icon(Icons.access_time),
+                  title: const Text('تعديل الوقت'),
+                  trailing: Text(
+                    _scheduledTime.format(context),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                  enabled: !_backupBusy,
+                  onTap: _backupBusy ? null : _selectTime,
+                ),
             ],
           ),
         ),

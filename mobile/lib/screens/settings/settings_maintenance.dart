@@ -250,7 +250,7 @@ class _SettingsMaintenanceScreenState
 
           _buildMaintenanceCard(
             title: 'مسح Outbox المعطّل',
-            subtitle: 'إعادة تعيين العمليات المعلقة في قائمة الانتظار',
+            subtitle: 'مسح العمليات الفاشلة وإعادة تعيين قائمة الانتظار',
             icon: Icons.outbox,
             color: Colors.deepPurple,
             onTap: () => _showOutboxResetDialog(context, ref),

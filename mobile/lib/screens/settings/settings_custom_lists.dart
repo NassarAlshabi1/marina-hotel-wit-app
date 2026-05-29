@@ -19,9 +19,9 @@ class _SettingsCustomListsScreenState
   late TabController _tabController;
 
   static const _tabs = [
-    _TabConfig(key: kListKeyExpenseType, label: 'أنواع المصروفات', icon: Icons.category),
-    _TabConfig(key: kListKeyIdType, label: 'أنواع الهوية', icon: Icons.badge),
-    _TabConfig(key: kListKeyPaymentMethod, label: 'طرق الدفع', icon: Icons.payment),
+    _TabConfig(key: kListKeyExpenseType, label: 'المصروفات', icon: Icons.category),
+    _TabConfig(key: kListKeyIdType, label: 'الهوية', icon: Icons.badge),
+    _TabConfig(key: kListKeyPaymentMethod, label: 'الدفع', icon: Icons.payment),
   ];
 
   @override
