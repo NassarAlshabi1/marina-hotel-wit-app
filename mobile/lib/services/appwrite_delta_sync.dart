@@ -741,6 +741,7 @@ class AppwriteDeltaSync {
       isVoided: d.Value(_asBool(data['isVoided']) ?? false),
       voidedAt: _nullableValue<int>(_asInt(data['voidedAt'])),
       voidedBy: _nullableValue<String>(_asString(data['voidedBy'])),
+      voidReason: _nullableValue<String>(_asString(data['voidReason'])),  // ✅ استقبال السبب من Appwrite
     );
 
     await db.into(db.payments).insertOnConflictUpdate(companion);

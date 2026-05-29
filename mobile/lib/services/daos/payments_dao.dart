@@ -426,6 +426,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       final comp = PaymentsCompanion(
         isVoided: const Value(true),
         voidedAt: Value(now),
+        voidReason: Value(reason),  // ✅ حفظ السبب منفصلاً للمزامنة
+        voidedBy: Value(existing.voidedBy),  // ✅ إضافة voidedBy
         notes: existing.notes != null
             ? Value('${existing.notes}\n[ملغاة]: $reason')
             : Value('[ملغاة]: $reason'),
@@ -463,6 +465,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       final comp = PaymentsCompanion(
         isVoided: const Value(false),
         voidedAt: const Value(null),
+        voidReason: const Value(null),  // ✅ مسح السبب عند الاستعادة
         updatedAt: Value(now),
         lastModified: Value(now),
         version: Value(existing.version + 1),

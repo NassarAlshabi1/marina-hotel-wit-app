@@ -237,6 +237,7 @@ class Payments extends Table with SyncFields {
   BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
   IntColumn get voidedAt => integer().nullable()();
   TextColumn get voidedBy => text().nullable()();
+  TextColumn get voidReason => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -2007,6 +2008,15 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(salaryPayments, salaryPayments.notes);
         developer.log(
           'Migration 41: Added employeeId, paymentDate, notes to salary_payments',
+          name: 'db.migration',
+        );
+      }
+      
+      // ✅ Migration 42: إضافة voidReason إلى payments للمزامنة مع Appwrite
+      if (from < 42) {
+        await m.addColumn(payments, payments.voidReason);
+        developer.log(
+          'Migration 42: Added voidReason to payments',
           name: 'db.migration',
         );
       }
