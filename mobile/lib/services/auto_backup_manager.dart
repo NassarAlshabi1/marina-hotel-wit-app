@@ -178,76 +178,14 @@ class AutoBackupManager {
     }
   }
 
-  /// إجراء نسخة احتياطية تلقائية
+  /// إجراء نسخة احتياطية تلقائية — DISABLED (Google Drive sync disabled)
   Future<void> _performAutoBackup({
     required String reason,
     int changesCount = 1,
   }) async {
-    if (_isBackingUp || _backupService == null || !_backupService!.isSignedIn) {
-      debugPrint(
-        '⏸️ نسخ تلقائي مؤجل: نسخ جارية $_isBackingUp، مسجل دخول ${_backupService?.isSignedIn}',
-      );
-      return;
-    }
-
-    try {
-      _isBackingUp = true;
-      AppLogger.debug('بدء النسخ التلقائي: $reason ($changesCount تغييرات)');
-
-      // التحقق من آخر نسخة احتياطية لتجنب النسخ المتكررة
-      final lastBackupTime = await _getLastAutoBackupTime();
-      final now = DateTime.now();
-
-      if (lastBackupTime != null &&
-          now.difference(lastBackupTime).inMinutes < 5) {
-        debugPrint(
-          '⏭️ تم تخطي النسخ التلقائي: نسخة حديثة موجودة (${now.difference(lastBackupTime).inMinutes} دقائق)',
-        );
-        return;
-      }
-
-      // إنشاء وتصدير البيانات
-      final backupData = await _backupService!.exportDatabaseToJson();
-
-      // تحديث البيانات الوصفية لتمييز النسخة التلقائية
-      final existingMetadata = backupData['metadata'];
-      Map<String, dynamic> metadata;
-      if (existingMetadata is Map<String, dynamic>) {
-        metadata = existingMetadata;
-      } else if (existingMetadata is Map) {
-        metadata = Map<String, dynamic>.from(existingMetadata);
-        backupData['metadata'] = metadata;
-      } else {
-        metadata = <String, dynamic>{};
-        backupData['metadata'] = metadata;
-      }
-      metadata['backup_type'] = 'auto';
-      metadata['trigger_reason'] = reason;
-      metadata['changes_count'] = changesCount;
-      metadata['device_info'] = '${Platform.operatingSystem} (تلقائي)';
-      metadata['device_id'] = _deviceId;
-      metadata['created_by_device'] = _deviceId;
-
-      // رفع النسخة الاحتياطية كملف تلقائي
-      final fileId = await _backupService!.uploadBackup(
-        backupData,
-      );
-
-      // حفظ وقت آخر نسخة تلقائية
-      await _setLastAutoBackupTime(now);
-
-      AppLogger.info('نسخ تلقائي مكتمل: $fileId ($changesCount تغييرات)');
-
-      // تنظيف النسخ القديمة في الخلفية
-      unawaited(_cleanupOldBackups());
-
-      // إشعار مدير المزامنة الذكية لمزامنة الأجهزة الأخرى
-      await _notifySmartSync();
-    } catch (e) {
-      AppLogger.error('فشل النسخ التلقائي: $e');
-    } finally {
-      _isBackingUp = false;
-    }
+    // ⚠️ Google Drive sync disabled — skip auto backup upload
+    AppLogger.info('Google Drive sync disabled — skipping auto backup upload');
+    return;
   }
 
   /// حذف النسخ الاحتياطية القديمة حسب التاريخ والعدد
@@ -445,7 +383,7 @@ class AutoBackupManager {
     return prefs.getBool(_instantSyncEnabledKey) ?? true;
   }
 
-  /// مزامنة فورية عند الطلب
+  /// مزامنة فورية عند الطلب — Google Drive part DISABLED
   Future<void> syncNow() async {
     AppLogger.debug('بدء المزامنة الفورية...');
 
@@ -454,14 +392,10 @@ class AutoBackupManager {
       await performDeltaSync();
     }
 
+    // ⚠️ Google Drive fullBackup mode disabled — skip _performAutoBackup
     if (_currentMode == BackupMode.fullBackup ||
         _currentMode == BackupMode.both) {
-      if (_backupService != null && _backupService!.isSignedIn) {
-        await _performAutoBackup(
-          reason: 'مزامنة فورية يدوية',
-          changesCount: _pendingChanges > 0 ? _pendingChanges : 1,
-        );
-      }
+      AppLogger.info('Google Drive sync disabled — skipping auto backup in syncNow');
     }
 
     _pendingChanges = 0;

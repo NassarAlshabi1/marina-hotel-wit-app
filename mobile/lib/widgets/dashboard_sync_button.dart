@@ -327,7 +327,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       syncId: syncId,
       direction: 'push',
       deviceId: deviceId,
-      target: 'Appwrite+GoogleDrive',
+      target: 'Appwrite',
       status: 'in_progress',
     );
     if (_isPushing) {
@@ -481,22 +481,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
       }
 
-      // رفع إلى Google Drive (بدون سحب - نسخ احتياطي فقط)
+      // ⚠️ Google Drive push disabled — skip push to Google Drive
       if (smartEnabled && isGoogleDriveSignedIn) {
-        try {
-          final result = await smartSyncManager.pushLocalChanges();
-          results['Google Drive'] = {
-            'success': result,
-            'pushed': _pendingChangesCount,
-          };
-        } catch (e) {
-          results['Google Drive'] = {
-            'success': false,
-            'pushed': 0,
-            'error': e.toString(),
-          };
-          debugPrint('❌ خطأ في رفع التغييرات إلى Google Drive: $e');
-        }
+        debugPrint('Google Drive sync disabled — skipping push from dashboard sync button');
       }
 
       await _loadPendingChangesCount();
@@ -637,7 +624,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         syncId: syncId,
         direction: 'push',
         deviceId: deviceId,
-        target: 'Appwrite+GoogleDrive',
+        target: 'Appwrite',
         status: 'failed',
         errorMessage: e.toString(),
         durationMs: stopwatch.elapsedMilliseconds,

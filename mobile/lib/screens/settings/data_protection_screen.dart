@@ -975,41 +975,33 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         _buildCard(
           SwitchListTile(
             title: const Text('تفعيل مزامنة Google Drive'),
-            subtitle: Text(
-              _googleDriveSyncEnabled
-                  ? 'مفعلة - المزامنة تعمل عند الحاجة'
-                  : 'معطلة - لن يتم أي رفع أو سحب',
+            subtitle: const Text(
+              '⚠️ معطلة - مزامنة Google Drive معطلة حالياً',
             ),
-            value: _googleDriveSyncEnabled,
-            onChanged: _syncBusy ? null : _toggleGoogleDriveSyncEnabled,
+            value: false,
+            onChanged: null, // Disabled
           ),
         ),
         const SizedBox(height: 12),
         _buildCard(
           SwitchListTile(
             title: const Text('تفعيل الرفع إلى Google Drive'),
-            subtitle: Text(
-              _googleDrivePushEnabled
-                  ? 'سيرفع التغييرات والنسخ عند الحاجة'
-                  : 'الرفع معطل بشكل كامل',
+            subtitle: const Text(
+              '⚠️ معطلة - مزامنة Google Drive معطلة حالياً',
             ),
-            value: _googleDrivePushEnabled,
-            onChanged: (!_googleDriveSyncEnabled || _syncBusy)
-                ? null
-                : _toggleGoogleDrivePushEnabled,
+            value: false,
+            onChanged: null, // Disabled
           ),
         ),
         const SizedBox(height: 12),
         _buildCard(
           SwitchListTile(
             title: const Text('تعطيل مزامنة Google Drive عند بدء التشغيل'),
-            subtitle: Text(
-              _googleDriveSyncDisableOnStart
-                  ? 'ستتعطل تلقائياً عند فتح التطبيق'
-                  : 'لن يتم التعطيل تلقائياً',
+            subtitle: const Text(
+              '⚠️ مزامنة Google Drive معطلة حالياً بالكامل',
             ),
-            value: _googleDriveSyncDisableOnStart,
-            onChanged: _syncBusy ? null : _toggleGoogleDriveSyncDisableOnStart,
+            value: true,
+            onChanged: null, // Disabled
           ),
         ),
         const SizedBox(height: 12),

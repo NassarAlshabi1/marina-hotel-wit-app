@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:marina_hotel_mobile/services/google_drive_backup_service.dart';
 
+/// ⚠️ Google Drive Sync DISABLED
+/// Sign-in/sign-out still works for authentication, but ALL
+/// backup/restore/delete operations are disabled.
 class GoogleDriveSettingsScreen extends StatefulWidget {
   const GoogleDriveSettingsScreen({super.key});
 
@@ -14,7 +17,6 @@ class _GoogleDriveSettingsScreenState
   final _driveService = GoogleDriveBackupService();
   bool _isLoading = true;
   bool _isInitializing = true;
-  List<GoogleDriveBackupFile> _backups = [];
   String? _statusMessage;
   Map<String, String?> _savedUser = {};
 
@@ -38,30 +40,10 @@ class _GoogleDriveSettingsScreenState
         _isInitializing = false;
         _isLoading = false;
         if (isRestored) {
-          _statusMessage = 'تم استعادة الجلسة بنجاح';
+          _statusMessage = 'تم استعادة الجلسة بنجاح (المزامنة معطلة)';
         } else if (_savedUser['email'] != null) {
           _statusMessage = 'آخر مستخدم: ${_savedUser['email']}';
         }
-      });
-      
-      if (isRestored) {
-        _loadBackups();
-      }
-    }
-  }
-
-  Future<void> _loadBackups() async {
-    setState(() => _isLoading = true);
-    try {
-      final backups = await _driveService.listBackups();
-      setState(() {
-        _backups = backups;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _statusMessage = 'خطأ في جلب النسخ: $e';
       });
     }
   }
@@ -72,107 +54,16 @@ class _GoogleDriveSettingsScreenState
     setState(() {
       _isLoading = false;
       _statusMessage = success
-          ? 'تم تسجيل الدخول بنجاح'
+          ? 'تم تسجيل الدخول بنجاح (المزامنة معطلة)'
           : 'فشل في تسجيل الدخول';
     });
-    if (success) {
-      _loadBackups();
-    }
   }
 
   Future<void> _signOut() async {
     await _driveService.signOut();
     setState(() {
-      _backups = [];
       _statusMessage = 'تم تسجيل الخروج';
     });
-  }
-
-  Future<void> _createBackup() async {
-    setState(() {
-      _isLoading = true;
-      _statusMessage = null;
-    });
-
-    final result = await _driveService.createBackup();
-
-    setState(() {
-      _isLoading = false;
-      _statusMessage = result.message;
-    });
-
-    if (result.success) {
-      _loadBackups();
-    }
-  }
-
-  Future<void> _restoreBackup(String fileId) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('تأكيد الاستعادة'),
-        content: const Text(
-          'هل تريد استعادة هذه النسخة؟ سيتم استبدال البيانات الحالية.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('استعادة'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      setState(() {
-        _isLoading = true;
-        _statusMessage = null;
-      });
-
-      final result = await _driveService.restoreBackup(fileId);
-
-      setState(() {
-        _isLoading = false;
-        _statusMessage = result.message;
-      });
-    }
-  }
-
-  Future<void> _deleteBackup(String fileId) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('حذف النسخة'),
-        content: const Text('هل تريد حذف هذه النسخة نهائياً؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      final success = await _driveService.deleteBackup(fileId);
-      if (success) {
-        _loadBackups();
-        setState(() => _statusMessage = 'تم حذف النسخة');
-      } else {
-        setState(() => _statusMessage = 'فشل في حذف النسخة');
-      }
-    }
   }
 
   @override
@@ -182,16 +73,32 @@ class _GoogleDriveSettingsScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Google Drive'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadBackups,
-          ),
-        ],
       ),
       body: Column(
         children: [
-          // Status card
+          // ⚠️ Disabled banner
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            color: Colors.orange.shade100,
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'مزامنة Google Drive معطلة حالياً. تسجيل الدخول متاح لكن النسخ الاحتياطي والاستعادة ومزامنة البيانات معطلة.',
+                    style: TextStyle(
+                      color: Colors.orange.shade800,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Status message
           if (_statusMessage != null)
             Container(
               width: double.infinity,
@@ -257,7 +164,7 @@ class _GoogleDriveSettingsScreenState
                         ),
                         child: Text(
                           isSignedIn
-                              ? 'متصل'
+                              ? 'متصل (معطل)'
                               : _savedUser['email'] != null
                                   ? 'جلسة محفوظة'
                                   : 'غير متصل',
@@ -306,112 +213,52 @@ class _GoogleDriveSettingsScreenState
                       ),
                     )
                   else
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _signOut,
-                            icon: const Icon(Icons.logout),
-                            label: const Text('تسجيل الخروج'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _isLoading ? null : _createBackup,
-                            icon: const Icon(Icons.backup),
-                            label: const Text('إنشاء نسخة'),
-                          ),
-                        ),
-                      ],
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _signOut,
+                        icon: const Icon(Icons.logout),
+                        label: const Text('تسجيل الخروج'),
+                      ),
                     ),
                 ],
               ),
             ),
           ),
 
-          // Backups list
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : !isSignedIn
-                    ? const Center(
-                        child: Text(
-                          'قم بتسجيل الدخول أولاً لعرض النسخ',
-                          style: TextStyle(color: Colors.grey),
+          // Info card explaining disabled state
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Text(
+                        'ملاحظة',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
                         ),
-                      )
-                    : _backups.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'لا توجد نسخ احتياطية',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: _backups.length,
-                            itemBuilder: (ctx, index) {
-                              final backup = _backups[index];
-                              return Card(
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 4,
-                                ),
-                                child: ListTile(
-                                  leading: const Icon(Icons.description),
-                                  title: Text(backup.name),
-                                  subtitle: Text(
-                                    '${_formatSize(backup.size)} • ${_formatDate(backup.modifiedTime)}',
-                                  ),
-                                  trailing: PopupMenuButton<String>(
-                                    onSelected: (value) {
-                                      if (value == 'restore') {
-                                        _restoreBackup(backup.id);
-                                      } else if (value == 'delete') {
-                                        _deleteBackup(backup.id);
-                                      }
-                                    },
-                                    itemBuilder: (ctx) => [
-                                      const PopupMenuItem(
-                                        value: 'restore',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.restore),
-                                            SizedBox(width: 8),
-                                            Text('استعادة'),
-                                          ],
-                                        ),
-                                      ),
-                                      const PopupMenuItem(
-                                        value: 'delete',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.delete, color: Colors.red),
-                                            SizedBox(width: 8),
-                                            Text('حذف',
-                                                style: TextStyle(color: Colors.red)),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'مزامنة Google Drive معطلة حالياً. يمكنك تسجيل الدخول لكن لن يتم رفع أو تنزيل أي بيانات تلقائياً أو يدوياً.',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
-  }
-
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
   }
 }

@@ -96,7 +96,10 @@ class GoogleDriveBackupResult {
   final String? message;
 }
 
-/// Google Drive service for backup and restore operations
+/// ⚠️ Google Drive Sync DISABLED
+/// Login (signIn/signOut) still works for authentication, but ALL
+/// sync/backup/restore/upload/download operations return immediately
+/// with a "disabled" result. No data is transferred to/from Google Drive.
 class GoogleDriveBackupService {
   GoogleDriveBackupService() {
     _googleSignIn = GoogleSignIn(
@@ -108,7 +111,6 @@ class GoogleDriveBackupService {
 
   late final GoogleSignIn _googleSignIn;
   String? _accessToken;
-  // ignore: unused_field
   String? _refreshToken;
   String? _appFolderId;
   DateTime? _tokenExpiry;
@@ -277,418 +279,56 @@ class GoogleDriveBackupService {
     return false;
   }
 
-  /// Get or create the app folder in Google Drive
-  Future<String?> _getAppFolderId() async {
-    if (_appFolderId != null) return _appFolderId;
+  // ────────────────────────────────────────────────────────────
+  // ⚠️ ALL SYNC/BACKUP/RESTORE OPERATIONS ARE DISABLED BELOW
+  // Login still works, but NO data is transferred to/from Google Drive.
+  // ────────────────────────────────────────────────────────────
 
-    try {
-      // Search for existing folder
-      final query = Uri.encodeComponent(
-        "name='${GoogleDriveConfig._appFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=False",
-      );
-      final uri = Uri.parse(
-        'https://www.googleapis.com/drive/v3/files?q=$query',
-      );
-
-      final response = await http.get(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $_accessToken',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final files = data['files'] as List<dynamic>? ?? [];
-
-        if (files.isNotEmpty) {
-          _appFolderId = files.first['id'] as String?;
-          return _appFolderId;
-        }
-
-        // Create folder if not exists
-        return await _createAppFolder();
-      }
-    } catch (e) {
-      AppLogger.error('خطأ في جلب مجلد التطبيق: $e');
-    }
-    return null;
-  }
-
-  /// Create the app folder in Google Drive
-  Future<String?> _createAppFolder() async {
-    try {
-      final uri = Uri.parse(
-        'https://www.googleapis.com/drive/v3/files',
-      );
-
-      final body = jsonEncode({
-        'name': GoogleDriveConfig._appFolderName,
-        'mimeType': 'application/vnd.google-apps.folder',
-      });
-
-      final response = await http.post(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $_accessToken',
-          'Content-Type': 'application/json',
-        },
-        body: body,
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        _appFolderId = data['id'] as String?;
-        return _appFolderId;
-      }
-    } catch (e) {
-      AppLogger.error('خطأ في إنشاء مجلد التطبيق: $e');
-    }
-    return null;
-  }
-
-  /// Create a backup to Google Drive
+  /// Create a backup to Google Drive — DISABLED
   Future<GoogleDriveBackupResult> createBackup({
     BackupFormat format = BackupFormat.json,
   }) async {
-    if (!isSignedIn || _accessToken == null) {
-      return const GoogleDriveBackupResult(
-        success: false,
-        message: 'غير مسجل الدخول إلى Google',
-      );
-    }
-
-    try {
-      AppLogger.debug('جاري إنشاء نسخة احتياطية...');
-
-      final folderId = await _getAppFolderId();
-      if (folderId == null) {
-        return const GoogleDriveBackupResult(
-          success: false,
-          message: 'فشل في الوصول إلى مجلد Google Drive',
-        );
-      }
-
-      // Get database data
-      final db = DatabaseManager.instance;
-      final timestamp = DateTime.now();
-
-      final roomsData = await db.select(db.rooms).get();
-      final bookingsData = await db.select(db.bookings).get();
-      final bookingNotesData = await db.select(db.bookingNotes).get();
-      final employeesData = await db.select(db.employees).get();
-      final expensesData = await db.select(db.expenses).get();
-      final cashTransactionsData = await db.select(db.cashTransactions).get();
-      final paymentsData = await db.select(db.payments).get();
-      final syncStateData = await db.select(db.syncState).get();
-
-      final totalRecords = roomsData.length +
-          bookingsData.length +
-          bookingNotesData.length +
-          employeesData.length +
-          expensesData.length +
-          cashTransactionsData.length +
-          paymentsData.length;
-
-      final metadata = {
-        'app_version': '1.2.0+3',
-        'database_version': db.schemaVersion,
-        'backup_timestamp': timestamp.toIso8601String(),
-        'total_records': totalRecords,
-        'device_info': 'Google Drive Backup',
-        'format': format.name,
-      };
-
-      final backupData = {
-        'metadata': metadata,
-        'rooms': roomsData.map((r) => r.toJson()).toList(),
-        'bookings': bookingsData.map((b) => b.toJson()).toList(),
-        'booking_notes': bookingNotesData.map((n) => n.toJson()).toList(),
-        'employees': employeesData.map((e) => e.toJson()).toList(),
-        'expenses': expensesData.map((e) => e.toJson()).toList(),
-        'cash_transactions': cashTransactionsData.map((c) => c.toJson()).toList(),
-        'payments': paymentsData.map((p) => p.toJson()).toList(),
-        'sync_state': syncStateData.isNotEmpty ? syncStateData.first.toJson() : <String, dynamic>{},
-      };
-
-      final jsonString = jsonEncode(backupData);
-      final fileName = 'marina_backup_${timestamp.toIso8601String().split('T')[0]}.json';
-
-      // Upload to Google Drive
-      final fileId = await _uploadFile(
-        folderId: folderId,
-        fileName: fileName,
-        content: utf8.encode(jsonString),
-        mimeType: 'application/json',
-      );
-
-      if (fileId != null) {
-        await GoogleDriveConfig.saveLastSync(timestamp);
-        AppLogger.info('تم إنشاء النسخة الاحتياطية: $fileName');
-        return GoogleDriveBackupResult(
-          success: true,
-          fileId: fileId,
-          fileName: fileName,
-          recordCount: totalRecords,
-          message: 'تم إنشاء النسخة الاحتياطية بنجاح',
-        );
-      }
-
-      return const GoogleDriveBackupResult(
-        success: false,
-        message: 'فشل في رفع الملف',
-      );
-    } catch (e) {
-      AppLogger.error('خطأ في إنشاء النسخة: $e');
-      return GoogleDriveBackupResult(
-        success: false,
-        message: 'خطأ: $e',
-      );
-    }
+    AppLogger.warning('مزامنة Google Drive معطلة - تم تجاهل إنشاء نسخة احتياطية');
+    return const GoogleDriveBackupResult(
+      success: false,
+      message: 'مزامنة Google Drive معطلة',
+    );
   }
 
-  /// Upload file to Google Drive
-  Future<String?> _uploadFile({
-    required String folderId,
-    required String fileName,
-    required List<int> content,
-    required String mimeType,
-  }) async {
-    try {
-      final uri = Uri.parse(
-        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-      );
-
-      final request = http.MultipartRequest('POST', uri);
-      request.headers['Authorization'] = 'Bearer $_accessToken';
-
-      final metadata = {
-        'name': fileName,
-        'parents': [folderId],
-      };
-
-      request.files.add(http.MultipartFile.fromBytes(
-        'metadata',
-        utf8.encode(jsonEncode(metadata)),
-        filename: 'metadata.json',
-      ));
-
-      request.files.add(http.MultipartFile.fromBytes(
-        'file',
-        content,
-        filename: fileName,
-      ));
-
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return data['id'] as String?;
-      }
-
-      AppLogger.error('فشل رفع الملف: ${response.body}');
-      return null;
-    } catch (e) {
-      AppLogger.error('خطأ في رفع الملف: $e');
-      return null;
-    }
-  }
-
-  /// List all backups in Google Drive
+  /// List all backups in Google Drive — DISABLED
   Future<List<GoogleDriveBackupFile>> listBackups() async {
-    if (!isSignedIn || _accessToken == null) {
-      return [];
-    }
-
-    try {
-      final folderId = await _getAppFolderId();
-      if (folderId == null) return [];
-
-      final query = Uri.encodeComponent(
-        "'$folderId' in parents and mimeType='application/json' and trashed=false",
-      );
-      final uri = Uri.parse(
-        'https://www.googleapis.com/drive/v3/files?q=$query&orderBy=modifiedTime desc',
-      );
-
-      final response = await http.get(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $_accessToken',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final files = data['files'] as List<dynamic>? ?? [];
-
-        return files.map((f) {
-          final file = f as Map<String, dynamic>;
-          return GoogleDriveBackupFile(
-            id: (file['id'] as String?) ?? '',
-            name: (file['name'] as String?) ?? '',
-            size: int.tryParse((file['size'] ?? '').toString()) ?? 0,
-            modifiedTime: file['modifiedTime'] != null
-                ? DateTime.parse(file['modifiedTime'] as String)
-                : DateTime.now(),
-          );
-        }).toList();
-      }
-    } catch (e) {
-      AppLogger.error('خطأ في جلب قائمة النسخ: $e');
-    }
+    AppLogger.warning('مزامنة Google Drive معطلة - تم تجاهل جلب قائمة النسخ');
     return [];
   }
 
-  /// Restore from a Google Drive backup
+  /// Restore from a Google Drive backup — DISABLED
   Future<GoogleDriveBackupResult> restoreBackup(String fileId) async {
-    if (!isSignedIn || _accessToken == null) {
-      return const GoogleDriveBackupResult(
-        success: false,
-        message: 'غير مسجل الدخول إلى Google',
-      );
-    }
-
-    try {
-      AppLogger.debug('جاري استعادة النسخة الاحتياطية...');
-
-      // Download file content
-      final uri = Uri.parse(
-        'https://www.googleapis.com/drive/v3/files/$fileId?alt=media',
-      );
-
-      final response = await http.get(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $_accessToken',
-        },
-      );
-
-      if (response.statusCode != 200) {
-        return GoogleDriveBackupResult(
-          success: false,
-          message: 'فشل في تحميل الملف: ${response.statusCode}',
-        );
-      }
-
-      final backupData = jsonDecode(response.body) as Map<String, dynamic>;
-
-      // Validate backup data
-      if (!backupData.containsKey('metadata')) {
-        return const GoogleDriveBackupResult(
-          success: false,
-          message: 'ملف النسخة غير صالح',
-        );
-      }
-
-      final metadata = backupData['metadata'] as Map<String, dynamic>;
-      final dbVersion = metadata['database_version'] as int? ?? 0;
-      final currentDb = DatabaseManager.instance;
-
-      if (dbVersion > currentDb.schemaVersion) {
-        return const GoogleDriveBackupResult(
-          success: false,
-          message: 'إصدار قاعدة البيانات في النسخة أحدث من الإصدار الحالي',
-        );
-      }
-
-      // Restore data (simplified - full implementation would restore each table)
-      final totalRecords = metadata['total_records'] as int? ?? 0;
-
-      AppLogger.info('تم استعادة $totalRecords سجل');
-      return GoogleDriveBackupResult(
-        success: true,
-        recordCount: totalRecords,
-        message: 'تم استعادة النسخة بنجاح',
-      );
-    } catch (e) {
-      AppLogger.error('خطأ في استعادة النسخة: $e');
-      return GoogleDriveBackupResult(
-        success: false,
-        message: 'خطأ: $e',
-      );
-    }
+    AppLogger.warning('مزامنة Google Drive معطلة - تم تجاهل استعادة النسخة');
+    return const GoogleDriveBackupResult(
+      success: false,
+      message: 'مزامنة Google Drive معطلة',
+    );
   }
 
-  /// Delete a backup from Google Drive
+  /// Delete a backup from Google Drive — DISABLED
   Future<bool> deleteBackup(String fileId) async {
-    if (!isSignedIn || _accessToken == null) {
-      return false;
-    }
-
-    try {
-      final uri = Uri.parse(
-        'https://www.googleapis.com/drive/v3/files/$fileId',
-      );
-
-      final response = await http.delete(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $_accessToken',
-        },
-      );
-
-      return response.statusCode == 204;
-    } catch (e) {
-      AppLogger.error('خطأ في حذف النسخة: $e');
-      return false;
-    }
+    AppLogger.warning('مزامنة Google Drive معطلة - تم تجاهل حذف النسخة');
+    return false;
   }
 
-  /// Export database to JSON (for use by other services)
+  /// Export database to JSON (for use by other services) — DISABLED
   Future<Map<String, dynamic>> exportDatabaseToJson() async {
-    final db = DatabaseManager.instance;
-    final timestamp = DateTime.now();
-
-    final roomsData = await db.select(db.rooms).get();
-    final bookingsData = await db.select(db.bookings).get();
-    final bookingNotesData = await db.select(db.bookingNotes).get();
-    final employeesData = await db.select(db.employees).get();
-    final expensesData = await db.select(db.expenses).get();
-    final cashTransactionsData = await db.select(db.cashTransactions).get();
-    final paymentsData = await db.select(db.payments).get();
-
-    final totalRecords = roomsData.length +
-        bookingsData.length +
-        bookingNotesData.length +
-        employeesData.length +
-        expensesData.length +
-        cashTransactionsData.length +
-        paymentsData.length;
-
-    return {
-      'metadata': {
-        'app_version': '1.2.0+3',
-        'database_version': db.schemaVersion,
-        'backup_timestamp': timestamp.toIso8601String(),
-        'total_records': totalRecords,
-        'device_info': 'Local Export',
-      },
-      'rooms': roomsData.map((r) => r.toJson()).toList(),
-      'bookings': bookingsData.map((b) => b.toJson()).toList(),
-      'booking_notes': bookingNotesData.map((n) => n.toJson()).toList(),
-      'employees': employeesData.map((e) => e.toJson()).toList(),
-      'expenses': expensesData.map((e) => e.toJson()).toList(),
-      'cash_transactions': cashTransactionsData.map((c) => c.toJson()).toList(),
-      'payments': paymentsData.map((p) => p.toJson()).toList(),
-    };
+    AppLogger.warning('مزامنة Google Drive معطلة - تم تجاهل تصدير قاعدة البيانات');
+    return {};
   }
 
-  /// Perform automatic backup (called by background task)
+  /// Perform automatic backup (called by background task) — DISABLED
   Future<GoogleDriveBackupResult> performAutoBackup() async {
-    if (!isSignedIn) {
-      final silentSignIn = await attemptSilentSignIn();
-      if (!silentSignIn) {
-        return const GoogleDriveBackupResult(
-          success: false,
-          message: 'غير مسجل الدخول',
-        );
-      }
-    }
-    return createBackup();
+    AppLogger.warning('مزامنة Google Drive معطلة - تم تجاهل النسخ التلقائي');
+    return const GoogleDriveBackupResult(
+      success: false,
+      message: 'مزامنة Google Drive معطلة',
+    );
   }
 
   /// Get last backup time
@@ -773,100 +413,39 @@ class GoogleDriveBackupService {
     return ok ? _googleSignIn.currentUser : null;
   }
 
-  /// Alias for [listBackups] — used by backup_provider.dart, auto_backup_manager.dart, smart_sync_manager.dart
+  /// Alias for [listBackups] — used by backup_provider.dart, auto_backup_manager.dart, smart_sync_manager.dart — DISABLED
   Future<List<GoogleDriveBackupFile>> listBackupFiles() => listBackups();
 
-  /// Upload backup data map to Google Drive and return the file ID
+  /// Upload backup data map to Google Drive and return the file ID — DISABLED
   Future<String?> uploadBackup(Map<String, dynamic> backupData) async {
-    if (!isSignedIn || _accessToken == null) {
-      await attemptSilentSignIn();
-    }
-    if (!isSignedIn || _accessToken == null) return null;
-
-    final folderId = await _getAppFolderId();
-    if (folderId == null) return null;
-
-    final timestamp = DateTime.now();
-    final fileName = 'marina_backup_${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecond}.json';
-
-    return _uploadFile(
-      folderId: folderId,
-      fileName: fileName,
-      content: utf8.encode(jsonEncode(backupData)),
-      mimeType: 'application/json',
-    );
+    AppLogger.warning('مزامنة Google Drive معطلة - تم تجاهل رفع النسخة');
+    return null;
   }
 
-  /// Upload backup data with a custom name
+  /// Upload backup data with a custom name — DISABLED
   Future<String?> uploadBackupWithName(
     Map<String, dynamic> backupData,
     String fileName,
   ) async {
-    if (!isSignedIn || _accessToken == null) {
-      await attemptSilentSignIn();
-    }
-    if (!isSignedIn || _accessToken == null) return null;
-
-    final folderId = await _getAppFolderId();
-    if (folderId == null) return null;
-
-    return _uploadFile(
-      folderId: folderId,
-      fileName: fileName,
-      content: utf8.encode(jsonEncode(backupData)),
-      mimeType: 'application/json',
-    );
+    AppLogger.warning('مزامنة Google Drive معطلة - تم تجاهل رفع النسخة بالاسم');
+    return null;
   }
 
-  /// Download a backup file and return its parsed JSON content
+  /// Download a backup file and return its parsed JSON content — DISABLED
   Future<Map<String, dynamic>> downloadBackup(String fileId) async {
-    if (!isSignedIn || _accessToken == null) {
-      await attemptSilentSignIn();
-    }
-
-    final uri = Uri.parse(
-      'https://www.googleapis.com/drive/v3/files/$fileId?alt=media',
-    );
-
-    final response = await http.get(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $_accessToken',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body) as Map<String, dynamic>;
-    }
-
-    throw Exception('فشل تحميل النسخة الاحتياطية: ${response.statusCode}');
+    AppLogger.warning('مزامنة Google Drive معطلة - تم تجاهل تنزيل النسخة');
+    throw Exception('مزامنة Google Drive معطلة');
   }
 
-  /// Restore from a backup data map (downloaded JSON)
+  /// Restore from a backup data map (downloaded JSON) — DISABLED
   Future<bool> restoreFromBackup(Map<String, dynamic> backupData) async {
-    try {
-      // Delegate to the existing restore logic via RestoreFixService
-      // ignore: unused_local_variable
-      final db = DatabaseManager.instance;
-      await DatabaseManager.runWithRestoreGuard<void>(() async {
-        // Basic restore: clear tables and re-insert from backupData
-        final rooms = backupData['rooms'] as List<dynamic>? ?? [];
-        final bookings = backupData['bookings'] as List<dynamic>? ?? [];
-
-        if (rooms.isEmpty && bookings.isEmpty) {
-          AppLogger.warning('لا توجد بيانات لاستعادتها');
-          return;
-        }
-
-        AppLogger.info('تم استعادة النسخة بنجاح (${rooms.length} غرفة, ${bookings.length} حجز)');
-      });
-      return true;
-    } catch (e) {
-      AppLogger.error('خطأ في استعادة النسخة: $e');
-      return false;
-    }
+    AppLogger.warning('مزامنة Google Drive معطلة - تم تجاهل استعادة النسخة');
+    return false;
   }
 
-  /// Delete a backup file by its ID — alias for [deleteBackup]
-  Future<bool> deleteBackupFile(String fileId) => deleteBackup(fileId);
+  /// Delete a backup file by its ID — DISABLED
+  Future<bool> deleteBackupFile(String fileId) async {
+    AppLogger.warning('مزامنة Google Drive معطلة - تم تجاهل حذف النسخة');
+    return false;
+  }
 }

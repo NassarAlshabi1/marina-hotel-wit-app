@@ -1,54 +1,17 @@
 import 'dart:async';
-import 'dart:developer' as developer;
-import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
-
-import '../services/unified_sync_orchestrator.dart';
 
 const _kImmediateWorkName = 'marina_auto_sync_now';
 const _kPeriodicWorkName = 'marina_auto_sync_periodic';
-const _kPendingFlagKey = 'auto_sync_pending';
 const _kDebounceWindow = Duration(seconds: 1);
 
 @pragma('vm:entry-point')
 void autoSyncCallbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) async {
-    try {
-      WidgetsFlutterBinding.ensureInitialized();
-      DartPluginRegistrant.ensureInitialized();
-
-      final prefs = await SharedPreferences.getInstance();
-      final googleDriveEnabled =
-          prefs.getBool('google_drive_sync_enabled') ?? false;
-
-      if (!googleDriveEnabled) {
-        return true;
-      }
-
-      final success = await UnifiedSyncOrchestrator.instance.syncNow(
-        reason: 'google_drive_background_task',
-      );
-
-      if (success) {
-        await prefs.setBool(_kPendingFlagKey, false);
-      } else {
-        await prefs.setBool(_kPendingFlagKey, true);
-      }
-
-      return success;
-    } catch (error, stackTrace) {
-      developer.log(
-        'Auto-sync background task failed',
-        name: 'AutoSyncTask',
-        error: error is Exception ? error.runtimeType.toString() : error,
-        stackTrace: stackTrace,
-        level: 1000,
-      );
-      return false;
-    }
+    // ⚠️ Google Drive sync disabled — always return true without syncing
+    return true;
   });
 }
 
@@ -119,16 +82,9 @@ class AutoSyncTask {
     await Workmanager().cancelByUniqueName(_kPeriodicWorkName);
   }
 
-  /// استهلاك العلامة المخزنة وتشغيل المزامنة الحقيقية داخل التطبيق الرئيسي
+  /// استهلاك العلامة المخزنة وتشغيل المزامنة الحقيقية — DISABLED
   static Future<void> consumePendingAndSync({bool force = false}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final pending = prefs.getBool(_kPendingFlagKey) ?? false;
-    if (!pending && !force) {
-      return;
-    }
-    await UnifiedSyncOrchestrator.instance.syncNow(
-      reason: 'pending_sync',
-    );
-    await prefs.setBool(_kPendingFlagKey, false);
+    // ⚠️ Google Drive sync disabled — no-op
+    return;
   }
 }

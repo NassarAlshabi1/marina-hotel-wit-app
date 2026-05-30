@@ -107,22 +107,9 @@ class AlarmBackup {
         }
       }
 
+      // ⚠️ Google Drive sync disabled — skip Drive backup even if enabled
       if (enableGoogleDrive) {
-        try {
-          final drive = GoogleDriveBackupService();
-
-          // حاول تسجيل الدخول بهدوء
-          final signed = await drive.signInSilentlyIfNeeded();
-          if (signed) {
-            await drive.performAutoBackup();
-            AppLogger.info('Drive backup done from alarm');
-          } else {
-            AppLogger.warning('Drive not signed in (alarm). Notifying user...');
-            await _showOpenAppNotification();
-          }
-        } catch (e) {
-          AppLogger.error('Drive backup error: $e');
-        }
+        AppLogger.info('Google Drive sync disabled — skipping Drive backup from alarm');
       }
     } catch (e) {
       AppLogger.error('Alarm backup general error: $e');

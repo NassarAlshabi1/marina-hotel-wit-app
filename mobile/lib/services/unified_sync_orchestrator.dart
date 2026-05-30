@@ -6,9 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/sync_models.dart' as models;
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
-import 'google_drive_backup_service.dart';
 import 'google_drive_unified_sync_coordinator.dart'
-    show GoogleDriveUnifiedSyncCoordinator, SyncTrigger, SyncMode, GoogleDriveLogger;
+    show GoogleDriveUnifiedSyncCoordinator;
 import 'google_drive_auto_sync_engine.dart' show SyncResult;
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
@@ -453,55 +452,14 @@ class UnifiedSyncOrchestrator {
     return manager;
   }
 
+  /// Google Drive sync — DISABLED
   Future<bool> _syncGoogleDrive({
     required bool push,
     required bool pull,
     required String reason,
   }) async {
-    final coordinator =
-        _driveCoordinator ?? GoogleDriveUnifiedSyncCoordinator.instance;
-    _driveCoordinator ??= coordinator;
-
-    if (!coordinator.isInitialized) {
-      final backupService = GoogleDriveBackupService();
-      final signedIn = await backupService.attemptSilentSignIn();
-      if (!signedIn) {
-        return false;
-      }
-      final logger = GoogleDriveLogger();
-      await logger.initialize();
-      final db = _database ?? DatabaseManager.instance;
-      _database ??= db;
-      await coordinator.initialize(
-        backupService: backupService,
-        database: db,
-        logger: logger,
-      );
-    }
-
-    if (push && pull) {
-      final result = await coordinator.performSync(
-        trigger: SyncTrigger.manual,
-      );
-      return result.success;
-    }
-
-    if (push && !pull) {
-      final result = await coordinator.performSync(
-        trigger: SyncTrigger.localChange,
-      );
-      return result.success;
-    }
-
-    if (!push && pull) {
-      final result = await coordinator.performSync(
-        trigger: SyncTrigger.periodic,
-        mode: SyncMode.deltaOnly,
-      );
-      return result.success;
-    }
-
-    return true;
+    AppLogger.info('Google Drive sync disabled — skipping _syncGoogleDrive');
+    return false;
   }
 
   Future<void> _verifySyncIntegrity() async {

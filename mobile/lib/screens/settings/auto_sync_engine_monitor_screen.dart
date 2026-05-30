@@ -640,65 +640,22 @@ class _AutoSyncEngineMonitorScreenState
     );
   }
 
+  /// Manual sync — DISABLED (Google Drive sync disabled)
   Future<void> _performManualSync(BuildContext context) async {
-    unawaited(showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('جارٍ المزامنة...'),
+    if (mounted) {
+      unawaited(showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('المزامنة معطلة'),
+          content: const Text('مزامنة Google Drive معطلة حالياً. لا يمكن إجراء مزامنة يدوية.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('حسناً'),
+            ),
           ],
         ),
-      ),
-    ),);
-
-    try {
-      final result = await AutoSyncEngine.instance.forceSyncNow();
-
-      if (mounted) {
-        // ignore: use_build_context_synchronously
-        Navigator.of(context).pop();
-      }
-
-      if (mounted) {
-        final message = result.success
-            ? '✅ ${result.message}\n'
-                  '📤 مرفوع: ${result.pushedChanges ?? 0}\n'
-                  '📥 مسحوب: ${result.pulledChanges ?? 0}'
-            : '❌ ${result.message}\n'
-                  '${result.error ?? ""}';
-
-        unawaited(showDialog<void>(
-          // ignore: use_build_context_synchronously
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(result.success ? 'نجح!' : 'فشل'),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('حسناً'),
-              ),
-            ],
-          ),
-        ),);
-      }
-
-      ref.invalidate(autoSyncEngineStateProvider);
-    } catch (e) {
-      if (mounted) {
-        // ignore: use_build_context_synchronously
-        Navigator.of(context).pop();
-      }
-      if (mounted) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red),
-        );
-      }
+      ));
     }
   }
 

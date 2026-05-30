@@ -376,23 +376,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     }
   }
 
-  /// إشعار مديري المزامنة بتغير حالة تسجيل الدخول
+  /// إشعار مديري المزامنة بتغير حالة تسجيل الدخول — DISABLED
   Future<void> _notifySyncManagers(bool isSignedIn) async {
-    // إشعار مدير المزامنة الذكية
-    try {
-      final smartSync = SmartSyncManager.instance;
-      await smartSync.onGoogleDriveSignInChanged(isSignedIn);
-    } catch (e) {
-      AppLogger.warning('خطأ في إشعار مدير المزامنة: $e');
-    }
-
-    // إشعار محرك المزامنة التلقائية
-    try {
-      final autoSyncEngine = AutoSyncEngine.instance;
-      await autoSyncEngine.onSignInChanged(isSignedIn);
-    } catch (e) {
-      AppLogger.warning('خطأ في إشعار محرك المزامنة التلقائية: $e');
-    }
+    // ⚠️ Google Drive sync disabled — do not notify sync managers on sign-in
+    AppLogger.info('Google Drive sync disabled — skipping _notifySyncManagers');
   }
 
   /// تسجيل الدخول الصامت في Google Drive — بدون إظهار واجهة للمستخدم
@@ -963,18 +950,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
             }
           }
 
-          // رفع إلى Google Drive إذا كان مسجل الدخول
+          // ⚠️ Google Drive push disabled — skip push to Google Drive after restore
           if (state.isSignedIn) {
-            state = state.copyWith(
-              message: 'رفع البيانات إلى Google Drive...',
-              progress: 0.9,
-            );
-            try {
-              await _smartSyncManager.pushLocalChanges();
-              AppLogger.info('تم رفع البيانات إلى Google Drive');
-            } catch (e) {
-              AppLogger.warning('فشل رفع البيانات إلى Google Drive: $e');
-            }
+            AppLogger.info('Google Drive sync disabled — skipping push after restore');
           }
         } catch (e) {
           AppLogger.warning('خطأ في مزامنة البيانات إلى السحابة: $e');
