@@ -1,15 +1,38 @@
-import 'local_db.dart';
+import 'logging/log_models.dart';
 
-enum ConflictResolutionStrategy { newerWins, olderWins, localWins, remoteWins }
+/// استراتيجيات حل التضارب في المزامنة
+enum ConflictResolutionStrategy {
+  newerWins,
+  olderWins,
+  localWins,
+  remoteWins,
+  devicePriorityBased,
+  manualReview,
+}
 
 class GoogleDriveConflictResolver {
   static final instance = GoogleDriveConflictResolver();
-  
+
+  ConflictResolutionStrategy _currentStrategy = ConflictResolutionStrategy.newerWins;
+
   void initialize(GoogleDriveLogger logger) {}
-  
-  Future<void> setStrategy(ConflictResolutionStrategy strategy) async {}
-  
+
+  Future<void> setStrategy(ConflictResolutionStrategy strategy) async {
+    _currentStrategy = strategy;
+  }
+
+  Future<ConflictResolutionStrategy> getStrategy() async => _currentStrategy;
+
   Future<void> setConflictThreshold(int threshold) async {}
+
+  Future<Map<String, dynamic>> getConflictStatistics() async => {
+    'total_conflicts': 0,
+    'auto_resolved': 0,
+    'manual_resolved': 0,
+    'pending': 0,
+  };
+
+  Future<List<Map<String, dynamic>>> getConflictHistory({int limit = 50}) async => [];
 }
 
 class GoogleDriveLogger {

@@ -272,7 +272,7 @@ class AutoBackupManager {
       final retentionDays = await _getRetentionDays();
       final cutoffDate = DateTime.now().subtract(Duration(days: retentionDays));
 
-      final filesToDelete = <DriveBackupFile>[];
+      final filesToDelete = <gd.DriveBackupFile>[];
 
       // حذف النسخ الزائدة عن العدد المحدد
       if (backupFiles.length > maxBackups) {
@@ -296,10 +296,10 @@ class AutoBackupManager {
           try {
             await _backupService!.deleteBackupFile(file.fileId);
             debugPrint(
-              '✅ تم حذف: ${file.fileName} (${_formatDateTime(file.createdTime)})',
+              '✅ تم حذف: ${file.name} (${_formatDateTime(file.createdTime ?? file.modifiedTime)})',
             );
           } catch (e) {
-            AppLogger.error('فشل حذف ${file.fileName}: $e');
+            AppLogger.error('فشل حذف ${file.name}: $e');
           }
         }
 

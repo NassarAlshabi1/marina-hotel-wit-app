@@ -240,16 +240,17 @@ class SmartSyncManager {
       }
 
       // ترتيب حسب التاريخ (الأحدث أولاً)
-      backupFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
+      backupFiles.sort((a, b) => (b.createdTime ?? b.modifiedTime).compareTo(a.createdTime ?? a.modifiedTime));
       final latestBackup = backupFiles.first;
 
       // التحقق من آخر timestamp محفوظ محلياً
       final lastRemoteTimestamp = await _getLastRemoteTimestamp();
 
+      final latestBackupTime = latestBackup.createdTime ?? latestBackup.modifiedTime;
       if (lastRemoteTimestamp == null ||
-          latestBackup.createdTime.isAfter(lastRemoteTimestamp)) {
+          latestBackupTime.isAfter(lastRemoteTimestamp)) {
         // التحقق من أن النسخة ليست من نفس الجهاز
-        final backupDeviceId = latestBackup.appProperties['device_id'];
+        final backupDeviceId = latestBackup.appProperties?['device_id'];
         if (backupDeviceId != _deviceId) {
           _log('🆕 تم العثور على نسخة احتياطية جديدة من جهاز آخر');
           await _handleNewBackupFound(latestBackup);
@@ -292,7 +293,7 @@ class SmartSyncManager {
       await _performDataSync(backupData, newBackup, conflictResolution);
 
       // حفظ timestamp النسخة الجديدة
-      await _setLastRemoteTimestamp(newBackup.createdTime);
+      await _setLastRemoteTimestamp(newBackup.createdTime ?? newBackup.modifiedTime);
 
       // إشعار النجاح
       await _notifySuccessfulSync(newBackup);
@@ -563,11 +564,11 @@ class SmartSyncManager {
 
   /// إشعار نجاح المزامنة
   Future<void> _notifySuccessfulSync(DriveBackupFile backup) async {
-    final deviceId = backup.appProperties['device_id'] ?? 'جهاز آخر';
+    final deviceId = backup.appProperties?['device_id'] ?? 'جهاز آخر';
     _log('🎉 تمت مزامنة البيانات من $deviceId');
     _log('📅 تاريخ النسخة: ${backup.createdTime}');
 
-    final recordsCount = backup.appProperties['records_count'] ?? 'غير محدد';
+    final recordsCount = backup.appProperties?['records_count'] ?? 'غير محدد';
     _log('📊 عدد السجلات: $recordsCount');
 
     // إرسال إشعار للمستخدم بوصول تغييرات جديدة
@@ -871,17 +872,18 @@ class SmartSyncManager {
       }
 
       // ترتيب حسب التاريخ (الأحدث أولاً)
-      backupFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
+      backupFiles.sort((a, b) => (b.createdTime ?? b.modifiedTime).compareTo(a.createdTime ?? a.modifiedTime));
       final latestBackup = backupFiles.first;
 
       // التحقق من آخر timestamp محفوظ محلياً
       final lastRemoteTimestamp = await _getLastRemoteTimestamp();
 
       // إذا كانت النسخة أحدث من آخر سحب
+      final latestBackupTime = latestBackup.createdTime ?? latestBackup.modifiedTime;
       if (lastRemoteTimestamp == null ||
-          latestBackup.createdTime.isAfter(lastRemoteTimestamp)) {
+          latestBackupTime.isAfter(lastRemoteTimestamp)) {
         // التحقق من أن النسخة ليست من نفس الجهاز
-        final backupDeviceId = latestBackup.appProperties['device_id'];
+        final backupDeviceId = latestBackup.appProperties?['device_id'];
         if (backupDeviceId == _deviceId) {
           _log('📱 النسخة الأحدث من نفس هذا الجهاز');
           return false;
@@ -898,7 +900,7 @@ class SmartSyncManager {
         );
 
         // تحديث timestamp
-        await _setLastRemoteTimestamp(latestBackup.createdTime);
+        await _setLastRemoteTimestamp(latestBackup.createdTime ?? latestBackup.modifiedTime);
         await _updateLastSyncTime();
 
         _log('✅ تم تطبيق التغييرات الجديدة بنجاح');

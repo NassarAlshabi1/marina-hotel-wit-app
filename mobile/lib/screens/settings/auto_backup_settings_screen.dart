@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../providers/auto_backup_provider.dart';
+import '../../providers/auto_backup_provider.dart' hide googleDriveBackupServiceProvider;
 import '../../providers/backup_provider.dart';
 import '../../services/alarm_backup.dart';
 import '../../services/auto_backup_manager.dart';

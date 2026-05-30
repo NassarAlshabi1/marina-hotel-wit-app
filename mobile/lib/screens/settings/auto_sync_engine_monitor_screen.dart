@@ -1048,6 +1048,8 @@ class _AutoSyncEngineMonitorScreenState
     switch (strategy) {
       case ConflictResolutionStrategy.newerWins:
         return 'الأحدث يفوز';
+      case ConflictResolutionStrategy.olderWins:
+        return 'الأقدم يفوز';
       case ConflictResolutionStrategy.localWins:
         return 'المحلي يفوز دائماً';
       case ConflictResolutionStrategy.remoteWins:
@@ -1063,6 +1065,8 @@ class _AutoSyncEngineMonitorScreenState
     switch (strategy) {
       case ConflictResolutionStrategy.newerWins:
         return 'البيانات الأحدث زمنياً تفوز (افتراضي)';
+      case ConflictResolutionStrategy.olderWins:
+        return 'البيانات الأقدم زمنياً تفوز';
       case ConflictResolutionStrategy.localWins:
         return 'البيانات المحلية تفوز دائماً';
       case ConflictResolutionStrategy.remoteWins:

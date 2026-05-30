@@ -104,7 +104,7 @@ class GoogleDriveBackupResult {
 class GoogleDriveBackupService {
   GoogleDriveBackupService() {
     _googleSignIn = GoogleSignIn(
-      scopes: [_scopes],
+      scopes: [GoogleDriveConfig._scopes],
       // Force server-side auth for better session persistence
       signInOption: SignInOption.games,
     );
@@ -287,7 +287,7 @@ class GoogleDriveBackupService {
     try {
       // Search for existing folder
       final query = Uri.encodeComponent(
-        "name='$_appFolderName' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        "name='${GoogleDriveConfig._appFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=False",
       );
       final uri = Uri.parse(
         'https://www.googleapis.com/drive/v3/files?q=$query',
@@ -306,7 +306,7 @@ class GoogleDriveBackupService {
         final files = data['files'] as List<dynamic>? ?? [];
 
         if (files.isNotEmpty) {
-          _appFolderId = files.first['id'];
+          _appFolderId = files.first['id'] as String?;
           return _appFolderId;
         }
 
@@ -327,7 +327,7 @@ class GoogleDriveBackupService {
       );
 
       final body = jsonEncode({
-        'name': _appFolderName,
+        'name': GoogleDriveConfig._appFolderName,
         'mimeType': 'application/vnd.google-apps.folder',
       });
 
@@ -342,7 +342,7 @@ class GoogleDriveBackupService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        _appFolderId = data['id'];
+        _appFolderId = data['id'] as String?;
         return _appFolderId;
       }
     } catch (e) {
@@ -487,8 +487,8 @@ class GoogleDriveBackupService {
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['id'];
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['id'] as String?;
       }
 
       AppLogger.error('فشل رفع الملف: ${response.body}');
@@ -529,12 +529,13 @@ class GoogleDriveBackupService {
         final files = data['files'] as List<dynamic>? ?? [];
 
         return files.map((f) {
+          final file = f as Map<String, dynamic>;
           return GoogleDriveBackupFile(
-            id: f['id'] ?? '',
-            name: f['name'] ?? '',
-            size: int.tryParse(f['size']?.toString() ?? '0') ?? 0,
-            modifiedTime: f['modifiedTime'] != null
-                ? DateTime.parse(f['modifiedTime'])
+            id: (file['id'] as String?) ?? '',
+            name: (file['name'] as String?) ?? '',
+            size: int.tryParse((file['size'] ?? '').toString()) ?? 0,
+            modifiedTime: file['modifiedTime'] != null
+                ? DateTime.parse(file['modifiedTime'] as String)
                 : DateTime.now(),
           );
         }).toList();
@@ -576,7 +577,7 @@ class GoogleDriveBackupService {
         );
       }
 
-      final backupData = jsonDecode(response.body);
+      final backupData = jsonDecode(response.body) as Map<String, dynamic>;
 
       // Validate backup data
       if (!backupData.containsKey('metadata')) {

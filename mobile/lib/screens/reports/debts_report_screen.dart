@@ -71,10 +71,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       final db = ref.read(databaseProvider);
 
       // ═══════════════════════════════════════════════════════════════
-      // ✅ إصلاح خارق: استخدام hotelDayKey بدلاً من paymentDate التقويمي
+      // ✅ إصلاح: استخدام hotelDayOpened بدلاً من paymentDate التقويمي
       //
       // السبب: الدين المُسجل في الصباح (10:00) ينتمي لليوم الفندقي السابق
-      // مثال: دين بتاريخ 2026-05-29 10:00 → hotelDayKey = "2026-05-28"
+      // مثال: دين بتاريخ 2026-05-29 10:00 → hotelDayOpened = "2026-05-28"
       // فلترة paymentDate كانت تُدرج الديون في اليوم الخاطئ
       //
       // النطاق: _fromDate/_toDate يأتيان من ReportDateFilterWidget
@@ -91,17 +91,17 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
           : null;
 
-      // فلترة على مستوى DB مع hotelDayKey + deletedAt
+      // فلترة على مستوى DB مع hotelDayOpened + deletedAt
       var query = db.select(db.debts)
         ..where((tbl) => tbl.deletedAt.isNull());
 
       if (fromHotelDay != null) {
         query = query..where((tbl) =>
-            tbl.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay)));
+            tbl.hotelDayOpened.isBiggerOrEqual(Variable(fromHotelDay)));
       }
       if (toHotelDay != null) {
         query = query..where((tbl) =>
-            tbl.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay)));
+            tbl.hotelDayOpened.isSmallerOrEqual(Variable(toHotelDay)));
       }
 
       final filtered = await query.get();

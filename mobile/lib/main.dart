@@ -42,12 +42,9 @@ import 'services/crashlytics_service.dart';
 import 'services/database_sync_coordinator.dart';
 import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/fcm_service.dart';
-// ⚠️ Google Drive imports DISABLED
-// import 'services/google_drive_auto_sync_engine.dart';
-// import 'services/google_drive_backup_service.dart';
-// import 'services/google_drive_conflict_resolver.dart';
-// import 'services/google_drive_logger.dart';
-// import 'services/google_drive_unified_sync_coordinator.dart';
+import 'services/google_drive_auto_sync_engine.dart';
+import 'services/google_drive_conflict_resolver.dart';
+import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/local_db.dart';
 import 'services/logging/log_models.dart';
 import 'services/remote_config_service.dart';
@@ -68,17 +65,7 @@ import 'utils/hotel_day_ticker.dart';
 import 'utils/id.dart';
 import 'utils/theme.dart';
 
-// ⚠️ Stubs for disabled Google Drive classes
-enum ConflictResolutionStrategy { newerWins, olderWins, localWins, remoteWins, devicePriorityBased, manualReview }
-
-class AutoSyncEngine {
-  static final instance = AutoSyncEngine();
-  AutoSyncEngine();
-  Future<void> start() async {}
-  Future<void> stop() async {}
-  Future<void> restart() async {}
-  Future<void> disposeInstance() async {}
-}
+// Google Drive classes are now imported from their own files
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -197,24 +184,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       stackTrace: st,
     );
   }
-}
-
-Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
-  // ⚠️ DISABLED: Google Drive Auto Sync Engine is disabled
-  AppLogger.debug(
-    'AutoSyncEngine configuration called (DISABLED)',
-    tag: 'MAIN',
-  );
-}
-
-StreamSubscription<void>? _globalEngineMonitoringSub;
-
-void _startEngineMonitoring(AutoSyncEngine engine) {
-  // ⚠️ DISABLED: Engine monitoring is disabled
-  AppLogger.debug(
-    'Engine monitoring requested (DISABLED)',
-    tag: 'MAIN',
-  );
 }
 
 class App extends ConsumerStatefulWidget {
@@ -516,7 +485,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   @override
   void dispose() {
     AppwriteRealtimeSync().stop();
-    _globalEngineMonitoringSub?.cancel();
     _localAutoSyncSub?.cancel();
     _conflictSubscription?.cancel();
     _localAutoSyncDebounce?.cancel();
@@ -568,17 +536,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint('⚠️ Error disposing HotelDayTicker: $e');
     }
     try {
-      // ⚠️ DISABLED: AutoSyncEngine.disposeInstance(); // Google Drive disabled
+      await AutoSyncEngine.instance.disposeInstance();
     } catch (e) {
       debugPrint('⚠️ Error disposing GoogleDriveAutoSyncEngine: $e');
     }
     try {
-      // ⚠️ DISABLED: UnifiedSyncOrchestrator.disposeInstance(); // Google Drive disabled
-    } catch (e) {
-      debugPrint('⚠️ Error disposing UnifiedSyncOrchestrator: $e');
-    }
-    try {
-      // ⚠️ DISABLED: GoogleDriveUnifiedSyncCoordinator.disposeInstance(); // Google Drive disabled
+      await GoogleDriveUnifiedSyncCoordinator.instance.disposeInstance();
     } catch (e) {
       debugPrint('⚠️ Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
     }
@@ -826,38 +789,4 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }
 }
 
-// ⚠️ Additional stubs for disabled Google Drive classes
-class GoogleDriveUnifiedSyncCoordinator {
-  static final instance = GoogleDriveUnifiedSyncCoordinator();
-  GoogleDriveUnifiedSyncCoordinator();
-  String get deviceId => 'disabled';
-  bool get isInitialized => false;
-  bool get isSyncing => false;
-  List<dynamic> get syncResults => [];
-  Future<void> disposeInstance() async {}
-  Future<void> onAppForeground() async {}
-  Future<void> onAppBackground() async {}
-}
-
-class SyncGuardian {
-  static final instance = SyncGuardian();
-  SyncGuardian();
-  Future<void> onAppForeground() async {}
-  Future<void> onAppBackground() async {}
-  Future<void> stop() async {}
-  Future<void> restart() async {}
-}
-
-class SyncQueueService {
-  static final instance = SyncQueueService();
-  SyncQueueService();
-  Future<void> initialize() async {}
-}
-
-class SyncPerformanceOptimizer {
-  static Future<void> disposeInstance() async {}
-}
-
-class CentralSyncCoordinator {
-  static void disposeInstance() {}
-}
+// SyncGuardian and SyncQueueService are imported from their own files

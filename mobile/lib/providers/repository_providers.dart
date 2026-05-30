@@ -25,7 +25,7 @@ import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
 
 // إضافة Auto Backup Providers
-export '../providers/auto_backup_provider.dart';
+export '../providers/auto_backup_provider.dart' hide googleDriveBackupServiceProvider;
 // إضافة Backup Providers
 export '../providers/backup_provider.dart';
 // إضافة Smart Sync Providers

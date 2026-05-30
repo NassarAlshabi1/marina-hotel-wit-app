@@ -8,8 +8,10 @@ import '../data/sync_models.dart' as models;
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
 import 'google_drive_backup_service.dart';
-import 'google_drive_logger.dart';
-import 'google_drive_unified_sync_coordinator.dart';
+import 'google_drive_logger.dart' hide GoogleDriveLogger;
+import 'google_drive_unified_sync_coordinator.dart'
+    show GoogleDriveUnifiedSyncCoordinator, SyncTrigger, SyncMode, GoogleDriveLogger;
+import 'google_drive_auto_sync_engine.dart' show SyncResult;
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
 import 'sync_integrity_checker.dart';
@@ -168,7 +170,7 @@ class UnifiedSyncOrchestrator {
           _emit(
             _state.copyWith(
               phase: 'completing',
-              message: result.message,
+              message: result.message ?? 'تمت المزامنة',
               timestamp: DateTime.now(),
               lastPushAt:
                   result.pushedChanges != null && result.pushedChanges! > 0
@@ -184,7 +186,7 @@ class UnifiedSyncOrchestrator {
           _emit(
             _state.copyWith(
               phase: 'error',
-              message: result.message,
+              message: result.message ?? 'فشل المزامنة',
               timestamp: DateTime.now(),
               lastError: result.error,
             ),
@@ -469,9 +471,7 @@ class UnifiedSyncOrchestrator {
         return false;
       }
       final logger = GoogleDriveLogger();
-      await logger.initialize(
-        
-      );
+      await logger.initialize();
       final db = _database ?? DatabaseManager.instance;
       _database ??= db;
       await coordinator.initialize(

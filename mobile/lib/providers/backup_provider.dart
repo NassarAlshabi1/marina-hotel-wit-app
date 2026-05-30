@@ -11,6 +11,10 @@ import '../utils/app_logger.dart';
 import '../services/file_management_service.dart';
 import '../services/google_drive_backup_service.dart'
     show GoogleDriveBackupService, DriveBackupFile, BackupFormat;
+import '../services/google_drive_auto_sync_engine.dart' show AutoSyncEngine;
+import '../services/google_drive_unified_sync_coordinator.dart' show GoogleDriveUnifiedSyncCoordinator;
+import '../services/google_drive_conflict_resolver.dart' show ConflictResolutionStrategy;
+import '../services/google_drive_logger.dart' show GoogleDriveLogger;
 import '../services/local_backup_service.dart'
     show LocalBackupService, LocalBackupFile;
 import '../services/local_db.dart';
@@ -235,16 +239,17 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           : BackupType.both;
 
       // محاولة استعادة جلسة Google Drive تلقائياً
-      GoogleSignInAccount? account;
+      bool silentSignedIn = false;
       try {
-        account = await _backupService.attemptSilentSignIn();
+        silentSignedIn = await _backupService.attemptSilentSignIn();
       } catch (e) {
         AppLogger.warning('خطأ في استعادة جلسة Google Drive', tag: 'BACKUP', error: e);
       }
 
       // التحقق من تسجيل الدخول في Google Drive
       List<DriveBackupFile> driveBackups = [];
-      if (_backupService.isSignedIn && account != null) {
+      final account = _backupService.currentUser;
+      if (_backupService.isSignedIn && silentSignedIn) {
         // إشعار مديري المزامنة بنجاح تسجيل الدخول الصامت (مع معالجة الأخطاء)
         try {
           await _notifySyncManagers(true);
@@ -397,8 +402,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   /// تسجيل الدخول الصامت في Google Drive — بدون إظهار واجهة للمستخدم
   Future<void> silentSignInToDrive() async {
     try {
-      final account = await _backupService.attemptSilentSignIn();
-      if (account != null) {
+      final signedIn = await _backupService.attemptSilentSignIn();
+      if (signedIn) {
         await setSkippedDriveLogin(false);
 
         try {
@@ -414,7 +419,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
         state = state.copyWith(
           status: BackupStatus.success,
-          signedInAccount: account,
+          signedInAccount: _backupService.currentUser,
         );
       }
     } catch (_) {
@@ -748,21 +753,22 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     try {
       AppLogger.debug('محاولة استعادة الدخول الصامت...');
 
-      GoogleSignInAccount? account;
+      bool silentSignedIn = false;
       try {
-        account = await _backupService.attemptSilentSignIn();
+        silentSignedIn = await _backupService.attemptSilentSignIn();
       } catch (e) {
         AppLogger.warning('فشل استعادة الدخول الصامت: $e');
       }
 
       final prefs = await SharedPreferences.getInstance();
       final skipPref = prefs.getBool(_driveLoginSkippedKey) ?? false;
+      final account = _backupService.currentUser;
       if (account != null && skipPref) {
         await prefs.setBool(_driveLoginSkippedKey, false);
       }
 
       final isActuallySignedIn = _backupService.isSignedIn;
-      final currentUser = _backupService.currentUser ?? account;
+      final currentUser = account;
 
       if (isActuallySignedIn &&
           currentUser != null &&
@@ -1282,7 +1288,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           final bytes = await sqliteFile.readAsBytes();
           final timestamp = DateTime.now();
           final fileName =
-              '${GoogleDriveBackupService.fullBackupPrefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.sqlite';
+              '${_backupService.fullBackupPrefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.sqlite';
           final appProps = <String, String>{
             'format': BackupFormat.sqlite.name,
             'backup_type': 'manual',
