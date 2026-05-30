@@ -65,12 +65,19 @@ class GoogleDriveBackupFile {
     required this.name,
     required this.size,
     required this.modifiedTime,
+    this.appProperties,
+    this.createdTime,
   });
 
   final String id;
   final String name;
   final int size;
   final DateTime modifiedTime;
+  final Map<String, dynamic>? appProperties;
+  final DateTime? createdTime;
+  
+  /// Alias for id (for compatibility)
+  String get fileId => id;
 }
 
 /// Alias for backward compatibility
@@ -110,6 +117,12 @@ class GoogleDriveBackupService {
   DateTime? _tokenExpiry;
 
   bool get isSignedIn => _googleSignIn.currentUser != null;
+  
+  /// Get current signed in account (or attempt silent sign in)
+  GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
+  
+  /// Get the backup folder name for this device
+  String get fullBackupPrefix => 'MarinaHotelBackup_${DateTime.now().year}';
 
   /// Initialize service and try to restore session silently
   Future<bool> initialize() async {

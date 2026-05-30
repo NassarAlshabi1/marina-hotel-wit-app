@@ -69,7 +69,7 @@ import 'utils/id.dart';
 import 'utils/theme.dart';
 
 // ⚠️ Stubs for disabled Google Drive classes
-enum ConflictResolutionStrategy { newerWins, olderWins, localWins, remoteWins }
+enum ConflictResolutionStrategy { newerWins, olderWins, localWins, remoteWins, devicePriorityBased, manualReview }
 
 class AutoSyncEngine {
   static final instance = AutoSyncEngine();

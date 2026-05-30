@@ -11,6 +11,7 @@ import 'appwrite_delta_sync.dart';
 import 'appwrite_service.dart';
 import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
+import 'google_drive_backup_service.dart' as gd;
 import 'smart_sync_manager.dart';
 
 /// مدير النسخ الاحتياطي التلقائي الذكي
@@ -18,6 +19,8 @@ import 'smart_sync_manager.dart';
 enum BackupMode { fullBackup, deltaSync, both }
 
 class AutoBackupManager {
+  // ⚠️ Google Drive backup service - disabled
+  gd.GoogleDriveBackupService? _backupService;
 
   AutoBackupManager._();
   static const String _lastAutoBackupKey = 'last_auto_backup_timestamp';

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'local_db.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_logger.dart';
+import 'logging/log_models.dart';
 
 class EngineState {
   bool isRunning = false;
@@ -10,6 +11,8 @@ class EngineState {
   int pendingChangesCount = 0;
   DateTime? lastSuccessfulSync;
   int failedAttempts = 0;
+  DateTime? nextRetryAt;
+  String? lastError;
 }
 
 // Alias for compatibility
