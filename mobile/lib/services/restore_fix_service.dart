@@ -196,6 +196,7 @@ class RestoreFixService {
   /// الدالة الرئيسية لتشغيل الإصلاح التلقائي
   Future<RestoreFixReport> runAutoFixAfterRestore({
     DateTime? backupTimestamp,
+    bool skipLedgerRebuild = false, // لأن hotel_day_ledger محلي فقط ولا يتم مزامنته
   }) async {
     debugPrint('🔄 بدء عملية الإصلاح التلقائي للنسخة الاحتياطية...');
 
@@ -253,7 +254,7 @@ class RestoreFixService {
         changes.addAll(roomChanges);
 
         final _BookingStructuresResult structuresResult =
-            await _rebuildBookingStructures(now);
+            await _rebuildBookingStructures(now, skipLedgerRebuild: skipLedgerRebuild);
         changes.addAll(structuresResult.changes);
         roomsUpdated = roomChanges.length + structuresResult.roomsTouched;
         paymentsChecked += structuresResult.paymentsProcessed;
@@ -660,8 +661,9 @@ class RestoreFixService {
   }
 
   Future<_BookingStructuresResult> _rebuildBookingStructures(
-    DateTime restoreMoment,
-  ) async {
+    DateTime restoreMoment, {
+    bool skipLedgerRebuild = false,
+  }) async {
     final context = await _prepareRebuildContext(restoreMoment);
 
     if (context.bookings.isEmpty) {
@@ -669,7 +671,13 @@ class RestoreFixService {
     }
 
     final nightsResult = await _rebuildBookingNights(context);
-    final ledgerResult = await _rebuildHotelDayLedger(context, nightsResult);
+    
+    // hotel_day_ledger محلي فقط ولا يتم مزامنته مع Appwrite
+    _LedgerRebuildResult? ledgerResult;
+    if (!skipLedgerRebuild) {
+      ledgerResult = await _rebuildHotelDayLedger(context, nightsResult);
+    }
+    
     final roomsResult = await _updateRoomsLastOccupied(context, nightsResult);
 
     return _combineResults(nightsResult, ledgerResult, roomsResult);
@@ -1032,7 +1040,7 @@ class RestoreFixService {
 
   _BookingStructuresResult _combineResults(
     _NightsRebuildResult nightsResult,
-    _LedgerRebuildResult ledgerResult,
+    _LedgerRebuildResult? ledgerResult,
     _RoomsUpdateResult roomsResult,
   ) {
     final List<String> changeLog = [...nightsResult.changes];
@@ -1041,7 +1049,7 @@ class RestoreFixService {
         '🔁 إعادة بناء جدول الليالي: ${nightsResult.bookingNightCount} سجل',
       );
     }
-    if (ledgerResult.ledgerEntryCount > 0) {
+    if (ledgerResult != null && ledgerResult.ledgerEntryCount > 0) {
       changeLog.add(
         '📊 تحديث دفتر HotelDayLedger: ${ledgerResult.ledgerEntryCount} يوم',
       );

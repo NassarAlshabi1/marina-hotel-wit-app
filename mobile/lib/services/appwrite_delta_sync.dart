@@ -319,9 +319,12 @@ class AppwriteDeltaSync {
         }
 
         // 🔄 إعادة حساب المدفوعات تلقائياً بعد السحب من Appwrite
+        // ملاحظة: نتجاهل rebuild hotel_day_ledger لأنه محلي فقط ولا يتم مزامنته
         try {
           final fixService = RestoreFixService(_database);
-          final fixReport = await fixService.runAutoFixAfterRestore();
+          final fixReport = await fixService.runAutoFixAfterRestore(
+            skipLedgerRebuild: true,
+          );
           _logger.info(
             '✅ تم إصلاح ${fixReport.bookingsFixed} حجز و ${fixReport.paymentsRecalculated} دفعة',
             tag: 'DELTA_SYNC',
