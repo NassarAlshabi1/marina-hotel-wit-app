@@ -96,17 +96,26 @@ class GoogleDriveBackupService {
   GoogleDriveBackupService() {
     _googleSignIn = GoogleSignIn(
       scopes: [_scopes],
-      clientId: null, // Will be configured via Google Drive API
+      // Force server-side auth for better session persistence
+      signInOption: SignInOption.games,
     );
   }
 
   late final GoogleSignIn _googleSignIn;
   String? _accessToken;
+  String? _refreshToken;
   String? _appFolderId;
+  DateTime? _tokenExpiry;
 
   bool get isSignedIn => _googleSignIn.currentUser != null;
 
-  /// Initialize Google Sign-In
+  /// Initialize service and try to restore session silently
+  Future<bool> initialize() async {
+    // Try silent sign-in on app start
+    return await attemptSilentSignIn();
+  }
+
+  /// Initialize Google Sign-In with interactive login
   Future<bool> signIn() async {
     try {
       debugPrint('🔐 جاري تسجيل الدخول إلى Google...');
@@ -114,6 +123,11 @@ class GoogleDriveBackupService {
       if (account != null) {
         final auth = await account.authentication;
         _accessToken = auth.accessToken;
+        _refreshToken = auth.idToken; // Store for session persistence
+        
+        // Save session data
+        await _saveSession(account);
+        
         debugPrint('✅ تم تسجيل الدخول بنجاح');
         await GoogleDriveConfig.setConnected(true);
         return true;
@@ -125,12 +139,18 @@ class GoogleDriveBackupService {
     }
   }
 
-  /// Sign out from Google
+  /// Sign out from Google and clear session
   Future<void> signOut() async {
     try {
       await _googleSignIn.signOut();
       _accessToken = null;
+      _refreshToken = null;
       _appFolderId = null;
+      _tokenExpiry = null;
+      
+      // Clear saved session
+      await _clearSession();
+      
       await GoogleDriveConfig.setConnected(false);
       debugPrint('✅ تم تسجيل الخروج');
     } catch (e) {
@@ -138,24 +158,111 @@ class GoogleDriveBackupService {
     }
   }
 
-  /// Attempt silent sign-in (for auto-backup)
+  /// Attempt silent sign-in (for auto-backup and session restore)
   Future<bool> attemptSilentSignIn() async {
     try {
-      final isSignedInSilently = await _googleSignIn.isSignedIn();
-      if (isSignedInSilently) {
+      debugPrint('🔄 محاولة استعادة الجلسة...');
+      
+      // First check if already signed in
+      final isSignedIn = await _googleSignIn.isSignedIn();
+      
+      if (isSignedIn) {
+        debugPrint('✅ المستخدم مسجل دخول مسبقاً');
         final account = await _googleSignIn.signInSilently();
         if (account != null) {
-          final auth = await account.authentication;
-          _accessToken = auth.accessToken;
+          await _refreshAccessToken(account);
           await GoogleDriveConfig.setConnected(true);
           return true;
         }
       }
+      
+      debugPrint('⚠️ لا توجد جلسة سابقة');
       return false;
     } catch (e) {
       debugPrint('⚠️ فشل تسجيل الدخول التلقائي: $e');
       return false;
     }
+  }
+
+  /// Refresh access token
+  Future<bool> _refreshAccessToken(GoogleSignInAccount account) async {
+    try {
+      final auth = await account.authentication;
+      _accessToken = auth.accessToken;
+      _refreshToken = auth.idToken;
+      
+      // Token typically expires in 1 hour
+      _tokenExpiry = DateTime.now().add(const Duration(hours: 1));
+      
+      await _saveSession(account);
+      debugPrint('✅ تم تحديث الـ token');
+      return true;
+    } catch (e) {
+      debugPrint('❌ فشل تحديث الـ token: $e');
+      return false;
+    }
+  }
+
+  /// Save session to SharedPreferences
+  Future<void> _saveSession(GoogleSignInAccount account) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('gdrive_user_email', account.email);
+      await prefs.setString('gdrive_user_id', account.id);
+      await prefs.setString('gdrive_user_display_name', account.displayName ?? '');
+      await prefs.setString('gdrive_session_time', DateTime.now().toIso8601String());
+      debugPrint('✅ تم حفظ الجلسة');
+    } catch (e) {
+      debugPrint('❌ خطأ في حفظ الجلسة: $e');
+    }
+  }
+
+  /// Clear saved session
+  Future<void> _clearSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('gdrive_user_email');
+      await prefs.remove('gdrive_user_id');
+      await prefs.remove('gdrive_user_display_name');
+      await prefs.remove('gdrive_session_time');
+      await prefs.remove('gdrive_access_token');
+      debugPrint('✅ تم مسح الجلسة المحفوظة');
+    } catch (e) {
+      debugPrint('❌ خطأ في مسح الجلسة: $e');
+    }
+  }
+
+  /// Get saved user info
+  Future<Map<String, String?>> getSavedUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return {
+        'email': prefs.getString('gdrive_user_email'),
+        'id': prefs.getString('gdrive_user_id'),
+        'displayName': prefs.getString('gdrive_user_display_name'),
+        'sessionTime': prefs.getString('gdrive_session_time'),
+      };
+    } catch (e) {
+      return {};
+    }
+  }
+
+  /// Check if session is still valid
+  Future<bool> isSessionValid() async {
+    if (_tokenExpiry != null && DateTime.now().isAfter(_tokenExpiry!)) {
+      return false;
+    }
+    
+    final prefs = await SharedPreferences.getInstance();
+    final sessionTime = prefs.getString('gdrive_session_time');
+    
+    if (sessionTime != null) {
+      final lastSession = DateTime.parse(sessionTime);
+      // Session valid for 30 days
+      return DateTime.now().difference(lastSession).inDays < 30;
+    }
+    
+    return false;
   }
 
   /// Get or create the app folder in Google Drive

@@ -12,14 +12,42 @@ class GoogleDriveSettingsScreen extends StatefulWidget {
 class _GoogleDriveSettingsScreenState
     extends State<GoogleDriveSettingsScreen> {
   final _driveService = GoogleDriveBackupService();
-  bool _isLoading = false;
+  bool _isLoading = true;
+  bool _isInitializing = true;
   List<GoogleDriveBackupFile> _backups = [];
   String? _statusMessage;
+  Map<String, String?> _savedUser = {};
 
   @override
   void initState() {
     super.initState();
-    _loadBackups();
+    _initializeService();
+  }
+
+  Future<void> _initializeService() async {
+    setState(() => _isInitializing = true);
+    
+    // Get saved user info
+    _savedUser = await _driveService.getSavedUser();
+    
+    // Try silent sign-in to restore session
+    final isRestored = await _driveService.initialize();
+    
+    if (mounted) {
+      setState(() {
+        _isInitializing = false;
+        _isLoading = false;
+        if (isRestored) {
+          _statusMessage = 'تم استعادة الجلسة بنجاح';
+        } else if (_savedUser['email'] != null) {
+          _statusMessage = 'آخر مستخدم: ${_savedUser['email']}';
+        }
+      });
+      
+      if (isRestored) {
+        _loadBackups();
+      }
+    }
   }
 
   Future<void> _loadBackups() async {
@@ -192,11 +220,26 @@ class _GoogleDriveSettingsScreenState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'حالة الاتصال',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'حالة الاتصال',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (_savedUser['email'] != null && isSignedIn)
+                              Text(
+                                _savedUser['email']!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       Container(
@@ -207,22 +250,53 @@ class _GoogleDriveSettingsScreenState
                         decoration: BoxDecoration(
                           color: isSignedIn
                               ? Colors.green.shade100
-                              : Colors.grey.shade200,
+                              : _savedUser['email'] != null
+                                  ? Colors.orange.shade100
+                                  : Colors.grey.shade200,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          isSignedIn ? 'متصل' : 'غير متصل',
+                          isSignedIn
+                              ? 'متصل'
+                              : _savedUser['email'] != null
+                                  ? 'جلسة محفوظة'
+                                  : 'غير متصل',
                           style: TextStyle(
                             color: isSignedIn
                                 ? Colors.green.shade800
-                                : Colors.grey.shade800,
+                                : _savedUser['email'] != null
+                                    ? Colors.orange.shade800
+                                    : Colors.grey.shade800,
                           ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  if (!isSignedIn)
+                  // Show initialization status
+                  if (_isInitializing)
+                    const LinearProgressIndicator()
+                  else if (!isSignedIn && _savedUser['email'] != null)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _isLoading ? null : _signIn,
+                            icon: const Icon(Icons.login),
+                            label: const Text('استئناف الجلسة'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isLoading ? null : _signIn,
+                            icon: const Icon(Icons.account_circle),
+                            label: const Text('حساب جديد'),
+                          ),
+                        ),
+                      ],
+                    )
+                  else if (!isSignedIn)
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
