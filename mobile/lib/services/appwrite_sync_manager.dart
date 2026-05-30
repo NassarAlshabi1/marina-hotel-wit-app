@@ -283,6 +283,7 @@ class AppwriteSyncManager {
         );
       } catch (e) {
         debugPrint('⚠️ Failed to update FCM token: $e');
+          AppLogger.warning('فشل تحديث FCM token', tag: 'SYNC', error: e);
       }
     }
   }
@@ -464,21 +465,22 @@ class AppwriteSyncManager {
           // إعادة تعيين العناصر الفاشلة إلى pending
           await outboxDao.retryFailed();
 
-          debugPrint(
-            '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $failedCount)',
+          AppLogger.info(
+            'إعادة محاولة العناصر الفاشلة في outbox (عدد: $failedCount)',
+            tag: 'OUTBOX_RETRY',
           );
 
           // محاولة رفعها فوراً
           final result = await sync(pull: false);
           if (result.status == SyncStatus.success) {
-            debugPrint('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
+            AppLogger.info('نجحت إعادة محاولة رفع العناصر الفاشلة', tag: 'OUTBOX_RETRY');
           }
         } catch (e) {
-          debugPrint('⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e');
+          AppLogger.error('فشلت إعادة محاولة العناصر الفاشلة', tag: 'OUTBOX_RETRY', error: e);
         }
       },
     );
-    debugPrint('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
+    AppLogger.debug('تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)', tag: 'OUTBOX_RETRY');
   }
 
   /// تمكين الدفع المؤجل بعد تغييرات outbox
@@ -4018,7 +4020,7 @@ class AppwriteSyncManager {
     Map<String, dynamic> extra = {};
     try {
       extra = jsonDecode(item.content) as Map<String, dynamic>;
-    } catch (e) { debugPrint('WARN: Failed to parse blacklist content for sync: $e'); }
+    } catch (e) { AppLogger.warning('فشل تحليل محتوى blacklist للمزامنة', tag: 'SYNC', error: e); }
 
     final now = Time.nowEpoch();
     // Appwrite blacklist collection: createdAt/updatedAt/deletedAt are STRING (ISO)
