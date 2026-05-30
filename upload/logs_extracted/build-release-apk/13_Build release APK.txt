@@ -1,0 +1,188 @@
+﻿2026-05-30T19:28:17.3762245Z ##[group]Run flutter build apk --release --target-platform android-arm64 --build-name 1.2.0.3921 --build-number 3921 --dart-define=BASE_API_URL=http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1 --dart-define=AGENT_ROUTER_API_KEY=*** --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
+2026-05-30T19:28:17.3764644Z [36;1mflutter build apk --release --target-platform android-arm64 --build-name 1.2.0.3921 --build-number 3921 --dart-define=BASE_API_URL=http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1 --dart-define=AGENT_ROUTER_API_KEY=*** --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1[0m
+2026-05-30T19:28:17.3791512Z shell: /usr/bin/bash -e {0}
+2026-05-30T19:28:17.3791793Z env:
+2026-05-30T19:28:17.3792028Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-05-30T19:28:17.3792369Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-05-30T19:28:17.3792790Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:28:17.3793332Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:28:17.3793879Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.41.0-x64/flutter
+2026-05-30T19:28:17.3794291Z   PUB_CACHE: /home/runner/.pub-cache
+2026-05-30T19:28:17.3794582Z ##[endgroup]
+2026-05-30T19:31:21.3036031Z Running Gradle task 'assembleRelease'...                        
+2026-05-30T19:31:21.3056051Z lib/main.dart:539:37: Error: The method 'disposeInstance' isn't defined for the type 'AutoSyncEngine'.
+2026-05-30T19:31:21.3077544Z  - 'AutoSyncEngine' is from 'package:marina_hotel_mobile/services/google_drive_auto_sync_engine.dart' ('lib/services/google_drive_auto_sync_engine.dart').
+2026-05-30T19:31:21.3113214Z Try correcting the name to the name of an existing method, or defining a method named 'disposeInstance'.
+2026-05-30T19:31:21.3135606Z       await AutoSyncEngine.instance.disposeInstance();
+2026-05-30T19:31:21.3186704Z                                     ^^^^^^^^^^^^^^^
+2026-05-30T19:31:21.4742986Z lib/services/alarm_backup.dart:115:38: Error: The method 'signInSilentlyIfNeeded' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:21.4776686Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:21.4795903Z Try correcting the name to the name of an existing method, or defining a method named 'signInSilentlyIfNeeded'.
+2026-05-30T19:31:21.4825686Z           final signed = await drive.signInSilentlyIfNeeded();
+2026-05-30T19:31:21.4886038Z                                      ^^^^^^^^^^^^^^^^^^^^^^
+2026-05-30T19:31:22.3759116Z lib/services/smart_sync_manager.dart:236:49: Error: The method 'listBackupFiles' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:22.3767002Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:22.3769457Z Try correcting the name to the name of an existing method, or defining a method named 'listBackupFiles'.
+2026-05-30T19:31:22.3770918Z       final backupFiles = await _backupService!.listBackupFiles();
+2026-05-30T19:31:22.3772140Z                                                 ^^^^^^^^^^^^^^^
+2026-05-30T19:31:22.3773611Z lib/services/smart_sync_manager.dart:281:48: Error: The method 'downloadBackup' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:22.3776138Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:22.3778472Z Try correcting the name to the name of an existing method, or defining a method named 'downloadBackup'.
+2026-05-30T19:31:22.3779939Z       final backupData = await _backupService!.downloadBackup(newBackup.fileId);
+2026-05-30T19:31:22.3781028Z                                                ^^^^^^^^^^^^^^
+2026-05-30T19:31:22.3782481Z lib/services/smart_sync_manager.dart:540:29: Error: The method 'restoreFromBackup' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:22.3785350Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:22.3787285Z Try correcting the name to the name of an existing method, or defining a method named 'restoreFromBackup'.
+2026-05-30T19:31:22.3788581Z       () => _backupService!.restoreFromBackup(backupData),
+2026-05-30T19:31:22.3789477Z                             ^^^^^^^^^^^^^^^^^
+2026-05-30T19:31:22.3790812Z lib/services/smart_sync_manager.dart:853:14: Error: The method 'pullDeltaChanges' isn't defined for the type 'GoogleDriveDeltaSync'.
+2026-05-30T19:31:22.3803104Z  - 'GoogleDriveDeltaSync' is from 'package:marina_hotel_mobile/services/google_drive_delta_sync.dart' ('lib/services/google_drive_delta_sync.dart').
+2026-05-30T19:31:22.3805193Z Try correcting the name to the name of an existing method, or defining a method named 'pullDeltaChanges'.
+2026-05-30T19:31:22.3806135Z             .pullDeltaChanges();
+2026-05-30T19:31:22.3835397Z              ^^^^^^^^^^^^^^^^
+2026-05-30T19:31:22.3836673Z lib/services/smart_sync_manager.dart:868:49: Error: The method 'listBackupFiles' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:22.3863881Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:22.3876179Z Try correcting the name to the name of an existing method, or defining a method named 'listBackupFiles'.
+2026-05-30T19:31:22.3885688Z       final backupFiles = await _backupService!.listBackupFiles();
+2026-05-30T19:31:22.3886736Z                                                 ^^^^^^^^^^^^^^^
+2026-05-30T19:31:22.3888280Z lib/services/smart_sync_manager.dart:895:50: Error: The method 'downloadBackup' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:22.3890184Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:22.3891788Z Try correcting the name to the name of an existing method, or defining a method named 'downloadBackup'.
+2026-05-30T19:31:22.3892781Z         final backupData = await _backupService!.downloadBackup(
+2026-05-30T19:31:22.3893431Z                                                  ^^^^^^^^^^^^^^
+2026-05-30T19:31:22.3894548Z lib/services/smart_sync_manager.dart:899:33: Error: The method 'restoreFromBackup' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:22.3896562Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:22.3898169Z Try correcting the name to the name of an existing method, or defining a method named 'restoreFromBackup'.
+2026-05-30T19:31:22.3899447Z           () => _backupService!.restoreFromBackup(backupData),
+2026-05-30T19:31:22.3900049Z                                 ^^^^^^^^^^^^^^^^^
+2026-05-30T19:31:22.3901134Z lib/services/smart_sync_manager.dart:955:29: Error: The method 'restoreFromBackup' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:22.3902920Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:22.3904523Z Try correcting the name to the name of an existing method, or defining a method named 'restoreFromBackup'.
+2026-05-30T19:31:22.3905736Z       () => _backupService!.restoreFromBackup(localData),
+2026-05-30T19:31:22.3906321Z                             ^^^^^^^^^^^^^^^^^
+2026-05-30T19:31:23.9794258Z lib/providers/backup_provider.dart:262:47: Error: The method 'listBackupFiles' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:23.9796471Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:23.9890563Z Try correcting the name to the name of an existing method, or defining a method named 'listBackupFiles'.
+2026-05-30T19:31:23.9975985Z           driveBackups = await _backupService.listBackupFiles();
+2026-05-30T19:31:24.0009346Z                                               ^^^^^^^^^^^^^^^
+2026-05-30T19:31:24.0046140Z lib/providers/backup_provider.dart:410:48: Error: The method 'listBackupFiles' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.0106273Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.0165912Z Try correcting the name to the name of an existing method, or defining a method named 'listBackupFiles'.
+2026-05-30T19:31:24.0195515Z           final backups = await _backupService.listBackupFiles();
+2026-05-30T19:31:24.0225347Z                                                ^^^^^^^^^^^^^^^
+2026-05-30T19:31:24.0246257Z lib/providers/backup_provider.dart:438:44: Error: The method 'signInForDrive' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.0267035Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.0300581Z Try correcting the name to the name of an existing method, or defining a method named 'signInForDrive'.
+2026-05-30T19:31:24.0301625Z       final account = await _backupService.signInForDrive();
+2026-05-30T19:31:24.0302284Z                                            ^^^^^^^^^^^^^^
+2026-05-30T19:31:24.0303346Z lib/providers/backup_provider.dart:446:42: Error: The method 'listBackupFiles' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.0326523Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.0336382Z Try correcting the name to the name of an existing method, or defining a method named 'listBackupFiles'.
+2026-05-30T19:31:24.0337549Z           backups = await _backupService.listBackupFiles();
+2026-05-30T19:31:24.0338258Z                                          ^^^^^^^^^^^^^^^
+2026-05-30T19:31:24.0339372Z lib/providers/backup_provider.dart:536:28: Error: The method 'uploadBackup' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.0341177Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.0342776Z Try correcting the name to the name of an existing method, or defining a method named 'uploadBackup'.
+2026-05-30T19:31:24.0343751Z       await _backupService.uploadBackup(backupData);
+2026-05-30T19:31:24.0344387Z                            ^^^^^^^^^^^^
+2026-05-30T19:31:24.0346312Z lib/providers/backup_provider.dart:544:44: Error: The method 'listBackupFiles' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.0348123Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.0349805Z Try correcting the name to the name of an existing method, or defining a method named 'listBackupFiles'.
+2026-05-30T19:31:24.0350822Z       final backups = await _backupService.listBackupFiles();
+2026-05-30T19:31:24.0351617Z                                            ^^^^^^^^^^^^^^^
+2026-05-30T19:31:24.0352887Z lib/providers/backup_provider.dart:597:47: Error: The method 'downloadBackup' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.0354710Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.0356934Z Try correcting the name to the name of an existing method, or defining a method named 'downloadBackup'.
+2026-05-30T19:31:24.0357885Z       final downloaded = await _backupService.downloadBackup(
+2026-05-30T19:31:24.0358516Z                                               ^^^^^^^^^^^^^^
+2026-05-30T19:31:24.0359579Z lib/providers/backup_provider.dart:608:30: Error: The method 'restoreFromBackup' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.0361350Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.0362909Z Try correcting the name to the name of an existing method, or defining a method named 'restoreFromBackup'.
+2026-05-30T19:31:24.0363848Z         () => _backupService.restoreFromBackup(downloaded),
+2026-05-30T19:31:24.0364430Z                              ^^^^^^^^^^^^^^^^^
+2026-05-30T19:31:24.0365652Z lib/providers/backup_provider.dart:653:44: Error: The method 'listBackupFiles' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.0367410Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.0368962Z Try correcting the name to the name of an existing method, or defining a method named 'listBackupFiles'.
+2026-05-30T19:31:24.0369910Z       final backups = await _backupService.listBackupFiles();
+2026-05-30T19:31:24.0370529Z                                            ^^^^^^^^^^^^^^^
+2026-05-30T19:31:24.0371572Z lib/providers/backup_provider.dart:780:47: Error: The method 'listBackupFiles' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.0373330Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.0375075Z Try correcting the name to the name of an existing method, or defining a method named 'listBackupFiles'.
+2026-05-30T19:31:24.0376710Z           driveBackups = await _backupService.listBackupFiles();
+2026-05-30T19:31:24.0377367Z                                               ^^^^^^^^^^^^^^^
+2026-05-30T19:31:24.0378420Z lib/providers/backup_provider.dart:1277:32: Error: The method 'uploadBackup' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.0380160Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.0381692Z Try correcting the name to the name of an existing method, or defining a method named 'uploadBackup'.
+2026-05-30T19:31:24.0382599Z           await _backupService.uploadBackup(backupData);
+2026-05-30T19:31:24.0383161Z                                ^^^^^^^^^^^^
+2026-05-30T19:31:24.0384226Z lib/providers/backup_provider.dart:1296:32: Error: The method 'uploadBackupWithName' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.0386803Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.0388408Z Try correcting the name to the name of an existing method, or defining a method named 'uploadBackupWithName'.
+2026-05-30T19:31:24.0389363Z           await _backupService.uploadBackupWithName(
+2026-05-30T19:31:24.0389935Z                                ^^^^^^^^^^^^^^^^^^^^
+2026-05-30T19:31:24.5776880Z lib/services/google_drive_backup_service.dart:377:18: Error: The method 'getDatabase' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.5816287Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.5829343Z Try correcting the name to the name of an existing method, or defining a method named 'getDatabase'.
+2026-05-30T19:31:24.5870140Z       final db = getDatabase();
+2026-05-30T19:31:24.5935648Z                  ^^^^^^^^^^^
+2026-05-30T19:31:24.5986161Z lib/services/google_drive_backup_service.dart:592:25: Error: The method 'getDatabase' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.5988138Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.5989797Z Try correcting the name to the name of an existing method, or defining a method named 'getDatabase'.
+2026-05-30T19:31:24.5990721Z       final currentDb = getDatabase();
+2026-05-30T19:31:24.5991269Z                         ^^^^^^^^^^^
+2026-05-30T19:31:24.5992374Z lib/services/google_drive_backup_service.dart:646:16: Error: The method 'getDatabase' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.5994291Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.5996274Z Try correcting the name to the name of an existing method, or defining a method named 'getDatabase'.
+2026-05-30T19:31:24.5997196Z     final db = getDatabase();
+2026-05-30T19:31:24.5997690Z                ^^^^^^^^^^^
+2026-05-30T19:31:24.5998744Z lib/services/google_drive_backup_service.dart:741:18: Error: The method 'getDatabase' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:24.6000649Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:24.6002304Z Try correcting the name to the name of an existing method, or defining a method named 'getDatabase'.
+2026-05-30T19:31:24.6003219Z       final db = getDatabase();
+2026-05-30T19:31:24.6003713Z                  ^^^^^^^^^^^
+2026-05-30T19:31:26.1737158Z lib/services/auto_backup_manager.dart:232:44: Error: The method 'uploadBackup' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:26.1771022Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:26.1772876Z Try correcting the name to the name of an existing method, or defining a method named 'uploadBackup'.
+2026-05-30T19:31:26.1773990Z       final fileId = await _backupService!.uploadBackup(
+2026-05-30T19:31:26.1774792Z                                            ^^^^^^^^^^^^
+2026-05-30T19:31:26.1776578Z lib/services/auto_backup_manager.dart:263:49: Error: The method 'listBackupFiles' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:26.1778532Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:26.1780264Z Try correcting the name to the name of an existing method, or defining a method named 'listBackupFiles'.
+2026-05-30T19:31:26.1781860Z       final backupFiles = await _backupService!.listBackupFiles();
+2026-05-30T19:31:26.1782690Z                                                 ^^^^^^^^^^^^^^^
+2026-05-30T19:31:26.1783934Z lib/services/auto_backup_manager.dart:297:35: Error: The method 'deleteBackupFile' isn't defined for the type 'GoogleDriveBackupService'.
+2026-05-30T19:31:26.1786033Z  - 'GoogleDriveBackupService' is from 'package:marina_hotel_mobile/services/google_drive_backup_service.dart' ('lib/services/google_drive_backup_service.dart').
+2026-05-30T19:31:26.1787714Z Try correcting the name to the name of an existing method, or defining a method named 'deleteBackupFile'.
+2026-05-30T19:31:26.1788825Z             await _backupService!.deleteBackupFile(file.fileId);
+2026-05-30T19:31:26.1789627Z                                   ^^^^^^^^^^^^^^^^
+2026-05-30T19:31:26.2744041Z lib/services/file_management_service.dart:61:35: Error: The method 'exportDatabaseToJson' isn't defined for the type 'LocalBackupService'.
+2026-05-30T19:31:26.2766134Z  - 'LocalBackupService' is from 'package:marina_hotel_mobile/services/local_backup_service.dart' ('lib/services/local_backup_service.dart').
+2026-05-30T19:31:26.2768006Z Try correcting the name to the name of an existing method, or defining a method named 'exportDatabaseToJson'.
+2026-05-30T19:31:26.2769299Z       final backupData = await db.exportDatabaseToJson();
+2026-05-30T19:31:26.2770167Z                                   ^^^^^^^^^^^^^^^^^^^^
+2026-05-30T19:31:26.2771541Z lib/services/file_management_service.dart:328:35: Error: The method 'exportDatabaseToJson' isn't defined for the type 'LocalBackupService'.
+2026-05-30T19:31:26.2773567Z  - 'LocalBackupService' is from 'package:marina_hotel_mobile/services/local_backup_service.dart' ('lib/services/local_backup_service.dart').
+2026-05-30T19:31:26.2775635Z Try correcting the name to the name of an existing method, or defining a method named 'exportDatabaseToJson'.
+2026-05-30T19:31:26.2776960Z       final backupData = await db.exportDatabaseToJson();
+2026-05-30T19:31:26.2777815Z                                   ^^^^^^^^^^^^^^^^^^^^
+2026-05-30T19:31:40.6796214Z Target kernel_snapshot_program failed: Exception
+2026-05-30T19:31:40.7733305Z 
+2026-05-30T19:31:44.2739487Z Note: /home/runner/.pub-cache/hosted/pub.dev/android_alarm_manager_plus-4.0.8/android/src/main/java/dev/fluttercommunity/plus/androidalarmmanager/AlarmService.java uses or overrides a deprecated API.
+2026-05-30T19:31:44.2766234Z Note: Recompile with -Xlint:deprecation for details.
+2026-05-30T19:31:46.7727952Z 
+2026-05-30T19:31:46.7764160Z FAILURE: Build failed with an exception.
+2026-05-30T19:31:46.7765284Z 
+2026-05-30T19:31:46.7765688Z * What went wrong:
+2026-05-30T19:31:46.7766534Z Execution failed for task ':app:compileFlutterBuildRelease'.
+2026-05-30T19:31:46.7767985Z > Process 'command '/opt/hostedtoolcache/flutter/stable-3.41.0-x64/flutter/bin/flutter'' finished with non-zero exit value 1
+2026-05-30T19:31:46.7769100Z 
+2026-05-30T19:31:46.7769430Z * Try:
+2026-05-30T19:31:46.7770021Z > Run with --stacktrace option to get the stack trace.
+2026-05-30T19:31:46.7770907Z > Run with --info or --debug option to get more log output.
+2026-05-30T19:31:46.7771803Z > Run with --scan to get full insights.
+2026-05-30T19:31:46.7772617Z > Get more help at https://help.gradle.org.
+2026-05-30T19:31:46.7773234Z 
+2026-05-30T19:31:46.7773580Z BUILD FAILED in 3m 28s
+2026-05-30T19:31:47.3062126Z Running Gradle task 'assembleRelease'...                          209.1s
+2026-05-30T19:31:47.3159230Z Gradle task assembleRelease failed with exit code 1
+2026-05-30T19:31:47.3238833Z ##[error]Process completed with exit code 1.

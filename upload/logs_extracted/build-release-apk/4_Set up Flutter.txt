@@ -1,0 +1,98 @@
+﻿2026-05-30T19:24:09.8650979Z ##[group]Run subosito/flutter-action@v2
+2026-05-30T19:24:09.8652113Z with:
+2026-05-30T19:24:09.8652920Z   flutter-version: 3.41.0
+2026-05-30T19:24:09.8653838Z   cache: true
+2026-05-30T19:24:09.8655058Z   cache-key: flutter-Linux-3.41.0
+2026-05-30T19:24:09.8656139Z   channel: stable
+2026-05-30T19:24:09.8656980Z   architecture: X64
+2026-05-30T19:24:09.8657858Z   pub-cache-path: default
+2026-05-30T19:24:09.8658804Z   dry-run: false
+2026-05-30T19:24:09.8659892Z   git-source: https://github.com/flutter/flutter.git
+2026-05-30T19:24:09.8661060Z env:
+2026-05-30T19:24:09.8661888Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-05-30T19:24:09.8663047Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-05-30T19:24:09.8664584Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:24:09.8666640Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:24:09.8668107Z ##[endgroup]
+2026-05-30T19:24:09.8869606Z ##[group]Run chmod +x "$GITHUB_ACTION_PATH/setup.sh"
+2026-05-30T19:24:09.8871041Z [36;1mchmod +x "$GITHUB_ACTION_PATH/setup.sh"[0m
+2026-05-30T19:24:09.8906209Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-05-30T19:24:09.8907478Z env:
+2026-05-30T19:24:09.8908511Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-05-30T19:24:09.8909681Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-05-30T19:24:09.8911146Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:24:09.8912968Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:24:09.8914406Z ##[endgroup]
+2026-05-30T19:24:09.9064732Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh -p \
+2026-05-30T19:24:09.9066525Z [36;1m$GITHUB_ACTION_PATH/setup.sh -p \[0m
+2026-05-30T19:24:09.9067977Z [36;1m  -n '3.41.0' \[0m
+2026-05-30T19:24:09.9068892Z [36;1m  -f '' \[0m
+2026-05-30T19:24:09.9070074Z [36;1m  -a 'X64' \[0m
+2026-05-30T19:24:09.9071292Z [36;1m  -k 'flutter-Linux-3.41.0' \[0m
+2026-05-30T19:24:09.9072711Z [36;1m  -c '' \[0m
+2026-05-30T19:24:09.9073582Z [36;1m  -l '' \[0m
+2026-05-30T19:24:09.9074428Z [36;1m  -d 'default' \[0m
+2026-05-30T19:24:09.9076139Z [36;1m  -g 'https://github.com/flutter/flutter.git' \[0m
+2026-05-30T19:24:09.9078129Z [36;1m  stable[0m
+2026-05-30T19:24:09.9106329Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-05-30T19:24:09.9107695Z env:
+2026-05-30T19:24:09.9108513Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-05-30T19:24:09.9109660Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-05-30T19:24:09.9111422Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:24:09.9113239Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:24:09.9114657Z ##[endgroup]
+2026-05-30T19:24:10.1140139Z ##[group]Run actions/cache@v5
+2026-05-30T19:24:10.1141123Z with:
+2026-05-30T19:24:10.1142050Z   path: /opt/hostedtoolcache/flutter/stable-3.41.0-x64
+2026-05-30T19:24:10.1143256Z   key: flutter-Linux-3.41.0
+2026-05-30T19:24:10.1144221Z   enableCrossOsArchive: false
+2026-05-30T19:24:10.1145544Z   fail-on-cache-miss: false
+2026-05-30T19:24:10.1146487Z   lookup-only: false
+2026-05-30T19:24:10.1147334Z   save-always: false
+2026-05-30T19:24:10.1148171Z env:
+2026-05-30T19:24:10.1148959Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-05-30T19:24:10.1150099Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-05-30T19:24:10.1151519Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:24:10.1153286Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:24:10.1154691Z ##[endgroup]
+2026-05-30T19:24:10.3590420Z Cache hit for: flutter-Linux-3.41.0
+2026-05-30T19:24:11.4194608Z Received 239075328 of 1655296710 (14.4%), 227.8 MBs/sec
+2026-05-30T19:24:12.4316488Z Received 511705088 of 1655296710 (30.9%), 243.0 MBs/sec
+2026-05-30T19:24:13.4266539Z Received 784334848 of 1655296710 (47.4%), 248.7 MBs/sec
+2026-05-30T19:24:14.4344438Z Received 1048576000 of 1655296710 (63.3%), 249.0 MBs/sec
+2026-05-30T19:24:15.4356378Z Received 1342177280 of 1655296710 (81.1%), 255.1 MBs/sec
+2026-05-30T19:24:16.4497213Z Received 1610612736 of 1655296710 (97.3%), 254.9 MBs/sec
+2026-05-30T19:24:16.6716239Z Received 1655296710 of 1655296710 (100.0%), 252.5 MBs/sec
+2026-05-30T19:24:16.6717159Z Cache Size: ~1579 MB (1655296710 B)
+2026-05-30T19:24:16.6795861Z [command]/usr/bin/tar -xf /home/runner/work/_temp/1bbbbb4c-266c-4651-9606-1eac9f197407/cache.tzst -P -C /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app --use-compress-program unzstd
+2026-05-30T19:24:21.4902680Z Cache restored successfully
+2026-05-30T19:24:21.5679306Z Cache restored from key: flutter-Linux-3.41.0
+2026-05-30T19:24:22.6494188Z ##[group]Run actions/cache@v5
+2026-05-30T19:24:22.6494508Z with:
+2026-05-30T19:24:22.6494755Z   path: /home/runner/.pub-cache
+2026-05-30T19:24:22.6495984Z   key: flutter-pub-linux-stable-3.41.0-x64-44a626f4f0027bc38a46dc68aed5964b05a83c18-85bf8a931abe8e6997b4cd9df7c014260b6795a0b8fcd1e02c48ad3ec7707ea8
+2026-05-30T19:24:22.6496831Z   enableCrossOsArchive: false
+2026-05-30T19:24:22.6497123Z   fail-on-cache-miss: false
+2026-05-30T19:24:22.6497383Z   lookup-only: false
+2026-05-30T19:24:22.6497623Z   save-always: false
+2026-05-30T19:24:22.6498091Z env:
+2026-05-30T19:24:22.6498339Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-05-30T19:24:22.6498676Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-05-30T19:24:22.6499092Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:24:22.6499618Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:24:22.6500015Z ##[endgroup]
+2026-05-30T19:24:22.8361179Z Cache not found for input keys: flutter-pub-linux-stable-3.41.0-x64-44a626f4f0027bc38a46dc68aed5964b05a83c18-85bf8a931abe8e6997b4cd9df7c014260b6795a0b8fcd1e02c48ad3ec7707ea8
+2026-05-30T19:24:22.8459896Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh \
+2026-05-30T19:24:22.8460302Z [36;1m$GITHUB_ACTION_PATH/setup.sh \[0m
+2026-05-30T19:24:22.8460624Z [36;1m  -n '3.41.0' \[0m
+2026-05-30T19:24:22.8460899Z [36;1m  -a 'x64' \[0m
+2026-05-30T19:24:22.8461300Z [36;1m  -c '/opt/hostedtoolcache/flutter/stable-3.41.0-x64' \[0m
+2026-05-30T19:24:22.8461723Z [36;1m  -d '/home/runner/.pub-cache' \[0m
+2026-05-30T19:24:22.8462018Z [36;1m  stable[0m
+2026-05-30T19:24:22.8488618Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-05-30T19:24:22.8489002Z env:
+2026-05-30T19:24:22.8489233Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-05-30T19:24:22.8489562Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-05-30T19:24:22.8489980Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:24:22.8490512Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:24:22.8490910Z ##[endgroup]

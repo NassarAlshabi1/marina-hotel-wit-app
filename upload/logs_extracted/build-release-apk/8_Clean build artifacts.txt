@@ -1,0 +1,11 @@
+﻿2026-05-30T19:25:01.8669473Z ##[group]Run flutter clean
+2026-05-30T19:25:01.8669805Z [36;1mflutter clean[0m
+2026-05-30T19:25:01.8694562Z shell: /usr/bin/bash -e {0}
+2026-05-30T19:25:01.8695076Z env:
+2026-05-30T19:25:01.8695330Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-05-30T19:25:01.8695684Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-05-30T19:25:01.8696116Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:25:01.8696664Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:25:01.8697198Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.41.0-x64/flutter
+2026-05-30T19:25:01.8697620Z   PUB_CACHE: /home/runner/.pub-cache
+2026-05-30T19:25:01.8697917Z ##[endgroup]

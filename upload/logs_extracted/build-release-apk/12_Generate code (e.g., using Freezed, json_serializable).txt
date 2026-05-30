@@ -1,0 +1,1757 @@
+﻿2026-05-30T19:25:09.4838954Z ##[group]Run flutter pub run build_runner build --delete-conflicting-outputs --verbose
+2026-05-30T19:25:09.4839635Z [36;1mflutter pub run build_runner build --delete-conflicting-outputs --verbose[0m
+2026-05-30T19:25:09.4866123Z shell: /usr/bin/bash -e {0}
+2026-05-30T19:25:09.4866416Z env:
+2026-05-30T19:25:09.4866652Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-05-30T19:25:09.4866997Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-05-30T19:25:09.4867438Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:25:09.4867967Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:25:09.4868474Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.41.0-x64/flutter
+2026-05-30T19:25:09.4868869Z   PUB_CACHE: /home/runner/.pub-cache
+2026-05-30T19:25:09.4869155Z ##[endgroup]
+2026-05-30T19:25:09.5681132Z [  +22 ms] executing: uname -m
+2026-05-30T19:25:09.5724634Z [   +5 ms] Exit code 0 from: uname -m
+2026-05-30T19:25:09.5725754Z [        ] x86_64
+2026-05-30T19:25:09.5795344Z [   +6 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+2026-05-30T19:25:09.5796513Z [        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+2026-05-30T19:25:09.5797683Z [        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5799086Z [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5800682Z [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5801742Z [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+2026-05-30T19:25:09.5805591Z [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+2026-05-30T19:25:09.5806640Z [        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+2026-05-30T19:25:09.5807633Z [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5808839Z [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5809975Z [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5816714Z [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5817864Z [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5818971Z [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5820079Z [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+2026-05-30T19:25:09.5821265Z [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5822339Z [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5823362Z [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5824342Z [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5825629Z [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5826594Z [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5827834Z [        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5829047Z [        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+2026-05-30T19:25:09.5927722Z [   +9 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5928902Z [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5929935Z [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5931203Z [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+2026-05-30T19:25:09.5932110Z [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+2026-05-30T19:25:09.5933076Z [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+2026-05-30T19:25:09.5947792Z [   +1 ms] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5948824Z [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5949778Z [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5950773Z [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5951785Z [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5952814Z [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.5953848Z [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+2026-05-30T19:25:09.6251816Z [  +29 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+2026-05-30T19:25:09.6253047Z [        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+2026-05-30T19:25:09.6254280Z [        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6256131Z [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6257364Z [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6258478Z [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+2026-05-30T19:25:09.6259584Z [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+2026-05-30T19:25:09.6260728Z [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+2026-05-30T19:25:09.6261840Z [        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+2026-05-30T19:25:09.6262905Z [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6264072Z [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6265458Z [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6266635Z [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6267801Z [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6269025Z [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6270270Z [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+2026-05-30T19:25:09.6271536Z [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6272728Z [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6273505Z [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6274061Z [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6274614Z [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6275864Z [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6276837Z [        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+2026-05-30T19:25:09.6277487Z [        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+2026-05-30T19:25:09.6385670Z [  +11 ms] executing: [/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/] /opt/hostedtoolcache/flutter/stable-3.41.0-x64/flutter/bin/cache/dart-sdk/bin/dart pub --suppress-analytics run build_runner build --delete-conflicting-outputs --verbose
+2026-05-30T19:25:09.6564763Z FINE: Pub 3.11.0
+2026-05-30T19:25:09.6565770Z MSG : Deprecated. Use `dart run` instead.
+2026-05-30T19:25:09.6586866Z FINE: Package Config up to date.
+2026-05-30T19:25:09.6615205Z FINE: Package Config up to date.
+2026-05-30T19:25:10.1440482Z   Generating the build script.
+2026-05-30T19:25:10.5501719Z   Compiling the build script.
+2026-05-30T19:25:16.5662919Z   Reading the asset graph.
+2026-05-30T19:25:17.1248116Z   Creating the asset graph.
+2026-05-30T19:25:17.7992475Z   Doing initial build cleanup.
+2026-05-30T19:25:17.8001702Z   Deleting 14 declared outputs which already existed on disk.
+2026-05-30T19:25:17.8075668Z   Updating the asset graph.
+2026-05-30T19:25:17.8079282Z   Building, full build because builders changed.
+2026-05-30T19:25:17.8259582Z   0s freezed on 394 inputs; lib/components/admin_layout.dart
+2026-05-30T19:25:17.8338125Z W SDK language version 3.11.0 is newer than `analyzer` language version 3.9.0. Run `flutter packages upgrade`.
+2026-05-30T19:25:23.2049944Z   5s freezed on 394 inputs: 1 no-op; spent 5s sdk; lib/components/admin_sidebar.dart
+2026-05-30T19:25:41.6282701Z   freezed on lib/services/auto_backup_task.dart:
+2026-05-30T19:25:41.6283410Z   Running FreezedGenerator
+2026-05-30T19:25:41.7020650Z   24s freezed on 394 inputs: 178 no-op; spent 15s analyzing, 5s sdk, 3s resolving; lib/services/background_sync_service.dart
+2026-05-30T19:25:41.8681238Z   freezed on lib/services/background_sync_service.dart:
+2026-05-30T19:25:41.8681976Z   Running FreezedGenerator
+2026-05-30T19:25:42.0003109Z   freezed on lib/services/daos/booking_notes_dao.dart:
+2026-05-30T19:25:42.0003755Z   Running FreezedGenerator
+2026-05-30T19:25:42.0988273Z   freezed on lib/services/daos/bookings_dao.dart:
+2026-05-30T19:25:42.0988722Z   Running FreezedGenerator
+2026-05-30T19:25:42.2021401Z   freezed on lib/services/daos/cash_transactions_dao.dart:
+2026-05-30T19:25:42.2022291Z   Running FreezedGenerator
+2026-05-30T19:25:42.2827183Z   freezed on lib/services/daos/debts_dao.dart:
+2026-05-30T19:25:42.2827899Z   Running FreezedGenerator
+2026-05-30T19:25:42.3550394Z   freezed on lib/services/daos/employees_dao.dart:
+2026-05-30T19:25:42.3551135Z   Running FreezedGenerator
+2026-05-30T19:25:42.4346002Z   freezed on lib/services/daos/expenses_dao.dart:
+2026-05-30T19:25:42.5265655Z   Running FreezedGenerator
+2026-05-30T19:25:42.5266372Z   freezed on lib/services/daos/outbox_dao.dart:
+2026-05-30T19:25:42.5267154Z   Running FreezedGenerator
+2026-05-30T19:25:42.6141292Z   freezed on lib/services/daos/payments_dao.dart:
+2026-05-30T19:25:42.6142136Z   Running FreezedGenerator
+2026-05-30T19:25:42.6914360Z   freezed on lib/services/daos/rooms_dao.dart:
+2026-05-30T19:25:42.6915675Z   Running FreezedGenerator
+2026-05-30T19:25:42.7161727Z   25s freezed on 394 inputs: 204 no-op; spent 16s analyzing, 5s sdk, 3s resolving; lib/services/daos/shift_notes_dao.dart
+2026-05-30T19:25:42.7453504Z   freezed on lib/services/daos/shift_notes_dao.dart:
+2026-05-30T19:25:42.7455748Z   Running FreezedGenerator
+2026-05-30T19:25:42.8123159Z   freezed on lib/services/daos/sync_log_dao.dart:
+2026-05-30T19:25:42.8123866Z   Running FreezedGenerator
+2026-05-30T19:25:43.2047411Z   freezed on lib/services/local_db.dart:
+2026-05-30T19:25:43.2048237Z   Running FreezedGenerator
+2026-05-30T19:25:43.6060421Z   freezed on lib/services/sync/models/sync_state.dart:
+2026-05-30T19:25:43.6061087Z   Running FreezedGenerator
+2026-05-30T19:25:43.7303083Z   26s freezed on 394 inputs: 1 same, 275 no-op; spent 17s analyzing, 5s sdk, 3s resolving; lib/services/sync/strategies/retry_strategy.dart
+2026-05-30T19:25:43.7644605Z   freezed on lib/services/sync/workers/sync_worker.dart:
+2026-05-30T19:25:43.7645773Z   Running FreezedGenerator
+2026-05-30T19:25:44.0286865Z   freezed on lib/sync/providers/sync_providers.dart:
+2026-05-30T19:25:44.0287604Z   Running FreezedGenerator
+2026-05-30T19:25:44.0740432Z   freezed on lib/sync/services/background_sync_service.dart:
+2026-05-30T19:25:44.0741286Z   Running FreezedGenerator
+2026-05-30T19:25:44.1241940Z   freezed on lib/tasks/appwrite_auto_sync_task.dart:
+2026-05-30T19:25:44.1242809Z   Running FreezedGenerator
+2026-05-30T19:25:44.1571516Z   freezed on lib/tasks/auto_sync_task.dart:
+2026-05-30T19:25:44.1572238Z   Running FreezedGenerator
+2026-05-30T19:25:44.3263781Z   27s freezed on 394 inputs: 1 same, 393 no-op; spent 17s analyzing, 5s sdk, 3s resolving
+2026-05-30T19:25:44.3264636Z   0s json_serializable on 788 inputs; lib/components/admin_layout.dart
+2026-05-30T19:25:44.4190509Z   json_serializable on lib/components/admin_layout.dart:
+2026-05-30T19:25:44.4191341Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:44.4201742Z   json_serializable on lib/components/admin_layout.dart:
+2026-05-30T19:25:44.4202315Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:44.4635900Z   json_serializable on lib/components/admin_sidebar.dart:
+2026-05-30T19:25:44.4637051Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:44.4638013Z   json_serializable on lib/components/admin_sidebar.dart:
+2026-05-30T19:25:44.4638720Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:49.7324180Z   json_serializable on lib/components/app_bottom_nav.dart:
+2026-05-30T19:25:49.7325290Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:49.7326083Z   json_serializable on lib/components/app_bottom_nav.dart:
+2026-05-30T19:25:49.7327328Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:49.7328777Z   5s json_serializable on 788 inputs: 2 skipped, 3 no-op; spent 4s analyzing; lib/components/app_bottom_nav.freezed.dart
+2026-05-30T19:25:49.7497993Z   json_serializable on lib/components/app_scaffold.dart:
+2026-05-30T19:25:49.7498732Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:49.7499386Z   json_serializable on lib/components/app_scaffold.dart:
+2026-05-30T19:25:49.7499984Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:49.7569043Z   json_serializable on lib/components/widgets/empty_state.dart:
+2026-05-30T19:25:49.7569812Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:49.7570513Z   json_serializable on lib/components/widgets/empty_state.dart:
+2026-05-30T19:25:49.7571208Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:49.7705028Z   json_serializable on lib/components/widgets/form_input.dart:
+2026-05-30T19:25:49.7706073Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:49.7706772Z   json_serializable on lib/components/widgets/form_input.dart:
+2026-05-30T19:25:49.7707425Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:49.7844867Z   json_serializable on lib/components/widgets/loading.dart:
+2026-05-30T19:25:49.7845760Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:49.7846402Z   json_serializable on lib/components/widgets/loading.dart:
+2026-05-30T19:25:49.7847011Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:49.8020690Z   json_serializable on lib/components/widgets/neu_card.dart:
+2026-05-30T19:25:49.8021464Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:49.8022123Z   json_serializable on lib/components/widgets/neu_card.dart:
+2026-05-30T19:25:49.8022723Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:49.8718952Z   json_serializable on lib/components/widgets/payment_widgets.dart:
+2026-05-30T19:25:49.8719506Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:49.8719975Z   json_serializable on lib/components/widgets/payment_widgets.dart:
+2026-05-30T19:25:49.8720388Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:49.8858246Z   json_serializable on lib/components/widgets/primary_button.dart:
+2026-05-30T19:25:49.8859152Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:49.8859843Z   json_serializable on lib/components/widgets/primary_button.dart:
+2026-05-30T19:25:49.8860373Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:49.9184756Z   json_serializable on lib/components/widgets/room_widgets.dart:
+2026-05-30T19:25:49.9186540Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:49.9187756Z   json_serializable on lib/components/widgets/room_widgets.dart:
+2026-05-30T19:25:49.9188814Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:49.9365563Z   json_serializable on lib/components/widgets/sync_action_button.dart:
+2026-05-30T19:25:49.9366109Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:49.9366571Z   json_serializable on lib/components/widgets/sync_action_button.dart:
+2026-05-30T19:25:49.9367001Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:49.9782153Z   json_serializable on lib/core/constants/ui_constants.dart:
+2026-05-30T19:25:49.9782756Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:49.9783243Z   json_serializable on lib/core/constants/ui_constants.dart:
+2026-05-30T19:25:49.9783704Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:49.9833547Z   json_serializable on lib/core/core.dart:
+2026-05-30T19:25:49.9834198Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:49.9836538Z   json_serializable on lib/core/core.dart:
+2026-05-30T19:25:49.9837132Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:49.9968089Z   json_serializable on lib/core/utils/date_time_formatter.dart:
+2026-05-30T19:25:49.9968848Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:49.9969555Z   json_serializable on lib/core/utils/date_time_formatter.dart:
+2026-05-30T19:25:49.9970722Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:50.0045658Z   json_serializable on lib/core/utils/file_size_formatter.dart:
+2026-05-30T19:25:50.0046389Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:50.0047086Z   json_serializable on lib/core/utils/file_size_formatter.dart:
+2026-05-30T19:25:50.0047747Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:50.0304413Z   json_serializable on lib/core/widgets/common_widgets.dart:
+2026-05-30T19:25:50.0318773Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:50.0319472Z   json_serializable on lib/core/widgets/common_widgets.dart:
+2026-05-30T19:25:50.0320101Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:50.0448041Z   json_serializable on lib/data/load_state.dart:
+2026-05-30T19:25:50.0448714Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:50.0449189Z   json_serializable on lib/data/load_state.dart:
+2026-05-30T19:25:50.0449619Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:50.0599962Z   json_serializable on lib/data/sync_models.dart:
+2026-05-30T19:25:50.0600818Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:50.0601351Z   json_serializable on lib/data/sync_models.dart:
+2026-05-30T19:25:50.0601801Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.3211640Z   json_serializable on lib/main.dart:
+2026-05-30T19:25:51.3212308Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.3212844Z   json_serializable on lib/main.dart:
+2026-05-30T19:25:51.3213330Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.3216299Z   7s json_serializable on 788 inputs: 19 skipped, 20 no-op; spent 6s analyzing, 1s resolving; lib/main.freezed.dart
+2026-05-30T19:25:51.3301528Z   json_serializable on lib/mixins/sync_on_exit_mixin.dart:
+2026-05-30T19:25:51.3302213Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.3302869Z   json_serializable on lib/mixins/sync_on_exit_mixin.dart:
+2026-05-30T19:25:51.3303459Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.3748386Z   json_serializable on lib/models/enhanced_payment_models.dart:
+2026-05-30T19:25:51.3748937Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.3749477Z   json_serializable on lib/models/enhanced_payment_models.dart:
+2026-05-30T19:25:51.3749999Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.4248059Z   json_serializable on lib/models/enhanced_reports.dart:
+2026-05-30T19:25:51.4248950Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.4249714Z   json_serializable on lib/models/enhanced_reports.dart:
+2026-05-30T19:25:51.4250944Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.4353071Z   json_serializable on lib/models/financial_models.dart:
+2026-05-30T19:25:51.4353764Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.4354399Z   json_serializable on lib/models/financial_models.dart:
+2026-05-30T19:25:51.4355244Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.4904370Z   json_serializable on lib/models/payment_models.dart:
+2026-05-30T19:25:51.4905364Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.4905964Z   json_serializable on lib/models/payment_models.dart:
+2026-05-30T19:25:51.4906547Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.5050135Z   json_serializable on lib/models/shift_note_adapter.dart:
+2026-05-30T19:25:51.5050828Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.5051493Z   json_serializable on lib/models/shift_note_adapter.dart:
+2026-05-30T19:25:51.5052102Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.5207564Z   json_serializable on lib/providers/appwrite_providers.dart:
+2026-05-30T19:25:51.5208294Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.5208989Z   json_serializable on lib/providers/appwrite_providers.dart:
+2026-05-30T19:25:51.5209636Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.5375303Z   json_serializable on lib/providers/auth_provider.dart:
+2026-05-30T19:25:51.5376225Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.5377352Z   json_serializable on lib/providers/auth_provider.dart:
+2026-05-30T19:25:51.5377950Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.5444440Z   json_serializable on lib/providers/auto_backup_provider.dart:
+2026-05-30T19:25:51.5445294Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.5445980Z   json_serializable on lib/providers/auto_backup_provider.dart:
+2026-05-30T19:25:51.5446659Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.5757366Z   json_serializable on lib/providers/auto_sync_engine_providers.dart:
+2026-05-30T19:25:51.5758613Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.5759708Z   json_serializable on lib/providers/auto_sync_engine_providers.dart:
+2026-05-30T19:25:51.5760681Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.6463973Z   json_serializable on lib/providers/backup_provider.dart:
+2026-05-30T19:25:51.6464766Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.6465731Z   json_serializable on lib/providers/backup_provider.dart:
+2026-05-30T19:25:51.6466395Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.6724882Z   json_serializable on lib/providers/booking_computed_providers.dart:
+2026-05-30T19:25:51.6726012Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.6726788Z   json_serializable on lib/providers/booking_computed_providers.dart:
+2026-05-30T19:25:51.6727520Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.6765395Z   json_serializable on lib/providers/core_providers.dart:
+2026-05-30T19:25:51.6766232Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.6766736Z   json_serializable on lib/providers/core_providers.dart:
+2026-05-30T19:25:51.6767227Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.6961496Z   json_serializable on lib/providers/custom_list_providers.dart:
+2026-05-30T19:25:51.6962547Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.6963090Z   json_serializable on lib/providers/custom_list_providers.dart:
+2026-05-30T19:25:51.6963647Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.7224569Z   json_serializable on lib/providers/lark_provider.dart:
+2026-05-30T19:25:51.7225690Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.7226226Z   json_serializable on lib/providers/lark_provider.dart:
+2026-05-30T19:25:51.7226709Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.7343596Z   json_serializable on lib/providers/performance_provider.dart:
+2026-05-30T19:25:51.7344514Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.7345744Z   json_serializable on lib/providers/performance_provider.dart:
+2026-05-30T19:25:51.7346260Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.7645807Z   json_serializable on lib/providers/realtime_rooms_provider.dart:
+2026-05-30T19:25:51.7646515Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.7646970Z   json_serializable on lib/providers/realtime_rooms_provider.dart:
+2026-05-30T19:25:51.7647435Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.7698754Z   json_serializable on lib/providers/remote_config_provider.dart:
+2026-05-30T19:25:51.7699718Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.7700664Z   json_serializable on lib/providers/remote_config_provider.dart:
+2026-05-30T19:25:51.7701610Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.7963149Z   json_serializable on lib/providers/repository_providers.dart:
+2026-05-30T19:25:51.7963969Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.7964735Z   json_serializable on lib/providers/repository_providers.dart:
+2026-05-30T19:25:51.7965700Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.8087159Z   json_serializable on lib/providers/room_payment_status_provider.dart:
+2026-05-30T19:25:51.8087943Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.8088439Z   json_serializable on lib/providers/room_payment_status_provider.dart:
+2026-05-30T19:25:51.8089234Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.8220257Z   json_serializable on lib/providers/service_providers.dart:
+2026-05-30T19:25:51.8221134Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.8221819Z   json_serializable on lib/providers/service_providers.dart:
+2026-05-30T19:25:51.8222314Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.8326514Z   json_serializable on lib/providers/settings_provider.dart:
+2026-05-30T19:25:51.8327362Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.8328066Z   json_serializable on lib/providers/settings_provider.dart:
+2026-05-30T19:25:51.8328618Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.8372135Z   json_serializable on lib/providers/smart_sync_provider.dart:
+2026-05-30T19:25:51.8372986Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.8373675Z   json_serializable on lib/providers/smart_sync_provider.dart:
+2026-05-30T19:25:51.8374176Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.8579100Z   json_serializable on lib/providers/sync_dashboard_provider.dart:
+2026-05-30T19:25:51.8579927Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.8580695Z   json_serializable on lib/providers/sync_dashboard_provider.dart:
+2026-05-30T19:25:51.8581426Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.8893710Z   json_serializable on lib/providers/telegram_provider.dart:
+2026-05-30T19:25:51.8894507Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.8895481Z   json_serializable on lib/providers/telegram_provider.dart:
+2026-05-30T19:25:51.8896197Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.8941241Z   json_serializable on lib/providers/theme_provider.dart:
+2026-05-30T19:25:51.8942139Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.8942824Z   json_serializable on lib/providers/theme_provider.dart:
+2026-05-30T19:25:51.8943472Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.9115533Z   json_serializable on lib/providers/whatsapp_daily_report_provider.dart:
+2026-05-30T19:25:51.9116660Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.9117133Z   json_serializable on lib/providers/whatsapp_daily_report_provider.dart:
+2026-05-30T19:25:51.9117583Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.9298680Z   json_serializable on lib/repositories/room_repository.dart:
+2026-05-30T19:25:51.9299296Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.9299724Z   json_serializable on lib/repositories/room_repository.dart:
+2026-05-30T19:25:51.9300123Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:51.9932884Z   json_serializable on lib/screens/ai/ai_chat_screen.dart:
+2026-05-30T19:25:51.9933791Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:51.9934553Z   json_serializable on lib/screens/ai/ai_chat_screen.dart:
+2026-05-30T19:25:51.9935499Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.0090127Z   json_serializable on lib/screens/auth/google_drive_login_screen.dart:
+2026-05-30T19:25:52.0090948Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.0091412Z   json_serializable on lib/screens/auth/google_drive_login_screen.dart:
+2026-05-30T19:25:52.0091839Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.0301118Z   json_serializable on lib/screens/auth/login_screen.dart:
+2026-05-30T19:25:52.0302576Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.0303746Z   json_serializable on lib/screens/auth/login_screen.dart:
+2026-05-30T19:25:52.0305249Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.1295909Z   json_serializable on lib/screens/bookings/booking_edit.dart:
+2026-05-30T19:25:52.1296653Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.1297308Z   json_serializable on lib/screens/bookings/booking_edit.dart:
+2026-05-30T19:25:52.1297947Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.1758894Z   json_serializable on lib/screens/bookings/bookings_list.dart:
+2026-05-30T19:25:52.1760172Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.1760851Z   json_serializable on lib/screens/bookings/bookings_list.dart:
+2026-05-30T19:25:52.1761453Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.2311615Z   json_serializable on lib/screens/dashboard_screen.dart:
+2026-05-30T19:25:52.2312345Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.2312945Z   json_serializable on lib/screens/dashboard_screen.dart:
+2026-05-30T19:25:52.2313538Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.2683629Z   json_serializable on lib/screens/debts/create_debt_from_booking.dart:
+2026-05-30T19:25:52.2684460Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.2685446Z   json_serializable on lib/screens/debts/create_debt_from_booking.dart:
+2026-05-30T19:25:52.2686130Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.3461689Z   json_serializable on lib/screens/debts/debts_list.dart:
+2026-05-30T19:25:52.3462409Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.3463049Z   json_serializable on lib/screens/debts/debts_list.dart:
+2026-05-30T19:25:52.3463645Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.3465870Z   8s json_serializable on 788 inputs: 55 skipped, 56 no-op; spent 6s analyzing, 1s resolving; lib/screens/debts/debts_list.freezed.dart
+2026-05-30T19:25:52.4399818Z   json_serializable on lib/screens/employees/employees_list.dart:
+2026-05-30T19:25:52.4400577Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.4401237Z   json_serializable on lib/screens/employees/employees_list.dart:
+2026-05-30T19:25:52.4401919Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.4651662Z   json_serializable on lib/screens/employees/salary_entitlements_screen.dart:
+2026-05-30T19:25:52.4652497Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.4653234Z   json_serializable on lib/screens/employees/salary_entitlements_screen.dart:
+2026-05-30T19:25:52.4653919Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.5343245Z   json_serializable on lib/screens/expenses/expenses_list.dart:
+2026-05-30T19:25:52.5344003Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.5344650Z   json_serializable on lib/screens/expenses/expenses_list.dart:
+2026-05-30T19:25:52.5345590Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.5989389Z   json_serializable on lib/screens/finance/finance_screen.dart:
+2026-05-30T19:25:52.5990210Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.5990836Z   json_serializable on lib/screens/finance/finance_screen.dart:
+2026-05-30T19:25:52.5991983Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.6778712Z   json_serializable on lib/screens/finance/payments_list.dart:
+2026-05-30T19:25:52.6779446Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.6780073Z   json_serializable on lib/screens/finance/payments_list.dart:
+2026-05-30T19:25:52.6780723Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.7247232Z   json_serializable on lib/screens/information/information_screen.dart:
+2026-05-30T19:25:52.7248011Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.7248690Z   json_serializable on lib/screens/information/information_screen.dart:
+2026-05-30T19:25:52.7249382Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.7563834Z   json_serializable on lib/screens/notes/notes_screen.dart:
+2026-05-30T19:25:52.7565185Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.7566137Z   json_serializable on lib/screens/notes/notes_screen.dart:
+2026-05-30T19:25:52.7566938Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.8008264Z   json_serializable on lib/screens/payments/booking_checkout_screen.dart:
+2026-05-30T19:25:52.8009181Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.8009784Z   json_serializable on lib/screens/payments/booking_checkout_screen.dart:
+2026-05-30T19:25:52.8010357Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:52.9922738Z   json_serializable on lib/screens/payments/booking_payment_screen.dart:
+2026-05-30T19:25:52.9924251Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:52.9925323Z   json_serializable on lib/screens/payments/booking_payment_screen.dart:
+2026-05-30T19:25:52.9925923Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.0388083Z   json_serializable on lib/screens/payments/payment_history_screen.dart:
+2026-05-30T19:25:53.0388874Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.0389478Z   json_serializable on lib/screens/payments/payment_history_screen.dart:
+2026-05-30T19:25:53.0390100Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.0920206Z   json_serializable on lib/screens/payments/payments_main_screen.dart:
+2026-05-30T19:25:53.0921063Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.0921698Z   json_serializable on lib/screens/payments/payments_main_screen.dart:
+2026-05-30T19:25:53.0922249Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.1265188Z   json_serializable on lib/screens/reports/debts_report_screen.dart:
+2026-05-30T19:25:53.1266043Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.1266795Z   json_serializable on lib/screens/reports/debts_report_screen.dart:
+2026-05-30T19:25:53.1267501Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.1967150Z   json_serializable on lib/screens/reports/expenses_report_screen.dart:
+2026-05-30T19:25:53.1968047Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.1968589Z   json_serializable on lib/screens/reports/expenses_report_screen.dart:
+2026-05-30T19:25:53.1969133Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.2621065Z   json_serializable on lib/screens/reports/guest_payments_detail_report_screen.dart:
+2026-05-30T19:25:53.2622118Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.2623030Z   json_serializable on lib/screens/reports/guest_payments_detail_report_screen.dart:
+2026-05-30T19:25:53.2623956Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.3763092Z   json_serializable on lib/screens/reports/income_expense_report_screen.dart:
+2026-05-30T19:25:53.3763910Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.3764393Z   json_serializable on lib/screens/reports/income_expense_report_screen.dart:
+2026-05-30T19:25:53.3765095Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.3766916Z   9s json_serializable on 788 inputs: 70 skipped, 71 no-op; spent 7s analyzing, 1s resolving; lib/screens/reports/income_expense_report_screen.freezed.dart
+2026-05-30T19:25:53.4075373Z   json_serializable on lib/screens/reports/payments_report_screen.dart:
+2026-05-30T19:25:53.4077014Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.4077744Z   json_serializable on lib/screens/reports/payments_report_screen.dart:
+2026-05-30T19:25:53.4078453Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.4171412Z   json_serializable on lib/screens/reports/report_page_scaffold.dart:
+2026-05-30T19:25:53.4172264Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.4172857Z   json_serializable on lib/screens/reports/report_page_scaffold.dart:
+2026-05-30T19:25:53.4173362Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.4534707Z   json_serializable on lib/screens/reports/reports_screen.dart:
+2026-05-30T19:25:53.4535751Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.4536277Z   json_serializable on lib/screens/reports/reports_screen.dart:
+2026-05-30T19:25:53.4536769Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.5020542Z   json_serializable on lib/screens/reports/salary_withdrawals_report_screen.dart:
+2026-05-30T19:25:53.5021376Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.5021918Z   json_serializable on lib/screens/reports/salary_withdrawals_report_screen.dart:
+2026-05-30T19:25:53.5022442Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.5207396Z   json_serializable on lib/screens/rooms/rooms_dashboard.dart:
+2026-05-30T19:25:53.5208624Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.5209201Z   json_serializable on lib/screens/rooms/rooms_dashboard.dart:
+2026-05-30T19:25:53.5209741Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.5890183Z   json_serializable on lib/screens/rooms/rooms_list.dart:
+2026-05-30T19:25:53.5890839Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.5891282Z   json_serializable on lib/screens/rooms/rooms_list.dart:
+2026-05-30T19:25:53.5891707Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.6019867Z   json_serializable on lib/screens/rooms/rooms_main.dart:
+2026-05-30T19:25:53.6020647Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.6021249Z   json_serializable on lib/screens/rooms/rooms_main.dart:
+2026-05-30T19:25:53.6021758Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.6485720Z   json_serializable on lib/screens/security/blacklist_screen.dart:
+2026-05-30T19:25:53.6486473Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.6487186Z   json_serializable on lib/screens/security/blacklist_screen.dart:
+2026-05-30T19:25:53.6487805Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.7129948Z   json_serializable on lib/screens/settings/active_bookings_reminder_screen.dart:
+2026-05-30T19:25:53.7131069Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.7132008Z   json_serializable on lib/screens/settings/active_bookings_reminder_screen.dart:
+2026-05-30T19:25:53.7132878Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.7628651Z   json_serializable on lib/screens/settings/appwrite/appwrite_settings_screen_v2.dart:
+2026-05-30T19:25:53.7629583Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.7630225Z   json_serializable on lib/screens/settings/appwrite/appwrite_settings_screen_v2.dart:
+2026-05-30T19:25:53.7630827Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.7933451Z   json_serializable on lib/screens/settings/appwrite/tabs/connection_tab.dart:
+2026-05-30T19:25:53.7934422Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.7935467Z   json_serializable on lib/screens/settings/appwrite/tabs/connection_tab.dart:
+2026-05-30T19:25:53.7936305Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.8216322Z   json_serializable on lib/screens/settings/appwrite/tabs/devices_tab.dart:
+2026-05-30T19:25:53.8217287Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.8217965Z   json_serializable on lib/screens/settings/appwrite/tabs/devices_tab.dart:
+2026-05-30T19:25:53.8218649Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.8950721Z   json_serializable on lib/screens/settings/appwrite/tabs/sync_tab.dart:
+2026-05-30T19:25:53.8951485Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.8951957Z   json_serializable on lib/screens/settings/appwrite/tabs/sync_tab.dart:
+2026-05-30T19:25:53.8952399Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.9466397Z   json_serializable on lib/screens/settings/appwrite/tabs/tools_tab.dart:
+2026-05-30T19:25:53.9467311Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.9467931Z   json_serializable on lib/screens/settings/appwrite/tabs/tools_tab.dart:
+2026-05-30T19:25:53.9468498Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:53.9787831Z   json_serializable on lib/screens/settings/appwrite_connection_settings_screen.dart:
+2026-05-30T19:25:53.9789131Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:53.9790236Z   json_serializable on lib/screens/settings/appwrite_connection_settings_screen.dart:
+2026-05-30T19:25:53.9791027Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.0203638Z   json_serializable on lib/screens/settings/appwrite_logs_screen.dart:
+2026-05-30T19:25:54.0204429Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.0205386Z   json_serializable on lib/screens/settings/appwrite_logs_screen.dart:
+2026-05-30T19:25:54.0206051Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.1179361Z   json_serializable on lib/screens/settings/appwrite_settings_screen.dart:
+2026-05-30T19:25:54.1180450Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.1181129Z   json_serializable on lib/screens/settings/appwrite_settings_screen.dart:
+2026-05-30T19:25:54.1181834Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.1558196Z   json_serializable on lib/screens/settings/appwrite_sync_stats_screen.dart:
+2026-05-30T19:25:54.1558986Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.1559721Z   json_serializable on lib/screens/settings/appwrite_sync_stats_screen.dart:
+2026-05-30T19:25:54.1560448Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.2043122Z   json_serializable on lib/screens/settings/auto_backup_settings_screen.dart:
+2026-05-30T19:25:54.2043943Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.2044680Z   json_serializable on lib/screens/settings/auto_backup_settings_screen.dart:
+2026-05-30T19:25:54.2045645Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.2924010Z   json_serializable on lib/screens/settings/auto_sync_engine_monitor_screen.dart:
+2026-05-30T19:25:54.2925184Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.2925964Z   json_serializable on lib/screens/settings/auto_sync_engine_monitor_screen.dart:
+2026-05-30T19:25:54.2926660Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.3120745Z   json_serializable on lib/screens/settings/backup/comprehensive_backup_screen_v2.dart:
+2026-05-30T19:25:54.3121636Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.3122454Z   json_serializable on lib/screens/settings/backup/comprehensive_backup_screen_v2.dart:
+2026-05-30T19:25:54.3123253Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.3363411Z   json_serializable on lib/screens/settings/backup/tabs/backup_overview_tab.dart:
+2026-05-30T19:25:54.3364247Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.3365234Z   json_serializable on lib/screens/settings/backup/tabs/backup_overview_tab.dart:
+2026-05-30T19:25:54.3366004Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.3570391Z   json_serializable on lib/screens/settings/backup/tabs/file_management_tab.dart:
+2026-05-30T19:25:54.3571003Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.3571540Z   json_serializable on lib/screens/settings/backup/tabs/file_management_tab.dart:
+2026-05-30T19:25:54.3572053Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.3612029Z   json_serializable on lib/screens/settings/backup/tabs/google_drive_tab.dart:
+2026-05-30T19:25:54.3612831Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.3613809Z   json_serializable on lib/screens/settings/backup/tabs/google_drive_tab.dart:
+2026-05-30T19:25:54.3614325Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.4001729Z   json_serializable on lib/screens/settings/backup/tabs/local_backups_tab.dart:
+2026-05-30T19:25:54.4002531Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.4003224Z   json_serializable on lib/screens/settings/backup/tabs/local_backups_tab.dart:
+2026-05-30T19:25:54.4004183Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.4006209Z   10s json_serializable on 788 inputs: 95 skipped, 96 no-op; spent 8s analyzing, 1s resolving; lib/screens/settings/backup/tabs/local_backups_tab.freezed.dart
+2026-05-30T19:25:54.4655826Z   json_serializable on lib/screens/settings/backup/unified_backup_settings_screen.dart:
+2026-05-30T19:25:54.4656655Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.4657254Z   json_serializable on lib/screens/settings/backup/unified_backup_settings_screen.dart:
+2026-05-30T19:25:54.4657864Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.4985391Z   json_serializable on lib/screens/settings/comprehensive_backup_screen.dart:
+2026-05-30T19:25:54.4986379Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.4987238Z   json_serializable on lib/screens/settings/comprehensive_backup_screen.dart:
+2026-05-30T19:25:54.4988055Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.5686925Z   json_serializable on lib/screens/settings/data_protection_screen.dart:
+2026-05-30T19:25:54.5687720Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.5688398Z   json_serializable on lib/screens/settings/data_protection_screen.dart:
+2026-05-30T19:25:54.5689096Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.6104839Z   json_serializable on lib/screens/settings/database_fixer_screen.dart:
+2026-05-30T19:25:54.6105845Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.6106547Z   json_serializable on lib/screens/settings/database_fixer_screen.dart:
+2026-05-30T19:25:54.6107232Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.6408682Z   json_serializable on lib/screens/settings/error_center_screen.dart:
+2026-05-30T19:25:54.6409428Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.6410132Z   json_serializable on lib/screens/settings/error_center_screen.dart:
+2026-05-30T19:25:54.6410786Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.6668481Z   json_serializable on lib/screens/settings/google_drive_settings_screen.dart:
+2026-05-30T19:25:54.6669293Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.6670040Z   json_serializable on lib/screens/settings/google_drive_settings_screen.dart:
+2026-05-30T19:25:54.6670730Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.7453994Z   json_serializable on lib/screens/settings/guest_edit_screen.dart:
+2026-05-30T19:25:54.7454648Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.7455667Z   json_serializable on lib/screens/settings/guest_edit_screen.dart:
+2026-05-30T19:25:54.7456543Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.7493288Z   json_serializable on lib/screens/settings/guest_info.dart:
+2026-05-30T19:25:54.7493895Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.7494310Z   json_serializable on lib/screens/settings/guest_info.dart:
+2026-05-30T19:25:54.7494706Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.8266156Z   json_serializable on lib/screens/settings/lark_settings_screen.dart:
+2026-05-30T19:25:54.8267077Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.8267858Z   json_serializable on lib/screens/settings/lark_settings_screen.dart:
+2026-05-30T19:25:54.8268736Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.8800434Z   json_serializable on lib/screens/settings/late_payment_whatsapp_screen.dart:
+2026-05-30T19:25:54.8801270Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.8801997Z   json_serializable on lib/screens/settings/late_payment_whatsapp_screen.dart:
+2026-05-30T19:25:54.8803211Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.9306939Z   json_serializable on lib/screens/settings/logs/unified_logs_screen.dart:
+2026-05-30T19:25:54.9307751Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.9308450Z   json_serializable on lib/screens/settings/logs/unified_logs_screen.dart:
+2026-05-30T19:25:54.9309161Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:54.9787326Z   json_serializable on lib/screens/settings/php_api_settings_screen.dart:
+2026-05-30T19:25:54.9788357Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:54.9789193Z   json_serializable on lib/screens/settings/php_api_settings_screen.dart:
+2026-05-30T19:25:54.9790041Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.0084656Z   json_serializable on lib/screens/settings/remote_config_settings_screen.dart:
+2026-05-30T19:25:55.0085809Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.0086491Z   json_serializable on lib/screens/settings/remote_config_settings_screen.dart:
+2026-05-30T19:25:55.0087125Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.0574273Z   json_serializable on lib/screens/settings/restore_fix_screen.dart:
+2026-05-30T19:25:55.0575312Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.0576047Z   json_serializable on lib/screens/settings/restore_fix_screen.dart:
+2026-05-30T19:25:55.0577191Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.1055206Z   json_serializable on lib/screens/settings/schema_comparison_screen.dart:
+2026-05-30T19:25:55.1056249Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.1057154Z   json_serializable on lib/screens/settings/schema_comparison_screen.dart:
+2026-05-30T19:25:55.1058044Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.1366967Z   json_serializable on lib/screens/settings/server_id_fixer_screen.dart:
+2026-05-30T19:25:55.1367957Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.1368885Z   json_serializable on lib/screens/settings/server_id_fixer_screen.dart:
+2026-05-30T19:25:55.1369760Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.1720905Z   json_serializable on lib/screens/settings/settings_custom_lists.dart:
+2026-05-30T19:25:55.1721904Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.1722798Z   json_serializable on lib/screens/settings/settings_custom_lists.dart:
+2026-05-30T19:25:55.1723699Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.2420861Z   json_serializable on lib/screens/settings/settings_employees.dart:
+2026-05-30T19:25:55.2421743Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.2422583Z   json_serializable on lib/screens/settings/settings_employees.dart:
+2026-05-30T19:25:55.2423292Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.3044661Z   json_serializable on lib/screens/settings/settings_guests.dart:
+2026-05-30T19:25:55.3045696Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.3046407Z   json_serializable on lib/screens/settings/settings_guests.dart:
+2026-05-30T19:25:55.3047017Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.3712695Z   json_serializable on lib/screens/settings/settings_maintenance.dart:
+2026-05-30T19:25:55.3713461Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.3714134Z   json_serializable on lib/screens/settings/settings_maintenance.dart:
+2026-05-30T19:25:55.3715093Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.4319552Z   json_serializable on lib/screens/settings/settings_screen.dart:
+2026-05-30T19:25:55.4320316Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.4320989Z   json_serializable on lib/screens/settings/settings_screen.dart:
+2026-05-30T19:25:55.4321690Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.4326494Z   11s json_serializable on 788 inputs: 116 skipped, 117 no-op; spent 9s analyzing, 1s resolving; lib/screens/settings/settings_screen.freezed.dart
+2026-05-30T19:25:55.4892755Z   json_serializable on lib/screens/settings/settings_users.dart:
+2026-05-30T19:25:55.4893817Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.4894744Z   json_serializable on lib/screens/settings/settings_users.dart:
+2026-05-30T19:25:55.4895918Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.5585685Z   json_serializable on lib/screens/settings/smart_sync_settings_screen.dart:
+2026-05-30T19:25:55.5586606Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.5587120Z   json_serializable on lib/screens/settings/smart_sync_settings_screen.dart:
+2026-05-30T19:25:55.5587592Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.6129462Z   json_serializable on lib/screens/settings/sync/unified_sync_settings_screen.dart:
+2026-05-30T19:25:55.6130760Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.6131838Z   json_serializable on lib/screens/settings/sync/unified_sync_settings_screen.dart:
+2026-05-30T19:25:55.6132936Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.6441950Z   json_serializable on lib/screens/settings/sync_debug_logs_screen.dart:
+2026-05-30T19:25:55.6442751Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.6443285Z   json_serializable on lib/screens/settings/sync_debug_logs_screen.dart:
+2026-05-30T19:25:55.6443716Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.6971280Z   json_serializable on lib/screens/settings/sync_health_dashboard_screen.dart:
+2026-05-30T19:25:55.6972898Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.6973961Z   json_serializable on lib/screens/settings/sync_health_dashboard_screen.dart:
+2026-05-30T19:25:55.6974695Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.7472936Z   json_serializable on lib/screens/settings/sync_history_screen.dart:
+2026-05-30T19:25:55.7474130Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.7475308Z   json_serializable on lib/screens/settings/sync_history_screen.dart:
+2026-05-30T19:25:55.7476124Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.7881515Z   json_serializable on lib/screens/settings/sync_performance_settings_screen.dart:
+2026-05-30T19:25:55.7882437Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.7883219Z   json_serializable on lib/screens/settings/sync_performance_settings_screen.dart:
+2026-05-30T19:25:55.7884011Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.8586204Z   json_serializable on lib/screens/settings/telegram_settings_screen.dart:
+2026-05-30T19:25:55.8587256Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.8588147Z   json_serializable on lib/screens/settings/telegram_settings_screen.dart:
+2026-05-30T19:25:55.8589023Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.9094617Z   json_serializable on lib/screens/settings/whatsapp_daily_report_screen.dart:
+2026-05-30T19:25:55.9095955Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.9096891Z   json_serializable on lib/screens/settings/whatsapp_daily_report_screen.dart:
+2026-05-30T19:25:55.9097839Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.9771973Z   json_serializable on lib/screens/settings/whatsapp_settings_screen.dart:
+2026-05-30T19:25:55.9773025Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.9773943Z   json_serializable on lib/screens/settings/whatsapp_settings_screen.dart:
+2026-05-30T19:25:55.9775163Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:55.9997497Z   json_serializable on lib/scripts/add_booking_price_adjustments_to_appwrite.dart:
+2026-05-30T19:25:55.9998590Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:55.9999578Z   json_serializable on lib/scripts/add_booking_price_adjustments_to_appwrite.dart:
+2026-05-30T19:25:56.0000555Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.0134626Z   json_serializable on lib/scripts/add_discount_fields_to_appwrite.dart:
+2026-05-30T19:25:56.0135662Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.0136861Z   json_serializable on lib/scripts/add_discount_fields_to_appwrite.dart:
+2026-05-30T19:25:56.0137606Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.0206806Z   json_serializable on lib/services/adapters/adapter_registry.dart:
+2026-05-30T19:25:56.0207555Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.0208189Z   json_serializable on lib/services/adapters/adapter_registry.dart:
+2026-05-30T19:25:56.0208638Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.0319466Z   json_serializable on lib/services/adapters/audit_logs_adapter.dart:
+2026-05-30T19:25:56.0320225Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.0320709Z   json_serializable on lib/services/adapters/audit_logs_adapter.dart:
+2026-05-30T19:25:56.0321133Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.0413860Z   json_serializable on lib/services/adapters/booking_notes_adapter.dart:
+2026-05-30T19:25:56.0414796Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.0415703Z   json_serializable on lib/services/adapters/booking_notes_adapter.dart:
+2026-05-30T19:25:56.0416302Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.0530490Z   json_serializable on lib/services/adapters/booking_price_adjustments_adapter.dart:
+2026-05-30T19:25:56.0531570Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.0532573Z   json_serializable on lib/services/adapters/booking_price_adjustments_adapter.dart:
+2026-05-30T19:25:56.0533947Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.0659937Z   json_serializable on lib/services/adapters/bookings_adapter.dart:
+2026-05-30T19:25:56.0660904Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.0661791Z   json_serializable on lib/services/adapters/bookings_adapter.dart:
+2026-05-30T19:25:56.0662638Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.0758845Z   json_serializable on lib/services/adapters/cash_transactions_adapter.dart:
+2026-05-30T19:25:56.0759697Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.0760474Z   json_serializable on lib/services/adapters/cash_transactions_adapter.dart:
+2026-05-30T19:25:56.0761286Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.0896250Z   json_serializable on lib/services/adapters/debts_adapter.dart:
+2026-05-30T19:25:56.0897165Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.0897806Z   json_serializable on lib/services/adapters/debts_adapter.dart:
+2026-05-30T19:25:56.0898353Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.0994953Z   json_serializable on lib/services/adapters/employees_adapter.dart:
+2026-05-30T19:25:56.0996330Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.0997313Z   json_serializable on lib/services/adapters/employees_adapter.dart:
+2026-05-30T19:25:56.0998203Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.1020820Z   json_serializable on lib/services/adapters/entity_adapter.dart:
+2026-05-30T19:25:56.1021553Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.1022260Z   json_serializable on lib/services/adapters/entity_adapter.dart:
+2026-05-30T19:25:56.1022918Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.1118341Z   json_serializable on lib/services/adapters/expenses_adapter.dart:
+2026-05-30T19:25:56.1119337Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.1120266Z   json_serializable on lib/services/adapters/expenses_adapter.dart:
+2026-05-30T19:25:56.1121189Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.1212594Z   json_serializable on lib/services/adapters/guest_infos_adapter.dart:
+2026-05-30T19:25:56.1213389Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.1214114Z   json_serializable on lib/services/adapters/guest_infos_adapter.dart:
+2026-05-30T19:25:56.1215006Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.1269552Z   json_serializable on lib/services/adapters/id_resolver.dart:
+2026-05-30T19:25:56.1270655Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.1272094Z   json_serializable on lib/services/adapters/id_resolver.dart:
+2026-05-30T19:25:56.1273150Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.1396647Z   json_serializable on lib/services/adapters/nights_adapter.dart:
+2026-05-30T19:25:56.1397399Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.1398085Z   json_serializable on lib/services/adapters/nights_adapter.dart:
+2026-05-30T19:25:56.1398786Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.1496157Z   json_serializable on lib/services/adapters/payment_voids_adapter.dart:
+2026-05-30T19:25:56.1497152Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.1498075Z   json_serializable on lib/services/adapters/payment_voids_adapter.dart:
+2026-05-30T19:25:56.1498975Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.1622679Z   json_serializable on lib/services/adapters/payments_adapter.dart:
+2026-05-30T19:25:56.1623445Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.1624172Z   json_serializable on lib/services/adapters/payments_adapter.dart:
+2026-05-30T19:25:56.1625071Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.1724558Z   json_serializable on lib/services/adapters/price_adjustments_adapter.dart:
+2026-05-30T19:25:56.1725585Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.1726327Z   json_serializable on lib/services/adapters/price_adjustments_adapter.dart:
+2026-05-30T19:25:56.1727414Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.1753894Z   json_serializable on lib/services/adapters/resolve_result.dart:
+2026-05-30T19:25:56.1754598Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.1755478Z   json_serializable on lib/services/adapters/resolve_result.dart:
+2026-05-30T19:25:56.1756130Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.1854302Z   json_serializable on lib/services/adapters/rooms_adapter.dart:
+2026-05-30T19:25:56.1855255Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.1856022Z   json_serializable on lib/services/adapters/rooms_adapter.dart:
+2026-05-30T19:25:56.1856735Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.1970612Z   json_serializable on lib/services/adapters/salary_cycles_adapter.dart:
+2026-05-30T19:25:56.1971396Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.1971911Z   json_serializable on lib/services/adapters/salary_cycles_adapter.dart:
+2026-05-30T19:25:56.1972362Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.2084378Z   json_serializable on lib/services/adapters/salary_payments_adapter.dart:
+2026-05-30T19:25:56.2085623Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.2086299Z   json_serializable on lib/services/adapters/salary_payments_adapter.dart:
+2026-05-30T19:25:56.2086905Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.2199872Z   json_serializable on lib/services/adapters/salary_withdrawals_adapter.dart:
+2026-05-30T19:25:56.2200907Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.2201686Z   json_serializable on lib/services/adapters/salary_withdrawals_adapter.dart:
+2026-05-30T19:25:56.2202349Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.2302048Z   json_serializable on lib/services/adapters/shift_notes_adapter.dart:
+2026-05-30T19:25:56.2303011Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.2303644Z   json_serializable on lib/services/adapters/shift_notes_adapter.dart:
+2026-05-30T19:25:56.2304192Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.2322384Z   json_serializable on lib/services/adapters/source.dart:
+2026-05-30T19:25:56.2323204Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.2323909Z   json_serializable on lib/services/adapters/source.dart:
+2026-05-30T19:25:56.2324381Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.2376662Z   json_serializable on lib/services/advanced_query_builder.dart:
+2026-05-30T19:25:56.2377530Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.2378509Z   json_serializable on lib/services/advanced_query_builder.dart:
+2026-05-30T19:25:56.2379001Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.2522596Z   json_serializable on lib/services/alarm_backup.dart:
+2026-05-30T19:25:56.2523431Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.2524152Z   json_serializable on lib/services/alarm_backup.dart:
+2026-05-30T19:25:56.2524622Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.2672109Z   json_serializable on lib/services/analytics_service.dart:
+2026-05-30T19:25:56.2673126Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.2674059Z   json_serializable on lib/services/analytics_service.dart:
+2026-05-30T19:25:56.2674730Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.2791721Z   json_serializable on lib/services/api_config_service.dart:
+2026-05-30T19:25:56.2792443Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.2793201Z   json_serializable on lib/services/api_config_service.dart:
+2026-05-30T19:25:56.2793864Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.2911535Z   json_serializable on lib/services/api_service.dart:
+2026-05-30T19:25:56.2912627Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.2913632Z   json_serializable on lib/services/api_service.dart:
+2026-05-30T19:25:56.2914523Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.3009365Z   json_serializable on lib/services/app_session_manager.dart:
+2026-05-30T19:25:56.3023418Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.3024250Z   json_serializable on lib/services/app_session_manager.dart:
+2026-05-30T19:25:56.3025267Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.3129595Z   json_serializable on lib/services/appwrite/sync_rate_limiter.dart:
+2026-05-30T19:25:56.3130356Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.3130909Z   json_serializable on lib/services/appwrite/sync_rate_limiter.dart:
+2026-05-30T19:25:56.3131354Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.3225174Z   json_serializable on lib/services/appwrite_backup_service.dart:
+2026-05-30T19:25:56.3226093Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.3226631Z   json_serializable on lib/services/appwrite_backup_service.dart:
+2026-05-30T19:25:56.3227039Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.3337216Z   json_serializable on lib/services/appwrite_cache_manager.dart:
+2026-05-30T19:25:56.3337961Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.3338454Z   json_serializable on lib/services/appwrite_cache_manager.dart:
+2026-05-30T19:25:56.3338869Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.3628639Z   json_serializable on lib/services/appwrite_config.dart:
+2026-05-30T19:25:56.3629469Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.3630176Z   json_serializable on lib/services/appwrite_config.dart:
+2026-05-30T19:25:56.3630684Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.3669579Z   json_serializable on lib/services/appwrite_config_manager.dart:
+2026-05-30T19:25:56.3670439Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.3671127Z   json_serializable on lib/services/appwrite_config_manager.dart:
+2026-05-30T19:25:56.3671639Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.4672157Z   json_serializable on lib/services/appwrite_delta_sync.dart:
+2026-05-30T19:25:56.4673143Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.4673755Z   json_serializable on lib/services/appwrite_delta_sync.dart:
+2026-05-30T19:25:56.4674262Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.4676261Z   12s json_serializable on 788 inputs: 163 skipped, 164 no-op; spent 10s analyzing, 1s resolving; lib/services/appwrite_delta_sync.freezed.dart
+2026-05-30T19:25:56.4819712Z   json_serializable on lib/services/appwrite_error_handler.dart:
+2026-05-30T19:25:56.4820298Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.4820829Z   json_serializable on lib/services/appwrite_error_handler.dart:
+2026-05-30T19:25:56.4821727Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.5161952Z   json_serializable on lib/services/appwrite_full_pull.dart:
+2026-05-30T19:25:56.5163040Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.5163978Z   json_serializable on lib/services/appwrite_full_pull.dart:
+2026-05-30T19:25:56.5165131Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.5261356Z   json_serializable on lib/services/appwrite_logger.dart:
+2026-05-30T19:25:56.5262058Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.5262496Z   json_serializable on lib/services/appwrite_logger.dart:
+2026-05-30T19:25:56.5262879Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.5423304Z   json_serializable on lib/services/appwrite_models.dart:
+2026-05-30T19:25:56.5424217Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.5425124Z   json_serializable on lib/services/appwrite_models.dart:
+2026-05-30T19:25:56.5425894Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.5499379Z   json_serializable on lib/services/appwrite_network_helper.dart:
+2026-05-30T19:25:56.5500093Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.5500536Z   json_serializable on lib/services/appwrite_network_helper.dart:
+2026-05-30T19:25:56.5500953Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.5668720Z   json_serializable on lib/services/appwrite_realtime_service.dart:
+2026-05-30T19:25:56.5669696Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.5670142Z   json_serializable on lib/services/appwrite_realtime_service.dart:
+2026-05-30T19:25:56.5670558Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.5762748Z   json_serializable on lib/services/appwrite_realtime_sync.dart:
+2026-05-30T19:25:56.5763615Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.5764427Z   json_serializable on lib/services/appwrite_realtime_sync.dart:
+2026-05-30T19:25:56.5765534Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.6281935Z   json_serializable on lib/services/appwrite_schema_verifier.dart:
+2026-05-30T19:25:56.6282814Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.6283611Z   json_serializable on lib/services/appwrite_schema_verifier.dart:
+2026-05-30T19:25:56.6284372Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.6549577Z   json_serializable on lib/services/appwrite_service.dart:
+2026-05-30T19:25:56.6550317Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.6550922Z   json_serializable on lib/services/appwrite_service.dart:
+2026-05-30T19:25:56.6551556Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.8370410Z   json_serializable on lib/services/appwrite_sync_manager.dart:
+2026-05-30T19:25:56.8371545Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.8372521Z   json_serializable on lib/services/appwrite_sync_manager.dart:
+2026-05-30T19:25:56.8373275Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.8454611Z   json_serializable on lib/services/appwrite_sync_utils.dart:
+2026-05-30T19:25:56.8455507Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.8455942Z   json_serializable on lib/services/appwrite_sync_utils.dart:
+2026-05-30T19:25:56.8456337Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.8723567Z   json_serializable on lib/services/auth_local_store.dart:
+2026-05-30T19:25:56.8725265Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.8726543Z   json_serializable on lib/services/auth_local_store.dart:
+2026-05-30T19:25:56.8727624Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.8927597Z   json_serializable on lib/services/auto_backup_manager.dart:
+2026-05-30T19:25:56.8928312Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.8928979Z   json_serializable on lib/services/auto_backup_manager.dart:
+2026-05-30T19:25:56.8929609Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.8988173Z   json_serializable on lib/services/auto_backup_task.dart:
+2026-05-30T19:25:56.8989222Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.8990191Z   json_serializable on lib/services/auto_backup_task.dart:
+2026-05-30T19:25:56.8990776Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.9014356Z   json_serializable on lib/services/background_sync_service.dart:
+2026-05-30T19:25:56.9015479Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.9016287Z   json_serializable on lib/services/background_sync_service.dart:
+2026-05-30T19:25:56.9016813Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.9193270Z   json_serializable on lib/services/backup_serializers.dart:
+2026-05-30T19:25:56.9193996Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.9194673Z   json_serializable on lib/services/backup_serializers.dart:
+2026-05-30T19:25:56.9195562Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.9419164Z   json_serializable on lib/services/batch/batch_operations_service.dart:
+2026-05-30T19:25:56.9420150Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.9421008Z   json_serializable on lib/services/batch/batch_operations_service.dart:
+2026-05-30T19:25:56.9421838Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.9652966Z   json_serializable on lib/services/batch_operations_service.dart:
+2026-05-30T19:25:56.9653738Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.9655260Z   json_serializable on lib/services/batch_operations_service.dart:
+2026-05-30T19:25:56.9655962Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.9829251Z   json_serializable on lib/services/battery_optimizer.dart:
+2026-05-30T19:25:56.9830270Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.9831147Z   json_serializable on lib/services/battery_optimizer.dart:
+2026-05-30T19:25:56.9831756Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:56.9991835Z   json_serializable on lib/services/booking_computed_stream_service.dart:
+2026-05-30T19:25:56.9992864Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:56.9993851Z   json_serializable on lib/services/booking_computed_stream_service.dart:
+2026-05-30T19:25:56.9994766Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.0133803Z   json_serializable on lib/services/booking_derived_fields_service.dart:
+2026-05-30T19:25:57.0134588Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.0135385Z   json_serializable on lib/services/booking_derived_fields_service.dart:
+2026-05-30T19:25:57.0135853Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.0424740Z   json_serializable on lib/services/booking_price_adjustment_service.dart:
+2026-05-30T19:25:57.0426185Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.0427217Z   json_serializable on lib/services/booking_price_adjustment_service.dart:
+2026-05-30T19:25:57.0427949Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.0625552Z   json_serializable on lib/services/cache/layered_cache_service.dart:
+2026-05-30T19:25:57.0626735Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.0627441Z   json_serializable on lib/services/cache/layered_cache_service.dart:
+2026-05-30T19:25:57.0628129Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.0776527Z   json_serializable on lib/services/cache/payment_cache_service.dart:
+2026-05-30T19:25:57.0777628Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.0778407Z   json_serializable on lib/services/cache/payment_cache_service.dart:
+2026-05-30T19:25:57.0779148Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.0847848Z   json_serializable on lib/services/central_sync_coordinator.dart:
+2026-05-30T19:25:57.0848770Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.0849452Z   json_serializable on lib/services/central_sync_coordinator.dart:
+2026-05-30T19:25:57.0850121Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.1001271Z   json_serializable on lib/services/comprehensive_appwrite_backup_service.dart:
+2026-05-30T19:25:57.1002783Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.1003680Z   json_serializable on lib/services/comprehensive_appwrite_backup_service.dart:
+2026-05-30T19:25:57.1004507Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.1225383Z   json_serializable on lib/services/conflict_manager.dart:
+2026-05-30T19:25:57.1226343Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.1227023Z   json_serializable on lib/services/conflict_manager.dart:
+2026-05-30T19:25:57.1227627Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.1455804Z   json_serializable on lib/services/conflict_resolver.dart:
+2026-05-30T19:25:57.1456895Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.1457908Z   json_serializable on lib/services/conflict_resolver.dart:
+2026-05-30T19:25:57.1458636Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.1637558Z   json_serializable on lib/services/connection_state_manager.dart:
+2026-05-30T19:25:57.1638319Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.1638819Z   json_serializable on lib/services/connection_state_manager.dart:
+2026-05-30T19:25:57.1639256Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.1718925Z   json_serializable on lib/services/connectivity_service.dart:
+2026-05-30T19:25:57.1719695Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.1720408Z   json_serializable on lib/services/connectivity_service.dart:
+2026-05-30T19:25:57.1721552Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.1873685Z   json_serializable on lib/services/crashlytics_service.dart:
+2026-05-30T19:25:57.1874446Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.1875374Z   json_serializable on lib/services/crashlytics_service.dart:
+2026-05-30T19:25:57.1876050Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.1977666Z   json_serializable on lib/services/daos/booking_notes_dao.dart:
+2026-05-30T19:25:57.1978174Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.1983720Z   json_serializable on lib/services/daos/booking_notes_dao.dart:
+2026-05-30T19:25:57.1984414Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.2015378Z   json_serializable on lib/services/daos/bookings_dao.dart:
+2026-05-30T19:25:57.2016083Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.2016737Z   json_serializable on lib/services/daos/bookings_dao.dart:
+2026-05-30T19:25:57.2017370Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.2037177Z   json_serializable on lib/services/daos/cash_transactions_dao.dart:
+2026-05-30T19:25:57.2037909Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.2038620Z   json_serializable on lib/services/daos/cash_transactions_dao.dart:
+2026-05-30T19:25:57.2039323Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.2060787Z   json_serializable on lib/services/daos/debts_dao.dart:
+2026-05-30T19:25:57.2061487Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.2062189Z   json_serializable on lib/services/daos/debts_dao.dart:
+2026-05-30T19:25:57.2062856Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.2080435Z   json_serializable on lib/services/daos/employees_dao.dart:
+2026-05-30T19:25:57.2081245Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.2082070Z   json_serializable on lib/services/daos/employees_dao.dart:
+2026-05-30T19:25:57.2082823Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.2103981Z   json_serializable on lib/services/daos/expenses_dao.dart:
+2026-05-30T19:25:57.2105146Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.2106092Z   json_serializable on lib/services/daos/expenses_dao.dart:
+2026-05-30T19:25:57.2107026Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.2132431Z   json_serializable on lib/services/daos/outbox_dao.dart:
+2026-05-30T19:25:57.2133163Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.2133850Z   json_serializable on lib/services/daos/outbox_dao.dart:
+2026-05-30T19:25:57.2134508Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.2160360Z   json_serializable on lib/services/daos/payments_dao.dart:
+2026-05-30T19:25:57.2160903Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.2162052Z   json_serializable on lib/services/daos/payments_dao.dart:
+2026-05-30T19:25:57.2162681Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.2189883Z   json_serializable on lib/services/daos/rooms_dao.dart:
+2026-05-30T19:25:57.2190618Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.2191274Z   json_serializable on lib/services/daos/rooms_dao.dart:
+2026-05-30T19:25:57.2191888Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.2206639Z   json_serializable on lib/services/daos/shift_notes_dao.dart:
+2026-05-30T19:25:57.2207340Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.2208013Z   json_serializable on lib/services/daos/shift_notes_dao.dart:
+2026-05-30T19:25:57.2208649Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.2221786Z   json_serializable on lib/services/daos/sync_log_dao.dart:
+2026-05-30T19:25:57.2222461Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.2223160Z   json_serializable on lib/services/daos/sync_log_dao.dart:
+2026-05-30T19:25:57.2223784Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.2350417Z   json_serializable on lib/services/data_usage_manager.dart:
+2026-05-30T19:25:57.2351346Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.2352588Z   json_serializable on lib/services/data_usage_manager.dart:
+2026-05-30T19:25:57.2353446Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.2652854Z   json_serializable on lib/services/database_auto_backup_hooks.dart:
+2026-05-30T19:25:57.2653867Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.2654812Z   json_serializable on lib/services/database_auto_backup_hooks.dart:
+2026-05-30T19:25:57.2655950Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.2818169Z   json_serializable on lib/services/database_fixer.dart:
+2026-05-30T19:25:57.2819009Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.2819778Z   json_serializable on lib/services/database_fixer.dart:
+2026-05-30T19:25:57.2820509Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.3005890Z   json_serializable on lib/services/database_health_checker.dart:
+2026-05-30T19:25:57.3006721Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.3007319Z   json_serializable on lib/services/database_health_checker.dart:
+2026-05-30T19:25:57.3007864Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.3323797Z   json_serializable on lib/services/database_health_monitor.dart:
+2026-05-30T19:25:57.3324693Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.3325633Z   json_serializable on lib/services/database_health_monitor.dart:
+2026-05-30T19:25:57.3326152Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.3479119Z   json_serializable on lib/services/database_health_triggers.dart:
+2026-05-30T19:25:57.3480042Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.3480790Z   json_serializable on lib/services/database_health_triggers.dart:
+2026-05-30T19:25:57.3481404Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.3533559Z   json_serializable on lib/services/database_sync_coordinator.dart:
+2026-05-30T19:25:57.3534248Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.3535432Z   json_serializable on lib/services/database_sync_coordinator.dart:
+2026-05-30T19:25:57.3536325Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.3979416Z   json_serializable on lib/services/delta_sync_service.dart:
+2026-05-30T19:25:57.3980402Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.3981104Z   json_serializable on lib/services/delta_sync_service.dart:
+2026-05-30T19:25:57.3981671Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.4080951Z   json_serializable on lib/services/diagnostics/diagnostics_logger.dart:
+2026-05-30T19:25:57.4081937Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.4082989Z   json_serializable on lib/services/diagnostics/diagnostics_logger.dart:
+2026-05-30T19:25:57.4083592Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.4412678Z   json_serializable on lib/services/enhanced_booking_calculation_service.dart:
+2026-05-30T19:25:57.4413780Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.4414478Z   json_serializable on lib/services/enhanced_booking_calculation_service.dart:
+2026-05-30T19:25:57.4415406Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.4523809Z   json_serializable on lib/services/fcm_service.dart:
+2026-05-30T19:25:57.4524497Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.4525271Z   json_serializable on lib/services/fcm_service.dart:
+2026-05-30T19:25:57.4525653Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.4787652Z   json_serializable on lib/services/file_management_service.dart:
+2026-05-30T19:25:57.4788603Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.4789232Z   json_serializable on lib/services/file_management_service.dart:
+2026-05-30T19:25:57.4789927Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.4791565Z   13s json_serializable on 788 inputs: 217 skipped, 218 no-op; spent 11s analyzing, 1s resolving; lib/services/file_management_service.freezed.dart
+2026-05-30T19:25:57.6646345Z   json_serializable on lib/services/gemini_service.dart:
+2026-05-30T19:25:57.6647658Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.6648160Z   json_serializable on lib/services/gemini_service.dart:
+2026-05-30T19:25:57.6648596Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.6709019Z   json_serializable on lib/services/google_drive_auto_sync_engine.dart:
+2026-05-30T19:25:57.6709815Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.6710549Z   json_serializable on lib/services/google_drive_auto_sync_engine.dart:
+2026-05-30T19:25:57.6711259Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.6942941Z   json_serializable on lib/services/google_drive_backup_service.dart:
+2026-05-30T19:25:57.6944030Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.6946495Z   json_serializable on lib/services/google_drive_backup_service.dart:
+2026-05-30T19:25:57.6947608Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.6977885Z   json_serializable on lib/services/google_drive_conflict_resolver.dart:
+2026-05-30T19:25:57.6978715Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.6979436Z   json_serializable on lib/services/google_drive_conflict_resolver.dart:
+2026-05-30T19:25:57.6980180Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.7005854Z   json_serializable on lib/services/google_drive_delta_sync.dart:
+2026-05-30T19:25:57.7006624Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.7007334Z   json_serializable on lib/services/google_drive_delta_sync.dart:
+2026-05-30T19:25:57.7008020Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.7051920Z   json_serializable on lib/services/google_drive_logger.dart:
+2026-05-30T19:25:57.7052637Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.7053197Z   json_serializable on lib/services/google_drive_logger.dart:
+2026-05-30T19:25:57.7053606Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.7186515Z   json_serializable on lib/services/google_drive_sync_service.dart:
+2026-05-30T19:25:57.7187296Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.7187816Z   json_serializable on lib/services/google_drive_sync_service.dart:
+2026-05-30T19:25:57.7188266Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.7229239Z   json_serializable on lib/services/google_drive_unified_sync_coordinator.dart:
+2026-05-30T19:25:57.7230095Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.7230701Z   json_serializable on lib/services/google_drive_unified_sync_coordinator.dart:
+2026-05-30T19:25:57.7231245Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.7436010Z   json_serializable on lib/services/guest_payment_calculation_service.dart:
+2026-05-30T19:25:57.7436869Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.7437454Z   json_serializable on lib/services/guest_payment_calculation_service.dart:
+2026-05-30T19:25:57.7437975Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.7479925Z   json_serializable on lib/services/hotel_time_engine.dart:
+2026-05-30T19:25:57.7480790Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.7481495Z   json_serializable on lib/services/hotel_time_engine.dart:
+2026-05-30T19:25:57.7481991Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.7621617Z   json_serializable on lib/services/hybrid_logical_clock.dart:
+2026-05-30T19:25:57.7622435Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.7623128Z   json_serializable on lib/services/hybrid_logical_clock.dart:
+2026-05-30T19:25:57.7623635Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.7746578Z   json_serializable on lib/services/lark/lark_api_client.dart:
+2026-05-30T19:25:57.7747337Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.7747827Z   json_serializable on lib/services/lark/lark_api_client.dart:
+2026-05-30T19:25:57.7748256Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.7811439Z   json_serializable on lib/services/lark/lark_config.dart:
+2026-05-30T19:25:57.7812278Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.7813286Z   json_serializable on lib/services/lark/lark_config.dart:
+2026-05-30T19:25:57.7813775Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.7925194Z   json_serializable on lib/services/lark/lark_notification_service.dart:
+2026-05-30T19:25:57.7926507Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.7927214Z   json_serializable on lib/services/lark/lark_notification_service.dart:
+2026-05-30T19:25:57.7927906Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.8070921Z   json_serializable on lib/services/lark/lark_report_service.dart:
+2026-05-30T19:25:57.8071859Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.8072492Z   json_serializable on lib/services/lark/lark_report_service.dart:
+2026-05-30T19:25:57.8073044Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.8166788Z   json_serializable on lib/services/lark/lark_services.dart:
+2026-05-30T19:25:57.8167585Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.8168255Z   json_serializable on lib/services/lark/lark_services.dart:
+2026-05-30T19:25:57.8168751Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.8531661Z   json_serializable on lib/services/local_backup_service.dart:
+2026-05-30T19:25:57.8532450Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.8532958Z   json_serializable on lib/services/local_backup_service.dart:
+2026-05-30T19:25:57.8533441Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.8605835Z   json_serializable on lib/services/local_db.dart:
+2026-05-30T19:25:57.8606611Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.8609470Z   json_serializable on lib/services/local_db.dart:
+2026-05-30T19:25:57.8610164Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.8641216Z   json_serializable on lib/services/logging/log_models.dart:
+2026-05-30T19:25:57.8642033Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.8642696Z   json_serializable on lib/services/logging/log_models.dart:
+2026-05-30T19:25:57.8643179Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.8751744Z   json_serializable on lib/services/migrations/add_outbox_processing_status.dart:
+2026-05-30T19:25:57.8752728Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.8753345Z   json_serializable on lib/services/migrations/add_outbox_processing_status.dart:
+2026-05-30T19:25:57.8753918Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.8960445Z   json_serializable on lib/services/migrations/recalculate_booking_nights.dart:
+2026-05-30T19:25:57.8961737Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.8962347Z   json_serializable on lib/services/migrations/recalculate_booking_nights.dart:
+2026-05-30T19:25:57.8962939Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.9076862Z   json_serializable on lib/services/migrations/run_recalculate_nights.dart:
+2026-05-30T19:25:57.9077832Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.9078468Z   json_serializable on lib/services/migrations/run_recalculate_nights.dart:
+2026-05-30T19:25:57.9079034Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.9373930Z   json_serializable on lib/services/monitoring/sync_monitoring_system.dart:
+2026-05-30T19:25:57.9375207Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.9375835Z   json_serializable on lib/services/monitoring/sync_monitoring_system.dart:
+2026-05-30T19:25:57.9376398Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.9525933Z   json_serializable on lib/services/optimistic_lock_manager.dart:
+2026-05-30T19:25:57.9526933Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.9527667Z   json_serializable on lib/services/optimistic_lock_manager.dart:
+2026-05-30T19:25:57.9528281Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.9652531Z   json_serializable on lib/services/optimization/db_performance_optimizer.dart:
+2026-05-30T19:25:57.9653557Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.9654579Z   json_serializable on lib/services/optimization/db_performance_optimizer.dart:
+2026-05-30T19:25:57.9655395Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:57.9853283Z   json_serializable on lib/services/optimization/optimized_queries.dart:
+2026-05-30T19:25:57.9854113Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:57.9854704Z   json_serializable on lib/services/optimization/optimized_queries.dart:
+2026-05-30T19:25:57.9855375Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.0115473Z   json_serializable on lib/services/php_api_service.dart:
+2026-05-30T19:25:58.0116371Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.0116799Z   json_serializable on lib/services/php_api_service.dart:
+2026-05-30T19:25:58.0117182Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.0294747Z   json_serializable on lib/services/price_adjustment_service.dart:
+2026-05-30T19:25:58.0295730Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.0296497Z   json_serializable on lib/services/price_adjustment_service.dart:
+2026-05-30T19:25:58.0297212Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.0330346Z   json_serializable on lib/services/providers.dart:
+2026-05-30T19:25:58.0331083Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.0331654Z   json_serializable on lib/services/providers.dart:
+2026-05-30T19:25:58.0332028Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.0490776Z   json_serializable on lib/services/realtime_sync_notifier.dart:
+2026-05-30T19:25:58.0491463Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.0575070Z   json_serializable on lib/services/realtime_sync_notifier.dart:
+2026-05-30T19:25:58.0576112Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.0576644Z   json_serializable on lib/services/remote_config_service.dart:
+2026-05-30T19:25:58.0577179Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.0577722Z   json_serializable on lib/services/remote_config_service.dart:
+2026-05-30T19:25:58.0578268Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.0658616Z   json_serializable on lib/services/repositories/base_repository.dart:
+2026-05-30T19:25:58.0659255Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.0659825Z   json_serializable on lib/services/repositories/base_repository.dart:
+2026-05-30T19:25:58.0660372Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.0814179Z   json_serializable on lib/services/repositories/blacklist_repository.dart:
+2026-05-30T19:25:58.0815194Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.0816336Z   json_serializable on lib/services/repositories/blacklist_repository.dart:
+2026-05-30T19:25:58.0817045Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.0996944Z   json_serializable on lib/services/repositories/bookings_repository.dart:
+2026-05-30T19:25:58.0997613Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.0998199Z   json_serializable on lib/services/repositories/bookings_repository.dart:
+2026-05-30T19:25:58.0998794Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.1072600Z   json_serializable on lib/services/repositories/cash_repository.dart:
+2026-05-30T19:25:58.1073325Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.1073993Z   json_serializable on lib/services/repositories/cash_repository.dart:
+2026-05-30T19:25:58.1074583Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.1174584Z   json_serializable on lib/services/repositories/debts_repository.dart:
+2026-05-30T19:25:58.1175564Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.1176201Z   json_serializable on lib/services/repositories/debts_repository.dart:
+2026-05-30T19:25:58.1176754Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.1294823Z   json_serializable on lib/services/repositories/employees_repository.dart:
+2026-05-30T19:25:58.1295886Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.1296578Z   json_serializable on lib/services/repositories/employees_repository.dart:
+2026-05-30T19:25:58.1297533Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.1431463Z   json_serializable on lib/services/repositories/expenses_repository.dart:
+2026-05-30T19:25:58.1432051Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.1432581Z   json_serializable on lib/services/repositories/expenses_repository.dart:
+2026-05-30T19:25:58.1433109Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.1524694Z   json_serializable on lib/services/repositories/guest_infos_repository.dart:
+2026-05-30T19:25:58.1525557Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.1526109Z   json_serializable on lib/services/repositories/guest_infos_repository.dart:
+2026-05-30T19:25:58.1526651Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.1580510Z   json_serializable on lib/services/repositories/notes_repository.dart:
+2026-05-30T19:25:58.1581189Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.1581758Z   json_serializable on lib/services/repositories/notes_repository.dart:
+2026-05-30T19:25:58.1582302Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.1771653Z   json_serializable on lib/services/repositories/payments_repository.dart:
+2026-05-30T19:25:58.1772468Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.1773239Z   json_serializable on lib/services/repositories/payments_repository.dart:
+2026-05-30T19:25:58.1774085Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.1894461Z   json_serializable on lib/services/repositories/rooms_repository.dart:
+2026-05-30T19:25:58.1895486Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.1896231Z   json_serializable on lib/services/repositories/rooms_repository.dart:
+2026-05-30T19:25:58.1896953Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.2018661Z   json_serializable on lib/services/repositories/salary_withdrawals_repository.dart:
+2026-05-30T19:25:58.2019559Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.2020404Z   json_serializable on lib/services/repositories/salary_withdrawals_repository.dart:
+2026-05-30T19:25:58.2021198Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.2099963Z   json_serializable on lib/services/repositories/shift_notes_repository.dart:
+2026-05-30T19:25:58.2100809Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.2101574Z   json_serializable on lib/services/repositories/shift_notes_repository.dart:
+2026-05-30T19:25:58.2102338Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.2157744Z   json_serializable on lib/services/repositories/simple_notes_repository.dart:
+2026-05-30T19:25:58.2159487Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.2160628Z   json_serializable on lib/services/repositories/simple_notes_repository.dart:
+2026-05-30T19:25:58.2161591Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.2690874Z   json_serializable on lib/services/restore_fix_service.dart:
+2026-05-30T19:25:58.2691648Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.2692149Z   json_serializable on lib/services/restore_fix_service.dart:
+2026-05-30T19:25:58.2692612Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.2891545Z   json_serializable on lib/services/safe_database_operations.dart:
+2026-05-30T19:25:58.2892510Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.2893094Z   json_serializable on lib/services/safe_database_operations.dart:
+2026-05-30T19:25:58.2893621Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.2964345Z   json_serializable on lib/services/salary_advance_installments_service.dart:
+2026-05-30T19:25:58.2965404Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.2965972Z   json_serializable on lib/services/salary_advance_installments_service.dart:
+2026-05-30T19:25:58.2966521Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.3028103Z   json_serializable on lib/services/salary_entitlement_service.dart:
+2026-05-30T19:25:58.3029365Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.3029926Z   json_serializable on lib/services/salary_entitlement_service.dart:
+2026-05-30T19:25:58.3030459Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.3118468Z   json_serializable on lib/services/screen_sync_controller.dart:
+2026-05-30T19:25:58.3119370Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.3119941Z   json_serializable on lib/services/screen_sync_controller.dart:
+2026-05-30T19:25:58.3120467Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.3275178Z   json_serializable on lib/services/seed.dart:
+2026-05-30T19:25:58.3276078Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.3276721Z   json_serializable on lib/services/seed.dart:
+2026-05-30T19:25:58.3277316Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.3570309Z   json_serializable on lib/services/smart_sync_manager.dart:
+2026-05-30T19:25:58.3571053Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.3571776Z   json_serializable on lib/services/smart_sync_manager.dart:
+2026-05-30T19:25:58.3572515Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.3644684Z   json_serializable on lib/services/sqlite_backup_restore.dart:
+2026-05-30T19:25:58.3645655Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.3646223Z   json_serializable on lib/services/sqlite_backup_restore.dart:
+2026-05-30T19:25:58.3646698Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.3767901Z   json_serializable on lib/services/stay_balance_calculator.dart:
+2026-05-30T19:25:58.3768888Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.3769804Z   json_serializable on lib/services/stay_balance_calculator.dart:
+2026-05-30T19:25:58.3770689Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.3793484Z   json_serializable on lib/services/sync/adapters/sync_adapter.dart:
+2026-05-30T19:25:58.3794368Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.3795397Z   json_serializable on lib/services/sync/adapters/sync_adapter.dart:
+2026-05-30T19:25:58.3796264Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.4069633Z   json_serializable on lib/services/sync/core/sync_orchestrator.dart:
+2026-05-30T19:25:58.4070507Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.4071169Z   json_serializable on lib/services/sync/core/sync_orchestrator.dart:
+2026-05-30T19:25:58.4071724Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.4111728Z   json_serializable on lib/services/sync/models/sync_result.dart:
+2026-05-30T19:25:58.4112629Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.4113924Z   json_serializable on lib/services/sync/models/sync_result.dart:
+2026-05-30T19:25:58.4114749Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.4392497Z   json_serializable on lib/services/sync/models/sync_state.dart:
+2026-05-30T19:25:58.4393277Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.4827417Z   json_serializable on lib/services/sync/models/sync_state.dart:
+2026-05-30T19:25:58.4828118Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.4885783Z   14s json_serializable on 788 inputs: 275 skipped, 1 output, 275 no-op; spent 12s analyzing, 2s resolving; lib/services/sync/models/sync_state.freezed.dart
+2026-05-30T19:25:58.4962753Z   json_serializable on lib/services/sync/strategies/retry_strategy.dart:
+2026-05-30T19:25:58.4963545Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.4964127Z   json_serializable on lib/services/sync/strategies/retry_strategy.dart:
+2026-05-30T19:25:58.4964594Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.5038201Z   json_serializable on lib/services/sync/workers/sync_worker.dart:
+2026-05-30T19:25:58.5039004Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.5039778Z   json_serializable on lib/services/sync/workers/sync_worker.dart:
+2026-05-30T19:25:58.5040471Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.5085295Z   json_serializable on lib/services/sync_config.dart:
+2026-05-30T19:25:58.5086433Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.5086884Z   json_serializable on lib/services/sync_config.dart:
+2026-05-30T19:25:58.5087271Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.5126597Z   json_serializable on lib/services/sync_conflict_event_bus.dart:
+2026-05-30T19:25:58.5127493Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.5128163Z   json_serializable on lib/services/sync_conflict_event_bus.dart:
+2026-05-30T19:25:58.5128670Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.5409706Z   json_serializable on lib/services/sync_conflict_resolver.dart:
+2026-05-30T19:25:58.5410656Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.5411264Z   json_serializable on lib/services/sync_conflict_resolver.dart:
+2026-05-30T19:25:58.5411767Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.5442137Z   json_serializable on lib/services/sync_constants.dart:
+2026-05-30T19:25:58.5442962Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.5443518Z   json_serializable on lib/services/sync_constants.dart:
+2026-05-30T19:25:58.5444029Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.5514945Z   json_serializable on lib/services/sync_core/circuit_breaker.dart:
+2026-05-30T19:25:58.5516150Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.5516791Z   json_serializable on lib/services/sync_core/circuit_breaker.dart:
+2026-05-30T19:25:58.5517348Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.5593896Z   json_serializable on lib/services/sync_core/conflict_resolver.dart:
+2026-05-30T19:25:58.5595049Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.5595853Z   json_serializable on lib/services/sync_core/conflict_resolver.dart:
+2026-05-30T19:25:58.5596651Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.5617721Z   json_serializable on lib/services/sync_core/optimistic_lock_exception.dart:
+2026-05-30T19:25:58.5618618Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.5619440Z   json_serializable on lib/services/sync_core/optimistic_lock_exception.dart:
+2026-05-30T19:25:58.5620249Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.5681695Z   json_serializable on lib/services/sync_core/optimistic_lock_helper.dart:
+2026-05-30T19:25:58.5682665Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.5683339Z   json_serializable on lib/services/sync_core/optimistic_lock_helper.dart:
+2026-05-30T19:25:58.5683904Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.5754069Z   json_serializable on lib/services/sync_core/retry_strategy.dart:
+2026-05-30T19:25:58.5755202Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.5755907Z   json_serializable on lib/services/sync_core/retry_strategy.dart:
+2026-05-30T19:25:58.5756406Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.5840002Z   json_serializable on lib/services/sync_core/sync_error_handler.dart:
+2026-05-30T19:25:58.5840790Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.5841370Z   json_serializable on lib/services/sync_core/sync_error_handler.dart:
+2026-05-30T19:25:58.5841812Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.5933619Z   json_serializable on lib/services/sync_core/sync_metrics.dart:
+2026-05-30T19:25:58.5934511Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.5935390Z   json_serializable on lib/services/sync_core/sync_metrics.dart:
+2026-05-30T19:25:58.5935904Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.5995499Z   json_serializable on lib/services/sync_core/sync_validator.dart:
+2026-05-30T19:25:58.5996534Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.5997274Z   json_serializable on lib/services/sync_core/sync_validator.dart:
+2026-05-30T19:25:58.5998019Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.6038602Z   json_serializable on lib/services/sync_enums.dart:
+2026-05-30T19:25:58.6039289Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.6040119Z   json_serializable on lib/services/sync_enums.dart:
+2026-05-30T19:25:58.6040488Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.6268406Z   json_serializable on lib/services/sync_error_recovery.dart:
+2026-05-30T19:25:58.6269314Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.6269970Z   json_serializable on lib/services/sync_error_recovery.dart:
+2026-05-30T19:25:58.6270478Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.6362438Z   json_serializable on lib/services/sync_guardian.dart:
+2026-05-30T19:25:58.6363340Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.6364106Z   json_serializable on lib/services/sync_guardian.dart:
+2026-05-30T19:25:58.6364655Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.6450663Z   json_serializable on lib/services/sync_health_monitor.dart:
+2026-05-30T19:25:58.6451552Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.6452235Z   json_serializable on lib/services/sync_health_monitor.dart:
+2026-05-30T19:25:58.6452756Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.6770098Z   json_serializable on lib/services/sync_helpers.dart:
+2026-05-30T19:25:58.6770980Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.6771553Z   json_serializable on lib/services/sync_helpers.dart:
+2026-05-30T19:25:58.6772099Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.6918093Z   json_serializable on lib/services/sync_integrity_checker.dart:
+2026-05-30T19:25:58.6918871Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.6919461Z   json_serializable on lib/services/sync_integrity_checker.dart:
+2026-05-30T19:25:58.6919885Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.6939439Z   json_serializable on lib/services/sync_locks.dart:
+2026-05-30T19:25:58.6940083Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.6940648Z   json_serializable on lib/services/sync_locks.dart:
+2026-05-30T19:25:58.6941056Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.7057274Z   json_serializable on lib/services/sync_manager.dart:
+2026-05-30T19:25:58.7058090Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.7058767Z   json_serializable on lib/services/sync_manager.dart:
+2026-05-30T19:25:58.7059237Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.7086410Z   json_serializable on lib/services/sync_mutex.dart:
+2026-05-30T19:25:58.7087168Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.7087852Z   json_serializable on lib/services/sync_mutex.dart:
+2026-05-30T19:25:58.7088775Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.7373310Z   json_serializable on lib/services/sync_notification_manager.dart:
+2026-05-30T19:25:58.7374310Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.7375017Z   json_serializable on lib/services/sync_notification_manager.dart:
+2026-05-30T19:25:58.7375566Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.7580248Z   json_serializable on lib/services/sync_orchestrator.dart:
+2026-05-30T19:25:58.7580923Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.7581450Z   json_serializable on lib/services/sync_orchestrator.dart:
+2026-05-30T19:25:58.7581948Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.7763834Z   json_serializable on lib/services/sync_performance_optimizer.dart:
+2026-05-30T19:25:58.7764486Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.7765245Z   json_serializable on lib/services/sync_performance_optimizer.dart:
+2026-05-30T19:25:58.7765758Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.7842647Z   json_serializable on lib/services/sync_performance_settings.dart:
+2026-05-30T19:25:58.7843449Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.7844179Z   json_serializable on lib/services/sync_performance_settings.dart:
+2026-05-30T19:25:58.7845097Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.7885281Z   json_serializable on lib/services/sync_queue_service.dart:
+2026-05-30T19:25:58.7886568Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.7887262Z   json_serializable on lib/services/sync_queue_service.dart:
+2026-05-30T19:25:58.7887907Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.8127606Z   json_serializable on lib/services/sync_safety_layer.dart:
+2026-05-30T19:25:58.8128325Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.8128998Z   json_serializable on lib/services/sync_safety_layer.dart:
+2026-05-30T19:25:58.8129630Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.8732960Z   json_serializable on lib/services/sync_service.dart:
+2026-05-30T19:25:58.8733624Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.8734143Z   json_serializable on lib/services/sync_service.dart:
+2026-05-30T19:25:58.8734606Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.8802927Z   json_serializable on lib/services/telegram/telegram_config.dart:
+2026-05-30T19:25:58.8803726Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.8804434Z   json_serializable on lib/services/telegram/telegram_config.dart:
+2026-05-30T19:25:58.8805367Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.8919166Z   json_serializable on lib/services/telegram/telegram_notification_service.dart:
+2026-05-30T19:25:58.8919996Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.8920780Z   json_serializable on lib/services/telegram/telegram_notification_service.dart:
+2026-05-30T19:25:58.8921535Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.9037064Z   json_serializable on lib/services/telegram/telegram_report_service.dart:
+2026-05-30T19:25:58.9037865Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.9038608Z   json_serializable on lib/services/telegram/telegram_report_service.dart:
+2026-05-30T19:25:58.9039335Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.9091483Z   json_serializable on lib/services/telegram/telegram_service.dart:
+2026-05-30T19:25:58.9092279Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.9092991Z   json_serializable on lib/services/telegram/telegram_service.dart:
+2026-05-30T19:25:58.9093681Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.9190107Z   json_serializable on lib/services/telegram/telegram_services.dart:
+2026-05-30T19:25:58.9190871Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.9191595Z   json_serializable on lib/services/telegram/telegram_services.dart:
+2026-05-30T19:25:58.9192282Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.9323314Z   json_serializable on lib/services/telegram/whatsapp_notification_service.dart:
+2026-05-30T19:25:58.9324175Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.9325232Z   json_serializable on lib/services/telegram/whatsapp_notification_service.dart:
+2026-05-30T19:25:58.9326022Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.9531674Z   json_serializable on lib/services/unified_sync_orchestrator.dart:
+2026-05-30T19:25:58.9532816Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.9533811Z   json_serializable on lib/services/unified_sync_orchestrator.dart:
+2026-05-30T19:25:58.9534579Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.9608964Z   json_serializable on lib/services/vector_clock.dart:
+2026-05-30T19:25:58.9609645Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.9610183Z   json_serializable on lib/services/vector_clock.dart:
+2026-05-30T19:25:58.9610558Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.9720239Z   json_serializable on lib/services/whatsapp_service.dart:
+2026-05-30T19:25:58.9720950Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.9721481Z   json_serializable on lib/services/whatsapp_service.dart:
+2026-05-30T19:25:58.9721883Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:58.9786789Z   json_serializable on lib/services/whatsapp_settings_sync.dart:
+2026-05-30T19:25:58.9787520Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:58.9788390Z   json_serializable on lib/services/whatsapp_settings_sync.dart:
+2026-05-30T19:25:58.9788802Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.0048029Z   json_serializable on lib/sync/data/drift_outbox_storage.dart:
+2026-05-30T19:25:59.0048779Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.0049326Z   json_serializable on lib/sync/data/drift_outbox_storage.dart:
+2026-05-30T19:25:59.0049745Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.0212713Z   json_serializable on lib/sync/data/drift_sync_data_source.dart:
+2026-05-30T19:25:59.0213591Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.0214144Z   json_serializable on lib/sync/data/drift_sync_data_source.dart:
+2026-05-30T19:25:59.0214671Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.0339796Z   json_serializable on lib/sync/delta_sync_engine.dart:
+2026-05-30T19:25:59.0340881Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.0341709Z   json_serializable on lib/sync/delta_sync_engine.dart:
+2026-05-30T19:25:59.0342355Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.0456345Z   json_serializable on lib/sync/models/sync_models.dart:
+2026-05-30T19:25:59.0457179Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.0457973Z   json_serializable on lib/sync/models/sync_models.dart:
+2026-05-30T19:25:59.0458705Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.0595926Z   json_serializable on lib/sync/orchestrator/sync_orchestrator.dart:
+2026-05-30T19:25:59.0596694Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.0597465Z   json_serializable on lib/sync/orchestrator/sync_orchestrator.dart:
+2026-05-30T19:25:59.0598156Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.0703552Z   json_serializable on lib/sync/processors/outbox_processor.dart:
+2026-05-30T19:25:59.0704332Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.0705298Z   json_serializable on lib/sync/processors/outbox_processor.dart:
+2026-05-30T19:25:59.0706029Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.0732776Z   json_serializable on lib/sync/providers/sync_providers.dart:
+2026-05-30T19:25:59.0733530Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.0735315Z   json_serializable on lib/sync/providers/sync_providers.dart:
+2026-05-30T19:25:59.0736021Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.0751286Z   json_serializable on lib/sync/services/background_sync_service.dart:
+2026-05-30T19:25:59.0752089Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.0753311Z   json_serializable on lib/sync/services/background_sync_service.dart:
+2026-05-30T19:25:59.0754037Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.0871202Z   json_serializable on lib/sync/services/realtime_sync_service.dart:
+2026-05-30T19:25:59.0871983Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.0872731Z   json_serializable on lib/sync/services/realtime_sync_service.dart:
+2026-05-30T19:25:59.0873452Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.0990871Z   json_serializable on lib/sync/strategies/conflict_strategies.dart:
+2026-05-30T19:25:59.0991655Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.0992391Z   json_serializable on lib/sync/strategies/conflict_strategies.dart:
+2026-05-30T19:25:59.0993082Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.1091191Z   json_serializable on lib/sync/sync.dart:
+2026-05-30T19:25:59.1091829Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.1092438Z   json_serializable on lib/sync/sync.dart:
+2026-05-30T19:25:59.1093011Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.1214449Z   json_serializable on lib/sync/vector_clock.dart:
+2026-05-30T19:25:59.1215545Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.1216347Z   json_serializable on lib/sync/vector_clock.dart:
+2026-05-30T19:25:59.1216832Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.1242610Z   json_serializable on lib/tasks/appwrite_auto_sync_task.dart:
+2026-05-30T19:25:59.1243472Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.1244344Z   json_serializable on lib/tasks/appwrite_auto_sync_task.dart:
+2026-05-30T19:25:59.1245281Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.1262504Z   json_serializable on lib/tasks/auto_sync_task.dart:
+2026-05-30T19:25:59.1263182Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.1263933Z   json_serializable on lib/tasks/auto_sync_task.dart:
+2026-05-30T19:25:59.1264642Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.1308427Z   json_serializable on lib/utils/app_logger.dart:
+2026-05-30T19:25:59.1309195Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.1309936Z   json_serializable on lib/utils/app_logger.dart:
+2026-05-30T19:25:59.1310429Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.1366426Z   json_serializable on lib/utils/arabic_amount_formatter.dart:
+2026-05-30T19:25:59.1367207Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.1367841Z   json_serializable on lib/utils/arabic_amount_formatter.dart:
+2026-05-30T19:25:59.1368321Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.1397697Z   json_serializable on lib/utils/auto_sync_preferences.dart:
+2026-05-30T19:25:59.1398551Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.1399208Z   json_serializable on lib/utils/auto_sync_preferences.dart:
+2026-05-30T19:25:59.1399697Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.1492537Z   json_serializable on lib/utils/constants.dart:
+2026-05-30T19:25:59.1493211Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.1493823Z   json_serializable on lib/utils/constants.dart:
+2026-05-30T19:25:59.1494231Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.1525086Z   json_serializable on lib/utils/currency_formatter.dart:
+2026-05-30T19:25:59.1526145Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.1526842Z   json_serializable on lib/utils/currency_formatter.dart:
+2026-05-30T19:25:59.1527304Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.1549338Z   json_serializable on lib/utils/date_parser.dart:
+2026-05-30T19:25:59.1550081Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.1550718Z   json_serializable on lib/utils/date_parser.dart:
+2026-05-30T19:25:59.1551182Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.1573908Z   json_serializable on lib/utils/debug_logs.dart:
+2026-05-30T19:25:59.1574634Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.1575718Z   json_serializable on lib/utils/debug_logs.dart:
+2026-05-30T19:25:59.1576318Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.1900138Z   json_serializable on lib/utils/enhanced_pdf_helper.dart:
+2026-05-30T19:25:59.1901085Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.1901711Z   json_serializable on lib/utils/enhanced_pdf_helper.dart:
+2026-05-30T19:25:59.1902296Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2071891Z   json_serializable on lib/utils/enhanced_pdf_utils.dart:
+2026-05-30T19:25:59.2072610Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2073122Z   json_serializable on lib/utils/enhanced_pdf_utils.dart:
+2026-05-30T19:25:59.2073507Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2100051Z   json_serializable on lib/utils/env.dart:
+2026-05-30T19:25:59.2100844Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2101617Z   json_serializable on lib/utils/env.dart:
+2026-05-30T19:25:59.2102338Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2114561Z   json_serializable on lib/utils/expense_reason_matcher.dart:
+2026-05-30T19:25:59.2115743Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2116513Z   json_serializable on lib/utils/expense_reason_matcher.dart:
+2026-05-30T19:25:59.2117194Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2231297Z   json_serializable on lib/utils/field_mapper.dart:
+2026-05-30T19:25:59.2232593Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2233129Z   json_serializable on lib/utils/field_mapper.dart:
+2026-05-30T19:25:59.2233592Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2296875Z   json_serializable on lib/utils/hotel_date_helper.dart:
+2026-05-30T19:25:59.2297680Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2298303Z   json_serializable on lib/utils/hotel_date_helper.dart:
+2026-05-30T19:25:59.2298795Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2333387Z   json_serializable on lib/utils/hotel_day_ticker.dart:
+2026-05-30T19:25:59.2334160Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2335165Z   json_serializable on lib/utils/hotel_day_ticker.dart:
+2026-05-30T19:25:59.2335713Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2395225Z   json_serializable on lib/utils/hotel_time_engine.dart:
+2026-05-30T19:25:59.2396272Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2396900Z   json_serializable on lib/utils/hotel_time_engine.dart:
+2026-05-30T19:25:59.2397411Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2413403Z   json_serializable on lib/utils/id.dart:
+2026-05-30T19:25:59.2414030Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2414612Z   json_serializable on lib/utils/id.dart:
+2026-05-30T19:25:59.2415193Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2422505Z   json_serializable on lib/utils/message_templates.dart:
+2026-05-30T19:25:59.2423266Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2425845Z   json_serializable on lib/utils/message_templates.dart:
+2026-05-30T19:25:59.2435818Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2451792Z   json_serializable on lib/utils/pdf_utils.dart:
+2026-05-30T19:25:59.2452458Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2453105Z   json_serializable on lib/utils/pdf_utils.dart:
+2026-05-30T19:25:59.2453813Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2540697Z   json_serializable on lib/utils/report_pdf_builder.dart:
+2026-05-30T19:25:59.2541555Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2542477Z   json_serializable on lib/utils/report_pdf_builder.dart:
+2026-05-30T19:25:59.2543406Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2780052Z   json_serializable on lib/utils/schema_verification_helper.dart:
+2026-05-30T19:25:59.2780766Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2781375Z   json_serializable on lib/utils/schema_verification_helper.dart:
+2026-05-30T19:25:59.2782330Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2821534Z   json_serializable on lib/utils/snackbar_helper.dart:
+2026-05-30T19:25:59.2822411Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2823068Z   json_serializable on lib/utils/snackbar_helper.dart:
+2026-05-30T19:25:59.2823597Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2874503Z   json_serializable on lib/utils/status_utils.dart:
+2026-05-30T19:25:59.2875520Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2876024Z   json_serializable on lib/utils/status_utils.dart:
+2026-05-30T19:25:59.2876479Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.2975081Z   json_serializable on lib/utils/system_settings_keys.dart:
+2026-05-30T19:25:59.2976081Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.2976766Z   json_serializable on lib/utils/system_settings_keys.dart:
+2026-05-30T19:25:59.2977414Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.3136830Z   json_serializable on lib/utils/theme.dart:
+2026-05-30T19:25:59.3137477Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.3138081Z   json_serializable on lib/utils/theme.dart:
+2026-05-30T19:25:59.3138621Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.3200305Z   json_serializable on lib/utils/time.dart:
+2026-05-30T19:25:59.3200953Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.3202005Z   json_serializable on lib/utils/time.dart:
+2026-05-30T19:25:59.3202560Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.3484113Z   json_serializable on lib/utils/whatsapp_template_manager.dart:
+2026-05-30T19:25:59.3485141Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.3485856Z   json_serializable on lib/utils/whatsapp_template_manager.dart:
+2026-05-30T19:25:59.3486502Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.4058072Z   json_serializable on lib/widgets/dashboard_sync_button.dart:
+2026-05-30T19:25:59.4058871Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.4059537Z   json_serializable on lib/widgets/dashboard_sync_button.dart:
+2026-05-30T19:25:59.4060143Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.4721515Z   json_serializable on lib/widgets/enhanced_sync_button.dart:
+2026-05-30T19:25:59.4722286Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.4722984Z   json_serializable on lib/widgets/enhanced_sync_button.dart:
+2026-05-30T19:25:59.4723583Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.4910677Z   json_serializable on lib/widgets/report_date_filter.dart:
+2026-05-30T19:25:59.4911377Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.4912019Z   json_serializable on lib/widgets/report_date_filter.dart:
+2026-05-30T19:25:59.4912694Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.4914390Z   15s json_serializable on 788 inputs: 357 skipped, 1 output, 359 no-op; spent 13s analyzing, 2s resolving; lib/widgets/report_date_filter.freezed.dart
+2026-05-30T19:25:59.5283571Z   json_serializable on lib/widgets/shimmer_loading.dart:
+2026-05-30T19:25:59.5284695Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.5285925Z   json_serializable on lib/widgets/shimmer_loading.dart:
+2026-05-30T19:25:59.5286767Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.5724653Z   json_serializable on lib/widgets/smart_sync_widgets.dart:
+2026-05-30T19:25:59.5725734Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.5726282Z   json_serializable on lib/widgets/smart_sync_widgets.dart:
+2026-05-30T19:25:59.5726781Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:25:59.6109851Z   json_serializable on lib/widgets/sync/sync_indicator.dart:
+2026-05-30T19:25:59.6110744Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:25:59.6111511Z   json_serializable on lib/widgets/sync/sync_indicator.dart:
+2026-05-30T19:25:59.6112044Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.6611572Z   json_serializable on test/adapters_round_trip_test.dart:
+2026-05-30T19:26:00.6612359Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.6613039Z   json_serializable on test/adapters_round_trip_test.dart:
+2026-05-30T19:26:00.6613812Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.6615719Z   16s json_serializable on 788 inputs: 361 skipped, 1 output, 363 no-op; spent 14s analyzing, 2s resolving; test/adapters_round_trip_test.freezed.dart
+2026-05-30T19:26:00.6755307Z   json_serializable on test/appwrite_integration_test.dart:
+2026-05-30T19:26:00.6756214Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.6756653Z   json_serializable on test/appwrite_integration_test.dart:
+2026-05-30T19:26:00.6757054Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.6865540Z   json_serializable on test/appwrite_smoke_test.dart:
+2026-05-30T19:26:00.6866248Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.6866777Z   json_serializable on test/appwrite_smoke_test.dart:
+2026-05-30T19:26:00.6867233Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.6989625Z   json_serializable on test/arabic_amount_formatter_test.dart:
+2026-05-30T19:26:00.6990503Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.6991322Z   json_serializable on test/arabic_amount_formatter_test.dart:
+2026-05-30T19:26:00.6992100Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.7137798Z   json_serializable on test/auth_login_test.dart:
+2026-05-30T19:26:00.7138529Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.7139226Z   json_serializable on test/auth_login_test.dart:
+2026-05-30T19:26:00.7139672Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.7244375Z   json_serializable on test/auto_sync_task_test.dart:
+2026-05-30T19:26:00.7245358Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.7246062Z   json_serializable on test/auto_sync_task_test.dart:
+2026-05-30T19:26:00.7246528Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.7662739Z   json_serializable on test/booking_price_adjustment_test.dart:
+2026-05-30T19:26:00.7663557Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.7664278Z   json_serializable on test/booking_price_adjustment_test.dart:
+2026-05-30T19:26:00.7665172Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.7818425Z   json_serializable on test/bug_fixes_regression_test.dart:
+2026-05-30T19:26:00.7819372Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.7820233Z   json_serializable on test/bug_fixes_regression_test.dart:
+2026-05-30T19:26:00.7821069Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.7961564Z   json_serializable on test/conflict_resolver_test.dart:
+2026-05-30T19:26:00.7962276Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.7962972Z   json_serializable on test/conflict_resolver_test.dart:
+2026-05-30T19:26:00.7963636Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.8118628Z   json_serializable on test/cost_calculation_test.dart:
+2026-05-30T19:26:00.8119543Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.8120388Z   json_serializable on test/cost_calculation_test.dart:
+2026-05-30T19:26:00.8121201Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.8250779Z   json_serializable on test/currency_formatter_test.dart:
+2026-05-30T19:26:00.8251595Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.8252387Z   json_serializable on test/currency_formatter_test.dart:
+2026-05-30T19:26:00.8253125Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.8375639Z   json_serializable on test/date_parser_test.dart:
+2026-05-30T19:26:00.8376446Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.8377204Z   json_serializable on test/date_parser_test.dart:
+2026-05-30T19:26:00.8377924Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.8493016Z   json_serializable on test/delete_404_handling_test.dart:
+2026-05-30T19:26:00.8493845Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.8495420Z   json_serializable on test/delete_404_handling_test.dart:
+2026-05-30T19:26:00.8496183Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.8584054Z   json_serializable on test/dummy_test.dart:
+2026-05-30T19:26:00.8584699Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.8585535Z   json_serializable on test/dummy_test.dart:
+2026-05-30T19:26:00.8586119Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.8731454Z   json_serializable on test/expense_reason_matcher_test.dart:
+2026-05-30T19:26:00.8732222Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.8732932Z   json_serializable on test/expense_reason_matcher_test.dart:
+2026-05-30T19:26:00.8733630Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.8949002Z   json_serializable on test/hotel_time_engine_test.dart:
+2026-05-30T19:26:00.8949785Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.8950535Z   json_serializable on test/hotel_time_engine_test.dart:
+2026-05-30T19:26:00.8951286Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.9146099Z   json_serializable on test/mocks/mock_hive.dart:
+2026-05-30T19:26:00.9146895Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.9147644Z   json_serializable on test/mocks/mock_hive.dart:
+2026-05-30T19:26:00.9148471Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.9374487Z   json_serializable on test/payment_models_test.dart:
+2026-05-30T19:26:00.9376136Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.9376906Z   json_serializable on test/payment_models_test.dart:
+2026-05-30T19:26:00.9377629Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.9603337Z   json_serializable on test/performance_test.dart:
+2026-05-30T19:26:00.9604143Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.9605146Z   json_serializable on test/performance_test.dart:
+2026-05-30T19:26:00.9605888Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:00.9910019Z   json_serializable on test/price_adjustment_service_test.dart:
+2026-05-30T19:26:00.9910802Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:00.9911477Z   json_serializable on test/price_adjustment_service_test.dart:
+2026-05-30T19:26:00.9912121Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:01.0773696Z   json_serializable on test/restore_fix_service_test.dart:
+2026-05-30T19:26:01.0775160Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:01.0776256Z   json_serializable on test/restore_fix_service_test.dart:
+2026-05-30T19:26:01.0777118Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:01.0932717Z   json_serializable on test/shift_note_adapter_test.dart:
+2026-05-30T19:26:01.0933412Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:01.0934075Z   json_serializable on test/shift_note_adapter_test.dart:
+2026-05-30T19:26:01.0934654Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:01.1121756Z   json_serializable on test/sidebar_permissions_test.dart:
+2026-05-30T19:26:01.1122489Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:01.1123141Z   json_serializable on test/sidebar_permissions_test.dart:
+2026-05-30T19:26:01.1123731Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:01.1248235Z   json_serializable on test/status_utils_test.dart:
+2026-05-30T19:26:01.1248897Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:01.1249541Z   json_serializable on test/status_utils_test.dart:
+2026-05-30T19:26:01.1250138Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:01.1476901Z   json_serializable on test/sync/sync_orchestrator_test.dart:
+2026-05-30T19:26:01.1477625Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:01.1478291Z   json_serializable on test/sync/sync_orchestrator_test.dart:
+2026-05-30T19:26:01.1478917Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:01.1666118Z   json_serializable on test/sync_notification_manager_test.dart:
+2026-05-30T19:26:01.1666848Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:01.1668024Z   json_serializable on test/sync_notification_manager_test.dart:
+2026-05-30T19:26:01.1668664Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:01.1781314Z   json_serializable on test/sync_performance_optimizer_test.dart:
+2026-05-30T19:26:01.1782071Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:01.1782772Z   json_serializable on test/sync_performance_optimizer_test.dart:
+2026-05-30T19:26:01.1783480Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:01.2107811Z   json_serializable on test/sync_safety_layer_test.dart:
+2026-05-30T19:26:01.2108720Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:01.2109387Z   json_serializable on test/sync_safety_layer_test.dart:
+2026-05-30T19:26:01.2109899Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:01.2254014Z   json_serializable on test/time_extended_test.dart:
+2026-05-30T19:26:01.2254695Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:01.2255596Z   json_serializable on test/time_extended_test.dart:
+2026-05-30T19:26:01.2256225Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:01.2372367Z   json_serializable on test/time_utils_test.dart:
+2026-05-30T19:26:01.2373122Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:01.2373754Z   json_serializable on test/time_utils_test.dart:
+2026-05-30T19:26:01.2374350Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:01.2495678Z   json_serializable on test/vector_clock_test.dart:
+2026-05-30T19:26:01.2496858Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:01.2497494Z   json_serializable on test/vector_clock_test.dart:
+2026-05-30T19:26:01.2498112Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:01.2662384Z   json_serializable on test/widget_test.dart:
+2026-05-30T19:26:01.2663033Z   Running JsonSerializableGenerator - 1 of 2
+2026-05-30T19:26:01.2663622Z   json_serializable on test/widget_test.dart:
+2026-05-30T19:26:01.2664180Z   Running JsonLiteralGenerator - 2 of 2
+2026-05-30T19:26:01.2666192Z   17s json_serializable on 788 inputs: 393 skipped, 1 output, 394 no-op; spent 14s analyzing, 2s resolving
+2026-05-30T19:26:01.2667216Z   0s drift_dev on 3152 inputs; lib/components/admin_layout.dart
+2026-05-30T19:26:01.6630562Z   0s drift_dev on 3152 inputs: 106 skipped, 107 output; lib/screens/settings/logs/unified_logs_screen.freezed.dart
+2026-05-30T19:26:02.6654309Z   1s drift_dev on 3152 inputs: 471 skipped, 471 output, 3 no-op; lib/screens/security/blacklist_screen.freezed.dart
+2026-05-30T19:26:13.8175825Z   13s drift_dev on 3152 inputs: 588 skipped, 585 output, 6 no-op; spent 12s analyzing; lib/services/daos/booking_notes_dao.freezed.dart
+2026-05-30T19:26:22.0011700Z   21s drift_dev on 3152 inputs: 589 skipped, 586 output, 6 no-op; spent 20s analyzing; lib/services/daos/bookings_dao.freezed.dart
+2026-05-30T19:26:24.5530646Z   23s drift_dev on 3152 inputs: 590 skipped, 587 output, 6 no-op; spent 22s analyzing; lib/services/daos/cash_transactions_dao.freezed.dart
+2026-05-30T19:26:36.2842557Z   35s drift_dev on 3152 inputs: 591 skipped, 588 output, 6 no-op; spent 34s analyzing; lib/services/daos/debts_dao.freezed.dart
+2026-05-30T19:26:38.9807326Z   38s drift_dev on 3152 inputs: 592 skipped, 589 output, 6 no-op; spent 37s analyzing; lib/services/daos/employees_dao.freezed.dart
+2026-05-30T19:26:41.7656224Z   40s drift_dev on 3152 inputs: 593 skipped, 590 output, 6 no-op; spent 40s analyzing; lib/services/daos/expenses_dao.freezed.dart
+2026-05-30T19:26:43.3015833Z   42s drift_dev on 3152 inputs: 594 skipped, 591 output, 6 no-op; spent 41s analyzing; lib/services/daos/outbox_dao.freezed.dart
+2026-05-30T19:26:57.9719651Z   57s drift_dev on 3152 inputs: 595 skipped, 592 output, 6 no-op; spent 56s analyzing; lib/services/daos/payments_dao.freezed.dart
+2026-05-30T19:27:00.6116600Z   59s drift_dev on 3152 inputs: 596 skipped, 593 output, 6 no-op; spent 58s analyzing; lib/services/daos/rooms_dao.freezed.dart
+2026-05-30T19:27:02.9912258Z   62s drift_dev on 3152 inputs: 597 skipped, 594 output, 6 no-op; spent 61s analyzing; lib/services/daos/shift_notes_dao.freezed.dart
+2026-05-30T19:27:04.9414466Z   64s drift_dev on 3152 inputs: 598 skipped, 595 output, 6 no-op; spent 63s analyzing; lib/services/daos/sync_log_dao.freezed.dart
+2026-05-30T19:28:09.8812383Z   129s drift_dev on 3152 inputs: 628 skipped, 624 output, 7 no-op; spent 127s analyzing, 1s building; lib/services/local_db.freezed.dart
+2026-05-30T19:28:10.8820340Z   130s drift_dev on 3152 inputs: 1056 skipped, 763 output, 118 no-op; spent 128s analyzing, 2s building; lib/screens/settings/auto_sync_engine_monitor_screen.dart.types.temp.dart
+2026-05-30T19:28:13.3979547Z   132s drift_dev on 3152 inputs: 1491 skipped, 775 output, 251 no-op; spent 128s analyzing, 4s building; lib/services/local_db.dart.types.temp.dart
+2026-05-30T19:28:13.9693249Z   133s drift_dev on 3152 inputs: 1967 skipped, 775 output, 410 no-op; spent 128s analyzing, 4s building
+2026-05-30T19:28:13.9696111Z   0s source_gen:combining_builder on 1576 inputs; lib/components/admin_layout.dart
+2026-05-30T19:28:14.4000193Z   0s source_gen:combining_builder on 1576 inputs: 405 skipped, 136 no-op; lib/services/adapters/debts_adapter.dart.types.temp.dart
+2026-05-30T19:28:15.4026019Z   1s source_gen:combining_builder on 1576 inputs: 1082 skipped, 13 output, 350 no-op; spent 1s building; lib/widgets/sync/sync_indicator.dart.types.temp.dart
+2026-05-30T19:28:15.4915095Z   2s source_gen:combining_builder on 1576 inputs: 1181 skipped, 13 output, 382 no-op; spent 1s building
+2026-05-30T19:28:15.4916787Z   0s mockito:mockBuilder on 256 inputs; test/adapters_round_trip_test.dart
+2026-05-30T19:28:16.4833801Z   1s mockito:mockBuilder on 256 inputs: 35 skipped, 6 no-op; test/auto_sync_task_test.dart.types.temp.dart
+2026-05-30T19:28:16.6275447Z   1s mockito:mockBuilder on 256 inputs: 224 skipped, 32 no-op
+2026-05-30T19:28:16.6276278Z   Running the post build.
+2026-05-30T19:28:16.6382402Z   Writing the asset graph.
+2026-05-30T19:28:16.9354312Z   Built with build_runner in 181s; wrote 790 outputs.
+2026-05-30T19:28:17.3545922Z IO  : Writing 7736 characters to text file /home/runner/.pub-cache/log/pub_log.txt.
+2026-05-30T19:28:17.3547243Z MSG : Logs written to /home/runner/.pub-cache/log/pub_log.txt.
+2026-05-30T19:28:17.3611634Z [+187722 ms] "flutter run" took 187,774ms.
+2026-05-30T19:28:17.3682792Z [   +7 ms] Running 1 shutdown hook
+2026-05-30T19:28:17.3689394Z [        ] Shutdown hooks complete
+2026-05-30T19:28:17.3698698Z [        ] exiting with code 0

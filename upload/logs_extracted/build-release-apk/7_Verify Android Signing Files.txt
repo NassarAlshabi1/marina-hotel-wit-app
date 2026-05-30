@@ -1,0 +1,18 @@
+﻿2026-05-30T19:25:01.8534140Z ##[group]Run echo "Verifying local signing files..."
+2026-05-30T19:25:01.8534641Z [36;1mecho "Verifying local signing files..."[0m
+2026-05-30T19:25:01.8535298Z [36;1mls -la android/app/release.keystore[0m
+2026-05-30T19:25:01.8535653Z [36;1mls -la android/key.properties[0m
+2026-05-30T19:25:01.8536028Z [36;1mecho "Local signing files verified successfully."[0m
+2026-05-30T19:25:01.8562121Z shell: /usr/bin/bash -e {0}
+2026-05-30T19:25:01.8562429Z env:
+2026-05-30T19:25:01.8562671Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-05-30T19:25:01.8563018Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-05-30T19:25:01.8563452Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:25:01.8563992Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:25:01.8564517Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.41.0-x64/flutter
+2026-05-30T19:25:01.8565206Z   PUB_CACHE: /home/runner/.pub-cache
+2026-05-30T19:25:01.8565515Z ##[endgroup]
+2026-05-30T19:25:01.8614748Z Verifying local signing files...
+2026-05-30T19:25:01.8628089Z -rwxr-xr-x 1 runner runner 6765 May 30 19:24 android/app/release.keystore
+2026-05-30T19:25:01.8641640Z -rwxr-xr-x 1 runner runner 328 May 30 19:24 android/key.properties
+2026-05-30T19:25:01.8643546Z Local signing files verified successfully.

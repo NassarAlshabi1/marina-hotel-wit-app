@@ -1,0 +1,15 @@
+﻿2026-05-30T19:25:04.3392152Z ##[group]Run BASE_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+2026-05-30T19:25:04.3392983Z [36;1mBASE_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)[0m
+2026-05-30T19:25:04.3393638Z [36;1mBUILD_NUMBER=${GITHUB_RUN_NUMBER}[0m
+2026-05-30T19:25:04.3394082Z [36;1mBUILD_NAME="${BASE_VERSION}.${BUILD_NUMBER}"[0m
+2026-05-30T19:25:04.3394574Z [36;1mecho "build_name=$BUILD_NAME" >> $GITHUB_OUTPUT[0m
+2026-05-30T19:25:04.3395514Z [36;1mecho "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT[0m
+2026-05-30T19:25:04.3422721Z shell: /usr/bin/bash -e {0}
+2026-05-30T19:25:04.3423103Z env:
+2026-05-30T19:25:04.3423526Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-05-30T19:25:04.3423968Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-05-30T19:25:04.3424600Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:25:04.3425561Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-05-30T19:25:04.3426328Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.41.0-x64/flutter
+2026-05-30T19:25:04.3426851Z   PUB_CACHE: /home/runner/.pub-cache
+2026-05-30T19:25:04.3427251Z ##[endgroup]
