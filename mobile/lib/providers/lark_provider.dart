@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -115,7 +116,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
         hasValidToken: hasToken,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تهيئة LarkNotifier: $e');
+      AppLogger.error('خطأ في تهيئة LarkNotifier: $e');
     }
   }
 
@@ -279,7 +280,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
     try {
       return await _reports.sendDailyReport();
     } catch (e) {
-      debugPrint('❌ خطأ في إرسال التقرير اليومي: $e');
+      AppLogger.error('خطأ في إرسال التقرير اليومي: $e');
       return false;
     }
   }
@@ -308,7 +309,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('lark_last_report_sent');
     state = state.copyWith();
-    debugPrint('🔄 Lark: تم مسح حالة آخر تقرير');
+    AppLogger.debug('Lark: تم مسح حالة آخر تقرير');
   }
 }
 
