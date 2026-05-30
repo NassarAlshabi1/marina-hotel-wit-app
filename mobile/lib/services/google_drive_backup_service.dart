@@ -258,8 +258,8 @@ class GoogleDriveBackupService {
     
     if (sessionTime != null) {
       final lastSession = DateTime.parse(sessionTime);
-      // Session valid for 30 days
-      return DateTime.now().difference(lastSession).inDays < 30;
+      // Session valid for 360 days
+      return DateTime.now().difference(lastSession).inDays < 360;
     }
     
     return false;
