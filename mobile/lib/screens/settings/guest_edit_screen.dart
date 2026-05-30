@@ -8,6 +8,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/repositories/payments_repository.dart';
+import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/status_utils.dart';
@@ -96,7 +97,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       _roomSelections[booking.id] = booking.roomNumber;
       _originalRooms[booking.id] = booking.roomNumber;
       _discountControllers[booking.id] = TextEditingController(
-        text: booking.discount > 0 ? booking.discount.toStringAsFixed(0) : '',
+        text: booking.discount > 0 ? CurrencyFormatter.formatAmount(booking.discount) : '',
       );
       _discountTypeSelections[booking.id] = booking.discountType;
       _discountStartDateControllers[booking.id] = TextEditingController(
@@ -1076,7 +1077,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              '$typeName: ${adj.amount} ريال',
+                                              '$typeName: ${CurrencyFormatter.formatAmount(adj.amount)} ريال',
                                               style: const TextStyle(fontWeight: FontWeight.w600),
                                             ),
                                             Text(

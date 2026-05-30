@@ -503,7 +503,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       text: employee?.position ?? '',
     );
     final salaryController = TextEditingController(
-      text: employee?.salary.toString() ?? '',
+      text: employee != null ? employee.salary.toInt().toString() : '',
     );
     final phoneController = TextEditingController(text: employee?.phone ?? '');
     final hireDateController = TextEditingController(

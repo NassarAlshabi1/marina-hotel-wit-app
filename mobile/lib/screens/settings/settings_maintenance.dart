@@ -20,6 +20,7 @@ import '../../services/sqlite_backup_restore.dart';
 import '../../services/sync_guardian.dart';
 import '../../services/sync_orchestrator.dart';
 import '../../services/unified_sync_orchestrator.dart';
+import '../../utils/currency_formatter.dart';
 import '../../utils/env.dart';
 
 // ═══════════════════════════════════════════════════════════════
@@ -859,7 +860,7 @@ class _SettingsMaintenanceScreenState
                     ),
                     const Spacer(),
                     Text(
-                      '${totalAmount.toStringAsFixed(0)} ر.ي',
+                      '${CurrencyFormatter.formatAmount(totalAmount)} ر.ي',
                       style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal),
                     ),
                   ],
@@ -888,7 +889,7 @@ class _SettingsMaintenanceScreenState
                         ),
                       ),
                       title: Text(
-                        '${(r['amount'] as double).toStringAsFixed(0)} ر.ي — ${r['paymentMethod']}',
+                        '${CurrencyFormatter.formatAmount(r['amount'] as double)} ر.ي — ${r['paymentMethod']}',
                         style: const TextStyle(fontSize: 12),
                       ),
                       subtitle: Text(

@@ -9,6 +9,7 @@ import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart'; // استيراد البروفايدر الجديد
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../bookings/booking_edit.dart';
 import '../payments/booking_payment_screen.dart';
@@ -146,7 +147,7 @@ class RoomsDashboard extends ConsumerWidget {
               if (room.price > 0)
                 _buildDetailRow(
                   'السعر',
-                  '${room.price.toStringAsFixed(0)} ريال',
+                  '${CurrencyFormatter.formatAmount(room.price)} ريال',
                 ),
             ],
           ),

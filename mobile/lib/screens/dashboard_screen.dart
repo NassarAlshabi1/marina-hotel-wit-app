@@ -14,6 +14,7 @@ import '../services/appwrite_realtime_sync.dart';
 import '../services/local_db.dart';
 import '../services/remote_config_service.dart';
 import '../services/sync_constants.dart';
+import '../utils/currency_formatter.dart';
 import '../utils/status_utils.dart';
 import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
@@ -682,7 +683,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           children: [
             _buildDetailRow('الحالة', room.status),
             _buildDetailRow('النوع', room.type),
-            _buildDetailRow('السعر', '${room.price.toStringAsFixed(0)} ريال'),
+            _buildDetailRow('السعر', '${CurrencyFormatter.formatAmount(room.price)} ريال'),
           ],
         ),
         actions: [

@@ -392,7 +392,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     final formKey = GlobalKey<FormState>();
     final roomNumberCtrl = TextEditingController(text: existing?.roomNumber ?? '');
     final typeCtrl = TextEditingController(text: existing?.type ?? '');
-    final priceCtrl = TextEditingController(text: existing?.price.toString() ?? '');
+    final priceCtrl = TextEditingController(text: existing != null ? existing.price.toInt().toString() : '');
     String status = existing?.status ?? 'شاغرة';
     final String? imageUrl = existing?.imageUrl;
 
