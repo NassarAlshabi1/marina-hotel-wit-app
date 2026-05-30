@@ -9,7 +9,6 @@ import '../../providers/core_providers.dart';
 import '../../providers/performance_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/crashlytics_service.dart';
-import '../../services/local_db.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import 'debts_report_screen.dart';
@@ -132,7 +131,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
       for (final booking in allBookings) {
         if (booking.deletedAt != null) continue;
-        final status = booking.status ?? '';
+        final status = booking.status;
         if (!activeStatuses.contains(status) && !StatusUtils.isActiveBooking(status)) {
           continue;
         }
@@ -178,10 +177,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       final Map<String, int> roomOccupancyCount = {};
       for (final booking in allBookings) {
         if (booking.deletedAt != null) continue;
-        final status = booking.status ?? '';
+        final status = booking.status;
         if (!StatusUtils.isActiveBooking(status)) continue;
 
-        final room = booking.roomNumber ?? '';
+        final room = booking.roomNumber;
         if (room.isNotEmpty) {
           roomOccupancyCount[room] = (roomOccupancyCount[room] ?? 0) + 1;
         }

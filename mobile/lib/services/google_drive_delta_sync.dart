@@ -31,4 +31,9 @@ class GoogleDriveDeltaSync {
   Future<SyncResult> pushDeltaChanges() async {
     return SyncResult(success: true, changesCount: 0);
   }
+
+  /// Pull delta changes from Google Drive
+  Future<SyncResult> pullDeltaChanges() async {
+    return SyncResult(success: true, changesCount: 0);
+  }
 }

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
 import '../utils/app_logger.dart';

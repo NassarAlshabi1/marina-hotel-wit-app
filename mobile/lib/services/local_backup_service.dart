@@ -972,4 +972,43 @@ class LocalBackupService {
       return {};
     }
   }
+
+  /// Export database to JSON map (for use by file_management_service.dart)
+  Future<Map<String, dynamic>> exportDatabaseToJson() async {
+    final db = DatabaseManager.instance;
+    final timestamp = DateTime.now();
+
+    final roomsData = await db.select(db.rooms).get();
+    final bookingsData = await db.select(db.bookings).get();
+    final bookingNotesData = await db.select(db.bookingNotes).get();
+    final employeesData = await db.select(db.employees).get();
+    final expensesData = await db.select(db.expenses).get();
+    final cashTransactionsData = await db.select(db.cashTransactions).get();
+    final paymentsData = await db.select(db.payments).get();
+
+    final totalRecords = roomsData.length +
+        bookingsData.length +
+        bookingNotesData.length +
+        employeesData.length +
+        expensesData.length +
+        cashTransactionsData.length +
+        paymentsData.length;
+
+    return {
+      'metadata': {
+        'app_version': '1.2.0+3',
+        'database_version': db.schemaVersion,
+        'backup_timestamp': timestamp.toIso8601String(),
+        'total_records': totalRecords,
+        'device_info': 'Local Export',
+      },
+      'rooms': roomsData.map((Room r) => r.toJson()).toList(),
+      'bookings': bookingsData.map((Booking b) => b.toJson()).toList(),
+      'booking_notes': bookingNotesData.map((BookingNote n) => n.toJson()).toList(),
+      'employees': employeesData.map((Employee e) => e.toJson()).toList(),
+      'expenses': expensesData.map((Expense e) => e.toJson()).toList(),
+      'cash_transactions': cashTransactionsData.map((CashTransaction c) => c.toJson()).toList(),
+      'payments': paymentsData.map((Payment p) => p.toJson()).toList(),
+    };
+  }
 }

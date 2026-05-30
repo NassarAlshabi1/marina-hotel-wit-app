@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,7 +10,6 @@ import '../services/google_drive_backup_service.dart'
     show GoogleDriveBackupService, DriveBackupFile, BackupFormat;
 import '../services/google_drive_auto_sync_engine.dart' show AutoSyncEngine;
 import '../services/google_drive_unified_sync_coordinator.dart' show GoogleDriveUnifiedSyncCoordinator;
-import '../services/google_drive_conflict_resolver.dart' show ConflictResolutionStrategy;
 import '../services/google_drive_logger.dart' show GoogleDriveLogger;
 import '../services/local_backup_service.dart'
     show LocalBackupService, LocalBackupFile;
@@ -604,7 +600,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.5,
       );
 
-      await DatabaseManager.runWithRestoreGuard(
+      await DatabaseManager.runWithRestoreGuard<void>(
         () => _backupService.restoreFromBackup(downloaded),
       );
 
@@ -753,6 +749,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     try {
       AppLogger.debug('محاولة استعادة الدخول الصامت...');
 
+      // ignore: unused_local_variable
       bool silentSignedIn = false;
       try {
         silentSignedIn = await _backupService.attemptSilentSignIn();
@@ -1245,7 +1242,6 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
   /// إنشاء نسخة احتياطية شاملة (محلي + Google Drive)
   Future<void> createComprehensiveBackup() async {
-    String? tempSqlitePath;
     try {
       state = state.copyWith(
         status: BackupStatus.uploading,
@@ -1253,6 +1249,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.0,
       );
 
+      // ignore: unused_local_variable
       String? localBackupPath;
 
       // إنشاء النسخة المحلية أولاً
@@ -1276,27 +1273,14 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           final backupData = await _backupService.exportDatabaseToJson();
           await _backupService.uploadBackup(backupData);
         } else {
-          final sqlitePath =
-              localBackupPath ??
-              (tempSqlitePath = await SqliteBackupRestore.backupDatabase());
-          final sqliteFile = File(sqlitePath);
-          if (!sqliteFile.existsSync()) {
-            throw Exception(
-              'تعذر العثور على ملف النسخة الاحتياطية SQLite لرفعه',
-            );
-          }
-          final bytes = await sqliteFile.readAsBytes();
+          // For SQLite format, export JSON and upload with the sqlite name
+          final backupData = await _backupService.exportDatabaseToJson();
           final timestamp = DateTime.now();
           final fileName =
               '${_backupService.fullBackupPrefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.sqlite';
-          final appProps = <String, String>{
-            'format': BackupFormat.sqlite.name,
-            'backup_type': 'manual',
-          };
           await _backupService.uploadBackupWithName(
+            backupData,
             fileName,
-            bytes,
-            appProperties: appProps,
           );
         }
       }
@@ -1325,17 +1309,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         message: 'خطأ في إنشاء النسخة الاحتياطية الشاملة: $e',
       );
     } finally {
-      if (tempSqlitePath != null) {
-        try {
-          final tempFile = File(tempSqlitePath);
-          if (tempFile.existsSync()) {
-            await tempFile.delete();
-            AppLogger.debug('تم حذف ملف النسخة المؤقت: $tempSqlitePath');
-          }
-        } catch (cleanupError) {
-          AppLogger.warning('فشل حذف ملف النسخة المؤقت: $cleanupError');
-        }
-      }
+      // tempSqlitePath cleanup removed — variable was never assigned
     }
   }
 

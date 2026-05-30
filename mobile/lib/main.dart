@@ -39,27 +39,27 @@ import 'services/battery_optimizer.dart';
 import 'services/central_sync_coordinator.dart';
 import 'services/connectivity_service.dart';
 import 'services/crashlytics_service.dart';
-import 'services/database_sync_coordinator.dart';
+
 import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/fcm_service.dart';
 import 'services/google_drive_auto_sync_engine.dart';
-import 'services/google_drive_conflict_resolver.dart';
+
 import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/local_db.dart';
 import 'services/logging/log_models.dart';
 import 'services/remote_config_service.dart';
 import 'services/seed.dart';
-import 'services/smart_sync_manager.dart';
+
 import 'services/sync_conflict_event_bus.dart';
 import 'services/sync_constants.dart';
 import 'services/sync_guardian.dart';
 import 'services/sync_performance_optimizer.dart';
-import 'services/sync_queue_service.dart';
+
 import 'services/sync_service.dart';
 // ⚠️ Google Drive imports DISABLED
 // import 'services/unified_sync_orchestrator.dart';
 import 'utils/app_logger.dart';
-import 'utils/auto_sync_preferences.dart';
+
 import 'utils/env.dart';
 import 'utils/hotel_day_ticker.dart';
 import 'utils/id.dart';
@@ -165,7 +165,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     AppLogger.info('✅ Appwrite Config loaded', tag: 'MAIN');
 
     AppLogger.debug('🔧 Initializing Database...', tag: 'MAIN');
-    final database = DatabaseManager.instance;
+    DatabaseManager.instance; // Initialize database
     AppLogger.info('✅ Database ready', tag: 'MAIN');
 
     AppLogger.info('⚠️ Google Drive components NOT initialized (DISABLED)', tag: 'MAIN');
@@ -641,7 +641,7 @@ class RootRouter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
-    final backup = ref.watch(backupStatusProvider);
+    ref.watch(backupStatusProvider); // Watch for backup status changes
     if (auth.isRestoring) {
       return const Directionality(
         textDirection: TextDirection.rtl,

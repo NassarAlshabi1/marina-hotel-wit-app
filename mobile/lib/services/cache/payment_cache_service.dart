@@ -95,6 +95,7 @@ class PaymentCacheService {
   static String _bookingSummaryKey(int bookingId) => 'summary_booking_$bookingId';
   static String _dayPaymentsKey(String hotelDayKey) => 'payments_day_$hotelDayKey';
   static String _totalsKey(int bookingId) => 'totals_booking_$bookingId';
+  // ignore: unused_element
   static String _allPaymentsKey() => 'payments_all';
   
   // ─── Get cached payments for booking ───

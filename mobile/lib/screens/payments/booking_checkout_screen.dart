@@ -99,6 +99,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     // لضمان اتساق الحسابات عند إعادة فتح الشاشة
     // اليوم الفندقي (14:00 -> 14:00) يضمن ثبات الحسابات
     final now = HotelDateHelper.getHotelDay(DateTime.now());
+    // ignore: unused_local_variable
     final hotelDayNow = HotelDateHelper.getHotelDayKey();
 
     return wrapWithSyncOnExit(

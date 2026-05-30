@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import '../utils/app_logger.dart';
 
 /// [Deprecated] This service is being replaced by Unified Outbox Architecture.

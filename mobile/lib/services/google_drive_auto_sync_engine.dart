@@ -2,7 +2,6 @@ import 'dart:async';
 import 'local_db.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_logger.dart';
-import 'logging/log_models.dart';
 import 'google_drive_conflict_resolver.dart' show ConflictResolutionStrategy;
 
 class EngineState {
@@ -82,4 +81,13 @@ class AutoSyncEngine {
       'debounce_seconds': 5,
     },
   };
+
+  /// Dispose resources — called during app shutdown
+  Future<void> disposeInstance() async {
+    try {
+      await _stateController.close();
+    } catch (_) {
+      // Already closed
+    }
+  }
 }

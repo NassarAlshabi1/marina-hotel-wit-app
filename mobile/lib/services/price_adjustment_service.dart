@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import '../utils/app_logger.dart';
 import 'package:uuid/uuid.dart';
 

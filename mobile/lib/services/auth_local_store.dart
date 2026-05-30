@@ -233,8 +233,13 @@ class AuthLocalStore {
     final normalized = username.trim();
 
     // 1️⃣ البحث في الحسابات المحلية (hardcoded + custom)
-    Map<String, dynamic>? account = Map.from(_fixedAccounts[normalized] ?? {});
-    account ??= await _getCustomAccount(normalized);
+    final fixedAccountData = _fixedAccounts[normalized];
+    Map<String, dynamic>? account = fixedAccountData != null
+        ? Map<String, dynamic>.from(fixedAccountData)
+        : null;
+    if (account == null) {
+      account = await _getCustomAccount(normalized);
+    }
 
     // 2️⃣ البحث في Appwrite Cloud
     if (account == null) {

@@ -281,7 +281,7 @@ class SmartSyncManager {
       final backupData = await _backupService!.downloadBackup(newBackup.fileId);
 
       // تسجيل استهلاك البيانات
-      final backupSize = newBackup.size ?? 0;
+      final backupSize = newBackup.size;
       if (backupSize > 0) {
         await DataUsageManager.instance.recordDataUsage(backupSize.toDouble());
       }
@@ -852,7 +852,7 @@ class SmartSyncManager {
         final deltaResult = await GoogleDriveDeltaSync.instance
             .pullDeltaChanges();
 
-        if (deltaResult.success && deltaResult.changesCount > 0) {
+        if (deltaResult.success && (deltaResult.changesCount ?? 0) > 0) {
           await _updateLastSyncTime();
           _log('✅ تم سحب ${deltaResult.changesCount} تغيير عبر Delta Sync');
           return true;

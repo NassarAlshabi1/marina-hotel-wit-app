@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,7 +7,6 @@ import '../data/sync_models.dart' as models;
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
 import 'google_drive_backup_service.dart';
-import 'google_drive_logger.dart' hide GoogleDriveLogger;
 import 'google_drive_unified_sync_coordinator.dart'
     show GoogleDriveUnifiedSyncCoordinator, SyncTrigger, SyncMode, GoogleDriveLogger;
 import 'google_drive_auto_sync_engine.dart' show SyncResult;
@@ -466,8 +464,8 @@ class UnifiedSyncOrchestrator {
 
     if (!coordinator.isInitialized) {
       final backupService = GoogleDriveBackupService();
-      final account = await backupService.attemptSilentSignIn();
-      if (account == null) {
+      final signedIn = await backupService.attemptSilentSignIn();
+      if (!signedIn) {
         return false;
       }
       final logger = GoogleDriveLogger();

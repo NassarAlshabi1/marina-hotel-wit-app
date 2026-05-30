@@ -231,7 +231,6 @@ class AutoBackupManager {
       // رفع النسخة الاحتياطية كملف تلقائي
       final fileId = await _backupService!.uploadBackup(
         backupData,
-        isSync: true,
       );
 
       // حفظ وقت آخر نسخة تلقائية
@@ -266,7 +265,8 @@ class AutoBackupManager {
       }
 
       // ترتيب النسخ حسب التاريخ (الأحدث أولاً)
-      backupFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
+      backupFiles.sort((gd.GoogleDriveBackupFile a, gd.GoogleDriveBackupFile b) =>
+          (b.createdTime ?? b.modifiedTime).compareTo(a.createdTime ?? a.modifiedTime));
 
       final maxBackups = await _getMaxBackupCount();
       final retentionDays = await _getRetentionDays();
@@ -283,7 +283,7 @@ class AutoBackupManager {
 
       // حذف النسخ الأقدم من فترة الاحتفاظ
       for (final file in backupFiles) {
-        if (file.createdTime.isBefore(cutoffDate) &&
+        if (file.createdTime != null && file.createdTime!.isBefore(cutoffDate) &&
             !filesToDelete.contains(file)) {
           filesToDelete.add(file);
         }

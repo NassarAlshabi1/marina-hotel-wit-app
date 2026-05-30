@@ -1,5 +1,4 @@
 import 'dart:async';
-import '../appwrite_config.dart';
 
 /// Rate Limiter for Appwrite API calls to prevent exceeding rate limits.
 ///
@@ -82,7 +81,7 @@ class SyncRateLimiter {
         return false;
       }
 
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
     }
   }
 

@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 import 'local_db.dart';
 
 /// خدمة لإصلاح البيانات الفاسدة في قاعدة البيانات

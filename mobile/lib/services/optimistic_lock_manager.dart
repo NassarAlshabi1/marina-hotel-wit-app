@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 import '../utils/app_logger.dart';
 
 import 'local_db.dart';

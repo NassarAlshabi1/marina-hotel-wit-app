@@ -15,7 +15,7 @@ class SyncManager {
     if (instance == null) {
       throw StateError('SyncManager singleton is not configured');
     }
-    return instance!;
+    return instance;
   }
 
   static void configureSingleton(SyncManager manager) {
