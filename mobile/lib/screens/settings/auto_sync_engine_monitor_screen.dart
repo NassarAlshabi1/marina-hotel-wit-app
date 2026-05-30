@@ -1067,6 +1067,10 @@ class _AutoSyncEngineMonitorScreenState
         return 'البيانات الأحدث زمنياً تفوز (افتراضي)';
       case ConflictResolutionStrategy.olderWins:
         return 'البيانات الأقدم زمنياً تفوز';
+      case ConflictResolutionStrategy.devicePriorityBased:
+        return 'البيانات حسب أولوية الجهاز المعرّفة';
+      case ConflictResolutionStrategy.manualReview:
+        return 'مراجعة يدوية للتضاربات';
       case ConflictResolutionStrategy.localWins:
         return 'البيانات المحلية تفوز دائماً';
       case ConflictResolutionStrategy.remoteWins:
