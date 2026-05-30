@@ -112,6 +112,7 @@ class GoogleDriveBackupService {
 
   late final GoogleSignIn _googleSignIn;
   String? _accessToken;
+  // ignore: unused_field
   String? _refreshToken;
   String? _appFolderId;
   DateTime? _tokenExpiry;

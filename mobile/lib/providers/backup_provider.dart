@@ -8,18 +8,13 @@ import '../utils/app_logger.dart';
 import '../services/file_management_service.dart';
 import '../services/google_drive_backup_service.dart'
     show GoogleDriveBackupService, DriveBackupFile, BackupFormat;
-import '../services/google_drive_auto_sync_engine.dart' show AutoSyncEngine;
-import '../services/google_drive_unified_sync_coordinator.dart' show GoogleDriveUnifiedSyncCoordinator;
-import '../services/google_drive_logger.dart' show GoogleDriveLogger;
 import '../services/local_backup_service.dart'
     show LocalBackupService, LocalBackupFile;
 import '../services/local_db.dart';
 import '../services/logging/log_models.dart';
 import '../services/restore_fix_service.dart';
-import '../services/smart_sync_manager.dart';
 import '../services/sqlite_backup_restore.dart';
 import 'appwrite_providers.dart';
-import 'smart_sync_provider.dart';
 
 const _driveLoginSkippedKey = 'drive_login_skipped';
 
@@ -180,7 +175,6 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     this._localBackupService,
     this._fileService,
     this._appwriteSyncManager,
-    this._smartSyncManager,
   ) : super(BackupState()) {
     _initialize();
   }
@@ -189,7 +183,6 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   final LocalBackupService _localBackupService;
   final FileManagementService _fileService;
   final AppwriteSyncManager _appwriteSyncManager;
-  final SmartSyncManager _smartSyncManager;
   bool _mounted = true;
 
   Future<void> _initialize() async {
@@ -303,57 +296,25 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     state = state.copyWith(driveLoginSkipped: value);
   }
 
-  /// تفعيل/تعطيل مزامنة Google Drive
+  /// تفعيل/تعطيل مزامنة Google Drive — SYNC DISABLED, only saves preference
   Future<void> setGoogleDriveSyncEnabled(bool enabled) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('google_drive_sync_enabled', enabled);
 
-      // 1. التحكم في SmartSyncManager (يملك مؤقتات دورية مستقلة)
-      try {
-        final smartSync = SmartSyncManager.instance;
-        await smartSync.setEnabled(enabled);
-        AppLogger.debug('SmartSyncManager: ${enabled ? 'مُفعّل' : 'معطّل'}', tag: 'GDRIVE');
-      } catch (e) {
-        AppLogger.warning('خطأ في التحكم بـ SmartSyncManager', tag: 'GDRIVE', error: e);
-      }
-
-      // 2. التحكم في محرك المزامنة التلقائية (AutoSyncEngine)
-      try {
-        final autoSyncEngine = AutoSyncEngine.instance;
-        if (enabled) {
-          if (!autoSyncEngine.currentState.isRunning && state.isSignedIn) {
-            await autoSyncEngine.start();
-            AppLogger.info('AutoSyncEngine: تم التشغيل', tag: 'GDRIVE');
-          }
-        } else {
-          autoSyncEngine.stop();
-          AppLogger.info('AutoSyncEngine: تم الإيقاف', tag: 'GDRIVE');
-        }
-      } catch (e) {
-        AppLogger.warning('خطأ في التحكم بمحرك المزامنة التلقائية', tag: 'GDRIVE', error: e);
-      }
-
-      // 3. التحكم في منسق المزامنة الموحد (UnifiedSyncCoordinator)
-      try {
-        final coordinator =
-            GoogleDriveUnifiedSyncCoordinator.instance;
-        if (enabled && state.isSignedIn && coordinator.isInitialized) {
-          await coordinator.onSignInChanged(true);
-          AppLogger.info('Coordinator: تم تفعيل المراقبة', tag: 'GDRIVE');
-        } else if (!enabled) {
-          await coordinator.onSignInChanged(false);
-          AppLogger.info('Coordinator: تم إيقاف المراقبة', tag: 'GDRIVE');
-        }
-      } catch (e) {
-        AppLogger.warning('خطأ في التحكم بمنسق المزامنة', tag: 'GDRIVE', error: e);
-      }
+      // ⚠️ Google Drive SYNC is permanently disabled — backup/restore only
+      // All sync engines (AutoSyncEngine, UnifiedSyncCoordinator, SmartSyncManager)
+      // are stubbed out and do nothing. We only save the preference.
+      AppLogger.info(
+        'Google Drive sync preference saved: $enabled (sync is DISABLED — backup/restore only)',
+        tag: 'GDRIVE',
+      );
 
       state = state.copyWith(
         googleDriveSyncEnabled: enabled,
         status: BackupStatus.success,
         message: enabled
-            ? 'تم تفعيل مزامنة Google Drive'
+            ? 'تم حفظ إعداد مزامنة Google Drive (المزامنة معطلة - النسخ الاحتياطي والاستعادة متاحان)'
             : 'تم تعطيل مزامنة Google Drive',
       );
 
@@ -362,8 +323,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         if (!_mounted) {
           return;
         }
-        if (state.message == 'تم تفعيل مزامنة Google Drive' ||
-            state.message == 'تم تعطيل مزامنة Google Drive') {
+        if (state.message?.contains('مزامنة Google Drive') == true) {
           clearMessage();
         }
       });
@@ -1471,13 +1431,11 @@ final backupStatusProvider =
       final localService = ref.watch(localBackupServiceProvider);
       final fileService = ref.watch(fileManagementServiceProvider);
       final appwriteSync = ref.watch(appwriteSyncManagerProvider);
-      final smartSync = ref.watch(smartSyncManagerProvider);
       return BackupStatusNotifier(
         driveService,
         localService,
         fileService,
         appwriteSync,
-        smartSync,
       );
     });
 
