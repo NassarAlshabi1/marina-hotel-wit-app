@@ -163,7 +163,7 @@ class BackupState {
   }
 
   bool get isSignedIn => signedInAccount != null;
-  bool get requiresDriveLogin => !isSignedIn && !driveLoginSkipped;
+  bool get requiresDriveLogin => false; // ⚠️ DISABLED: Google Drive Sync disabled
   bool get isWorking =>
       status == BackupStatus.signIn ||
       status == BackupStatus.uploading ||

@@ -13,7 +13,6 @@ import 'providers/auth_provider.dart';
 import 'providers/repository_providers.dart';
 import 'providers/theme_provider.dart';
 import 'screens/ai/ai_chat_screen.dart';
-import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/bookings/bookings_list.dart';
 import 'screens/dashboard_screen.dart';
@@ -43,11 +42,12 @@ import 'services/crashlytics_service.dart';
 import 'services/database_sync_coordinator.dart';
 import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/fcm_service.dart';
-import 'services/google_drive_auto_sync_engine.dart';
-import 'services/google_drive_backup_service.dart';
-import 'services/google_drive_conflict_resolver.dart';
-import 'services/google_drive_logger.dart';
-import 'services/google_drive_unified_sync_coordinator.dart';
+// ⚠️ Google Drive imports DISABLED
+// import 'services/google_drive_auto_sync_engine.dart';
+// import 'services/google_drive_backup_service.dart';
+// import 'services/google_drive_conflict_resolver.dart';
+// import 'services/google_drive_logger.dart';
+// import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/local_db.dart';
 import 'services/logging/log_models.dart';
 import 'services/remote_config_service.dart';
@@ -144,211 +144,64 @@ Future<void> main() async {
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
-  debugPrint('═══════════════════════════════════════════════════════');
-  debugPrint('🚀 Initializing Fully Automated Sync System');
-  debugPrint('═══════════════════════════════════════════════════════');
-
+  // ⚠️⚠️⚠️ Google Drive Sync is COMPLETELY DISABLED ⚠️⚠️⚠️
+  // This function intentionally does nothing related to Google Drive
+  // All sync functionality is handled via Appwrite only
+  
   try {
     final prefs = await SharedPreferences.getInstance();
-    if (!prefs.containsKey('google_drive_sync_enabled')) {
-      await prefs.setBool('google_drive_sync_enabled', false);
-    }
-    if (!prefs.containsKey('appwrite_sync_enabled')) {
-      await prefs.setBool('appwrite_sync_enabled', true);
-    }
+    // Ensure only Appwrite sync is enabled
+    await prefs.setBool('appwrite_sync_enabled', true);
+    // Explicitly disable Google Drive sync flag
+    await prefs.setBool('google_drive_sync_enabled', false);
 
-    debugPrint('📦 Initializing Appwrite Config Manager...');
+    AppLogger.info('═══════════════════════════════════════════════════════', tag: 'MAIN');
+    AppLogger.info('🚀 Initializing Appwrite Sync System Only', tag: 'MAIN');
+    AppLogger.info('⚠️ Google Drive Sync: DISABLED', tag: 'MAIN');
+    AppLogger.info('═══════════════════════════════════════════════════════', tag: 'MAIN');
+
+    AppLogger.debug('📦 Initializing Appwrite Config Manager...', tag: 'MAIN');
     await AppwriteConfigManager.init();
-    debugPrint('✅ Appwrite Config loaded');
+    AppLogger.info('✅ Appwrite Config loaded', tag: 'MAIN');
 
-    debugPrint('📝 Initializing Google Drive Logger...');
-    final driveLogger = GoogleDriveLogger();
-    await driveLogger.initialize(
-      minLevel: LogLevel.debug,
-    );
-    debugPrint('✅ Logger initialized');
-
-    debugPrint('🔐 Initializing Google Drive Backup Service...');
-    final backupService = GoogleDriveBackupService();
-
-    try {
-      // محاولة استعادة الجلسة بشكل صامت
-      final account = await backupService.attemptSilentSignIn();
-      if (account != null) {
-        debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
-      } else {
-        debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
-      }
-    } catch (e) {
-      debugPrint('⚠️ فشلت استعادة الجلسة: $e');
-    }
-
-    debugPrint('🔧 [3/7] Initializing Database...');
+    AppLogger.debug('🔧 Initializing Database...', tag: 'MAIN');
     final database = DatabaseManager.instance;
-    debugPrint('✅ Database ready');
+    AppLogger.info('✅ Database ready', tag: 'MAIN');
 
-    debugPrint('🎯 [4/7] Initializing Unified Sync Orchestrator...');
-    final unifiedOrchestrator = UnifiedSyncOrchestrator.instance;
-    await unifiedOrchestrator.initialize(database: database);
-    debugPrint('✅ Unified Sync Orchestrator ready');
-
-    debugPrint('🎯 [5/7] Initializing Unified Sync Coordinator...');
-    final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
-    await coordinator.initialize(
-      backupService: backupService,
-      database: database,
-      logger: driveLogger,
+    AppLogger.info('⚠️ Google Drive components NOT initialized (DISABLED)', tag: 'MAIN');
+    AppLogger.info('═══════════════════════════════════════════════════════', tag: 'MAIN');
+    AppLogger.info('✅ Sync System Ready (Appwrite Only)', tag: 'MAIN');
+    AppLogger.info('📡 Network monitoring: ACTIVE', tag: 'MAIN');
+    AppLogger.info('🔄 Appwrite sync: ACTIVE', tag: 'MAIN');
+    AppLogger.info('💾 Data stream listening: ACTIVE', tag: 'MAIN');
+    AppLogger.info('═══════════════════════════════════════════════════════', tag: 'MAIN');
+    
+  } catch (e, st) {
+    AppLogger.error(
+      '❌ Error in Sync System Initialization',
+      tag: 'MAIN',
+      error: e,
+      stackTrace: st,
     );
-    debugPrint('✅ Coordinator initialized');
-
-    debugPrint('🤝 [6/7] Initializing Conflict Resolver...');
-    final conflictResolver = GoogleDriveConflictResolver.instance;
-    conflictResolver.initialize(driveLogger);
-
-    await conflictResolver.setStrategy(ConflictResolutionStrategy.newerWins);
-    await conflictResolver.setConflictThreshold(30);
-    debugPrint('✅ Conflict Resolver initialized (strategy: newerWins)');
-
-    debugPrint('🧠 [7/8] Initializing SmartSyncManager...');
-    final smartSync = SmartSyncManager.instance;
-    await smartSync.initialize(backupService);
-    await unifiedOrchestrator.initialize(
-      smart: smartSync,
-      driveCoordinator: coordinator,
-      database: database,
-    );
-    debugPrint('✅ SmartSyncManager initialized');
-
-    debugPrint('🤖 [8/8] Initializing & Starting Auto Sync Engine...');
-    final autoSyncEngine = AutoSyncEngine.instance;
-
-    await autoSyncEngine.initialize(
-      backupService: backupService,
-      database: database,
-      logger: driveLogger,
-    );
-
-    await _configureAutoSyncEngine(autoSyncEngine);
-
-    // تفعيل المزامنة التلقائية عند فتح التطبيق (فقط إذا كان المستخدم قد فعّلها)
-    final driveSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
-    if (backupService.isSignedIn && driveSyncEnabled) {
-      debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
-      await autoSyncEngine.start();
-      await autoSyncEngine.onSignInChanged(true);
-      await smartSync.onGoogleDriveSignInChanged(true);
-      debugPrint('✅ تم إشعار جميع أنظمة المزامنة وبدء المراقبة');
-    } else {
-      debugPrint('ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية');
-    }
-
-    await SyncQueueService.instance.initialize();
-
-    _startEngineMonitoring(autoSyncEngine);
-
-    debugPrint('✅ Auto Sync Engine started');
-
-    debugPrint('🔗 Registering Database Sync Callbacks...');
-    DatabaseSyncCoordinator.initialize();
-
-    // Register stop callbacks
-    DatabaseSyncCoordinator.registerStopCallback(() async {
-      autoSyncEngine.stop();
-    });
-    DatabaseSyncCoordinator.registerStopCallback(() async {
-      await SyncGuardian.instance.stop();
-    });
-
-    // Register restart callbacks
-    DatabaseSyncCoordinator.registerRestartCallback(() async {
-      await autoSyncEngine.restart();
-    });
-    DatabaseSyncCoordinator.registerRestartCallback(() async {
-      await SyncGuardian.instance.restart();
-    });
-
-    debugPrint('✅ Sync callbacks registered');
-
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('✅ Fully Automated Sync System Ready!');
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('📡 Network monitoring: ACTIVE');
-    debugPrint('🔄 Lifecycle monitoring: ACTIVE');
-    debugPrint('💾 Data stream listening: ACTIVE');
-    debugPrint('❤️ Health checks: ACTIVE (every 5 minutes)');
-    debugPrint('🔁 Auto-retry: ACTIVE (exponential backoff)');
-    debugPrint('═══════════════════════════════════════════════════════');
-  } catch (e, stackTrace) {
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('❌ CRITICAL ERROR in Sync System Initialization');
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('Error: $e');
-    debugPrint('Stack trace: $stackTrace');
-    debugPrint('═══════════════════════════════════════════════════════');
   }
 }
 
 Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
-  debugPrint('⚙️ Configuring Auto Sync Engine...');
-
-  const engineDebounceKey = 'auto_sync_engine_debounce';
-  const legacyDebounceKey = 'auto_sync_debounce';
-  const enginePullIntervalKey = 'auto_sync_engine_pull_interval';
-  const legacyPullIntervalKey = 'auto_sync_pull_interval';
-  const engineRetryKey = 'auto_sync_engine_retry_enabled';
-  const legacyRetryKey = 'auto_sync_retry_enabled';
-
-  final prefs = await SharedPreferences.getInstance();
-
-  final debounceSeconds = await migrateAutoSyncPreference<int>(
-    prefs: prefs,
-    newKey: engineDebounceKey,
-    legacyKey: legacyDebounceKey,
-    defaultValue: 5,
-    apply: (value) => engine.setDebounceSeconds(value),
+  // ⚠️ DISABLED: Google Drive Auto Sync Engine is disabled
+  AppLogger.debug(
+    'AutoSyncEngine configuration called (DISABLED)',
+    tag: 'MAIN',
   );
-  debugPrint('   ⏱️ Debounce: ${debounceSeconds}s');
-
-  final pullInterval = await migrateAutoSyncPreference<int>(
-    prefs: prefs,
-    newKey: enginePullIntervalKey,
-    legacyKey: legacyPullIntervalKey,
-    defaultValue: 2,
-    apply: (value) => engine.setPullInterval(value),
-  );
-  debugPrint('   ⏰ Pull interval: ${pullInterval}min');
-
-  final retryEnabled = await migrateAutoSyncPreference<bool>(
-    prefs: prefs,
-    newKey: engineRetryKey,
-    legacyKey: legacyRetryKey,
-    defaultValue: true,
-    apply: (value) => engine.setRetryEnabled(value),
-  );
-  debugPrint('   🔁 Auto-retry: $retryEnabled');
-
-  final conflictStrategy = prefs.getString('conflict_strategy') ?? 'newerWins';
-  final strategy = ConflictResolutionStrategy.values.firstWhere(
-    (s) => s.name == conflictStrategy,
-    orElse: () => ConflictResolutionStrategy.newerWins,
-  );
-  await engine.setConflictStrategy(strategy);
-  debugPrint('   🤝 Conflict strategy: ${strategy.name}');
-
-  debugPrint('✅ Configuration complete');
 }
 
-/// يخزن اشتراك مراقبة المحرك لاستخدامه في Dispose
 StreamSubscription<void>? _globalEngineMonitoringSub;
 
 void _startEngineMonitoring(AutoSyncEngine engine) {
-  _globalEngineMonitoringSub?.cancel();
-  _globalEngineMonitoringSub = engine.stateStream.listen((state) {
-    debugPrint('📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
-        'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
-        'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
-        'Pending: ${state.pendingChangesCount}');
-  });
+  // ⚠️ DISABLED: Engine monitoring is disabled
+  AppLogger.debug(
+    'Engine monitoring requested (DISABLED)',
+    tag: 'MAIN',
+  );
 }
 
 class App extends ConsumerStatefulWidget {
@@ -403,8 +256,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         }
         AppSessionManager.configure(
           database: database,
-          deviceIdResolver: () async =>
-              GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
+          deviceIdResolver: () async => 'appwrite_device', // ⚠️ Google Drive deviceId disabled
           syncManager: ref.read(appwrite.appwriteSyncManagerProvider),
         );
         await Seeder(database).seedIfEmpty();
@@ -485,8 +337,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           debugPrint('⚠️ Initial sync on app start failed: $e');
  }
 
-        var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
-        deviceId ??= syncManager.currentDeviceId;
+        var deviceId = syncManager.currentDeviceId;
         if (deviceId == null) {
           final prefs = await SharedPreferences.getInstance();
           deviceId = prefs.getString('appwrite_realtime_device_id');
@@ -689,7 +540,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint('⚠️ Error disposing SyncPerformanceOptimizer: $e');
     }
     try {
-      await SmartSyncManager.disposeInstance();
+      // ⚠️ DISABLED: SmartSyncManager.disposeInstance(); // Google Drive disabled
     } catch (e) {
       debugPrint('⚠️ Error disposing SmartSyncManager: $e');
     }
@@ -704,17 +555,17 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint('⚠️ Error disposing HotelDayTicker: $e');
     }
     try {
-      await AutoSyncEngine.disposeInstance();
+      // ⚠️ DISABLED: AutoSyncEngine.disposeInstance(); // Google Drive disabled
     } catch (e) {
       debugPrint('⚠️ Error disposing GoogleDriveAutoSyncEngine: $e');
     }
     try {
-      await UnifiedSyncOrchestrator.disposeInstance();
+      // ⚠️ DISABLED: UnifiedSyncOrchestrator.disposeInstance(); // Google Drive disabled
     } catch (e) {
       debugPrint('⚠️ Error disposing UnifiedSyncOrchestrator: $e');
     }
     try {
-      await GoogleDriveUnifiedSyncCoordinator.disposeInstance();
+      // ⚠️ DISABLED: GoogleDriveUnifiedSyncCoordinator.disposeInstance(); // Google Drive disabled
     } catch (e) {
       debugPrint('⚠️ Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
     }
@@ -821,8 +672,9 @@ class RootRouter extends ConsumerWidget {
         child: Scaffold(body: Center(child: CircularProgressIndicator())),
       );
     }
-    if (!auth.isAuthenticated && backup.requiresDriveLogin) {
-      return const GoogleDriveLoginScreen();
+    if (!auth.isAuthenticated) {
+      // ⚠️ Google Drive login DISABLED - go directly to local login
+      return const LoginScreen();
     }
     if (auth.isAuthenticated) {
       return const HomeShell();

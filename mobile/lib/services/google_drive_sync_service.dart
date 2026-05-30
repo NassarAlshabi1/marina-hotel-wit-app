@@ -5,7 +5,8 @@ import '../utils/app_logger.dart';
 import 'google_drive_backup_service.dart';
 
 /// SmartSyncManager - مدير المزامنة الذكية مع Google Drive
-/// ⚠️ ملاحظة: Google Drive Sync معطل حالياً
+/// ⚠️ ملاحظة: Google Drive Sync معطل بالكامل
+/// لا يتم استخدام هذا الكلاس anymore - المزامنة تتم عبر Appwrite فقط
 class SmartSyncManager {
   static SmartSyncManager? _instance;
   static SmartSyncManager get instance => _instance ??= SmartSyncManager._();
@@ -13,46 +14,69 @@ class SmartSyncManager {
   SmartSyncManager._();
 
   bool _isInitialized = false;
-  GoogleDriveBackupService? _backupService;
   String? _deviceId;
+
+  /// معطل - Google Drive Sync معطل
+  bool get isDriveSignedIn => false;
 
   String get deviceId => _deviceId ?? 'disabled_device';
 
   bool get isInitialized => _isInitialized;
 
-  /// تهيئة SmartSyncManager - معطل حالياً
+  /// تهيئة SmartSyncManager - معطل بالكامل
   Future<void> initialize(GoogleDriveBackupService backupService) async {
-    _backupService = backupService;
     _deviceId = await _getDeviceId();
     _isInitialized = true;
 
-    AppLogger.info(
-      '⚠️ SmartSyncManager initialized (Google Drive Sync DISABLED)',
+    AppLogger.warning(
+      '⚠️ SmartSyncManager initialized (Google Drive DISABLED)',
       tag: 'SMART_SYNC',
     );
   }
 
-  /// معطل - لن يتم استدعاءه
+  /// معطل
   Future<void> onGoogleDriveSignInChanged(bool signedIn) async {
     AppLogger.debug(
-      'Google Drive sign-in changed (DISABLED): $signedIn',
+      'onGoogleDriveSignInChanged called but DISABLED',
       tag: 'SMART_SYNC',
     );
   }
 
   /// معطل
   Future<List<GoogleDriveBackupFile>> listBackupFiles() async {
+    AppLogger.debug('listBackupFiles called but DISABLED', tag: 'SMART_SYNC');
     return [];
   }
 
   /// معطل
   Future<String?> downloadBackup(String fileId, String destinationPath) async {
+    AppLogger.debug('downloadBackup called but DISABLED', tag: 'SMART_SYNC');
     return null;
   }
 
   /// معطل
   Future<bool> restoreFromBackup(String fileId) async {
+    AppLogger.debug('restoreFromBackup called but DISABLED', tag: 'SMART_SYNC');
     return false;
+  }
+
+  /// معطل
+  Future<void> pushLocalChanges() async {
+    AppLogger.debug('pushLocalChanges called but DISABLED', tag: 'SMART_SYNC');
+  }
+
+  /// معطل
+  Future<Map<String, dynamic>> getStatus() async {
+    return {
+      'enabled': false,
+      'message': 'Google Drive Sync DISABLED',
+      'isSignedIn': false,
+    };
+  }
+
+  /// معطل
+  static Future<void> disposeInstance() async {
+    AppLogger.debug('disposeInstance called but DISABLED', tag: 'SMART_SYNC');
   }
 
   /// الحصول على معرف الجهاز
