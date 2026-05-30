@@ -1127,7 +1127,9 @@ class _AppwriteSettingsScreenState
 
       if (result.isSuccess && result.recordsPulled > 0) {
         final fixService = RestoreFixService(DatabaseManager.instance);
-        final fixReport = await fixService.runAutoFixAfterRestore();
+        final fixReport = await fixService.runAutoFixAfterRestore(
+          skipLedgerRebuild: true, // hotel_day_ledger محلي فقط
+        );
         debugPrint(
           'Auto-fix after sync: ${fixReport.bookingsFixed} bookings fixed',
         );
