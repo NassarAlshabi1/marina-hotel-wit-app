@@ -97,11 +97,11 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
 
       if (fromHotelDay != null) {
         query = query..where((tbl) =>
-            tbl.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay)));
+            tbl.hotelDayOpened.isBiggerOrEqual(Variable(fromHotelDay)));
       }
       if (toHotelDay != null) {
         query = query..where((tbl) =>
-            tbl.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay)));
+            tbl.hotelDayOpened.isSmallerOrEqual(Variable(toHotelDay)));
       }
 
       final filtered = await query.get();

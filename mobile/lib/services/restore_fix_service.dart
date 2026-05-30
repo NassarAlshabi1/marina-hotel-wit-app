@@ -1066,7 +1066,7 @@ class RestoreFixService {
       paymentsProcessed: nightsResult.paymentsProcessed,
       roomsTouched: roomsResult.roomsTouched,
       bookingNightCount: nightsResult.bookingNightCount,
-      ledgerEntryCount: ledgerResult.ledgerEntryCount,
+      ledgerEntryCount: ledgerResult?.ledgerEntryCount ?? 0,
     );
   }
 

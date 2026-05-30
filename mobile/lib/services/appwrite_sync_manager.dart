@@ -2476,7 +2476,6 @@ class AppwriteSyncManager {
     data['isVoided'] = payment.isVoided;
     _putIfNotNull(data, 'voidedAt', payment.voidedAt);
     _putIfStringNotEmpty(data, 'voidedBy', payment.voidedBy);
-    _putIfStringNotEmpty(data, 'voidReason', payment.voidReason);  // ✅ إرسال السبب للمزامنة
     // ✅ حقول SyncFields Iso — موجودة في Cloud schema عبر syncFields.attributes
     _putIfStringNotEmpty(data, 'createdAtIso', payment.createdAtIso);
     _putIfStringNotEmpty(data, 'updatedAtIso', payment.updatedAtIso);

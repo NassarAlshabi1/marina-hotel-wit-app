@@ -1,30 +1,35 @@
 import 'local_db.dart';
 import 'google_drive_backup_service.dart';
+import 'google_drive_auto_sync_engine.dart';
+import 'google_drive_logger.dart';
 
-class GoogleDriveLogger {
-  Future<void> initialize({LogLevel minLevel = LogLevel.info}) async {}
-  void info(String message, {String tag = 'GOOGLE_DRIVE'}) {}
-  void debug(String message, {String tag = 'GOOGLE_DRIVE'}) {}
-  void warning(String message, {String tag = 'GOOGLE_DRIVE', Object? error, StackTrace? stackTrace}) {}
-  void error(String message, {String tag = 'GOOGLE_DRIVE', Object? error, StackTrace? stackTrace}) {}
-}
+enum SyncTrigger { manual, localChange, periodic, scheduled }
+
+enum SyncMode { full, deltaOnly }
 
 class GoogleDriveUnifiedSyncCoordinator {
   static final instance = GoogleDriveUnifiedSyncCoordinator();
-  
+
   GoogleDriveUnifiedSyncCoordinator();
-  
+
   String get deviceId => 'disabled';
   bool get isInitialized => false;
   bool get isSyncing => false;
-  List<dynamic> get syncResults => [];
-  
+  Stream<SyncResult> get syncResults => const Stream.empty();
+
   Future<void> initialize({
     required GoogleDriveBackupService backupService,
     required AppDatabase database,
     required GoogleDriveLogger logger,
   }) async {}
-  
+
+  Future<SyncResult> performSync({
+    SyncTrigger trigger = SyncTrigger.manual,
+    SyncMode mode = SyncMode.full,
+  }) async {
+    return SyncResult(success: false, error: 'Google Drive sync disabled');
+  }
+
   Future<void> disposeInstance() async {}
   Future<void> onAppForeground() async {}
   Future<void> onAppBackground() async {}

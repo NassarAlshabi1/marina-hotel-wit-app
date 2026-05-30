@@ -292,7 +292,9 @@ class SmartSyncManager {
       await _performDataSync(backupData, newBackup, conflictResolution);
 
       // حفظ timestamp النسخة الجديدة
-      await _setLastRemoteTimestamp(newBackup.createdTime);
+      if (newBackup.createdTime != null) {
+        await _setLastRemoteTimestamp(newBackup.createdTime!);
+      }
 
       // إشعار النجاح
       await _notifySuccessfulSync(newBackup);
@@ -563,11 +565,11 @@ class SmartSyncManager {
 
   /// إشعار نجاح المزامنة
   Future<void> _notifySuccessfulSync(DriveBackupFile backup) async {
-    final deviceId = backup.appProperties['device_id'] ?? 'جهاز آخر';
+    final deviceId = backup.appProperties?['device_id'] ?? 'جهاز آخر';
     _log('🎉 تمت مزامنة البيانات من $deviceId');
     _log('📅 تاريخ النسخة: ${backup.createdTime}');
 
-    final recordsCount = backup.appProperties['records_count'] ?? 'غير محدد';
+    final recordsCount = backup.appProperties?['records_count'] ?? 'غير محدد';
     _log('📊 عدد السجلات: $recordsCount');
 
     // إرسال إشعار للمستخدم بوصول تغييرات جديدة

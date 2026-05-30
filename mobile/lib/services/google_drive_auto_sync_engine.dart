@@ -22,11 +22,17 @@ class SyncResult {
   final bool success;
   final String? error;
   final int? changesCount;
+  final int? pushedChanges;
+  final int? pulledChanges;
+  final String? message;
   final DateTime timestamp;
   SyncResult({
     required this.success,
     this.error,
     this.changesCount,
+    this.pushedChanges,
+    this.pulledChanges,
+    this.message,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 }
@@ -37,6 +43,7 @@ class AutoSyncEngine {
   final _stateController = StreamController<EngineState>.broadcast();
   Stream<EngineState> get stateStream => _stateController.stream;
   EngineState get state => _stateController.hasListener ? EngineState() : EngineState();
+  AutoSyncEngineState get currentState => EngineState();
   bool get isRunning => false;
   bool get isSignedIn => false;
 
@@ -50,17 +57,13 @@ class AutoSyncEngine {
   Future<void> stop() async {}
   Future<void> restart() async {}
 
-  void setDebounceSeconds(int seconds) {}
-  void setPullInterval(int minutes) {}
-  void setRetryEnabled(bool enabled) {}
+  Future<SyncResult> forceSyncNow() async {
+    return SyncResult(success: false, error: 'Google Drive sync disabled');
+  }
+
+  Future<void> setDebounceSeconds(int seconds) async {}
+  Future<void> setPullInterval(int minutes) async {}
+  Future<void> setRetryEnabled(bool enabled) async {}
   Future<void> setConflictStrategy(dynamic strategy) async {}
   Future<void> onSignInChanged(bool signedIn) async {}
-}
-
-class GoogleDriveLogger {
-  Future<void> initialize({LogLevel minLevel = LogLevel.info}) async {}
-  void info(String message, {String tag = 'AUTO_SYNC'}) {}
-  void debug(String message, {String tag = 'AUTO_SYNC'}) {}
-  void warning(String message, {String tag = 'AUTO_SYNC', Object? error, StackTrace? stackTrace}) {}
-  void error(String message, {String tag = 'AUTO_SYNC', Object? error, StackTrace? stackTrace}) {}
 }

@@ -10545,6 +10545,17 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _voidReasonMeta = const VerificationMeta(
+    'voidReason',
+  );
+  @override
+  late final GeneratedColumn<String> voidReason = GeneratedColumn<String>(
+    'void_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -10583,6 +10594,7 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     isVoided,
     voidedAt,
     voidedBy,
+    voidReason,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -10891,6 +10903,12 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         voidedBy.isAcceptableOrUnknown(data['voided_by']!, _voidedByMeta),
       );
     }
+    if (data.containsKey('void_reason')) {
+      context.handle(
+        _voidReasonMeta,
+        voidReason.isAcceptableOrUnknown(data['void_reason']!, _voidReasonMeta),
+      );
+    }
     return context;
   }
 
@@ -11044,6 +11062,10 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         DriftSqlType.string,
         data['${effectivePrefix}voided_by'],
       ),
+      voidReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}void_reason'],
+      ),
     );
   }
 
@@ -11090,6 +11112,7 @@ class Payment extends DataClass implements Insertable<Payment> {
   final bool isVoided;
   final int? voidedAt;
   final String? voidedBy;
+  final String? voidReason;
   const Payment({
     required this.localUuid,
     this.serverId,
@@ -11127,6 +11150,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     required this.isVoided,
     this.voidedAt,
     this.voidedBy,
+    this.voidReason,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -11209,6 +11233,9 @@ class Payment extends DataClass implements Insertable<Payment> {
     if (!nullToAbsent || voidedBy != null) {
       map['voided_by'] = Variable<String>(voidedBy);
     }
+    if (!nullToAbsent || voidReason != null) {
+      map['void_reason'] = Variable<String>(voidReason);
+    }
     return map;
   }
 
@@ -11290,6 +11317,9 @@ class Payment extends DataClass implements Insertable<Payment> {
       voidedBy: voidedBy == null && nullToAbsent
           ? const Value.absent()
           : Value(voidedBy),
+      voidReason: voidReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(voidReason),
     );
   }
 
@@ -11341,6 +11371,7 @@ class Payment extends DataClass implements Insertable<Payment> {
       isVoided: serializer.fromJson<bool>(json['isVoided']),
       voidedAt: serializer.fromJson<int?>(json['voidedAt']),
       voidedBy: serializer.fromJson<String?>(json['voidedBy']),
+      voidReason: serializer.fromJson<String?>(json['voidReason']),
     );
   }
   @override
@@ -11385,6 +11416,7 @@ class Payment extends DataClass implements Insertable<Payment> {
       'isVoided': serializer.toJson<bool>(isVoided),
       'voidedAt': serializer.toJson<int?>(voidedAt),
       'voidedBy': serializer.toJson<String?>(voidedBy),
+      'voidReason': serializer.toJson<String?>(voidReason),
     };
   }
 
@@ -11425,6 +11457,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     bool? isVoided,
     Value<int?> voidedAt = const Value.absent(),
     Value<String?> voidedBy = const Value.absent(),
+    Value<String?> voidReason = const Value.absent(),
   }) => Payment(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -11482,6 +11515,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     isVoided: isVoided ?? this.isVoided,
     voidedAt: voidedAt.present ? voidedAt.value : this.voidedAt,
     voidedBy: voidedBy.present ? voidedBy.value : this.voidedBy,
+    voidReason: voidReason.present ? voidReason.value : this.voidReason,
   );
   Payment copyWithCompanion(PaymentsCompanion data) {
     return Payment(
@@ -11567,6 +11601,9 @@ class Payment extends DataClass implements Insertable<Payment> {
       isVoided: data.isVoided.present ? data.isVoided.value : this.isVoided,
       voidedAt: data.voidedAt.present ? data.voidedAt.value : this.voidedAt,
       voidedBy: data.voidedBy.present ? data.voidedBy.value : this.voidedBy,
+      voidReason: data.voidReason.present
+          ? data.voidReason.value
+          : this.voidReason,
     );
   }
 
@@ -11608,7 +11645,8 @@ class Payment extends DataClass implements Insertable<Payment> {
           ..write('discountStartDate: $discountStartDate, ')
           ..write('isVoided: $isVoided, ')
           ..write('voidedAt: $voidedAt, ')
-          ..write('voidedBy: $voidedBy')
+          ..write('voidedBy: $voidedBy, ')
+          ..write('voidReason: $voidReason')
           ..write(')'))
         .toString();
   }
@@ -11651,6 +11689,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     isVoided,
     voidedAt,
     voidedBy,
+    voidReason,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -11691,7 +11730,8 @@ class Payment extends DataClass implements Insertable<Payment> {
           other.discountStartDate == this.discountStartDate &&
           other.isVoided == this.isVoided &&
           other.voidedAt == this.voidedAt &&
-          other.voidedBy == this.voidedBy);
+          other.voidedBy == this.voidedBy &&
+          other.voidReason == this.voidReason);
 }
 
 class PaymentsCompanion extends UpdateCompanion<Payment> {
@@ -11731,6 +11771,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
   final Value<bool> isVoided;
   final Value<int?> voidedAt;
   final Value<String?> voidedBy;
+  final Value<String?> voidReason;
   const PaymentsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -11768,6 +11809,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.isVoided = const Value.absent(),
     this.voidedAt = const Value.absent(),
     this.voidedBy = const Value.absent(),
+    this.voidReason = const Value.absent(),
   });
   PaymentsCompanion.insert({
     required String localUuid,
@@ -11806,6 +11848,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.isVoided = const Value.absent(),
     this.voidedAt = const Value.absent(),
     this.voidedBy = const Value.absent(),
+    this.voidReason = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -11851,6 +11894,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Expression<bool>? isVoided,
     Expression<int>? voidedAt,
     Expression<String>? voidedBy,
+    Expression<String>? voidReason,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -11891,6 +11935,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       if (isVoided != null) 'is_voided': isVoided,
       if (voidedAt != null) 'voided_at': voidedAt,
       if (voidedBy != null) 'voided_by': voidedBy,
+      if (voidReason != null) 'void_reason': voidReason,
     });
   }
 
@@ -11931,6 +11976,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Value<bool>? isVoided,
     Value<int?>? voidedAt,
     Value<String?>? voidedBy,
+    Value<String?>? voidReason,
   }) {
     return PaymentsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -11971,6 +12017,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       isVoided: isVoided ?? this.isVoided,
       voidedAt: voidedAt ?? this.voidedAt,
       voidedBy: voidedBy ?? this.voidedBy,
+      voidReason: voidReason ?? this.voidReason,
     );
   }
 
@@ -12089,6 +12136,9 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     if (voidedBy.present) {
       map['voided_by'] = Variable<String>(voidedBy.value);
     }
+    if (voidReason.present) {
+      map['void_reason'] = Variable<String>(voidReason.value);
+    }
     return map;
   }
 
@@ -12130,7 +12180,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
           ..write('discountStartDate: $discountStartDate, ')
           ..write('isVoided: $isVoided, ')
           ..write('voidedAt: $voidedAt, ')
-          ..write('voidedBy: $voidedBy')
+          ..write('voidedBy: $voidedBy, ')
+          ..write('voidReason: $voidReason')
           ..write(')'))
         .toString();
   }
@@ -38642,6 +38693,7 @@ typedef $$PaymentsTableCreateCompanionBuilder =
       Value<bool> isVoided,
       Value<int?> voidedAt,
       Value<String?> voidedBy,
+      Value<String?> voidReason,
     });
 typedef $$PaymentsTableUpdateCompanionBuilder =
     PaymentsCompanion Function({
@@ -38681,6 +38733,7 @@ typedef $$PaymentsTableUpdateCompanionBuilder =
       Value<bool> isVoided,
       Value<int?> voidedAt,
       Value<String?> voidedBy,
+      Value<String?> voidReason,
     });
 
 final class $$PaymentsTableReferences
@@ -38911,6 +38964,11 @@ class $$PaymentsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get voidReason => $composableBuilder(
+    column: $table.voidReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$BookingsTableFilterComposer get bookingLocalId {
     final $$BookingsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -39137,6 +39195,11 @@ class $$PaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get voidReason => $composableBuilder(
+    column: $table.voidReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -39337,6 +39400,11 @@ class $$PaymentsTableAnnotationComposer
   GeneratedColumn<String> get voidedBy =>
       $composableBuilder(column: $table.voidedBy, builder: (column) => column);
 
+  GeneratedColumn<String> get voidReason => $composableBuilder(
+    column: $table.voidReason,
+    builder: (column) => column,
+  );
+
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -39451,6 +39519,7 @@ class $$PaymentsTableTableManager
                 Value<bool> isVoided = const Value.absent(),
                 Value<int?> voidedAt = const Value.absent(),
                 Value<String?> voidedBy = const Value.absent(),
+                Value<String?> voidReason = const Value.absent(),
               }) => PaymentsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -39488,6 +39557,7 @@ class $$PaymentsTableTableManager
                 isVoided: isVoided,
                 voidedAt: voidedAt,
                 voidedBy: voidedBy,
+                voidReason: voidReason,
               ),
           createCompanionCallback:
               ({
@@ -39527,6 +39597,7 @@ class $$PaymentsTableTableManager
                 Value<bool> isVoided = const Value.absent(),
                 Value<int?> voidedAt = const Value.absent(),
                 Value<String?> voidedBy = const Value.absent(),
+                Value<String?> voidReason = const Value.absent(),
               }) => PaymentsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -39564,6 +39635,7 @@ class $$PaymentsTableTableManager
                 isVoided: isVoided,
                 voidedAt: voidedAt,
                 voidedBy: voidedBy,
+                voidReason: voidReason,
               ),
           withReferenceMapper: (p0) => p0
               .map(

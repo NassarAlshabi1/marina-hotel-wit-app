@@ -19,14 +19,10 @@ final autoBackupStatusProvider =
 /// Provider لتهيئة النسخ التلقائي (مع تهيئة DeltaSync دائماً)
 final autoBackupInitProvider = FutureProvider<void>((ref) async {
   final manager = ref.watch(autoBackupManagerProvider);
-  final backupService = ref.watch(
-    googleDriveBackupServiceProvider,
-  );
   final appwriteService = ref.watch(appwriteServiceProvider);
   final database = ref.watch(databaseProvider);
 
   await manager.initialize(
-    backupService,
     appwriteService: appwriteService,
     database: database,
   );

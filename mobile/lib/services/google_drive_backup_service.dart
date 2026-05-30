@@ -102,9 +102,12 @@ class GoogleDriveBackupResult {
 
 /// Google Drive service for backup and restore operations
 class GoogleDriveBackupService {
+  static const List<String> _scopes = ['https://www.googleapis.com/auth/drive.file'];
+  static const String _appFolderName = 'MarinaHotelBackups';
+  
   GoogleDriveBackupService() {
     _googleSignIn = GoogleSignIn(
-      scopes: [_scopes],
+      scopes: _scopes,
       // Force server-side auth for better session persistence
       signInOption: SignInOption.games,
     );
@@ -306,7 +309,7 @@ class GoogleDriveBackupService {
         final files = data['files'] as List<dynamic>? ?? [];
 
         if (files.isNotEmpty) {
-          _appFolderId = files.first['id'];
+          _appFolderId = files.first['id'] as String?;
           return _appFolderId;
         }
 
@@ -342,7 +345,7 @@ class GoogleDriveBackupService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        _appFolderId = data['id'];
+        _appFolderId = data['id'] as String?;
         return _appFolderId;
       }
     } catch (e) {
@@ -488,7 +491,7 @@ class GoogleDriveBackupService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['id'];
+        return data['id'] as String?;
       }
 
       AppLogger.error('فشل رفع الملف: ${response.body}');
@@ -530,11 +533,11 @@ class GoogleDriveBackupService {
 
         return files.map((f) {
           return GoogleDriveBackupFile(
-            id: f['id'] ?? '',
-            name: f['name'] ?? '',
+            id: f['id']?.toString() ?? '',
+            name: f['name']?.toString() ?? '',
             size: int.tryParse(f['size']?.toString() ?? '0') ?? 0,
             modifiedTime: f['modifiedTime'] != null
-                ? DateTime.parse(f['modifiedTime'])
+                ? DateTime.parse(f['modifiedTime'].toString())
                 : DateTime.now(),
           );
         }).toList();
@@ -576,7 +579,7 @@ class GoogleDriveBackupService {
         );
       }
 
-      final backupData = jsonDecode(response.body);
+      final backupData = jsonDecode(response.body) as Map<String, dynamic>;
 
       // Validate backup data
       if (!backupData.containsKey('metadata')) {
