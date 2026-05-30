@@ -13,6 +13,7 @@ import 'backup_serializers.dart';
 import 'local_db.dart';
 
 export 'backup_serializers.dart' show BackupFormat, BackupMetadata;
+export 'backup_serializers.dart' show GoogleDriveBackupFile, DriveBackupFile;
 
 /// Google Drive API configuration
 class GoogleDriveConfig {
@@ -69,6 +70,9 @@ class GoogleDriveBackupFile {
   final int size;
   final DateTime modifiedTime;
 }
+
+/// Alias for backward compatibility
+typedef DriveBackupFile = GoogleDriveBackupFile;
 
 /// Result of a Google Drive backup operation
 class GoogleDriveBackupResult {
@@ -565,5 +569,76 @@ class GoogleDriveBackupService {
       }
     }
     return createBackup();
+  }
+
+  /// Get last backup time
+  Future<DateTime?> getLastBackupTime() async {
+    return GoogleDriveConfig.getLastSync();
+  }
+
+  /// Check if auto backup is enabled
+  Future<bool> isAutoBackupEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('google_drive_auto_backup_enabled') ?? false;
+  }
+
+  /// Set auto backup enabled
+  Future<void> setAutoBackupEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('google_drive_auto_backup_enabled', enabled);
+  }
+
+  /// Get auto backup frequency
+  Future<String> getAutoBackupFrequency() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('google_drive_auto_backup_frequency') ?? 'daily';
+  }
+
+  /// Set auto backup frequency
+  Future<void> setAutoBackupFrequency(String frequency) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('google_drive_auto_backup_frequency', frequency);
+  }
+
+  /// Get auto backup time
+  Future<String> getAutoBackupTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('google_drive_auto_backup_time') ?? '02:00';
+  }
+
+  /// Set auto backup time
+  Future<void> setAutoBackupTime(String time) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('google_drive_auto_backup_time', time);
+  }
+
+  /// Estimate database size
+  Future<int> estimateDatabaseSize() async {
+    try {
+      final db = getDatabase();
+      int totalSize = 0;
+
+      // Get size from each table
+      final tables = ['rooms', 'bookings', 'employees', 'expenses',
+                     'payments', 'cash_transactions', 'debts'];
+
+      for (final table in tables) {
+        try {
+          final result = await db.customSelect(
+            'SELECT COUNT(*) as count FROM $table',
+          ).getSingle();
+          final count = result.data['count'] as int? ?? 0;
+          // Rough estimate: ~500 bytes per record
+          totalSize += count * 500;
+        } catch (_) {
+          // Table might not exist
+        }
+      }
+
+      return totalSize;
+    } catch (e) {
+      debugPrint('خطأ في تقدير حجم قاعدة البيانات: $e');
+      return 0;
+    }
   }
 }
