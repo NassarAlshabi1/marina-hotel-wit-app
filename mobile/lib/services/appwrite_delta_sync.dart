@@ -14,6 +14,7 @@ import 'booking_derived_fields_service.dart';
 import 'delta_sync_service.dart';
 import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
+import 'restore_fix_service.dart';
 import 'sync_locks.dart';
 
 class AppwriteDeltaSyncResult {
@@ -313,6 +314,27 @@ class AppwriteDeltaSync {
         } catch (e) {
           _logger.warning(
             'فشل تحديث حالة الإشغال: $e',
+            tag: 'DELTA_SYNC',
+          );
+        }
+
+        // 🔄 إعادة حساب المدفوعات تلقائياً بعد السحب من Appwrite
+        try {
+          final fixService = RestoreFixService(_database);
+          final fixReport = await fixService.runAutoFixAfterRestore();
+          _logger.info(
+            '✅ تم إصلاح ${fixReport.bookingsFixed} حجز و ${fixReport.paymentsRecalculated} دفعة',
+            tag: 'DELTA_SYNC',
+          );
+          if (fixReport.changes.isNotEmpty) {
+            _logger.info(
+              '📝 التغييرات: ${fixReport.changes.take(5).join(", ")}${fixReport.changes.length > 5 ? "..." : ""}',
+              tag: 'DELTA_SYNC',
+            );
+          }
+        } catch (e) {
+          _logger.warning(
+            'فشل الإصلاح التلقائي بعد السحب: $e',
             tag: 'DELTA_SYNC',
           );
         }
