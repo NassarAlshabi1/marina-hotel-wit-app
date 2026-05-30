@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 /// دوال تنسيق الأرقام المالية (بدون رموز عملة)
 class CurrencyFormatter {
   static final NumberFormat _intFormatter = NumberFormat('#,##0', 'en_US');
-  static final NumberFormat _decimalFormatter = NumberFormat('#,##0.00', 'en_US');
+  static final NumberFormat _decimalFormatter = NumberFormat('#,##0', 'en_US');
 
   /// تقريب المبلغ بشكل صحيح
   static int _roundAmount(double amount) {
@@ -12,30 +12,28 @@ class CurrencyFormatter {
 
   /// تنسيق المبلغ بالفواصل فقط (5,000)
   static String formatCurrency(double amount, {bool showDecimals = false}) {
-    if (showDecimals) {
-      return _decimalFormatter.format(amount);
-    }
+    // يتم التقريب دائماً وإزالة الكسور العشرية
     return _intFormatter.format(_roundAmount(amount));
   }
 
   /// تنسيق المبلغ بالفواصل — مرادف لـ formatCurrency (للحفاظ على التوافق)
   static String formatAmount(double amount, {bool showDecimals = false}) =>
-      formatCurrency(amount, showDecimals: showDecimals);
+      formatCurrency(amount);
 
   /// تنسيق المبلغ بالفواصل — مرادف لـ formatCurrency (للحفاظ على التوافق)
   static String formatCurrencyEnglish(
     double amount, {
     bool showDecimals = false,
   }) =>
-      formatCurrency(amount, showDecimals: showDecimals);
+      formatCurrency(amount);
 
   /// تنسيق المبلغ للعرض — مرادف لـ formatCurrency
   static String formatForDisplay(double amount, {bool showDecimals = false}) =>
-      formatCurrency(amount, showDecimals: showDecimals);
+      formatCurrency(amount);
 
   /// تنسيق المبلغ للرسائل — مرادف لـ formatCurrency
   static String formatForMessage(double amount, {bool showDecimals = false}) =>
-      formatCurrency(amount, showDecimals: showDecimals);
+      formatCurrency(amount);
 
   /// تحويل المبلغ من النص إلى رقم
   static double? parseAmount(String text) {
@@ -81,5 +79,5 @@ class CurrencyFormatter {
 
   /// إنشاء NumberFormat للاستخدام المتكرر
   static NumberFormat get defaultFormatter => _intFormatter;
-  static NumberFormat get decimalFormatter => _decimalFormatter;
+  static NumberFormat get decimalFormatter => _intFormatter;
 }

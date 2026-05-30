@@ -947,7 +947,7 @@ class _IncomeExpenseReportScreenState
         ['نسبة الديون غير المسددة الكلية من الإيرادات',
           if (_incomeTotal > 0) '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',],
         ['قدرة تغطية الديون (صافي / ديون)',
-          if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',],
+          if (debtCoverage > 0) '${debtCoverage.round()}x' else 'غير كافٍ',],
       ],
     );
   }
@@ -991,7 +991,7 @@ class _IncomeExpenseReportScreenState
         ],
         [
           'معدل تغطية الديون',
-          if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',
+          if (debtCoverage > 0) '${debtCoverage.round()}x' else 'غير كافٍ',
           if (debtCoverage > 2) 'ممتاز' else debtCoverage > 1
                   ? 'جيد'
                   : 'ضعيف',

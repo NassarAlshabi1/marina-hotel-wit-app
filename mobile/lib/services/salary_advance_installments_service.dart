@@ -56,8 +56,8 @@ class SalaryAdvanceInstallmentsService {
       );
 
       final base = totalAmount / installments;
-      final baseRounded = double.parse(base.toStringAsFixed(2));
-      double remaining = double.parse(totalAmount.toStringAsFixed(2));
+      final baseRounded = (base).roundToDouble();
+      double remaining = totalAmount;
 
       DateTime baseDate;
       try {
@@ -69,7 +69,7 @@ class SalaryAdvanceInstallmentsService {
       for (var i = 1; i <= installments; i++) {
         final isLast = i == installments;
         final amt = isLast ? remaining : baseRounded;
-        remaining = double.parse((remaining - amt).toStringAsFixed(2));
+        remaining = (remaining - amt).roundToDouble();
 
         final monthsToAdd = (startNextMonth ? 1 : 0) + (i - 1);
         final due = _addMonthsPreserveDay(baseDate, monthsToAdd);
