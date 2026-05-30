@@ -163,7 +163,7 @@ class BackupState {
   }
 
   bool get isSignedIn => signedInAccount != null;
-  bool get requiresDriveLogin => false; // ⚠️ DISABLED: Google Drive Sync disabled
+  bool get requiresDriveLogin => !isSignedIn; // ✅ Allow Google Drive login for backup/restore
   bool get isWorking =>
       status == BackupStatus.signIn ||
       status == BackupStatus.uploading ||
@@ -376,10 +376,11 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     }
   }
 
-  /// إشعار مديري المزامنة بتغير حالة تسجيل الدخول — DISABLED
+  /// إشعار مديري المزامنة بتغير حالة تسجيل الدخول — SYNC DISABLED, BACKUP ONLY
   Future<void> _notifySyncManagers(bool isSignedIn) async {
-    // ⚠️ Google Drive sync disabled — do not notify sync managers on sign-in
-    AppLogger.info('Google Drive sync disabled — skipping _notifySyncManagers');
+    // ⚠️ Google Drive SYNC disabled — do not start any sync on sign-in
+    // Backup/restore still works via manual/auto backup triggers
+    AppLogger.info('Google Drive sync disabled — skipping _notifySyncManagers (backup/restore still available)');
   }
 
   /// تسجيل الدخول الصامت في Google Drive — بدون إظهار واجهة للمستخدم
@@ -950,9 +951,19 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
             }
           }
 
-          // ⚠️ Google Drive push disabled — skip push to Google Drive after restore
+          // ✅ Google Drive BACKUP after restore (upload backup, not sync)
           if (state.isSignedIn) {
-            AppLogger.info('Google Drive sync disabled — skipping push after restore');
+            state = state.copyWith(
+              message: 'رفع النسخة الاحتياطية إلى Google Drive...',
+              progress: 0.85,
+            );
+            try {
+              final backupData = await _backupService.exportDatabaseToJson();
+              await _backupService.uploadBackup(backupData);
+              AppLogger.info('تم رفع نسخة احتياطية إلى Google Drive بعد الاستعادة');
+            } catch (e) {
+              AppLogger.warning('فشل رفع النسخة إلى Google Drive بعد الاستعادة: $e');
+            }
           }
         } catch (e) {
           AppLogger.warning('خطأ في مزامنة البيانات إلى السحابة: $e');

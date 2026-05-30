@@ -71,6 +71,11 @@ class AutoBackupManager {
   }) async {
     _appwriteService = appwriteService;
     _database = database;
+    
+    // تهيئة خدمة Google Drive للنسخ الاحتياطي (backup only — no sync)
+    _backupService = gd.GoogleDriveBackupService();
+    await _backupService!.initialize();
+    
     await _initializeDeviceId();
     await _loadBackupMode();
     await _schedulePeriodicCleanup();
@@ -178,14 +183,48 @@ class AutoBackupManager {
     }
   }
 
-  /// إجراء نسخة احتياطية تلقائية — DISABLED (Google Drive sync disabled)
+  /// إجراء نسخة احتياطية تلقائية — BACKUP ONLY (Google Drive sync disabled)
   Future<void> _performAutoBackup({
     required String reason,
     int changesCount = 1,
   }) async {
-    // ⚠️ Google Drive sync disabled — skip auto backup upload
-    AppLogger.info('Google Drive sync disabled — skipping auto backup upload');
-    return;
+    if (_isBackingUp) {
+      AppLogger.debug('نسخة احتياطية جارية بالفعل — تم تخطي الطلب');
+      return;
+    }
+
+    _isBackingUp = true;
+    try {
+      if (_backupService == null || !_backupService!.isSignedIn) {
+        // Try silent sign-in
+        if (_backupService != null) {
+          final signedIn = await _backupService!.signInSilentlyIfNeeded();
+          if (!signedIn) {
+            AppLogger.warning('Google Drive غير متاح — تم تخطي النسخ التلقائي');
+            return;
+          }
+        } else {
+          AppLogger.warning('Google Drive BackupService غير مهيأ — تم تخطي النسخ التلقائي');
+          return;
+        }
+      }
+
+      AppLogger.info('بدء النسخ الاحتياطي التلقائي: $reason ($changesCount تغييرات)');
+
+      final result = await _backupService!.performAutoBackup();
+      
+      if (result.success) {
+        await _setLastAutoBackupTime(DateTime.now());
+        AppLogger.info('تم النسخ الاحتياطي التلقائي بنجاح (${result.recordCount} سجل)');
+        await _notifySmartSync();
+      } else {
+        AppLogger.warning('فشل النسخ الاحتياطي التلقائي: ${result.message}');
+      }
+    } catch (e) {
+      AppLogger.error('خطأ في النسخ الاحتياطي التلقائي: $e');
+    } finally {
+      _isBackingUp = false;
+    }
   }
 
   /// حذف النسخ الاحتياطية القديمة حسب التاريخ والعدد
@@ -383,7 +422,7 @@ class AutoBackupManager {
     return prefs.getBool(_instantSyncEnabledKey) ?? true;
   }
 
-  /// مزامنة فورية عند الطلب — Google Drive part DISABLED
+  /// مزامنة فورية عند الطلب — Appwrite delta sync + Google Drive BACKUP only
   Future<void> syncNow() async {
     AppLogger.debug('بدء المزامنة الفورية...');
 
@@ -392,10 +431,13 @@ class AutoBackupManager {
       await performDeltaSync();
     }
 
-    // ⚠️ Google Drive fullBackup mode disabled — skip _performAutoBackup
+    // ✅ Google Drive BACKUP (not sync) — upload a full backup if in fullBackup/both mode
     if (_currentMode == BackupMode.fullBackup ||
         _currentMode == BackupMode.both) {
-      AppLogger.info('Google Drive sync disabled — skipping auto backup in syncNow');
+      await _performAutoBackup(
+        reason: 'مزامنة فورية يدوية',
+        changesCount: _pendingChanges,
+      );
     }
 
     _pendingChanges = 0;

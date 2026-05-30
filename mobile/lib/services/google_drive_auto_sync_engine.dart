@@ -65,7 +65,7 @@ class AutoSyncEngine {
   Future<void> onSignInChanged(bool signedIn) async {}
 
   Future<SyncResult> forceSyncNow() async {
-    return SyncResult(success: false, error: 'Google Drive sync is disabled');
+    return SyncResult(success: false, error: 'Google Drive sync is disabled — use backup/restore instead');
   }
 
   Future<void> resetFailedAttempts() async {}

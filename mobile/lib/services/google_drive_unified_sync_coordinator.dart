@@ -66,11 +66,11 @@ class GoogleDriveUnifiedSyncCoordinator {
   Future<void> setDebounceSeconds(int seconds) async {}
   Future<void> setPullInterval(int minutes) async {}
 
-  /// Perform sync with trigger and mode
+  /// Perform sync with trigger and mode — DISABLED (use backup/restore instead)
   Future<SyncResult> performSync({
     SyncTrigger trigger = SyncTrigger.manual,
     SyncMode mode = SyncMode.full,
   }) async {
-    return SyncResult(success: false, error: 'Google Drive sync is disabled');
+    return SyncResult(success: false, error: 'Google Drive sync is disabled — use backup/restore instead');
   }
 }
