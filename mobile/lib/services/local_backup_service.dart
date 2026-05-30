@@ -15,10 +15,9 @@ import 'package:sqflite/sqflite.dart';
 import '../providers/repository_providers.dart';
 import '../utils/app_logger.dart';
 import 'backup_serializers.dart';
-import 'google_drive_backup_service.dart';
 import 'local_db.dart';
 
-export 'google_drive_backup_service.dart' show BackupFormat;
+export 'backup_serializers.dart' show BackupFormat, BackupMetadata;
 
 class LocalBackupFile {
 

@@ -14,6 +14,7 @@ import 'active_bookings_reminder_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
 import 'data_protection_screen.dart';
+import 'google_drive_settings_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
 import 'php_api_settings_screen.dart';
 import 'remote_config_settings_screen.dart';
@@ -183,6 +184,17 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push<void>(
                 context,
                 MaterialPageRoute<void>(builder: (context) => const backup_v2.ComprehensiveBackupScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'Google Drive',
+              subtitle: 'نسخ واستعادة من Google Drive',
+              icon: Icons.cloud,
+              color: Colors.blue,
+              onTap: () => Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(builder: (context) => const GoogleDriveSettingsScreen(),
                 ),
               ),
             ),
