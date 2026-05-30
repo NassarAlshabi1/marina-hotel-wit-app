@@ -610,7 +610,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       );
 
       final fixService = RestoreFixService(DatabaseManager.instance);
-      final fixReport = await fixService.runAutoFixAfterRestore();
+      final fixReport = await fixService.runAutoFixAfterRestore(
+        skipLedgerRebuild: true, // hotel_day_ledger محلي فقط ولا يُزامن
+      );
 
       if (!fixReport.success) {
         debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
@@ -916,7 +918,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       );
 
       final fixService = RestoreFixService(DatabaseManager.instance);
-      final fixReport = await fixService.runAutoFixAfterRestore();
+      final fixReport = await fixService.runAutoFixAfterRestore(
+        skipLedgerRebuild: true, // hotel_day_ledger محلي فقط ولا يُزامن
+      );
 
       if (!fixReport.success) {
         debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
@@ -1033,7 +1037,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       );
 
       final fixService = RestoreFixService(DatabaseManager.instance);
-      final fixReport = await fixService.runAutoFixAfterRestore();
+      final fixReport = await fixService.runAutoFixAfterRestore(
+        skipLedgerRebuild: true, // hotel_day_ledger محلي فقط ولا يُزامن
+      );
 
       if (!fixReport.success) {
         debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
