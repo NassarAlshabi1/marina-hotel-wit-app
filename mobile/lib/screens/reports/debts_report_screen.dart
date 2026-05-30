@@ -11,6 +11,7 @@ import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
@@ -68,21 +69,39 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     });
     try {
       final db = ref.read(databaseProvider);
-      // ✅ إصلاح: فلترة على مستوى DB بدلاً من تحميل كل الديون ثم الفلترة في الذاكرة
-      // + استبعاد الديون المحذوفة (deletedAt IS NULL)
+
+      // ═══════════════════════════════════════════════════════════════
+      // ✅ إصلاح خارق: استخدام hotelDayKey بدلاً من paymentDate التقويمي
+      //
+      // السبب: الدين المُسجل في الصباح (10:00) ينتمي لليوم الفندقي السابق
+      // مثال: دين بتاريخ 2026-05-29 10:00 → hotelDayKey = "2026-05-28"
+      // فلترة paymentDate كانت تُدرج الديون في اليوم الخاطئ
+      //
+      // النطاق: _fromDate/_toDate يأتيان من ReportDateFilterWidget
+      // بنفس المنطق المستخدم في التقارير الأخرى
+      // ═══════════════════════════════════════════════════════════════
+
+      // حساب مفاتيح الأيام الفندقية للفلترة
+      // +1 ثانية لـ fromDate لأن getHotelDayKey يعتبر 14:00:00 نهاية اليوم السابق
+      final fromHotelDay = _fromDate != null
+          ? HotelTimeEngine.getHotelDayKey(
+              dateTime: _fromDate!.add(const Duration(seconds: 1)))
+          : null;
+      final toHotelDay = _toDate != null
+          ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
+          : null;
+
+      // فلترة على مستوى DB مع hotelDayKey + deletedAt
       var query = db.select(db.debts)
         ..where((tbl) => tbl.deletedAt.isNull());
 
-      // فلترة بنطاق التاريخ على مستوى DB
-      if (_fromDate != null) {
-        final fromStr = _dateFormat.format(_fromDate!);
+      if (fromHotelDay != null) {
         query = query..where((tbl) =>
-            tbl.paymentDate.isBiggerOrEqual(Variable(fromStr)));
+            tbl.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay)));
       }
-      if (_toDate != null) {
-        final toStr = _dateFormat.format(_toDate!);
+      if (toHotelDay != null) {
         query = query..where((tbl) =>
-            tbl.paymentDate.isSmallerOrEqual(Variable(toStr)));
+            tbl.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay)));
       }
 
       final filtered = await query.get();

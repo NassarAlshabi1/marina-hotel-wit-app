@@ -9,6 +9,8 @@ import '../../providers/core_providers.dart';
 import '../../providers/performance_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/crashlytics_service.dart';
+import '../../services/local_db.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import 'debts_report_screen.dart';
 import 'expenses_report_screen.dart';
@@ -32,6 +34,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   Map<String, dynamic>? _cachedFinancials;
   bool _loading = true;
   String? _loadError;
+
+  // ═══════════════════════════════════════════════════════════════
+  // ✅ إصلاح خارق: تتبع آخر 7 أيام فندقية للرسوم البيانية
+  // ═══════════════════════════════════════════════════════════════
+  List<String> _last7HotelDays = [];
 
   /// RefreshableObject flag — للتحكم بإعادة التحميل
   @override
@@ -104,18 +111,57 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         recordsProcessed: 1,
       );
 
-      // 3. بناء الرسوم البيانية
-      final total = rooms.isEmpty ? 1 : rooms.length;
+      // 3. ✅ إصلاح خارق: حساب آخر 7 أيام فندقية
+      _last7HotelDays = [];
+      final now = DateTime.now();
+      for (int i = 6; i >= 0; i--) {
+        final day = now.subtract(Duration(days: i));
+        _last7HotelDays.add(HotelTimeEngine.getHotelDayKey(dateTime: day));
+      }
 
-      final daily = List.generate(7, (i) {
-        final busy =
-            rooms.where((r) => StatusUtils.isRoomOccupied(r.status as String)).length;
-        final occ = (busy * 100 / total).round().toDouble();
-        return BarChartGroupData(
-          x: i,
-          barRods: [BarChartRodData(toY: occ, color: Colors.teal)],
+      // 4. ✅ إصلاح: بناء الرسم البياني للإشغال اليومي بأيام حقيقية
+      //    + إصلاح status casting (null safety)
+      final Map<String, int> dailyOccupancy = {};
+      for (final hotelDay in _last7HotelDays) {
+        dailyOccupancy[hotelDay] = 0;
+      }
+
+      // حساب الإشغال لكل يوم فندقي من الحجوزات النشطة
+      final allBookings = await db.select(db.bookings).get();
+      final activeStatuses = StatusUtils.activeBookingStatuses;
+
+      for (final booking in allBookings) {
+        if (booking.deletedAt != null) continue;
+        final status = booking.status ?? '';
+        if (!activeStatuses.contains(status) && !StatusUtils.isActiveBooking(status)) {
+          continue;
+        }
+
+        // فحص إذا كان الحجز نشطاً في أي يوم من الأيام السبعة
+        final checkin = _parseHotelDate(booking.checkinDate);
+        final checkout = _parseHotelDate(booking.checkoutDate);
+
+        for (final hotelDay in _last7HotelDays) {
+          final dayDate = DateTime.parse(hotelDay);
+          if (!dayDate.isBefore(checkin) && dayDate.isBefore(checkout.add(const Duration(days: 1)))) {
+            dailyOccupancy[hotelDay] = (dailyOccupancy[hotelDay] ?? 0) + 1;
+          }
+        }
+      }
+
+      final total = rooms.isEmpty ? 1 : rooms.length;
+      final daily = <BarChartGroupData>[];
+      for (int i = 0; i < _last7HotelDays.length; i++) {
+        final hotelDay = _last7HotelDays[i];
+        final occupiedCount = dailyOccupancy[hotelDay] ?? 0;
+        final occ = (occupiedCount * 100 / total).round().toDouble();
+        daily.add(
+          BarChartGroupData(
+            x: i,
+            barRods: [BarChartRodData(toY: occ, color: Colors.teal)],
+          ),
         );
-      });
+      }
 
       final revExp = [
         BarChartGroupData(
@@ -128,11 +174,27 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ),
       ];
 
-      final topRooms = rooms.take(5).toList();
+      // 5. ✅ إصلاح: أعلى الغرف إشغالاً - حساب حقيقي
+      final Map<String, int> roomOccupancyCount = {};
+      for (final booking in allBookings) {
+        if (booking.deletedAt != null) continue;
+        final status = booking.status ?? '';
+        if (!StatusUtils.isActiveBooking(status)) continue;
+
+        final room = booking.roomNumber ?? '';
+        if (room.isNotEmpty) {
+          roomOccupancyCount[room] = (roomOccupancyCount[room] ?? 0) + 1;
+        }
+      }
+
+      // ترتيب الغرف حسب الإشغال
+      final sortedRooms = roomOccupancyCount.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      final topRooms = sortedRooms.take(5).toList();
       final topBars = <BarChartGroupData>[];
+      final maxCount = sortedRooms.isEmpty ? 1 : sortedRooms.first.value;
       for (var i = 0; i < topRooms.length; i++) {
-        final r = topRooms[i];
-        final v = StatusUtils.isRoomOccupied(r.status as String) ? 100.0 : 20.0;
+        final v = (topRooms[i].value / maxCount) * 100;
         topBars.add(
           BarChartGroupData(
             x: i,
@@ -423,6 +485,20 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   /// التنقل بأسلوب lazy — الـ WidgetBuilder لا يُنفذ إلا عند التنقل الفعلي
   void _navigate(WidgetBuilder builder) {
     Navigator.push<void>(context, MaterialPageRoute(builder: builder));
+  }
+
+  /// ✅ إصلاح: تحويل تاريخ ISO إلى DateTime مع معالجة الأخطاء
+  DateTime _parseHotelDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) {
+      return DateTime.now();
+    }
+    try {
+      // تحويل أي صيغة إلى DateTime
+      final normalized = dateStr.contains('T') ? dateStr : dateStr.replaceFirst(' ', 'T');
+      return DateTime.parse(normalized);
+    } catch (_) {
+      return DateTime.now();
+    }
   }
 }
 
