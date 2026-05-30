@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 
 import 'database_health_checker.dart';
 import 'local_db.dart';
@@ -51,7 +52,7 @@ class SafeDatabaseOperations {
 
       return result;
     } on StateError catch (e, stack) {
-      debugPrint('❌ StateError in $opName: $e');
+      AppLogger.error('StateError in $opName: $e');
       debugPrint(stack.toString());
 
       if (throwOnError) {
@@ -62,7 +63,7 @@ class SafeDatabaseOperations {
         rethrow;
       }
     } catch (e, stack) {
-      debugPrint('❌ Error in $opName: $e');
+      AppLogger.error('Error in $opName: $e');
       debugPrint(stack.toString());
 
       // معالجة أخطاء قاعدة البيانات الشائعة
@@ -71,7 +72,7 @@ class SafeDatabaseOperations {
           errorStr.contains('isolate channel') ||
           errorStr.contains('Can\'t re-open a database') ||
           errorStr.contains('DatabaseManager has been closed')) {
-        debugPrint('⚠️ Database connection error detected in $opName');
+        AppLogger.warning('Database connection error detected in $opName');
 
         // عدم محاولة reopen إذا كانت استعادة جارية
         if (DatabaseManager.isRestoring) {
@@ -80,14 +81,14 @@ class SafeDatabaseOperations {
         }
 
         try {
-          debugPrint('🔄 Attempting to reopen database...');
+          AppLogger.debug('Attempting to reopen database...');
           await DatabaseManager.reopen();
-          debugPrint('✅ Database reopened successfully. Retrying operation...');
+          AppLogger.info('Database reopened successfully. Retrying operation...');
 
           final db = DatabaseManager.instance;
           return await operation(db).timeout(timeout);
         } catch (retryError) {
-          debugPrint('❌ Retry failed: $retryError');
+          AppLogger.error('Retry failed: $retryError');
           if (throwOnError) {
             rethrow;
           } else if (fallbackValue != null) {
@@ -191,7 +192,7 @@ class SafeDatabaseOperations {
                       '🔄 Attempting to reopen database for stream...',
                     );
                     await DatabaseManager.reopen();
-                    debugPrint('✅ Database reopened. Recreating stream...');
+                    AppLogger.info('Database reopened. Recreating stream...');
                     setupStream();
                   } catch (e) {
                     if (!isClosed) {

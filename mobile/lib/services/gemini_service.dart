@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:drift/drift.dart' hide Column;
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'package:uuid/uuid.dart';
 
 import '../utils/hotel_time_engine.dart';
@@ -298,10 +299,10 @@ class GeminiService {
       _chat = _model!.startChat();
       _isInitialized = true;
       _lastError = null;
-      debugPrint('✅ تم تهيئة Gemini AI عبر Firebase AI Logic (ChatSession)');
+      AppLogger.info('تم تهيئة Gemini AI عبر Firebase AI Logic (ChatSession)');
     } catch (e) {
-      debugPrint('⚠️ فشل تهيئة Gemini AI: $e');
-      debugPrint('ℹ️ تأكد من تفعيل AI Logic في Firebase Console');
+      AppLogger.warning('فشل تهيئة Gemini AI: $e');
+      AppLogger.info('تأكد من تفعيل AI Logic في Firebase Console');
       _initError = _describeInitError(e);
       _lastError = _initError;
     }
@@ -1245,7 +1246,7 @@ class GeminiService {
       }
 
     } catch (e) {
-      debugPrint('⚠️ خطأ في بناء سياق الفندق: $e');
+      AppLogger.warning('خطأ في بناء سياق الفندق: $e');
       s.writeln('(تعذر تحميل بعض البيانات: $e)');
     }
 
@@ -1303,11 +1304,11 @@ class GeminiService {
       try {
         responseText = response.text ?? '';
       } on FirebaseAIException catch (e) {
-        debugPrint('⚠️ response.text رمى استثناء: $e');
+        AppLogger.warning('response.text رمى استثناء: $e');
         // إذا كان الرد محظور بسبب السلامة — أعد المحاولة بدون سياق الفندق
         if (e.message.contains('SAFETY') ||
             e.message.contains('blocked')) {
-          debugPrint('⚠️ الرد محظور — إعادة المحاولة برسالة المستخدم فقط');
+          AppLogger.warning('الرد محظور — إعادة المحاولة برسالة المستخدم فقط');
           try {
             final retryResponse = await _sendWithRetry(
               () => _chat!.sendMessage(Content.text(userMessage)),
@@ -1342,12 +1343,12 @@ class GeminiService {
             command is! AiNoActionCommand,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في Gemini: $e');
+      AppLogger.error('خطأ في Gemini: $e');
       _lastError = e.toString();
       // إعادة تعيين الجلسة عند خطأ في الأدوار
       final msg = e.toString();
       if (msg.contains('role') || msg.contains('alternat')) {
-        debugPrint('⚠️ إعادة تعيين الجلسة بسبب خطأ في الأدوار');
+        AppLogger.warning('إعادة تعيين الجلسة بسبب خطأ في الأدوار');
         _chat = _model!.startChat();
       }
       return GeminiResponse(
@@ -1417,7 +1418,7 @@ class GeminiService {
         final jitterMs = (_random.nextDouble() * delay.inMilliseconds * 0.3).round();
         final actualDelay = Duration(milliseconds: delay.inMilliseconds + jitterMs);
 
-        debugPrint('⚠️ خطأ مؤقت — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...');
+        AppLogger.warning('خطأ مؤقت — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...');
 
         await Future<void>.delayed(actualDelay);
 
@@ -1581,7 +1582,7 @@ class GeminiService {
             await BookingDerivedFieldsService(db)
                 .refreshForBookingId(booking.id, forceRebuild: true);
           } catch (e) {
-            debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
+            AppLogger.warning('خطأ في إعادة حساب الحجز: $e');
           }
 
           final typeLabel =
@@ -1740,7 +1741,7 @@ class GeminiService {
             await BookingDerivedFieldsService(db)
                 .refreshForBookingId(activeBooking.id, forceRebuild: true);
           } catch (e) {
-            debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
+            AppLogger.warning('خطأ في إعادة حساب الحجز: $e');
             result = 'فشل إعادة حساب الحجز $roomNumber: $e';
             break;
           }
@@ -1963,7 +1964,7 @@ class GeminiService {
 
       return '✅ $result';
     } catch (e) {
-      debugPrint('❌ خطأ في تنفيذ الأمر: $e');
+      AppLogger.error('خطأ في تنفيذ الأمر: $e');
       return '❌ فشل تنفيذ الأمر: $e';
     }
   }

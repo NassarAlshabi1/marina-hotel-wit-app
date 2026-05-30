@@ -282,7 +282,7 @@ class AppwriteSyncManager {
           },
         );
       } catch (e) {
-        debugPrint('⚠️ Failed to update FCM token: $e');
+        AppLogger.warning('Failed to update FCM token: $e');
           AppLogger.warning('فشل تحديث FCM token', tag: 'SYNC', error: e);
       }
     }

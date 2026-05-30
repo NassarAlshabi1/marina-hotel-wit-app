@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart' as models;
@@ -227,24 +228,24 @@ class UnifiedSyncOrchestrator {
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!appwriteEnabled) {
-        debugPrint('ℹ️ Appwrite sync معطل - تخطي الرفع التلقائي');
+        AppLogger.info('Appwrite sync معطل - تخطي الرفع التلقائي');
         return true;
       }
 
       _syncing = true;
-      debugPrint('🔄 رفع تلقائي إلى Appwrite: $reason');
+      AppLogger.debug('رفع تلقائي إلى Appwrite: $reason');
 
       final success = await _syncAppwrite(push: true, pull: false);
 
       if (success) {
-        debugPrint('✅ تم الرفع التلقائي إلى Appwrite');
+        AppLogger.info('تم الرفع التلقائي إلى Appwrite');
       } else {
-        debugPrint('❌ فشل الرفع التلقائي إلى Appwrite');
+        AppLogger.error('فشل الرفع التلقائي إلى Appwrite');
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ خطأ في الرفع التلقائي: $e');
+      AppLogger.error('خطأ في الرفع التلقائي: $e');
       return false;
     } finally {
       _syncing = false;

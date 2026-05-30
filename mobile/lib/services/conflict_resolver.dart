@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'vector_clock.dart';
 
 enum ConflictStrategy {
@@ -125,7 +126,7 @@ class EnhancedConflictResolver {
           strategy: ConflictStrategy.lastWriteWins,
         );
       case 'concurrent':
-        debugPrint('⚠️ تعارض حقيقي: ${context.table}/${context.uuid}');
+        AppLogger.warning('تعارض حقيقي: ${context.table}/${context.uuid}');
         return _handleConcurrentConflict(context);
     }
     return null;

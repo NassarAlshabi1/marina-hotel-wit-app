@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
@@ -129,7 +130,7 @@ class BookingDerivedFieldsService {
         await refreshForBooking(booking, now: moment, forceRebuild: true);
         return (promoted: didPromote, refreshed: true);
       } catch (e) {
-        debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
+        AppLogger.warning('خطأ في تحديث حجز ${booking.id}: $e');
         return (promoted: false, refreshed: false);
       }
     }),);
@@ -137,10 +138,10 @@ class BookingDerivedFieldsService {
     refreshed = results.where((r) => r.refreshed).length;
 
     if (promoted > 0) {
-      debugPrint('✅ تم تثبيت $promoted حجز مؤقت → محجوزة');
+      AppLogger.info('تم تثبيت $promoted حجز مؤقت → محجوزة');
     }
     if (refreshed > 0) {
-      debugPrint('🔄 تم تجديد إقامة $refreshed حجز نشط تلقائياً');
+      AppLogger.debug('تم تجديد إقامة $refreshed حجز نشط تلقائياً');
     }
     return refreshed;
   }

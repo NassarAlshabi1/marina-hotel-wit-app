@@ -1,5 +1,6 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'appwrite_config_manager.dart';
 
 /// سكريبت للتحقق من مطابقة جداول Appwrite Cloud
@@ -528,7 +529,7 @@ class AppwriteSchemaVerifier {
 
   /// التحقق من جميع Collections والـ Attributes
   static Future<Map<String, dynamic>> verifySchema() async {
-    debugPrint('🔍 بدء التحقق من مطابقة جداول Appwrite Cloud...\n');
+    AppLogger.debug('بدء التحقق من مطابقة جداول Appwrite Cloud...\n');
 
     final endpoint = AppwriteConfigManager.endpoint;
     final projectId = AppwriteConfigManager.projectId;
@@ -556,7 +557,7 @@ class AppwriteSchemaVerifier {
       final schema = entry.value;
       totalCollections++;
 
-      debugPrint('📋 التحقق من: $collectionId (${schema['name']})');
+      AppLogger.debug('التحقق من: $collectionId (${schema['name']})');
 
       try {
         final response = await databases.listDocuments(
@@ -597,23 +598,23 @@ class AppwriteSchemaVerifier {
     };
 
     debugPrint('═══════════════════════════════════════');
-    debugPrint('📊 ملخص التحقق');
+    AppLogger.info('ملخص التحقق');
     debugPrint('═══════════════════════════════════════');
     debugPrint('إجمالي الجداول المطلوبة: $totalCollections');
-    debugPrint('✅ موجود: $foundCollections');
-    debugPrint('❌ ناقص: $missingCollections');
+    AppLogger.info('موجود: $foundCollections');
+    AppLogger.error('ناقص: $missingCollections');
     debugPrint('📈 نسبة الاكتمال: ${results['summary']['percentage']}%');
     debugPrint('═══════════════════════════════════════\n');
 
     if (missingCollections > 0) {
-      debugPrint('⚠️  الجداول الناقصة:');
+      AppLogger.warning(' الجداول الناقصة:');
       for (final missing in (results['missing'] as List)) {
         debugPrint('   - $missing');
       }
       debugPrint('\n💡 يرجى إنشاء الجداول الناقصة في Appwrite Console');
       debugPrint('   راجع: mobile/APPWRITE_SCHEMA_VERIFICATION.md\n');
     } else {
-      debugPrint('🎉 جميع الجداول موجودة! التطابق كامل.\n');
+      AppLogger.info('جميع الجداول موجودة! التطابق كامل.\n');
     }
 
     return results;

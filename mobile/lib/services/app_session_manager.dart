@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -126,7 +127,7 @@ class AppSessionManager {
   /// تم تحسينها لتكون "ذكية": يتم السحب مرة واحدة فقط كل ساعة كحد أقصى عند الفتح.
   static Future<void> _triggerAppOpenAppwritePull() async {
     try {
-      debugPrint('🔄 [AppOpen] Checking for automatic Appwrite pull...');
+      AppLogger.debug('[AppOpen] Checking for automatic Appwrite pull...');
       final prefs = await SharedPreferences.getInstance();
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
@@ -166,12 +167,12 @@ class AppSessionManager {
       // الانتظار قليلاً للتأكد من استقرار الشبكة والأنظمة
       await Future<void>.delayed(const Duration(seconds: 3));
 
-      debugPrint('📥 [AppOpen] Starting smart automatic Appwrite pull...');
+      AppLogger.info('[AppOpen] Starting smart automatic Appwrite pull...');
 
       // استخدام SyncManager المشترك لتجنب مزامنة مزدوجة ومصادمات mutex
       final syncManager = _sharedSyncManager;
       if (syncManager == null) {
-        debugPrint('ℹ️ [AppOpen] No shared SyncManager — skipping pull.');
+        AppLogger.info('[AppOpen] No shared SyncManager — skipping pull.');
         return;
       }
 
@@ -185,7 +186,7 @@ class AppSessionManager {
         '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',
       );
     } catch (e) {
-      debugPrint('❌ [AppOpen] Error during automatic Appwrite pull: $e');
+      AppLogger.error('[AppOpen] Error during automatic Appwrite pull: $e');
     }
   }
 }

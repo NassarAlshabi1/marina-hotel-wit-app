@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -14,7 +15,7 @@ class FileManagementService {
   /// تصدير البيانات بتنسيقات متعددة
   Future<String> exportToCSV() async {
     try {
-      debugPrint('📊 بدء تصدير البيانات إلى CSV...');
+      AppLogger.info('بدء تصدير البيانات إلى CSV...');
 
       // الحصول على مجلد التصدير
       final exportDir = await _getExportDirectory();
@@ -39,10 +40,10 @@ class FileManagementService {
       );
       await _exportTableToCSV(csvFolder, 'payments', 'payments');
 
-      debugPrint('✅ تم تصدير البيانات إلى: ${csvFolder.path}');
+      AppLogger.info('تم تصدير البيانات إلى: ${csvFolder.path}');
       return csvFolder.path;
     } catch (e) {
-      debugPrint('❌ خطأ في تصدير البيانات إلى CSV: $e');
+      AppLogger.error('خطأ في تصدير البيانات إلى CSV: $e');
       rethrow;
     }
   }
@@ -50,7 +51,7 @@ class FileManagementService {
   /// تصدير تقرير شامل بتنسيق JSON قابل للقراءة
   Future<String> exportReadableReport() async {
     try {
-      debugPrint('📋 بدء تصدير التقرير الشامل...');
+      AppLogger.debug('بدء تصدير التقرير الشامل...');
 
       final exportDir = await _getExportDirectory();
       final timestamp = DateTime.now();
@@ -87,10 +88,10 @@ class FileManagementService {
       final jsonString = const JsonEncoder.withIndent('  ').convert(report);
       await file.writeAsString(jsonString);
 
-      debugPrint('✅ تم إنشاء التقرير الشامل: $filePath');
+      AppLogger.info('تم إنشاء التقرير الشامل: $filePath');
       return filePath;
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء التقرير الشامل: $e');
+      AppLogger.error('خطأ في إنشاء التقرير الشامل: $e');
       rethrow;
     }
   }
@@ -115,9 +116,9 @@ class FileManagementService {
             'ملفات مُصدرة من تطبيق مارينا هوتيل لإدارة الفنادق',
       );
 
-      debugPrint('✅ تم مشاركة ${filePaths.length} ملف');
+      AppLogger.info('تم مشاركة ${filePaths.length} ملف');
     } catch (e) {
-      debugPrint('❌ خطأ في مشاركة الملفات: $e');
+      AppLogger.error('خطأ في مشاركة الملفات: $e');
       rethrow;
     }
   }
@@ -128,7 +129,7 @@ class FileManagementService {
     List<String>? allowedExtensions,
   }) async {
     try {
-      debugPrint('📁 بدء استيراد ملفات متعددة...');
+      AppLogger.debug('بدء استيراد ملفات متعددة...');
 
       final result = await FilePicker.platform.pickFiles(
         type: fileType,
@@ -153,10 +154,10 @@ class FileManagementService {
         }
       }
 
-      debugPrint('✅ تم استيراد ${importedPaths.length} ملف');
+      AppLogger.info('تم استيراد ${importedPaths.length} ملف');
       return importedPaths;
     } catch (e) {
-      debugPrint('❌ خطأ في استيراد الملفات: $e');
+      AppLogger.error('خطأ في استيراد الملفات: $e');
       rethrow;
     }
   }
@@ -180,7 +181,7 @@ class FileManagementService {
 
         organized.putIfAbsent(dateKey, () => []).add(path);
       } catch (e) {
-        debugPrint('⚠️ خطأ في معالجة ملف $path: $e');
+        AppLogger.warning('خطأ في معالجة ملف $path: $e');
       }
     }
 
@@ -221,10 +222,10 @@ class FileManagementService {
         'محتويات أرشيف مارينا هوتيل\n\n$indexContent',
       );
 
-      debugPrint('✅ تم إنشاء الأرشيف: ${archiveFolder.path}');
+      AppLogger.info('تم إنشاء الأرشيف: ${archiveFolder.path}');
       return archiveFolder.path;
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء الأرشيف: $e');
+      AppLogger.error('خطأ في إنشاء الأرشيف: $e');
       rethrow;
     }
   }
@@ -263,7 +264,7 @@ class FileManagementService {
         'files_by_month': _groupFilesByMonth(localBackups),
       };
     } catch (e) {
-      debugPrint('❌ خطأ في تحليل الملفات: $e');
+      AppLogger.error('خطأ في تحليل الملفات: $e');
       return {};
     }
   }
@@ -327,13 +328,13 @@ class FileManagementService {
       final backupData = await db.exportDatabaseToJson();
 
       if (!backupData.containsKey(tableKey) || backupData[tableKey] is! List) {
-        debugPrint('⚠️ لا توجد بيانات للجدول: $tableName');
+        AppLogger.warning('لا توجد بيانات للجدول: $tableName');
         return;
       }
 
       final tableData = backupData[tableKey] as List<dynamic>;
       if (tableData.isEmpty) {
-        debugPrint('⚠️ الجدول $tableName فارغ');
+        AppLogger.warning('الجدول $tableName فارغ');
         return;
       }
 
@@ -357,9 +358,9 @@ class FileManagementService {
       }
 
       await csvFile.writeAsString(csvContent.toString());
-      debugPrint('✅ تم تصدير جدول $tableName إلى CSV');
+      AppLogger.info('تم تصدير جدول $tableName إلى CSV');
     } catch (e) {
-      debugPrint('❌ خطأ في تصدير الجدول $tableName: $e');
+      AppLogger.error('خطأ في تصدير الجدول $tableName: $e');
     }
   }
 
@@ -465,7 +466,7 @@ class FileManagementService {
             }
           }
         } catch (e) {
-          debugPrint('⚠️ خطأ في معالجة الملف $backupPath: $e');
+          AppLogger.warning('خطأ في معالجة الملف $backupPath: $e');
         }
       }
 
@@ -492,12 +493,12 @@ class FileManagementService {
       ).convert(mergedBackup);
       await mergedFile.writeAsString(jsonString);
 
-      debugPrint('✅ تم دمج النسخ بنجاح: $mergedPath');
-      debugPrint('📊 إجمالي السجلات المدمجة: $totalRecords');
+      AppLogger.info('تم دمج النسخ بنجاح: $mergedPath');
+      AppLogger.info('إجمالي السجلات المدمجة: $totalRecords');
 
       return mergedPath;
     } catch (e) {
-      debugPrint('❌ خطأ في دمج النسخ الاحتياطية: $e');
+      AppLogger.error('خطأ في دمج النسخ الاحتياطية: $e');
       rethrow;
     }
   }
@@ -575,10 +576,10 @@ class FileManagementService {
       final readableFile = File(readablePath);
       await readableFile.writeAsString(readableContent.toString());
 
-      debugPrint('✅ تم تحويل النسخة إلى تنسيق قابل للقراءة: $readablePath');
+      AppLogger.info('تم تحويل النسخة إلى تنسيق قابل للقراءة: $readablePath');
       return readablePath;
     } catch (e) {
-      debugPrint('❌ خطأ في تحويل النسخة إلى تنسيق قابل للقراءة: $e');
+      AppLogger.error('خطأ في تحويل النسخة إلى تنسيق قابل للقراءة: $e');
       rethrow;
     }
   }
@@ -617,9 +618,9 @@ class FileManagementService {
       // حذف ملفات التصدير الأقدم من 3 أيام
       await _cleanDirectoryOlderThan(exportDir, const Duration(days: 3));
 
-      debugPrint('✅ تم تنظيف الملفات المؤقتة');
+      AppLogger.info('تم تنظيف الملفات المؤقتة');
     } catch (e) {
-      debugPrint('❌ خطأ في تنظيف الملفات المؤقتة: $e');
+      AppLogger.error('خطأ في تنظيف الملفات المؤقتة: $e');
     }
   }
 
@@ -645,7 +646,7 @@ class FileManagementService {
           }
         }
       } catch (e) {
-        debugPrint('⚠️ خطأ في حذف ${entity.path}: $e');
+        AppLogger.warning('خطأ في حذف ${entity.path}: $e');
       }
     }
   }

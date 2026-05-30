@@ -10,6 +10,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart';
@@ -82,7 +83,7 @@ class SyncManager {
 
   void _addSyncJob(_SyncJob job) {
     if (_syncJobs.length >= SyncConfig.maxQueueSize) {
-      debugPrint('⚠️ طابور المزامنة ممتلئ، حذف أقدم عملية');
+      AppLogger.warning('طابور المزامنة ممتلئ، حذف أقدم عملية');
       final dropped = _syncJobs.removeFirst();
       dropped.completer.completeError(
         StateError('Sync job dropped due to queue overflow'),
@@ -405,7 +406,7 @@ class SyncManager {
           error: error,
         );
       }
-      debugPrint('❌ فشل سحب البيانات: $error');
+      AppLogger.error('فشل سحب البيانات: $error');
       debugPrint('$stack');
       _statusController.add(
         SyncStatus(
@@ -450,7 +451,7 @@ class SyncManager {
     };
 
     if (!allowedTables.contains(table)) {
-      debugPrint('⚠️ Invalid table name: $table');
+      AppLogger.warning('Invalid table name: $table');
       return;
     }
 
@@ -478,7 +479,7 @@ class SyncManager {
         yield mappedBatch;
         offset += batchSize;
       } catch (e) {
-        debugPrint('⚠️ Error streaming table $table at offset $offset: $e');
+        AppLogger.warning('Error streaming table $table at offset $offset: $e');
         break;
       }
     }
@@ -658,7 +659,7 @@ class SyncManager {
           error: error,
         );
       }
-      debugPrint('❌ فشل رفع التغييرات: $error');
+      AppLogger.error('فشل رفع التغييرات: $error');
       debugPrint('$stack');
       _statusController.add(
         SyncStatus(
@@ -827,7 +828,7 @@ class SyncManager {
                   remoteVectorClock = VectorClock.fromJson(remoteVc);
                 }
               } catch (e) {
-                debugPrint('⚠️ VectorClock parse error for $table/$key: $e');
+                AppLogger.warning('VectorClock parse error for $table/$key: $e');
               }
 
               final context = ConflictContext(

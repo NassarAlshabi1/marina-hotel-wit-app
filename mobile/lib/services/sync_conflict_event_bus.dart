@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 
 /// حدث تضارب في المزامنة
 class SyncConflictEvent {

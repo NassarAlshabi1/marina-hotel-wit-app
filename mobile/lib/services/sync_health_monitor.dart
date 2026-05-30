@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum SyncHealthStatus { healthy, warning, critical, error }
@@ -87,17 +88,17 @@ class SyncHealthMonitor {
     _persistMetrics();
     _emitMetrics();
 
-    debugPrint('⚠️ فشل المزامنة (المحاولة $_consecutiveFailures)');
+    AppLogger.warning('فشل المزامنة (المحاولة $_consecutiveFailures)');
   }
 
   Future<void> _performHealthCheck() async {
     final metrics = await getHealthMetrics();
 
     if (metrics.status == SyncHealthStatus.critical) {
-      debugPrint('🚨 حالة المزامنة حرجة!');
+      AppLogger.error('حالة المزامنة حرجة!');
       debugPrint('توصيات: ${metrics.recommendations.join(', ')}');
     } else if (metrics.status == SyncHealthStatus.warning) {
-      debugPrint('⚠️ تحذير: ${metrics.recommendations.first}');
+      AppLogger.warning('تحذير: ${metrics.recommendations.first}');
     }
 
     _metricsController.add(metrics);

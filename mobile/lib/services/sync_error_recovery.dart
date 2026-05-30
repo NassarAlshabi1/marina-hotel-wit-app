@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'local_db.dart';
 
 enum RecoveryAction { retry, skip, rollback, escalate, pause }
@@ -94,7 +95,7 @@ class SyncErrorRecovery {
       _errorLog.removeLast();
     }
     _errorController.add(error);
-    debugPrint('❌ [Recovery] ${error.severity.name}: ${error.message}');
+    AppLogger.error('[Recovery] ${error.severity.name}: ${error.message}');
   }
 
   SyncError createError({
@@ -291,7 +292,7 @@ class SyncErrorRecovery {
 
       debugPrint('📍 [Recovery] نقطة استعادة: $description');
     } catch (e) {
-      debugPrint('⚠️ [Recovery] فشل إنشاء نقطة الاستعادة: $e');
+      AppLogger.warning('[Recovery] فشل إنشاء نقطة الاستعادة: $e');
     }
   }
 
@@ -306,10 +307,10 @@ class SyncErrorRecovery {
 
     try {
       await database.applyMergedData(point.snapshot);
-      debugPrint('✅ [Recovery] تم الاستعادة من: ${point.description}');
+      AppLogger.info('[Recovery] تم الاستعادة من: ${point.description}');
       return true;
     } catch (e) {
-      debugPrint('❌ [Recovery] فشل الاستعادة: $e');
+      AppLogger.error('[Recovery] فشل الاستعادة: $e');
       return false;
     }
   }

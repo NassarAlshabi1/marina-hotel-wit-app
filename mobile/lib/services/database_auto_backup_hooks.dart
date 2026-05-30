@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 
 import 'auto_backup_manager.dart';
 import 'local_db.dart';
@@ -114,7 +115,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث حجز ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('تم تحديث حجز ($id) - سيتم النسخ التلقائي');
     }
     return result;
   }
@@ -126,7 +127,7 @@ class AutoBackupDatabaseHelper {
       recordData: {'id': id, 'guest_name': guestName},
     );
     if (result > 0) {
-      debugPrint('🗑️ تم حذف حجز ($id - $guestName) - سيتم النسخ التلقائي');
+      AppLogger.debug('تم حذف حجز ($id - $guestName) - سيتم النسخ التلقائي');
     }
     return result;
   }
@@ -147,7 +148,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث غرفة ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('تم تحديث غرفة ($id) - سيتم النسخ التلقائي');
     }
     return result;
   }
@@ -168,7 +169,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث دفعة ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('تم تحديث دفعة ($id) - سيتم النسخ التلقائي');
     }
     return result;
   }
@@ -189,7 +190,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث مصروف ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('تم تحديث مصروف ($id) - سيتم النسخ التلقائي');
     }
     return result;
   }
@@ -227,7 +228,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث موظف ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('تم تحديث موظف ($id) - سيتم النسخ التلقائي');
     }
     return result;
   }
@@ -235,7 +236,7 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة لملاحظات الحجز
   static Future<int> insertBookingNote(BookingNotesCompanion note) async {
     final result = await _db.insertWithBackupTrigger(_db.bookingNotes, note);
-    debugPrint('📝 تم إضافة ملاحظة حجز - سيتم النسخ التلقائي');
+    AppLogger.info('تم إضافة ملاحظة حجز - سيتم النسخ التلقائي');
     return result;
   }
 
@@ -249,7 +250,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث ملاحظة حجز ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('تم تحديث ملاحظة حجز ($id) - سيتم النسخ التلقائي');
     }
     return result;
   }
@@ -270,7 +271,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث دين ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('تم تحديث دين ($id) - سيتم النسخ التلقائي');
     }
     return result;
   }

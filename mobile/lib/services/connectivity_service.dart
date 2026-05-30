@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 
 enum ConnectionType { none, wifi, mobile, ethernet, vpn, bluetooth, other }
 
@@ -88,16 +89,16 @@ class ConnectivityService {
       _subscription = _connectivity.onConnectivityChanged.listen(
         _updateStatus,
         onError: (Object error) {
-          debugPrint('❌ [Connectivity] خطأ في مراقبة الاتصال: $error');
+          AppLogger.error('[Connectivity] خطأ في مراقبة الاتصال: $error');
           _currentStatus = ConnectionStatus.offline();
           _statusController.add(_currentStatus);
         },
       );
 
       _initialized = true;
-      debugPrint('✅ [Connectivity] تم تهيئة خدمة الاتصال: $_currentStatus');
+      AppLogger.info('[Connectivity] تم تهيئة خدمة الاتصال: $_currentStatus');
     } catch (e) {
-      debugPrint('❌ [Connectivity] فشل في تهيئة خدمة الاتصال: $e');
+      AppLogger.error('[Connectivity] فشل في تهيئة خدمة الاتصال: $e');
       _currentStatus = ConnectionStatus.offline();
     }
   }
@@ -109,7 +110,7 @@ class ConnectivityService {
     _statusController.add(newStatus);
 
     if (!wasOnline && newStatus.isOnline) {
-      debugPrint('🌐 [Connectivity] الاتصال متاح: ${newStatus.type}');
+      AppLogger.debug('[Connectivity] الاتصال متاح: ${newStatus.type}');
     } else if (wasOnline && !newStatus.isOnline) {
       debugPrint('📴 [Connectivity] الاتصال مفقود');
     }
@@ -121,7 +122,7 @@ class ConnectivityService {
       _updateStatus(results);
       return _currentStatus.isOnline;
     } catch (e) {
-      debugPrint('❌ [Connectivity] فشل في فحص الاتصال: $e');
+      AppLogger.error('[Connectivity] فشل في فحص الاتصال: $e');
       return false;
     }
   }
@@ -146,7 +147,7 @@ class ConnectivityService {
           .timeout(timeout);
       return await operation();
     } on TimeoutException {
-      debugPrint('⏱️ [Connectivity] انتهت مهلة انتظار الاتصال');
+      AppLogger.debug('[Connectivity] انتهت مهلة انتظار الاتصال');
       return null;
     }
   }

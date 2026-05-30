@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 
 import '../data/sync_models.dart';
 import '../utils/time.dart';
@@ -336,7 +337,7 @@ class DeltaSyncService {
   Future<void> repairMirrorIfNeeded() async {
     final validation = await validateMirror();
     if (!validation.isValid) {
-      debugPrint('⚠️ Mirror inconsistency detected, repairing...');
+      AppLogger.warning('Mirror inconsistency detected, repairing...');
       debugPrint('Issues: ${validation.issues.join(', ')}');
       await _rebuildMirror();
     }
@@ -372,11 +373,11 @@ class DeltaSyncService {
           '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)',
         );
       } catch (e) {
-        debugPrint('❌ Failed to rebuild mirror for ${config.entity}: $e');
+        AppLogger.error('Failed to rebuild mirror for ${config.entity}: $e');
       }
     }
 
-    debugPrint('✅ Mirror rebuild completed');
+    AppLogger.info('Mirror rebuild completed');
   }
 
   List<_EntityConfig> _entityConfigs() {

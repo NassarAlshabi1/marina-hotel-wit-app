@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/hotel_time_engine.dart';
@@ -102,7 +103,7 @@ class AutoBackupManager {
     _deltaSyncTimer = Timer.periodic(const Duration(minutes: 5), (timer) async {
       await performDeltaSync();
     });
-    debugPrint('⏰ تم جدولة المزامنة التفاضلية كل 5 دقائق');
+    AppLogger.debug('تم جدولة المزامنة التفاضلية كل 5 دقائق');
   }
 
   /// تهيئة معرف الجهاز للتمييز بين الأجهزة
@@ -188,7 +189,7 @@ class AutoBackupManager {
 
     try {
       _isBackingUp = true;
-      debugPrint('🚀 بدء النسخ التلقائي: $reason ($changesCount تغييرات)');
+      AppLogger.debug('بدء النسخ التلقائي: $reason ($changesCount تغييرات)');
 
       // التحقق من آخر نسخة احتياطية لتجنب النسخ المتكررة
       final lastBackupTime = await _getLastAutoBackupTime();
@@ -233,7 +234,7 @@ class AutoBackupManager {
       // حفظ وقت آخر نسخة تلقائية
       await _setLastAutoBackupTime(now);
 
-      debugPrint('✅ نسخ تلقائي مكتمل: $fileId ($changesCount تغييرات)');
+      AppLogger.info('نسخ تلقائي مكتمل: $fileId ($changesCount تغييرات)');
 
       // تنظيف النسخ القديمة في الخلفية
       unawaited(_cleanupOldBackups());
@@ -241,7 +242,7 @@ class AutoBackupManager {
       // إشعار مدير المزامنة الذكية لمزامنة الأجهزة الأخرى
       await _notifySmartSync();
     } catch (e) {
-      debugPrint('❌ فشل النسخ التلقائي: $e');
+      AppLogger.error('فشل النسخ التلقائي: $e');
     } finally {
       _isBackingUp = false;
     }
@@ -254,7 +255,7 @@ class AutoBackupManager {
     }
 
     try {
-      debugPrint('🧹 بدء تنظيف النسخ القديمة...');
+      AppLogger.debug('بدء تنظيف النسخ القديمة...');
 
       final backupFiles = await _backupService!.listBackupFiles();
       if (backupFiles.isEmpty) {
@@ -274,7 +275,7 @@ class AutoBackupManager {
       if (backupFiles.length > maxBackups) {
         final excessFiles = backupFiles.sublist(maxBackups);
         filesToDelete.addAll(excessFiles);
-        debugPrint('📊 نسخ زائدة عن العدد المحدد: ${excessFiles.length}');
+        AppLogger.info('نسخ زائدة عن العدد المحدد: ${excessFiles.length}');
       }
 
       // حذف النسخ الأقدم من فترة الاحتفاظ
@@ -286,7 +287,7 @@ class AutoBackupManager {
       }
 
       if (filesToDelete.isNotEmpty) {
-        debugPrint('🗑️ حذف ${filesToDelete.length} نسخة احتياطية قديمة...');
+        AppLogger.debug('حذف ${filesToDelete.length} نسخة احتياطية قديمة...');
 
         for (final file in filesToDelete) {
           try {
@@ -295,16 +296,16 @@ class AutoBackupManager {
               '✅ تم حذف: ${file.fileName} (${_formatDateTime(file.createdTime)})',
             );
           } catch (e) {
-            debugPrint('❌ فشل حذف ${file.fileName}: $e');
+            AppLogger.error('فشل حذف ${file.fileName}: $e');
           }
         }
 
-        debugPrint('🧹 اكتمل التنظيف: تم حذف ${filesToDelete.length} نسخة');
+        AppLogger.debug('اكتمل التنظيف: تم حذف ${filesToDelete.length} نسخة');
       } else {
         debugPrint('✨ لا توجد نسخ قديمة للحذف');
       }
     } catch (e) {
-      debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
+      AppLogger.error('خطأ في تنظيف النسخ القديمة: $e');
     }
   }
 
@@ -317,12 +318,12 @@ class AutoBackupManager {
       _cleanupOldBackups();
     });
 
-    debugPrint('⏰ تم جدولة التنظيف الدوري كل 6 ساعات');
+    AppLogger.debug('تم جدولة التنظيف الدوري كل 6 ساعات');
   }
 
   /// تنظيف فوري للنسخ القديمة (يمكن استدعاؤه يدوياً)
   Future<void> cleanupNow() async {
-    debugPrint('🧹 تنظيف فوري مطلوب...');
+    AppLogger.debug('تنظيف فوري مطلوب...');
     await _cleanupOldBackups();
   }
 
@@ -336,7 +337,7 @@ class AutoBackupManager {
   Future<void> setEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_autoBackupEnabledKey, enabled);
-    debugPrint('🔧 النسخ التلقائي: ${enabled ? 'مفعل' : 'معطل'}');
+    AppLogger.debug('النسخ التلقائي: ${enabled ? 'مفعل' : 'معطل'}');
   }
 
   Future<int> _getMaxBackupCount() async {
@@ -347,7 +348,7 @@ class AutoBackupManager {
   Future<void> setMaxBackupCount(int count) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_maxBackupCountKey, count);
-    debugPrint('🔧 عدد النسخ القصوى: $count');
+    AppLogger.debug('عدد النسخ القصوى: $count');
   }
 
   Future<int> getMaxBackupCount() async {
@@ -362,7 +363,7 @@ class AutoBackupManager {
   Future<void> setRetentionDays(int days) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_backupRetentionDaysKey, days);
-    debugPrint('🔧 فترة الاحتفاظ: $days يوماً');
+    AppLogger.debug('فترة الاحتفاظ: $days يوماً');
   }
 
   Future<int> getRetentionDays() async {
@@ -404,7 +405,7 @@ class AutoBackupManager {
     _deltaSyncDebounceTimer?.cancel();
     _deltaSyncTimer?.cancel();
     _cleanupTimer?.cancel();
-    debugPrint('🛑 مدير النسخ التلقائي: تم التنظيف');
+    AppLogger.error('مدير النسخ التلقائي: تم التنظيف');
   }
 
   /// التحقق من حالة المزامنة التفاضلية
@@ -420,11 +421,11 @@ class AutoBackupManager {
     try {
       final smartSync = SmartSyncManager.instance;
       if (await smartSync.isEnabled()) {
-        debugPrint('🔔 إشعار مدير المزامنة الذكية بالنسخة الجديدة...');
+        AppLogger.info('إشعار مدير المزامنة الذكية بالنسخة الجديدة...');
         await smartSync.onLocalBackupUploaded();
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
+      AppLogger.warning('خطأ في إشعار مدير المزامنة: $e');
     }
   }
 
@@ -432,7 +433,7 @@ class AutoBackupManager {
   Future<void> setInstantSyncEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_instantSyncEnabledKey, enabled);
-    debugPrint('🔧 المزامنة الفورية: ${enabled ? 'مفعلة' : 'معطلة'}');
+    AppLogger.debug('المزامنة الفورية: ${enabled ? 'مفعلة' : 'معطلة'}');
   }
 
   /// التحقق من تفعيل المزامنة الفورية
@@ -443,7 +444,7 @@ class AutoBackupManager {
 
   /// مزامنة فورية عند الطلب
   Future<void> syncNow() async {
-    debugPrint('🚀 بدء المزامنة الفورية...');
+    AppLogger.debug('بدء المزامنة الفورية...');
 
     if (_currentMode == BackupMode.deltaSync ||
         _currentMode == BackupMode.both) {
@@ -476,7 +477,7 @@ class AutoBackupManager {
     };
 
     try {
-      debugPrint('🔄 بدء المزامنة التفاضلية...');
+      AppLogger.debug('بدء المزامنة التفاضلية...');
 
       if (await isAppwriteDeltaSyncEnabled() && _appwriteDeltaSync != null) {
         try {
@@ -501,17 +502,17 @@ class AutoBackupManager {
         } catch (e) {
           results['appwrite'] = {'error': e.toString()};
           results['success'] = false;
-          debugPrint('❌ خطأ في مزامنة Appwrite التفاضلية: $e');
+          AppLogger.error('خطأ في مزامنة Appwrite التفاضلية: $e');
         }
       }
 
-      debugPrint('✅ اكتملت المزامنة التفاضلية');
+      AppLogger.info('اكتملت المزامنة التفاضلية');
 
       await _autoRenewActiveBookings();
     } catch (e) {
       results['success'] = false;
       results['error'] = e.toString();
-      debugPrint('❌ خطأ في المزامنة التفاضلية: $e');
+      AppLogger.error('خطأ في المزامنة التفاضلية: $e');
     } finally {
       _isDeltaSyncing = false;
     }
@@ -536,7 +537,7 @@ class AutoBackupManager {
         debugPrint('🏨 تجديد تلقائي: $count حجز نشط (يوم فندقي: $currentHotelDay)');
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في تجديد الحجوزات النشطة: $e');
+      AppLogger.warning('خطأ في تجديد الحجوزات النشطة: $e');
     }
   }
 
@@ -554,7 +555,7 @@ class AutoBackupManager {
     } else {
       _deltaSyncTimer?.cancel();
     }
-    debugPrint('🔧 المزامنة التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
+    AppLogger.debug('المزامنة التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
   }
 
   Future<bool> isAppwriteDeltaSyncEnabled() async {
@@ -565,7 +566,7 @@ class AutoBackupManager {
   Future<void> setAppwriteDeltaSyncEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_appwriteDeltaSyncEnabledKey, enabled);
-    debugPrint('🔧 مزامنة Appwrite التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
+    AppLogger.debug('مزامنة Appwrite التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
   }
 
   /// تعيين وضع النسخ الاحتياطي
@@ -574,7 +575,7 @@ class AutoBackupManager {
     _currentMode = mode;
     await prefs.setInt(_backupModeKey, _currentMode.index);
     await prefs.setBool(_deltaSyncEnabledKey, true);
-    debugPrint('🔧 وضع النسخ الاحتياطي: ${_currentMode.name}');
+    AppLogger.debug('وضع النسخ الاحتياطي: ${_currentMode.name}');
   }
 
   BackupMode get currentBackupMode => _currentMode;

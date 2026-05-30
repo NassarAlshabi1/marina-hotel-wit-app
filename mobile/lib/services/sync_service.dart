@@ -54,7 +54,7 @@ class SyncService {
   /// تهيئة محسن الأداء
   Future<void> initializePerformanceOptimizer() async {
     await _performanceOptimizer.initialize();
-    debugPrint('🔧 تم تهيئة محسن أداء المزامنة');
+    AppLogger.debug('تم تهيئة محسن أداء المزامنة');
   }
 
   /// الحصول على إحصائيات الأداء
@@ -94,11 +94,11 @@ class SyncService {
       _performanceOptimizer.recordSyncAttempt(success: true);
       _status.add(SyncStatus.idle);
 
-      debugPrint('✅ تم إنجاز المزامنة بنجاح');
+      AppLogger.info('تم إنجاز المزامنة بنجاح');
     } catch (e) {
       _performanceOptimizer.recordSyncAttempt(success: false);
       _status.add(SyncStatus.error);
-      debugPrint('❌ فشل في المزامنة: $e');
+      AppLogger.error('فشل في المزامنة: $e');
       rethrow;
     } finally {
       _syncMutex.release();
@@ -175,7 +175,7 @@ class SyncService {
         );
       });
     } catch (e) {
-      debugPrint('❌ فشل في إرسال بيانات المزامنة: $e');
+      AppLogger.error('فشل في إرسال بيانات المزامنة: $e');
       rethrow;
     }
   }
@@ -932,7 +932,7 @@ class SyncService {
         hotelDayKey == null ||
         nightStart == null ||
         nightEnd == null) {
-      debugPrint('⚠️ تخطي booking_nights/$localUuid لعدم اكتمال البيانات');
+      AppLogger.warning('تخطي booking_nights/$localUuid لعدم اكتمال البيانات');
       return;
     }
 
@@ -1052,7 +1052,7 @@ class SyncService {
 
     final hotelDayKey = _asString(data['hotel_day_key']);
     if (hotelDayKey == null || hotelDayKey.isEmpty) {
-      debugPrint('⚠️ تخطي hotel_day_ledger/$localUuid لعدم اكتمال البيانات');
+      AppLogger.warning('تخطي hotel_day_ledger/$localUuid لعدم اكتمال البيانات');
       return;
     }
 

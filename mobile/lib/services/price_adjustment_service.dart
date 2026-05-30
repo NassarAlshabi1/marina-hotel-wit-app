@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'package:uuid/uuid.dart';
 
 import '../utils/hotel_time_engine.dart';
@@ -134,7 +135,7 @@ class PriceAdjustmentService {
           forceRebuild: true,
         );
       } catch (e) {
-        debugPrint('⚠️ خطأ في إعادة حساب حجز ${booking.id}: $e');
+        AppLogger.warning('خطأ في إعادة حساب حجز ${booking.id}: $e');
       }
 
       // حساب النتيجة بعد إعادة الحساب

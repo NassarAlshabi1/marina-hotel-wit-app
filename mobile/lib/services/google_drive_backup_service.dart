@@ -118,7 +118,7 @@ class GoogleDriveBackupService {
   /// Initialize Google Sign-In with interactive login
   Future<bool> signIn() async {
     try {
-      debugPrint('🔐 جاري تسجيل الدخول إلى Google...');
+      AppLogger.debug('جاري تسجيل الدخول إلى Google...');
       final account = await _googleSignIn.signIn();
       if (account != null) {
         final auth = await account.authentication;
@@ -128,13 +128,13 @@ class GoogleDriveBackupService {
         // Save session data
         await _saveSession(account);
         
-        debugPrint('✅ تم تسجيل الدخول بنجاح');
+        AppLogger.info('تم تسجيل الدخول بنجاح');
         await GoogleDriveConfig.setConnected(true);
         return true;
       }
       return false;
     } catch (e) {
-      debugPrint('❌ خطأ في تسجيل الدخول: $e');
+      AppLogger.error('خطأ في تسجيل الدخول: $e');
       return false;
     }
   }
@@ -152,22 +152,22 @@ class GoogleDriveBackupService {
       await _clearSession();
       
       await GoogleDriveConfig.setConnected(false);
-      debugPrint('✅ تم تسجيل الخروج');
+      AppLogger.info('تم تسجيل الخروج');
     } catch (e) {
-      debugPrint('❌ خطأ في تسجيل الخروج: $e');
+      AppLogger.error('خطأ في تسجيل الخروج: $e');
     }
   }
 
   /// Attempt silent sign-in (for auto-backup and session restore)
   Future<bool> attemptSilentSignIn() async {
     try {
-      debugPrint('🔄 محاولة استعادة الجلسة...');
+      AppLogger.debug('محاولة استعادة الجلسة...');
       
       // First check if already signed in
       final isSignedIn = await _googleSignIn.isSignedIn();
       
       if (isSignedIn) {
-        debugPrint('✅ المستخدم مسجل دخول مسبقاً');
+        AppLogger.info('المستخدم مسجل دخول مسبقاً');
         final account = await _googleSignIn.signInSilently();
         if (account != null) {
           await _refreshAccessToken(account);
@@ -176,10 +176,10 @@ class GoogleDriveBackupService {
         }
       }
       
-      debugPrint('⚠️ لا توجد جلسة سابقة');
+      AppLogger.warning('لا توجد جلسة سابقة');
       return false;
     } catch (e) {
-      debugPrint('⚠️ فشل تسجيل الدخول التلقائي: $e');
+      AppLogger.warning('فشل تسجيل الدخول التلقائي: $e');
       return false;
     }
   }
@@ -195,10 +195,10 @@ class GoogleDriveBackupService {
       _tokenExpiry = DateTime.now().add(const Duration(hours: 1));
       
       await _saveSession(account);
-      debugPrint('✅ تم تحديث الـ token');
+      AppLogger.info('تم تحديث الـ token');
       return true;
     } catch (e) {
-      debugPrint('❌ فشل تحديث الـ token: $e');
+      AppLogger.error('فشل تحديث الـ token: $e');
       return false;
     }
   }
@@ -211,9 +211,9 @@ class GoogleDriveBackupService {
       await prefs.setString('gdrive_user_id', account.id);
       await prefs.setString('gdrive_user_display_name', account.displayName ?? '');
       await prefs.setString('gdrive_session_time', DateTime.now().toIso8601String());
-      debugPrint('✅ تم حفظ الجلسة');
+      AppLogger.info('تم حفظ الجلسة');
     } catch (e) {
-      debugPrint('❌ خطأ في حفظ الجلسة: $e');
+      AppLogger.error('خطأ في حفظ الجلسة: $e');
     }
   }
 
@@ -226,9 +226,9 @@ class GoogleDriveBackupService {
       await prefs.remove('gdrive_user_display_name');
       await prefs.remove('gdrive_session_time');
       await prefs.remove('gdrive_access_token');
-      debugPrint('✅ تم مسح الجلسة المحفوظة');
+      AppLogger.info('تم مسح الجلسة المحفوظة');
     } catch (e) {
-      debugPrint('❌ خطأ في مسح الجلسة: $e');
+      AppLogger.error('خطأ في مسح الجلسة: $e');
     }
   }
 
@@ -299,7 +299,7 @@ class GoogleDriveBackupService {
         return await _createAppFolder();
       }
     } catch (e) {
-      debugPrint('❌ خطأ في جلب مجلد التطبيق: $e');
+      AppLogger.error('خطأ في جلب مجلد التطبيق: $e');
     }
     return null;
   }
@@ -331,7 +331,7 @@ class GoogleDriveBackupService {
         return _appFolderId;
       }
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء مجلد التطبيق: $e');
+      AppLogger.error('خطأ في إنشاء مجلد التطبيق: $e');
     }
     return null;
   }
@@ -348,7 +348,7 @@ class GoogleDriveBackupService {
     }
 
     try {
-      debugPrint('🔄 جاري إنشاء نسخة احتياطية...');
+      AppLogger.debug('جاري إنشاء نسخة احتياطية...');
 
       final folderId = await _getAppFolderId();
       if (folderId == null) {
@@ -413,7 +413,7 @@ class GoogleDriveBackupService {
 
       if (fileId != null) {
         await GoogleDriveConfig.saveLastSync(timestamp);
-        debugPrint('✅ تم إنشاء النسخة الاحتياطية: $fileName');
+        AppLogger.info('تم إنشاء النسخة الاحتياطية: $fileName');
         return GoogleDriveBackupResult(
           success: true,
           fileId: fileId,
@@ -428,7 +428,7 @@ class GoogleDriveBackupService {
         message: 'فشل في رفع الملف',
       );
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء النسخة: $e');
+      AppLogger.error('خطأ في إنشاء النسخة: $e');
       return GoogleDriveBackupResult(
         success: false,
         message: 'خطأ: $e',
@@ -476,10 +476,10 @@ class GoogleDriveBackupService {
         return data['id'];
       }
 
-      debugPrint('❌ فشل رفع الملف: ${response.body}');
+      AppLogger.error('فشل رفع الملف: ${response.body}');
       return null;
     } catch (e) {
-      debugPrint('❌ خطأ في رفع الملف: $e');
+      AppLogger.error('خطأ في رفع الملف: $e');
       return null;
     }
   }
@@ -525,7 +525,7 @@ class GoogleDriveBackupService {
         }).toList();
       }
     } catch (e) {
-      debugPrint('❌ خطأ في جلب قائمة النسخ: $e');
+      AppLogger.error('خطأ في جلب قائمة النسخ: $e');
     }
     return [];
   }
@@ -540,7 +540,7 @@ class GoogleDriveBackupService {
     }
 
     try {
-      debugPrint('🔄 جاري استعادة النسخة الاحتياطية...');
+      AppLogger.debug('جاري استعادة النسخة الاحتياطية...');
 
       // Download file content
       final uri = Uri.parse(
@@ -585,14 +585,14 @@ class GoogleDriveBackupService {
       // Restore data (simplified - full implementation would restore each table)
       final totalRecords = metadata['total_records'] as int? ?? 0;
 
-      debugPrint('✅ تم استعادة $totalRecords سجل');
+      AppLogger.info('تم استعادة $totalRecords سجل');
       return GoogleDriveBackupResult(
         success: true,
         recordCount: totalRecords,
         message: 'تم استعادة النسخة بنجاح',
       );
     } catch (e) {
-      debugPrint('❌ خطأ في استعادة النسخة: $e');
+      AppLogger.error('خطأ في استعادة النسخة: $e');
       return GoogleDriveBackupResult(
         success: false,
         message: 'خطأ: $e',
@@ -620,7 +620,7 @@ class GoogleDriveBackupService {
 
       return response.statusCode == 204;
     } catch (e) {
-      debugPrint('❌ خطأ في حذف النسخة: $e');
+      AppLogger.error('خطأ في حذف النسخة: $e');
       return false;
     }
   }

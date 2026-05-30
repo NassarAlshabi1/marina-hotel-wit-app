@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 
 import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
@@ -314,7 +315,7 @@ class BookingPriceAdjustmentService {
           ..where((a) => a.localUuid.equals(uuid)))
         .getSingle();
 
-    debugPrint('✅ تم تطبيق تعديل السعر: $uuid للحجز $bookingLocalUuid');
+    AppLogger.info('تم تطبيق تعديل السعر: $uuid للحجز $bookingLocalUuid');
 
     return result;
   }
@@ -497,7 +498,7 @@ class BookingPriceAdjustmentService {
       forceRebuild: true,
     );
 
-    debugPrint('🔄 تم إعادة حساب الحجز #$bookingId');
+    AppLogger.debug('تم إعادة حساب الحجز #$bookingId');
   }
 
   Future<void> recalculateAfterSync(int bookingId) async {

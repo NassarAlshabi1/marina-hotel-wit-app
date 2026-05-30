@@ -14,9 +14,9 @@ class AutoBackupTask {
       await Workmanager().initialize(
         callbackDispatcher,
       );
-      debugPrint('✅ تم تهيئة AutoBackupTask');
+      AppLogger.info('تم تهيئة AutoBackupTask');
     } catch (e) {
-      debugPrint('❌ خطأ في تهيئة AutoBackupTask: $e');
+      AppLogger.error('خطأ في تهيئة AutoBackupTask: $e');
     }
   }
 
@@ -42,9 +42,9 @@ class AutoBackupTask {
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
-      debugPrint('✅ تم جدولة النسخ اليومي في $time');
+      AppLogger.info('تم جدولة النسخ اليومي في $time');
     } catch (e) {
-      debugPrint('❌ خطأ في جدولة النسخ اليومي: $e');
+      AppLogger.error('خطأ في جدولة النسخ اليومي: $e');
     }
   }
 
@@ -73,9 +73,9 @@ class AutoBackupTask {
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
-      debugPrint('✅ تم جدولة النسخ الأسبوعي في $time يوم $weekday');
+      AppLogger.info('تم جدولة النسخ الأسبوعي في $time يوم $weekday');
     } catch (e) {
-      debugPrint('❌ خطأ في جدولة النسخ الأسبوعي: $e');
+      AppLogger.error('خطأ في جدولة النسخ الأسبوعي: $e');
     }
   }
 
@@ -104,9 +104,9 @@ class AutoBackupTask {
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
-      debugPrint('✅ تم جدولة النسخ الشهري في $time يوم $day');
+      AppLogger.info('تم جدولة النسخ الشهري في $time يوم $day');
     } catch (e) {
-      debugPrint('❌ خطأ في جدولة النسخ الشهري: $e');
+      AppLogger.error('خطأ في جدولة النسخ الشهري: $e');
     }
   }
 
@@ -114,9 +114,9 @@ class AutoBackupTask {
   static Future<void> cancelScheduled() async {
     try {
       await _cancelExisting();
-      debugPrint('✅ تم إلغاء جميع مهام النسخ المجدولة');
+      AppLogger.info('تم إلغاء جميع مهام النسخ المجدولة');
     } catch (e) {
-      debugPrint('❌ خطأ في إلغاء المهام المجدولة: $e');
+      AppLogger.error('خطأ في إلغاء المهام المجدولة: $e');
     }
   }
 
@@ -218,9 +218,9 @@ class AutoBackupTask {
         },
         existingWorkPolicy: ExistingWorkPolicy.replace,
       );
-      debugPrint('✅ تم تشغيل مهمة النسخ الفوري');
+      AppLogger.info('تم تشغيل مهمة النسخ الفوري');
     } catch (e) {
-      debugPrint('❌ خطأ في تشغيل مهمة النسخ الفوري: $e');
+      AppLogger.error('خطأ في تشغيل مهمة النسخ الفوري: $e');
     }
   }
 }
@@ -231,7 +231,7 @@ void callbackDispatcher() {
   WidgetsFlutterBinding.ensureInitialized();
   Workmanager().executeTask((task, inputData) async {
     try {
-      debugPrint('🔄 بدء تنفيذ مهمة النسخ الخلفية: $task');
+      AppLogger.debug('بدء تنفيذ مهمة النسخ الخلفية: $task');
 
       // قراءة إعدادات النسخ التلقائي
       final prefs = await SharedPreferences.getInstance();
@@ -244,24 +244,24 @@ void callbackDispatcher() {
       // تنفيذ النسخ المحلي
       if (enableLocal) {
         try {
-          debugPrint('📱 بدء النسخ الاحتياطي المحلي...');
+          AppLogger.debug('بدء النسخ الاحتياطي المحلي...');
           await localBackupService.createLocalBackup(format: backupFormat);
-          debugPrint('✅ تم النسخ الاحتياطي المحلي بنجاح');
+          AppLogger.info('تم النسخ الاحتياطي المحلي بنجاح');
         } catch (e) {
-          debugPrint('❌ خطأ في النسخ الاحتياطي المحلي: $e');
+          AppLogger.error('خطأ في النسخ الاحتياطي المحلي: $e');
           success = false;
         }
       }
 
       if (success || enableLocal) {
-        debugPrint('✅ تم تنفيذ مهمة النسخ الخلفية بنجاح');
+        AppLogger.info('تم تنفيذ مهمة النسخ الخلفية بنجاح');
         return Future.value(true);
       } else {
-        debugPrint('❌ فشل في تنفيذ جميع أنواع النسخ');
+        AppLogger.error('فشل في تنفيذ جميع أنواع النسخ');
         return Future.value(false);
       }
     } catch (e) {
-      debugPrint('❌ خطأ في تنفيذ مهمة النسخ الخلفية: $e');
+      AppLogger.error('خطأ في تنفيذ مهمة النسخ الخلفية: $e');
 
       // إرجاع false سيؤدي إلى إعادة تشغيل المهمة
       return Future.value(false);
