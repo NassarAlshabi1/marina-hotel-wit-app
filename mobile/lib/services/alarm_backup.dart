@@ -92,7 +92,6 @@ class AlarmBackup {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final enableGoogleDrive = prefs.getBool('auto_backup_enabled') ?? false;
       final enableLocal = prefs.getBool('auto_local_backup_enabled') ?? true;
 
       final localService = LocalBackupService();
@@ -107,25 +106,8 @@ class AlarmBackup {
         }
       }
 
-      // ✅ Google Drive BACKUP enabled (sync is disabled, but backup/restore works)
-      if (enableGoogleDrive) {
-        try {
-          final driveService = GoogleDriveBackupService();
-          final signedIn = await driveService.signInSilentlyIfNeeded();
-          if (signedIn) {
-            final result = await driveService.performAutoBackup();
-            if (result.success) {
-              AppLogger.info('Google Drive auto backup done from alarm');
-            } else {
-              AppLogger.warning('Google Drive auto backup failed: ${result.message}');
-            }
-          } else {
-            AppLogger.warning('Google Drive not signed in — skipping Drive backup');
-          }
-        } catch (e) {
-          AppLogger.error('Google Drive backup error: $e');
-        }
-      }
+      // ⚠️ Automatic Google Drive backup DISABLED from alarm callback.
+      // Use BackupStatusNotifier.createBackup() for manual Google Drive backup.
     } catch (e) {
       AppLogger.error('Alarm backup general error: $e');
     } finally {

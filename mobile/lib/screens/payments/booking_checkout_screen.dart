@@ -75,7 +75,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     DateTime? discountStartDate,
   ) {
     if (discountStartDate == null) {
-      return Time.nightsWithCutoff(checkin, checkout: checkout);
+      return HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkout);
     }
     final discountDayStart = DateTime(
       discountStartDate.year,
@@ -87,7 +87,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     if (!checkout.isAfter(effectiveStart)) {
       return 0;
     }
-    return Time.nightsWithCutoff(effectiveStart, checkout: checkout);
+    return HotelDateHelper.calculateNights(checkIn: effectiveStart, checkOut: checkout);
   }
 
   @override
@@ -119,9 +119,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             final expectedNights = widget.booking.expectedNights > 0
                 ? widget.booking.expectedNights
                 : (checkin != null
-                      ? Time.nightsWithCutoff(
-                          checkin,
-                          checkout: plannedCheckout,
+                      ? HotelDateHelper.calculateNights(
+                          checkIn: checkin,
+                          checkOut: plannedCheckout,
                         )
                       : 1);
             // ✅ إصلاح: استخدام تاريخ اليوم الفندقي بدلاً من DateTime.now()
@@ -131,9 +131,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             final hasNotCheckedOut = actualCheckout == null;
             final nowIsAfterCutoff = HotelDateHelper.isNowAfterCutoff();
             final actualNights = checkin != null
-                ? Time.nightsWithCutoff(
-                    checkin,
-                    checkout: effectiveCheckout,
+                ? HotelDateHelper.calculateNights(
+                    checkIn: checkin,
+                    checkOut: effectiveCheckout,
                   )
                 : expectedNights;
 
@@ -685,7 +685,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         final checkin =
             DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
         final nowDate = DateTime.parse(nowIso);
-        final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
+        final actualNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: nowDate);
 
         // استخدام refreshAllRoomOccupancy بدلاً من تحديث يدوي جزئي
         // هذا يضمن تناسق جميع حالات الغرف

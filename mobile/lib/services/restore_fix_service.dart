@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
+import '../utils/hotel_date_helper.dart';
 import 'daos/bookings_dao.dart';
 import 'daos/debts_dao.dart';
 import 'daos/outbox_dao.dart';
@@ -363,9 +364,9 @@ class RestoreFixService {
                 : now);
 
       // حساب الليالي باستخدام قاعدة الساعة 14:00
-      final calculatedNights = Time.nightsWithCutoff(
-        checkinDate,
-        checkout: checkoutDate,
+      final calculatedNights = HotelDateHelper.calculateNights(
+        checkIn: checkinDate,
+        checkOut: checkoutDate,
       );
 
       // مقارنة مع القيم الحالية
@@ -1085,19 +1086,9 @@ class RestoreFixService {
   List<_NightSegment> _buildNightSegments(DateTime checkin, DateTime checkout, {int cutoffHour = 14}) {
     final segments = <_NightSegment>[];
 
+    final days = HotelDateHelper.calculateDays(checkin, checkOut: checkout);
+
     final checkinDate = DateTime(checkin.year, checkin.month, checkin.day);
-    final checkoutDate = DateTime(checkout.year, checkout.month, checkout.day);
-    int days = checkoutDate.difference(checkinDate).inDays;
-
-    if (days == 0) {
-      days = 1;
-    }
-
-    if (checkout.hour > cutoffHour ||
-        (checkout.hour == cutoffHour && checkout.minute > 0) ||
-        (checkout.hour == cutoffHour && checkout.minute == 0 && checkout.second > 0)) {
-      days += 1;
-    }
 
     for (int i = 0; i < days; i++) {
       final dayDate = checkinDate.add(Duration(days: i));

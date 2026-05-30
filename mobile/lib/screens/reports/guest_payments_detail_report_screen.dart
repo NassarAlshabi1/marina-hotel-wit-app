@@ -13,7 +13,7 @@ import '../../utils/currency_formatter.dart';
 import '../../utils/enhanced_pdf_utils.dart' as epdf;
 import '../../utils/report_pdf_builder.dart';
 import '../../utils/status_utils.dart';
-import '../../utils/time.dart';
+import '../../utils/hotel_date_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────
 // يستخدم StayBalanceCalculator المحرك الموحد لحساب الرصيد والتواريخ
@@ -49,7 +49,7 @@ class _GuestPaymentsDetailReportScreenState
     final end = (b.actualCheckout != null && b.actualCheckout!.isNotEmpty)
         ? DateTime.tryParse(b.actualCheckout!)
         : DateTime.now();
-    return Time.nightsWithCutoff(checkin, checkout: end);
+    return HotelDateHelper.calculateNights(checkIn: checkin, checkOut: end);
   }
 
   /// حساب الأيام المتبقية حتى تاريخ المغادرة المخطط
@@ -66,7 +66,7 @@ int _getDaysUntilCheckout(Booking b) {
     if (checkout.isBefore(now)) {
       return 0;
     }
-    return Time.nightsWithCutoff(now, checkout: checkout);
+    return HotelDateHelper.calculateNights(checkIn: now, checkOut: checkout);
   }
 
   /// حساب متوسط سعر الليلة الواحدة للحجز
@@ -106,7 +106,7 @@ double _getConsumedCost(Booking b) {
     if (checkout == null) {
       return 0;
     }
-    return Time.nightsWithCutoff(checkout, checkout: DateTime.now());
+    return HotelDateHelper.calculateNights(checkIn: checkout, checkOut: DateTime.now());
   }
 
   /// تكلفة أيام التأخير
@@ -425,7 +425,7 @@ double _getOverdueCost(Booking b) {
     final nightlyRate = coverage.effectiveNightlyRate > 0 ? coverage.effectiveNightlyRate : _getAverageNightlyRate(b);
     final plannedCheckout = coverage.autoCheckoutDate;
     final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
-    final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
+    final autoOverdueDays = isAutoOverdue ? HotelDateHelper.calculateNights(checkIn: plannedCheckout, checkOut: DateTime.now()) : 0;
     final autoOverdueCost = autoOverdueDays * nightlyRate;
 
     final consumedCost = coverage.consumedCost;
@@ -505,7 +505,7 @@ double _getOverdueCost(Booking b) {
   Widget _buildDatesSection(Booking b, StayBalanceResult coverage) {
     final plannedCheckout = coverage.autoCheckoutDate;
     final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
-    final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
+    final autoOverdueDays = isAutoOverdue ? HotelDateHelper.calculateNights(checkIn: plannedCheckout, checkOut: DateTime.now()) : 0;
 
     return Column(
       children: [
@@ -585,9 +585,9 @@ double _getOverdueCost(Booking b) {
   Widget _buildDaysSection(Booking b, int actualDays, StayBalanceResult coverage) {
     final plannedCheckout = coverage.autoCheckoutDate;
     final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
-    final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
+    final autoOverdueDays = isAutoOverdue ? HotelDateHelper.calculateNights(checkIn: plannedCheckout, checkOut: DateTime.now()) : 0;
     final nightsUntilPlanned = !isAutoOverdue && plannedCheckout.isAfter(DateTime.now())
-        ? Time.nightsWithCutoff(DateTime.now(), checkout: plannedCheckout)
+        ? HotelDateHelper.calculateNights(checkIn: DateTime.now(), checkOut: plannedCheckout)
         : 0;
 
     return Row(
@@ -764,7 +764,7 @@ double _getOverdueCost(Booking b) {
         // ─── قسم المغادرة المخططة (محسوبة من المدفوعات) + التمديد عند التجاوز ───
         final plannedCheckout = coverage.autoCheckoutDate;
         final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
-        final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
+        final autoOverdueDays = isAutoOverdue ? HotelDateHelper.calculateNights(checkIn: plannedCheckout, checkOut: DateTime.now()) : 0;
         final autoOverdueCost = autoOverdueDays * nightlyRate;
 
         pdfContent.add(pw.SizedBox(height: 16));

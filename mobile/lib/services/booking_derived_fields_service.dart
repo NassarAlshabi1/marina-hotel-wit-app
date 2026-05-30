@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 import '../utils/app_logger.dart';
 
 import '../utils/status_utils.dart';
+import '../utils/hotel_date_helper.dart';
 import '../utils/time.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
@@ -227,7 +228,7 @@ class BookingDerivedFieldsService {
     final segments = <_NightSegment>[];
 
     // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
-    final int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: resolvedCutoffHour);
+    final int totalNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkout);
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
     DateTime startOfCheckinHotelDay = DateTime(

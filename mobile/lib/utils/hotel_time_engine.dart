@@ -1,299 +1,174 @@
-import 'time.dart';
+/// محرك الوقت الفندقي — يفوض جميع الحسابات إلى HotelDateHelper
+///
+/// **هذه الفئة موجودة للتوافق مع الكود القائم فقط.**
+/// المصدر الوحيد للحسابات هو [HotelDateHelper].
+///
+/// جميع الاستدعاءات تُحوّل مباشرة إلى HotelDateHelper
+/// لضمان ثبات الحسابات في مكان واحد.
+library;
 
-/// محرك الوقت الفندقي — المصدر الوحيد للحسابات
-///
-/// **مبدأ التصميم:**
-/// - لا يخزن أي قيمة — يحسب فقط
-/// - كل حسابات الليالي والمبالغ تمر من هنا
-/// - يُستخدم مباشرة من UI عبر BookingComputedStreamService
-/// - لا يعتمد على أي حقل محسوب في قاعدة البيانات
-///
-/// **قاعدة 14:00:**
-/// - اليوم الفندقي يمتد من 14:00 حتى 14:00 من اليوم التالي
-/// - check-in قبل 14:00 = يوم فندقي سابق
-/// - check-in في 14:00 أو بعد = يوم فندقي جديد
-/// - checkout بعد 14:00 = ليلة إضافية
+import 'hotel_date_helper.dart';
+
+@Deprecated('استخدم HotelDateHelper بدلاً من HotelTimeEngine — المصدر الوحيد للحسابات')
 class HotelTimeEngine {
   HotelTimeEngine._();
 
   // ═══════════════════════════════════════════════════════════════
-  // ثوابت
+  // ثوابت — تفوض إلى HotelDateHelper
   // ═══════════════════════════════════════════════════════════════
 
   /// ساعة بداية اليوم الفندقي (14:00)
-  static const int boundaryHour = 14;
-
-  /// دالة لتحديد بداية ونهاية اليوم الفندقي لتاريخ معين.
-  /// اليوم الفندقي يبدأ الساعة 14:00 وينتهي في اليوم التالي الساعة 13:59:59.
-  static Map<String, DateTime> getHotelDayRange(DateTime date) {
-    DateTime hotelDayStart;
-    DateTime hotelDayEnd;
-
-    // إذا كان الوقت الحالي قبل الساعة 14:00
-    if (date.hour < boundaryHour) {
-      // اليوم الفندقي بدأ أمس الساعة 14:00
-      hotelDayStart = DateTime(date.year, date.month, date.day - 1, boundaryHour);
-      // وينتهي اليوم الساعة 13:59:59
-      hotelDayEnd = DateTime(date.year, date.month, date.day, boundaryHour - 1, 59, 59, 999);
-    } else { // إذا كان الوقت الحالي بعد أو يساوي الساعة 14:00
-      // اليوم الفندقي بدأ اليوم الساعة 14:00
-      hotelDayStart = DateTime(date.year, date.month, date.day, boundaryHour);
-      // وينتهي غداً الساعة 13:59:59
-      hotelDayEnd = DateTime(date.year, date.month, date.day + 1, boundaryHour - 1, 59, 59, 999);
-    }
-
-    return {
-      'start': hotelDayStart,
-      'end': hotelDayEnd,
-    };
-  }
+  static const int boundaryHour = HotelDateHelper.boundaryHour;
 
   // ═══════════════════════════════════════════════════════════════
   // تحويل التاريخ إلى يوم فندقي
   // ═══════════════════════════════════════════════════════════════
 
   /// تحويل أي DateTime إلى "يوم فندقي" (Date فقط، بدون وقت).
-  ///
-  /// القاعدة:
-  /// - الوقت > 14:00:00 (حتى ثانية واحدة) → نفس اليوم
-  /// - الوقت <= 14:00:00 → اليوم السابق
-  ///
-  /// 14:00:00 بالضبط = نهاية اليوم الفندقي الحالي (يعود لليوم السابق).
-  /// 14:00:01 = بداية اليوم الفندقي الجديد.
-  ///
-  /// مثال:
-  /// - 2025-01-15 13:59 → 2025-01-14 (يوم فندقي سابق)
-  /// - 2025-01-15 14:00 → 2025-01-14 (نهاية اليوم الفندقي 14)
-  /// - 2025-01-15 14:01 → 2025-01-15 (بداية يوم فندقي جديد)
-  static DateTime getHotelDay(DateTime dt) {
-    final isAfterBoundary = dt.hour > boundaryHour ||
-        (dt.hour == boundaryHour && (dt.minute > 0 || dt.second > 0));
-    if (isAfterBoundary) {
-      return DateTime(dt.year, dt.month, dt.day);
-    } else {
-      final prev = dt.subtract(const Duration(days: 1));
-      return DateTime(prev.year, prev.month, prev.day);
-    }
-  }
+  static DateTime getHotelDay(DateTime dt) =>
+      HotelDateHelper.getHotelDay(dt);
 
   /// مفتاح اليوم الفندقي كنص YYYY-MM-DD.
-  static String getHotelDayKey({DateTime? dateTime}) {
-    final dt = dateTime ?? DateTime.now();
-    return Time.dateToString(getHotelDay(dt));
-  }
+  static String getHotelDayKey({DateTime? dateTime}) =>
+      HotelDateHelper.getHotelDayKey(dateTime: dateTime);
 
   /// تحويل ISO string إلى مفتاح يوم فندقي.
-  static String getHotelDayKeyFromIso(String? isoString) {
-    if (isoString == null || isoString.trim().isEmpty) {
-      return getHotelDayKey();
-    }
-    try {
-      final normalized = isoString.trim().contains('T')
-          ? isoString.trim()
-          : isoString.trim().replaceFirst(' ', 'T');
-      final dt = DateTime.parse(normalized);
-      return getHotelDayKey(dateTime: dt);
-    } catch (_) {
-      return getHotelDayKey();
-    }
-  }
+  static String getHotelDayKeyFromIso(String? isoString) =>
+      HotelDateHelper.getHotelDayKeyFromIso(isoString);
+
+  /// تحديد بداية ونهاية اليوم الفندقي.
+  static Map<String, DateTime> getHotelDayRange(DateTime date) =>
+      HotelDateHelper.getHotelDayRange(date);
 
   // ═══════════════════════════════════════════════════════════════
-  // حساب الليالي (المصدر الوحيد)
+  // حساب الليالي
   // ═══════════════════════════════════════════════════════════════
 
-  /// حساب عدد الليالي الفندقية بين تاريخ الدخول والخروج.
-  ///
-  /// **هذه هي الدالة الوحيدة لحساب الليالي في التطبيق كله.**
-  ///
-  /// القواعد:
-  /// - نفس اليوم = ليلة واحدة كحد أدنى
-  /// - checkout بعد 14:00 (حتى ثانية واحدة) = ليلة إضافية
-  /// - checkout عند 14:00:00 بالضبط = لا تُحتسب ليلة إضافية
-  ///
-  /// مثال:
-  /// - 01/01 14:01 → 02/01 14:01 = 2 ليالي
-  /// - 01/01 14:01 → 02/01 13:59 = 1 ليلة
-  /// - 01/01 14:01 → (الآن بعد 3 أيام) = 3 ليالي
-  static int calculateDays(DateTime checkIn, {DateTime? checkOut}) {
-    return Time.nightsWithCutoff(
-      checkIn,
-      checkout: checkOut,
-    );
-  }
+  /// حساب عدد الليالي الفندقية.
+  static int calculateDays(DateTime checkIn, {DateTime? checkOut}) =>
+      HotelDateHelper.calculateDays(checkIn, checkOut: checkOut);
 
-  /// حساب الليالي مع مراعاة تاريخ بداية الخصم.
-  ///
-  /// يُستخدم عند وجود خصم يبدأ في تاريخ محدد.
+  /// حساب الليالي مع خصم.
   static int calculateDaysWithDiscount({
     required DateTime checkIn,
     required DateTime checkOut,
     DateTime? discountStartDate,
-  }) {
-    if (discountStartDate == null) {
-      return calculateDays(checkIn, checkOut: checkOut);
-    }
+  }) =>
+      HotelDateHelper.calculateDaysWithDiscount(
+        checkIn: checkIn,
+        checkOut: checkOut,
+        discountStartDate: discountStartDate,
+      );
 
-    final discountDayStart = DateTime(
-      discountStartDate.year,
-      discountStartDate.month,
-      discountStartDate.day,
-      boundaryHour,
-    );
-    final effectiveStart =
-        discountDayStart.isAfter(checkIn) ? discountDayStart : checkIn;
-    if (!checkOut.isAfter(effectiveStart)) {
-      return 0;
-    }
-    return calculateDays(effectiveStart, checkOut: checkOut);
-  }
+  /// حساب عدد الليالي (واجهة توافقية مع HotelDateHelper).
+  static int calculateNights({
+    required DateTime checkIn,
+    DateTime? checkOut,
+  }) =>
+      HotelDateHelper.calculateNights(checkIn: checkIn, checkOut: checkOut);
+
+  // ═══════════════════════════════════════════════════════════════
+  // الحسابات المالية
+  // ═══════════════════════════════════════════════════════════════
+
+  /// حساب المبلغ الإجمالي = الليالي × سعر الغرفة.
+  static double calculateTotal({
+    required int days,
+    required double roomPrice,
+    double discount = 0,
+    String discountType = 'per_night',
+  }) =>
+      HotelDateHelper.calculateTotal(
+        days: days,
+        roomPrice: roomPrice,
+        discount: discount,
+        discountType: discountType,
+      );
+
+  /// حساب المبلغ الإجمالي (نسخة الأعداد الصحيحة).
+  static int calculateTotalAmount(
+    int pricePerNight,
+    DateTime checkIn, {
+    DateTime? checkOut,
+    int discount = 0,
+  }) =>
+      HotelDateHelper.calculateTotalAmount(
+        pricePerNight,
+        checkIn,
+        checkOut: checkOut,
+        discount: discount,
+      );
 
   // ═══════════════════════════════════════════════════════════════
   // فحوصات الوقت
   // ═══════════════════════════════════════════════════════════════
 
   /// هل الوقت الحالي بعد ساعة بداية اليوم الفندقي؟
-  /// true إذا الوقت > 14:00:00 (حتى ثانية واحدة إضافية).
-  static bool isNowAfterCutoff() {
-    final now = DateTime.now();
-    return now.hour > boundaryHour ||
-        (now.hour == boundaryHour &&
-            (now.minute > 0 || now.second > 0));
-  }
+  static bool isNowAfterCutoff() => HotelDateHelper.isNowAfterCutoff();
 
   /// هل الوقت المحدد بعد ساعة بداية اليوم الفندقي؟
-  static bool isAfterCutoff(DateTime dateTime) {
-    return dateTime.hour > boundaryHour ||
-        (dateTime.hour == boundaryHour &&
-            (dateTime.minute > 0 || dateTime.second > 0));
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // الحسابات المالية (الواجهة الموحدة)
-  // ═══════════════════════════════════════════════════════════════
-
-  /// حساب المبلغ الإجمالي = الليالي × سعر الغرفة.
-  ///
-  /// [roomPrice] يُؤخذ من جدول الغرف (rooms.price) عبر roomNumber.
-  static double calculateTotal({
-    required int days,
-    required double roomPrice,
-    double discount = 0,
-    String discountType = 'per_night',
-  }) {
-    if (days <= 0 || roomPrice <= 0) {
-      return 0;
-    }
-
-    double total = days * roomPrice;
-
-    if (discount > 0) {
-      if (discountType == 'total') {
-        total -= discount;
-      } else {
-        // per_night: خصم لكل ليلة
-        total -= discount * days;
-      }
-    }
-
-    return total < 0 ? 0 : total;
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // فحص الحالة
-  // ═══════════════════════════════════════════════════════════════
+  static bool isAfterCutoff(DateTime dateTime) =>
+      HotelDateHelper.isAfterCutoff(dateTime);
 
   /// هل الحجز متأخر عن الخروج؟
-  /// حجز نشط وتجاوز تاريخ الخروج المحدد.
   static bool isOverdue({
     required String status,
     required String? checkoutDate,
-  }) {
-    if (status != 'نشط') {
-      return false;
-    }
-    if (checkoutDate == null || checkoutDate.isEmpty) {
-      return false;
-    }
-
-    try {
-      final checkout = DateTime.parse(
-        checkoutDate.contains('T')
-            ? checkoutDate
-            : checkoutDate.replaceFirst(' ', 'T'),
-      );
-      return DateTime.now().isAfter(checkout);
-    } catch (_) {
-      return false;
-    }
-  }
+  }) =>
+      HotelDateHelper.isOverdue(status: status, checkoutDate: checkoutDate);
 
   /// هل يحتاج مراجعة الخروج؟
-  /// إما متأخر أو لديه رصيد متبقي.
   static bool needsCheckoutReview({
     required bool isOverdue,
     required double remainingBalance,
-  }) {
-    return isOverdue || remainingBalance > 0;
-  }
+  }) =>
+      HotelDateHelper.needsCheckoutReview(
+        isOverdue: isOverdue,
+        remainingBalance: remainingBalance,
+      );
 
   // ═══════════════════════════════════════════════════════════════
-  // التوافق مع HotelDateHelper (لا يكسر الكود القديم)
+  // فترات اليوم الفندقي
   // ═══════════════════════════════════════════════════════════════
 
-  /// حساب عدد الليالي (واجهة توافقية مع HotelDateHelper).
-  static int calculateNights({
-    required DateTime checkIn,
-    DateTime? checkOut,
-  }) {
-    return calculateDays(checkIn, checkOut: checkOut);
-  }
+  /// لحظة البداية (14:00:00) لليوم الفندقي.
+  static DateTime hotelDayStart(DateTime value) =>
+      HotelDateHelper.hotelDayStart(value);
+
+  /// لحظة النهاية (14:00:00 من اليوم التالي) لليوم الفندقي.
+  static DateTime hotelDayEnd(DateTime value) =>
+      HotelDateHelper.hotelDayEnd(value);
+
+  // ═══════════════════════════════════════════════════════════════
+  // تنسيق
+  // ═══════════════════════════════════════════════════════════════
+
+  /// تنسيق تاريخ كنص yyyy-MM-dd.
+  static String formatHotelDay(DateTime date) =>
+      HotelDateHelper.formatHotelDay(date);
+
+  // ═══════════════════════════════════════════════════════════════
+  // مؤقتات التحديث
+  // ═══════════════════════════════════════════════════════════════
 
   /// الفترة المتبقية حتى بداية اليوم الفندقي التالي (14:00).
-  static Duration timeUntilNextHotelDay() {
-    final now = DateTime.now();
-    var next = DateTime(now.year, now.month, now.day, boundaryHour);
-    if (!now.isBefore(next)) {
-      next = next.add(const Duration(days: 1));
-    }
-    return next.difference(now);
-  }
+  static Duration timeUntilNextHotelDay() =>
+      HotelDateHelper.timeUntilNextHotelDay();
 
   // ═══════════════════════════════════════════════════════════════
-  // حقول لا تُزامن (مصدر حقيقة محلي فقط)
+  // الحقول المحسوبة
   // ═══════════════════════════════════════════════════════════════
 
-  /// الحقول المحسوبة التي يجب عدم مزامنتها إلى Appwrite.
-  ///
-  /// تُستخدم في:
-  /// - Appwrite Delta Sync: حذفها قبل الدفع (push)
-  /// - BookingComputedStreamService: تجاهلها عند القراءة
-  static const bookingComputedFields = <String>{
-    'calculatedNights',
-    'totalNightsCached',
-    'stayDurationIso',
-    'lastNightEpoch',
-    'isOverdue',
-    'needsCheckoutReview',
-    'totalDueCached',
-    'totalPaidCached',
-    'remainingBalanceCached',
-    'isFullyPaid',
-    'hotelDayCheckin',
-    'hotelDayCheckout',
-  };
+  /// الحقول المحسوبة التي لا تُزامن.
+  static const bookingComputedFields = HotelDateHelper.bookingComputedFields;
 
   /// فحص هل حقل معين هو حقل محسوب.
-  static bool isBookingComputedField(String fieldName) {
-    return bookingComputedFields.contains(fieldName);
-  }
+  static bool isBookingComputedField(String fieldName) =>
+      HotelDateHelper.isBookingComputedField(fieldName);
 
-  /// تصفية بيانات الحجز من الحقول المحسوبة قبل الرفع.
+  /// تصفية بيانات الحجز من الحقول المحسوبة.
   static Map<String, dynamic> stripComputedFields(
     Map<String, dynamic> payload,
-  ) {
-    final result = Map<String, dynamic>.from(payload);
-    bookingComputedFields.forEach(result.remove);
-    return result;
-  }
+  ) =>
+      HotelDateHelper.stripComputedFields(payload);
 }

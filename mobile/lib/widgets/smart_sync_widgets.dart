@@ -3,9 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/backup_provider.dart';
 import '../providers/smart_sync_provider.dart';
-import '../screens/settings/smart_sync_settings_screen.dart';
+
+// ═══════════════════════════════════════════════════════════════════
+// ⚠️ Smart Sync widgets are DISABLED
+// With smartSyncStatusProvider always returning enabled: false,
+// all widgets below will render as SizedBox.shrink() automatically.
+// Kept for compilation compatibility — they won't appear in the UI.
+// ═══════════════════════════════════════════════════════════════════
 
 /// Widget لعرض حالة المزامنة في الوقت الفعلي
+/// [DISABLED] Always renders invisible — smart sync is off.
 class SmartSyncStatusWidget extends ConsumerWidget {
   const SmartSyncStatusWidget({super.key});
 
@@ -21,6 +28,7 @@ class SmartSyncStatusWidget extends ConsumerWidget {
         final isSyncing = status['is_syncing'] as bool;
         final isSignedIn = status['signed_in'] as bool;
 
+        // [DISABLED] Always hides — isEnabled and isSignedIn are both false.
         if (!isEnabled || !isSignedIn) {
           return const SizedBox.shrink();
         }
@@ -72,6 +80,7 @@ class SmartSyncStatusWidget extends ConsumerWidget {
 }
 
 /// Widget لإشعارات المزامنة التفاعلية
+/// [DISABLED] No notifications will be shown — smart sync is off.
 class SmartSyncNotificationListener extends ConsumerStatefulWidget {
 
   const SmartSyncNotificationListener({super.key, required this.child});
@@ -92,50 +101,16 @@ class _SmartSyncNotificationListenerState
       previous,
       next,
     ) {
-      if (next.hasValue) {
-        final status = next.value!;
-        final lastSyncString = status['last_sync_check'] as String?;
-
-        if (lastSyncString != null) {
-          final lastSync = DateTime.parse(lastSyncString);
-
-          // إذا كانت هناك مزامنة جديدة
-          if (_lastSyncTime == null || lastSync.isAfter(_lastSyncTime!)) {
-            _lastSyncTime = lastSync;
-
-            // عرض إشعار نجاح المزامنة
-            if (mounted && _lastSyncTime != null) {
-              _showSyncNotification(context, 'تمت مزامنة البيانات من جهاز آخر');
-            }
-          }
-        }
-      }
+      // [DISABLED] No notifications — smart sync status never reports sync events.
+      // Keeping the listener structure for compilation compatibility.
     });
 
     return widget.child;
   }
-
-  void _showSyncNotification(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.cloud_sync, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
 }
 
 /// FloatingActionButton لمزامنة يدوية سريعة
+/// [DISABLED] Always renders invisible — smart sync is off.
 class SmartSyncFloatingButton extends ConsumerWidget {
   const SmartSyncFloatingButton({super.key});
 
@@ -151,42 +126,13 @@ class SmartSyncFloatingButton extends ConsumerWidget {
         final isSyncing = status['is_syncing'] as bool;
         final isSignedIn = status['signed_in'] as bool;
 
+        // [DISABLED] Always hides — isEnabled and isSignedIn are both false.
         if (!isEnabled || !isSignedIn) {
           return const SizedBox.shrink();
         }
 
         Future<void> runManualSync() async {
-          try {
-            final manager = ref.read(smartSyncManagerProvider);
-            await manager.forceSyncNow();
-
-            if (context.mounted) {
-              // ignore: use_build_context_synchronously
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('🔄 بدأت المزامنة اليدوية...'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            }
-          } catch (e) {
-            if (context.mounted) {
-              // ignore: use_build_context_synchronously
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text(
-                    'تعذر بدء المزامنة. تحقق من الاتصال ثم أعد المحاولة',
-                  ),
-                  backgroundColor: Colors.red,
-                  action: SnackBarAction(
-                    label: 'إعادة',
-                    textColor: Colors.white,
-                    onPressed: runManualSync,
-                  ),
-                ),
-              );
-            }
-          }
+          // [DISABLED] Smart sync forceSyncNow is a no-op.
         }
 
         return FloatingActionButton.small(
@@ -210,8 +156,8 @@ class SmartSyncFloatingButton extends ConsumerWidget {
 }
 
 /// Card مختصر لحالة المزامنة (للـ dashboard)
-/// إصلاح: تم تحويل من ConsumerWidget إلى ConsumerStatefulWidget
-/// لنقل addPostFrameCallback من build() إلى initState() - يتم تنفيذه مرة واحدة فقط
+/// [DISABLED] Always renders invisible — smart sync is off.
+/// Navigation to SmartSyncSettingsScreen has been removed.
 class SmartSyncDashboardCard extends ConsumerStatefulWidget {
   const SmartSyncDashboardCard({super.key});
 
@@ -244,18 +190,20 @@ class _SmartSyncDashboardCardState
         final isSyncing = status['is_syncing'] as bool;
         final isSignedIn = status['signed_in'] as bool;
 
+        // [DISABLED] Always hides — signed_in is always false.
         if (!isSignedIn) {
           return const SizedBox.shrink();
         }
 
+        // [DISABLED] The code below is unreachable since isSignedIn is always false.
+        // Kept for compilation compatibility. Navigation to SmartSyncSettingsScreen
+        // has been removed — tapping the card does nothing.
         return Card(
           margin: EdgeInsets.zero,
           child: InkWell(
             onTap: () {
-              Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(builder: (_) => const SmartSyncSettingsScreen(),
-                ),
-              );
+              // ⚠️ Navigation to SmartSyncSettingsScreen DISABLED.
+              // That screen controls a disabled feature.
             },
             borderRadius: BorderRadius.circular(8),
             child: Padding(
@@ -310,8 +258,7 @@ class _SmartSyncDashboardCardState
                         padding: EdgeInsets.zero,
                         icon: const Icon(Icons.sync_alt, size: 18),
                         onPressed: () async {
-                          final manager = ref.read(smartSyncManagerProvider);
-                          await manager.forceSyncNow();
+                          // [DISABLED] Smart sync forceSyncNow is a no-op.
                         },
                         tooltip: 'مزامنة الآن',
                       ),

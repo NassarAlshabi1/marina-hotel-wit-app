@@ -9,7 +9,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
-import '../../utils/time.dart';
+import '../../utils/hotel_date_helper.dart';
 import '../payments/booking_payment_screen.dart';
 import '../payments/payments_main_screen.dart';
 import 'booking_edit.dart';
@@ -132,23 +132,23 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                 actualCheckout == null;
                             final dynamicNights =
                                 hasNoCheckout && checkin != null
-                                    ? Time.nightsWithCutoff(checkin)
+                                    ? HotelDateHelper.calculateNights(checkIn: checkin)
                                     : null;
                             final expectedNights = dynamicNights ??
                                 (booking.expectedNights > 0
                                     ? booking.expectedNights
                                     : (checkin == null
                                           ? 1
-                                          : Time.nightsWithCutoff(
-                                              checkin,
-                                              checkout: plannedCheckout,
+                                          : HotelDateHelper.calculateNights(
+                                              checkIn: checkin,
+                                              checkOut: plannedCheckout,
                                             )));
                             final actualNights = dynamicNights ??
                                 (checkin == null
                                     ? expectedNights
-                                    : Time.nightsWithCutoff(
-                                        checkin,
-                                        checkout:
+                                    : HotelDateHelper.calculateNights(
+                                        checkIn: checkin,
+                                        checkOut:
                                             actualCheckout ?? plannedCheckout,
                                       ));
                             final totalAmount = actualNights * price
@@ -196,23 +196,23 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                           actualCheckout == null;
                       final dynamicNights =
                           hasNoCheckout && checkin != null
-                              ? Time.nightsWithCutoff(checkin)
+                              ? HotelDateHelper.calculateNights(checkIn: checkin)
                               : null;
                       final expectedNights = dynamicNights ??
                           (booking.expectedNights > 0
                               ? booking.expectedNights
                               : (checkin == null
                                     ? 1
-                                    : Time.nightsWithCutoff(
-                                        checkin,
-                                        checkout: plannedCheckout,
+                                    : HotelDateHelper.calculateNights(
+                                        checkIn: checkin,
+                                        checkOut: plannedCheckout,
                                       )));
                       final actualNights = dynamicNights ??
                           (checkin == null
                               ? expectedNights
-                              : Time.nightsWithCutoff(
-                                  checkin,
-                                  checkout:
+                              : HotelDateHelper.calculateNights(
+                                  checkIn: checkin,
+                                  checkOut:
                                       actualCheckout ?? plannedCheckout,
                                 ));
                       final totalAmount = actualNights * price;

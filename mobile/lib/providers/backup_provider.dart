@@ -12,6 +12,7 @@ import '../services/local_backup_service.dart'
     show LocalBackupService, LocalBackupFile;
 import '../services/local_db.dart';
 import '../services/logging/log_models.dart';
+import '../services/google_drive_logger.dart';
 import '../services/restore_fix_service.dart';
 import '../services/sqlite_backup_restore.dart';
 import 'appwrite_providers.dart';
@@ -239,12 +240,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       List<DriveBackupFile> driveBackups = [];
       final account = _backupService.currentUser;
       if (_backupService.isSignedIn && silentSignedIn) {
-        // إشعار مديري المزامنة بنجاح تسجيل الدخول الصامت (مع معالجة الأخطاء)
-        try {
-          await _notifySyncManagers(true);
-        } catch (e) {
-          AppLogger.warning('خطأ في إشعار مديري المزامنة', tag: 'BACKUP', error: e);
-        }
+        // ⚠️ _notifySyncManagers disabled — no automatic Google Drive sync on startup
+        // Manual backup/restore still works via createBackup() / restoreFromBackup()
 
         // جلب قائمة النسخ المتاحة في Google Drive (مع معالجة الأخطاء)
         try {
@@ -621,8 +618,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final enableDrive =
           settings.isEnabled && settings.enableGoogleDriveBackup;
       final enableLocal = settings.isEnabled && settings.enableLocalBackup;
-      final shouldScheduleTask = enableDrive || enableLocal;
 
+      // ⚠️ AutoBackupTask scheduling only for local backup — Google Drive auto backup is DISABLED.
+      // AutoBackupTask callbackDispatcher only performs local backup.
+      // Google Drive backup must be triggered manually via createBackup().
+      final shouldScheduleTask = enableLocal; // was: enableDrive || enableLocal
+
+      // Save Google Drive backup settings (for manual use only)
       await _backupService.setAutoBackupEnabled(enableDrive);
       await _backupService.setAutoBackupFrequency(settings.frequency);
       await _backupService.setAutoBackupTime(settings.time);

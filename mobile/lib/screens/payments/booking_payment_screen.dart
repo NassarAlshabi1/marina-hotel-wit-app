@@ -193,7 +193,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     DateTime? discountStartDate,
   ) {
     if (discountStartDate == null) {
-      return Time.nightsWithCutoff(checkin, checkout: checkout);
+      return HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkout);
     }
     final discountDayStart = DateTime(
       discountStartDate.year,
@@ -205,7 +205,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     if (!checkout.isAfter(effectiveStart)) {
       return 0;
     }
-    return Time.nightsWithCutoff(effectiveStart, checkout: checkout);
+    return HotelDateHelper.calculateNights(checkIn: effectiveStart, checkOut: checkout);
   }
 
   @override
@@ -1516,7 +1516,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
     final now = DateTime.now();
-    final currentStay = Time.nightsWithCutoff(checkin, checkout: now);
+    final currentStay = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: now);
     final expectedNights = widget.booking.expectedNights;
 
     // عرض خيارات الليالي الإضافية إذا:
@@ -1536,7 +1536,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
     final now = DateTime.now();
-    final currentStay = Time.nightsWithCutoff(checkin, checkout: now);
+    final currentStay = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: now);
     final expectedNights = widget.booking.expectedNights;
     final extraNights = currentStay - expectedNights;
 
@@ -1749,7 +1749,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
     final now = DateTime.now();
-    final currentNights = Time.nightsWithCutoff(checkin, checkout: now);
+    final currentNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: now);
     final currentTotal = currentNights * roomRate;
     final allPayments = await paymentsRepo
         .paymentsByBooking(widget.booking.id)
@@ -1851,9 +1851,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final actualCheckout = widget.booking.actualCheckout != null
         ? DateTime.tryParse(widget.booking.actualCheckout!)
         : null;
-    final actualNights = Time.nightsWithCutoff(
-      checkin,
-      checkout: actualCheckout ?? plannedCheckout,
+    final actualNights = HotelDateHelper.calculateNights(
+      checkIn: checkin,
+      checkOut: actualCheckout ?? plannedCheckout,
     );
 
     final nights =
@@ -2267,7 +2267,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         roomNumber: widget.booking.roomNumber,
         checkinDate: checkin,
         checkoutDate: checkout,
-        nights: Time.nightsWithCutoff(checkin, checkout: checkout),
+        nights: HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkout),
         roomRate: room?.price ?? 0,
         totalAmount: summary.totalAmount,
         payments: summary.payments,
@@ -2389,8 +2389,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
 
     // حساب الليالي
-    final actualNights = Time.nightsWithCutoff(checkin, checkout: now);
-    final plannedNights = Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
+    final actualNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: now);
+    final plannedNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: plannedCheckout);
     final unusedNights = plannedNights - actualNights;
 
     if (unusedNights <= 0) {
@@ -2681,7 +2681,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final checkin =
           DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
       final nowDate = DateTime.parse(nowIso);
-      final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
+      final actualNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: nowDate);
       await bookingsRepo.update(
         widget.booking.id,
         status: 'مكتمل',

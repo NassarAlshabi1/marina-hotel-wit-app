@@ -13,6 +13,7 @@ import '../../services/central_sync_coordinator.dart';
 import '../../services/local_db.dart';
 import '../../services/screen_sync_controller.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/hotel_date_helper.dart';
 import '../../utils/time.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
@@ -592,9 +593,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           ? expectedNights
                           : (checkoutDt == null && widget.existing == null)
                               ? 1
-                              : Time.nightsWithCutoff(
-                                  checkinDt,
-                                  checkout: checkoutDt,
+                              : HotelDateHelper.calculateNights(
+                                  checkIn: checkinDt,
+                                  checkOut: checkoutDt,
                                 );
                       final notes = _optionalText(_notes.text);
                       // email removed - unused
@@ -886,7 +887,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     // لضمان تطبيق قاعدة الساعة 14:00 بشكل ديناميكي
     final effectiveCheckout = checkoutDt ?? DateTime.now();
 
-    final nights = Time.nightsWithCutoff(checkinDt, checkout: effectiveCheckout);
+    final nights = HotelDateHelper.calculateNights(checkIn: checkinDt, checkOut: effectiveCheckout);
 
     setState(() {
       _expectedNights.text = nights.toString();

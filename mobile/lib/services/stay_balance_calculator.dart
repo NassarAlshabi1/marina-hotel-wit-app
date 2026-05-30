@@ -1,3 +1,4 @@
+import '../utils/hotel_date_helper.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 
@@ -268,7 +269,7 @@ class StayBalanceCalculator {
 
     // ─── حساب تكلفة الأيام المقضية فعلياً ───
     final actualNightsSpent =
-        Time.nightsWithCutoff(checkin, checkout: moment);
+        HotelDateHelper.calculateNights(checkIn: checkin, checkOut: moment);
 
     int consumedCostMinor = 0;
     DateTime consumedNight = firstHotelDay;
@@ -294,7 +295,7 @@ class StayBalanceCalculator {
     // ─── الأيام المتبقية حتى تاريخ المغادرة اليدوي ───
     final int manualNightsRemaining =
         (manualCheckout != null && manualCheckout.isAfter(moment))
-            ? Time.nightsWithCutoff(moment, checkout: manualCheckout)
+            ? HotelDateHelper.calculateNights(checkIn: moment, checkOut: manualCheckout)
             : 0;
 
     // ─── هل التاريخ التلقائي يتجاوز التاريخ اليدوي؟ ───
@@ -303,7 +304,7 @@ class StayBalanceCalculator {
 
     // ─── عدد الأيام الإضافية وراء تاريخ المغادرة اليدوي ───
     final int extraNightsBeyondManual = isAutoExtended
-        ? Time.nightsWithCutoff(manualCheckout, checkout: autoCheckout)
+        ? HotelDateHelper.calculateNights(checkIn: manualCheckout, checkOut: autoCheckout)
         : 0;
 
     // ─── الفائض المالي بعد تغطية جميع الليالي ───

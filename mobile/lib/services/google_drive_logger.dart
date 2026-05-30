@@ -46,4 +46,16 @@ class GoogleDriveLogger extends ChangeNotifier {
     }
     return stats;
   }
+
+  /// مسح جميع السجلات
+  void clearLogs() {
+    _logs.clear();
+    notifyListeners();
+  }
+
+  /// تحرير الموارد
+  void dispose() {
+    _logs.clear();
+    super.dispose();
+  }
 }

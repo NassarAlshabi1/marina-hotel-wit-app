@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/hotel_date_helper.dart';
 
 class CreateDebtFromBookingScreen extends ConsumerStatefulWidget {
   const CreateDebtFromBookingScreen({super.key});
@@ -310,7 +311,7 @@ class _CreateDebtFromBookingScreenState
 
     try {
       final booking = _selectedBooking!;
-      final nights = _toDate.difference(_fromDate).inDays;
+      final nights = HotelDateHelper.calculateNights(checkIn: _fromDate, checkOut: _toDate);
       if (nights <= 0) {
         _showError('فترة غير صالحة');
         return;

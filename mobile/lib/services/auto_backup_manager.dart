@@ -170,61 +170,24 @@ class AutoBackupManager {
       );
     }
 
+    // ⚠️ Automatic Google Drive backup DISABLED — only Appwrite delta sync runs automatically.
+    // Manual backup/restore via Google Drive still works through BackupStatusNotifier.
     if (_currentMode == BackupMode.fullBackup ||
         _currentMode == BackupMode.both) {
-      _debounceTimer?.cancel();
-      _debounceTimer = Timer(const Duration(seconds: _debounceSeconds), () {
-        _performAutoBackup(
-          reason: 'تغييرات تلقائية ($tableName: $operation)',
-          changesCount: _pendingChanges,
-        );
-        _pendingChanges = 0;
-      });
+      // No longer triggers automatic Google Drive backup
+      _pendingChanges = 0;
     }
   }
 
-  /// إجراء نسخة احتياطية تلقائية — BACKUP ONLY (Google Drive sync disabled)
+  /// إجراء نسخة احتياطية تلقائية — DISABLED
+  /// Automatic Google Drive backup is permanently disabled.
+  /// Use BackupStatusNotifier.createBackup() for manual backup to Google Drive.
   Future<void> _performAutoBackup({
     required String reason,
     int changesCount = 1,
   }) async {
-    if (_isBackingUp) {
-      AppLogger.debug('نسخة احتياطية جارية بالفعل — تم تخطي الطلب');
-      return;
-    }
-
-    _isBackingUp = true;
-    try {
-      if (_backupService == null || !_backupService!.isSignedIn) {
-        // Try silent sign-in
-        if (_backupService != null) {
-          final signedIn = await _backupService!.signInSilentlyIfNeeded();
-          if (!signedIn) {
-            AppLogger.warning('Google Drive غير متاح — تم تخطي النسخ التلقائي');
-            return;
-          }
-        } else {
-          AppLogger.warning('Google Drive BackupService غير مهيأ — تم تخطي النسخ التلقائي');
-          return;
-        }
-      }
-
-      AppLogger.info('بدء النسخ الاحتياطي التلقائي: $reason ($changesCount تغييرات)');
-
-      final result = await _backupService!.performAutoBackup();
-      
-      if (result.success) {
-        await _setLastAutoBackupTime(DateTime.now());
-        AppLogger.info('تم النسخ الاحتياطي التلقائي بنجاح (${result.recordCount} سجل)');
-        await _notifySmartSync();
-      } else {
-        AppLogger.warning('فشل النسخ الاحتياطي التلقائي: ${result.message}');
-      }
-    } catch (e) {
-      AppLogger.error('خطأ في النسخ الاحتياطي التلقائي: $e');
-    } finally {
-      _isBackingUp = false;
-    }
+    AppLogger.info('Automatic Google Drive backup is DISABLED — skipping (reason: $reason). Use manual backup instead.');
+    return;
   }
 
   /// حذف النسخ الاحتياطية القديمة حسب التاريخ والعدد
@@ -289,16 +252,12 @@ class AutoBackupManager {
     }
   }
 
-  /// جدولة تنظيف دوري للنسخ القديمة
+  /// جدولة تنظيف دوري للنسخ القديمة — DISABLED (automatic Google Drive operation)
+  /// Use cleanupNow() for manual cleanup.
   Future<void> _schedulePeriodicCleanup() async {
     _cleanupTimer?.cancel();
-
-    // تنظيف دوري كل 6 ساعات
-    _cleanupTimer = Timer.periodic(const Duration(hours: 6), (timer) {
-      _cleanupOldBackups();
-    });
-
-    AppLogger.debug('تم جدولة التنظيف الدوري كل 6 ساعات');
+    // Automatic periodic cleanup disabled — Google Drive auto operations are disabled
+    AppLogger.debug('Automatic periodic cleanup DISABLED — use cleanupNow() for manual cleanup');
   }
 
   /// تنظيف فوري للنسخ القديمة (يمكن استدعاؤه يدوياً)
@@ -422,23 +381,19 @@ class AutoBackupManager {
     return prefs.getBool(_instantSyncEnabledKey) ?? true;
   }
 
-  /// مزامنة فورية عند الطلب — Appwrite delta sync + Google Drive BACKUP only
+  /// مزامنة فورية عند الطلب — Appwrite delta sync only
+  /// Google Drive auto backup is disabled; use BackupStatusNotifier.createBackup() for manual Google Drive backup.
   Future<void> syncNow() async {
     AppLogger.debug('بدء المزامنة الفورية...');
 
+    // Appwrite delta sync (still active)
     if (_currentMode == BackupMode.deltaSync ||
         _currentMode == BackupMode.both) {
       await performDeltaSync();
     }
 
-    // ✅ Google Drive BACKUP (not sync) — upload a full backup if in fullBackup/both mode
-    if (_currentMode == BackupMode.fullBackup ||
-        _currentMode == BackupMode.both) {
-      await _performAutoBackup(
-        reason: 'مزامنة فورية يدوية',
-        changesCount: _pendingChanges,
-      );
-    }
+    // Google Drive automatic backup DISABLED
+    // Use BackupStatusNotifier.createBackup() for manual Google Drive backup
 
     _pendingChanges = 0;
   }

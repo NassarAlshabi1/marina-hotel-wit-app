@@ -362,16 +362,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
 
     try {
-      final smartSyncManager = ref.read(smartSyncManagerProvider);
+      // ⚠️ Smart Sync (Google Drive) is DISABLED — only Appwrite sync is active
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
-      final smartEnabled = await smartSyncManager.isEnabled();
-      final isGoogleDriveSignedIn = ref.read(
-        smartSyncGoogleDriveSignInStatusProvider,
-      );
       final appwriteEnabled = await _isAppwriteSyncEnabled();
 
-      if (!smartEnabled && !appwriteEnabled) {
+      if (!appwriteEnabled) {
         if (mounted) {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
@@ -402,9 +398,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       final targets = <String>[];
-      if (smartEnabled && isGoogleDriveSignedIn) {
-        targets.add('Google Drive');
-      }
+      // ⚠️ Google Drive sync target removed (disabled)
       if (appwriteEnabled && appwriteConnected) {
         targets.add('Appwrite');
       }
@@ -481,10 +475,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
       }
 
-      // ⚠️ Google Drive push disabled — skip push to Google Drive
-      if (smartEnabled && isGoogleDriveSignedIn) {
-        debugPrint('Google Drive sync disabled — skipping push from dashboard sync button');
-      }
+      // ⚠️ Google Drive push disabled — Appwrite-only push
 
       await _loadPendingChangesCount();
 
@@ -614,7 +605,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
       }
 
-      ref.invalidate(smartSyncStatusProvider);
     } catch (e) {
       debugPrint('❌ فشل رفع التغييرات: $e');
 
@@ -1023,9 +1013,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   @override
   Widget build(BuildContext context) {
-    final isGoogleDriveSignedIn = ref.watch(
-      smartSyncGoogleDriveSignInStatusProvider,
-    );
+    // ⚠️ Smart Sync (Google Drive) disabled — isGoogleDriveSignedIn no longer needed
+    // final isGoogleDriveSignedIn = ref.watch(
+    //   smartSyncGoogleDriveSignInStatusProvider,
+    // );
+    const isGoogleDriveSignedIn = false; // Google Drive sync is disabled
 
     // ✅ تحسين: استخدام ValueListenableBuilder المدمج لكل من hasRemoteChanges و pendingRemoteChangesCount
     return ValueListenableBuilder<bool>(

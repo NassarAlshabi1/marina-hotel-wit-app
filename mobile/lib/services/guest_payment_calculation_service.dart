@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart' as d;
 import 'package:intl/intl.dart';
-import '../utils/time.dart';
+import '../utils/hotel_date_helper.dart';
 import 'local_db.dart';
 
 /// نموذج تفصيلي لحسابات المدفوعات والأيام للنزيل الواحد
@@ -129,16 +129,16 @@ class GuestPaymentCalculationService {
         ? DateTime.tryParse(booking.actualCheckout!)
         : null;
     
-    final actualDaysSpent = Time.nightsWithCutoff(
-      checkin,
-      checkout: actualCheckout ?? moment,
+    final actualDaysSpent = HotelDateHelper.calculateNights(
+      checkIn: checkin,
+      checkOut: actualCheckout ?? moment,
     );
 
     // حساب الأيام المتبقية حتى موعد المغادرة المخطط
     final plannedCheckout = DateTime.tryParse(booking.checkoutDate ?? '');
     int plannedDaysRemaining = 0;
     if (plannedCheckout != null && !plannedCheckout.isBefore(moment)) {
-      plannedDaysRemaining = Time.nightsWithCutoff(moment, checkout: plannedCheckout);
+      plannedDaysRemaining = HotelDateHelper.calculateNights(checkIn: moment, checkOut: plannedCheckout);
     }
 
     // حساب سعر الليلة الواحدة بناءً على السعر المخزن في الغرفة
@@ -161,7 +161,7 @@ class GuestPaymentCalculationService {
     final isOverdue = plannedCheckout != null && moment.isAfter(plannedCheckout) && actualCheckout == null;
     int overdueDays = 0;
     if (isOverdue) {
-      overdueDays = Time.nightsWithCutoff(plannedCheckout, checkout: moment);
+      overdueDays = HotelDateHelper.calculateNights(checkIn: plannedCheckout, checkOut: moment);
     }
     final overdueCost = overdueDays * nightlyRate;
 
