@@ -1393,10 +1393,23 @@ class _AppwriteSettingsScreenState
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
       await manager.pushAllLocalData();
+
+      // ✅ إصلاح خارق: بعد رفع البيانات، قد تتغير القيم المحسوبة محلياً
+      // يجب إعادة حساب totalDueCached, totalPaidCached, remainingBalanceCached
+      final fixService = RestoreFixService(DatabaseManager.instance);
+      final fixReport = await fixService.runAutoFixAfterRestore(
+        skipLedgerRebuild: true, // hotel_day_ledger محلي فقط
+      );
+      debugPrint(
+        'Auto-fix after push: ${fixReport.bookingsFixed} bookings, ${fixReport.paymentsRecalculated} payments',
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم رفع البيانات بنجاح'),
+          SnackBar(
+            content: Text(
+              'تم رفع البيانات بنجاح (${fixReport.bookingsFixed} حجز مُحدث)',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -1454,10 +1467,23 @@ class _AppwriteSettingsScreenState
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
       await manager.pullAllRemoteData();
+
+      // ✅ إصلاح خارق: بعد سحب البيانات من السحابة، قد تحتوي على قيم غير متسقة
+      // يجب إعادة حساب totalDueCached, totalPaidCached, remainingBalanceCached
+      final fixService = RestoreFixService(DatabaseManager.instance);
+      final fixReport = await fixService.runAutoFixAfterRestore(
+        skipLedgerRebuild: true, // hotel_day_ledger محلي فقط
+      );
+      debugPrint(
+        'Auto-fix after pull: ${fixReport.bookingsFixed} bookings, ${fixReport.paymentsRecalculated} payments',
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم سحب البيانات بنجاح'),
+          SnackBar(
+            content: Text(
+              'تم سحب البيانات بنجاح (${fixReport.bookingsFixed} حجز مُحدث)',
+            ),
             backgroundColor: Colors.green,
           ),
         );
