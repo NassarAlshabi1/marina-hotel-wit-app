@@ -59,13 +59,26 @@ import 'services/sync_guardian.dart';
 import 'services/sync_performance_optimizer.dart';
 import 'services/sync_queue_service.dart';
 import 'services/sync_service.dart';
-// AutoSync Engine imports
-import 'services/unified_sync_orchestrator.dart';
+// ⚠️ Google Drive imports DISABLED
+// import 'services/unified_sync_orchestrator.dart';
+import 'utils/app_logger.dart';
 import 'utils/auto_sync_preferences.dart';
 import 'utils/env.dart';
 import 'utils/hotel_day_ticker.dart';
 import 'utils/id.dart';
 import 'utils/theme.dart';
+
+// ⚠️ Stubs for disabled Google Drive classes
+enum ConflictResolutionStrategy { newerWins, olderWins, localWins, remoteWins }
+
+class AutoSyncEngine {
+  static final instance = AutoSyncEngine();
+  AutoSyncEngine();
+  Future<void> start() async {}
+  Future<void> stop() async {}
+  Future<void> restart() async {}
+  Future<void> disposeInstance() async {}
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -598,8 +611,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           );
       // رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة
       unawaited(_syncOnResume());
-      UnifiedSyncOrchestrator.instance.onAppForeground().catchError((Object e, StackTrace s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
-      );
+      // ⚠️ DISABLED: Google Drive UnifiedSyncOrchestrator
+      // UnifiedSyncOrchestrator.instance.onAppForeground().catchError(...);
       SyncGuardian.instance.onAppForeground().catchError((Object e, StackTrace s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
       );
     } else if (state == AppLifecycleState.paused ||
@@ -811,4 +824,40 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       });
     }
   }
+}
+
+// ⚠️ Additional stubs for disabled Google Drive classes
+class GoogleDriveUnifiedSyncCoordinator {
+  static final instance = GoogleDriveUnifiedSyncCoordinator();
+  GoogleDriveUnifiedSyncCoordinator();
+  String get deviceId => 'disabled';
+  bool get isInitialized => false;
+  bool get isSyncing => false;
+  List<dynamic> get syncResults => [];
+  Future<void> disposeInstance() async {}
+  Future<void> onAppForeground() async {}
+  Future<void> onAppBackground() async {}
+}
+
+class SyncGuardian {
+  static final instance = SyncGuardian();
+  SyncGuardian();
+  Future<void> onAppForeground() async {}
+  Future<void> onAppBackground() async {}
+  Future<void> stop() async {}
+  Future<void> restart() async {}
+}
+
+class SyncQueueService {
+  static final instance = SyncQueueService();
+  SyncQueueService();
+  Future<void> initialize() async {}
+}
+
+class SyncPerformanceOptimizer {
+  static Future<void> disposeInstance() async {}
+}
+
+class CentralSyncCoordinator {
+  static void disposeInstance() {}
 }

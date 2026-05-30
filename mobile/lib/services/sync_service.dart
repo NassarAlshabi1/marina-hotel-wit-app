@@ -1,3 +1,4 @@
+import '../utils/app_logger.dart';
 import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
