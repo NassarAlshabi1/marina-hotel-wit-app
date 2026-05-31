@@ -1,29 +1,21 @@
 ---
 Task ID: 1
 Agent: Main Agent
-Task: تشغيل الإصلاح الشامل تلقائياً بعد سحب البيانات من Appwrite عند التثبيت الأول
+Task: إصلاح حساب المدفوعات والمتبقي والأيام والليالي في الالتزام
 
 Work Log:
-- قراءة وفهم تدفق سحب البيانات من Appwrite في tools_tab.dart
-- تعديل _pullFullBackupFromAppwrite() لإضافة:
-  - تشغيل runComprehensiveFix تلقائياً بعد سحب البيانات
-  - تحديث نص حوار التأكيد ليوضح أن المعالجة ستتم تلقائياً
-  - تغيير نص زر المتابعة من "سحب البيانات" إلى "متابعة"
-  - عرض نتائج السحب والمعالجة في نافذة واحدة مع تفاصيل الإصلاح
-- إضافة استيرادات local_db.dart و restore_fix_service.dart
-- إضافة _buildFixChip helper widget لعرض نتائج الإصلاح
-- تشغيل flutter analyze - لا أخطاء (0 errors)
-- الدفع إلى فرع marina على GitHub
+- استنساخ المستودع وتحليل هيكل المشروع (Flutter/Dart مع Drift ORM)
+- تحليل ثلاثة مسارات حساب مختلفة (EnhancedBookingCalculationService, BookingComputedStreamService, BookingPaymentScreen)
+- اكتشاف عدم توافق في حساب المبلغ الإجمالي بين المسارات الثلاثة
+- اكتشاف عدم فلترة الدفعات الملغاة (voided) والمعلقة (pending) في عدة شاشات
+- إصلاح BookingComputedStreamService لاستخدام EnhancedBookingCalculationService كمرجع موحد
+- إصلاح bookings_list.dart لاستخدام القيم المحسوبة مسبقاً (cached) بدلاً من إعادة الحساب
+- إصلاح فلترة الدفعات في: booking_payment_screen, booking_checkout_screen, payment_history_screen, payments_main_screen, finance_screen, payments_list, payments_report_screen, income_expense_report_screen
+- إضافة عرض الأيام والليالي بشكل منفصل في شاشة الدفع
+- إضافة getter `nights` في BookingWithPayments للتوحيد
 
 Stage Summary:
-- تم التعديل على: mobile/lib/screens/settings/appwrite/tabs/tools_tab.dart
-- عند الضغط على "متابعة" في شاشة سحب البيانات، يتم:
-  1. سحب جميع البيانات من Appwrite Cloud
-  2. تشغيل الإصلاح الشامل تلقائياً (runComprehensiveFix)
-  3. إعادة حساب الليالي الفعلية بقاعدة 14:00
-  4. إعادة حساب المدفوعات والمتبقي
-  5. إعادة حساب الديون
-  6. إعادة بناء سجلات booking_nights
-  7. عرض نتيجة السحب والمعالجة في نافذة واحدة
-- Commit: 090b22f3
-- Pushed to origin/marina
+- تم توحيد مسار الحساب ليكون EnhancedBookingCalculationService هو المصدر الموحد
+- تم إصلاح فلترة المدفوعات (voided + pending) في 8 ملفات مختلفة
+- تم إضافة عرض الأيام التقويمية والليالي الفندقية بشكل منفصل
+- الملفات المعدلة: booking_computed_stream_service.dart, bookings_list.dart, booking_payment_screen.dart, booking_checkout_screen.dart, payment_history_screen.dart, payments_main_screen.dart, finance_screen.dart, payments_list.dart, payments_report_screen.dart, income_expense_report_screen.dart
