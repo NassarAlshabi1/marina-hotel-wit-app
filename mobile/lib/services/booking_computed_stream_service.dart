@@ -155,6 +155,7 @@ class BookingComputedStreamService {
   }
 
   /// Watches all bookings for a specific room number.
+  /// ✅ محسّن: يستخدم خريطة محملة مسبقاً بدلاً من N+1 استعلام
   Stream<List<BookingWithPayments>> watchBookingsByRoom(String roomNumber) {
     final query = (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
@@ -163,12 +164,37 @@ class BookingComputedStreamService {
         .watch();
 
     return query.asyncMap((bookings) async {
-      final results = <BookingWithPayments>[];
-      for (final booking in bookings) {
-        final computed = await _buildBookingWithPayments(booking);
-        results.add(computed);
+      if (bookings.isEmpty) {
+        return const [];
       }
-      return results;
+
+      // ✅ تحميل الغرفة مرة واحدة بدلاً من N مرة
+      final room = await (db.select(db.rooms)
+            ..where((r) => r.roomNumber.equals(roomNumber))
+            ..where((r) => r.deletedAt.isNull()))
+          .getSingleOrNull();
+      final roomMap = <String, Room>{};
+      if (room != null) {
+        roomMap[roomNumber] = room;
+      }
+
+      // ✅ تحميل جميع المدفوعات مرة واحدة بدلاً من N مرة
+      final bookingIds = bookings.map((b) => b.id).toList();
+      final bookingUuids = bookings.map((b) => b.localUuid).toList();
+      final allPayments = await _loadPaymentsForBookings(bookingIds, bookingUuids);
+      final paymentsMap = <int, List<Payment>>{};
+      for (final p in allPayments) {
+        final bid = p.bookingLocalId;
+        if (bid != null) {
+          paymentsMap.putIfAbsent(bid, () => []).add(p);
+        }
+      }
+
+      return bookings.map((booking) => _buildBookingWithPaymentsOptimized(
+        booking,
+        roomMap: roomMap,
+        paymentsMap: paymentsMap,
+      ),).toList();
     });
   }
 

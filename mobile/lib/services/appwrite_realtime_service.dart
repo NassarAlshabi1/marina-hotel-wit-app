@@ -201,19 +201,25 @@ class AppwriteRealtimeService {
     }
   }
 
-  /// الاشتراك في جميع المجموعات المهمة
+  /// ✅ محسّن للأجهزة الضعيفة: الاشتراك في المجموعات الأساسية فقط
+  /// المجموعات الأساسية = البيانات التي تتغير باستمرار ويحتاجها التطبيق فوراً
+  /// المجموعات الثانوية تُشترك عند فتح الشاشة ذات الصلة فقط
   Future<void> subscribeToAllCollections(RealtimeEventHandler handler) async {
-    final collections = [
+    // ✅ المجموعات الأساسية فقط — التي تؤثر على الشاشة الرئيسية
+    final essentialCollections = [
       AppwriteConfig.roomsCollectionId,
       AppwriteConfig.bookingsCollectionId,
-      AppwriteConfig.bookingNotesCollectionId,
-      AppwriteConfig.bookingNightsCollectionId,
       AppwriteConfig.paymentsCollectionId,
       AppwriteConfig.expensesCollectionId,
+    ];
+
+    // ✅ المجموعات الثانوية — تُشترك عند الحاجة فقط
+    _secondaryCollections = [
+      AppwriteConfig.bookingNotesCollectionId,
+      AppwriteConfig.bookingNightsCollectionId,
       AppwriteConfig.cashTransactionsCollectionId,
       AppwriteConfig.employeesCollectionId,
       AppwriteConfig.debtsCollectionId,
-      // ❌ hotel_day_ledger - محلي فقط
       AppwriteConfig.salaryCyclesCollectionId,
       AppwriteConfig.salaryPaymentsCollectionId,
       AppwriteConfig.salaryWithdrawalsCollectionId,
@@ -225,7 +231,7 @@ class AppwriteRealtimeService {
       AppwriteConfig.paymentVoidsCollectionId,
     ];
 
-    for (final collectionId in collections) {
+    for (final collectionId in essentialCollections) {
       try {
         await subscribeToCollection(
           collectionId: collectionId,
@@ -241,9 +247,42 @@ class AppwriteRealtimeService {
     }
 
     _logger.info(
-      'Subscribed to ${collections.length} collections',
+      'Subscribed to ${essentialCollections.length} essential collections '
+      '(${_secondaryCollections.length} secondary on-demand)',
       tag: 'REALTIME',
     );
+  }
+
+  /// ✅ قائمة المجموعات الثانوية (للاشتراك عند الحاجة)
+  List<String> _secondaryCollections = [];
+
+  /// ✅ اشتراك المجموعات الثانوية عند الحاجة (مثل فتح شاشة الموظفين)
+  Future<void> subscribeToSecondaryCollections(
+    RealtimeEventHandler handler,
+  ) async {
+    for (final collectionId in _secondaryCollections) {
+      if (!_subscriptions.containsKey('collection_$collectionId')) {
+        try {
+          await subscribeToCollection(
+            collectionId: collectionId,
+            handler: handler,
+          );
+        } catch (e) {
+          _logger.warning(
+            'Failed to subscribe to secondary $collectionId',
+            error: e,
+            tag: 'REALTIME',
+          );
+        }
+      }
+    }
+  }
+
+  /// ✅ إلغاء اشتراك المجموعات الثانوية (مثل مغادرة الشاشة)
+  void unsubscribeSecondaryCollections() {
+    for (final collectionId in _secondaryCollections) {
+      unsubscribeFromCollection(collectionId);
+    }
   }
 
   /// إلغاء الاشتراك في مجموعة

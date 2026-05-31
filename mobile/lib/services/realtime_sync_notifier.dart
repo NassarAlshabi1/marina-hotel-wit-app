@@ -20,7 +20,7 @@ class RealtimeSyncNotifier {
   String? _lastProcessedSyncId;
 
   static const String _prefsLastSyncIdKey = 'realtime_last_sync_id';
-  static const Duration _pollingInterval = Duration(seconds: 30);
+  static const Duration _pollingInterval = Duration(minutes: 2);
 
   /// بدء الاستماع لإشعارات المزامنة
   Future<void> startListening() async {

@@ -71,8 +71,8 @@ final hotelDayTickerProvider = StreamProvider<String>((ref) {
   // Emit immediately
   controller.add(HotelTimeEngine.formatHotelDay(DateTime.now()));
 
-  // Check every 30 seconds
-  const checkInterval = Duration(seconds: 30);
+  // ✅ محسّن: فحص كل 60 ثانية بدلاً من 30 — يوم الفندق يتغير فقط عند الساعة 14:00
+  const checkInterval = Duration(seconds: 60);
   String lastEmitted = HotelTimeEngine.formatHotelDay(DateTime.now());
 
   final timer = Timer.periodic(checkInterval, (_) {

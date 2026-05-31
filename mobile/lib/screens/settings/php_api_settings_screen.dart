@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,11 +31,14 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
   PhpApiStatus _connectionStatus = PhpApiStatus.disconnected;
   String? _testMessage;
 
+  // ✅ محسّن: تخزين StreamSubscription لمنع تسرب الذاكرة
+  StreamSubscription<PhpApiStatus>? _statusSubscription;
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
-    PhpApiService.instance.statusStream.listen((status) {
+    _statusSubscription = PhpApiService.instance.statusStream.listen((status) {
       if (mounted) {
         setState(() => _connectionStatus = status);
       }
@@ -164,6 +169,7 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
 
   @override
   void dispose() {
+    _statusSubscription?.cancel(); // ✅ تنظيف الاشتراك
     _urlController.dispose();
     _apiKeyController.dispose();
     _connectTimeoutController.dispose();

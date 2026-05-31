@@ -136,15 +136,19 @@ final whatsappServiceProvider = Provider<WhatsAppService>(
 final roomsListProvider = StreamProvider.autoDispose<List<Room>>(
   (ref) => ref.watch(roomsRepoProvider).watchAll(),
 );
-final availableRoomsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(roomsRepoProvider)
-      .watchAll()
-      .map(
-        (rooms) => rooms
-            .where((room) => StatusUtils.isRoomAvailable(room.status))
-            .toList(),
-      ),
+/// ✅ محسّن: يشتق الغرف المتاحة من roomsListProvider بدلاً من إنشاء stream جديد
+/// هذا يقلل عدد استعلامات DB المتزامنة على الأجهزة الضعيفة
+final availableRoomsProvider = StreamProvider.autoDispose<List<Room>>(
+  (ref) {
+    final roomsAsync = ref.watch(roomsListProvider);
+    return roomsAsync.when(
+      data: (rooms) => Stream.value(rooms
+          .where((room) => StatusUtils.isRoomAvailable(room.status))
+          .toList()),
+      loading: () => Stream.value([]),
+      error: (_, __) => Stream.value([]),
+    );
+  },
 );
 
 final bookingsListProvider = StreamProvider.autoDispose<List<Booking>>(

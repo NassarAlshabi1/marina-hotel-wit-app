@@ -346,23 +346,26 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     if (_localAutoSyncSub != null) {
       return;
     }
+    // ✅ محسّن: تقليل الجداول المراقبة — فقط الجداول الأساسية التي تحتاج مزامنة فورية
     final watch = database.customSelect(
       'SELECT 1',
       readsFrom: {
         database.rooms,
         database.bookings,
-        database.bookingNotes,
-        database.bookingNights,
-        database.employees,
+        database.payments,
         database.expenses,
         database.cashTransactions,
-        database.payments,
         database.debts,
-        database.hotelDayLedger,
-        database.shiftNotes,
       },
     );
-    _localAutoSyncSub = watch.watch().listen((_) => _scheduleLocalAutoSync());
+    // ✅ محسّن: إضافة debounce 2 ثانية لمنع تكرار المزامنة أثناء العمليات المتتالية
+    Timer? debounceTimer;
+    _localAutoSyncSub = watch.watch().listen((_) {
+      debounceTimer?.cancel();
+      debounceTimer = Timer(const Duration(seconds: 2), () {
+        _scheduleLocalAutoSync();
+      });
+    });
   }
 
   /// الاستماع لأحداث تضاربات المزامنة وعرض إشعارات للمستخدم
@@ -643,7 +646,8 @@ class RootRouter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
-    ref.watch(backupStatusProvider); // Watch for backup status changes
+    // ✅ محسّن: إزالة ref.watch(backupStatusProvider) لأنه يسبب إعادة بناء
+    // كاملة للـ RootRouter عند كل تغيير في حالة النسخ الاحتياطي
     if (auth.isRestoring) {
       return const Directionality(
         textDirection: TextDirection.rtl,

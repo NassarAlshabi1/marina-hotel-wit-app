@@ -510,15 +510,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
 
     if (isOverdue) {
+      // ✅ محسّن: تقليل مدة الحركة من 800ms إلى 1200ms + إيقاف scale
+      // لتقليل إعادة الرسم المستمرة على الأجهزة الضعيفة
       return button
           .animate(onPlay: (controller) => controller.repeat(reverse: true))
-          .tint(color: const Color(0x40FF9800), duration: 800.ms)
-          .scale(
-            begin: const Offset(1.0, 1.0),
-            end: const Offset(1.03, 1.03),
-            duration: 800.ms,
-            curve: Curves.easeInOut,
-          );
+          .tint(color: const Color(0x40FF9800), duration: 1200.ms);
     }
 
     return button;
