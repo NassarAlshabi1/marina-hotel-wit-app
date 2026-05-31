@@ -411,15 +411,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 stream: paymentsRepo.paymentsByBooking(booking.id),
                 builder: (context, paySnap) {
                   final dbPayments = paySnap.data ?? const <db.Payment>[];
-                  // ✅ استبعاد المدفوعات الملغاة من حساب الإجمالي المدفوع
-                  final paidAmount = dbPayments
-                      .where((p) => !p.isVoided)
+                  // ✅ استبعاد المدفوعات الملغاة والمعلقة من حساب الإجمالي المدفوع
+                  final validPayments = dbPayments
+                      .where((p) => !p.isVoided && !p.isPendingBalance)
+                      .toList();
+                  final paidAmount = validPayments
                       .fold<double>(0, (s, p) => s + p.amount);
                   // حساب المدفوعات في اليوم الفندقي الحالي لهذا الحجز
                   final hotelDay = HotelTimeEngine.getHotelDayKey();
-                  final todayPaidAmount = dbPayments
+                  final todayPaidAmount = validPayments
                       .where((p) =>
-                          !p.isVoided &&
                           (p.hotelDayKey == hotelDay ||
                               (p.hotelDayKey == null &&
                                   p.paymentDate.startsWith(hotelDay))),)
@@ -1759,7 +1760,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final allPayments = await paymentsRepo
         .paymentsByBooking(widget.booking.id)
         .first;
-    final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
+    final totalPaid = allPayments
+        .where((p) => !p.isVoided && !p.isPendingBalance)
+        .fold<double>(0, (s, p) => s + p.amount);
     double newRemaining = currentTotal - totalPaid;
     if (newRemaining < 0) {
       newRemaining = 0;
@@ -1902,7 +1905,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final payments = await paymentsRepo
         .paymentsByBooking(widget.booking.id)
         .first;
-    final paidAmount = payments.fold<double>(0, (s, p) => s + p.amount);
+    final paidAmount = payments
+        .where((p) => !p.isVoided && !p.isPendingBalance)
+        .fold<double>(0, (s, p) => s + p.amount);
     double remainingAmount = totalAmount - paidAmount;
     if (remainingAmount < 0) {
       remainingAmount = 0;

@@ -306,9 +306,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                               );
                             }
 
-                            // ✅ استبعاد المدفوعات الملغاة
+                            // ✅ استبعاد المدفوعات الملغاة والمعلقة
                             final totalPaid = payments
-                                .where((p) => !p.isVoided)
+                                .where((p) => !p.isVoided && !p.isPendingBalance)
                                 .fold<double>(
                                   0,
                                   (sum, payment) => sum + payment.amount,
@@ -440,10 +440,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                 widget.booking.id,
                               ),
                               builder: (context, snapshot) {
-                                // ✅ استبعاد المدفوعات الملغاة
+                                // ✅ استبعاد المدفوعات الملغاة والمعلقة
                                 final totalPaid =
                                     snapshot.data
-                                        ?.where((p) => !p.isVoided)
+                                        ?.where((p) => !p.isVoided && !p.isPendingBalance)
                                         .fold<double>(
                                           0,
                                           (sum, payment) => sum + payment.amount,

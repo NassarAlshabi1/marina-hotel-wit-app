@@ -137,14 +137,12 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     final hotelDay = HotelTimeEngine.getHotelDayKey();
     final startOfMonth = DateTime(today.year, today.month);
 
-    // حساب المبالغ
-    final totalAmount = payments.fold<double>(0, (sum, p) => sum + p.amount);
+    // حساب المبالغ (استبعاد المدفوعات الملغاة والمعلقة)
+    final validPayments = payments.where((p) => !p.isVoided && !p.isPendingBalance).toList();
+    final totalAmount = validPayments.fold<double>(0, (sum, p) => sum + p.amount);
 
     // مدفوعات اليوم الفندقي الحالي
-    final todayPayments = payments.where((p) {
-      if (p.isVoided) {
-        return false;
-      }
+    final todayPayments = validPayments.where((p) {
       if (p.hotelDayKey == hotelDay) {
         return true;
       }
@@ -159,7 +157,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     );
 
     // مدفوعات هذا الشهر
-    final monthlyPayments = payments.where((p) {
+    final monthlyPayments = validPayments.where((p) {
       try {
         final date = DateTime.parse(p.paymentDate);
         return date.isAfter(startOfMonth);

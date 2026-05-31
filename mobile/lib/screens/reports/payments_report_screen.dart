@@ -167,6 +167,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final relevantBookingIds = <int>{};
 
     for (final payment in filteredPayments) {
+      // ✅ استبعاد المدفوعات الملغاة والمعلقة من الإجمالي
+      if (payment.isVoided || payment.isPendingBalance) continue;
       final paymentDate = _parseDateTime(payment.paymentDate);
       
       // ✅ تمت الفلترة بـ hotelDayKey على مستوى DB — لا حاجة لفلترة إضافية بالتاريخ

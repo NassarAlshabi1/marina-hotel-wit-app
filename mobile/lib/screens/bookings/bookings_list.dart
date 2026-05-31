@@ -127,43 +127,34 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                 ? DateTime.tryParse(booking.actualCheckout!)
                                 : null;
                             final price = room?.price ?? 0;
-                            // إذا لم يُسجَّل خروج → احتساب ديناميكي من الآن
-                            final hasNoCheckout = plannedCheckout == null &&
-                                actualCheckout == null;
-                            final dynamicNights =
-                                hasNoCheckout && checkin != null
-                                    ? HotelDateHelper.calculateNights(checkIn: checkin)
-                                    : null;
-                            final expectedNights = dynamicNights ??
-                                (booking.expectedNights > 0
-                                    ? booking.expectedNights
-                                    : (checkin == null
-                                          ? 1
-                                          : HotelDateHelper.calculateNights(
-                                              checkIn: checkin,
-                                              checkOut: plannedCheckout,
-                                            )));
-                            final actualNights = dynamicNights ??
-                                (checkin == null
-                                    ? expectedNights
-                                    : HotelDateHelper.calculateNights(
+                            // استخدام القيم المحسوبة مسبقاً من BookingDerivedFieldsService
+                            // وهي متوافقة مع EnhancedBookingCalculationService
+                            final actualNights = booking.calculatedNights > 0
+                                ? booking.calculatedNights
+                                : (checkin != null
+                                    ? HotelDateHelper.calculateNights(
                                         checkIn: checkin,
-                                        checkOut:
-                                            actualCheckout ?? plannedCheckout,
-                                      ));
-                            // ✅ إصلاح: حساب الإجمالي مع مراعاة الخصم
-                            double totalAmount;
-                            final discount = booking.discount;
-                            final discountType = booking.discountType;
-                            if (discount > 0 && discountType == 'total') {
-                              totalAmount = (actualNights * price - discount)
-                                  .clamp(0.0, actualNights * price);
-                            } else if (discount > 0 && discountType == 'per_night') {
-                              totalAmount = actualNights * (price - discount)
-                                  .clamp(0.0, price);
-                            } else {
-                              totalAmount = actualNights * price;
-                            }
+                                        checkOut: actualCheckout ?? plannedCheckout,
+                                      )
+                                    : 1);
+                            final expectedNights = booking.expectedNights > 0
+                                ? booking.expectedNights
+                                : actualNights;
+                            // استخدام totalDueCached إذا توفر (يشمل التعديلات والخصومات)
+                            final totalAmount = booking.totalDueCached > 0
+                                ? booking.totalDueCached
+                                : (() {
+                                    final discount = booking.discount;
+                                    final discountType = booking.discountType;
+                                    if (discount > 0 && discountType == 'total') {
+                                      return (actualNights * price - discount)
+                                          .clamp(0.0, actualNights * price);
+                                    } else if (discount > 0 && discountType == 'per_night') {
+                                      return actualNights * (price - discount)
+                                          .clamp(0.0, price);
+                                    }
+                                    return (actualNights * price).toDouble();
+                                  })();
                             return RepaintBoundary(
                               child: _BookingRow(
                                 index: index,
@@ -202,43 +193,33 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                           ? DateTime.tryParse(booking.actualCheckout!)
                           : null;
                       final price = room?.price ?? 0;
-                      // إذا لم يُسجَّل خروج → احتساب ديناميكي من الآن
-                      final hasNoCheckout = plannedCheckout == null &&
-                          actualCheckout == null;
-                      final dynamicNights =
-                          hasNoCheckout && checkin != null
-                              ? HotelDateHelper.calculateNights(checkIn: checkin)
-                              : null;
-                      final expectedNights = dynamicNights ??
-                          (booking.expectedNights > 0
-                              ? booking.expectedNights
-                              : (checkin == null
-                                    ? 1
-                                    : HotelDateHelper.calculateNights(
-                                        checkIn: checkin,
-                                        checkOut: plannedCheckout,
-                                      )));
-                      final actualNights = dynamicNights ??
-                          (checkin == null
-                              ? expectedNights
-                              : HotelDateHelper.calculateNights(
+                      // استخدام القيم المحسوبة مسبقاً من BookingDerivedFieldsService
+                      final actualNights = booking.calculatedNights > 0
+                          ? booking.calculatedNights
+                          : (checkin != null
+                              ? HotelDateHelper.calculateNights(
                                   checkIn: checkin,
-                                  checkOut:
-                                      actualCheckout ?? plannedCheckout,
-                                ));
-                      // ✅ إصلاح: حساب الإجمالي مع مراعاة الخصم
-                      double totalAmount;
-                      final discount = booking.discount;
-                      final discountType = booking.discountType;
-                      if (discount > 0 && discountType == 'total') {
-                        totalAmount = (actualNights * price - discount)
-                            .clamp(0.0, actualNights * price);
-                      } else if (discount > 0 && discountType == 'per_night') {
-                        totalAmount = actualNights * (price - discount)
-                            .clamp(0.0, price);
-                      } else {
-                        totalAmount = actualNights * price;
-                      }
+                                  checkOut: actualCheckout ?? plannedCheckout,
+                                )
+                              : 1);
+                      final expectedNights = booking.expectedNights > 0
+                          ? booking.expectedNights
+                          : actualNights;
+                      // استخدام totalDueCached إذا توفر
+                      final totalAmount = booking.totalDueCached > 0
+                          ? booking.totalDueCached
+                          : (() {
+                              final discount = booking.discount;
+                              final discountType = booking.discountType;
+                              if (discount > 0 && discountType == 'total') {
+                                return (actualNights * price - discount)
+                                    .clamp(0.0, actualNights * price);
+                              } else if (discount > 0 && discountType == 'per_night') {
+                                return actualNights * (price - discount)
+                                    .clamp(0.0, price);
+                              }
+                              return (actualNights * price).toDouble();
+                            })();
                       return RepaintBoundary(
                         child: _BookingRow(
                           index: index + 1,
@@ -520,12 +501,21 @@ class _BookingRow extends ConsumerWidget {
     ];
     final guestTooltip = guestTooltipLines.join('\n');
 
-    final paid = paymentsAsync.maybeWhen(
-      data: (payments) => payments.fold<double>(0, (s, p) => s + p.amount),
-      orElse: () => 0.0,
-    );
-    final remaining = (totalAmount - paid)
-        .clamp(0.0, totalAmount);
+    // استخدام القيم المحسوبة مسبقاً إذا توفرت (أدق لأنها تستبعد voided + pending)
+    double paid;
+    double remaining;
+    if (booking.totalPaidCached > 0 || booking.remainingBalanceCached > 0) {
+      paid = booking.totalPaidCached;
+      remaining = booking.remainingBalanceCached;
+    } else {
+      paid = paymentsAsync.maybeWhen(
+        data: (payments) => payments
+            .where((p) => !p.isVoided && !p.isPendingBalance)
+            .fold<double>(0, (s, p) => s + p.amount),
+        orElse: () => 0.0,
+      );
+      remaining = (totalAmount - paid).clamp(0.0, totalAmount);
+    }
     final Color statusColor = remaining <= 0.0
         ? Colors.green
         : (paid > 0 ? Colors.orange : Colors.red);

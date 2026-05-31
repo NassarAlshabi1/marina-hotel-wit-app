@@ -159,7 +159,10 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           );
         }
 
-        final totalAmount = payments.fold<double>(
+        // ✅ استبعاد المدفوعات الملغاة والمعلقة من الإجمالي
+        final totalAmount = payments
+            .where((p) => !p.isVoided && !p.isPendingBalance)
+            .fold<double>(
           0,
           (sum, payment) => sum + payment.amount,
         );

@@ -436,7 +436,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           else
             ...sortedKeys.map((key) {
               final groupPayments = grouped[key]!;
-              final total = groupPayments.fold<double>(
+              final total = groupPayments
+                  .where((p) => !p.isVoided && !p.isPendingBalance)
+                  .fold<double>(
                 0, (s, p) => s + p.amount,
               );
               final isOther = key == '__other__';
