@@ -49,14 +49,16 @@ android {
 
     defaultConfig {
         applicationId = "com.aden.marina"
-        minSdkVersion = flutter.minSdkVersion
+        minSdkVersion = 21
         targetSdk = 36
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
         multiDexEnabled = true
         
-        // ABI filters handled by Flutter --split-per-abi during build
-        // This allows flexible multi-architecture builds via GitHub Actions
+        // Support all CPU architectures for maximum device compatibility
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+        }
         
         // Add app metadata
         manifestPlaceholders = [
