@@ -225,16 +225,8 @@ class StayBalanceCalculator {
       manualCheckout,
     );
 
-    // ─── حساب بداية يوم الفندق الأول (قاعدة 14:00) ───
-    DateTime firstHotelDay = DateTime(
-      checkin.year,
-      checkin.month,
-      checkin.day,
-      14,
-    );
-    if (checkin.isBefore(firstHotelDay)) {
-      firstHotelDay = firstHotelDay.subtract(const Duration(days: 1));
-    }
+    // ─── حساب بداية يوم الفندق الأول (قاعدة 14:00) — عبر المصدر الوحيد HotelDateHelper ───
+    final firstHotelDay = HotelDateHelper.getHotelDay(checkin);
 
     // ─── محاكاة يوم بيوم لحساب الليالي المغطاة ───
     final coveredDates = <DateTime>[];

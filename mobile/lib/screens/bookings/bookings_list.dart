@@ -151,8 +151,19 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                         checkOut:
                                             actualCheckout ?? plannedCheckout,
                                       ));
-                            final totalAmount = actualNights * price
-                                ;
+                            // ✅ إصلاح: حساب الإجمالي مع مراعاة الخصم
+                            double totalAmount;
+                            final discount = booking.discount;
+                            final discountType = booking.discountType;
+                            if (discount > 0 && discountType == 'total') {
+                              totalAmount = (actualNights * price - discount)
+                                  .clamp(0.0, actualNights * price);
+                            } else if (discount > 0 && discountType == 'per_night') {
+                              totalAmount = actualNights * (price - discount)
+                                  .clamp(0.0, price);
+                            } else {
+                              totalAmount = actualNights * price;
+                            }
                             return RepaintBoundary(
                               child: _BookingRow(
                                 index: index,
@@ -215,7 +226,19 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                   checkOut:
                                       actualCheckout ?? plannedCheckout,
                                 ));
-                      final totalAmount = actualNights * price;
+                      // ✅ إصلاح: حساب الإجمالي مع مراعاة الخصم
+                      double totalAmount;
+                      final discount = booking.discount;
+                      final discountType = booking.discountType;
+                      if (discount > 0 && discountType == 'total') {
+                        totalAmount = (actualNights * price - discount)
+                            .clamp(0.0, actualNights * price);
+                      } else if (discount > 0 && discountType == 'per_night') {
+                        totalAmount = actualNights * (price - discount)
+                            .clamp(0.0, price);
+                      } else {
+                        totalAmount = actualNights * price;
+                      }
                       return RepaintBoundary(
                         child: _BookingRow(
                           index: index + 1,

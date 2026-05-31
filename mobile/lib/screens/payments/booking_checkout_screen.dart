@@ -158,7 +158,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                     ? nights.length
                     : actualNights;
                 final nightTotal = nights.isNotEmpty
-                    ? nights.fold<double>(0, (sum, n) => sum + n.nightlyRate)
+                    ? nights.fold<double>(0, (sum, n) =>
+                        sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate))
                     : (() {
                         // ✅ إصلاح: استخدام effectiveCheckout (الذي هو now أو actualCheckout)
                         final checkout = effectiveCheckout;

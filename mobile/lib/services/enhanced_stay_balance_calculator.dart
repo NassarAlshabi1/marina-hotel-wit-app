@@ -386,14 +386,43 @@ class EnhancedStayBalanceCalculator {
           ? DateTime.tryParse(adj.endHotelDay!)
           : null;
 
-      DateTime current = effectiveDate;
-      while (current.isBefore(manualCheckout ?? DateTime(2099))) {
-        if (endDate != null && current.isAfter(endDate)) break;
+      // ✅ إصلاح: التحقق من نوع التعديل (خصم = سالب، مزیدة = موجب)
+      final isDiscount = adj.adjustmentType == 0;
+      final rawAmount = adj.amount;
 
-        final key = Time.dateToString(current);
-        map[key] = (map[key] ?? 0) + adj.amount;
+      if (adj.adjustmentMode == 'total') {
+        // توزيع إجمالي المبلغ بالتساوي على ليالي النطاق
+        final farFuture = manualCheckout ?? effectiveDate.add(const Duration(days: 3650));
+        final adjEnd = endDate != null
+            ? DateTime(endDate.year, endDate.month, endDate.day)
+            : farFuture;
+        final daysInRange = adjEnd.difference(DateTime(
+          effectiveDate.year, effectiveDate.month, effectiveDate.day,
+        )).inDays + 1;
+        if (daysInRange <= 0) continue;
 
-        current = current.add(const Duration(days: 1));
+        final amountPerNight = rawAmount / daysInRange;
+        DateTime current = DateTime(effectiveDate.year, effectiveDate.month, effectiveDate.day);
+        for (int i = 0; i < daysInRange; i++) {
+          final key = Time.dateToString(current);
+          final signed = isDiscount ? -amountPerNight : amountPerNight;
+          map[key] = (map[key] ?? 0) + signed;
+          current = current.add(const Duration(days: 1));
+        }
+      } else {
+        // per_night: يُطبّق المبلغ كاملاً على كل ليلة في النطاق
+        DateTime current = effectiveDate;
+        int safetyCounter = 0;
+        while (current.isBefore(manualCheckout ?? DateTime(2099)) && safetyCounter < 3650) {
+          if (endDate != null && current.isAfter(endDate)) break;
+
+          final key = Time.dateToString(current);
+          final signed = isDiscount ? -rawAmount : rawAmount;
+          map[key] = (map[key] ?? 0) + signed;
+
+          current = current.add(const Duration(days: 1));
+          safetyCounter++;
+        }
       }
     }
 
