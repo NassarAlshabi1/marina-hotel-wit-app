@@ -8,6 +8,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/remote_config_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/hotel_date_helper.dart';
 
 /// شاشة إرسال تنبيه واتساب للمبالغ المتأخرة
 /// تعرض جميع الديون المعلقة والمتأخرة مع إمكانية إرسال رسالة تذكير
@@ -113,7 +114,7 @@ class _LatePaymentWhatsAppScreenState
     if (date == null) {
       return 0;
     }
-    return DateTime.now().difference(date).inDays;
+    return HotelDateHelper.calculateNights(checkIn: date, checkOut: DateTime.now());
   }
 
   bool _isOverdue(Debt debt) {

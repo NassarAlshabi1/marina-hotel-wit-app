@@ -8,6 +8,7 @@ import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/hotel_date_helper.dart';
 import '../../utils/time.dart';
 import 'create_debt_from_booking.dart';
 
@@ -281,7 +282,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               : debt.checkoutDate;
           final debtDate = DateTime.tryParse(debtDateStr);
           if (debtDate != null) {
-            final daysPassed = DateTime.now().difference(debtDate).inDays;
+            final daysPassed = HotelDateHelper.calculateNights(checkIn: debtDate, checkOut: DateTime.now());
             matchesFilter =
                 daysPassed > 30 &&
                 debt.isSettled == 0 &&
@@ -363,7 +364,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate,
     );
     final daysPassed = debtDate != null
-        ? DateTime.now().difference(debtDate).inDays
+        ? HotelDateHelper.calculateNights(checkIn: debtDate, checkOut: DateTime.now())
         : 0;
     final isOverdue = daysPassed > 30 && !isSettled;
 
@@ -630,7 +631,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         : debt.checkoutDate;
     final debtDate = DateTime.tryParse(debtDateStr);
     final daysPassed = debtDate != null
-        ? DateTime.now().difference(debtDate).inDays
+        ? HotelDateHelper.calculateNights(checkIn: debtDate, checkOut: DateTime.now())
         : 0;
     final isOverdue = daysPassed > 30 && !isSettled && debt.remainingAmount > 0;
 

@@ -317,9 +317,29 @@ class _CreateDebtFromBookingScreenState
         return;
       }
 
-      final nightlyRate = booking.totalNightsCached > 0
-          ? booking.totalDueCached / booking.totalNightsCached
-          : 0.0;
+      // حساب السعر الفعلي لليلة مع مراعاة الخصم
+      // نستخدم السعر من الغرفة عبر قاعدة البيانات مباشرة
+      final db = ref.read(databaseProvider);
+      final room = await (db.select(db.rooms)
+            ..where((r) => r.roomNumber.equals(booking.roomNumber))
+            ..where((r) => r.deletedAt.isNull()))
+          .getSingleOrNull();
+      final roomPrice = room?.price ?? 0.0;
+      final discount = booking.discount;
+      final double nightlyRate;
+      if (discount > 0 && booking.discountType == 'per_night') {
+        nightlyRate = (roomPrice - discount).clamp(0.0, roomPrice);
+      } else if (discount > 0 && booking.discountType == 'total' && booking.totalNightsCached > 0) {
+        // خصم إجمالي: نوزعه على الليالي للحصول على متوسط السعر بعد الخصم
+        final totalBeforeDiscount = roomPrice * booking.totalNightsCached;
+        final totalAfterDiscount = (totalBeforeDiscount - discount).clamp(0.0, totalBeforeDiscount);
+        nightlyRate = totalAfterDiscount / booking.totalNightsCached;
+      } else if (booking.totalNightsCached > 0) {
+        // لا خصم — نستخدم متوسط السعر المخزن
+        nightlyRate = booking.totalDueCached / booking.totalNightsCached;
+      } else {
+        nightlyRate = roomPrice;
+      }
 
       final total = nightlyRate * nights;
       final paid = booking.totalPaidCached;

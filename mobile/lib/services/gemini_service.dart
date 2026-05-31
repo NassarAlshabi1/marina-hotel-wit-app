@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../utils/app_logger.dart';
 import 'package:uuid/uuid.dart';
 
+import '../utils/hotel_date_helper.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
 import 'booking_derived_fields_service.dart';
@@ -537,7 +538,7 @@ class GeminiService {
           final isFullyPaid = b.isFullyPaid;
           final isOverdue = b.isOverdue;
           final stayDays = checkin != 'غير محدد'
-              ? now.difference(DateTime.parse(checkin)).inDays
+              ? HotelDateHelper.calculateNights(checkIn: DateTime.parse(checkin), checkOut: now)
               : 0;
 
           s.writeln('  [${b.roomNumber}] ${b.guestName} | $nationality | ${b.guestPhone}');
@@ -927,7 +928,7 @@ class GeminiService {
         s.writeln('✗ فحص الغرف بدون دفعات: ${noPayments.length} غرفة محجوزة بدون أي دفعة:');
         for (final b in noPayments) {
           final stayDays = b.checkinDate.isNotEmpty
-              ? now.difference(DateTime.parse(b.checkinDate)).inDays
+              ? HotelDateHelper.calculateNights(checkIn: DateTime.parse(b.checkinDate), checkOut: now)
               : 0;
           s.writeln('  ✗ [${b.roomNumber}] ${b.guestName}: مستحق ${b.totalDueCached.toStringAsFixed(0)} ريال | مدفوع 0 | أقام $stayDays يوم ${stayDays >= 3 ? "⚠️ فترة طويلة بدون دفع!" : ""}');
         }

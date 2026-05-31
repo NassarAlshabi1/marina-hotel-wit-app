@@ -225,11 +225,17 @@ class BookingComputedStreamService {
         .getSingleOrNull();
     final pricePerNight = (room?.price ?? 0).round();
 
-    // Calculate total due (days * price, minus total-type discount)
+    // Calculate total due (days * price, minus discount)
     int totalDue = days * pricePerNight;
     final discount = booking.discount.round();
-    if (booking.discountType == 'total' && discount > 0) {
-      totalDue = (totalDue - discount).clamp(0, totalDue);
+    if (discount > 0) {
+      if (booking.discountType == 'total') {
+        totalDue = (totalDue - discount).clamp(0, totalDue);
+      } else {
+        // per_night: خصم لكل ليلة
+        final effectivePrice = (pricePerNight - discount).clamp(0, pricePerNight);
+        totalDue = days * effectivePrice;
+      }
     }
 
     // Sum payments
@@ -326,8 +332,14 @@ class BookingComputedStreamService {
 
     int totalDue = days * pricePerNight;
     final discount = booking.discount.round();
-    if (booking.discountType == 'total' && discount > 0) {
-      totalDue = (totalDue - discount).clamp(0, totalDue);
+    if (discount > 0) {
+      if (booking.discountType == 'total') {
+        totalDue = (totalDue - discount).clamp(0, totalDue);
+      } else {
+        // per_night: خصم لكل ليلة
+        final effectivePrice = (pricePerNight - discount).clamp(0, pricePerNight);
+        totalDue = days * effectivePrice;
+      }
     }
 
     final bookingPayments = paymentsMap[booking.id] ?? [];

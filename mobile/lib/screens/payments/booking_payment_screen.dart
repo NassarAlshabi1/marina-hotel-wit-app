@@ -1626,7 +1626,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
       builder: (context, roomSnap) {
         final double roomRate = roomSnap.data?.price ?? 0;
-        final amount = nights * roomRate;
+        // تطبيق خصم الحجز على سعر الغرفة
+        final double discount = widget.booking.discount;
+        final double effectiveRate = (discount > 0 && widget.booking.discountType == 'per_night')
+            ? (roomRate - discount).clamp(0.0, roomRate)
+            : roomRate;
+        final amount = nights * effectiveRate;
 
         return ElevatedButton(
           onPressed: amount > 0
@@ -3393,6 +3398,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
         builder: (context, roomSnap) {
           final double roomRate = roomSnap.data?.price ?? 0;
+          // تطبيق خصم الحجز على سعر الغرفة
+          final double discount = widget.booking.discount;
+          final double effectiveRate = (discount > 0 && widget.booking.discountType == 'per_night')
+              ? (roomRate - discount).clamp(0.0, roomRate)
+              : roomRate;
 
           return AlertDialog(
             title: const Row(
@@ -3405,7 +3415,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             content: StatefulBuilder(
               builder: (context, setState) {
                 final nights = int.tryParse(nightsController.text) ?? 1;
-                final totalCost = nights * roomRate;
+                final totalCost = nights * effectiveRate;
 
                 return Column(
                   mainAxisSize: MainAxisSize.min,
