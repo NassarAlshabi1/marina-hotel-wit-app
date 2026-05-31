@@ -44,6 +44,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   double _totalPaid = 0;
   double _totalOtherPaid = 0;
+  double _totalRemaining = 0;
+  double _totalDue = 0;
+  List<_BookingSummary> _bookingSummaries = [];
 
   String _formatBookingCode(int bookingId) =>
       bookingId.toString().padLeft(6, '0');
@@ -103,6 +106,11 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           ..addAll(result.rows);
         _totalPaid = result.totalPaid;
         _totalOtherPaid = result.totalOtherPaid;
+        _totalRemaining = result.totalRemaining;
+        _totalDue = result.totalDue;
+        _bookingSummaries
+          ..clear()
+          ..addAll(result.bookingSummaries);
       });
     } finally {
       if (mounted) {
@@ -159,7 +167,16 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         roomNumbers.add(bookingRoom);
       }
     }
-    // rooms لم تعد مطلوبة للحساب لأننا نستخدم القيم المحسوبة من الحجز مباشرة
+    // جلب أسعار الغرف الأصلية لعرضها في التقرير
+    final roomPriceMap = <String, double>{};
+    if (roomNumbers.isNotEmpty) {
+      final rooms = await (db.select(db.rooms)
+            ..where((r) => r.roomNumber.isIn(roomNumbers.toList())))
+          .get();
+      for (final room in rooms) {
+        roomPriceMap[room.roomNumber] = room.price;
+      }
+    }
 
     final rows = <_PaymentReportRow>[];
     double totalRoomPaid = 0;
@@ -224,12 +241,39 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       }
     }
 
+    // بناء ملخص الحجوزات مع سعر الغرفة والخصم والمتبقي
+    final bookingSummaries = <_BookingSummary>[];
+    for (final bookingId in relevantBookingIds) {
+      final booking = bookingMap[bookingId];
+      if (booking == null) continue;
+
+      final roomPrice = roomPriceMap[booking.roomNumber] ?? 0;
+      final nights = booking.calculatedNights > 0 ? booking.calculatedNights : 1;
+      final effectivePricePerNight = booking.totalDueCached / nights;
+
+      bookingSummaries.add(_BookingSummary(
+        bookingId: booking.id,
+        bookingCode: _formatBookingCode(booking.id),
+        guestName: booking.guestName,
+        roomNumber: booking.roomNumber,
+        nights: nights,
+        roomPricePerNight: roomPrice,
+        discount: booking.discount,
+        discountType: booking.discountType,
+        totalDue: booking.totalDueCached,
+        totalPaid: booking.totalPaidCached,
+        remainingBalance: booking.remainingBalanceCached,
+        effectivePricePerNight: effectivePricePerNight,
+      ));
+    }
+
     return _PaymentsReportResult(
       rows: rows,
       totalPaid: totalRoomPaid,
       totalOtherPaid: totalOtherPaid,
       totalRemaining: totalRemaining,
       totalDue: totalDue,
+      bookingSummaries: bookingSummaries,
     );
   }
 
@@ -316,6 +360,94 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             ],
           ),
         ),
+        // ─── ملخص الحجوزات: سعر الغرفة والخصم والمتبقي ───
+        if (_bookingSummaries.isNotEmpty) ...[
+          pw.SizedBox(height: 24),
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.accent,
+              borderRadius: pw.BorderRadius.circular(6),
+            ),
+            child: pw.Text(
+              'ملخص الحجوزات - سعر الغرفة والخصم والمتبقي',
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 14,
+                color: PdfColors.textWhite,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+          ),
+          pw.SizedBox(height: 10),
+          EnhancedPdfUtils.buildProfessionalTable(
+            headers: [
+              'النزيل',
+              'الغرفة',
+              'الليالي',
+              'سعر الليلة',
+              'الخصم',
+              'بعد الخصم',
+              'المستحق',
+              'المدفوع',
+              'المتبقي',
+            ],
+            data: [
+              for (final s in _bookingSummaries)
+                [
+                  s.guestName,
+                  s.roomNumber,
+                  s.nights.toString(),
+                  EnhancedPdfUtils.formatNumber(s.roomPricePerNight),
+                  s.discount > 0
+                      ? '${EnhancedPdfUtils.formatNumber(s.discount)}${s.discountType == 'total' ? ' (إجمالي)' : ' (لليلة)'}'
+                      : '-',
+                  EnhancedPdfUtils.formatNumber(s.effectivePricePerNight),
+                  EnhancedPdfUtils.formatNumber(s.totalDue),
+                  EnhancedPdfUtils.formatNumber(s.totalPaid),
+                  EnhancedPdfUtils.formatNumber(s.remainingBalance),
+                ],
+            ],
+            fonts: fonts,
+            headerColor: PdfColors.accent,
+            alternateRowColor: PdfColors.backgroundLight,
+          ),
+          pw.SizedBox(height: 14),
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(16),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.backgroundLight,
+              border: pw.Border.all(
+                color: _totalRemaining > 0 ? PdfColors.danger : PdfColors.success,
+                width: 1,
+              ),
+              borderRadius: pw.BorderRadius.circular(6),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'إجمالي المتبقي على النزلاء:',
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 14,
+                    color: PdfColors.textDark,
+                  ),
+                ),
+                pw.Text(
+                  '${EnhancedPdfUtils.formatNumber(_totalRemaining)} ريال',
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 18,
+                    color: _totalRemaining > 0 ? PdfColors.danger : PdfColors.success,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
       fileName: ReportPdfBuilder.generateFileName('مدفوعات النزلاء'),
     ),);
@@ -492,6 +624,26 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               ],
             ),
             const Divider(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSummaryTile(
+                    'إجمالي المستحق',
+                    _currencyFmt.format(_totalDue),
+                    Colors.blue,
+                  ),
+                ),
+                Container(width: 1, height: 28, color: Colors.grey.shade200),
+                Expanded(
+                  child: _buildSummaryTile(
+                    'المتبقي على النزلاء',
+                    _currencyFmt.format(_totalRemaining),
+                    _totalRemaining > 0 ? Colors.red : Colors.green,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 16),
             _buildSummaryTile(
               'إجمالي المدفوعات (الدخل)',
               _currencyFmt.format(totalAll),
@@ -597,6 +749,7 @@ class _PaymentsReportResult {
     required this.totalOtherPaid,
     required this.totalRemaining,
     required this.totalDue,
+    required this.bookingSummaries,
   });
 
   final List<_PaymentReportRow> rows;
@@ -604,4 +757,35 @@ class _PaymentsReportResult {
   final double totalOtherPaid;
   final double totalRemaining;
   final double totalDue;
+  final List<_BookingSummary> bookingSummaries;
+}
+
+class _BookingSummary {
+  _BookingSummary({
+    required this.bookingId,
+    required this.bookingCode,
+    required this.guestName,
+    required this.roomNumber,
+    required this.nights,
+    required this.roomPricePerNight,
+    required this.discount,
+    required this.discountType,
+    required this.totalDue,
+    required this.totalPaid,
+    required this.remainingBalance,
+    required this.effectivePricePerNight,
+  });
+
+  final int bookingId;
+  final String bookingCode;
+  final String guestName;
+  final String roomNumber;
+  final int nights;
+  final double roomPricePerNight;
+  final double discount;
+  final String discountType;
+  final double totalDue;
+  final double totalPaid;
+  final double remainingBalance;
+  final double effectivePricePerNight;
 }
