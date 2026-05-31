@@ -7,7 +7,9 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../core/core.dart';
 import '../../../../providers/appwrite_providers.dart' as ap;
 import '../../../../services/appwrite_backup_service.dart';
+import '../../../../services/local_db.dart';
 import '../../../../services/providers.dart';
+import '../../../../services/restore_fix_service.dart';
 import '../../../../services/sync_integrity_checker.dart';
 import '../../appwrite_logs_screen.dart';
 import '../../appwrite_sync_stats_screen.dart';
@@ -468,6 +470,11 @@ class AppwriteToolsTab extends ConsumerWidget {
           'هذا يشمل: الغرف، الحجوزات، المدفوعات، المصروفات، الموظفين، الديون، '
           'ملاحظات الشيفت، ملاحظات الحجز، ليالي الحجز، المعاملات النقدية، '
           'دورات الرواتب، ومدفوعات الرواتب.\n\n'
+          'بعد سحب البيانات، سيتم تلقائياً معالجة جميع الحجوزات وإعادة حساب:\n'
+          '  • عدد الليالي الفعلية (بقاعدة 14:00)\n'
+          '  • المدفوعات والمتبقي\n'
+          '  • الديون\n'
+          '  • سجلات booking_nights\n\n'
           'هل تريد المتابعة؟',
         ),
         actions: [
@@ -477,7 +484,7 @@ class AppwriteToolsTab extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop<bool>(context, true),
-            child: const Text('سحب البيانات'),
+            child: const Text('متابعة'),
           ),
         ],
       ),
@@ -515,6 +522,40 @@ class AppwriteToolsTab extends ConsumerWidget {
       if (!context.mounted) {
         return;
       }
+
+      // ─── بعد سحب البيانات: تشغيل الإصلاح الشامل تلقائياً ───
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('جاري معالجة الحجوزات وإعادة الحساب...'),
+            ],
+          ),
+          duration: Duration(minutes: 5),
+        ),
+      );
+
+      ComprehensiveFixReport? fixReport;
+      try {
+        final fixService = RestoreFixService(DatabaseManager.instance);
+        fixReport = await fixService.runComprehensiveFix();
+      } catch (e) {
+        debugPrint('⚠️ فشل الإصلاح الشامل بعد سحب البيانات: $e');
+      }
+
+      if (!context.mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
       unawaited(showDialog<void>(
@@ -526,11 +567,58 @@ class AppwriteToolsTab extends ConsumerWidget {
             size: 48,
           ),
           title: Text(result
-              ? 'تم سحب البيانات بنجاح'
+              ? 'تم سحب البيانات ومعالجتها'
               : 'لا توجد بيانات جديدة',),
-          content: Text(result
-              ? 'تم سحب جميع البيانات من Appwrite وحفظها محلياً.'
-              : 'البيانات المحلية محدّثة بالفعل.',),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(result
+                    ? 'تم سحب جميع البيانات من Appwrite وحفظها محلياً.'
+                    : 'البيانات المحلية محدّثة بالفعل.',),
+                if (fixReport != null) ...[
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        fixReport.success ? Icons.auto_fix_high : Icons.error,
+                        color: fixReport.success ? Colors.deepPurple : Colors.red,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        fixReport.success
+                            ? 'تمت معالجة الحجوزات'
+                            : 'فشلت المعالجة: ${fixReport.error}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: fixReport.success ? Colors.deepPurple : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (fixReport.success) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        _buildFixChip('إجمالي', '${fixReport.totalBookings}', Colors.blue),
+                        _buildFixChip('مُصلح', '${fixReport.bookingsFixed}', Colors.deepPurple),
+                        _buildFixChip('ليالي', '${fixReport.nightsCorrected}', Colors.orange),
+                        _buildFixChip('مالي', '${fixReport.financialsCorrected}', Colors.green),
+                        _buildFixChip('ديون', '${fixReport.debtsCorrected}', Colors.red),
+                        _buildFixChip('مدة', '${(fixReport.durationMs / 1000).toStringAsFixed(1)}s', Colors.grey),
+                      ],
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -551,6 +639,21 @@ class AppwriteToolsTab extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  Widget _buildFixChip(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        '$label: $value',
+        style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
+      ),
+    );
   }
 
   void _showNotAvailable(BuildContext context) {
