@@ -597,6 +597,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   Widget _buildSummary() {
     final totalAll = _totalPaid + _totalOtherPaid;
+    final isRoomSelected = _selectedRoom != null && _selectedRoom!.isNotEmpty;
+
     return Card(
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -604,6 +606,46 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Column(
           children: [
+            // ─── تفاصيل الغرفة المحددة ───
+            if (isRoomSelected && _bookingSummaries.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200, width: 0.5),
+                ),
+                child: Column(
+                  children: [
+                    for (final s in _bookingSummaries) ...[
+                      _buildDetailRow('سعر الليلة (بدون خصم)', '${_currencyFmt.format(s.roomPricePerNight)} ريال'),
+                      if (s.discount > 0) ...[
+                        _buildDetailRow(
+                          'الخصم',
+                          '${_currencyFmt.format(s.discount)} ريال ${s.discountType == 'total' ? '(إجمالي)' : '(لليلة)'}',
+                          valueColor: Colors.green,
+                        ),
+                      ],
+                      _buildDetailRow('سعر الليلة بعد الخصم', '${_currencyFmt.format(s.effectivePricePerNight)} ريال'),
+                      _buildDetailRow('عدد الليالي', '${s.nights}'),
+                      const Divider(height: 10, thickness: 0.5),
+                      _buildDetailRow('إجمالي المستحق', '${_currencyFmt.format(s.totalDue)} ريال', valueColor: Colors.blue),
+                      _buildDetailRow('إجمالي المدفوع', '${_currencyFmt.format(s.totalPaid)} ريال', valueColor: Colors.green),
+                      _buildDetailRow(
+                        'المبلغ المتبقي',
+                        '${_currencyFmt.format(s.remainingBalance)} ريال',
+                        valueColor: s.remainingBalance > 0 ? Colors.red : Colors.green,
+                        isBold: true,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Divider(height: 16),
+            ],
+
+            // ─── المجاميع العامة ───
             Row(
               children: [
                 Expanded(
@@ -652,6 +694,29 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, {Color? valueColor, bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+              color: valueColor ?? Colors.black87,
+            ),
+          ),
+        ],
       ),
     );
   }
