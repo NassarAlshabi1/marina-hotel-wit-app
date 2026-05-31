@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تقرير تحليل منطق معالجة البيانات في تطبيق فندق مارينا</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page-bg: #f5f5f4;
+    --section-bg: #f0f0ef;
+    --card-bg: #e9e8e3;
+    --table-stripe: #ecece9;
+    --header-fill: #514b39;
+    --cover-block: #756b4d;
+    --border: #c3bdae;
+    --icon: #877645;
+    --accent: #6037d8;
+    --accent-secondary: #34b876;
+    --text-primary: #252421;
+    --text-muted: #87847d;
+    --semantic-success: #3d8053;
+    --semantic-warning: #957739;
+    --semantic-error: #a55952;
+    --semantic-info: #42688f;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--page-bg);
+    font-family: 'Noto Naskh Arabic', 'Noto Sans SC', serif;
+    color: var(--text-primary);
+    line-height: 1.8;
+  }
+
+  @media screen {
+    html {
+      display: flex;
+      justify-content: center;
+    }
+    body {
+      width: 210mm;
+      min-height: 297mm;
+      box-shadow: 0 0 30px rgba(0,0,0,0.12);
+    }
+  }
+
+  /* ── Cover Page ── */
+  .cover {
+    width: 210mm;
+    height: 297mm;
+    position: relative;
+    overflow: hidden;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    page-break-after: always;
+  }
+
+  .cover-deco-top {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100%;
+    height: 8px;
+    background: linear-gradient(to left, var(--accent), var(--cover-block));
+  }
+
+  .cover-deco-circle {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    opacity: 0.25;
+  }
+
+  .cover-deco-line {
+    position: absolute;
+    bottom: 120px;
+    right: 60px;
+    width: 180px;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.4;
+  }
+
+  .cover-content {
+    text-align: center;
+    padding: 0 80px;
+    z-index: 2;
+  }
+
+  .cover-kicker {
+    font-size: 14pt;
+    color: var(--accent);
+    letter-spacing: 3px;
+    margin-bottom: 24px;
+    font-weight: 600;
+  }
+
+  .cover-title {
+    font-size: 32pt;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.5;
+    margin-bottom: 24px;
+  }
+
+  .cover-subtitle {
+    font-size: 16pt;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 40px;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .cover-meta {
+    font-size: 11pt;
+    color: var(--text-muted);
+    margin-top: 20px;
+  }
+
+  .cover-meta span {
+    display: inline-block;
+    margin: 0 12px;
+  }
+
+  .cover-bar {
+    width: 60px;
+    height: 4px;
+    background: var(--accent);
+    margin: 30px auto;
+    border-radius: 2px;
+  }
+
+  /* ── Body Pages ── */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 20mm 24mm 16mm 24mm;
+    background: #ffffff;
+    box-sizing: border-box;
+    position: relative;
+  }
+
+  .page + .page {
+    page-break-before: always;
+  }
+
+  .page-header {
+    position: absolute;
+    top: 12mm;
+    left: 28mm;
+    right: 28mm;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .page-footer {
+    position: absolute;
+    bottom: 10mm;
+    left: 28mm;
+    right: 28mm;
+    display: flex;
+    justify-content: space-between;
+    font-size: 9pt;
+    color: var(--text-muted);
+  }
+
+  /* ── Typography ── */
+  h1 {
+    font-size: 22pt;
+    font-weight: 700;
+    color: var(--header-fill);
+    margin-top: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--accent);
+    line-height: 1.5;
+  }
+
+  h2 {
+    font-size: 16pt;
+    font-weight: 700;
+    color: var(--header-fill);
+    margin-top: 24px;
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  h3 {
+    font-size: 13pt;
+    font-weight: 600;
+    color: var(--icon);
+    margin-top: 18px;
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+
+  p {
+    font-size: 11pt;
+    line-height: 1.9;
+    margin-bottom: 12px;
+    text-align: right;
+  }
+
+  ul, ol {
+    font-size: 11pt;
+    line-height: 2;
+    margin-bottom: 12px;
+    padding-right: 24px;
+  }
+
+  li {
+    margin-bottom: 4px;
+  }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 10pt;
+  }
+
+  thead th {
+    background: var(--header-fill);
+    color: #ffffff;
+    font-weight: 600;
+    padding: 10px 12px;
+    text-align: right;
+  }
+
+  tbody td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: right;
+    vertical-align: top;
+  }
+
+  tbody tr:nth-child(even) {
+    background: var(--table-stripe);
+  }
+
+  tbody tr:nth-child(odd) {
+    background: #ffffff;
+  }
+
+  /* ── Callout Boxes ── */
+  .callout {
+    background: var(--section-bg);
+    border-right: 4px solid var(--accent);
+    padding: 14px 18px;
+    margin: 16px 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 10.5pt;
+    line-height: 1.8;
+  }
+
+  .callout-success {
+    border-right-color: var(--semantic-success);
+  }
+
+  .callout-warning {
+    border-right-color: var(--semantic-warning);
+  }
+
+  .callout-info {
+    border-right-color: var(--semantic-info);
+  }
+
+  .callout strong {
+    color: var(--header-fill);
+  }
+
+  /* ── Code References ── */
+  code {
+    font-family: 'Sarasa Mono SC', 'Courier New', monospace;
+    background: var(--card-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10pt;
+    direction: ltr;
+    display: inline-block;
+  }
+
+  .code-block {
+    background: var(--card-bg);
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-family: 'Sarasa Mono SC', 'Courier New', monospace;
+    font-size: 9.5pt;
+    line-height: 1.7;
+    direction: ltr;
+    text-align: left;
+    margin: 12px 0;
+    overflow-x: auto;
+  }
+
+  /* ── Metric Cards ── */
+  .metrics-row {
+    display: flex;
+    gap: 16px;
+    margin: 16px 0;
+  }
+
+  .metric-card {
+    flex: 1;
+    background: var(--section-bg);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    border-top: 3px solid var(--accent);
+  }
+
+  .metric-value {
+    font-size: 24pt;
+    font-weight: 700;
+    color: var(--accent);
+    display: block;
+  }
+
+  .metric-label {
+    font-size: 9pt;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* ── Flow Diagram ── */
+  .flow-container {
+    background: var(--section-bg);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 16px 0;
+  }
+
+  .flow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .flow-step {
+    background: #ffffff;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 10.5pt;
+    text-align: center;
+    min-width: 320px;
+    position: relative;
+  }
+
+  .flow-step.step-highlight {
+    border-color: var(--accent);
+    background: #f8f6ff;
+  }
+
+  .flow-arrow {
+    font-size: 16pt;
+    color: var(--text-muted);
+    line-height: 1;
+  }
+
+  /* ── Reference Block ── */
+  .ref-block {
+    margin-top: 20px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .ref-item {
+    font-size: 9.5pt;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    line-height: 1.6;
+  }
+
+  .ref-item code {
+    font-size: 9pt;
+  }
+
+  /* ── Numbering ── */
+  .section-num {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* ── Print ── */
+  @media print {
+    html, body {
+      background: #ffffff;
+    }
+    .page {
+      box-shadow: none;
+      padding: 20mm 25mm 18mm 25mm;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- Cover Page -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-deco-top"></div>
+  <div class="cover-deco-circle"></div>
+  <div class="cover-deco-line"></div>
+  <div class="cover-content">
+    <div class="cover-kicker">تقرير تحليل تقني</div>
+    <div class="cover-bar"></div>
+    <h1 class="cover-title">تحليل منطق معالجة البيانات<br>في تطبيق فندق مارينا</h1>
+    <p class="cover-subtitle">الفرع marina — فحص معمق لآليات حساب الأيام والليالي والمبالغ المتبقية بعد سحب البيانات من Appwrite Cloud</p>
+    <div class="cover-bar"></div>
+    <div class="cover-meta">
+      <span>المستودع: NassarAlshabi1/marina-hotel-wit-app</span>
+      <span>الفرع: marina</span>
+      <span>التاريخ: 2026-06-01</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- Page 2: TOC + Executive Summary -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header"></div>
+
+  <h1>المحتويات</h1>
+  <table style="border: none; width: 100%;">
+    <tbody>
+      <tr style="background: transparent;"><td style="border: none; padding: 6px 8px; font-weight: 600; color: var(--header-fill);">1. الملخص التنفيذي</td></tr>
+      <tr style="background: transparent;"><td style="border: none; padding: 6px 8px; font-weight: 600; color: var(--header-fill);">2. منهجية التحليل</td></tr>
+      <tr style="background: transparent;"><td style="border: none; padding: 6px 8px; font-weight: 600; color: var(--header-fill);">3. النتائج والتفاصيل الفنية</td></tr>
+      <tr style="background: transparent;"><td style="border: none; padding: 6px 8px; padding-right: 32px; color: var(--text-muted);">3.1 استنساخ الفرع</td></tr>
+      <tr style="background: transparent;"><td style="border: none; padding: 6px 8px; padding-right: 32px; color: var(--text-muted);">3.2 هيكل مجلد mobile</td></tr>
+      <tr style="background: transparent;"><td style="border: none; padding: 6px 8px; padding-right: 32px; color: var(--text-muted);">3.3 معالجة البيانات بعد السحب من Appwrite Cloud</td></tr>
+      <tr style="background: transparent;"><td style="border: none; padding: 6px 8px; padding-right: 32px; color: var(--text-muted);">3.4 منطق حساب الأيام والليالي والمبالغ المتبقية</td></tr>
+      <tr style="background: transparent;"><td style="border: none; padding: 6px 8px; font-weight: 600; color: var(--header-fill);">4. الاستنتاج</td></tr>
+      <tr style="background: transparent;"><td style="border: none; padding: 6px 8px; font-weight: 600; color: var(--header-fill);">5. التوصيات</td></tr>
+      <tr style="background: transparent;"><td style="border: none; padding: 6px 8px; font-weight: 600; color: var(--header-fill);">6. المراجع</td></tr>
+    </tbody>
+  </table>
+
+  <h1><span class="section-num">1.</span> الملخص التنفيذي</h1>
+  <p>
+    تم استنساخ فرع <code>marina</code> من مستودع <code>NassarAlshabi1/marina-hotel-wit-app</code> بنجاح. بعد تحليل معمق لمجلد <code>mobile</code>، تبين أن التطبيق يعالج حساب الأيام والليالي والمبالغ المتبقية <strong>بشكل فعال ومدروس</strong> بعد سحب البيانات من Appwrite Cloud. يعتمد هذا على مبدأ أساسي: <strong>عدم الثقة الكاملة بالقيم المحسوبة القادمة من السحابة وإعادة حسابها محليًا لضمان الدقة والاتساق</strong>.
+  </p>
+
+  <div class="metrics-row">
+    <div class="metric-card">
+      <span class="metric-value">0</span>
+      <span class="metric-label">أخطاء بناء</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-value">8</span>
+      <span class="metric-label">تحذيرات</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-value">1</span>
+      <span class="metric-label">مصدر وحيد للحساب</span>
+    </div>
+  </div>
+
+  <div class="callout callout-success">
+    <strong>النتيجة الرئيسية:</strong> التطبيق لا يعتمد على القيم المحسوبة من السحابة، بل يعيد حسابها محليًا عبر خدمات حساب مخصصة باستخدام <code>HotelDateHelper</code> كمرجع وحيد لقاعدة الساعة 14:00.
+  </div>
+
+  <div class="page-footer">
+    <span>تقرير تحليل تطبيق فندق مارينا</span>
+    <span>2</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- Page 3: Methodology -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header"></div>
+
+  <h1><span class="section-num">2.</span> منهجية التحليل</h1>
+  <p>تم اتباع الخطوات التالية لتحليل منطق معالجة البيانات في التطبيق بشكل شامل ومنهجي. ركز التحليل على فهم تدفق البيانات من لحظة سحبها من Appwrite Cloud وحتى عرضها للمستخدم النهائي، مع التركيز بشكل خاص على آليات إعادة الحساب المحلية التي تضمن دقة البيانات المالية.</p>
+
+  <h2>خطوات التحليل</h2>
+  <ol>
+    <li><strong>استنساخ المستودع:</strong> تم استنساخ الفرع <code>marina</code> بنجاح باستخدام GitHub CLI، مع التحقق من اكتمال جميع الملفات والمجلدات الفرعية. تضمن ذلك التأكد من تطابق حالة المستودع المحلي مع الفرع البعيد على GitHub.</li>
+    <li><strong>استكشاف هيكل المشروع:</strong> تم تحديد موقع مجلد <code>mobile</code> والملفات الرئيسية ذات الصلة داخل مجلد <code>lib</code>. يشمل ذلك فحص البنية العامة للمشروع وتحديد الملفات المسؤولة عن المزامنة والحساب وعرض البيانات.</li>
+    <li><strong>تحليل ملفات المزامنة:</strong> تم فحص ملفات مثل <code>appwrite_sync_manager.dart</code> و<code>appwrite_delta_sync.dart</code> لفهم كيفية سحب البيانات من Appwrite. ركز التحليل على تحديد نقاط التدخل التي يقوم فيها التطبيق بإعادة معالجة البيانات بعد سحبها.</li>
+    <li><strong>تحليل ملفات النماذج (Models):</strong> تم مراجعة <code>local_db.dart</code> و<code>payment_models.dart</code> و<code>bookings_adapter.dart</code> لفهم كيفية تمثيل بيانات الحجوزات والمدفوعات محليًا، مع التركيز على الحقول المحسوبة وكيفية التعامل معها.</li>
+    <li><strong>تحليل خدمات الحساب:</strong> تم التركيز على <code>enhanced_booking_calculation_service.dart</code> و<code>booking_derived_fields_service.dart</code> و<code>restore_fix_service.dart</code> و<code>hotel_date_helper.dart</code> لفهم منطق الحساب الفعلي وآليات ضمان الدقة والاتساق.</li>
+  </ol>
+
+  <div class="callout callout-info">
+    <strong>ملاحظة منهجية:</strong> تم التحقق من كل مرجع كودي مذكور في هذا التقرير مقابل الكود الفعلي في الفرع <code>marina</code> لضمان دقة التحليل وموثوقية النتائج. جميع أرقام الأسطر المذكورة في قسم المراجع تعكس الحالة الفعلية للكود وقت التحليل.
+  </div>
+
+  <div class="page-footer">
+    <span>تقرير تحليل تطبيق فندق مارينا</span>
+    <span>3</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- Page 4-5: Technical Findings -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header"></div>
+
+  <h1><span class="section-num">3.</span> النتائج والتفاصيل الفنية</h1>
+
+  <h2><span class="section-num">3.1</span> استنساخ الفرع</h2>
+  <p>تم استنساخ الفرع <code>marina</code> بنجاح إلى المجلد المحلي. تأكدنا من تطابق أحدث التزام (commit) المحلي مع الفرع البعيد، وتم جلب أحدث التغييرات التي شملت إضافة ملف <code>enhanced_stay_balance_calculator.dart</code> الجديد. كما تم إصلاح تحذيرات التحليل البرمجي في هذا الملف لضمان توافقه مع <code>HotelDateHelper</code> كمرجع وحيد للحسابات.</p>
+
+  <h2><span class="section-num">3.2</span> هيكل مجلد mobile</h2>
+  <p>يحتوي مجلد <code>mobile</code> على بنية واضحة ومنظمة، حيث تتركز معظم منطق التطبيق في مجلد <code>lib</code>. الملفات الرئيسية التي تم تحليلها تقع ضمن <code>lib/services</code> (خدمات المزامنة والحساب) و<code>lib/models</code> (نماذج البيانات) و<code>lib/utils</code> (الأدوات المساعدة). هذا الفصل الواضح بين المسؤوليات يسهل الصيانة والتطوير ويضمن عدم تداخل المنطق بين الطبقات المختلفة.</p>
+
+  <h2><span class="section-num">3.3</span> معالجة البيانات بعد السحب من Appwrite Cloud</h2>
+  <p>عند سحب البيانات من Appwrite Cloud، لا يعتمد التطبيق على القيم المحسوبة مباشرة، بل يقوم بإعادة معالجتها محليًا. تتضح هذه الآلية من خلال النقاط التالية:</p>
+
+  <h3>أ. تجاهل الحقول المحسوبة في bookings_adapter.dart</h3>
+  <p>ملف <code>bookings_adapter.dart</code> المسؤول عن تحويل البيانات القادمة من Appwrite إلى نماذج محلية، يتجاهل عمدًا قراءة الحقول المالية المحسوبة مثل <code>totalDueCached</code> و<code>totalPaidCached</code> و<code>remainingBalanceCached</code> و<code>isFullyPaid</code> من Appwrite. بدلاً من ذلك، يتم ترك هذه الحقول كـ <code>Value.absent()</code>. هذا يعني أن التطبيق مصمم لإعادة حساب هذه القيم محليًا بعد استلام البيانات الأساسية للحجز، مما يضمن عدم تأثر الحسابات المحلية بأي قيم غير دقيقة أو قديمة قد تكون موجودة في السحابة.</p>
+
+  <div class="callout">
+    <strong>الأسطر 194-197 في bookings_adapter.dart:</strong><br>
+    <code>// لا نقرأ الحقول المحسوبة من Appwrite/Drive — تُعاد حسابها محلياً</code><br>
+    <code>// عبر BookingDerivedFieldsService لضمان دقة الأرقام</code><br>
+    <code>// totalDueCached, totalPaidCached, remainingBalanceCached, isFullyPaid</code><br>
+    <code>// تُترك كـ Value.absent() حتى يُعاد حسابها</code>
+  </div>
+
+  <h3>ب. إصلاح ما بعد السحب في appwrite_delta_sync.dart</h3>
+  <p>بعد اكتمال عملية سحب البيانات (pull) من Appwrite، يقوم هذا الملف بتشغيل وظائف إصلاح ومعالجة إضافية. يتم استدعاء <code>RestoreFixService.runAutoFixAfterRestore()</code> تلقائيًا بعد كل عملية سحب ناجحة. هذا يؤكد وجود مرحلة ما بعد السحب مخصصة للتحقق من سلامة البيانات وإعادة حسابها، مما يوفر طبقة حماية إضافية ضد أي تناقضات محتملة في البيانات.</p>
+
+  <h3>ج. إعادة الحساب بعد المزامنة في enhanced_booking_calculation_service.dart</h3>
+  <p>يحتوي هذا الملف على دالة <code>recalculateAfterSync</code> التي يتم استدعاؤها بعد المزامنة لإعادة حساب البيانات المالية للحجز وتحديث القيم المخزنة مؤقتًا في قاعدة البيانات المحلية. هذه الدالة تقوم بإعادة بناء تفاصيل الليالي وحساب الملخص المالي الكامل، ثم تحديث حقول مثل <code>totalDueCached</code> و<code>totalPaidCached</code> و<code>remainingBalanceCached</code> و<code>isFullyPaid</code> في قاعدة البيانات المحلية لضمان انعكاس أحدث الحسابات المحلية.</p>
+
+  <div class="page-footer">
+    <span>تقرير تحليل تطبيق فندق مارينا</span>
+    <span>4</span>
+  </div>
+</div>
+
+<!-- Page 5: Night Calculation Logic + Flow -->
+<div class="page">
+  <div class="page-header"></div>
+
+  <h2><span class="section-num">3.4</span> منطق حساب الأيام والليالي والمبالغ المتبقية</h2>
+
+  <h3>أ. HotelDateHelper — المصدر الوحيد لحساب الليالي</h3>
+  <p>ملف <code>hotel_date_helper.dart</code> هو المصدر الوحيد الموثوق به لحساب عدد الليالي عبر دالة <code>calculateNights</code>. يعتمد الحساب على قاعدة الساعة 14:00 (الثانية بعد الظهر) لتحديد بداية ونهاية اليوم الفندقي. أي مغادرة بعد الساعة 14:00، حتى لو بدقيقة واحدة، تؤدي إلى احتساب يوم إضافي كامل. تم تحويل ملفي <code>HotelTimeEngine</code> (في مجلدي utils وservices) إلى مفوضين (delegates) مع علامة <code>@Deprecated</code> تشير إلى <code>HotelDateHelper</code>، مما يضمن أن جميع مسارات الحساب تمر عبر مصدر واحد موحد.</p>
+
+  <div class="flow-container">
+    <div class="flow-steps">
+      <div class="flow-step">سحب البيانات من Appwrite Cloud</div>
+      <div class="flow-arrow">&#8595;</div>
+      <div class="flow-step">bookings_adapter: تجاهل الحقول المحسوبة</div>
+      <div class="flow-arrow">&#8595;</div>
+      <div class="flow-step">RestoreFixService.runAutoFixAfterRestore()</div>
+      <div class="flow-arrow">&#8595;</div>
+      <div class="flow-step step-highlight">HotelDateHelper.calculateNights() — قاعدة 14:00</div>
+      <div class="flow-arrow">&#8595;</div>
+      <div class="flow-step step-highlight">EnhancedBookingCalculationService — الحساب المالي</div>
+      <div class="flow-arrow">&#8595;</div>
+      <div class="flow-step">تحديث الحقول المشتقة في قاعدة البيانات المحلية</div>
+    </div>
+  </div>
+
+  <h3>ب. EnhancedBookingCalculationService — المحرك المالي</h3>
+  <p>هذه الخدمة هي المحرك الرئيسي للحسابات المالية في التطبيق. تقوم بعمليتين أساسيتين: الأولى هي بناء تفاصيل كل ليلة عبر دالة <code>_buildNightlyBreakdown</code> التي تحسب السعر الأساسي وأي تعديلات (خصومات أو رسوم إضافية) لكل ليلة على حدة. والثانية هي بناء الملخص المالي عبر دالة <code>_buildFinancialSummary</code> التي تجمع تفاصيل الليالي لحساب الإجمالي المستحق (<code>totalDue</code>) والمبلغ المدفوع (<code>totalPaid</code>) والرصيد المتبقي (<code>remainingBalance</code>) وحالة الدفع الكامل (<code>isFullyPaid</code>).</p>
+
+  <h3>ج. BookingDerivedFieldsService — تحديث الحقول المشتقة</h3>
+  <p>هذه الخدمة تستدعي <code>EnhancedBookingCalculationService</code> لإعادة حساب الحقول المشتقة (مثل الليالي والمبالغ المالية) وتحديثها في قاعدة البيانات المحلية. من المهم ملاحظة أن تحديث هذه الحقول <strong>لا يغير حقل <code>lastModified</code></strong> الخاص بالحجز، لأنها قيم محسوبة محليًا وليست تعديلات مباشرة من المستخدم. هذا يمنع حدوث حلقات مزامنة غير ضرورية، حيث أن تغيير <code>lastModified</code> يجعل البيانات المحلية تبدو أحدث مما يمنع السحب من تحديثها في المزامنة القادمة.</p>
+
+  <h3>د. RestoreFixService — إصلاح الديون والمدفوعات</h3>
+  <p>دالة <code>_recalculateBookingFinancials</code> في ملف <code>restore_fix_service.dart</code> تقوم بإعادة حساب المدفوعات والديون للحجز، وتحديث الحقول مثل <code>totalAmount</code> و<code>paidAmount</code> و<code>remainingAmount</code> و<code>isSettled</code> في جدول <code>debts</code>. هذا يضمن أن سجلات الديون تتوافق مع أحدث الحسابات المالية المحلية، ويمنع حدوث تناقضات بين جدول الحجوزات وجدول الديون.</p>
+
+  <div class="page-footer">
+    <span>تقرير تحليل تطبيق فندق مارينا</span>
+    <span>5</span>
+  </div>
+</div>
+
+<!-- Page 6: Conclusion + Recommendations + References -->
+<div class="page">
+  <div class="page-header"></div>
+
+  <h1><span class="section-num">4.</span> الاستنتاج</h1>
+  <p>بناءً على التحليل المعمق، يمكن التأكيد أن تطبيق فندق مارينا يعالج حساب الأيام والليالي والمبالغ المتبقية بعد سحب البيانات من Appwrite Cloud <strong>بمنطق سليم ومحترف</strong>. يتمثل النهج المتبع في أربع ركائز أساسية:</p>
+
+  <div class="callout callout-success">
+    <strong>1. عدم الثقة بالقيم المحسوبة من السحابة:</strong> يتم تجاهل الحقول المالية المحسوبة عند سحب البيانات من Appwrite عبر <code>bookings_adapter.dart</code>، مما يضمن عدم تأثر الحسابات المحلية بأي قيم قديمة أو غير دقيقة.
+  </div>
+
+  <div class="callout callout-success">
+    <strong>2. إعادة الحساب المحلي:</strong> يتم إعادة حساب جميع القيم المتعلقة بالليالي والمبالغ المستحقة والمدفوعة والمتبقية محليًا باستخدام خدمات حساب مخصصة (<code>EnhancedBookingCalculationService</code>، <code>BookingDerivedFieldsService</code>).
+  </div>
+
+  <div class="callout callout-success">
+    <strong>3. قواعد حساب واضحة:</strong> يتم استخدام <code>HotelDateHelper</code> كمرجع وحيد لحساب الليالي بناءً على قاعدة الساعة 14:00، مما يضمن الاتساق في جميع أنحاء التطبيق ومنع التناقضات.
+  </div>
+
+  <div class="callout callout-success">
+    <strong>4. آليات إصلاح ما بعد المزامنة:</strong> يتم تشغيل آليات إصلاح تلقائية (<code>RestoreFixService</code>) بعد كل عملية سحب لضمان سلامة البيانات وتحديث الحسابات في كل من جدول الحجوزات وجدول الديون.
+  </div>
+
+  <p>هذا التصميم يضمن أن البيانات المالية المعروضة للمستخدم دقيقة ومحدثة دائمًا، حتى في حالة وجود اختلافات بين البيانات السحابية والمحلية، حيث يتم إعطاء الأولوية للحسابات المحلية بعد المزامنة.</p>
+
+  <h1><span class="section-num">5.</span> التوصيات</h1>
+
+  <table>
+    <thead>
+      <tr>
+        <th>التوصية</th>
+        <th>التفصيل</th>
+        <th>الأولوية</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>توثيق شامل</strong></td>
+        <td>نظرًا لتعقيد منطق الحساب وإعادة المعالجة، يوصى بوجود توثيق شامل يوضح تدفق البيانات ومنطق الحساب في كل مرحلة، خاصة للقيم المشتقة التي تُعاد حسابها محليًا بعد كل مزامنة.</td>
+        <td>عالية</td>
+      </tr>
+      <tr>
+        <td><strong>اختبارات الوحدة والتكامل</strong></td>
+        <td>التأكد من وجود تغطية كافية لاختبارات الوحدة (Unit Tests) واختبارات التكامل (Integration Tests) لجميع خدمات الحساب والمزامنة لضمان عدم حدوث تراجعات (regressions) في المستقبل عند إضافة ميزات جديدة.</td>
+        <td>عالية</td>
+      </tr>
+      <tr>
+        <td><strong>مراقبة الأداء</strong></td>
+        <td>نظرًا لأن إعادة الحساب تتم محليًا بعد كل سحب، يجب مراقبة أداء التطبيق على الأجهزة المختلفة لضمان عدم وجود تأخيرات ملحوظة في واجهة المستخدم، خاصة عند وجود عدد كبير من الحجوزات النشطة.</td>
+        <td>متوسطة</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1><span class="section-num">6.</span> المراجع</h1>
+  <div class="ref-block">
+    <div class="ref-item">[1] <code>lib/services/adapters/bookings_adapter.dart</code> (الأسطر 194-197) — تجاهل الحقول المحسوبة من Appwrite</div>
+    <div class="ref-item">[2] <code>lib/services/appwrite_delta_sync.dart</code> (الأسطر 321-327) — استدعاء RestoreFixService بعد السحب</div>
+    <div class="ref-item">[3] <code>lib/services/enhanced_booking_calculation_service.dart</code> (الأسطر 117-159) — دالة recalculateAfterSync</div>
+    <div class="ref-item">[4] <code>lib/utils/hotel_date_helper.dart</code> (الأسطر 107-128) — المصدر الوحيد لحساب الليالي</div>
+    <div class="ref-item">[5] <code>lib/services/enhanced_booking_calculation_service.dart</code> (الأسطر 162-270) — بناء تفاصيل الليالي</div>
+    <div class="ref-item">[6] <code>lib/services/enhanced_booking_calculation_service.dart</code> (الأسطر 291-328) — بناء الملخص المالي</div>
+    <div class="ref-item">[7] <code>lib/services/booking_derived_fields_service.dart</code> (الأسطر 99-102) — عدم تحديث lastModified</div>
+    <div class="ref-item">[8] <code>lib/services/restore_fix_service.dart</code> (الأسطر 567-578) — إعادة حساب الديون</div>
+  </div>
+
+  <div class="page-footer">
+    <span>تقرير تحليل تطبيق فندق مارينا</span>
+    <span>6</span>
+  </div>
+</div>
+
+</body>
+</html>
