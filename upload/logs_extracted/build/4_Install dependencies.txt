@@ -1,0 +1,11 @@
+﻿2026-05-31T20:52:20.6307378Z ##[group]Run flutter clean
+2026-05-31T20:52:20.6307712Z [36;1mflutter clean[0m
+2026-05-31T20:52:20.6307981Z [36;1mflutter pub get[0m
+2026-05-31T20:52:20.6335948Z shell: /usr/bin/bash -e {0}
+2026-05-31T20:52:20.6336452Z env:
+2026-05-31T20:52:20.6336769Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.41.0-x64/flutter
+2026-05-31T20:52:20.6337167Z   PUB_CACHE: /home/runner/.pub-cache
+2026-05-31T20:52:20.6337437Z ##[endgroup]
+2026-05-31T20:52:24.2607634Z Error: No pubspec.yaml file found.
+2026-05-31T20:52:24.2608509Z This command should be run from the root of your Flutter project.
+2026-05-31T20:52:24.2686909Z ##[error]Process completed with exit code 1.
