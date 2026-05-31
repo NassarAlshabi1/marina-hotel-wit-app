@@ -38,6 +38,8 @@ class _AppwriteSettingsScreenState
   bool _logConsole = true;
   bool _logFile = false;
   bool _isLoading = false;
+  bool _isFixRunning = false;
+  ComprehensiveFixReport? _lastComprehensiveReport;
 
   @override
   void initState() {
@@ -125,6 +127,10 @@ class _AppwriteSettingsScreenState
 
             // قسم الأجهزة المسجلة
             _buildDevicesSection(context, devicesAsync),
+            const SizedBox(height: 16),
+
+            // قسم الصيانة
+            _buildMaintenanceSection(context),
             const SizedBox(height: 16),
 
             // قسم إدارة البيانات
@@ -846,6 +852,202 @@ class _AppwriteSettingsScreenState
     );
   }
 
+  // ==================== قسم الصيانة ====================
+  Widget _buildMaintenanceSection(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.build_circle, color: Colors.deepPurple, size: 24),
+                SizedBox(width: 8),
+                Text(
+                  'الصيانة',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+
+            // إصلاح الحجوزات النشطة فقط
+            _buildDataActionCard(
+              icon: Icons.build,
+              color: Colors.blue,
+              title: 'إصلاح الحجوزات النشطة',
+              subtitle: 'يعيد حساب الليالي والمدفوعات للحجوزات المفتوحة فقط',
+              details: const [
+                'يُشغّل تلقائياً بعد كل مزامنة',
+                'لا يؤثر على الحجوزات المغلقة',
+                'آمن ولا يكسر المزامنة',
+              ],
+              actionLabel: _isFixRunning ? 'جاري الإصلاح...' : 'إصلاح النشطة',
+              onPressed: _isFixRunning ? () {} : _runMaintenanceAutoFix,
+            ),
+            const SizedBox(height: 12),
+
+            // الإصلاح الشامل لجميع الحجوزات
+            _buildDataActionCard(
+              icon: Icons.auto_fix_high,
+              color: Colors.deepPurple,
+              title: 'الإصلاح الشامل لجميع الحجوزات',
+              subtitle: 'يعيد حساب كل الحجوزات (مغلقة + مفتوحة) ويرفعها إلى Appwrite',
+              details: const [
+                'يشمل الحجوزات المغلقة والأرشيف',
+                'يُعيد حساب الليالي بقاعدة 14:00',
+                'يُصلح المبالغ والديون ويُحدث lastModified',
+                'التغييرات تُرفع تلقائياً عبر المزامنة الدورية',
+              ],
+              actionLabel: _isFixRunning ? 'جاري الإصلاح الشامل...' : 'تشغيل الإصلاح الشامل',
+              onPressed: _isFixRunning ? () {} : _runMaintenanceComprehensiveFix,
+            ),
+
+            // عرض نتيجة آخر إصلاح شامل
+            if (_lastComprehensiveReport != null) ...[
+              const SizedBox(height: 16),
+              _buildComprehensiveReportSummary(context, _lastComprehensiveReport!),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ملخص نتيجة الإصلاح الشامل
+  Widget _buildComprehensiveReportSummary(
+    BuildContext context,
+    ComprehensiveFixReport report,
+  ) {
+    final statusColor = report.success ? Colors.green : Colors.red;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                report.success ? Icons.check_circle : Icons.error,
+                color: statusColor,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                report.success ? 'اكتمل الإصلاح الشامل بنجاح' : 'فشل: ${report.error}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: statusColor,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          if (report.success) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    title: 'إجمالي',
+                    value: '${report.totalBookings}',
+                    icon: Icons.list_alt,
+                    color: Colors.blue,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: _buildStatCard(
+                    title: 'مُصلح',
+                    value: '${report.bookingsFixed}',
+                    icon: Icons.build,
+                    color: Colors.deepPurple,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: _buildStatCard(
+                    title: 'ليالي',
+                    value: '${report.nightsCorrected}',
+                    icon: Icons.nights_stay,
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    title: 'مالي',
+                    value: '${report.financialsCorrected}',
+                    icon: Icons.attach_money,
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: _buildStatCard(
+                    title: 'ديون',
+                    value: '${report.debtsCorrected}',
+                    icon: Icons.account_balance,
+                    color: Colors.red,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: _buildStatCard(
+                    title: 'مدة',
+                    value: '${(report.durationMs / 1000).toStringAsFixed(1)}s',
+                    icon: Icons.timer,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+            if (report.changes.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text(
+                  'التفاصيل (${report.changes.length})',
+                  style: const TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                children: report.changes.take(30).map((change) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('  ', style: TextStyle(fontSize: 11)),
+                        const Text('\u2022 ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        Expanded(
+                          child: Text(
+                            change,
+                            style: const TextStyle(fontSize: 11, color: Colors.black87),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
   // ==================== قسم إدارة البيانات ====================
   Widget _buildDataManagementSection(BuildContext context) {
     return Card(
@@ -1118,6 +1320,121 @@ class _AppwriteSettingsScreenState
   }
 
   // ==================== الأحداث ====================
+
+  /// إصلاح الحجوزات النشطة من قسم الصيانة
+  Future<void> _runMaintenanceAutoFix() async {
+    setState(() => _isFixRunning = true);
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('بدء إصلاح الحجوزات النشطة...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      final fixService = RestoreFixService(DatabaseManager.instance);
+      final report = await fixService.runAutoFixAfterRestore(
+        skipLedgerRebuild: true,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              report.success
+                  ? 'اكتمل الإصلاح: ${report.bookingsFixed} حجز، ${report.roomsUpdated} غرفة'
+                  : 'فشل الإصلاح: ${report.error}',
+            ),
+            backgroundColor: report.success ? Colors.green : Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ غير متوقع: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isFixRunning = false);
+    }
+  }
+
+  /// الإصلاح الشامل لجميع الحجوزات من قسم الصيانة
+  Future<void> _runMaintenanceComprehensiveFix() async {
+    // تأكيد المستخدم
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد الإصلاح الشامل'),
+        content: const Text(
+          'سيتم إعادة حساب جميع الحجوزات (بما فيها المغلقة) وتصحيح المبالغ والديون ورفعها إلى Appwrite.\n\n'
+          'هذه العملية لا يمكن التراجع عنها.\n\n'
+          'هل أنت متأكد؟',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurple,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('تأكيد'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isFixRunning = true);
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('بدء الإصلاح الشامل لجميع الحجوزات...'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+
+      final fixService = RestoreFixService(DatabaseManager.instance);
+      final report = await fixService.runComprehensiveFix();
+
+      if (mounted) {
+        setState(() => _lastComprehensiveReport = report);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              report.success
+                  ? 'اكتمل الإصلاح الشامل: ${report.bookingsFixed}/${report.totalBookings} حجز، ${report.nightsCorrected} ليالي، ${report.financialsCorrected} مالي'
+                  : 'فشل الإصلاح الشامل: ${report.error}',
+            ),
+            backgroundColor: report.success ? Colors.green : Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ غير متوقع: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isFixRunning = false);
+    }
+  }
 
   Future<void> _syncNow() async {
     setState(() => _isLoading = true);
