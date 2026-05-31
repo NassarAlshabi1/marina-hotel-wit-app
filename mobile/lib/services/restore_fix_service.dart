@@ -105,6 +105,61 @@ class RestoreFixReport {
   };
 }
 
+/// تقرير شامل عن عملية الإصلاح الشامل للبيانات
+class ComprehensiveFixReport {
+
+  ComprehensiveFixReport({
+    required this.success,
+    required this.totalBookings,
+    required this.bookingsFixed,
+    required this.nightsCorrected,
+    required this.financialsCorrected,
+    required this.debtsCorrected,
+    required this.nightsRebuilt,
+    required this.changes,
+    this.error,
+    required this.executedAt,
+    required this.durationMs,
+  });
+
+  final bool success;
+  final int totalBookings;
+  final int bookingsFixed;
+  final int nightsCorrected;
+  final int financialsCorrected;
+  final int debtsCorrected;
+  final int nightsRebuilt;
+  final List<String> changes;
+  final String? error;
+  final DateTime executedAt;
+  final int durationMs;
+
+  Map<String, dynamic> toJson() => {
+    'success': success,
+    'totalBookings': totalBookings,
+    'bookingsFixed': bookingsFixed,
+    'nightsCorrected': nightsCorrected,
+    'financialsCorrected': financialsCorrected,
+    'debtsCorrected': debtsCorrected,
+    'nightsRebuilt': nightsRebuilt,
+    'changes': changes,
+    'error': error,
+    'executedAt': executedAt.toIso8601String(),
+    'durationMs': durationMs,
+  };
+
+  @override
+  String toString() =>
+      'ComprehensiveFixReport('
+      'success=$success, '
+      'total=$totalBookings, '
+      'fixed=$bookingsFixed, '
+      'nights=$nightsCorrected, '
+      'financials=$financialsCorrected, '
+      'debts=$debtsCorrected, '
+      'rebuilt=$nightsRebuilt)';
+}
+
 /// خدمة الإصلاح التلقائي للنسخة الاحتياطية
 /// تقوم بإعادة حساب الليالي، حالات الغرف، والمدفوعات بعد استعادة النسخة الاحتياطية
 class RestoreFixService {
@@ -318,6 +373,297 @@ class RestoreFixService {
         durationMs: duration,
       );
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  /// إصلاح شامل لجميع الحجوزات (بما فيها المغلقة)
+  ///
+  /// يعيد حساب:
+  /// 1. عدد الليالي عبر HotelDateHelper (قاعدة 14:00)
+  /// 2. الحقول المالية عبر EnhancedBookingCalculationService
+  /// 3. سجلات الديون
+  /// 4. سجلات booking_nights (إعادة بناء كاملة)
+  ///
+  /// **ضمان عدم كسر المزامنة:**
+  /// - يحدّث `lastModified` فقط للسجلات التي تغيّرت فعلاً
+  ///   حتى تُرفع إلى Appwrite عبر pushDeltaChanges التالية
+  /// - لا يغيّر `lastModified` إذا لم تتغير القيم → لا حزمة مزامنة فارغة
+  /// - يحدّث `version` و `vectorClock` بسلامة عبر lastModified
+  /// - يحترم حقل `origin` (لا يغيّر جهاز المنشأ)
+  /// - الفرق عن BookingDerivedFieldsService: هذا يحدّث lastModified
+  ///   عمداً لأن الهدف هو إصلاح البيانات في Appwrite Cloud أيضاً
+  // ═══════════════════════════════════════════════════════════════════
+  Future<ComprehensiveFixReport> runComprehensiveFix() async {
+    final startTime = DateTime.now();
+    int totalBookings = 0;
+    int bookingsFixed = 0;
+    int nightsCorrected = 0;
+    int financialsCorrected = 0;
+    int debtsCorrected = 0;
+    int nightsRebuilt = 0;
+    final List<String> changes = [];
+
+    AppLogger.info('بدء الإصلاح الشامل لجميع الحجوزات...');
+
+    try {
+      // جلب جميع الحجوزات غير المحذوفة (بما فيها المغلقة)
+      final allBookings = await (db.select(db.bookings)
+            ..where((b) => b.deletedAt.isNull()))
+          .get();
+      totalBookings = allBookings.length;
+
+      final calcService = EnhancedBookingCalculationService(db);
+      final now = DateTime.now();
+      final fixId = IdGen.uuid();
+
+      for (final booking in allBookings) {
+        bool bookingChanged = false;
+
+        // ── الخطوة 1: إعادة حساب الليالي ──
+        final checkinDate = _parseDateTimeSafe(booking.checkinDate);
+        if (checkinDate == null) continue;
+
+        final checkoutDate = booking.actualCheckout != null &&
+                booking.actualCheckout!.isNotEmpty
+            ? _parseDateTimeSafe(booking.actualCheckout!)
+            : (booking.checkoutDate != null &&
+                    booking.checkoutDate!.isNotEmpty
+                ? _parseDateTimeSafe(booking.checkoutDate!)
+                : now);
+
+        final correctNights = HotelDateHelper.calculateNights(
+          checkIn: checkinDate,
+          checkOut: checkoutDate,
+        );
+
+        // مقارنة مع القيم الحالية
+        if (correctNights != booking.calculatedNights ||
+            correctNights != booking.expectedNights) {
+          nightsCorrected++;
+          bookingChanged = true;
+          changes.add(
+            'حجز #${booking.id} (${booking.guestName}): '
+            'الليالي ${booking.calculatedNights}→$correctNights',
+          );
+
+          await _logChange(
+            fixId: fixId,
+            targetTable: 'bookings',
+            targetRecordId: booking.id,
+            fieldName: 'calculatedNights',
+            oldValue: booking.calculatedNights.toString(),
+            newValue: correctNights.toString(),
+            reason: 'إصلاح شامل: إعادة حساب الليالي بقاعدة 14:00',
+            fixType: 'comprehensive_nights',
+          );
+        }
+
+        // ── الخطوة 2: إعادة الحساب المالي الكامل ──
+        // نستخدم EnhancedBookingCalculationService لأنه:
+        // - يبني تفاصيل كل ليلة مع التعديلات
+        // - يطبق الخصم (per_night و total)
+        // - يحسب المبالغ من الدفعات الفعلية
+        BookingCalculationResult? calculation;
+        try {
+          calculation = await calcService.calculateForBooking(
+            booking,
+            now: checkoutDate,
+          );
+        } catch (e) {
+          AppLogger.warning(
+            'فشل حساب الحجز #${booking.id}: $e',
+          );
+          // إذا فشل الحساب الكامل، نحدّث الليالي فقط
+          if (bookingChanged) {
+            await bookingsDao.updateById(
+              booking.id,
+              BookingsCompanion(
+                calculatedNights: Value(correctNights),
+                expectedNights: Value(correctNights),
+                // ✅ نحدّث lastModified لأن القيمة تغيّرت فعلاً
+                // وهذا يضمن رفع الإصلاح إلى Appwrite عبر المزامنة
+                lastModified: Value(Time.nowEpoch()),
+                updatedAt: Value(Time.nowEpoch()),
+              ),
+            );
+          }
+          continue;
+        }
+
+        final summary = calculation.financialSummary;
+        final correctTotalDue = summary.totalDue.toDouble();
+        final correctTotalPaid = summary.totalPaid.toDouble();
+        final correctRemaining = summary.remainingBalance.toDouble();
+        final correctIsFullyPaid = summary.isFullyPaid;
+
+        bool financialsChanged = false;
+        if (booking.totalDueCached != correctTotalDue ||
+            booking.totalPaidCached != correctTotalPaid ||
+            booking.remainingBalanceCached != correctRemaining ||
+            booking.isFullyPaid != correctIsFullyPaid) {
+          financialsChanged = true;
+          financialsCorrected++;
+          changes.add(
+            'حجز #${booking.id}: مالي '
+            'إجمالي=${booking.totalDueCached}→$correctTotalDue, '
+            'مدفوع=${booking.totalPaidCached}→$correctTotalPaid, '
+            'متبقي=${booking.remainingBalanceCached}→$correctRemaining',
+          );
+        }
+
+        if (bookingChanged || financialsChanged) {
+          bookingsFixed++;
+
+          // ── تحديث الحجز ──
+          await bookingsDao.updateById(
+            booking.id,
+            BookingsCompanion(
+              // الليالي
+              calculatedNights: Value(correctNights),
+              expectedNights: Value(correctNights),
+              // الحقول المالية
+              totalDueCached: Value(correctTotalDue),
+              totalPaidCached: Value(correctTotalPaid),
+              remainingBalanceCached: Value(correctRemaining),
+              isFullyPaid: Value(correctIsFullyPaid),
+              // أيام الفندق
+              totalNightsCached: Value(summary.totalNights),
+              hotelDayCheckin: Value(calculation.hotelDayCheckin),
+              hotelDayCheckout: Value(calculation.hotelDayCheckout),
+              stayDurationIso: Value(calculation.stayDurationIso),
+              lastNightEpoch: Value(calculation.lastNightEpoch),
+              // ✅ نحدّث lastModified فقط إذا تغيرت القيم فعلاً
+              // هذا يضمن أن pushDeltaChanges سيرفع الإصلاح إلى Appwrite
+              // بدون هذا التحديث، لن تُرفع القيم المُصلحة إلى السحابة
+              lastModified: Value(Time.nowEpoch()),
+              updatedAt: Value(Time.nowEpoch()),
+            ),
+          );
+
+          // ── الخطوة 3: إعادة بناء سجلات booking_nights ──
+          try {
+            await calcService.updateNightlyRecords(
+              booking,
+              now: checkoutDate,
+              forceRebuild: true,
+              breakdown: calculation.breakdown,
+            );
+            nightsRebuilt++;
+          } catch (e) {
+            AppLogger.warning(
+              'فشل إعادة بناء ليالي الحجز #${booking.id}: $e',
+            );
+          }
+
+          // ── الخطوة 4: إعادة حساب الديون ──
+          final debts = await (db.select(db.debts)
+                ..where((d) => d.bookingLocalId.equals(booking.id))
+                ..where((d) => d.deletedAt.isNull()))
+              .get();
+
+          for (final debt in debts) {
+            final shouldUpdate =
+                debt.totalAmount != correctTotalDue ||
+                debt.paidAmount != correctTotalPaid ||
+                debt.remainingAmount != correctRemaining ||
+                debt.isSettled != (correctRemaining <= 0 ? 1 : 0);
+
+            if (shouldUpdate) {
+              debtsCorrected++;
+              await (db.update(db.debts)
+                    ..where((t) => t.id.equals(debt.id)))
+                  .write(
+                DebtsCompanion(
+                  totalAmount: Value(correctTotalDue),
+                  paidAmount: Value(correctTotalPaid),
+                  remainingAmount: Value(correctRemaining),
+                  isSettled: Value(correctRemaining <= 0 ? 1 : 0),
+                  // ✅ نحدّث lastModified للديون أيضاً لرفعها إلى Appwrite
+                  lastModified: Value(Time.nowEpoch()),
+                  updatedAt: Value(Time.nowEpoch()),
+                ),
+              );
+
+              await _logConflict(
+                fixId: fixId,
+                tableName: 'debts',
+                fixType: 'comprehensive_debt',
+                localUuid: debt.localUuid,
+                oldData: {
+                  'total_amount': debt.totalAmount,
+                  'paid_amount': debt.paidAmount,
+                  'remaining_amount': debt.remainingAmount,
+                  'is_settled': debt.isSettled,
+                },
+                newData: {
+                  'total_amount': correctTotalDue,
+                  'paid_amount': correctTotalPaid,
+                  'remaining_amount': correctRemaining,
+                  'is_settled': correctRemaining <= 0 ? 1 : 0,
+                },
+              );
+            }
+          }
+        }
+      }
+
+      // ── الخطوة 5: تحديث حالات الغرف ──
+      final roomChanges = await _updateRoomStatusesFromBookings(IdGen.uuid());
+      changes.addAll(roomChanges);
+
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+
+      AppLogger.info(
+        'اكتمل الإصلاح الشامل: '
+        '$bookingsFixed/$totalBookings حجز مُصلح, '
+        '$nightsCorrected ليالي, '
+        '$financialsCorrected مالي, '
+        '$debtsCorrected ديون, '
+        '$nightsRebuilt إعادة بناء',
+      );
+
+      return ComprehensiveFixReport(
+        success: true,
+        totalBookings: totalBookings,
+        bookingsFixed: bookingsFixed,
+        nightsCorrected: nightsCorrected,
+        financialsCorrected: financialsCorrected,
+        debtsCorrected: debtsCorrected,
+        nightsRebuilt: nightsRebuilt,
+        changes: changes,
+        executedAt: startTime,
+        durationMs: duration,
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error('فشل الإصلاح الشامل: $e');
+      debugPrint('Stack trace: $stackTrace');
+
+      final duration = DateTime.now().difference(startTime).inMilliseconds;
+
+      return ComprehensiveFixReport(
+        success: false,
+        totalBookings: totalBookings,
+        bookingsFixed: bookingsFixed,
+        nightsCorrected: nightsCorrected,
+        financialsCorrected: financialsCorrected,
+        debtsCorrected: debtsCorrected,
+        nightsRebuilt: nightsRebuilt,
+        changes: changes,
+        error: e.toString(),
+        executedAt: startTime,
+        durationMs: duration,
+      );
+    }
+  }
+
+  /// تحويل آمن لنص إلى DateTime
+  DateTime? _parseDateTimeSafe(String value) {
+    if (value.isEmpty) return null;
+    final v = value.trim();
+    final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
+    final withSeconds =
+        normalized.length == 16 ? '$normalized:00' : normalized;
+    return DateTime.tryParse(withSeconds);
   }
 
   /// البحث عن الحجوزات التي تحتاج إصلاح
