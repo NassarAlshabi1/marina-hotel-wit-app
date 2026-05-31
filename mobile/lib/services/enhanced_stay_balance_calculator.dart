@@ -221,16 +221,8 @@ class EnhancedStayBalanceCalculator {
       manualCheckout,
     );
 
-    // حساب بداية يوم الفندق الأول (قاعدة 14:00)
-    DateTime firstHotelDay = DateTime(
-      checkin.year,
-      checkin.month,
-      checkin.day,
-      14,
-    );
-    if (checkin.isBefore(firstHotelDay)) {
-      firstHotelDay = firstHotelDay.subtract(const Duration(days: 1));
-    }
+    // حساب بداية يوم الفندق الأول (قاعدة 14:00) — عبر المصدر الوحيد HotelDateHelper
+    final firstHotelDay = HotelDateHelper.getHotelDay(checkin);
 
     // محاكاة يوم بيوم مع جمع التفاصيل
     final nightsBreakdown = <NightBreakdownItem>[];
@@ -399,7 +391,7 @@ class EnhancedStayBalanceCalculator {
         if (endDate != null && current.isAfter(endDate)) break;
 
         final key = Time.dateToString(current);
-        map[key] = (map[key] ?? 0) + (adj.amount ?? 0);
+        map[key] = (map[key] ?? 0) + adj.amount;
 
         current = current.add(const Duration(days: 1));
       }
@@ -437,9 +429,9 @@ class EnhancedStayBalanceCalculator {
         AdjustmentItem(
           type: adj.adjustmentType == 0 ? 'discount' : 'surcharge',
           reason: adj.reason,
-          amount: adj.amount ?? 0,
+          amount: adj.amount,
           appliedNights: nightsCount,
-          totalImpact: (adj.amount ?? 0) * nightsCount,
+          totalImpact: adj.amount * nightsCount,
         ),
       );
     }
