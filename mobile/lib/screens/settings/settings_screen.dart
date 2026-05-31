@@ -8,6 +8,7 @@ import '../../services/crashlytics_service.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
+import '../../services/performance_optimizer.dart';
 import '../ai/ai_chat_screen.dart';
 import '../security/blacklist_screen.dart';
 import 'active_bookings_reminder_screen.dart';
@@ -265,15 +266,22 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // قسم إعدادات عامة
-          _buildSectionTitle('إعدادات عامة', Icons.settings),
-          _buildSettingsGrid(context, [
-            _SettingsItem(
-              title: 'المظهر',
-              subtitle: 'الوضع الليلي والألوان',
-              icon: Icons.palette,
-              color: Colors.purple,
-              onTap: () => _showAppSettingsDialog(context),
-            ),
+            _buildSectionTitle('إعدادات عامة', Icons.settings),
+            _buildSettingsGrid(context, [
+              _SettingsItem(
+                title: 'المظهر والأداء',
+                subtitle: 'الوضع الليلي، الأداء، والرسوم',
+                icon: Icons.speed,
+                color: Colors.blue,
+                onTap: () => _showPerformanceSettingsDialog(context),
+              ),
+              _SettingsItem(
+                title: 'الألوان',
+                subtitle: 'تخصيص ألوان الواجهة',
+                icon: Icons.palette,
+                color: Colors.purple,
+                onTap: () => _showAppSettingsDialog(context),
+              ),
             _SettingsItem(
               title: 'المساعد الذكي',
               subtitle: 'Gemini AI - تحكم ذكي بالبيانات',
@@ -752,6 +760,56 @@ class SettingsScreen extends ConsumerWidget {
             child: const Text('إغلاق'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showPerformanceSettingsDialog(BuildContext context) {
+    final optimizer = PerformanceOptimizer();
+    showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('إعدادات الأداء'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('اختر وضع الأداء المناسب لجهازك:'),
+              const SizedBox(height: 16),
+              DropdownButton<PerformanceMode>(
+                isExpanded: true,
+                value: optimizer.currentMode,
+                onChanged: (mode) {
+                  if (mode != null) {
+                    optimizer.setPerformanceMode(mode);
+                    setDialogState(() {});
+                  }
+                },
+                items: const [
+                  DropdownMenuItem(value: PerformanceMode.low, child: Text('منخفض (للأجهزة الضعيفة)')),
+                  DropdownMenuItem(value: PerformanceMode.balanced, child: Text('متوازن')),
+                  DropdownMenuItem(value: PerformanceMode.high, child: Text('عالي (أفضل جودة)')),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('الرسوم المتحركة'),
+                subtitle: const Text('تعطيلها يحسن السرعة'),
+                value: optimizer.useAnimations,
+                onChanged: (val) {
+                  optimizer.setPerformanceMode(val ? PerformanceMode.balanced : PerformanceMode.low);
+                  setDialogState(() {});
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
       ),
     );
   }

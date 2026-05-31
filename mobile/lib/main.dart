@@ -56,6 +56,7 @@ import 'services/sync_guardian.dart';
 import 'services/sync_performance_optimizer.dart';
 
 import 'services/sync_service.dart';
+import 'services/performance_optimizer.dart';
 // ⚠️ Google Drive imports DISABLED
 // import 'services/unified_sync_orchestrator.dart';
 import 'utils/app_logger.dart';
@@ -87,6 +88,7 @@ Future<void> main() async {
 
   await DiagnosticsLogger.instance.initialize();
   await ApiConfigService.instance.initialize();
+  await PerformanceOptimizer().initialize();
 
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Lark/Telegram)
   unawaited(AlarmBackup.initAlarmSystem());

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/performance_optimizer.dart';
 
 class NeuCard extends StatelessWidget {
 
@@ -18,6 +19,8 @@ class NeuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final optimizer = PerformanceOptimizer();
+    final useShadows = optimizer.useShadows;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final shadowDark = isDark ? Colors.black54 : const Color(0xFFBEC8D1);
     final shadowLight = isDark ? const Color(0xFF3D3D3D) : Colors.white;
@@ -29,7 +32,7 @@ class NeuCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F7F9),
         borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow: [
+        boxShadow: useShadows ? [
           BoxShadow(
             color: shadowDark.withValues(alpha: 0.3),
             offset: const Offset(4, 4),
@@ -40,7 +43,8 @@ class NeuCard extends StatelessWidget {
             offset: const Offset(-4, -4),
             blurRadius: 8,
           ),
-        ],
+        ] : null,
+        border: !useShadows ? Border.all(color: isDark ? Colors.white10 : Colors.black12) : null,
       ),
       child: child,
     );
