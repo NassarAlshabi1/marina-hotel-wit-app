@@ -186,11 +186,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                     itemCount: floorRooms.length,
                     itemBuilder: (context, i) {
                       final roomData = floorRooms[i];
-                      return RepaintBoundary(
-                        child: _RoomGridCard(
-                          roomData: roomData,
-                          onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
-                        ),
+                      return _RoomGridCard(
+                        roomData: roomData,
+                        onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
                       );
                     },
                   ),
@@ -823,59 +821,45 @@ class _RoomGridCard extends StatelessWidget {
               ),
             ],
           ),
-          child: Stack(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (room.imagePath != null && room.imagePath!.isNotEmpty)
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: OptimizedImage(
-                      imageUrl: room.imagePath!,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: cardColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
                 ),
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.black45,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            room.roomNumber,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: cardColor.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              roomData.displayStatus,
-                              style: const TextStyle(
-                                fontSize: 8,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                child: Icon(
+                  isAvailable ? Icons.hotel : Icons.hotel_outlined,
+                  color: cardColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                room.roomNumber,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: cardColor,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: cardColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  roomData.displayStatus,
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: cardColor,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -919,36 +903,15 @@ class _RoomListCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                 ),
-                child: Stack(
-                  children: [
-                    if (room.imagePath != null && room.imagePath!.isNotEmpty)
-                      Positioned.fill(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: OptimizedImage(
-                            imageUrl: room.imagePath!,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.black26,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          room.roomNumber,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+                child: Center(
+                  child: Text(
+                    room.roomNumber,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: statusColor,
                     ),
-                  ],
+                  ),
                 ),
               ),
               const SizedBox(width: 12),

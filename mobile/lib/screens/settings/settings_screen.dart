@@ -792,14 +792,14 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              SwitchListTile(
-                title: const Text('الرسوم المتحركة'),
-                subtitle: const Text('تعطيلها يحسن السرعة'),
-                value: optimizer.useAnimations,
-                onChanged: (val) {
-                  optimizer.setPerformanceMode(val ? PerformanceMode.balanced : PerformanceMode.low);
-                  setDialogState(() {});
-                },
+              const Divider(),
+              const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Text(
+                  'تم تعطيل تحميل الصور لضمان أقصى سرعة ممكنة على الأجهزة الضعيفة.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),

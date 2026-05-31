@@ -22,7 +22,8 @@ class PerformanceOptimizer extends ChangeNotifier {
 
   // إعدادات محسنة للأجهزة الضعيفة
   bool get useAnimations => _currentMode != PerformanceMode.low;
-  double get imageQuality => _currentMode == PerformanceMode.low ? 0.5 : 1.0;
+  // تم تعطيل جودة الصور لأن التطبيق لا يستخدمها لضمان السرعة
+  double get imageQuality => 0.0; 
   bool get useShadows => _currentMode != PerformanceMode.low;
 
   Future<void> initialize() async {
