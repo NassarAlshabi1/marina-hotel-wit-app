@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -189,9 +190,9 @@ class UnifiedSyncOrchestrator {
     }
   }
 
-  Future<bool> syncNow({bool push = true, bool pull = true}) async {
+  Future<bool> syncNow({bool push = true, bool pull = true, String reason = ""}) async {
     if (_syncing) {
-      debugPrint('⚠️ مزامنة قيد التشغيل بالفعل');
+      debugPrint('⚠️ مزامنة قيد التشغيل بالفعل (سبب: $reason)');
       return false;
     }
     _syncing = true;
@@ -268,6 +269,13 @@ class UnifiedSyncOrchestrator {
     }
   }
 
+
+  Future<void> onAppForeground() async {
+    debugPrint('[UnifiedSyncOrchestrator] 📱 التطبيق في المقدمة - فحص الحاجة للمزامنة');
+    if (!_syncing) {
+      await syncNow(push: true, pull: true, reason: 'app_foreground');
+    }
+  }
   Future<void> _snapshotIfNeeded() async {
     if (_state.lastSnapshotAt == null) {
       await _takeSnapshot();
