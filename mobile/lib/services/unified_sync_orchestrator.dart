@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 
 import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +10,7 @@ import 'google_drive_unified_sync_coordinator.dart'
     show GoogleDriveUnifiedSyncCoordinator;
 import 'google_drive_auto_sync_engine.dart' show SyncResult;
 import 'local_db.dart';
+import 'smart_sync_manager.dart';
 import 'sync_integrity_checker.dart';
 
 class UnifiedSyncState {
@@ -68,6 +68,7 @@ class UnifiedSyncOrchestrator {
 
   AppwriteSyncManager? _appwrite;
   GoogleDriveUnifiedSyncCoordinator? _driveCoordinator;
+  SmartSyncManager? _smart;
   AppDatabase? _database;
 
   StreamSubscription<void>? _appwriteSub;
@@ -89,6 +90,7 @@ class UnifiedSyncOrchestrator {
   Future<void> initialize({
     AppwriteSyncManager? appwrite,
     GoogleDriveUnifiedSyncCoordinator? driveCoordinator,
+    SmartSyncManager? smart,
     AppDatabase? database,
   }) async {
     if (appwrite != null) {
@@ -98,6 +100,7 @@ class UnifiedSyncOrchestrator {
     if (driveCoordinator != null) {
       _driveCoordinator = driveCoordinator;
     }
+    _smart = smart ?? _smart ?? SmartSyncManager.instance;
     if (database != null) {
       _database = database;
     }
@@ -167,22 +170,22 @@ class UnifiedSyncOrchestrator {
               message: result.message ?? 'تمت المزامنة',
               timestamp: DateTime.now(),
               lastPushAt:
-                  result.pushedChanges != null
-                      ? DateTime.now()
-                      : _state.lastPushAt,
+                  result.pushedChanges != null && result.pushedChanges! > 0
+                  ? DateTime.now()
+                  : _state.lastPushAt,
               lastPullAt:
-                  result.pulledChanges != null
-                      ? DateTime.now()
-                      : _state.lastPullAt,
+                  result.pulledChanges != null && result.pulledChanges! > 0
+                  ? DateTime.now()
+                  : _state.lastPullAt,
             ),
           );
         } else {
           _emit(
             _state.copyWith(
               phase: 'error',
-              message: result.message ?? 'فشل مزامنة Google Drive',
+              message: result.message ?? 'فشل المزامنة',
               timestamp: DateTime.now(),
-              lastError: result.message,
+              lastError: result.error,
             ),
           );
         }
@@ -190,68 +193,124 @@ class UnifiedSyncOrchestrator {
     }
   }
 
-  Future<bool> syncNow({bool push = true, bool pull = true, String reason = ""}) async {
+  Future<void> dispose() async {
+    _debounceTimer?.cancel();
+    await _appwriteSub?.cancel();
+    await _driveSub?.cancel();
+    await _stateController.close();
+    _initialized = false;
+  }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    await instance.dispose();
+  }
+
+  Future<void> notifyLocalChange({String? table, String? operation}) async {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(seconds: 10), () async {
+      // رفع تلقائي إلى Appwrite فقط بعد كل تغيير
+      await _autoSyncToAppwrite(
+        reason: 'local_change:${table ?? 'unknown'}:${operation ?? 'unknown'}',
+      );
+    });
+  }
+
+  /// رفع تلقائي إلى Appwrite فقط (بدون Google Drive)
+  Future<bool> _autoSyncToAppwrite({String reason = 'auto'}) async {
     if (_syncing) {
-      debugPrint('⚠️ مزامنة قيد التشغيل بالفعل (سبب: $reason)');
       return false;
     }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+
+      if (!appwriteEnabled) {
+        AppLogger.info('Appwrite sync معطل - تخطي الرفع التلقائي');
+        return true;
+      }
+
+      _syncing = true;
+      AppLogger.debug('رفع تلقائي إلى Appwrite: $reason');
+
+      final success = await _syncAppwrite(push: true, pull: false);
+
+      if (success) {
+        AppLogger.info('تم الرفع التلقائي إلى Appwrite');
+      } else {
+        AppLogger.error('فشل الرفع التلقائي إلى Appwrite');
+      }
+
+      return success;
+    } catch (e) {
+      AppLogger.error('خطأ في الرفع التلقائي: $e');
+      return false;
+    } finally {
+      _syncing = false;
+    }
+  }
+
+  Future<bool> syncNow({
+    bool push = true,
+    bool pull = true,
+    String reason = 'manual',
+    bool forceSnapshot = false,
+  }) async {
+    if (_syncing) {
+      return false;
+    }
+
     _syncing = true;
 
     _emit(
       _state.copyWith(
-        phase: 'starting',
-        message: 'بدء المزامنة الموحدة...',
+        phase: push ? 'pushing' : 'pulling',
+        message: 'تشغيل المزامنة الموحدة',
         timestamp: DateTime.now(),
       ),
     );
 
     try {
-      var allSuccess = true;
+      final prefs = await SharedPreferences.getInstance();
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      final googleDriveEnabled =
+          prefs.getBool('google_drive_sync_enabled') ?? false;
 
-      // 1. مزامنة Appwrite
-      final appwriteOk = await _syncAppwrite(push: push, pull: pull);
-      if (!appwriteOk) {
-        AppLogger.warning('فشلت مزامنة Appwrite', tag: 'UNIFIED_SYNC');
-        allSuccess = false;
+      var success = true;
+
+      if (appwriteEnabled) {
+        success = await _syncAppwrite(push: push, pull: pull) && success;
       }
 
-      // 2. Google Drive sync — DISABLED
-      await _syncGoogleDrive(push: push, pull: pull, reason: 'syncNow');
-
-      if (allSuccess) {
-        _emit(
-          _state.copyWith(
-            phase: 'completing',
-            message: 'اكتملت المزامنة بنجاح',
-            timestamp: DateTime.now(),
-          ),
-        );
-      } else {
-        _emit(
-          _state.copyWith(
-            phase: 'error',
-            message: 'فشلت المزامنة جزئياً',
-            timestamp: DateTime.now(),
-            lastError: 'Appwrite sync failed',
-          ),
-        );
+      if (googleDriveEnabled) {
+        success =
+            await _syncGoogleDrive(push: push, pull: pull, reason: reason) &&
+            success;
       }
 
-      // 3. التحقق من سلامة البيانات
-      await _verifySyncIntegrity();
+      if (forceSnapshot) {
+        await snapshotNow();
+      }
 
-      return allSuccess;
-    } catch (e, st) {
-      AppLogger.error(
-        'فشلت المزامنة الموحدة',
-        tag: 'UNIFIED_SYNC',
-        error: e,
-        stackTrace: st,
+      if (success) {
+        await _verifySyncIntegrity();
+      }
+
+      _emit(
+        _state.copyWith(
+          phase: success ? 'completing' : 'error',
+          message: success ? 'اكتملت الدورة' : 'فشل في مزامنة واحدة أو أكثر',
+          timestamp: DateTime.now(),
+        ),
       );
+
+      return success;
+    } catch (e) {
       _emit(
         _state.copyWith(
           phase: 'error',
-          message: 'فشل المزامنة الموحدة: $e',
+          message: 'فشل تشغيل المزامنة',
           timestamp: DateTime.now(),
           lastError: e.toString(),
         ),
@@ -259,30 +318,41 @@ class UnifiedSyncOrchestrator {
       return false;
     } finally {
       _syncing = false;
-      _emit(
-        _state.copyWith(
-          phase: 'idle',
-          message: 'جاهز',
-          timestamp: DateTime.now(),
-        ),
-      );
     }
   }
-
 
   Future<void> onAppForeground() async {
-    debugPrint('[UnifiedSyncOrchestrator] 📱 التطبيق في المقدمة - فحص الحاجة للمزامنة');
-    if (!_syncing) {
-      await syncNow(push: true, pull: true, reason: 'app_foreground');
-    }
+    await syncNow(push: false, reason: 'app_foreground');
   }
-  Future<void> _snapshotIfNeeded() async {
-    if (_state.lastSnapshotAt == null) {
-      await _takeSnapshot();
+
+  Future<void> onDriveSignInChanged(bool isSignedIn) async {
+    if (_driveCoordinator == null) {
       return;
     }
-    if (_state.lastSnapshotAt != null) {
-      final now = DateTime.now();
+    await _driveCoordinator!.onSignInChanged(isSignedIn);
+  }
+
+  Future<void> setDebounceSeconds(int seconds) async {
+    if (_driveCoordinator == null) {
+      return;
+    }
+    await _driveCoordinator!.setDebounceSeconds(seconds);
+  }
+
+  Future<void> setPullInterval(int minutes) async {
+    if (_driveCoordinator == null) {
+      return;
+    }
+    await _driveCoordinator!.setPullInterval(minutes);
+  }
+
+  Future<void> snapshotNow() async {
+    await _takeSnapshot();
+  }
+
+  Future<void> _snapshotIfNeeded({bool force = false}) async {
+    final now = DateTime.now();
+    if (!force && _state.lastSnapshotAt != null) {
       final diff = now.difference(_state.lastSnapshotAt!);
       if (diff.inMinutes < 20) {
         return;
@@ -292,16 +362,17 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<void> _takeSnapshot() async {
-    if (_database == null) {
+    if (_smart == null || _database == null) {
       return;
     }
     _emit(
       _state.copyWith(
         phase: 'snapshotting',
-        message: 'إنشاء Snapshot للبيانات',
+        message: 'إنشاء Snapshot على Google Drive',
         timestamp: DateTime.now(),
       ),
     );
+    await _smart!.forceSyncNow();
     final checksum = await _computeUnifiedChecksum();
     _emit(
       _state.copyWith(
@@ -444,12 +515,6 @@ class UnifiedSyncOrchestrator {
         ),
       );
     }
-  }
-
-  void dispose() {
-    _appwriteSub?.cancel();
-    _driveSub?.cancel();
-    _debounceTimer?.cancel();
   }
 
   void _emit(UnifiedSyncState s) {

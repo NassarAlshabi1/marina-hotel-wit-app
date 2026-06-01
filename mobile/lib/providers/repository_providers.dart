@@ -29,6 +29,7 @@ export '../providers/auto_backup_provider.dart' hide googleDriveBackupServicePro
 // إضافة Backup Providers
 export '../providers/backup_provider.dart';
 // إضافة Smart Sync Providers
+export '../providers/smart_sync_provider.dart';
 
 final syncGuardianProvider = Provider<SyncGuardian>(
   (ref) => SyncGuardian.instance,

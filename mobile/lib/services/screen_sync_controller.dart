@@ -4,12 +4,12 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import '../utils/app_logger.dart';
 
+import 'smart_sync_manager.dart';
 import 'sync_core/circuit_breaker.dart';
 import 'sync_core/retry_strategy.dart';
 import 'sync_core/sync_error_handler.dart';
 import 'sync_core/sync_validator.dart';
 import 'sync_locks.dart';
-import 'unified_sync_orchestrator.dart';
 
 class ScreenSyncController {
 
@@ -103,6 +103,12 @@ class ScreenSyncController {
 
       if (!networkValidation.isValid) {
         debugPrint('📴 [$screenId] ${networkValidation.error}');
+        // تم إلغاء SyncQueue لصالح Outbox - سيتم المزامنة تلقائياً عند عودة الاتصال
+        return false;
+      }
+
+      if (!SmartSyncManager.instance.isDriveSignedIn) {
+        debugPrint('🔒 [$screenId] المستخدم غير مسجل في Google Drive');
         return false;
       }
 
@@ -112,12 +118,11 @@ class ScreenSyncController {
         }
       }
 
-      // SmartSyncManager تمت إزالته — استخدام UnifiedSyncOrchestrator
       final success = await _retryStrategy.executeWithFallback(
         operation: () async {
           return _circuitBreaker.execute(() async {
             AppLogger.debug('[$screenId] بدء المزامنة مع الحماية...');
-            return UnifiedSyncOrchestrator.instance.syncNow(push: true, pull: false);
+            return SmartSyncManager.instance.pushLocalChanges();
           });
         },
         shouldRetry: (error) {
@@ -190,6 +195,9 @@ class ScreenSyncController {
 
   void dispose() {
     cancelTimer();
+
+    // إغلاق الموارد فوراً
+    // المزامنة عند الخروج تتم عبر PopScope في SyncOnExitMixin
     if (!_syncStatusController.isClosed) {
       _syncStatusController.close();
     }

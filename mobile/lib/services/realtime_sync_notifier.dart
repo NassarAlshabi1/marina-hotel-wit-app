@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'smart_sync_manager.dart';
 
 /// مُعلِم المزامنة الفورية - يتلقى إشعارات من الأجهزة الأخرى
-/// تمت إزالة SmartSyncManager — يعتمد فقط على Appwrite Sync الآن
 class RealtimeSyncNotifier {
 
   RealtimeSyncNotifier._();
@@ -46,21 +46,53 @@ class RealtimeSyncNotifier {
   }
 
   /// التحقق من وجود مزامنة جديدة
-  /// SmartSyncManager تمت إزالته — استخدام Appwrite Realtime Sync
   Future<void> _checkForNewSync() async {
-    // تمت إزالة SmartSyncManager. المزامنة تتم عبر Appwrite Delta Sync
-    // يمكن إضافة فحص Appwrite Realtime هنا في المستقبل
-    AppLogger.debug('RealtimeSyncNotifier: فحص المزامنة عبر Appwrite (قريباً)');
+    try {
+      final smartSync = SmartSyncManager.instance;
+
+      if (!smartSync.isDriveSignedIn) {
+        return;
+      }
+
+      final hasChanges = await smartSync.pullRemoteChanges();
+
+      if (hasChanges) {
+        final syncId = 'auto_${DateTime.now().millisecondsSinceEpoch}';
+        if (_lastProcessedSyncId == syncId) {
+          return;
+        }
+
+        final trigger = SyncTrigger(
+          syncId: syncId,
+          sourceDeviceId: 'remote',
+          timestamp: DateTime.now(),
+          changeType: 'update',
+        );
+
+        _syncTriggerController.add(trigger);
+        await _saveLastProcessedSyncId(syncId);
+        AppLogger.info('تم اكتشاف تغييرات جديدة');
+      }
+    } catch (e) {
+      AppLogger.error('خطأ في التحقق من المزامنة الجديدة: $e');
+    }
   }
 
-  /// إرسال إشعار لأجهزة أخرى (عبر FCM)
+  /// إرسال إشعار لأجهزة أخرى (عبر FCM أو Drive metadata)
   Future<void> notifyOtherDevices({
     required String syncId,
     required String changeType,
   }) async {
     try {
-      AppLogger.info('إرسال إشعار للأجهزة الأخرى: $syncId ($changeType)');
-      // TODO: استخدام FCM لإشعار الأجهزة الأخرى
+      // ignore: unused_local_variable
+      final metadata = {
+        'last_sync_id': syncId,
+        'source_device': SmartSyncManager.instance.deviceId,
+        'change_type': changeType,
+        'timestamp': DateTime.now().toUtc().toIso8601String(),
+      };
+
+      AppLogger.info('إرسال إشعار للأجهزة الأخرى: $syncId');
     } catch (e) {
       AppLogger.warning('فشل إرسال الإشعار: $e');
     }

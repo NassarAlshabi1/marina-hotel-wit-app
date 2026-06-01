@@ -466,7 +466,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                         todayPaidAmount: todayPaidAmount,
                       ),
                       const SizedBox(height: 8),
-
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
@@ -683,33 +682,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ],
           ),
           const SizedBox(height: 8),
-          // ─── إشعار التمديد التلقائي ───
-          if (liveBooking != null && liveBooking!.notes != null && liveBooking!.notes!.contains("تمديد تلقائي"))
-            Container(
-              margin: const EdgeInsets.only(bottom: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade300),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.autorenew, size: 14, color: Colors.orange.shade700),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      liveBooking!.notes!.contains("تمديد تلقائي: 1 ليلة")
-                          ? "تم تمديد الإقامة تلقائياً +1 ليلة (تجاوز 14:00)"
-                          : liveBooking!.notes!.contains("تمديد تلقائي:")
-                              ? "تم تمديد الإقامة تلقائياً (راجع الملاحظات)"
-                              : "تم تمديد الإقامة تلقائياً",
-                      style: TextStyle(fontSize: 11, color: Colors.orange.shade900, fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           Wrap(
             spacing: 6,
             runSpacing: 6,
@@ -1033,7 +1005,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
           const SizedBox(height: 8),
 
-
           // نموذج إضافة الدفعة
           _buildPaymentForm(summary, nights: nights, remainingAmount: remainingAmount, roomRate: roomRate),
         ],
@@ -1096,7 +1067,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ),
         const SizedBox(height: 8),
-
         Row(
           children: [
             Expanded(
@@ -1278,7 +1248,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-
                   _buildInfoRow('رقم الحجز', widget.booking.localUuid),
                   _buildInfoRow(
                     'تاريخ الوصول',
@@ -1584,7 +1553,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           children: [
             const Icon(Icons.access_time, color: Colors.blue, size: 32),
             const SizedBox(height: 8),
-
             Text(
               'خيارات تمديد الإقامة ستظهر عند تجاوز الليالي المخططة',
               style: TextStyle(color: Colors.blue.shade700),
@@ -2049,7 +2017,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
-
                 const Text(
                   'سيتم تحديث تاريخ المغادرة وإضافة الليالي الجديدة',
                   style: TextStyle(color: Colors.grey, fontSize: 12),
@@ -2849,7 +2816,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                           ),
                         ),
                         const SizedBox(height: 8),
-
                         Text(
                           'عدد المدفوعات المراد إلغاؤها: ${todayPayments.length}',
                           style: const TextStyle(fontSize: 13),
@@ -2880,7 +2846,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     ),
                   ),
                   const SizedBox(height: 8),
-
                   ...todayPayments.map((p) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 2),
                         child: Row(
@@ -3078,7 +3043,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 // معاينة الرسالة الكاملة
                 if (_showFullPreview) ...[
                   const SizedBox(height: 8),
-
                   Container(
                     constraints: const BoxConstraints(maxHeight: 300),
                     padding: const EdgeInsets.all(10),

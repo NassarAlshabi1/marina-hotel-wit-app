@@ -10,7 +10,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'analytics_service.dart';
 import 'battery_optimizer.dart';
-import 'unified_sync_orchestrator.dart';
+import 'smart_sync_manager.dart';
 
 /// معرف مهمة المزامنة في الخلفية
 const String backgroundSyncTask = 'marina-hotel-background-sync';
@@ -267,8 +267,8 @@ class BackgroundSyncService {
       }
 
       // تنفيذ المزامنة
-      // SmartSyncManager تمت إزالته — استخدام UnifiedSyncOrchestrator
-      await UnifiedSyncOrchestrator.instance.syncNow();
+      final syncManager = SmartSyncManager.instance;
+      await syncManager.syncNow();
 
       stopwatch.stop();
 

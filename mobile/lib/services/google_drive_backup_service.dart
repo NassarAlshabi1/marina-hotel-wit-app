@@ -129,47 +129,13 @@ class GoogleDriveBackupService {
   // AUTHENTICATION (signIn / signOut / session management)
   // ────────────────────────────────────────────────────────────
 
-  Timer? _sessionRefreshTimer;
-
   /// Initialize service and try to restore session silently
   Future<bool> initialize() async {
-    final ok = await attemptSilentSignIn();
-    if (ok) {
-      _startSessionRefreshTimer();
-    }
-    return ok;
-  }
-  
-  /// تشغيل مؤقت دوري لتحديث الجلسة كل 30 دقيقة
-  /// للحفاظ على صلاحية الـ access token ضمن الـ 350 يوم
-  void _startSessionRefreshTimer() {
-    _sessionRefreshTimer?.cancel();
-    _sessionRefreshTimer = Timer.periodic(
-      const Duration(minutes: 30),
-      (_) async {
-        try {
-          if (_googleSignIn.currentUser != null) {
-            await _refreshAccessToken(_googleSignIn.currentUser!);
-            AppLogger.debug('تم تحديث جلسة Google Drive تلقائياً (مؤقت 30 دقيقة)');
-          } else {
-            // محاولة استعادة الجلسة الصامتة
-            final saved = await getSavedUser();
-            if (saved['sessionValidUntil'] != null) {
-              final ok = await attemptSilentSignIn();
-              if (ok) {
-                AppLogger.debug('تم استعادة جلسة Google Drive عبر المؤقت الدوري');
-              }
-            }
-          }
-        } catch (e) {
-          AppLogger.warning('فشل تحديث جلسة Google Drive الدوري: $e');
-        }
-      },
-    );
+    // Try silent sign-in on app start
+    return await attemptSilentSignIn();
   }
 
   /// Initialize Google Sign-In with interactive login
-  /// عند تسجيل الدخول النشط، نحذف session_created_at القديمة لبدء session جديد بـ 350 يوم
   Future<bool> signIn() async {
     try {
       AppLogger.debug('جاري تسجيل الدخول إلى Google...');
@@ -179,15 +145,10 @@ class GoogleDriveBackupService {
         _accessToken = auth.accessToken;
         _refreshToken = auth.idToken; // Store for session persistence
         
-        // حذف session_created_at القديم لتوليد session جديد بـ 350 يوم
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('gdrive_session_created_at');
-        await prefs.remove('gdrive_session_valid_until');
-        
         // Save session data
         await _saveSession(account);
         
-        AppLogger.info('تم تسجيل الدخول بنجاح - session صالحة 350 يوماً');
+        AppLogger.info('تم تسجيل الدخول بنجاح');
         await GoogleDriveConfig.setConnected(true);
         return true;
       }
@@ -201,7 +162,6 @@ class GoogleDriveBackupService {
   /// Sign out from Google and clear session
   Future<void> signOut() async {
     try {
-      _sessionRefreshTimer?.cancel();
       await _googleSignIn.signOut();
       _accessToken = null;
       _refreshToken = null;
@@ -219,29 +179,24 @@ class GoogleDriveBackupService {
   }
 
   /// Attempt silent sign-in (for auto-backup and session restore)
-  /// يحاول استعادة الجلسة التلقائية من Google مع صلاحية 350 يوماً
   Future<bool> attemptSilentSignIn() async {
     try {
       AppLogger.debug('محاولة استعادة الجلسة...');
       
-      // التحقق أولاً من صلاحية الجلسة (350 يوم)
-      final sessionOk = await isSessionValid();
-      if (!sessionOk) {
-        AppLogger.warning('الجلسة منتهية الصلاحية (>350 يوم) - يتطلب تسجيل دخول جديد');
-        return false;
+      // First check if already signed in
+      final isSignedIn = await _googleSignIn.isSignedIn();
+      
+      if (isSignedIn) {
+        AppLogger.info('المستخدم مسجل دخول مسبقاً');
+        final account = await _googleSignIn.signInSilently();
+        if (account != null) {
+          await _refreshAccessToken(account);
+          await GoogleDriveConfig.setConnected(true);
+          return true;
+        }
       }
       
-      // محاولة تسجيل الدخول الصامت (بدون التحقق المسبق من isSignedIn)
-      // لأن isSignedIn() يعيد false بعد إعادة تشغيل التطبيق
-      final account = await _googleSignIn.signInSilently();
-      if (account != null) {
-        AppLogger.info('تم استعادة الجلسة بنجاح للحساب: ${account.email}');
-        await _refreshAccessToken(account);
-        await GoogleDriveConfig.setConnected(true);
-        return true;
-      }
-      
-      AppLogger.warning('فشلت محاولة استعادة الجلسة');
+      AppLogger.warning('لا توجد جلسة سابقة');
       return false;
     } catch (e) {
       AppLogger.warning('فشل تسجيل الدخول التلقائي: $e');
@@ -288,24 +243,14 @@ class GoogleDriveBackupService {
   }
 
   /// Save session to SharedPreferences
-  /// يحفظ بيانات الجلسة مع وقت الإنشاء (لصلاحية 350 يوم) ووقت آخر تحديث
   Future<void> _saveSession(GoogleSignInAccount account) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final now = DateTime.now();
-      
-      // الحصول على وقت إنشاء الجلسة الأصلي (إذا كان موجوداً)
-      final existingCreated = prefs.getString('gdrive_session_created_at');
-      final createdAt = existingCreated ?? now.toIso8601String();
-      final validUntil = DateTime.parse(createdAt).add(const Duration(days: 350));
-      
       await prefs.setString('gdrive_user_email', account.email);
       await prefs.setString('gdrive_user_id', account.id);
       await prefs.setString('gdrive_user_display_name', account.displayName ?? '');
-      await prefs.setString('gdrive_session_created_at', createdAt);
-      await prefs.setString('gdrive_session_valid_until', validUntil.toIso8601String());
-      await prefs.setString('gdrive_session_last_refresh', now.toIso8601String());
-      AppLogger.info('تم حفظ الجلسة - صالحة حتى: ${validUntil.toIso8601String()}');
+      await prefs.setString('gdrive_session_time', DateTime.now().toIso8601String());
+      AppLogger.info('تم حفظ الجلسة');
     } catch (e) {
       AppLogger.error('خطأ في حفظ الجلسة: $e');
     }
@@ -318,9 +263,6 @@ class GoogleDriveBackupService {
       await prefs.remove('gdrive_user_email');
       await prefs.remove('gdrive_user_id');
       await prefs.remove('gdrive_user_display_name');
-      await prefs.remove('gdrive_session_created_at');
-      await prefs.remove('gdrive_session_valid_until');
-      await prefs.remove('gdrive_session_last_refresh');
       await prefs.remove('gdrive_session_time');
       await prefs.remove('gdrive_access_token');
       AppLogger.info('تم مسح الجلسة المحفوظة');
@@ -337,50 +279,26 @@ class GoogleDriveBackupService {
         'email': prefs.getString('gdrive_user_email'),
         'id': prefs.getString('gdrive_user_id'),
         'displayName': prefs.getString('gdrive_user_display_name'),
-        'sessionTime': prefs.getString('gdrive_session_last_refresh'),
-        'sessionCreatedAt': prefs.getString('gdrive_session_created_at'),
-        'sessionValidUntil': prefs.getString('gdrive_session_valid_until'),
+        'sessionTime': prefs.getString('gdrive_session_time'),
       };
     } catch (e) {
       return {};
     }
   }
 
-  /// Check if session is still valid (350 days from creation)
+  /// Check if session is still valid
   Future<bool> isSessionValid() async {
-    // التحقق من صلاحية access token (ساعة واحدة)
     if (_tokenExpiry != null && DateTime.now().isAfter(_tokenExpiry!)) {
-      // التوكن منتهي، لكن الجلسة قد تظل صالحة إذا جددنا التوكن
-      // لا نعيد false هنا، نتحقق من صلاحية الجلسة الأساسية
+      return false;
     }
     
     final prefs = await SharedPreferences.getInstance();
-    
-    // 1. التحقق من صلاحية الجلسة الأساسية (350 يوم من تاريخ الإنشاء)
-    final validUntilStr = prefs.getString('gdrive_session_valid_until');
-    if (validUntilStr != null) {
-      final validUntil = DateTime.parse(validUntilStr);
-      if (DateTime.now().isAfter(validUntil)) {
-        AppLogger.warning('الجلسة منتهية منذ ${DateTime.now().difference(validUntil).inDays} يوم');
-        return false;
-      }
-      // الجلسة لا تزال ضمن الـ 350 يوم
-      return true;
-    }
-    
-    // 2. التوافق مع الإصدارات السابقة: التحقق من session_time القديم
     final sessionTime = prefs.getString('gdrive_session_time');
+    
     if (sessionTime != null) {
       final lastSession = DateTime.parse(sessionTime);
-      final isOldValid = DateTime.now().difference(lastSession).inDays < 350;
-      if (isOldValid) {
-        // ترحيل الجلسة القديمة إلى النظام الجديد
-        final validUntil = lastSession.add(const Duration(days: 350));
-        await prefs.setString('gdrive_session_created_at', lastSession.toIso8601String());
-        await prefs.setString('gdrive_session_valid_until', validUntil.toIso8601String());
-        await prefs.setString('gdrive_session_last_refresh', DateTime.now().toIso8601String());
-        return true;
-      }
+      // Session valid for 360 days
+      return DateTime.now().difference(lastSession).inDays < 360;
     }
     
     return false;

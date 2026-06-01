@@ -7,6 +7,7 @@ import '../services/appwrite_service.dart';
 import '../services/appwrite_sync_manager.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/providers.dart';
+import '../services/smart_sync_manager.dart';
 import '../services/unified_sync_orchestrator.dart';
 
 // ============ Service Providers ============
@@ -35,9 +36,9 @@ final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
 ) {
   final appwriteSync = ref.watch(appwriteSyncManagerProvider);
   final db = ref.watch(databaseProvider);
-  
+  final smart = SmartSyncManager.instance;
   final orch = UnifiedSyncOrchestrator.instance;
-  orch.initialize(appwrite: appwriteSync, database: db);
+  orch.initialize(appwrite: appwriteSync, smart: smart, database: db);
   return orch;
 });
 

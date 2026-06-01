@@ -30,7 +30,6 @@ class BookingDerivedFieldsService {
     await refreshForBooking(booking, now: now, forceRebuild: forceRebuild);
   }
 
-  /// تحديث الحقول المشتقة مع التمديد التلقائي إذا تجاوز النزيل 14:00
   Future<void> refreshForBooking(
     Booking booking, {
     DateTime? now,
@@ -50,54 +49,21 @@ class BookingDerivedFieldsService {
 
     final plannedCheckout = _parseDateTime(booking.checkoutDate);
     final actualCheckout = _parseDateTime(booking.actualCheckout);
-    final checkin = _parseDateTime(booking.checkinDate) ?? moment;
-    final isActive = actualCheckout == null && StatusUtils.isBookingActive(booking);
-
-    // ─── الحقول المحسوبة ───
-    final calculated = calculation.financialSummary.totalNights;
-    int extraAutoNights = 0;
-    DateTime? newCheckoutDate;
-
-    if (isActive && calculated > booking.expectedNights) {
-      // ✅ تمديد تلقائي: النزيل تجاوز 14:00 دون مغادرة
-      extraAutoNights = calculated - booking.expectedNights;
-
-      if (plannedCheckout != null) {
-        newCheckoutDate = plannedCheckout.add(Duration(days: extraAutoNights));
-      } else {
-        newCheckoutDate = checkin.add(Duration(days: calculated));
-      }
-
-      AppLogger.info(
-        '🔄 تمديد تلقائي للحجز ${booking.id}: '
-        'expectedNights ${booking.expectedNights} → ${booking.expectedNights + extraAutoNights}, '
-        'checkoutDate → ${_formatDateTime(newCheckoutDate)}',
-        tag: 'AUTO_EXTEND',
-      );
-    }
-
-    // expectedNights ثابت (ما أدخله الموظف) + التمديد التلقائي فقط
-    final newExpectedNights = booking.expectedNights + extraAutoNights;
-
-    // تاريخ المغادرة المخطط الجديد
-    final checkoutStr = newCheckoutDate != null
-        ? _formatDateTime(newCheckoutDate)
-        : booking.checkoutDate;
-
-    // ملاحظة التمديد التلقائي
-    String? notes = booking.notes;
-    if (extraAutoNights > 0) {
-      final extNote = '📌 تمديد تلقائي: $extraAutoNights ${extraAutoNights == 1 ? 'ليلة' : 'ليالي'} (${moment.day}/${moment.month}/${moment.year})';
-      notes = notes != null && notes.isNotEmpty
-          ? '$notes\n$extNote'
-          : extNote;
-    }
+    
+    // For active bookings (no actual checkout), expectedNights should dynamically 
+    // grow with the current time (totalNights from calculation which uses moment).
+    // This ensures payment screens show the correct number of nights if they stay past 14:00.
+    final expectedNightsValue =
+        (actualCheckout == null && StatusUtils.isBookingActive(booking))
+        ? calculation.financialSummary.totalNights
+        : (plannedCheckout != null && actualCheckout == null
+            ? calculation.financialSummary.totalNights
+            : booking.expectedNights);
 
     final isOverdue =
         calculation.bookingActive &&
         plannedCheckout != null &&
-        moment.isAfter(plannedCheckout) &&
-        extraAutoNights == 0; // إذا مددنا تلقائياً فليس متأخراً
+        moment.isAfter(plannedCheckout);
     final needsReview =
         isOverdue || calculation.financialSummary.remainingBalance > 0;
 
@@ -110,11 +76,9 @@ class BookingDerivedFieldsService {
         db.bookings,
       )..where((b) => b.id.equals(booking.id))).write(
         BookingsCompanion(
-          expectedNights: d.Value(newExpectedNights),
-          calculatedNights: d.Value(calculated),
-          totalNightsCached: d.Value(calculated),
-          checkoutDate: d.Value(checkoutStr),
-          notes: d.Value(notes),
+          expectedNights: d.Value(expectedNightsValue),
+          calculatedNights: d.Value(calculation.financialSummary.totalNights),
+          totalNightsCached: d.Value(calculation.financialSummary.totalNights),
           stayDurationIso: d.Value(calculation.stayDurationIso),
           lastNightEpoch: d.Value(calculation.lastNightEpoch),
           isOverdue: d.Value(isOverdue),
@@ -132,6 +96,9 @@ class BookingDerivedFieldsService {
           hotelDayCheckin: d.Value(calculation.hotelDayCheckin),
           hotelDayCheckout: d.Value(calculation.hotelDayCheckout),
           updatedAt: d.Value(stamp),
+          // ✅ لا نحدّث lastModified للحقول المشتقة لأنها تُحسب محلياً
+          // وليست تغييراً من المستخدم. تحديث lastModified يجعل البيانات
+          // المحلية تبدو "أحدث" مما يمنع السحب من تحديثها في المزامنة القادمة.
           updatedAtIso: d.Value(stampIso),
         ),
       );
@@ -151,6 +118,7 @@ class BookingDerivedFieldsService {
 
     int refreshed = 0;
     int promoted = 0;
+    // معالجة الحجوزات بالتوازي باستخدام Future.wait بدلاً من التسلسل
     final results = await Future.wait(active.map((booking) async {
       try {
         bool didPromote = false;
@@ -183,6 +151,7 @@ class BookingDerivedFieldsService {
         .write(const BookingsCompanion(status: d.Value('محجوزة')));
   }
 
+  // ignore: unused_element
   double _calculateNightlyRate(
     DateTime segmentStart,
     double baseRate,
@@ -212,6 +181,7 @@ class BookingDerivedFieldsService {
     return rate;
   }
 
+  // ignore: unused_element
   int _resolveLastNightEpoch(List<BookingNight> nights, DateTime fallback) {
     if (nights.isEmpty) {
       return fallback.millisecondsSinceEpoch ~/ 1000;
@@ -248,16 +218,7 @@ class BookingDerivedFieldsService {
     }
   }
 
-  String _formatDateTime(DateTime dt) {
-    final y = dt.year.toString().padLeft(4, '0');
-    final m = dt.month.toString().padLeft(2, '0');
-    final d = dt.day.toString().padLeft(2, '0');
-    final h = dt.hour.toString().padLeft(2, '0');
-    final min = dt.minute.toString().padLeft(2, '0');
-    final s = dt.second.toString().padLeft(2, '0');
-    return '$y-$m-$d $h:$min:$s';
-  }
-
+  // ignore: unused_element
   List<_NightSegment> _buildNightSegments(
     DateTime checkin,
     DateTime checkout, {
@@ -266,8 +227,10 @@ class BookingDerivedFieldsService {
     final int resolvedCutoffHour = cutoffHour ?? RemoteConfigService.instance.checkoutHour;
     final segments = <_NightSegment>[];
 
+    // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
     final int totalNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkout);
 
+    // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
     DateTime startOfCheckinHotelDay = DateTime(
       checkin.year,
       checkin.month,
@@ -282,8 +245,10 @@ class BookingDerivedFieldsService {
       final dayDate = startOfCheckinHotelDay.add(Duration(days: i));
       final dayKey = Time.dateToString(dayDate);
       
+      // بداية الشريحة: وقت الوصول الفعلي لأول شريحة، أو بداية يوم الفندق للشرائح التالية
       final segStart = i == 0 ? checkin : dayDate;
       
+      // نهاية الشريحة: وقت المغادرة الفعلي لآخر شريحة، أو بداية يوم الفندق التالي للشرائح البينية
       final nextHotelDay = dayDate.add(const Duration(days: 1));
       final segEnd = i == totalNights - 1
           ? (checkout.isAfter(segStart) ? checkout : segStart.add(const Duration(minutes: 1)))

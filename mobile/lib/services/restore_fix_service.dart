@@ -17,7 +17,6 @@ import 'daos/outbox_dao.dart';
 import 'daos/payments_dao.dart';
 import 'daos/rooms_dao.dart';
 import 'enhanced_booking_calculation_service.dart';
-import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
 
 /// استثناء يُرمى عند فشل التحقق من صحة بيانات النسخة الاحتياطية
@@ -266,11 +265,10 @@ class RestoreFixService {
     RestoreSnapshot? snapshot;
 
     try {
-      // إنشاء لقطة احتياطية للأمان قبل المعاملة (لتجنب File I/O داخل الـ transaction)
-      snapshot = await createLocalSnapshot('auto_fix', useTransaction: false);
-      
       // تنفيذ الإصلاح داخل معاملة واحدة
       await db.transaction(() async {
+        // إنشاء لقطة احتياطية للأمان داخل نفس المعاملة
+        snapshot = await createLocalSnapshot('auto_fix', useTransaction: false);
         final now = DateTime.now();
         final fixId = IdGen.uuid();
 
@@ -311,20 +309,6 @@ class RestoreFixService {
         // تحديث حالات الغرف
         final roomChanges = await _updateRoomStatusesFromBookings(fixId);
         changes.addAll(roomChanges);
-
-        // إعادة حساب الحقول المشتقة للحجوزات المصلحة (auto-extend, isOverdue, etc.)
-        final derivedService = BookingDerivedFieldsService(db);
-        for (final booking in bookingsToFix) {
-          try {
-            await derivedService.refreshForBookingId(
-              booking.id,
-              now: now,
-              forceRebuild: true,
-            );
-          } catch (e) {
-            AppLogger.warning('فشل تحديث الحقول المشتقة للحجز #${booking.id}: $e');
-          }
-        }
 
         final _BookingStructuresResult structuresResult =
             await _rebuildBookingStructures(now, skipLedgerRebuild: skipLedgerRebuild);
@@ -472,21 +456,6 @@ class RestoreFixService {
             reason: 'إصلاح شامل: إعادة حساب الليالي بقاعدة 14:00',
             fixType: 'comprehensive_nights',
           );
-          
-          // الحفاظ على التمديد اليدوي: expectedNights = max(old, calculated)
-          final newExpectedNights = math.max(booking.expectedNights, correctNights);
-          if (newExpectedNights != correctNights) {
-            await _logChange(
-              fixId: fixId,
-              targetTable: 'bookings',
-              targetRecordId: booking.id,
-              fieldName: 'expectedNights',
-              oldValue: booking.expectedNights.toString(),
-              newValue: newExpectedNights.toString(),
-              reason: 'الحفاظ على التمديد اليدوي: expectedNights',
-              fixType: 'comprehensive_nights_expected',
-            );
-          }
         }
 
         // ── الخطوة 2: إعادة الحساب المالي الكامل ──
@@ -496,39 +465,21 @@ class RestoreFixService {
         // - يحسب المبالغ من الدفعات الفعلية
         BookingCalculationResult? calculation;
         try {
-          // forceRebuild: true لإعادة الحساب من الصفر وعدم استخدام cached booking_nights
-          // يتطلب أيضاً updateNightlyRecords بعد الحساب لإعادة بناء السجلات
           calculation = await calcService.calculateForBooking(
             booking,
             now: checkoutDate,
           );
-          
-          // بعد الحساب، نمرر forceRebuild إلى updateNightlyRecords عند الحاجة
-          if (bookingChanged || financialsChanged) {
-            try {
-              nightsRebuilt++;
-              await calcService.updateNightlyRecords(
-                booking,
-                now: checkoutDate,
-                forceRebuild: true,
-                breakdown: calculation.breakdown,
-              );
-            } catch (e) {
-              AppLogger.warning('فشل إعادة بناء سجلات الليالي للحجز #${booking.id}: $e');
-            }
-          }
         } catch (e) {
           AppLogger.warning(
             'فشل حساب الحجز #${booking.id}: $e',
           );
           // إذا فشل الحساب الكامل، نحدّث الليالي فقط
           if (bookingChanged) {
-            final catchExpected = math.max(booking.expectedNights, correctNights);
             await bookingsDao.updateById(
               booking.id,
               BookingsCompanion(
                 calculatedNights: Value(correctNights),
-                expectedNights: Value(catchExpected),
+                expectedNights: Value(correctNights),
                 // ✅ نحدّث lastModified لأن القيمة تغيّرت فعلاً
                 // وهذا يضمن رفع الإصلاح إلى Appwrite عبر المزامنة
                 lastModified: Value(Time.nowEpoch()),
@@ -564,31 +515,17 @@ class RestoreFixService {
           bookingsFixed++;
 
           // ── تحديث الحجز ──
-          final newExpected = math.max(booking.expectedNights, correctNights);
           await bookingsDao.updateById(
             booking.id,
             BookingsCompanion(
               // الليالي
               calculatedNights: Value(correctNights),
-              expectedNights: Value(newExpected),
+              expectedNights: Value(correctNights),
               // الحقول المالية
               totalDueCached: Value(correctTotalDue),
               totalPaidCached: Value(correctTotalPaid),
               remainingBalanceCached: Value(correctRemaining),
               isFullyPaid: Value(correctIsFullyPaid),
-              // حالة التأخير والمراجعة (مع معالجة التواريخ غير الصالحة)
-              isOverdue: Value(
-                booking.actualCheckout == null &&
-                correctRemaining > 0 &&
-                _parseDateTimeSafe(booking.checkoutDate ?? '') != null &&
-                DateTime.now().isAfter(_parseDateTimeSafe(booking.checkoutDate ?? '')!),
-              ),
-              needsCheckoutReview: Value(
-                correctRemaining > 0 || 
-                (booking.actualCheckout == null &&
-                 _parseDateTimeSafe(booking.checkoutDate ?? '') != null &&
-                 DateTime.now().isAfter(_parseDateTimeSafe(booking.checkoutDate ?? '')!)),
-              ),
               // أيام الفندق
               totalNightsCached: Value(summary.totalNights),
               hotelDayCheckin: Value(calculation.hotelDayCheckin),
@@ -602,6 +539,21 @@ class RestoreFixService {
               updatedAt: Value(Time.nowEpoch()),
             ),
           );
+
+          // ── الخطوة 3: إعادة بناء سجلات booking_nights ──
+          try {
+            await calcService.updateNightlyRecords(
+              booking,
+              now: checkoutDate,
+              forceRebuild: true,
+              breakdown: calculation.breakdown,
+            );
+            nightsRebuilt++;
+          } catch (e) {
+            AppLogger.warning(
+              'فشل إعادة بناء ليالي الحجز #${booking.id}: $e',
+            );
+          }
 
           // ── الخطوة 4: إعادة حساب الديون ──
           final debts = await (db.select(db.debts)
@@ -725,8 +677,7 @@ class RestoreFixService {
     query.where((b) => b.deletedAt.isNull());
 
     // البحث عن الحجوزات النشطة (لم تسجل مغادرة فعلية)
-    // معالجة NULL وفارغ string (بعض البيانات القديمة تحتوي على '' بدلاً من NULL)
-    query.where((b) => b.actualCheckout.isNull() | b.actualCheckout.equals(''));
+    query.where((b) => b.actualCheckout.isNull());
 
     // تصفية الحجوزات النشطة فقط - سيتم التحقق باستخدام StatusUtils بعد الاستعلام
 
@@ -791,17 +742,15 @@ class RestoreFixService {
           },
           newData: {
             'calculated_nights': calculatedNights,
-            'expected_nights': math.max(booking.expectedNights, calculatedNights),
+            'expected_nights': calculatedNights,
           },
         );
 
-        // الحفاظ على التمديد اليدوي: expectedNights = max(old, calculated)
-        final newExpectedNights = math.max(booking.expectedNights, calculatedNights);
         await bookingsDao.updateById(
           booking.id,
           BookingsCompanion(
             calculatedNights: Value(calculatedNights),
-            expectedNights: Value(newExpectedNights),
+            expectedNights: Value(calculatedNights),
             updatedAt: Value(Time.nowEpoch()),
             lastModified: Value(Time.nowEpoch()),
           ),
