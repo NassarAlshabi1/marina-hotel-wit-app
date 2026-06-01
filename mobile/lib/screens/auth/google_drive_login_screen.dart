@@ -1,13 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marina_hotel_mobile/providers/backup_provider.dart';
+import 'package:marina_hotel_mobile/services/google_drive_backup_service.dart';
 
-/// ✅ Google Drive Login Screen - For backup & restore only
-class GoogleDriveLoginScreen extends ConsumerWidget {
+/// ✅ Google Drive Login Screen - مع حفظ الجلسة 350 يوماً
+class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
   const GoogleDriveLoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GoogleDriveLoginScreen> createState() => _GoogleDriveLoginScreenState();
+}
+
+class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen> {
+  Map<String, String?> _sessionInfo = {};
+  bool _loadingSession = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSessionInfo();
+  }
+
+  Future<void> _loadSessionInfo() async {
+    final service = GoogleDriveBackupService();
+    final info = await service.getSavedUser();
+    if (mounted) {
+      setState(() {
+        _sessionInfo = info;
+        _loadingSession = false;
+      });
+    }
+  }
+
+  String _formatRemainingDays(String? validUntilStr) {
+    if (validUntilStr == null) return '';
+    try {
+      final validUntil = DateTime.parse(validUntilStr);
+      final remaining = validUntil.difference(DateTime.now());
+      if (remaining.isNegative) {
+        return 'منتهية الصلاحية';
+      }
+      final days = remaining.inDays;
+      if (days > 0) {
+        return '$days يوماً متبقية';
+      }
+      final hours = remaining.inHours;
+      if (hours > 0) {
+        return '$hours ساعة متبقية';
+      }
+      return 'تنتهي قريباً';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final backupState = ref.watch(backupStatusProvider);
 
     return Scaffold(
@@ -77,6 +125,34 @@ class GoogleDriveLoginScreen extends ConsumerWidget {
                           'النسخ الاحتياطي والاستعادة متاحان',
                           style: TextStyle(color: Colors.green.shade700, fontSize: 12),
                         ),
+                        // ─── عرض صلاحية الجلسة ───
+                        if (_sessionInfo['sessionValidUntil'] != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.green.shade200),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.schedule, size: 14, color: Colors.green.shade600),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'الجلسة صالحة: ${_formatRemainingDays(_sessionInfo['sessionValidUntil'])}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.green.shade700,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
