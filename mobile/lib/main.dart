@@ -526,11 +526,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint('⚠️ Error disposing SyncPerformanceOptimizer: $e');
     }
     try {
-      // ⚠️ DISABLED: SmartSyncManager.disposeInstance(); // Google Drive disabled
-    } catch (e) {
-      debugPrint('⚠️ Error disposing SmartSyncManager: $e');
-    }
-    try {
       ConnectivityService.instance.dispose();
     } catch (e) {
       debugPrint('⚠️ Error disposing ConnectivityService: $e');

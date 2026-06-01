@@ -271,7 +271,7 @@ class DataUsageManager {
     await addUsage(usage);
   }
 
-  /// تسجيل استخدام البيانات بالميجابايت (مطلوب لـ SmartSyncManager)
+  /// تسجيل استخدام البيانات بالميجابايت
   Future<void> recordDataUsage(double megabytes) async {
     await addUsage(megabytes);
     debugPrint(
@@ -279,7 +279,7 @@ class DataUsageManager {
     );
   }
 
-  /// التحقق من تجاوز حد البيانات اليومي (مطلوب لـ SmartSyncManager)
+  /// التحقق من تجاوز حد البيانات اليومي
   Future<bool> isLimitExceeded() async {
     return false;
   }

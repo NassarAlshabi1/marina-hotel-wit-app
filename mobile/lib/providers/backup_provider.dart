@@ -300,7 +300,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       await prefs.setBool('google_drive_sync_enabled', enabled);
 
       // ⚠️ Google Drive SYNC is permanently disabled — backup/restore only
-      // All sync engines (AutoSyncEngine, UnifiedSyncCoordinator, SmartSyncManager)
+      // All sync engines (AutoSyncEngine, UnifiedSyncCoordinator)
       // are stubbed out and do nothing. We only save the preference.
       AppLogger.info(
         'Google Drive sync preference saved: $enabled (sync is DISABLED — backup/restore only)',

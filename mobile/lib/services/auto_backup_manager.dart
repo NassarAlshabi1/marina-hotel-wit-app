@@ -12,7 +12,6 @@ import 'appwrite_service.dart';
 import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
 import 'google_drive_backup_service.dart' as gd;
-import 'smart_sync_manager.dart';
 
 /// مدير النسخ الاحتياطي التلقائي الذكي
 /// يراقب التغييرات في قاعدة البيانات ويقوم بعمل نسخ احتياطية تلقائية
@@ -356,17 +355,6 @@ class AutoBackupManager {
   }
 
   /// إشعار مدير المزامنة الذكية بوجود نسخة جديدة
-  Future<void> _notifySmartSync() async {
-    try {
-      final smartSync = SmartSyncManager.instance;
-      if (await smartSync.isEnabled()) {
-        AppLogger.info('إشعار مدير المزامنة الذكية بالنسخة الجديدة...');
-        await smartSync.onLocalBackupUploaded();
-      }
-    } catch (e) {
-      AppLogger.warning('خطأ في إشعار مدير المزامنة: $e');
-    }
-  }
 
   /// تفعيل/تعطيل المزامنة الفورية
   Future<void> setInstantSyncEnabled(bool enabled) async {

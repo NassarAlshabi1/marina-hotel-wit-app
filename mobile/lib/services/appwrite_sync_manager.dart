@@ -1672,6 +1672,18 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         processed++;
+        // إعادة حساب الحقول المشتقة للحجز بعد مزامنة الدفعة
+        try {
+          final bookingUuid = data['bookingUuidCache'] as String?;
+          if (bookingUuid != null && bookingUuid.isNotEmpty) {
+            final booking = await _getBookingByLocalUuid(bookingUuid);
+            if (booking != null) {
+              await _bookingsRepository.derivedFields.refreshForBookingId(booking.id);
+            }
+          }
+        } catch (refreshErr) {
+          _logger.warning('Failed to refresh booking after payment sync: $refreshErr', tag: 'SYNC');
+        }
       } catch (e) {
         // تأجيل الدفعة إذا كان الخطأ FOREIGN KEY constraint
         if (e.toString().contains('FOREIGN KEY constraint failed') ||
@@ -1707,6 +1719,18 @@ class AppwriteSyncManager {
             src: Source.appwrite,
           );
           processed++;
+          // إعادة حساب الحقول المشتقة للحجز بعد مزامنة الدفعة (مرحلة مؤجلة)
+          try {
+            final bookingUuid = data['bookingUuidCache'] as String?;
+            if (bookingUuid != null && bookingUuid.isNotEmpty) {
+              final booking = await _getBookingByLocalUuid(bookingUuid);
+              if (booking != null) {
+                await _bookingsRepository.derivedFields.refreshForBookingId(booking.id);
+              }
+            }
+          } catch (refreshErr) {
+            _logger.warning('Failed to refresh booking after deferred payment sync: $refreshErr', tag: 'SYNC');
+          }
         } catch (e) {
           _logger.warning(
             'Failed to sync deferred payment ${doc.$id} after retry: $e',
