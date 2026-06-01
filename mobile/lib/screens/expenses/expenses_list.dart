@@ -871,7 +871,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
-            hotelDayKey: HotelTimeEngine.getHotelDayKeyFromIso(trimmedDate),
+            hotelDayKey: HotelTimeEngine.getHotelDayKeyFromDate(trimmedDate),
           );
         }
       } else {
@@ -894,7 +894,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
-            hotelDayKey: HotelTimeEngine.getHotelDayKeyFromIso(trimmedDate),
+            hotelDayKey: HotelTimeEngine.getHotelDayKeyFromDate(trimmedDate),
           );
         } else {
           await salaryRepo.deleteByExpenseId(existing.id);

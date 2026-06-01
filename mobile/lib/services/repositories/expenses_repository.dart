@@ -58,9 +58,9 @@ class ExpensesRepository {
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      // ✅ إصلاح: حساب hotelDayKey من التاريخ الكامل (مع الوقت) بدلاً من التاريخ التقويمي
-      // مصروف الساعة 10:00 صباحاً ينتمي لليوم الفندقي السابق (قبل 14:00)
-      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(date);
+      // ✅ إصلاح: استخدام getHotelDayKeyFromDate للتواريخ التقويمية
+      // التاريخ من منتقي التواريخ يعامل كـ 14:00:01 (بعد نقطة القطع = نفس اليوم)
+      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromDate(date);
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -100,8 +100,8 @@ class ExpensesRepository {
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      // ✅ إصلاح: حساب hotelDayKey من التاريخ الكامل (مع الوقت) بدلاً من التاريخ التقويمي
-      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(date);
+      // ✅ إصلاح: استخدام getHotelDayKeyFromDate للتواريخ التقويمية
+      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromDate(date);
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -158,9 +158,9 @@ class ExpensesRepository {
           date: normalizedDate != null
               ? d.Value(normalizedDate)
               : const d.Value.absent(),
-          // ✅ إصلاح: حساب hotelDayKey من التاريخ الكامل (مع الوقت) بدلاً من التاريخ التقويمي
+          // ✅ إصلاح: استخدام getHotelDayKeyFromDate للتواريخ التقويمية
           hotelDayKey: date != null
-              ? d.Value(HotelTimeEngine.getHotelDayKeyFromIso(date))
+              ? d.Value(HotelTimeEngine.getHotelDayKeyFromDate(date))
               : const d.Value.absent(),
         ),
       );
@@ -267,7 +267,7 @@ class ExpensesRepository {
       if (expense.hotelDayKey == null || expense.hotelDayKey!.isEmpty) {
         continue;
       }
-      final correctKey = HotelTimeEngine.getHotelDayKeyFromIso(expense.date);
+      final correctKey = HotelTimeEngine.getHotelDayKeyFromDate(expense.date);
       if (expense.hotelDayKey != correctKey) {
         await (db.update(db.expenses)
               ..where((t) => t.id.equals(expense.id)))

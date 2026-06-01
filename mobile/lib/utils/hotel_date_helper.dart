@@ -65,6 +65,11 @@ class HotelDateHelper {
   }
 
   /// تحويل ISO string إلى مفتاح يوم فندقي.
+  ///
+  /// **تحذير:** هذه الدالة تعامل النصوص بدون وقت (مثل "2026-06-01") كمنتصف الليل (00:00).
+  /// بما أن 00:00 قبل الساعة 14:00، فستُرجع مفتاح اليوم **السابق**!
+  ///
+  /// للنصوص التاريخية البحتة (من منتقي التواريخ)، استخدم [getHotelDayKeyFromDate] بدلاً من ذلك.
   static String getHotelDayKeyFromIso(String? isoString) {
     if (isoString == null || isoString.trim().isEmpty) {
       return getHotelDayKey();
@@ -75,6 +80,39 @@ class HotelDateHelper {
           : isoString.trim().replaceFirst(' ', 'T');
       final dt = DateTime.parse(normalized);
       return getHotelDayKey(dateTime: dt);
+    } catch (_) {
+      return getHotelDayKey();
+    }
+  }
+
+  /// تحويل تاريخ تقويمي (بدون وقت) إلى مفتاح يوم فندقي.
+  ///
+  /// هذه الدالة مخصصة للتواريخ التي تأتي من منتقي التواريخ (Date Picker)
+  /// حيث لا يوجد مكون وقت. تعامل التاريخ كأنه الساعة 14:00:01
+  /// (أي بعد نقطة القطع) ليُرجع مفتاح نفس اليوم التقويمي.
+  ///
+  /// **مثال:**
+  /// - "2026-06-01" → مفتاح "2026-06-01" ✅ (نفس اليوم)
+  /// - بينما `getHotelDayKeyFromIso("2026-06-01")` → مفتاح "2026-05-31" ❌ (اليوم السابق!)
+  ///
+  /// إذا كان النص يحتوي على وقت (يحتوي 'T' أو مسافة)، تُستخدم الدالة العادية.
+  static String getHotelDayKeyFromDate(String? dateString) {
+    if (dateString == null || dateString.trim().isEmpty) {
+      return getHotelDayKey();
+    }
+    try {
+      final trimmed = dateString.trim();
+      // إذا كان النص يحتوي على وقت بالفعل، نستخدم الدالة العادية
+      if (trimmed.contains('T') || (trimmed.contains(' ') && trimmed.length > 11)) {
+        return getHotelDayKeyFromIso(trimmed);
+      }
+      // تاريخ تقويمي فقط: نعامله كأنه الساعة 14:00:01 (بعد نقطة القطع = نفس اليوم)
+      final dateOnly = DateTime.parse(trimmed);
+      final asAfterCutoff = DateTime(
+        dateOnly.year, dateOnly.month, dateOnly.day,
+        hotelStartHour, 0, 1, // 14:00:01 — بعد نقطة القطع
+      );
+      return getHotelDayKey(dateTime: asAfterCutoff);
     } catch (_) {
       return getHotelDayKey();
     }

@@ -28,6 +28,11 @@ class HotelTimeEngine {
   static String getHotelDayKeyFromIso(String? isoString) =>
       HotelDateHelper.getHotelDayKeyFromIso(isoString);
 
+  /// تحويل تاريخ تقويمي (بدون وقت) إلى مفتاح يوم فندقي.
+  /// للنصوص من منتقي التواريخ — يعامل التاريخ كـ 14:00:01 (بعد نقطة القطع).
+  static String getHotelDayKeyFromDate(String? dateString) =>
+      HotelDateHelper.getHotelDayKeyFromDate(dateString);
+
   /// تحديد بداية ونهاية اليوم الفندقي.
   static Map<String, DateTime> getHotelDayRange(DateTime date) =>
       HotelDateHelper.getHotelDayRange(date);

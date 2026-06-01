@@ -82,7 +82,8 @@ class PaymentsRepository {
     bool isPendingBalance = false,
   }) async {
     try {
-      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);
+      // ✅ إصلاح: استخدام getHotelDayKeyFromDate للتواريخ التقويمية
+      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromDate(paymentDate);
 
       String? bookingUuidCache;
       if (bookingLocalId != null) {
@@ -195,8 +196,9 @@ class PaymentsRepository {
       )..where((p) => p.id.equals(id))).getSingleOrNull();
       final oldBookingId = before?.bookingLocalId;
 
+      // ✅ إصلاح: استخدام getHotelDayKeyFromDate للتواريخ التقويمية
       final hotelDayKey = paymentDate != null
-          ? HotelTimeEngine.getHotelDayKeyFromIso(paymentDate)
+          ? HotelTimeEngine.getHotelDayKeyFromDate(paymentDate)
           : null;
 
       // ✅ تغليف العملية في معاملة لضمان اتساق البيانات

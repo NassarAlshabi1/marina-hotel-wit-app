@@ -1,3 +1,4 @@
+import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 import 'repositories/expenses_repository.dart';
@@ -52,7 +53,7 @@ class SalaryAdvanceInstallmentsService {
         amount: totalAmount,
         date: date,
         note: effectiveDescription,
-        hotelDayKey: date,
+        hotelDayKey: HotelTimeEngine.getHotelDayKeyFromDate(date),
       );
 
       final base = totalAmount / installments;
@@ -105,7 +106,7 @@ class SalaryAdvanceInstallmentsService {
           amount: -amt,
           date: dueStr,
           note: instDesc,
-          hotelDayKey: dueStr,
+          hotelDayKey: HotelTimeEngine.getHotelDayKeyFromDate(dueStr),
         );
       }
     });

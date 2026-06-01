@@ -9,6 +9,7 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:uuid/uuid.dart';
 
 import '../data/sync_models.dart' as sync_models;
+import '../utils/hotel_date_helper.dart';
 
 part 'local_db.g.dart';
 
@@ -791,7 +792,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 41;
+  int get schemaVersion => 43;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2019,6 +2020,62 @@ class AppDatabase extends _$AppDatabase {
           'Migration 42: Added voidReason to payments',
           name: 'db.migration',
         );
+      }
+
+      // ✅ Migration 43: إصلاح hotelDayKey للمصروفات والمدفوعات
+      // التواريخ التقويمية كانت تُفسر كمنتصف الليل (00:00) بدلاً من بعد نقطة القطع (14:00)
+      // مما يعطي مفتاح اليوم الفندقي السابق بدلاً من اليوم الصحيح
+      if (from < 43) {
+        try {
+          // إصلاح المصروفات: حساب hotelDayKey الصحيح لكل مصروف
+          final expenseRows = await customSelect(
+            'SELECT id, date, hotel_day_key FROM expenses WHERE deleted_at IS NULL',
+            readsFrom: {expenses},
+          ).get();
+          int fixedExpenses = 0;
+          for (final row in expenseRows) {
+            final date = row.read<String>('date');
+            final oldKey = row.read<String?>('hotel_day_key');
+            // حساب المفتاح الصحيح باستخدام الطريقة الجديدة
+            final correctKey = HotelDateHelper.getHotelDayKeyFromDate(date);
+            if (oldKey != correctKey) {
+              await customStatement(
+                'UPDATE expenses SET hotel_day_key = ? WHERE id = ?',
+                [correctKey, row.read<int>('id')],
+              );
+              fixedExpenses++;
+            }
+          }
+
+          // إصلاح المدفوعات: حساب hotelDayKey الصحيح لكل دفعة
+          final paymentRows = await customSelect(
+            'SELECT id, payment_date, hotel_day_key FROM payments WHERE deleted_at IS NULL',
+            readsFrom: {payments},
+          ).get();
+          int fixedPayments = 0;
+          for (final row in paymentRows) {
+            final date = row.read<String>('payment_date');
+            final oldKey = row.read<String?>('hotel_day_key');
+            final correctKey = HotelDateHelper.getHotelDayKeyFromDate(date);
+            if (oldKey != correctKey) {
+              await customStatement(
+                'UPDATE payments SET hotel_day_key = ? WHERE id = ?',
+                [correctKey, row.read<int>('id')],
+              );
+              fixedPayments++;
+            }
+          }
+
+          developer.log(
+            'Migration 43: Fixed hotelDayKey — expenses: $fixedExpenses, payments: $fixedPayments',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 43: Fix hotelDayKey failed: $e',
+            name: 'db.migration',
+          );
+        }
       }
     },
   );
