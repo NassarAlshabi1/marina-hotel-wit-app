@@ -464,6 +464,14 @@ double _getOverdueCost(Booking b) {
   }
 
   Widget _buildCardHeader(Booking b, double nightlyRate) {
+    final remaining = b.remainingBalanceCached;
+    final isCredit = remaining < 0;
+    final displayRemaining = isCredit ? -remaining : remaining;
+    final remainingLabel = isCredit ? 'رصيد للنزيل' : 'متبقي';
+    final remainingColor = isCredit ? Colors.green.shade700 : Colors.red.shade700;
+    final remainingBgColor = isCredit ? Colors.green.shade50 : Colors.red.shade50;
+    final remainingBorderColor = isCredit ? Colors.green.shade200 : Colors.red.shade200;
+
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
@@ -478,7 +486,7 @@ double _getOverdueCost(Booking b) {
             decoration: BoxDecoration(color: Colors.blue.shade700, borderRadius: BorderRadius.circular(8)),
             child: Text('غرفة ${b.roomNumber}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -488,6 +496,22 @@ double _getOverdueCost(Booking b) {
               ],
             ),
           ),
+          // ✅ عرض المبلغ المتبقي بجانب الإجمالي في رأس البطاقة
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: remainingBgColor,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: remainingBorderColor),
+            ),
+            child: Column(
+              children: [
+                Text(remainingLabel, style: TextStyle(fontSize: 8, color: remainingColor, fontWeight: FontWeight.bold)),
+                Text(CurrencyFormatter.formatAmount(displayRemaining), style: TextStyle(fontSize: 12, color: remainingColor, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf, color: Colors.red, size: 18),
             onPressed: () => _exportGuestStatementPdf(b),
@@ -749,14 +773,39 @@ double _getOverdueCost(Booking b) {
               _buildPdfInfoRow(fonts, 'الأيام المتبقية حتى المغادرة:', '${coverage.manualNightsRemaining} يوم'),
               _buildPdfInfoRow(fonts, 'سعر الغرفة لليلة الواحدة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
               pw.Divider(color: const PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
-              _buildPdfInfoRow(fonts, 'إجمالي تكلفة الإقامة حتى الآن:', '${CurrencyFormatter.formatAmount(consumedCost)} ريال'),
-              _buildPdfInfoRow(fonts, 'إجمالي المبالغ المدفوعة:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال'),
-              _buildPdfInfoRow(
-                fonts,
-                b.remainingBalanceCached < 0 ? 'الرصيد المتبقي (له):' : 'الرصيد المتبقي (عليه):',
-                '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
-                valueColor: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.7, 0.3) : const PdfColor(0.9, 0.2, 0.2),
+              // ✅ عرض الإجمالي والمبلغ المتبقي في سطر واحد
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Expanded(
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('إجمالي تكلفة الإقامة:', style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: const PdfColor(0.15, 0.15, 0.15))),
+                        pw.Text('${CurrencyFormatter.formatAmount(consumedCost)} ريال', style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: const PdfColor(0, 0, 0))),
+                      ],
+                    ),
+                  ),
+                  pw.SizedBox(width: 16),
+                  pw.Expanded(
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          b.remainingBalanceCached < 0 ? 'المتبقي (له):' : 'المتبقي (عليه):',
+                          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.7, 0.3) : const PdfColor(0.9, 0.2, 0.2)),
+                        ),
+                        pw.Text(
+                          '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
+                          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.7, 0.3) : const PdfColor(0.9, 0.2, 0.2)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
+              pw.Divider(color: const PdfColor(0.85, 0.85, 0.85), thickness: 0.3),
+              _buildPdfInfoRow(fonts, 'إجمالي المبالغ المدفوعة:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: const PdfColor(0.0, 0.5, 0.2)),
             ],
           ),
         ];
@@ -937,14 +986,39 @@ double _getOverdueCost(Booking b) {
                 _buildPdfInfoRow(fonts, 'المغادرة المتوقعة:', coverage.formatDate(coverage.manualCheckoutDate)),
                 _buildPdfInfoRow(fonts, 'الأيام المقضية:', '$actualDays يوم'),
                 _buildPdfInfoRow(fonts, 'سعر الليلة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
-                _buildPdfInfoRow(fonts, 'إجمالي العقد:', '${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال'),
-                _buildPdfInfoRow(fonts, 'إجمالي المدفوع:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: const PdfColor(0.0, 0.5, 0.2)),
-                _buildPdfInfoRow(
-                  fonts,
-                  b.remainingBalanceCached < 0 ? 'رصيد للنزيل:' : 'المتبقي عليه:',
-                  '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
-                  valueColor: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.6, 0.3) : const PdfColor(0.9, 0.2, 0.2),
+                // ✅ عرض الإجمالي والمبلغ المتبقي في سطر واحد
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Expanded(
+                      child: pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text('إجمالي العقد:', style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: const PdfColor(0.15, 0.15, 0.15))),
+                          pw.Text('${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال', style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: const PdfColor(0, 0, 0))),
+                        ],
+                      ),
+                    ),
+                    pw.SizedBox(width: 12),
+                    pw.Expanded(
+                      child: pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text(
+                            b.remainingBalanceCached < 0 ? 'المتبقي (له):' : 'المتبقي (عليه):',
+                            style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.6, 0.3) : const PdfColor(0.9, 0.2, 0.2)),
+                          ),
+                          pw.Text(
+                            '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
+                            style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.6, 0.3) : const PdfColor(0.9, 0.2, 0.2)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+                pw.Divider(color: const PdfColor(0.85, 0.85, 0.85), thickness: 0.3),
+                _buildPdfInfoRow(fonts, 'إجمالي المدفوع:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: const PdfColor(0.0, 0.5, 0.2)),
                 if (coverage.hasPayments) ...[
                   pw.Divider(color: const PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
                   _buildPdfInfoRow(fonts, 'المغادرة التلقائية:', _dateFormatter.format(coverage.autoCheckoutDate), valueColor: const PdfColor(0.0, 0.4, 0.7)),
