@@ -58,9 +58,13 @@ class ExpensesRepository {
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      // ✅ إصلاح: حساب hotelDayKey من التاريخ الكامل (مع الوقت) بدلاً من التاريخ التقويمي
-      // مصروف الساعة 10:00 صباحاً ينتمي لليوم الفندقي السابق (قبل 14:00)
-      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(date);
+      // ✅ إصلاح: حساب hotelDayKey باستخدام 14:00:01 من التاريخ التقويمي
+      // المنتقي يعطي تاريخ بدون وقت — تمريره مباشرة يُفسَّر كمنتصف الليل (00:00)
+      // مما يُعطي اليوم الفندقي السابق خطأً.
+      // مثال: اختيار "19 مايو" → getHotelDayKeyFromIso("2026-05-19") = midnight < 14:00 → "2026-05-18" ❌
+      // بينما المستخدم يقصد اليوم الفندقي 19 مايو (14:00 يوم 19 → 13:59 يوم 20)
+      // الحل: نمرّر 14:00:01 مثلما تفعل شاشة الفلترة (_hotelDayKeyFromDate)
+      final hotelDayKey = _hotelDayKeyFromCalendarDate(normalizedDate);
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -100,8 +104,8 @@ class ExpensesRepository {
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      // ✅ إصلاح: حساب hotelDayKey من التاريخ الكامل (مع الوقت) بدلاً من التاريخ التقويمي
-      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(date);
+      // ✅ إصلاح: استخدام _hotelDayKeyFromCalendarDate لضمان الاتساق مع create/update
+      final hotelDayKey = _hotelDayKeyFromCalendarDate(normalizedDate);
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -158,9 +162,9 @@ class ExpensesRepository {
           date: normalizedDate != null
               ? d.Value(normalizedDate)
               : const d.Value.absent(),
-          // ✅ إصلاح: حساب hotelDayKey من التاريخ الكامل (مع الوقت) بدلاً من التاريخ التقويمي
+          // ✅ إصلاح: حساب hotelDayKey بنفس طريقة create — باستخدام 14:00:01
           hotelDayKey: date != null
-              ? d.Value(HotelTimeEngine.getHotelDayKeyFromIso(date))
+              ? d.Value(_hotelDayKeyFromCalendarDate(normalizedDate!))
               : const d.Value.absent(),
         ),
       );
@@ -267,7 +271,10 @@ class ExpensesRepository {
       if (expense.hotelDayKey == null || expense.hotelDayKey!.isEmpty) {
         continue;
       }
-      final correctKey = HotelTimeEngine.getHotelDayKeyFromIso(expense.date);
+      // ✅ إصلاح: استخدام _hotelDayKeyFromCalendarDate بدلاً من getHotelDayKeyFromIso
+      // لأن حقل date يخزن تاريخاً تقويمياً بدون وقت (yyyy-MM-dd)
+      // وتمريره مباشرة لـ getHotelDayKeyFromIso يُنتج اليوم الفندقي السابق خطأً
+      final correctKey = _hotelDayKeyFromCalendarDate(expense.date);
       if (expense.hotelDayKey != correctKey) {
         await (db.update(db.expenses)
               ..where((t) => t.id.equals(expense.id)))
@@ -280,5 +287,30 @@ class ExpensesRepository {
       }
     }
     return fixed;
+  }
+
+  /// حساب مفتاح اليوم الفندقي من تاريخ تقويمي (بدون وقت)
+  ///
+  /// المنتقي يعطي تاريخاً بدون وقت مثل "2026-05-19".
+  /// إذا مررناه مباشرة لـ HotelTimeEngine.getHotelDayKeyFromIso،
+  /// يُفسَّر كمنتصف الليل (00:00:00) وهو قبل 14:00، فيُعطي اليوم السابق خطأً.
+  ///
+  /// الحل: نمرّر 14:00:01 لضمان أن التاريخ التقويمي يُعطي نفس اليوم الفندقي.
+  /// هذا يطابق منطق _hotelDayKeyFromDate في expenses_list.dart
+  static String _hotelDayKeyFromCalendarDate(String calendarDate) {
+    try {
+      final parts = calendarDate.split('-');
+      if (parts.length != 3) {
+        return HotelTimeEngine.getHotelDayKey();
+      }
+      final year = int.parse(parts[0]);
+      final month = int.parse(parts[1]);
+      final day = int.parse(parts[2]);
+      return HotelTimeEngine.getHotelDayKey(
+        dateTime: DateTime(year, month, day, 14, 0, 1),
+      );
+    } catch (_) {
+      return HotelTimeEngine.getHotelDayKey();
+    }
   }
 }

@@ -923,8 +923,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               amount: signedAmount,
               date: trimmedDate,
               note: trimmedDescription,
-              // ✅ إصلاح: استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
-              hotelDayKey: HotelTimeEngine.getHotelDayKeyFromIso(trimmedDate),
+              // ✅ إصلاح: استخدام _hotelDayKeyFromDate لضمان الاتساق مع حساب hotelDayKey في ExpensesRepository
+              hotelDayKey: _hotelDayKeyFromDate(DateTime.parse(trimmedDate)),
             );
           }
         }
@@ -948,8 +948,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
-            // ✅ إصلاح: استخدام HotelTimeEngine للتوابق مع البيانات المُخزنة
-            hotelDayKey: HotelTimeEngine.getHotelDayKeyFromIso(trimmedDate),
+            // ✅ إصلاح: استخدام _hotelDayKeyFromDate لضمان الاتساق مع حساب hotelDayKey في ExpensesRepository
+            hotelDayKey: _hotelDayKeyFromDate(DateTime.parse(trimmedDate)),
           );
         } else {
           await salaryRepo.deleteByExpenseId(existing.id);
@@ -960,7 +960,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
       // ✅ إصلاح: توسيع الفلتر تلقائياً إذا كان hotelDayKey للمصروف المحفوظ
       // يختلف عن نطاق الفلتر الحالي — لضمان ظهور المصروف الجديد دائماً
-      final savedHotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(trimmedDate);
+      final savedHotelDayKey = _hotelDayKeyFromDate(DateTime.parse(trimmedDate));
       final currentFromKey = _filterActive && _fromDate != null
           ? _hotelDayKeyFromDate(_fromDate!)
           : HotelTimeEngine.getHotelDayKey();
