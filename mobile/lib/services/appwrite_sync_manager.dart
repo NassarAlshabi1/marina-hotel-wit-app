@@ -226,6 +226,20 @@ class AppwriteSyncManager {
         return;
       }
 
+      // ✅ إصلاح حرج: انتظر حتى يتم تفريغ outbox أولاً
+      // إذا كان outbox يحتوي على تغييرات (مثل تسجيل خروج نزيل)،
+      // يجب رفعها أولاً عبر _pushAllEntities قبل الرفع الأولي
+      // لأن pushAllLocalDataToAppwrite يقرأ البيانات من DB مباشرة
+      // وقد يرفع بيانات قديمة (قبل تسجيل الخروج) فوق البيانات المحدثة
+      final outboxCount = await outboxDao.count();
+      if (outboxCount > 0) {
+        _logger.info(
+          '⏳ outbox يحتوي على $outboxCount عنصر — رفعها أولاً قبل الرفع الأولي',
+          tag: 'SYNC',
+        );
+        await _pushAllEntities();
+      }
+
       _logger.info('بدء الرفع الأولي للبيانات المحلية...', tag: 'SYNC');
       final stats = await pushAllLocalDataToAppwrite();
       _logger.info('اكتمل الرفع الأولي: $stats', tag: 'SYNC');
@@ -1433,6 +1447,19 @@ class AppwriteSyncManager {
           continue; // البيانات مطابقة — لا حاجة للتحديث
         }
 
+        // ✅ تسجيل تشخيصي: تسجيل الحقول الحرجة عند السحب من Appwrite
+        final remoteStatus = data['status']?.toString();
+        final remoteActualCheckout = data['actualCheckout']?.toString();
+        final remoteLastModified = data['lastModified'];
+        _logger.info(
+          '📥 Pull booking ${localUuid.substring(0, 8)}... '
+          'status=$remoteStatus '
+          'actualCheckout=$remoteActualCheckout '
+          'lastModified=$remoteLastModified '
+          'existing=${existingBooking != null ? 'yes(status=${existingBooking.status})' : 'no'}',
+          tag: 'SYNC',
+        );
+
         await _adapterRegistry.bookings.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -1445,6 +1472,23 @@ class AppwriteSyncManager {
             .getSingleOrNull();
 
         if (booking != null) {
+          // ✅ تسجيل تشخيصي بعد السحب: التحقق من حفظ الحقول الحرجة محلياً
+          if (remoteStatus != null && booking.status != remoteStatus) {
+            _logger.error(
+              '❌ بعد upsert: status محلي=${booking.status} ≠ بعيد=$remoteStatus '
+              'booking=${localUuid.substring(0, 8)}... — فقدان بيانات!',
+              tag: 'SYNC',
+            );
+          }
+          if (remoteActualCheckout != null &&
+              booking.actualCheckout != remoteActualCheckout) {
+            _logger.error(
+              '❌ بعد upsert: actualCheckout محلي=${booking.actualCheckout} ≠ بعيد=$remoteActualCheckout '
+              'booking=${localUuid.substring(0, 8)}... — فقدان بيانات!',
+              tag: 'SYNC',
+            );
+          }
+
           // 2. Convert legacy discount to adjustments
           await _bookingsRepository.syncLegacyDiscountToAdjustments(booking.id);
 
@@ -1925,11 +1969,90 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _bookingToRemote(booking);
-    await appwriteService.upsertBooking(
-      booking.localUuid,
-      _addIdempotencyKey(payload, entry),
+
+    // ✅ تسجيل تشخيصي: تسجيل الحقول الحرجة قبل الرفع
+    _logger.info(
+      '📤 Push booking ${booking.localUuid.substring(0, 8)}... '
+      'status=${booking.status} '
+      'actualCheckout=${booking.actualCheckout} '
+      'calculatedNights=${booking.calculatedNights} '
+      'lastModified=${booking.lastModified}',
+      tag: 'SYNC',
     );
+
+    // ✅ إزالة idempotencyKey إذا لم يكن في مخطط Appwrite
+    // هذا الحقل غير موجود في مخطط Appwrite وقد يسبب فشل صامت في updateDocument
+    // إذا كان التحقق من المخطط مفعّلاً على Appwrite Cloud
+    final cleanPayload = Map<String, dynamic>.from(payload);
+    // idempotencyKey يُضاف لاحقاً عبر _addIdempotencyKey
+
+    final finalPayload = _addIdempotencyKey(cleanPayload, entry);
+
+    try {
+      await appwriteService.upsertBooking(
+        booking.localUuid,
+        finalPayload,
+      );
+
+      // ✅ تحقق بعد الرفع: قراءة المستند من Appwrite والتأكد من حفظ الحقول الحرجة
+      await _verifyPushedBooking(booking.localUuid, booking);
+    } catch (e) {
+      // ✅ إذا فشل الرفع بسبب حقل idempotencyKey غير موجود، نُعيد المحاولة بدونه
+      if (e.toString().contains('attribute_not_found') ||
+          e.toString().contains('Property not found') ||
+          e.toString().contains('invalid_attribute')) {
+        _logger.warning(
+          '⚠️ إعادة محاولة رفع الحجز بدون idempotencyKey: $e',
+          tag: 'SYNC',
+        );
+        await appwriteService.upsertBooking(
+          booking.localUuid,
+          payload, // بدون idempotencyKey
+        );
+      } else {
+        rethrow;
+      }
+    }
     return true;
+  }
+
+  /// ✅ تحقق من حفظ الحقول الحرجة بعد الرفع إلى Appwrite
+  /// يقرأ المستند من Appwrite ويقارن status و actualCheckout
+  Future<void> _verifyPushedBooking(
+    String localUuid,
+    Booking expected,
+  ) async {
+    try {
+      final doc = await appwriteService.databases.getDocument(
+        databaseId: AppwriteConfig.databaseId,
+        collectionId: AppwriteConfig.bookingsCollectionId,
+        documentId: localUuid,
+      );
+      final remoteStatus = doc.data['status']?.toString();
+      final remoteActualCheckout = doc.data['actualCheckout']?.toString();
+
+      if (remoteStatus != expected.status ||
+          remoteActualCheckout != expected.actualCheckout) {
+        _logger.error(
+          '❌ تحقق بعد الرفع فشل! booking=${localUuid.substring(0, 8)}... '
+          'expected: status=${expected.status}, actualCheckout=${expected.actualCheckout} '
+          'remote: status=$remoteStatus, actualCheckout=$remoteActualCheckout',
+          tag: 'SYNC',
+        );
+      } else {
+        _logger.debug(
+          '✅ تحقق بعد الرفع ناجح: booking=${localUuid.substring(0, 8)}... '
+          'status=$remoteStatus, actualCheckout=$remoteActualCheckout',
+          tag: 'SYNC',
+        );
+      }
+    } catch (e) {
+      // فشل التحقق ليس حرجاً — لا نوقف المزامنة
+      _logger.warning(
+        '⚠️ فشل التحقق بعد رفع الحجز $localUuid: $e',
+        tag: 'SYNC',
+      );
+    }
   }
 
   Future<bool> _processExpenseEntry(OutboxData entry) async {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/widgets/empty_state.dart';
@@ -43,6 +44,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   double _totalPaid = 0;
   double _totalOtherPaid = 0;
+  double _totalRemaining = 0;
+  double _totalDue = 0;
 
   String _formatBookingCode(int bookingId) =>
       bookingId.toString().padLeft(6, '0');
@@ -102,6 +105,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           ..addAll(result.rows);
         _totalPaid = result.totalPaid;
         _totalOtherPaid = result.totalOtherPaid;
+        _totalRemaining = result.totalRemaining;
+        _totalDue = result.totalDue;
       });
     } finally {
       if (mounted) {
@@ -295,25 +300,85 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             color: PdfColors.backgroundLight,
             border: pw.Border.all(color: PdfColors.primary, width: 0.5),
           ),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.end,
+          child: pw.Column(
             children: [
-              pw.Text(
-                'الإجمالي الكلي: ',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 12,
-                  color: PdfColors.textDark,
-                ),
+              // الصف الأول: الإجمالي الكلي + المبلغ المتبقي
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  // الإجمالي الكلي
+                  pw.Row(
+                    children: [
+                      pw.Text(
+                        'الإجمالي الكلي: ',
+                        style: pw.TextStyle(
+                          font: fonts.bold,
+                          fontSize: 12,
+                          color: PdfColors.textDark,
+                        ),
+                      ),
+                      pw.Text(
+                        EnhancedPdfUtils.formatNumber(_totalPaid + _totalOtherPaid),
+                        style: pw.TextStyle(
+                          font: fonts.bold,
+                          fontSize: 14,
+                          color: PdfColors.secondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // المبلغ المتبقي
+                  pw.Row(
+                    children: [
+                      pw.Text(
+                        'المبلغ المتبقي: ',
+                        style: pw.TextStyle(
+                          font: fonts.bold,
+                          fontSize: 12,
+                          color: _totalRemaining > 0
+                              ? const PdfColor(0.9, 0.2, 0.2)
+                              : const PdfColor(0.0, 0.5, 0.2),
+                        ),
+                      ),
+                      pw.Text(
+                        EnhancedPdfUtils.formatNumber(_totalRemaining),
+                        style: pw.TextStyle(
+                          font: fonts.bold,
+                          fontSize: 14,
+                          color: _totalRemaining > 0
+                              ? const PdfColor(0.9, 0.2, 0.2)
+                              : const PdfColor(0.0, 0.5, 0.2),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              pw.Text(
-                EnhancedPdfUtils.formatNumber(_totalPaid),
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 14,
-                  color: PdfColors.secondary,
+              // الصف الثاني: إجمالي المستحق (إذا كان هناك حجوزات)
+              if (_totalDue > 0) ...[
+                pw.SizedBox(height: 8),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'إجمالي المستحق: ',
+                      style: pw.TextStyle(
+                        font: fonts.bold,
+                        fontSize: 11,
+                        color: PdfColors.textDark,
+                      ),
+                    ),
+                    pw.Text(
+                      EnhancedPdfUtils.formatNumber(_totalDue),
+                      style: pw.TextStyle(
+                        font: fonts.bold,
+                        fontSize: 13,
+                        color: PdfColors.info,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -494,11 +559,26 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               ],
             ),
             const Divider(height: 16),
-            _buildSummaryTile(
-              'إجمالي المدفوعات (الدخل)',
-              _currencyFmt.format(totalAll),
-              Colors.indigo,
-              isLarge: true,
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSummaryTile(
+                    'إجمالي المدفوعات',
+                    _currencyFmt.format(totalAll),
+                    Colors.indigo,
+                    isLarge: true,
+                  ),
+                ),
+                Container(width: 1, height: 28, color: Colors.grey.shade200),
+                Expanded(
+                  child: _buildSummaryTile(
+                    'المبلغ المتبقي',
+                    _currencyFmt.format(_totalRemaining),
+                    _totalRemaining > 0 ? Colors.red : Colors.green,
+                    isLarge: true,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
