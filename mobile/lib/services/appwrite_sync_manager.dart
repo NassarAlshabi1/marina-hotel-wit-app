@@ -2328,8 +2328,15 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
     _putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
     _putIfStringNotEmpty(data, 'guestAddress', booking.guestAddress);
-    _putIfStringNotEmpty(data, 'checkoutDate', booking.checkoutDate);
-    _putIfStringNotEmpty(data, 'actualCheckout', booking.actualCheckout);
+    // ✅ إصلاح حرج: checkoutDate و actualCheckout يجب إرسالهما دائماً
+    // حتى لو كانا null — لأن `_putIfStringNotEmpty` يحذف المفتاح إذا كان null،
+    // مما يمنع Appwrite من تحديث الحقل عند تسجيل الخروج.
+    // بدون هذا الإصلاح: إذا رُفع الحجز قبل الخروج (actualCheckout=null)،
+    // ثم رُفع بعد الخروج (actualCheckout='2026-...')، المفتاح يُضاف ✅.
+    // لكن إذا عمل DeltaSync push بينهما ببيانات قديمة، يضبط actualCheckout=null على السيرفر.
+    // الحل: إرسال الحقول دائماً صراحةً لضمان تناسق البيانات.
+    data['checkoutDate'] = booking.checkoutDate;
+    data['actualCheckout'] = booking.actualCheckout;
     _putIfStringNotEmpty(data, 'notes', booking.notes);
     // حقول مالية
     data['discount'] = booking.discount;

@@ -642,7 +642,11 @@ class AppwriteDeltaSync {
       guestAddress: _nullableValue<String>(_asString(data['guestAddress'])),
       checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
       checkoutDate: _nullableValue<String>(_asString(data['checkoutDate'])),
-      actualCheckout: _nullableValue<String>(_asString(data['actualCheckout'])),
+      // ✅ إصلاح حرج: actualCheckout يجب أن يُرسل دائماً (حتى لو null)
+      // بدلاً من Value.absent() لأن insertOnConflictUpdate يعتمد على القيمة
+      // و Value.absent() لا يُحدّث الحقل عند التعارض، مما يبقي actualCheckout
+      // محتفظاً بقيمته القديمة (null) حتى لو كانت البيانات البعيدة تحدد قيمة
+      actualCheckout: d.Value(_asString(data['actualCheckout'])),
       status: d.Value(_asString(data['status']) ?? ''),
       notes: _nullableValue<String>(_asString(data['notes'])),
       expectedNights: d.Value(_asInt(data['expectedNights']) ?? 1),
