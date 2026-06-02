@@ -398,8 +398,11 @@ class StayBalanceCalculator {
     }
 
     final map = <String, double>{};
+    // ✅ إصلاح: تقليص farFuture من 3650 إلى 365 يوم (سنة واحدة)
+    // الحجوزات التي تمتد لأكثر من سنة بدون تاريخ مغادرة يدوي نادرة جداً
+    // وغالباً تشير إلى بيانات تالفة
     final farFuture =
-        manualCheckout ?? checkinDateOnly.add(const Duration(days: 3650));
+        manualCheckout ?? checkinDateOnly.add(const Duration(days: 365));
 
     for (final adj in adjustments) {
       final effectiveDate = DateTime.tryParse(adj.effectiveHotelDay);
@@ -426,9 +429,14 @@ class StayBalanceCalculator {
 
       if (adj.adjustmentMode == 'total') {
         // توزيع إجمالي المبلغ بالتساوي على ليالي النطاق
-        final daysInRange = adjEnd.difference(effDateOnly).inDays + 1;
+        int daysInRange = adjEnd.difference(effDateOnly).inDays + 1;
         if (daysInRange <= 0) {
           continue;
+        }
+        // ✅ إصلاح: حد أمان لمنع حلقات طويلة جداً (أقصى 365 يوم)
+        // التعديلات التي تمتد لأكثر من سنة غير منطقية وغالباً بيانات تالفة
+        if (daysInRange > 365) {
+          daysInRange = 365;
         }
 
         final amountPerNight = rawAmount / daysInRange;
@@ -443,7 +451,8 @@ class StayBalanceCalculator {
         // per_night: يُطبّق المبلغ كاملاً على كل ليلة في النطاق
         DateTime night = effDateOnly;
         int safetyCounter = 0;
-        while (!night.isAfter(adjEnd) && safetyCounter < 3650) {
+        // ✅ إصلاح: تقليص حد الأمان من 3650 إلى 365 (سنة واحدة)
+        while (!night.isAfter(adjEnd) && safetyCounter < 365) {
           final key = Time.dateToString(night);
           final signed = isDiscount ? -rawAmount : rawAmount;
           map[key] = (map[key] ?? 0.0) + signed;

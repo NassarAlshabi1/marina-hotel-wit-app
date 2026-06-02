@@ -181,11 +181,6 @@ double _getOverdueCost(Booking b) {
       // مما يسبب تجميد/انهيار التطبيق (OOM / ANR).
       // بدلاً من ذلك، نستخدم القيم المخزنة مسبقاً (cached) من قاعدة البيانات
       // التي تم تحديثها آخر مرة تم فيها فتح الشاشة أو إجراء عملية.
-      //
-      // السبب الأصلي: refreshAllActiveBookings يفعل لكل حجز نشط:
-      //   1. calculateForBooking() → استعلامات DB متعددة + حسابات معقدة
-      //   2. updateNightlyRecords(forceRebuild: true) → حذف + إدراج جميع السجلات
-      //   3. Future.wait() لجميع الحجوزات بالتوازي ← استهلاك ذاكرة هائل
 
       // جلب جميع تعديلات الأسعار النشطة وتجميعها حسب معرّف الحجز فقط
       final allAdjustments = await (db.select(db.bookingPriceAdjustments)
@@ -202,11 +197,31 @@ double _getOverdueCost(Booking b) {
         grouped[adj.bookingLocalId!]!.add(adj);
       }
 
+      // ✅ إصلاح حرج: حساب مسبق لكل التغطيات هنا بدلاً من أثناء build
+      // السبب: _calculateCoverage يستدعي StayBalanceCalculator.calculate الذي
+      // يُنفّذ حلقات محاكاة يومية (حتى 3650 تكرار) — تشغيلها على الخيط
+      // الرئيسي أثناء build يُسبب تجميد/انهيار التطبيق (ANR)
+      final bookings = await ref.read(bookingsRepoProvider).watch().first;
+      final newCache = <int, StayBalanceResult>{};
+      for (final b in bookings) {
+        try {
+          final adjustments = grouped[b.id];
+          final filtered = StayBalanceCalculator.filterActiveAdjustments(b, adjustments ?? []);
+          newCache[b.id] = StayBalanceCalculator.calculate(b, priceAdjustments: filtered);
+        } catch (e) {
+          debugPrint('⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
+          newCache[b.id] = _safeFallback(b);
+        }
+        // ✅ السماح بتحديث UI كل 10 حجوزات لمنع تجميد الشاشة
+        if (newCache.length % 10 == 0) {
+          await Future.delayed(Duration.zero);
+        }
+      }
+
       if (mounted) {
         setState(() {
           _adjustmentsByBookingId = grouped;
-          // ✅ إصلاح: مسح التخزين المؤقت عند تحديث البيانات
-          _coverageCache = {};
+          _coverageCache = newCache;
         });
       }
     } catch (e) {
@@ -280,12 +295,39 @@ double _getOverdueCost(Booking b) {
         children: [
           _buildSearchAndFilters(),
           Expanded(
+            // ✅ إصلاح: انتظار اكتمال الحسابات قبل عرض البطاقات
+            // _isLoading = true حتى تنتهي _refreshData من حساب كل التغطيات
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 12),
+                        Text('جاري حساب البيانات...', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  )
                 : bookingsAsync.when(
                     loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => Center(child: Text('خطأ في تحميل البيانات: $e')),
-                    data: _buildReport,
+                    error: (e, _) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const SizedBox(height: 12),
+                            Text('خطأ في تحميل البيانات', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                            const SizedBox(height: 8),
+                            Text('$e', style: const TextStyle(fontSize: 12, color: Colors.grey), textAlign: TextAlign.center),
+                            const SizedBox(height: 16),
+                            FilledButton(onPressed: _refreshData, child: const Text('إعادة المحاولة')),
+                          ],
+                        ),
+                      ),
+                    ),
+                    data: _buildReportSafe,
                   ),
           ),
         ],
@@ -410,6 +452,32 @@ double _getOverdueCost(Booking b) {
   }
 
   // ───────────────────── بناء التقرير ─────────────────────
+
+  /// ✅ إصلاح: غلاف آمن لمنع انهيار التطبيق عند حدوث أي خطأ في بناء التقرير
+  Widget _buildReportSafe(List<Booking> allBookings) {
+    try {
+      return _buildReport(allBookings);
+    } catch (e) {
+      debugPrint('⚠️ خطأ في بناء تقرير المدفوعات: $e');
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.orange),
+              const SizedBox(height: 12),
+              const Text('حدث خطأ أثناء عرض التقرير', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+              const SizedBox(height: 8),
+              Text('$e', style: const TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center, maxLines: 3),
+              const SizedBox(height: 16),
+              FilledButton(onPressed: _refreshData, child: const Text('إعادة المحاولة')),
+            ],
+          ),
+        ),
+      );
+    }
+  }
 
   Widget _buildReport(List<Booking> allBookings) {
     final filtered = _filterAndSort(allBookings);
