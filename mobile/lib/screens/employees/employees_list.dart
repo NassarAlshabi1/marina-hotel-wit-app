@@ -741,7 +741,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                   StatefulBuilder(
                     builder: (context, setLocalState) =>
                         DropdownButtonFormField<String>(
-                          initialValue: status,
+                          value: status,
                           decoration: InputDecoration(
                             labelText: 'الحالة',
                             prefixIcon: const Icon(Icons.toggle_on),

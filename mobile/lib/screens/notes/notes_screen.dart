@@ -316,7 +316,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: priority,
+                value: priority,
                 decoration: const InputDecoration(
                   labelText: 'الأولوية',
                   border: OutlineInputBorder(),

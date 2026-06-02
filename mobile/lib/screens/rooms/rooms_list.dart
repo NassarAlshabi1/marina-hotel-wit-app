@@ -473,7 +473,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   const SizedBox(height: 16),
                   StatefulBuilder(
                     builder: (context, setLocalState) => DropdownButtonFormField<String>(
-                      initialValue: status,
+                      value: status,
                       decoration: InputDecoration(
                         labelText: 'الحالة',
                         prefixIcon: const Icon(Icons.toggle_on),
