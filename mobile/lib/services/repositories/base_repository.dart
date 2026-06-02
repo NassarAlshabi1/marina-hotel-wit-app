@@ -23,6 +23,29 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     Map<String, dynamic> json, {
     required Source src,
   }) async {
+    // ✅ إصلاح حرج: إزالة id البعيد عند المزامنة من السيرفر
+    // id هو auto-increment محلي — تمرير id البعيد يسبب تصادم:
+    // UNIQUE constraint failed: table.id
+    // مثال: جهاز A أنشأ سجل id=505 وجهاز B أنشأ سجل آخر id=505
+    // عند السحب، INSERT بـ id=505 يصطدم بالسجل المحلي المختلف
+    // الحل: إزالة id من البيانات ليقوم SQLite بتعيين id تلقائي
+    // للسجلات الجديدة، أو استخدام id المحلي الموجود للتحديث.
+    if (src == Source.appwrite || src == Source.drive) {
+      final localUuid = json['localUuid'] as String? ??
+          json['local_uuid'] as String?;
+      if (localUuid != null) {
+        // تحقق هل يوجد سجل محلي بنفس local_uuid
+        final existing = await _findByLocalUuid(localUuid);
+        if (existing == null) {
+          // سجل جديد من السيرفر — إزالة id ليُعيّنه SQLite تلقائياً
+          json.remove('id');
+        } else {
+          // سجل موجود محلياً — استخدم id المحلي لضمان التحديث الصحيح
+          json['id'] = existing;
+        }
+      }
+    }
+
     final refs = await adapter.resolveRefs(db, json, src: src);
     final comp = adapter.fromJson(json, src: src, refs: refs);
     final targets = await _resolveConflictTargets();
@@ -101,7 +124,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       final sanitizedIndex = indexName.replaceAll("'", "''");
       final infoRows = await db
           .customSelect("PRAGMA index_info('$sanitizedIndex')")
-          .get();
+        .get();
       final cols = <Column>[];
       for (final info in infoRows) {
         final name = info.data['name']?.toString();
@@ -116,9 +139,19 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     }
 
     final deduped = _dedupeTargets(targets);
-    if (deduped.isEmpty) {
-      final pk = table.$primaryKey.toList();
-      if (pk.isNotEmpty) {
+
+    // ✅ إصلاح حرج: إضافة المفتاح الرئيسي (PRIMARY KEY) كـ fallback دائماً
+    // وليس فقط عندما لا توجد أهداف أخرى.
+    // السبب: عند السحب من Appwrite، قد يأتي سجل بـ id=505 و localUuid=xyz
+    // بينما محلياً يوجد سجل مختلف بـ id=505 و localUuid=abc.
+    // INSERT ON CONFLICT("local_uuid") يحاول إدراج صف جديد (لأن localUuid غير موجود)،
+    // لكن يصطدم بـ id=505 الموجود مسبقاً → UNIQUE constraint failed!
+    // بإضافة PRIMARY KEY كـ fallback، المحاولة الثانية بـ ON CONFLICT("id")
+    // تُحدّث السجل المحلي الموجود.
+    final pk = table.$primaryKey.toList();
+    if (pk.isNotEmpty) {
+      final pkLabel = _targetLabel(pk);
+      if (!deduped.any((t) => _targetLabel(t) == pkLabel)) {
         deduped.add(pk);
       }
     }
@@ -145,5 +178,21 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
 
   bool _isUniqueConstraintError(Object error) {
     return error.toString().contains('UNIQUE constraint failed');
+  }
+
+  /// البحث عن id المحلي بواسطة localUuid
+  /// يُستخدم لحل تصادمات id عند المزامنة من السيرفر
+  Future<int?> _findByLocalUuid(String localUuid) async {
+    final tableName = table.actualTableName;
+    final sanitized = tableName.replaceAll("'", "''");
+    final result = await db
+        .customSelect(
+          "SELECT id FROM '$sanitized' WHERE local_uuid = ? LIMIT 1",
+          variables: [Variable.withString(localUuid)],
+          readsFrom: {table},
+        )
+        .getSingleOrNull();
+    if (result == null) return null;
+    return result.data['id'] as int?;
   }
 }
