@@ -308,7 +308,7 @@ double _getOverdueCost(Booking b) {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  initialValue: _sortBy,
+                  value: _sortBy,
                   decoration: InputDecoration(
                     labelText: 'ترتيب حسب',
                     labelStyle: const TextStyle(fontSize: 12),

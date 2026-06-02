@@ -81,15 +81,20 @@ jobs:
         run: flutter pub get
 
       # ─── تحديد رقم الإصدار ──────────────────────────────
+      # ✅ إصلاح: كل بناء يحصل على tag فريد يتضمن رقم البناء
+      # لتجنب خطأ "Cannot delete asset from an immutable release"
+      # التنسيق: v1.2.0-build1173 بدلاً من v1.2.0 الثابت
       - name: Determine build version
         id: version
         run: |
           BASE_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
           BUILD_NUMBER=${GITHUB_RUN_NUMBER}
           BUILD_NAME="${BASE_VERSION}"
+          TAG_NAME="v${BASE_VERSION}-build${BUILD_NUMBER}"
           echo "build_name=$BUILD_NAME" >> $GITHUB_OUTPUT
           echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
-          echo "Building: $BUILD_NAME ($BUILD_NUMBER)"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Building: $BUILD_NAME ($BUILD_NUMBER) — Tag: $TAG_NAME"
 
       # ─── توليد الكود ────────────────────────────────────
       - name: Generate code (build_runner)
@@ -110,7 +115,7 @@ jobs:
           --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
           --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
         env:
-          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
+          GRADLE_OPTS: "-Xmx2g -XX:MaxMetaspaceSize=512m"
 
       # ─── عرض معلومات الـ APK المبني ─────────────────────
       - name: Inspect APK info
@@ -130,13 +135,15 @@ jobs:
           retention-days: 90
 
       # ─── إنشاء GitHub Release ────────────────────────────
+      # ✅ إصلاح: استخدام tag فريد لكل بناء بدلاً من tag ثابت
+      # لتجنب خطأ "Cannot delete asset from an immutable release"
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: 'v${{ steps.version.outputs.build_name }}'
-          name: 'Marina Hotel v${{ steps.version.outputs.build_name }}'
+          tag_name: '${{ steps.version.outputs.tag_name }}'
+          name: 'Marina Hotel v${{ steps.version.outputs.build_name }} (#${{ steps.version.outputs.build_number }})'
           body: |
-            ## Marina Hotel v${{ steps.version.outputs.build_name }}
+            ## Marina Hotel v${{ steps.version.outputs.build_name }} — Build ${{ steps.version.outputs.build_number }}
 
             **APK شامل يعمل على جميع أجهزة اندرويد**
 
