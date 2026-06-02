@@ -6,7 +6,6 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../services/stay_balance_calculator.dart';
 import '../../utils/currency_formatter.dart';
@@ -40,6 +39,36 @@ class _GuestPaymentsDetailReportScreenState
   /// خريطة تعديلات الأسعار النشطة مجمّعة حسب معرّف الحجز
   /// تُحدّث عند كل استدعاء لـ _refreshData()
   Map<int, List<BookingPriceAdjustment>> _adjustmentsByBookingId = const {};
+
+  /// ✅ إصلاح: تخزين مؤقت لنتائج _calculateCoverage لتجنب إعادة الحساب
+  /// لكل بطاقة عدة مرات. المفتاح = معرّف الحجز.
+  Map<int, StayBalanceResult> _coverageCache = {};
+
+  /// ✅ إصلاح: نسخة احتياطية آمنة من StayBalanceResult للاستخدام عند الخطأ
+  static StayBalanceResult _safeFallback(Booking b) {
+    final checkin = DateTime.tryParse(b.checkinDate) ?? DateTime.now();
+    final checkout = (b.checkoutDate != null && b.checkoutDate!.isNotEmpty)
+        ? DateTime.tryParse(b.checkoutDate!)
+        : null;
+    return StayBalanceResult(
+      checkinDate: checkin,
+      manualCheckoutDate: checkout,
+      autoCheckoutDate: checkout ?? checkin.add(const Duration(days: 1)),
+      totalPaid: b.totalPaidCached,
+      nightlyRate: 0,
+      effectiveNightlyRate: 0,
+      actualNightsSpent: 0,
+      totalPaidNights: 0,
+      consumedCost: 0,
+      effectiveBalance: b.remainingBalanceCached,
+      manualNightsRemaining: 0,
+      isAutoExtended: false,
+      extraNightsBeyondManual: 0,
+      surplusAfterAllNights: 0,
+      rawRemainingBalance: b.remainingBalanceCached,
+      coveredDates: const [],
+    );
+  }
 
   static final _dateFormatter = DateFormat('yyyy/MM/dd');
 
@@ -88,10 +117,27 @@ double _getConsumedCost(Booking b) {
 
   /// استخدام المحرك الموحد لحساب الرصيد والتاريخ التلقائي
   /// يمرّر تعديلات الأسعار من booking_price_adjustments للمحرك
+  /// ✅ إصلاح: تخزين مؤقت + try-catch لمنع انهيار التطبيق
   StayBalanceResult _calculateCoverage(Booking b) {
-    final adjustments = _adjustmentsByBookingId[b.id];
-    final filtered = StayBalanceCalculator.filterActiveAdjustments(b, adjustments ?? []);
-    return StayBalanceCalculator.calculate(b, priceAdjustments: filtered);
+    // التحقق من التخزين المؤقت أولاً
+    final cached = _coverageCache[b.id];
+    if (cached != null) {
+      return cached;
+    }
+
+    try {
+      final adjustments = _adjustmentsByBookingId[b.id];
+      final filtered = StayBalanceCalculator.filterActiveAdjustments(b, adjustments ?? []);
+      final result = StayBalanceCalculator.calculate(b, priceAdjustments: filtered);
+      // حفظ في التخزين المؤقت
+      _coverageCache[b.id] = result;
+      return result;
+    } catch (e) {
+      debugPrint('⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
+      final fallback = _safeFallback(b);
+      _coverageCache[b.id] = fallback;
+      return fallback;
+    }
   }
 
   /// هل الحجز تجاوز تاريخ المغادرة المخطط؟
@@ -129,10 +175,19 @@ double _getOverdueCost(Booking b) {
     setState(() => _isLoading = true);
     try {
       final db = ref.read(databaseProvider);
-      final derivedService = BookingDerivedFieldsService(db);
-      await derivedService.refreshAllActiveBookings();
 
-      // جلب جميع تعديلات الأسعار النشطة وتجميعها حسب معرّف الحجز
+      // ✅ إصلاح حرج: إزالة refreshAllActiveBookings(forceRebuild: true)
+      // الذي يُعيد بناء سجلات الليالي لجميع الحجوزات النشطة بالتوازي
+      // مما يسبب تجميد/انهيار التطبيق (OOM / ANR).
+      // بدلاً من ذلك، نستخدم القيم المخزنة مسبقاً (cached) من قاعدة البيانات
+      // التي تم تحديثها آخر مرة تم فيها فتح الشاشة أو إجراء عملية.
+      //
+      // السبب الأصلي: refreshAllActiveBookings يفعل لكل حجز نشط:
+      //   1. calculateForBooking() → استعلامات DB متعددة + حسابات معقدة
+      //   2. updateNightlyRecords(forceRebuild: true) → حذف + إدراج جميع السجلات
+      //   3. Future.wait() لجميع الحجوزات بالتوازي ← استهلاك ذاكرة هائل
+
+      // جلب جميع تعديلات الأسعار النشطة وتجميعها حسب معرّف الحجز فقط
       final allAdjustments = await (db.select(db.bookingPriceAdjustments)
             ..where((a) => a.isActive.equals(true))
             ..where((a) => a.deletedAt.isNull()))
@@ -150,6 +205,8 @@ double _getOverdueCost(Booking b) {
       if (mounted) {
         setState(() {
           _adjustmentsByBookingId = grouped;
+          // ✅ إصلاح: مسح التخزين المؤقت عند تحديث البيانات
+          _coverageCache = {};
         });
       }
     } catch (e) {
