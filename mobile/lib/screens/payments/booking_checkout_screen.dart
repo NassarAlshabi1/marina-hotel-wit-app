@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/central_sync_coordinator.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
@@ -703,6 +704,12 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         // تحديث حالة الغرفة إلى شاغرة عبر المستودع الموحد
         await roomsRepo.refreshAllRoomOccupancy();
         markDataChanged();
+        // ✅ دفع فوري إلى Appwrite (بدون انتظار التايمر الدوري 15 دقيقة)
+        CentralSyncCoordinator.instance.syncNow(
+          push: true,
+          pull: false,
+          reason: 'checkout_complete',
+        );
 
         if (mounted) {
           // ignore: use_build_context_synchronously

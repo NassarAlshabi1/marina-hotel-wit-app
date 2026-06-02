@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../services/central_sync_coordinator.dart';
 import '../../models/payment_models.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
@@ -2708,6 +2709,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       }
       // ✅ تسجيل تغيير المزامنة بعد تحرير الغرفة
       markDataChanged();
+      // ✅ دفع فوري إلى Appwrite (بدون انتظار التايمر الدوري 15 دقيقة)
+      CentralSyncCoordinator.instance.syncNow(
+        push: true,
+        pull: false,
+        reason: 'checkout_complete',
+      );
       if (!mounted) {
         return;
       }
