@@ -605,7 +605,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           SizedBox(
             width: 160,
             child: DropdownButtonFormField<String?>(
-              initialValue: _selectedType,
+              value: _selectedType,
               decoration: InputDecoration(
                 labelText: widget.typeLabel,
                 isDense: true,
@@ -614,6 +614,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
               items: [
                 DropdownMenuItem<String?>(
+                  value: null,
                   child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
                 ),
                 ..._availableTypes.map(

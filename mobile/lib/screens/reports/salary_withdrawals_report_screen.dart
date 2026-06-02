@@ -392,6 +392,7 @@ class _SalaryWithdrawalsReportScreenState
                         icon: const Icon(Icons.arrow_drop_down, size: 20),
                         items: [
                           const DropdownMenuItem<int?>(
+                            value: null,
                             child: Row(
                               children: [
                                 Icon(Icons.people, size: 18, color: Colors.blue),
