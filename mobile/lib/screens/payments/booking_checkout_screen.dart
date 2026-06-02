@@ -696,6 +696,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           actualCheckout: nowIso,
           calculatedNights: actualNights,
         );
+        // ✅ تحديث الحقول المشتقة بعد تسجيل المغادرة (hotelDayCheckout, cached totals)
+        final db = ref.read(databaseProvider);
+        final derivedService = BookingDerivedFieldsService(db);
+        await derivedService.refreshForBookingId(widget.booking.id);
         // تحديث حالة الغرفة إلى شاغرة عبر المستودع الموحد
         await roomsRepo.refreshAllRoomOccupancy();
         markDataChanged();

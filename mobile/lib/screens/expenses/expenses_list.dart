@@ -199,31 +199,27 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   Stream<List<Expense>> _buildExpensesStream() {
-    final dao = ref.read(expensesRepoProvider).dao;
-
+    final repo = ref.read(expensesRepoProvider);
+    // ✅ إصلاح: كلا المسارين يستخدمان نفس المنطق — hotelDayKey عبر HotelTimeEngine
+    //
+    // الافتراضي: نستخدم HotelTimeEngine.getHotelDayKey() الذي يعتمد على الوقت الحالي
+    // → عند 10:00 صباح 19 مايو: hotelDay = "2026-05-18" (اليوم الفندقي الحالي)
+    //
+    // يدوي: نستخدم _hotelDayKeyFromDate() الذي يمرّر 14:00:01 من التاريخ المختار
+    // → اختيار 19 مايو: hotelDay = "2026-05-19" (يوم فندقي يبدأ 14:00 من نفس اليوم)
+    //
+    // هذا يضمن الاتساق: كلا المسارين يستخدمان HotelTimeEngine.getHotelDayKey()
     if (!_filterActive) {
       final hotelDay = HotelTimeEngine.getHotelDayKey();
-      // ✅ Reactive Stream: يتتبع قاعدة البيانات ويعيد الإرسال تلقائياً
-      // عند إضافة/تعديل/حذف أي مصروف — يضمن ظهور المصروف الجديد فوراً
-      return dao.watchByHotelDayKey(hotelDay).map((expenses) {
-        var filtered = expenses;
-        // تطبيق فلترة النوع (client-side)
-        if (_selectedFilterType != null && _selectedFilterType!.isNotEmpty) {
-          filtered = filtered.where((e) => e.expenseType == _selectedFilterType).toList();
-        }
-        // تطبيق البحث النصي (client-side)
-        if (_searchQuery.isNotEmpty) {
-          final s = _searchQuery.trim().toLowerCase();
-          filtered = filtered.where((e) =>
-            e.description.toLowerCase().contains(s) ||
-            e.expenseType.toLowerCase().contains(s)).toList();
-        }
-        return filtered;
-      });
+      return Stream.fromFuture(
+        repo.listFilteredByHotelDay(
+          fromHotelDay: hotelDay,
+          toHotelDay: hotelDay,
+          expenseType: _selectedFilterType,
+          search: _searchQuery.isNotEmpty ? _searchQuery : null,
+        ),
+      );
     }
-
-    // الوضع المفلتر: استخدام Stream.fromFuture (لأن التصفية بالمدى تتطلب استعلام مخصص)
-    final repo = ref.read(expensesRepoProvider);
     final fromHotelDay = _fromDate != null ? _hotelDayKeyFromDate(_fromDate!) : null;
     final toHotelDay = _toDate != null ? _hotelDayKeyFromDate(_toDate!) : null;
     return Stream.fromFuture(

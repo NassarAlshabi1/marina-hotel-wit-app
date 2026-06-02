@@ -937,9 +937,14 @@ double _getOverdueCost(Booking b) {
                 _buildPdfInfoRow(fonts, 'المغادرة المتوقعة:', coverage.formatDate(coverage.manualCheckoutDate)),
                 _buildPdfInfoRow(fonts, 'الأيام المقضية:', '$actualDays يوم'),
                 _buildPdfInfoRow(fonts, 'سعر الليلة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
-                _buildPdfInfoRow(fonts, 'إجمالي العقد:', '${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال — المتبقي: ${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
-                  valueColor: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.6, 0.3) : const PdfColor(0.9, 0.2, 0.2)),
+                _buildPdfInfoRow(fonts, 'إجمالي العقد:', '${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال'),
                 _buildPdfInfoRow(fonts, 'إجمالي المدفوع:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: const PdfColor(0.0, 0.5, 0.2)),
+                _buildPdfInfoRow(
+                  fonts,
+                  b.remainingBalanceCached < 0 ? 'رصيد للنزيل:' : 'المتبقي عليه:',
+                  '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
+                  valueColor: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.6, 0.3) : const PdfColor(0.9, 0.2, 0.2),
+                ),
                 if (coverage.hasPayments) ...[
                   pw.Divider(color: const PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
                   _buildPdfInfoRow(fonts, 'المغادرة التلقائية:', _dateFormatter.format(coverage.autoCheckoutDate), valueColor: const PdfColor(0.0, 0.4, 0.7)),

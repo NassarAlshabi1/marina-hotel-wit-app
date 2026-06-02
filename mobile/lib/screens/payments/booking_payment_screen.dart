@@ -2698,6 +2698,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         actualCheckout: nowIso,
         calculatedNights: actualNights,
       );
+      // ✅ تحديث الحقول المشتقة بعد تسجيل المغادرة (hotelDayCheckout, cached totals)
+      final dbInstance = ref.read(databaseProvider);
+      final derivedService = BookingDerivedFieldsService(dbInstance);
+      await derivedService.refreshForBookingId(widget.booking.id);
       final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
       if (room != null) {
         await roomsRepo.update(room.id, status: 'شاغرة');
