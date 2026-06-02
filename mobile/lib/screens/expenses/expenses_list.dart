@@ -66,7 +66,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   DateTime? _fromDate;
   DateTime? _toDate;
   String? _selectedFilterType;
-  String? selectedType;
   late Stream<List<Expense>> _expensesStream;
   int _streamVersion = 0;
   static const String _salaryType = 'رواتب';
@@ -656,7 +655,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     try {
     String dialogSalaryAction = _salaryWithdrawAction;
     bool startNextMonth = true;
-    selectedType = existing?.expenseType ?? 'اخرى';
+    String selectedType = existing?.expenseType ?? 'اخرى';
 
     if (existing != null && _isSalaryAction(existing.expenseType)) {
       selectedType = _salaryType;
@@ -684,7 +683,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: selectedType,
+                    value: selectedType,
                     decoration: const InputDecoration(labelText: 'نوع المصروف'),
                     style: dropdownTextStyle,
                     items: _expenseTypes
@@ -718,7 +717,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       const Text('لا يوجد موظفين مسجلين حالياً.'),
                     if (availableEmployees.isNotEmpty) ...[
                       DropdownButtonFormField<int>(
-                        initialValue: selectedEmployeeId,
+                        value: selectedEmployeeId,
                         style: dropdownTextStyle,
                         decoration: const InputDecoration(
                           labelText: 'اسم الموظف',
@@ -736,7 +735,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: dialogSalaryAction,
+                        value: dialogSalaryAction,
                         decoration: const InputDecoration(
                           labelText: 'نوع المعاملة',
                         ),
@@ -958,8 +957,37 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       }
 
       markDataChanged();
+
+      // ✅ إصلاح: توسيع الفلتر تلقائياً إذا كان hotelDayKey للمصروف المحفوظ
+      // يختلف عن نطاق الفلتر الحالي — لضمان ظهور المصروف الجديد دائماً
+      final savedHotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(trimmedDate);
+      final currentFromKey = _filterActive && _fromDate != null
+          ? _hotelDayKeyFromDate(_fromDate!)
+          : HotelTimeEngine.getHotelDayKey();
+      final currentToKey = _filterActive && _toDate != null
+          ? _hotelDayKeyFromDate(_toDate!)
+          : HotelTimeEngine.getHotelDayKey();
+      if (savedHotelDayKey.compareTo(currentFromKey) < 0 ||
+          savedHotelDayKey.compareTo(currentToKey) > 0) {
+        // المصروف خارج نطاق الفلتر — توسيع النطاق ليشمله
+        _filterActive = true;
+        final minKey = savedHotelDayKey.compareTo(currentFromKey) < 0
+            ? savedHotelDayKey
+            : currentFromKey;
+        final maxKey = savedHotelDayKey.compareTo(currentToKey) > 0
+            ? savedHotelDayKey
+            : currentToKey;
+        _fromDate = DateTime.parse('${minKey}T14:00:00');
+        _toDate =
+            DateTime.parse('${maxKey}T13:59:59').add(const Duration(days: 1));
+      }
+
       if (mounted) {
         _refreshExpensesStream();
+        // ✅ شبكة أمان: تحديث ثانٍ بعد إطار لضمان ظهور البيانات الجديدة
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _refreshExpensesStream();
+        });
       }
 
       // إرسال رسالة واتساب للموظف عند تسجيل مصروف راتب
