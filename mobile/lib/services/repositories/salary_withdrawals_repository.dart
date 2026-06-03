@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/expense_reason_matcher.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../daos/outbox_dao.dart';
@@ -32,7 +33,7 @@ class SalaryWithdrawalsRepository {
       amount: d.Value(amount),
       withdrawDate: d.Value(date),
       reason: d.Value(reason),
-      hotelDayKey: d.Value(hotelDayKey ?? ''),
+      hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
       withdrawalType: d.Value(withdrawalType),
       description: d.Value(description),
       createdAt: d.Value(now),
@@ -57,7 +58,7 @@ class SalaryWithdrawalsRepository {
           'amount': amount,
           'withdrawDate': date,
           'reason': reason,
-          'hotelDayKey': hotelDayKey ?? '',
+          'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
           'withdrawalType': withdrawalType,
           'description': description,
         },
@@ -141,7 +142,7 @@ class SalaryWithdrawalsRepository {
               reason: d.Value(reasonText),
               withdrawalType: d.Value(action),
               description: d.Value(note),
-              hotelDayKey: d.Value(hotelDayKey ?? ''),
+              hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
               updatedAt: d.Value(now),
               lastModified: d.Value(now),
               version: d.Value(matched.version + 1),
@@ -159,7 +160,7 @@ class SalaryWithdrawalsRepository {
               'reason': reasonText,
               'withdrawalType': action,
               'description': note,
-              'hotelDayKey': hotelDayKey ?? '',
+              'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
               'lastModified': now,
             },
             clientTs: now,
@@ -178,7 +179,7 @@ class SalaryWithdrawalsRepository {
             reason: d.Value(reasonText),
             withdrawalType: d.Value(action),
             description: d.Value(note),
-            hotelDayKey: d.Value(hotelDayKey ?? ''),
+            hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
             createdAt: d.Value(now),
             updatedAt: d.Value(now),
             deletedAt: const d.Value(null),
@@ -203,7 +204,7 @@ class SalaryWithdrawalsRepository {
               'reason': reasonText,
               'withdrawalType': action,
               'description': note,
-              'hotelDayKey': hotelDayKey ?? '',
+              'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
             },
             clientTs: now,
           );
@@ -271,5 +272,31 @@ class SalaryWithdrawalsRepository {
     return (_db.select(_db.salaryWithdrawals)
           ..where((t) => t.deletedAt.isNull()))
         .get();
+  }
+
+  /// حساب مفتاح اليوم الفندقي من تاريخ السحب
+  /// إذا كان التاريخ يحتوي على وقت (yyyy-MM-dd HH:mm)، يستخدمه مباشرة
+  /// إذا كان تاريخاً تقويمياً فقط (yyyy-MM-dd)، يمرّر 14:00:01 لضمان اليوم الصحيح
+  static String _computeHotelDayKey(String date) {
+    try {
+      final trimmed = date.trim();
+      final hasTime = trimmed.length > 10;
+      if (hasTime) {
+        return HotelTimeEngine.getHotelDayKeyFromIso(trimmed);
+      }
+      // تاريخ تقويمي بدون وقت — نمرّر 14:00:01 لضمان اليوم الفندقي الصحيح
+      final parts = trimmed.split('-');
+      if (parts.length != 3) {
+        return HotelTimeEngine.getHotelDayKey();
+      }
+      final year = int.tryParse(parts[0]) ?? 1;
+      final month = int.tryParse(parts[1]) ?? 1;
+      final day = int.tryParse(parts[2]) ?? 1;
+      return HotelTimeEngine.getHotelDayKey(
+        dateTime: DateTime(year, month, day, 14, 0, 1),
+      );
+    } catch (_) {
+      return HotelTimeEngine.getHotelDayKey();
+    }
   }
 }

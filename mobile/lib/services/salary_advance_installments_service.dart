@@ -52,7 +52,7 @@ class SalaryAdvanceInstallmentsService {
         amount: totalAmount,
         date: date,
         note: effectiveDescription,
-        hotelDayKey: date,
+        // ✅ hotelDayKey يُحتسب تلقائياً من date داخل المستودع
       );
 
       final base = totalAmount / installments;
@@ -105,7 +105,7 @@ class SalaryAdvanceInstallmentsService {
           amount: -amt,
           date: dueStr,
           note: instDesc,
-          hotelDayKey: dueStr,
+          // ✅ hotelDayKey يُحتسب تلقائياً من date داخل المستودع
         );
       }
     });
