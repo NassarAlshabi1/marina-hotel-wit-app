@@ -12,6 +12,7 @@ import '../../utils/currency_formatter.dart';
 import '../../utils/enhanced_pdf_utils.dart' as epdf;
 import '../../utils/report_pdf_builder.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 
 // ─────────────────────────────────────────────────────────────────
@@ -54,11 +55,13 @@ class _GuestPaymentsDetailReportScreenState
         : null;
     // ✅ إصلاح: إذا فشل تحليل تاريخ الدخول، نستخدم بداية اليوم الفندقي الحالي
     // بدلاً من DateTime.now() الذي يُسبب حسابات خاطئة
+    final hotelDay = HotelTimeEngine.getHotelDay(DateTime.now());
     final safeCheckin = checkin ?? DateTime(
-      DateTime.now().year,
-      DateTime.now().month,
-      DateTime.now().day,
-      14,
+      hotelDay.year,
+      hotelDay.month,
+      hotelDay.day,
+      HotelTimeEngine.boundaryHour,
+      HotelTimeEngine.boundaryMinute,
     );
     return StayBalanceResult(
       checkinDate: safeCheckin,

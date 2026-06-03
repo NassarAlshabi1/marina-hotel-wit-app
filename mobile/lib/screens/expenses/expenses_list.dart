@@ -243,13 +243,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final normalized = value.contains('T')
         ? value
         : value.replaceFirst(' ', 'T');
-    return DateTime.tryParse(normalized) ?? DateTime.now();
+    return DateTime.tryParse(normalized) ?? HotelTimeEngine.getHotelDay(DateTime.now());
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
     final initial = isFrom
-        ? (_fromDate ?? DateTime.now())
-        : (_toDate ?? DateTime.now());
+        ? (_fromDate ?? HotelTimeEngine.getHotelDay(DateTime.now()))
+        : (_toDate ?? HotelTimeEngine.getHotelDay(DateTime.now()));
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,

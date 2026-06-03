@@ -534,7 +534,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
     final phoneController = TextEditingController(text: employee?.phone ?? '');
     final hireDateController = TextEditingController(
-      text: employee?.hireDate ?? DateTime.now().toString().split(' ')[0],
+      // ✅ استخدام اليوم الفندقي كتاريخ افتراضي عند إضافة موظف جديد
+      text: employee?.hireDate ?? HotelTimeEngine.getHotelDayKey(),
     );
     String status = employee?.status ?? 'نشط';
 
@@ -593,7 +594,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   onTap: () async {
                     final date = await showDatePicker(
                       context: context,
-                      initialDate: DateTime.now(),
+                      // ✅ استخدام اليوم الفندقي كتاريخ مبدئي
+                      initialDate: HotelTimeEngine.getHotelDay(DateTime.now()),
                       firstDate: DateTime(2000),
                       lastDate: DateTime(2030),
                     );
@@ -702,7 +704,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     Employee employee,
   ) {
     String terminationType = 'مفصول';
-    DateTime? terminationDate = DateTime.now();
+    // ✅ استخدام اليوم الفندقي كتاريخ افتراضي للإنهاء
+    DateTime? terminationDate = HotelTimeEngine.getHotelDay(DateTime.now());
     final reasonController = TextEditingController();
 
     showDialog<void>(
@@ -818,9 +821,10 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
-                          initialDate: terminationDate ?? DateTime.now(),
+                          // ✅ استخدام اليوم الفندقي كتاريخ مبدئي
+                          initialDate: terminationDate ?? HotelTimeEngine.getHotelDay(DateTime.now()),
                           firstDate: DateTime(2000),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          lastDate: HotelTimeEngine.getHotelDay(DateTime.now()).add(const Duration(days: 365)),
                         );
                         if (picked != null) {
                           setDialogState(() => terminationDate = picked);
@@ -900,9 +904,10 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 backgroundColor: Colors.red,
               ),
               onPressed: () async {
+                // ✅ استخدام اليوم الفندقي في تاريخ الإنهاء
                 final dateStr = terminationDate != null
                     ? '${terminationDate!.year}-${terminationDate!.month.toString().padLeft(2, '0')}-${terminationDate!.day.toString().padLeft(2, '0')}'
-                    : DateTime.now().toString().split(' ')[0];
+                    : HotelTimeEngine.getHotelDayKey();
 
                 try {
                   final repo = ref.read(employeesRepoProvider);
