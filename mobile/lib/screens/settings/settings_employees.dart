@@ -9,6 +9,7 @@ import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../employees/salary_entitlements_screen.dart';
 
@@ -373,7 +374,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
 
             const SizedBox(height: 12),
 
-            // أزرار العمليات
+            // أزرار العمليات — صف أول
             Row(
               children: [
                 Expanded(
@@ -400,38 +401,64 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (isActive)
-                  OutlinedButton(
-                    onPressed: () =>
-                        _showTerminateDialog(context, ref, employee),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                    ),
-                    child: const Text('إنهاء'),
-                  )
-                else if (isTerminated)
-                  OutlinedButton(
-                    onPressed: () =>
-                        _reactivateEmployee(context, ref, employee),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.green,
-                      side: const BorderSide(color: Colors.green),
-                    ),
-                    child: const Text('إعادة'),
-                  )
-                else
-                  OutlinedButton(
-                    onPressed: () =>
-                        _toggleEmployeeStatus(context, ref, employee),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: isActive ? Colors.red : Colors.green,
-                      side: BorderSide(
-                        color: isActive ? Colors.red : Colors.green,
+                if (isActive) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          _showSalaryWithdrawalDialog(context, ref, employee),
+                      icon: const Icon(Icons.money_off, size: 16),
+                      label: const Text('سحب', style: TextStyle(fontSize: 11)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.orange,
+                        side: const BorderSide(color: Colors.orange),
                       ),
                     ),
-                    child: Text(isActive ? 'إيقاف' : 'تفعيل'),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            // أزرار العمليات — صف ثاني
+            Row(
+              children: [
+                if (isActive)
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () =>
+                          _showTerminateDialog(context, ref, employee),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                      child: const Text('إنهاء'),
+                    ),
+                  )
+                else if (isTerminated)
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () =>
+                          _reactivateEmployee(context, ref, employee),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.green,
+                        side: const BorderSide(color: Colors.green),
+                      ),
+                      child: const Text('إعادة'),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () =>
+                          _toggleEmployeeStatus(context, ref, employee),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: isActive ? Colors.red : Colors.green,
+                        side: BorderSide(
+                          color: isActive ? Colors.red : Colors.green,
+                        ),
+                      ),
+                      child: Text(isActive ? 'إيقاف' : 'تفعيل'),
+                    ),
                   ),
                 const SizedBox(width: 8),
                 IconButton(
@@ -1107,7 +1134,6 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
   }
 
-  // ignore: unused_element
   void _showSalaryWithdrawalDialog(
     BuildContext context,
     WidgetRef ref,
@@ -1115,55 +1141,231 @@ class SettingsEmployeesScreen extends ConsumerWidget {
   ) {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
+    String withdrawalType = 'سلفة';
 
     showDialog<void>(
       context: context,
-      builder: (context) => Directionality(
+      builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
-          title: Text('سحب راتب - ${employee.name}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
             children: [
-              Text(
-                'الراتب الأساسي: ${CurrencyFormatter.formatAmount(employee.salary)}',
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: amountController,
-                decoration: const InputDecoration(
-                  labelText: 'المبلغ المسحوب*',
-                  border: OutlineInputBorder(),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: noteController,
-                decoration: const InputDecoration(
-                  labelText: 'ملاحظات (اختياري)',
-                  border: OutlineInputBorder(),
+                child: const Icon(
+                  Icons.money_off,
+                  color: Colors.orange,
                 ),
-                maxLines: 2,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'سحب راتب - ${employee.name}',
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.attach_money, color: Colors.blue, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'الراتب الأساسي: ${CurrencyFormatter.formatAmount(employee.salary)}',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // نوع السحب
+                const Text(
+                  'نوع السحب *',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 8),
+                StatefulBuilder(
+                  builder: (context, setDialogState) {
+                    return Column(
+                      children: [
+                        RadioListTile<String>(
+                          title: const Row(
+                            children: [
+                              Icon(Icons.trending_up, color: Colors.orange, size: 20),
+                              SizedBox(width: 8),
+                              Text('سلفة'),
+                            ],
+                          ),
+                          value: 'سلفة',
+                          groupValue: withdrawalType,
+                          onChanged: (v) =>
+                              setDialogState(() => withdrawalType = v!),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        RadioListTile<String>(
+                          title: const Row(
+                            children: [
+                              Icon(Icons.account_balance_wallet, color: Colors.purple, size: 20),
+                              SizedBox(width: 8),
+                              Text('سحب راتب'),
+                            ],
+                          ),
+                          value: 'سحب راتب',
+                          groupValue: withdrawalType,
+                          onChanged: (v) =>
+                              setDialogState(() => withdrawalType = v!),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        RadioListTile<String>(
+                          title: const Row(
+                            children: [
+                              Icon(Icons.build, color: Colors.grey, size: 20),
+                              SizedBox(width: 8),
+                              Text('أخرى'),
+                            ],
+                          ),
+                          value: 'أخرى',
+                          groupValue: withdrawalType,
+                          onChanged: (v) =>
+                              setDialogState(() => withdrawalType = v!),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: amountController,
+                  decoration: InputDecoration(
+                    labelText: 'المبلغ المسحوب *',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: const Icon(Icons.attach_money),
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteController,
+                  decoration: InputDecoration(
+                    labelText: 'ملاحظات (اختياري)',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: const Icon(Icons.note),
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('إلغاء'),
             ),
-            ElevatedButton(
-              onPressed: () {
-                // TODO: تنفيذ عملية سحب الراتب
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('تم تسجيل سحب الراتب (قيد التطوير)'),
-                  ),
-                );
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.orange,
+              ),
+              onPressed: () async {
+                final amountText = amountController.text.trim();
+                if (amountText.isEmpty) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                      content: Text('يرجى إدخال المبلغ'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                final amount = double.tryParse(amountText);
+                if (amount == null || amount <= 0) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                      content: Text('يرجى إدخال مبلغ صحيح أكبر من صفر'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                try {
+                  final repo = ref.read(salaryWithdrawalsRepoProvider);
+                  final now = DateTime.now();
+                  final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+                  final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(
+                    '${dateStr}T14:00:01',
+                  );
+
+                  await repo.createFromExpense(
+                    expenseId: 0, // لا يوجد مصروف مرتبط — سحب مباشر
+                    employeeId: employee.id,
+                    reason: 'direct_withdrawal_${employee.localUuid}',
+                    amount: amount,
+                    date: dateStr,
+                    hotelDayKey: hotelDayKey,
+                    withdrawalType: withdrawalType,
+                    description: noteController.text.trim().isNotEmpty
+                        ? noteController.text.trim()
+                        : null,
+                  );
+
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                  }
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'تم تسجيل سحب ${CurrencyFormatter.formatAmount(amount)} ${withdrawalType} بنجاح',
+                        ),
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(
+                        content: Text('فشل تسجيل السحب: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
               },
-              child: const Text('تسجيل السحب'),
+              icon: const Icon(Icons.check, size: 18),
+              label: const Text('تسجيل السحب'),
             ),
           ],
         ),
