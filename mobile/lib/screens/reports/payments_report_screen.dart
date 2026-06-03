@@ -302,7 +302,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           ),
           child: pw.Column(
             children: [
-              // الصف الأول: الإجمالي الكلي + المبلغ المتبقي
+              // الصف الأول: الإجمالي المدفوع + المبلغ المتبقي
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
@@ -310,7 +310,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                   pw.Row(
                     children: [
                       pw.Text(
-                        'الإجمالي الكلي: ',
+                        'الإجمالي المدفوع: ',
                         style: pw.TextStyle(
                           font: fonts.bold,
                           fontSize: 12,
@@ -344,7 +344,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                         EnhancedPdfUtils.formatNumber(_totalRemaining),
                         style: pw.TextStyle(
                           font: fonts.bold,
-                          fontSize: 14,
+                          fontSize: 12,
                           color: _totalRemaining > 0
                               ? const PdfColor(0.9, 0.2, 0.2)
                               : const PdfColor(0.0, 0.5, 0.2),
@@ -361,7 +361,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                   mainAxisAlignment: pw.MainAxisAlignment.end,
                   children: [
                     pw.Text(
-                      'إجمالي المستحق: ',
+                      'إجمالي ما على النزيل: ',
                       style: pw.TextStyle(
                         font: fonts.bold,
                         fontSize: 11,
