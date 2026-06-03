@@ -30,9 +30,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
 
-  // ignore: unused_element
-  String _formatNumber(num value) => _currencyFmt.format(value);
-
   DateTime? _fromDate;
   DateTime? _toDate;
   String? _selectedRoom;
@@ -90,9 +87,14 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<void> _fetchReport() async {
-    if (_loading) {
+    if (_loading) return;
+
+    // ✅ حارس: تفادي null في التواريخ
+    if (_fromDate == null || _toDate == null) {
+      // يمكن إظهار رسالة أو تجاهل الطلب
       return;
     }
+
     setState(() {
       _loading = true;
     });
@@ -118,16 +120,17 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
-    final outboxDao = OutboxDao(db);
-    final paymentsDao = PaymentsDao(db, outboxDao);
+    // من المفترض أن _fromDate و _toDate ليسا null هنا بسبب الحارس
+    final hotelStart = DateTime(
+        _fromDate!.year, _fromDate!.month, _fromDate!.day, 14);
+    final hotelEnd = DateTime(
+        _toDate!.year, _toDate!.month, _toDate!.day, 13, 59, 59);
 
-    // الهندسة الدقيقة: تقرير الدخل يستخدم نطاقاً زمنياً يبدأ من 14:00 في تاريخ البداية
-    // وينتهي في 13:59:59 في تاريخ النهاية.
-    final hotelStart = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day, 14);
-    final hotelEnd = DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 13, 59, 59);
-    
     final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelStart);
     final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelEnd);
+
+    final outboxDao = OutboxDao(db);
+    final paymentsDao = PaymentsDao(db, outboxDao);
 
     // استخدام list() مع نفس الفلاتر الصارمة لتقرير الدخل
     final payments = await paymentsDao.list(
@@ -136,6 +139,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       excludeVoided: true,
       excludePendingBalance: true,
     );
+
     // فلترة حسب الغرفة في الذاكرة إذا تم اختيار غرفة محددة
     final filteredPayments = _selectedRoom != null && _selectedRoom!.isNotEmpty
         ? payments.where((p) => p.roomNumber == _selectedRoom).toList()
@@ -147,23 +151,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         .toSet();
     final bookings = bookingIds.isEmpty
         ? <Booking>[]
-        : await (db.select(
-            db.bookings,
-          )..where((tbl) => tbl.id.isIn(bookingIds))).get();
+        : await (db.select(db.bookings)..where((tbl) => tbl.id.isIn(bookingIds)))
+            .get();
     final bookingMap = {for (final b in bookings) b.id: b};
-
-    final roomNumbers = <String>{};
-    for (final payment in filteredPayments) {
-      final room = payment.roomNumber;
-      if (room != null) {
-        roomNumbers.add(room);
-      }
-      final bookingRoom = bookingMap[payment.bookingLocalId]?.roomNumber;
-      if (bookingRoom != null) {
-        roomNumbers.add(bookingRoom);
-      }
-    }
-    // rooms لم تعد مطلوبة للحساب لأننا نستخدم القيم المحسوبة من الحجز مباشرة
 
     final rows = <_PaymentReportRow>[];
     double totalRoomPaid = 0;
@@ -171,13 +161,15 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final relevantBookingIds = <int>{};
 
     for (final payment in filteredPayments) {
+      // ✅ تحسين تحليل التاريخ: إرجاع null عند الخطأ، وتجاهل الدفعة
       final paymentDate = _parseDateTime(payment.paymentDate);
-      
-      // التحقق الهندسي: هل التاريخ يقع فعلياً ضمن النطاق الفندقي؟
-      // (نفس منطق isWithinRange في تقرير الدخل)
-      if (paymentDate.isBefore(hotelStart) || paymentDate.isAfter(hotelEnd)) {
+      if (paymentDate == null) {
+        // لا يمكن تحديد تاريخ الدفعة، نهملها مع إمكانية تسجيل خطأ
+        debugPrint('تجاهل دفعة ذات تاريخ غير صالح: ${payment.paymentDate}');
         continue;
       }
+
+      // ✅ إزالة الفلترة المكررة: نثق أن قاعدة البيانات أرجعَت دفعات ضمن النطاق
 
       final booking = bookingMap[payment.bookingLocalId];
       final roomNumber =
@@ -186,17 +178,17 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final bookingCode = booking != null
           ? _formatBookingCode(booking.id)
           : null;
-          
+
       if (_isRoomPayment(payment.revenueType)) {
         totalRoomPaid += payment.amount;
       } else {
         totalOtherPaid += payment.amount;
       }
-      
+
       if (booking != null) {
         relevantBookingIds.add(booking.id);
       }
-      
+
       rows.add(
         _PaymentReportRow(
           paymentDate: paymentDate,
@@ -211,22 +203,19 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       );
     }
 
-    // حساب إجمالي المستحق والمتبقي باستخدام القيم المحسوبة الموثوقة من الحجز
-    // (totalDueCached محسوب من تعديلات الأسعار + الخصومات الفعلية)
-    // (remainingBalanceCached = totalDueCached - totalPaidCached)
+    // حساب إجمالي المستحق والمتبقي باستخدام القيم المحسوبة من الحجز
     double totalDue = 0;
     double totalRemaining = 0;
     if (relevantBookingIds.isNotEmpty) {
       for (final bookingId in relevantBookingIds) {
         final booking = bookingMap[bookingId];
-        if (booking == null) {
-          continue;
-        }
+        if (booking == null) continue;
+
         totalDue += booking.totalDueCached;
-        final remaining = booking.remainingBalanceCached;
-        if (remaining > 0) {
-          totalRemaining += remaining;
-        }
+
+        // ✅ تصحيح حساب المبلغ المتبقي: جمع الأرصدة بغض النظر عن الإشارة
+        // (تشمل الأرصدة السالبة = دائنة، والموجبة = مستحقة)
+        totalRemaining += booking.remainingBalanceCached;
       }
     }
 
@@ -302,11 +291,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           ),
           child: pw.Column(
             children: [
-              // الصف الأول: الإجمالي المدفوع + المبلغ المتبقي
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  // الإجمالي الكلي
                   pw.Row(
                     children: [
                       pw.Text(
@@ -327,7 +314,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                       ),
                     ],
                   ),
-                  // المبلغ المتبقي
                   pw.Row(
                     children: [
                       pw.Text(
@@ -354,7 +340,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                   ),
                 ],
               ),
-              // الصف الثاني: إجمالي المستحق (إذا كان هناك حجوزات)
               if (_totalDue > 0) ...[
                 pw.SizedBox(height: 8),
                 pw.Row(
@@ -384,7 +369,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         ),
       ],
       fileName: ReportPdfBuilder.generateFileName('مدفوعات النزلاء'),
-    ),);
+    ));
   }
 
   @override
@@ -603,9 +588,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     return value;
   }
 
-  /// هل الدفعة تُحسب ضمن رسوم الغرفة؟
-  /// يجب أن يتطابق هذا المنطق مع _getTotalPayments في
-  /// EnhancedBookingCalculationService لضمان تناسق المجاميع.
   static bool _isRoomPayment(String? revenueType) {
     if (revenueType == null || revenueType.isEmpty) {
       return true;
@@ -620,8 +602,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         Text(
           value,
           style: TextStyle(
-            fontWeight: FontWeight.bold, 
-            fontSize: isLarge ? 18 : 13, 
+            fontWeight: FontWeight.bold,
+            fontSize: isLarge ? 18 : 13,
             color: color,
           ),
         ),
@@ -629,7 +611,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         Text(
           label,
           style: TextStyle(
-            fontSize: isLarge ? 12 : 10, 
+            fontSize: isLarge ? 12 : 10,
             color: isLarge ? Colors.black87 : Colors.grey,
             fontWeight: isLarge ? FontWeight.bold : FontWeight.normal,
           ),
@@ -638,17 +620,22 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     );
   }
 
-  DateTime _parseDateTime(String value) {
+  /// ✅ تحسين تحليل التاريخ: إرجاع null عند فشل التحليل بدلاً من DateTime.now()
+  DateTime? _parseDateTime(String value) {
     final normalized = value.contains('T')
         ? value
         : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
     } catch (_) {
-      return DateTime.now();
+      // طباعة الخطأ (اختياري) وإرجاع null ليتجاهل المُستدعي السجل
+      debugPrint('_parseDateTime: فشل تحليل "$value"');
+      return null;
     }
   }
 }
+
+// ------------ الكلاسات المساعدة (دون تغيير) ------------
 
 class _PaymentReportRow {
   _PaymentReportRow({
