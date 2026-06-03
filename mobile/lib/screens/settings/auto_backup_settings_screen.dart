@@ -54,8 +54,8 @@ class _AutoBackupSettingsScreenState
       _maxBackupsController.text = maxBackups.toString();
       _retentionDaysController.text = retentionDays.toString();
       _scheduledTime = TimeOfDay(
-        hour: int.parse(timeParts[0]),
-        minute: int.parse(timeParts[1]),
+        hour: int.tryParse(timeParts[0]) ?? 0,
+        minute: int.tryParse(timeParts[1]) ?? 0,
       );
       _isScheduledBackupEnabled = scheduledEnabled;
     });

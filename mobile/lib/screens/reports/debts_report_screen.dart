@@ -74,6 +74,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       final toFilter = _toDate;
       for (final debt in allDebts) {
         final paymentDate = _parseDateTime(debt.paymentDate);
+        if (paymentDate == null) continue;
         if (fromFilter != null && paymentDate.isBefore(fromFilter)) {
           continue;
         }
@@ -82,11 +83,14 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         }
         filtered.add(debt);
       }
-      filtered.sort(
-        (a, b) => _parseDateTime(
-          b.paymentDate,
-        ).compareTo(_parseDateTime(a.paymentDate)),
-      );
+      filtered.sort((a, b) {
+        final dateA = _parseDateTime(a.paymentDate);
+        final dateB = _parseDateTime(b.paymentDate);
+        if (dateA == null && dateB == null) return 0;
+        if (dateA == null) return 1;
+        if (dateB == null) return -1;
+        return dateB.compareTo(dateA);
+      });
       final guestMap = <String, _GuestDebtSummary>{};
       final monthlyMap = <String, _MonthlyDebtSummary>{};
       double totalDebt = 0;
@@ -104,6 +108,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         guestEntry.paidAmount += debt.paidAmount;
         guestEntry.remainingAmount += debt.remainingAmount;
         final date = _parseDateTime(debt.paymentDate);
+        if (date == null) continue;
         final monthKey =
             '${date.year}-${date.month.toString().padLeft(2, '0')}';
         final monthEntry = monthlyMap.putIfAbsent(
@@ -125,14 +130,16 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       for (final debt in filtered) {
         _unreturnedCounts[debt.id] = 0;
       }
-      setState(() {
-        _rows = filtered;
-        _guestSummaries = guestSummaries;
-        _monthlySummaries = monthlySummaries;
-        _totalDebt = totalDebt;
-        _totalPaid = totalPaid;
-        _totalRemaining = totalRemaining;
-      });
+      if (mounted) {
+        setState(() {
+          _rows = filtered;
+          _guestSummaries = guestSummaries;
+          _monthlySummaries = monthlySummaries;
+          _totalDebt = totalDebt;
+          _totalPaid = totalPaid;
+          _totalRemaining = totalRemaining;
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {

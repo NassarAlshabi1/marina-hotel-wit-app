@@ -98,17 +98,19 @@ class _SalaryWithdrawalsReportScreenState
     try {
       final db = ref.read(databaseProvider);
       final result = await _loadSalaryData(db);
-      setState(() {
-        _allEmployees
-          ..clear()
-          ..addAll(result.allEmployees);
-        _allRows
-          ..clear()
-          ..addAll(result.rows);
-        _employeeGroups
-          ..clear()
-          ..addAll(result.groups);
-      });
+      if (mounted) {
+        setState(() {
+          _allEmployees
+            ..clear()
+            ..addAll(result.allEmployees);
+          _allRows
+            ..clear()
+            ..addAll(result.rows);
+          _employeeGroups
+            ..clear()
+            ..addAll(result.groups);
+        });
+      }
     } finally {
       if (mounted) {
         setState(() => _loading = false);

@@ -418,6 +418,14 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         );
       },
     );
+    roomController.dispose();
+    guestNameController.dispose();
+    nationalityController.dispose();
+    idNumberController.dispose();
+    issueDateController.dispose();
+    issuePlaceController.dispose();
+    governorateController.dispose();
+    notesController.dispose();
 
     if (confirmed != true) {
       return;

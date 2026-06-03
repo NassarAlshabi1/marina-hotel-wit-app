@@ -74,8 +74,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       _maxBackupsController.text = maxBackups.toString();
       _retentionDaysController.text = retentionDays.toString();
       _scheduledTime = TimeOfDay(
-        hour: int.parse(parts[0]),
-        minute: int.parse(parts[1]),
+        hour: int.tryParse(parts[0]) ?? 0,
+        minute: int.tryParse(parts[1]) ?? 0,
       );
       _scheduledEnabled = scheduled;
       _googleDriveSyncEnabled = googleDriveSyncEnabled;

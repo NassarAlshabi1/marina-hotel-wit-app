@@ -1,5 +1,6 @@
 <?php
 // إنشاء ملف لإضافة ملاحظات وتنبيهات للموظفين
+require_once '../../includes/security.php';
 include_once '../../includes/db.php';
 
 // التحقق من وجود معرف الحجز
@@ -8,9 +9,7 @@ if (!isset($_GET['id']) || empty($_GET['id'])) {
     exit;
 }
 
-include_once '../../includes/header.php';
-
-$booking_id = $_GET['id'];
+$booking_id = intval($_GET['id']);
 
 // التحقق من الاتصال بقاعدة البيانات
 if ($conn->connect_error) {
@@ -43,7 +42,9 @@ if ($check_table->num_rows == 0) {
         
         // معالجة حذف التنبيه
         if (isset($_POST['delete_note']) && isset($_POST['note_id'])) {
-            $note_id = $_POST['note_id'];
+            verify_csrf_token();
+
+            $note_id = intval($_POST['note_id']);
             
             // حذف التنبيه من قاعدة البيانات
             $delete_query = "DELETE FROM booking_notes WHERE note_id = ? AND booking_id = ?";
@@ -67,6 +68,8 @@ if ($check_table->num_rows == 0) {
         
         // معالجة إضافة ملاحظة جديدة
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_note'])) {
+            verify_csrf_token();
+
             $note_text = $_POST['note_text'];
             $alert_type = $_POST['alert_type'];
             
@@ -110,170 +113,159 @@ if ($check_table->num_rows == 0) {
         }
     }
 }
+
+include_once '../../includes/header.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إضافة ملاحظة للنزيل</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f8f9fa;
-            font-family: 'Tajawal', sans-serif;
-        }
-        .card {
-            border-radius: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
-        .card-header {
-            border-radius: 15px 15px 0 0 !important;
-            font-weight: bold;
-        }
-        .form-label {
-            font-weight: bold;
-        }
-        .alert-type-high {
-            background-color: #f8d7da;
-            border-color: #f5c2c7;
-            color: #842029;
-        }
-        .alert-type-medium {
-            background-color: #fff3cd;
-            border-color: #ffecb5;
-            color: #664d03;
-        }
-        .alert-type-low {
-            background-color: #d1e7dd;
-            border-color: #badbcc;
-            color: #0f5132;
-        }
-        .note-item {
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-        .note-actions {
-            display: flex;
-            justify-content: flex-end;
-        }
-        .delete-btn {
-            color: #dc3545;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 1.1rem;
-        }
-        .delete-btn:hover {
-            color: #bb2d3b;
-        }
-    </style>
-</head>
-<body>
-    <div class="container py-4">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="d-flex justify-content-between mb-3">
-                    <a href="list.php" class="btn btn-outline-primary fw-bold">
-                        ← العودة إلى قائمة الحجوزات
-                    </a>
+<style>
+    .card {
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+    .card-header {
+        border-radius: 15px 15px 0 0 !important;
+        font-weight: bold;
+    }
+    .form-label {
+        font-weight: bold;
+    }
+    .alert-type-high {
+        background-color: #f8d7da;
+        border-color: #f5c2c7;
+        color: #842029;
+    }
+    .alert-type-medium {
+        background-color: #fff3cd;
+        border-color: #ffecb5;
+        color: #664d03;
+    }
+    .alert-type-low {
+        background-color: #d1e7dd;
+        border-color: #badbcc;
+        color: #0f5132;
+    }
+    .note-item {
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    .note-actions {
+        display: flex;
+        justify-content: flex-end;
+    }
+    .delete-btn {
+        color: #dc3545;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.1rem;
+    }
+    .delete-btn:hover {
+        color: #bb2d3b;
+    }
+</style>
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between mb-3">
+                <a href="list.php" class="btn btn-outline-primary fw-bold">
+                    ← العودة إلى قائمة الحجوزات
+                </a>
+            </div>
+
+            <?php if (isset($error_message)): ?>
+                <div class="alert alert-danger text-center" role="alert">
+                    <?= htmlspecialchars($error_message); ?>
                 </div>
+            <?php endif; ?>
 
-                <?php if (isset($error_message)): ?>
-                    <div class="alert alert-danger text-center" role="alert">
-                        <?= htmlspecialchars($error_message); ?>
+            <?php if (!isset($error_message) || strpos($error_message, "جدول ملاحظات الحجوزات") === false): ?>
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">إضافة ملاحظة وتنبيه للنزيل</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h5>معلومات الحجز:</h5>
+                        <?php if (isset($booking)): ?>
+                        <p><strong>اسم النزيل:</strong> <?= htmlspecialchars($booking['guest_name'] ?? 'غير محدد'); ?></p>
+                        <p><strong>رقم الغرفة:</strong> <?= htmlspecialchars($booking['room_number'] ?? 'غير محدد'); ?></p>
+                        <p><strong>تاريخ الوصول:</strong> <?= $booking['checkin_date'] ? date('d/m/Y', strtotime($booking['checkin_date'])) : 'غير محدد'; ?></p>
+                        <?php else: ?>
+                        <p>لا يمكن عرض معلومات الحجز.</p>
+                        <?php endif; ?>
                     </div>
-                <?php endif; ?>
 
-                <?php if (!isset($error_message) || strpos($error_message, "جدول ملاحظات الحجوزات") === false): ?>
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h4 class="mb-0">إضافة ملاحظة وتنبيه للنزيل</h4>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-4">
-                            <h5>معلومات الحجز:</h5>
-                            <?php if (isset($booking)): ?>
-                            <p><strong>اسم النزيل:</strong> <?= htmlspecialchars($booking['guest_name'] ?? 'غير محدد'); ?></p>
-                            <p><strong>رقم الغرفة:</strong> <?= htmlspecialchars($booking['room_number'] ?? 'غير محدد'); ?></p>
-                            <p><strong>تاريخ الوصول:</strong> <?= $booking['checkin_date'] ? date('d/m/Y', strtotime($booking['checkin_date'])) : 'غير محدد'; ?></p>
-                            <?php else: ?>
-                            <p>لا يمكن عرض معلومات الحجز.</p>
-                            <?php endif; ?>
+                    <form method="POST" action="">
+                        <?= csrf_field(); ?>
+                        <div class="mb-3">
+                            <label for="note_text" class="form-label">نص الملاحظة / التنبيه:</label>
+                            <textarea class="form-control" id="note_text" name="note_text" rows="4" required
+                                placeholder="مثال: النزيل أخذ بطاقة الغرفة الساعة 2 مساءً، يرجى استعادتها عند عودته"></textarea>
                         </div>
 
-                        <form method="POST" action="">
-                            <div class="mb-3">
-                                <label for="note_text" class="form-label">نص الملاحظة / التنبيه:</label>
-                                <textarea class="form-control" id="note_text" name="note_text" rows="4" required
-                                    placeholder="مثال: النزيل أخذ بطاقة الغرفة الساعة 2 مساءً، يرجى استعادتها عند عودته"></textarea>
-                            </div>
+                        <div class="mb-3">
+                            <label for="alert_type" class="form-label">مستوى أهمية التنبيه:</label>
+                            <select class="form-select" id="alert_type" name="alert_type" required>
+                                <option value="high">عالي (أحمر)</option>
+                                <option value="medium">متوسط (برتقالي)</option>
+                                <option value="low">منخفض (أخضر)</option>
+                            </select>
+                        </div>
 
-                            <div class="mb-3">
-                                <label for="alert_type" class="form-label">مستوى أهمية التنبيه:</label>
-                                <select class="form-select" id="alert_type" name="alert_type" required>
-                                    <option value="high">عالي (أحمر)</option>
-                                    <option value="medium">متوسط (برتقالي)</option>
-                                    <option value="low">منخفض (أخضر)</option>
-                                </select>
-                            </div>
-
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-primary fw-bold">
-                                    <i class="fas fa-save me-1"></i> حفظ الملاحظة والتنبيه
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary fw-bold">
+                                <i class="fas fa-save me-1"></i> حفظ الملاحظة والتنبيه
+                            </button>
+                        </div>
+                    </form>
                 </div>
-
-                <?php if (!empty($notes)): ?>
-                <div class="card mt-4">
-                    <div class="card-header bg-info text-white">
-                        <h4 class="mb-0">التنبيهات الحالية</h4>
-                    </div>
-                    <div class="card-body">
-                        <?php foreach ($notes as $note): ?>
-                            <div class="note-item alert-type-<?= htmlspecialchars($note['alert_type']); ?>">
-                                <div class="note-actions">
-                                    <form method="POST" action="" onsubmit="return confirm('هل أنت متأكد من حذف هذا التنبيه؟');">
-                                        <input type="hidden" name="note_id" value="<?= $note['note_id']; ?>">
-                                        <button type="submit" name="delete_note" class="delete-btn" title="حذف التنبيه">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                                <p><strong>التنبيه:</strong> <?= htmlspecialchars($note['note_text']); ?></p>
-                                <p><strong>تاريخ الإنشاء:</strong> <?= htmlspecialchars($note['created_at']); ?></p>
-                                <p><strong>مستوى الأهمية:</strong> 
-                                    <?php 
-                                    $alert_types = [
-                                        'high' => 'عالي',
-                                        'medium' => 'متوسط',
-                                        'low' => 'منخفض'
-                                    ];
-                                    echo $alert_types[$note['alert_type']] ?? $note['alert_type'];
-                                    ?>
-                                </p>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                <?php endif; ?>
-                <?php endif; ?>
             </div>
+
+            <?php if (!empty($notes)): ?>
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">التنبيهات الحالية</h4>
+                </div>
+                <div class="card-body">
+                    <?php foreach ($notes as $note): ?>
+                        <div class="note-item alert-type-<?= htmlspecialchars($note['alert_type']); ?>">
+                            <div class="note-actions">
+                                <form method="POST" action="" onsubmit="return confirm('هل أنت متأكد من حذف هذا التنبيه؟');">
+                                    <?= csrf_field(); ?>
+                                    <input type="hidden" name="note_id" value="<?= $note['note_id']; ?>">
+                                    <button type="submit" name="delete_note" class="delete-btn" title="حذف التنبيه">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            <p><strong>التنبيه:</strong> <?= htmlspecialchars($note['note_text']); ?></p>
+                            <p><strong>تاريخ الإنشاء:</strong> <?= htmlspecialchars($note['created_at']); ?></p>
+                            <p><strong>مستوى الأهمية:</strong> 
+                                <?php 
+                                $alert_types = [
+                                    'high' => 'عالي',
+                                    'medium' => 'متوسط',
+                                    'low' => 'منخفض'
+                                ];
+                                echo $alert_types[$note['alert_type']] ?? $note['alert_type'];
+                                ?>
+                            </p>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+            <?php endif; ?>
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+</div>
 
 <?php
+include_once '../../includes/footer.php';
+
 if (isset($stmt) && $stmt !== false) {
     $stmt->close();
 }

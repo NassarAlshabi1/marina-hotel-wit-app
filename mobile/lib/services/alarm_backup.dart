@@ -130,8 +130,8 @@ class AlarmBackup {
       final prefs = await SharedPreferences.getInstance();
       final timeString = prefs.getString('auto_backup_time') ?? '21:00';
       final timeParts = timeString.split(':');
-      final hour = int.parse(timeParts[0]);
-      final minute = int.parse(timeParts[1]);
+      final hour = int.tryParse(timeParts[0]) ?? 0;
+      final minute = int.tryParse(timeParts[1]) ?? 0;
       await scheduleDailyAlarm(hour, minute);
     }
   }
@@ -167,8 +167,8 @@ class AlarmBackup {
     if (larkEnabled && reportEnabled) {
       final timeString = prefs.getString('lark_daily_report_time') ?? '08:00';
       final parts = timeString.split(':');
-      final hour = int.parse(parts[0]);
-      final minute = int.parse(parts[1]);
+      final hour = int.tryParse(parts[0]) ?? 0;
+      final minute = int.tryParse(parts[1]) ?? 0;
       await scheduleLarkReportAlarm(hour, minute);
     } else {
       await AndroidAlarmManager.cancel(larkReportAlarmId);
@@ -213,8 +213,8 @@ class AlarmBackup {
     if (tgEnabled && reportEnabled) {
       final timeString = prefs.getString('telegram_daily_report_time') ?? '02:00';
       final parts = timeString.split(':');
-      final hour = int.parse(parts[0]);
-      final minute = int.parse(parts[1]);
+      final hour = int.tryParse(parts[0]) ?? 0;
+      final minute = int.tryParse(parts[1]) ?? 0;
       await scheduleTelegramReportAlarm(hour, minute);
     } else {
       await AndroidAlarmManager.cancel(telegramReportAlarmId);
@@ -284,8 +284,8 @@ class AlarmBackup {
       final prefs = await SharedPreferences.getInstance();
       final timeString = prefs.getString('telegram_daily_report_time') ?? '02:00';
       final parts = timeString.split(':');
-      final hour = int.parse(parts[0]);
-      final minute = int.parse(parts[1]);
+      final hour = int.tryParse(parts[0]) ?? 0;
+      final minute = int.tryParse(parts[1]) ?? 0;
       await scheduleTelegramReportAlarm(hour, minute);
     }
   }
@@ -318,8 +318,8 @@ class AlarmBackup {
       final prefs = await SharedPreferences.getInstance();
       final timeString = prefs.getString('lark_daily_report_time') ?? '08:00';
       final parts = timeString.split(':');
-      final hour = int.parse(parts[0]);
-      final minute = int.parse(parts[1]);
+      final hour = int.tryParse(parts[0]) ?? 0;
+      final minute = int.tryParse(parts[1]) ?? 0;
       await scheduleLarkReportAlarm(hour, minute);
     }
   }

@@ -303,9 +303,9 @@ class ExpensesRepository {
       if (parts.length != 3) {
         return HotelTimeEngine.getHotelDayKey();
       }
-      final year = int.parse(parts[0]);
-      final month = int.parse(parts[1]);
-      final day = int.parse(parts[2]);
+      final year = int.tryParse(parts[0]) ?? 1;
+      final month = int.tryParse(parts[1]) ?? 1;
+      final day = int.tryParse(parts[2]) ?? 1;
       return HotelTimeEngine.getHotelDayKey(
         dateTime: DateTime(year, month, day, 14, 0, 1),
       );

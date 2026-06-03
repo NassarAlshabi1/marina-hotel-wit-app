@@ -145,11 +145,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         .get();
     final types =
         query.map((row) => row.data['expense_type'] as String).toList()..sort();
-    setState(() {
-      _availableTypes
-        ..clear()
-        ..addAll(types);
-    });
+    if (mounted) {
+      setState(() {
+        _availableTypes
+          ..clear()
+          ..addAll(types);
+      });
+    }
   }
 
   Future<void> _fetchReport() async {
@@ -162,14 +164,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     try {
       final db = ref.read(databaseProvider);
       final result = await _loadExpensesReport(db);
-      setState(() {
-        _rows
-          ..clear()
-          ..addAll(result.rows);
-        _totalAmount = result.totalAmount;
-        _hasSalaryData = result.hasSalaryData;
-        _buildGroups();
-      });
+      if (mounted) {
+        setState(() {
+          _rows
+            ..clear()
+            ..addAll(result.rows);
+          _totalAmount = result.totalAmount;
+          _hasSalaryData = result.hasSalaryData;
+          _buildGroups();
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -302,7 +306,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         if (sw.reason != null) {
           final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
           if (match != null) {
-            swExpenseIds.add(int.parse(match.group(1)!));
+            swExpenseIds.add(int.tryParse(match.group(1) ?? '') ?? 0);
           }
         }
       }

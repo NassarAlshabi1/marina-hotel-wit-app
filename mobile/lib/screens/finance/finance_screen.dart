@@ -833,7 +833,11 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           ),
         ),
       ),
-    );
+    ).then((_) {
+      amountController.dispose();
+      notesController.dispose();
+      referenceController.dispose();
+    });
   }
 
   Future<void> _saveStandalonePayment(

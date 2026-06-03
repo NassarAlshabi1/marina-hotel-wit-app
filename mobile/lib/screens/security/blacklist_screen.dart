@@ -403,7 +403,9 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
           ),
         ],
       ),
-    );
+    ).then((_) {
+      controller.dispose();
+    });
   }
 
   Future<bool?> _showDeleteConfirmDialog(BuildContext context, String name) {

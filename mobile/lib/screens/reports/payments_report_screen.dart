@@ -75,15 +75,17 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   Future<void> _loadRooms() async {
     final db = ref.read(databaseProvider);
     final rooms = await db.select(db.rooms).get();
-    setState(() {
-      _availableRooms
-        ..clear()
-        ..addAll(rooms.map((e) => e.roomNumber).toList()..sort());
-      if (_availableRooms.isNotEmpty &&
-          !_availableRooms.contains(_selectedRoom)) {
-        _selectedRoom = null;
-      }
-    });
+    if (mounted) {
+      setState(() {
+        _availableRooms
+          ..clear()
+          ..addAll(rooms.map((e) => e.roomNumber).toList()..sort());
+        if (_availableRooms.isNotEmpty &&
+            !_availableRooms.contains(_selectedRoom)) {
+          _selectedRoom = null;
+        }
+      });
+    }
   }
 
   Future<void> _fetchReport() async {
@@ -101,15 +103,17 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     try {
       final db = ref.read(databaseProvider);
       final result = await _loadPaymentsReport(db);
-      setState(() {
-        _rows
-          ..clear()
-          ..addAll(result.rows);
-        _totalPaid = result.totalPaid;
-        _totalOtherPaid = result.totalOtherPaid;
-        _totalRemaining = result.totalRemaining;
-        _totalDue = result.totalDue;
-      });
+      if (mounted) {
+        setState(() {
+          _rows
+            ..clear()
+            ..addAll(result.rows);
+          _totalPaid = result.totalPaid;
+          _totalOtherPaid = result.totalOtherPaid;
+          _totalRemaining = result.totalRemaining;
+          _totalDue = result.totalDue;
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {

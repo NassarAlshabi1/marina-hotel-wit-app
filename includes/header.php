@@ -15,9 +15,7 @@ header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('X-XSS-Protection: 1; mode=block');
 header('X-Powered-By: Marina Hotel System');
-header('Cache-Control: no-cache, no-store, must-revalidate');
-header('Pragma: no-cache');
-header('Expires: 0');
+header('Cache-Control: private, max-age=60');
 
 // حساب عمق المجلد الحالي
 $current_dir = dirname($_SERVER['SCRIPT_NAME']);
@@ -33,14 +31,14 @@ $base_path = str_repeat('../', max(0, $depth));
     <meta name="description" content="نظام إدارة الفندق الذكي لفندق مارينا">
     <meta name="robots" content="noindex, nofollow">
     <meta name="author" content="فندق مارينا">
-    
+
     <!-- Font Awesome للأيقونات -->
     <link rel="stylesheet" href="<?= $base_path ?>includes/css/fontawesome.min.css">
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="<?= $base_path ?>includes/css/bootstrap.min.css">
     <!-- Tajawal Font -->
     <link rel="stylesheet" href="<?= $base_path ?>includes/css/tajawal-font.css">
-    
+
     <style>
         * {
             margin: 0;
@@ -340,7 +338,7 @@ $base_path = str_repeat('../', max(0, $depth));
             .nav-item.dropdown > .nav-link:after {
                 content: none;
             }
-            
+
             .nav-item.dropdown > .nav-link .fa-chevron-down {
                 margin-right: auto;
                 margin-left: 5px;
@@ -391,16 +389,6 @@ $base_path = str_repeat('../', max(0, $depth));
                 background: rgba(255, 255, 255, 0.1);
                 color: white;
             }
-        }
-
-        /* Animation */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .fade-in {
-            animation: fadeIn 0.6s ease-out;
         }
     </style>
 </head>
@@ -628,7 +616,7 @@ $base_path = str_repeat('../', max(0, $depth));
 
     <!-- Content Wrapper -->
     <div class="content-wrapper">
-        <main class="main-content fade-in">
+        <main class="main-content">
             <!-- عرض الرسائل -->
             <?php if (isset($_SESSION['success'])): ?>
                 <div class="alert alert-success">
@@ -661,89 +649,3 @@ $base_path = str_repeat('../', max(0, $depth));
                 </div>
                 <?php unset($_SESSION['info']); ?>
             <?php endif; ?>
-
-    <script src="<?= $base_path ?>includes/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Mobile menu toggle
-        document.getElementById('mobileToggle').addEventListener('click', function() {
-            const nav = document.getElementById('mainNav');
-            nav.classList.toggle('active');
-            
-            // Change icon
-            const icon = this.querySelector('i');
-            if (nav.classList.contains('active')) {
-                icon.classList.remove('fa-bars');
-                icon.classList.add('fa-times');
-            } else {
-                icon.classList.remove('fa-times');
-                icon.classList.add('fa-bars');
-            }
-        });
-
-        // Close mobile menu when clicking outside
-        document.addEventListener('click', function(e) {
-            const nav = document.getElementById('mainNav');
-            const toggle = document.getElementById('mobileToggle');
-            
-            if (!nav.contains(e.target) && !toggle.contains(e.target)) {
-                nav.classList.remove('active');
-                const icon = toggle.querySelector('i');
-                icon.classList.remove('fa-times');
-                icon.classList.add('fa-bars');
-            }
-        });
-
-        // Handle dropdown menus - prevent parent link navigation
-        document.querySelectorAll('.nav-item.dropdown > .nav-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                // On mobile, always allow click to open dropdown
-                if (window.innerWidth <= 768) {
-                    return;
-                }
-                
-                // Check if click was on the chevron icon
-                const chevron = this.querySelector('.fa-chevron-down');
-                const clickedChevron = chevron && chevron.contains(e.target);
-                
-                // If not chevron and dropdown is closed, prevent default
-                if (!clickedChevron && !this.parentElement.classList.contains('show')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-            });
-        });
-
-        // Highlight active page
-        document.addEventListener('DOMContentLoaded', function() {
-            const currentPath = window.location.pathname;
-            const navLinks = document.querySelectorAll('.nav-link, .sub-nav-link');
-            
-            navLinks.forEach(link => {
-                if (link.getAttribute('href') && currentPath.includes(link.getAttribute('href'))) {
-                    link.classList.add('active');
-                    
-                    // Also activate parent dropdown if this is a sub-item
-                    if (link.classList.contains('sub-nav-link')) {
-                        const parentItem = link.closest('.nav-item');
-                        if (parentItem) {
-                            parentItem.querySelector('.nav-link').classList.add('active');
-                        }
-                    }
-                }
-            });
-            
-            // Initialize Bootstrap dropdowns
-            const dropdowns = document.querySelectorAll('.dropdown');
-            dropdowns.forEach(dropdown => {
-                dropdown.addEventListener('hide.bs.dropdown', function() {
-                    this.querySelector('.nav-link').classList.remove('active');
-                });
-                
-                dropdown.addEventListener('show.bs.dropdown', function() {
-                    this.querySelector('.nav-link').classList.add('active');
-                });
-            });
-        });
-    </script>
-</body>
-</html>

@@ -1,6 +1,7 @@
 <?php
 ob_start();
 session_start();
+require_once '../../includes/security.php';
 require '../../includes/db.php';
 require_once '../../includes/functions.php';
 
@@ -44,6 +45,8 @@ $remaining    = max(0, $total_price - $paid_amount);
 // معالجة تسجيل المغادرة
 //========================================================
 if (isset($_POST['checkout'])) {
+    verify_csrf_token();
+
     if ($remaining == 0) {
         $conn->begin_transaction();
         try {
@@ -93,10 +96,12 @@ $payments_res = $stmt_pay->get_result();
 // إضافة دفعة جديدة
 //========================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment'])) {
+    verify_csrf_token();
+
     $amount = floatval($_POST['amount']);
     $payment_date = $_POST['payment_date'] ?: date('Y-m-d H:i:s');
-    $payment_method = $conn->real_escape_string($_POST['payment_method'] ?: 'نقدي');
-    $notes = $conn->real_escape_string($_POST['notes'] ?: '');
+    $payment_method = $_POST['payment_method'] ?: 'نقدي';
+    $notes = $_POST['notes'] ?: '';
 
     if ($amount <= 0 || $amount > $remaining) {
         $_SESSION['flash'] = [
@@ -139,29 +144,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_payment'])) {
 
 include '../../includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>إدارة الدفعات - حجز #<?= $booking_id ?></title>
-  <link href="../../includes/css/bootstrap.min.css" rel="stylesheet">
-  <link href="../../includes/css/all.min.css" rel="stylesheet">
-  <link href="../../includes/css/tajawal-font.css" rel="stylesheet">
-  <style>
-    /* ضمان عمل الخطوط بدون انترنت */
+
+<style>
     body {
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        font-family: 'Tajawal', 'Cairo', 'Arial', sans-serif !important;
-        direction: rtl;
-        text-align: right;
         min-height: 100vh;
-    }
-    
-    /* تحسين Font Awesome للعمل محلياً */
-    .fas, .far, .fab, .fa {
-        font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands" !important;
-        font-weight: 900;
     }
     
     .main-container {
@@ -362,9 +349,7 @@ include '../../includes/header.php';
         transform: translateY(-5px);
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
     }
-  </style>
-</head>
-<body>
+</style>
 
 <!-- Toast Notification -->
 <?php if (isset($_SESSION['flash'])): ?>
@@ -471,6 +456,7 @@ include '../../includes/header.php';
                         <div class="card-body">
                             <?php if ($remaining > 0): ?>
                             <form method="POST" action="">
+                                <?= csrf_field(); ?>
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="mb-3">
@@ -609,6 +595,7 @@ include '../../includes/header.php';
                         <div class="col-md-4 text-center">
                             <?php if ($remaining == 0): ?>
                             <form method="POST" action="" onsubmit="return confirm('هل أنت متأكد من تسجيل مغادرة النزيل؟')">
+                                <?= csrf_field(); ?>
                                 <button type="submit" name="checkout" class="btn btn-success btn-lg">
                                     <i class="fas fa-sign-out-alt me-2"></i>تسجيل المغادرة
                                 </button>
@@ -638,7 +625,6 @@ include '../../includes/header.php';
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // إظهار التنبيهات
@@ -738,6 +724,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
 });
 </script>
-</body>
-</html>
-<?php ob_end_flush(); ?>
+
+<?php 
+include_once '../../includes/footer.php'; 
+ob_end_flush();
+?>

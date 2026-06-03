@@ -315,7 +315,7 @@ class _IncomeExpenseReportScreenState
         return '${dt.day} ${_arabicMonths[dt.month]} ${dt.year} (${_arabicDayName(dt)})';
       case 'monthly':
         final parts = key.split('-');
-        return '${_arabicMonths[int.parse(parts[1])]} ${parts[0]}';
+        return '${_arabicMonths[int.tryParse(parts[1]) ?? 1]} ${parts[0]}';
       case 'yearly':
         return '$key م';
       default:

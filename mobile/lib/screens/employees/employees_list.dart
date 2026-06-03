@@ -849,6 +849,10 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         ),
       ),
     );
+    nameCtrl.dispose();
+    salaryCtrl.dispose();
+    positionCtrl.dispose();
+    phoneCtrl.dispose();
     if (ok != true) {
       return;
     }
