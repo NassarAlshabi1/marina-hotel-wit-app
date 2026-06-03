@@ -126,9 +126,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
     // من المفترض أن _fromDate و _toDate ليسا null هنا بسبب الحارس
     final hotelStart = DateTime(
-        _fromDate!.year, _fromDate!.month, _fromDate!.day, 14);
+        _fromDate!.year, _fromDate!.month, _fromDate!.day, 14, 1);
     final hotelEnd = DateTime(
-        _toDate!.year, _toDate!.month, _toDate!.day, 13, 59, 59);
+        _toDate!.year, _toDate!.month, _toDate!.day + 1, 14, 0, 59);
 
     final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelStart);
     final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelEnd);

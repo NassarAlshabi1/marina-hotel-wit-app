@@ -58,12 +58,12 @@ class ExpensesRepository {
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      // ✅ إصلاح: حساب hotelDayKey باستخدام 14:00:01 من التاريخ التقويمي
+      // ✅ إصلاح: حساب hotelDayKey باستخدام 14:01 من التاريخ التقويمي
       // المنتقي يعطي تاريخ بدون وقت — تمريره مباشرة يُفسَّر كمنتصف الليل (00:00)
       // مما يُعطي اليوم الفندقي السابق خطأً.
       // مثال: اختيار "19 مايو" → getHotelDayKeyFromIso("2026-05-19") = midnight < 14:00 → "2026-05-18" ❌
-      // بينما المستخدم يقصد اليوم الفندقي 19 مايو (14:00 يوم 19 → 13:59 يوم 20)
-      // الحل: نمرّر 14:00:01 مثلما تفعل شاشة الفلترة (_hotelDayKeyFromDate)
+      // بينما المستخدم يقصد اليوم الفندقي 19 مايو (14:01 يوم 19 → 14:00 يوم 20)
+      // الحل: نمرّر 14:01 مثلما تفعل شاشة الفلترة (_hotelDayKeyFromDate)
       final hotelDayKey = _hotelDayKeyFromCalendarDate(normalizedDate);
       final result = await dao.insertOne(
         ExpensesCompanion(
@@ -162,7 +162,7 @@ class ExpensesRepository {
           date: normalizedDate != null
               ? d.Value(normalizedDate)
               : const d.Value.absent(),
-          // ✅ إصلاح: حساب hotelDayKey بنفس طريقة create — باستخدام 14:00:01
+          // ✅ إصلاح: حساب hotelDayKey بنفس طريقة create — باستخدام 14:01
           hotelDayKey: date != null
               ? d.Value(_hotelDayKeyFromCalendarDate(normalizedDate!))
               : const d.Value.absent(),
@@ -295,7 +295,7 @@ class ExpensesRepository {
   /// إذا مررناه مباشرة لـ HotelTimeEngine.getHotelDayKeyFromIso،
   /// يُفسَّر كمنتصف الليل (00:00:00) وهو قبل 14:00، فيُعطي اليوم السابق خطأً.
   ///
-  /// الحل: نمرّر 14:00:01 لضمان أن التاريخ التقويمي يُعطي نفس اليوم الفندقي.
+  /// الحل: نمرّر 14:01:00 لضمان أن التاريخ التقويمي يُعطي نفس اليوم الفندقي.
   /// هذا يطابق منطق _hotelDayKeyFromDate في expenses_list.dart
   static String _hotelDayKeyFromCalendarDate(String calendarDate) {
     try {
@@ -307,7 +307,7 @@ class ExpensesRepository {
       final month = int.tryParse(parts[1]) ?? 1;
       final day = int.tryParse(parts[2]) ?? 1;
       return HotelTimeEngine.getHotelDayKey(
-        dateTime: DateTime(year, month, day, 14, 0, 1),
+        dateTime: DateTime(year, month, day, 14, 1),
       );
     } catch (_) {
       return HotelTimeEngine.getHotelDayKey();

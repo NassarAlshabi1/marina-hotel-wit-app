@@ -190,13 +190,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   /// المنتقي يعطي تاريخ بدون وقت (منتصف الليل) — تحويله بـ HotelTimeEngine
   /// مباشرة يُنتج اليوم السابق خطأً لأن منتصف الليل < 14:00.
   ///
-  /// ✅ الإصلاح: نمرّر الوقت 14:00:01 لضمان أن getHotelDayKey يُعيد
+  /// ✅ الإصلاح: نمرّر الوقت 14:01:00 لضمان أن getHotelDayKey يُعيد
   /// مفتاح اليوم الفندقي الصحيح المطابق للتاريخ التقويمي المختار.
   /// هذا يضمن أن اختيار "19 مايو" يعرض مصروفات hotelDayKey="2026-05-19"
-  /// (أي المصروفات من 14:00 يوم 19 إلى 13:59 يوم 20).
+  /// (أي المصروفات من 14:01 يوم 19 إلى 14:00 يوم 20).
   String _hotelDayKeyFromDate(DateTime date) {
     return HotelTimeEngine.getHotelDayKey(
-        dateTime: DateTime(date.year, date.month, date.day, 14, 0, 1));
+        dateTime: DateTime(date.year, date.month, date.day, 14, 1));
   }
 
   Stream<List<Expense>> _buildExpensesStream() {
@@ -206,7 +206,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     // الافتراضي: نستخدم HotelTimeEngine.getHotelDayKey() الذي يعتمد على الوقت الحالي
     // → عند 10:00 صباح 19 مايو: hotelDay = "2026-05-18" (اليوم الفندقي الحالي)
     //
-    // يدوي: نستخدم _hotelDayKeyFromDate() الذي يمرّر 14:00:01 من التاريخ المختار
+    // يدوي: نستخدم _hotelDayKeyFromDate() الذي يمرّر 14:01 من التاريخ المختار
     // → اختيار 19 مايو: hotelDay = "2026-05-19" (يوم فندقي يبدأ 14:00 من نفس اليوم)
     //
     // هذا يضمن الاتساق: كلا المسارين يستخدمان HotelTimeEngine.getHotelDayKey()
@@ -261,23 +261,23 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     }
     setState(() {
       _filterActive = true;
-      // ✅ إصلاح: ضبط الأوقات حسب حدود اليوم الفندقي (14:00/13:59)
+      // ✅ إصلاح: ضبط الأوقات حسب حدود اليوم الفندقي (14:01/14:00:59)
       // بدلاً من منتصف الليل/23:59 الذي لا يتطابق مع اليوم الفندقي
       if (isFrom) {
-        // "من" = بداية اليوم الفندقي (14:00)
-        _fromDate = DateTime(picked.year, picked.month, picked.day, 14);
+        // "من" = بداية اليوم الفندقي (14:01)
+        _fromDate = DateTime(picked.year, picked.month, picked.day, 14, 1);
         // إذا لم يكن "إلى" محدد، اجعله نهاية نفس اليوم الفندقي
-        _toDate ??= DateTime(picked.year, picked.month, picked.day + 1, 13, 59, 59);
+        _toDate ??= DateTime(picked.year, picked.month, picked.day + 1, 14, 0, 59);
         if (_fromDate!.isAfter(_toDate!)) {
-          _toDate = DateTime(picked.year, picked.month, picked.day + 1, 13, 59, 59);
+          _toDate = DateTime(picked.year, picked.month, picked.day + 1, 14, 0, 59);
         }
       } else {
-        // "إلى" = نهاية اليوم الفندقي (13:59 من اليوم التالي)
-        _toDate = DateTime(picked.year, picked.month, picked.day + 1, 13, 59, 59);
+        // "إلى" = نهاية اليوم الفندقي (14:00:59 من اليوم التالي)
+        _toDate = DateTime(picked.year, picked.month, picked.day + 1, 14, 0, 59);
         // إذا لم يكن "من" محدد، اجعله بداية نفس اليوم الفندقي
-        _fromDate ??= DateTime(picked.year, picked.month, picked.day, 14);
+        _fromDate ??= DateTime(picked.year, picked.month, picked.day, 14, 1);
         if (_toDate!.isBefore(_fromDate!)) {
-          _fromDate = DateTime(picked.year, picked.month, picked.day, 14);
+          _fromDate = DateTime(picked.year, picked.month, picked.day, 14, 1);
         }
       }
       _streamVersion++;
@@ -992,9 +992,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         final maxKey = savedHotelDayKey.compareTo(currentToKey) > 0
             ? savedHotelDayKey
             : currentToKey;
-        _fromDate = DateTime.parse('${minKey}T14:00:00');
+        _fromDate = DateTime.parse('${minKey}T14:01:00');
         _toDate =
-            DateTime.parse('${maxKey}T13:59:59').add(const Duration(days: 1));
+            DateTime.parse('${maxKey}T14:00:59').add(const Duration(days: 1));
       }
 
       if (mounted) {

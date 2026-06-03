@@ -1366,10 +1366,10 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   final repo = ref.read(salaryWithdrawalsRepoProvider);
                   // ✅ إصلاح: استخدام selectedDate (اليوم الفندقي) بدلاً من DateTime.now()
                   final dateStr = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
-                  // حساب hotelDayKey من التاريخ المختار باستخدام 14:00:01
+                  // حساب hotelDayKey من التاريخ المختار باستخدام 14:01
                   // لضمان أن التاريخ التقويمي يُطابق نفس اليوم الفندقي
                   final hotelDayKey = HotelTimeEngine.getHotelDayKey(
-                    dateTime: DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 14, 0, 1),
+                    dateTime: DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 14, 1),
                   );
 
                   await repo.createFromExpense(

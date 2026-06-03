@@ -12,15 +12,15 @@ class Time {
     return '${dateTime.year.toString().padLeft(4, '0')}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
   }
 
-  static String hotelDayKey({DateTime? now, int cutoffHour = 14}) {
+  static String hotelDayKey({DateTime? now, int cutoffHour = 14, int cutoffMinute = 1}) {
     final base = now ?? DateTime.now();
-    final shifted = base.subtract(Duration(hours: cutoffHour));
+    final shifted = base.subtract(Duration(hours: cutoffHour, minutes: cutoffMinute));
     return dateToString(shifted);
   }
 
-  static String hotelDayKeyFromIso(String? isoString, {int cutoffHour = 14}) {
+  static String hotelDayKeyFromIso(String? isoString, {int cutoffHour = 14, int cutoffMinute = 1}) {
     if (isoString == null || isoString.trim().isEmpty) {
-      return hotelDayKey(cutoffHour: cutoffHour);
+      return hotelDayKey(cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
     }
     final raw = isoString.trim();
     final normalized = raw.contains('T') ? raw : raw.replaceFirst(' ', 'T');
@@ -28,37 +28,40 @@ class Time {
       return hotelDayKey(
         now: DateTime.parse(normalized),
         cutoffHour: cutoffHour,
+        cutoffMinute: cutoffMinute,
       );
     } catch (_) {
-      return hotelDayKey(cutoffHour: cutoffHour);
+      return hotelDayKey(cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
     }
   }
 
-  static DateTime hotelDayStart(DateTime value, {int cutoffHour = 14}) {
-    final start = DateTime(value.year, value.month, value.day, cutoffHour);
+  static DateTime hotelDayStart(DateTime value, {int cutoffHour = 14, int cutoffMinute = 1}) {
+    final start = DateTime(value.year, value.month, value.day, cutoffHour, cutoffMinute);
     if (value.isBefore(start)) {
       final previous = start.subtract(const Duration(days: 1));
-      return DateTime(previous.year, previous.month, previous.day, cutoffHour);
+      return DateTime(previous.year, previous.month, previous.day, cutoffHour, cutoffMinute);
     }
     return start;
   }
 
-  static DateTime hotelDayStartForNewBooking(DateTime checkin, {int cutoffHour = 14}) {
-    if (checkin.hour < cutoffHour) {
-      return DateTime(checkin.year, checkin.month, checkin.day, cutoffHour);
+  static DateTime hotelDayStartForNewBooking(DateTime checkin, {int cutoffHour = 14, int cutoffMinute = 1}) {
+    if (checkin.hour < cutoffHour || (checkin.hour == cutoffHour && checkin.minute < cutoffMinute)) {
+      return DateTime(checkin.year, checkin.month, checkin.day, cutoffHour, cutoffMinute);
     }
-    return hotelDayStart(checkin, cutoffHour: cutoffHour);
+    return hotelDayStart(checkin, cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
   }
 
-  static String hotelDayStartIso(String hotelDay, {int cutoffHour = 14}) {
+  static String hotelDayStartIso(String hotelDay, {int cutoffHour = 14, int cutoffMinute = 1}) {
     final h = cutoffHour.toString().padLeft(2, '0');
-    return '${hotelDay}T$h:00:00';
+    final m = cutoffMinute.toString().padLeft(2, '0');
+    return '${hotelDay}T$h:$m:00';
   }
 
-  static String hotelDayEndIso(String hotelDay, {int cutoffHour = 14}) {
+  static String hotelDayEndIso(String hotelDay, {int cutoffHour = 14, int cutoffMinute = 1}) {
     final next = _nextDateString(hotelDay);
     final h = cutoffHour.toString().padLeft(2, '0');
-    return '${next}T$h:00:00';
+    final m = (cutoffMinute - 1).toString().padLeft(2, '0');
+    return '${next}T$h:$m:59';
   }
 
   /// Returns the ISO string for the next day (used for date range queries)
@@ -94,14 +97,15 @@ class Time {
     }
   }
 
-  /// حساب عدد الأيام مع قاعدة الساعة 14:00
+  /// حساب عدد الأيام مع قاعدة الساعة 14:01
   /// قاعدة احتساب اليوم: يُحتسب اليوم الواحد بدءاً من وقت تسجيل الدخول الفعلي
-  /// وحتى الساعة 14:00 من اليوم التالي.
-  /// أي مغادرة بعد الساعة 14:00، حتى لو بدقيقة واحدة، تؤدي إلى احتساب يوم إضافي كامل.
+  /// وحتى الساعة 14:01 من اليوم التالي.
+  /// أي مغادرة عند أو بعد الساعة 14:01، حتى لو بدقيقة واحدة، تؤدي إلى احتساب يوم إضافي كامل.
   static int nightsWithCutoff(
     DateTime checkin, {
     DateTime? checkout,
     int cutoffHour = 14,
+    int cutoffMinute = 1,
   }) {
     final end = checkout ?? DateTime.now();
 
@@ -111,6 +115,7 @@ class Time {
       checkin.month,
       checkin.day,
       cutoffHour,
+      cutoffMinute,
     );
     if (checkin.isBefore(startOfCheckinHotelDay)) {
       startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(const Duration(days: 1));

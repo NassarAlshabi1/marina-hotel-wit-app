@@ -276,7 +276,7 @@ class SalaryWithdrawalsRepository {
 
   /// حساب مفتاح اليوم الفندقي من تاريخ السحب
   /// إذا كان التاريخ يحتوي على وقت (yyyy-MM-dd HH:mm)، يستخدمه مباشرة
-  /// إذا كان تاريخاً تقويمياً فقط (yyyy-MM-dd)، يمرّر 14:00:01 لضمان اليوم الصحيح
+  /// إذا كان تاريخاً تقويمياً فقط (yyyy-MM-dd)، يمرّر 14:01 لضمان اليوم الصحيح
   static String _computeHotelDayKey(String date) {
     try {
       final trimmed = date.trim();
@@ -284,7 +284,7 @@ class SalaryWithdrawalsRepository {
       if (hasTime) {
         return HotelTimeEngine.getHotelDayKeyFromIso(trimmed);
       }
-      // تاريخ تقويمي بدون وقت — نمرّر 14:00:01 لضمان اليوم الفندقي الصحيح
+      // تاريخ تقويمي بدون وقت — نمرّر 14:01:00 لضمان اليوم الفندقي الصحيح
       final parts = trimmed.split('-');
       if (parts.length != 3) {
         return HotelTimeEngine.getHotelDayKey();
@@ -293,7 +293,7 @@ class SalaryWithdrawalsRepository {
       final month = int.tryParse(parts[1]) ?? 1;
       final day = int.tryParse(parts[2]) ?? 1;
       return HotelTimeEngine.getHotelDayKey(
-        dateTime: DateTime(year, month, day, 14, 0, 1),
+        dateTime: DateTime(year, month, day, 14, 1),
       );
     } catch (_) {
       return HotelTimeEngine.getHotelDayKey();
