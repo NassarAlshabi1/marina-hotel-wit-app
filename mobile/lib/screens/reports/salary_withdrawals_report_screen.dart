@@ -11,6 +11,7 @@ import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 
@@ -81,10 +82,10 @@ class _SalaryWithdrawalsReportScreenState
   }
 
   Future<void> _initializeDefaults() async {
-    // افتراضي: بداية الشهر الحالي
-    final now = DateTime.now();
-    _fromDate = DateTime(now.year, now.month);
-    _toDate = now;
+    // ✅ افتراضي: اليوم الفندقي الحالي (14:00 → 13:59)
+    final range = DateFilterController.getDefaultHotelDayRange();
+    _fromDate = range.from;
+    _toDate = range.to;
     await _fetchReport();
   }
 
@@ -129,11 +130,23 @@ class _SalaryWithdrawalsReportScreenState
 
     // ✅ إصلاح: فلترة بـ hotelDayKey بدلاً من withdrawDate التقويمي
     // لمنع إدراج سحوبات الصباح من اليوم السابق خطأً
-    // ⚠️ لا نستخدم HotelTimeEngine.getHotelDayKey() لتحويل تاريخ الفلتر
-    // لأن التاريخ يأتي من DatePicker عند منتصف الليل (00:00) فيتحول لليوم السابق خطأً
-    // بدلاً من ذلك نستخدم التاريخ التقويمي مباشرة كمفتاح يوم فندقي
-    final fromHotelDay = _fromDate != null ? _dateToKey(_fromDate!) : null;
-    final toHotelDay = _toDate != null ? _dateToKey(_toDate!) : null;
+    //
+    // ⚠️ ملاحظة حرجة: getHotelDayKey تعتبر 14:00:00 بالضبط نهاية اليوم السابق
+    // (14:00:01 = بداية اليوم الجديد). بما أن _fromDate يأتي دائماً بوقت 14:00:00
+    // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
+    // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
+    //
+    // مثال: فلتر "اليوم" عند 10:00 صباح 2026-05-19:
+    //   _fromDate = 18-May 14:00 → +1s → fromHotelDay = "2026-05-18" ✓
+    //   _toDate  = 19-May 13:59 → toHotelDay   = "2026-05-18" ✓
+    //   → فقط سحبيات hotelDayKey="2026-05-18" ✅
+    final fromHotelDay = _fromDate != null
+        ? HotelTimeEngine.getHotelDayKey(
+            dateTime: _fromDate!.add(const Duration(seconds: 1)))
+        : null;
+    final toHotelDay = _toDate != null
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
+        : null;
 
     if (fromHotelDay != null) {
       query = query..where((tbl) =>
@@ -794,13 +807,6 @@ class _SalaryWithdrawalsReportScreenState
       debugPrint('⚠️ تعذر تحليل تاريخ سحب الراتب "$value": $e');
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
-  }
-
-  /// تحويل DateTime إلى مفتاح يوم فندقي (YYYY-MM-DD) بدون إزاحة 14:00
-  /// يُستخدم لفلتر التاريخ فقط — التاريخ من DatePicker يكون عند 00:00
-  /// و HotelTimeEngine.getHotelDayKey يُحوّله خطأً لليوم السابق
-  static String _dateToKey(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
   }
 }
 
