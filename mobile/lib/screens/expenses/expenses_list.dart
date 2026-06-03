@@ -647,9 +647,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     DateTime selectedDate;
     try {
       // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
+      // مصروف جديد: getHotelDayKey() يُعيد اليوم الفندقي (مثلاً 3 يونيو عند 2 صباح 4 يونيو)
+      // تعديل مصروف: يُعيد تاريخ المصروف الحالي
       selectedDate = DateTime.parse(existing?.date ?? HotelTimeEngine.getHotelDayKey());
     } catch (_) {
-      selectedDate = DateTime.now();
+      // ✅ إصلاح: fallback يستخدم اليوم الفندقي بدلاً من اليوم التقويمي
+      selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
     }
 
     try {

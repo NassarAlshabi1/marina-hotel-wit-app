@@ -1152,6 +1152,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
     String withdrawalType = 'سلفة';
+    // ✅ إصلاح: استخدام اليوم الفندقي بدلاً من اليوم التقويمي
+    // إذا كانت الساعة 2 صباحاً من 4 يونيو → اليوم الفندقي = 3 يونيو
+    DateTime selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
 
     showDialog<void>(
       context: context,
@@ -1282,6 +1285,37 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 ),
                 const SizedBox(height: 12),
+
+                // ✅ إصلاح: إضافة منتقي تاريخ مع اليوم الفندقي كافتراضي
+                StatefulBuilder(
+                  builder: (context, setDialogState) {
+                    return GestureDetector(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) {
+                          setDialogState(() => selectedDate = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'التاريخ',
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(
+                          '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 12),
                 TextField(
                   controller: noteController,
                   decoration: InputDecoration(
@@ -1330,10 +1364,12 @@ class SettingsEmployeesScreen extends ConsumerWidget {
 
                 try {
                   final repo = ref.read(salaryWithdrawalsRepoProvider);
-                  final now = DateTime.now();
-                  final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-                  final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(
-                    '${dateStr}T14:00:01',
+                  // ✅ إصلاح: استخدام selectedDate (اليوم الفندقي) بدلاً من DateTime.now()
+                  final dateStr = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+                  // حساب hotelDayKey من التاريخ المختار باستخدام 14:00:01
+                  // لضمان أن التاريخ التقويمي يُطابق نفس اليوم الفندقي
+                  final hotelDayKey = HotelTimeEngine.getHotelDayKey(
+                    dateTime: DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 14, 0, 1),
                   );
 
                   await repo.createFromExpense(
