@@ -582,7 +582,14 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
           ),
         ],
       ),
-    );
+    ).then((_) {
+      nameCtrl.dispose();
+      nationalityCtrl.dispose();
+      nationalIdCtrl.dispose();
+      phoneCtrl.dispose();
+      reasonCtrl.dispose();
+      notesCtrl.dispose();
+    });
   }
 }
 

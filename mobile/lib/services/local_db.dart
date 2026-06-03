@@ -424,8 +424,8 @@ class PriceAdjustments extends Table with SyncFields {
 @DataClassName('BookingPriceAdjustment')
 class BookingPriceAdjustments extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
-  // ⚠️ TODO: إضافة .references(Bookings, #localUuid) — يتطلب إعادة توليد الكود
-  TextColumn get bookingLocalUuid => text()();
+  // ✅ إصلاح: إضافة FK reference لضمان سلامة البيانات
+  TextColumn get bookingLocalUuid => text().references(Bookings, #localUuid)();
   IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
   TextColumn get roomNumber => text().withLength(min: 1, max: 20).nullable()();
   IntColumn get adjustmentType => integer().withDefault(const Constant(0))();

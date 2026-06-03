@@ -354,7 +354,10 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           ],
         ),
       ),
-    );
+    ).then((_) {
+      titleController.dispose();
+      contentController.dispose();
+    });
   }
 
   Future<void> _saveNote(

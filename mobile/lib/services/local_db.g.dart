@@ -26253,6 +26253,9 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES bookings (local_uuid)',
+    ),
   );
   static const VerificationMeta _bookingLocalIdMeta = const VerificationMeta(
     'bookingLocalId',
@@ -33589,34 +33592,6 @@ final class $$BookingsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
-
-  static MultiTypedResultKey<
-    $BookingPriceAdjustmentsTable,
-    List<BookingPriceAdjustment>
-  >
-  _bookingPriceAdjustmentsRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.bookingPriceAdjustments,
-        aliasName: $_aliasNameGenerator(
-          db.bookings.id,
-          db.bookingPriceAdjustments.bookingLocalId,
-        ),
-      );
-
-  $$BookingPriceAdjustmentsTableProcessedTableManager
-  get bookingPriceAdjustmentsRefs {
-    final manager = $$BookingPriceAdjustmentsTableTableManager(
-      $_db,
-      $_db.bookingPriceAdjustments,
-    ).filter((f) => f.bookingLocalId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(
-      _bookingPriceAdjustmentsRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
 }
 
 class $$BookingsTableFilterComposer
@@ -33978,32 +33953,6 @@ class $$BookingsTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
-    return f(composer);
-  }
-
-  Expression<bool> bookingPriceAdjustmentsRefs(
-    Expression<bool> Function($$BookingPriceAdjustmentsTableFilterComposer f) f,
-  ) {
-    final $$BookingPriceAdjustmentsTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.bookingPriceAdjustments,
-          getReferencedColumn: (t) => t.bookingLocalId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$BookingPriceAdjustmentsTableFilterComposer(
-                $db: $db,
-                $table: $db.bookingPriceAdjustments,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
     return f(composer);
   }
 }
@@ -34606,33 +34555,6 @@ class $$BookingsTableAnnotationComposer
     );
     return f(composer);
   }
-
-  Expression<T> bookingPriceAdjustmentsRefs<T extends Object>(
-    Expression<T> Function($$BookingPriceAdjustmentsTableAnnotationComposer a)
-    f,
-  ) {
-    final $$BookingPriceAdjustmentsTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.bookingPriceAdjustments,
-          getReferencedColumn: (t) => t.bookingLocalId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$BookingPriceAdjustmentsTableAnnotationComposer(
-                $db: $db,
-                $table: $db.bookingPriceAdjustments,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
 }
 
 class $$BookingsTableTableManager
@@ -34654,7 +34576,6 @@ class $$BookingsTableTableManager
             bool paymentsRefs,
             bool debtsRefs,
             bool bookingNightsRefs,
-            bool bookingPriceAdjustmentsRefs,
           })
         > {
   $$BookingsTableTableManager(_$AppDatabase db, $BookingsTable table)
@@ -34879,7 +34800,6 @@ class $$BookingsTableTableManager
                 paymentsRefs = false,
                 debtsRefs = false,
                 bookingNightsRefs = false,
-                bookingPriceAdjustmentsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -34888,7 +34808,6 @@ class $$BookingsTableTableManager
                     if (paymentsRefs) db.payments,
                     if (debtsRefs) db.debts,
                     if (bookingNightsRefs) db.bookingNights,
-                    if (bookingPriceAdjustmentsRefs) db.bookingPriceAdjustments,
                   ],
                   addJoins:
                       <
@@ -35008,27 +34927,6 @@ class $$BookingsTableTableManager
                               ),
                           typedResults: items,
                         ),
-                      if (bookingPriceAdjustmentsRefs)
-                        await $_getPrefetchedData<
-                          Booking,
-                          $BookingsTable,
-                          BookingPriceAdjustment
-                        >(
-                          currentTable: table,
-                          referencedTable: $$BookingsTableReferences
-                              ._bookingPriceAdjustmentsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$BookingsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).bookingPriceAdjustmentsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.bookingLocalId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
                     ];
                   },
                 );
@@ -35055,7 +34953,6 @@ typedef $$BookingsTableProcessedTableManager =
         bool paymentsRefs,
         bool debtsRefs,
         bool bookingNightsRefs,
-        bool bookingPriceAdjustmentsRefs,
       })
     >;
 typedef $$BookingNotesTableCreateCompanionBuilder =
@@ -46758,6 +46655,28 @@ final class $$BookingPriceAdjustmentsTableReferences
     super.$_typedResult,
   );
 
+  static $BookingsTable _bookingLocalUuidTable(_$AppDatabase db) =>
+      db.bookings.createAlias(
+        $_aliasNameGenerator(
+          db.bookingPriceAdjustments.bookingLocalUuid,
+          db.bookings.localUuid,
+        ),
+      );
+
+  $$BookingsTableProcessedTableManager get bookingLocalUuid {
+    final $_column = $_itemColumn<String>('booking_local_uuid')!;
+
+    final manager = $$BookingsTableTableManager(
+      $_db,
+      $_db.bookings,
+    ).filter((f) => f.localUuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_bookingLocalUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
   static $BookingsTable _bookingLocalIdTable(_$AppDatabase db) =>
       db.bookings.createAlias(
         $_aliasNameGenerator(
@@ -46865,11 +46784,6 @@ class $$BookingPriceAdjustmentsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get bookingLocalUuid => $composableBuilder(
-    column: $table.bookingLocalUuid,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<String> get roomNumber => $composableBuilder(
     column: $table.roomNumber,
     builder: (column) => ColumnFilters(column),
@@ -46924,6 +46838,29 @@ class $$BookingPriceAdjustmentsTableFilterComposer
     column: $table.cancelledBy,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$BookingsTableFilterComposer get bookingLocalUuid {
+    final $$BookingsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookingLocalUuid,
+      referencedTable: $db.bookings,
+      getReferencedColumn: (t) => t.localUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableFilterComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 
   $$BookingsTableFilterComposer get bookingLocalId {
     final $$BookingsTableFilterComposer composer = $composerBuilder(
@@ -47033,11 +46970,6 @@ class $$BookingPriceAdjustmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get bookingLocalUuid => $composableBuilder(
-    column: $table.bookingLocalUuid,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get roomNumber => $composableBuilder(
     column: $table.roomNumber,
     builder: (column) => ColumnOrderings(column),
@@ -47092,6 +47024,29 @@ class $$BookingPriceAdjustmentsTableOrderingComposer
     column: $table.cancelledBy,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$BookingsTableOrderingComposer get bookingLocalUuid {
+    final $$BookingsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookingLocalUuid,
+      referencedTable: $db.bookings,
+      getReferencedColumn: (t) => t.localUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableOrderingComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
@@ -47185,11 +47140,6 @@ class $$BookingPriceAdjustmentsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get bookingLocalUuid => $composableBuilder(
-    column: $table.bookingLocalUuid,
-    builder: (column) => column,
-  );
-
   GeneratedColumn<String> get roomNumber => $composableBuilder(
     column: $table.roomNumber,
     builder: (column) => column,
@@ -47237,6 +47187,29 @@ class $$BookingPriceAdjustmentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  $$BookingsTableAnnotationComposer get bookingLocalUuid {
+    final $$BookingsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookingLocalUuid,
+      referencedTable: $db.bookings,
+      getReferencedColumn: (t) => t.localUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.bookings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -47274,7 +47247,7 @@ class $$BookingPriceAdjustmentsTableTableManager
           $$BookingPriceAdjustmentsTableUpdateCompanionBuilder,
           (BookingPriceAdjustment, $$BookingPriceAdjustmentsTableReferences),
           BookingPriceAdjustment,
-          PrefetchHooks Function({bool bookingLocalId})
+          PrefetchHooks Function({bool bookingLocalUuid, bool bookingLocalId})
         > {
   $$BookingPriceAdjustmentsTableTableManager(
     _$AppDatabase db,
@@ -47426,49 +47399,65 @@ class $$BookingPriceAdjustmentsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({bookingLocalId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (bookingLocalId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.bookingLocalId,
-                                referencedTable:
-                                    $$BookingPriceAdjustmentsTableReferences
-                                        ._bookingLocalIdTable(db),
-                                referencedColumn:
-                                    $$BookingPriceAdjustmentsTableReferences
-                                        ._bookingLocalIdTable(db)
-                                        .id,
-                              )
-                              as T;
-                    }
+          prefetchHooksCallback:
+              ({bookingLocalUuid = false, bookingLocalId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (bookingLocalUuid) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.bookingLocalUuid,
+                                    referencedTable:
+                                        $$BookingPriceAdjustmentsTableReferences
+                                            ._bookingLocalUuidTable(db),
+                                    referencedColumn:
+                                        $$BookingPriceAdjustmentsTableReferences
+                                            ._bookingLocalUuidTable(db)
+                                            .localUuid,
+                                  )
+                                  as T;
+                        }
+                        if (bookingLocalId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.bookingLocalId,
+                                    referencedTable:
+                                        $$BookingPriceAdjustmentsTableReferences
+                                            ._bookingLocalIdTable(db),
+                                    referencedColumn:
+                                        $$BookingPriceAdjustmentsTableReferences
+                                            ._bookingLocalIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -47485,7 +47474,7 @@ typedef $$BookingPriceAdjustmentsTableProcessedTableManager =
       $$BookingPriceAdjustmentsTableUpdateCompanionBuilder,
       (BookingPriceAdjustment, $$BookingPriceAdjustmentsTableReferences),
       BookingPriceAdjustment,
-      PrefetchHooks Function({bool bookingLocalId})
+      PrefetchHooks Function({bool bookingLocalUuid, bool bookingLocalId})
     >;
 typedef $$AuditLogsTableCreateCompanionBuilder =
     AuditLogsCompanion Function({

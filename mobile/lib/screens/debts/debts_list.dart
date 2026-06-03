@@ -1045,7 +1045,25 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   child: const Text('إلغاء'),
                 ),
                 ElevatedButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
+                  // ✅ إصلاح: التحقق من صحة البيانات قبل إغلاق الحوار
+                  // سابقاً كان التحقق بعد الإغلاق مما يسبب فقدان البيانات المدخلة
+                  onPressed: () {
+                    final guestName = guestNameCtrl.text.trim();
+                    if (guestName.isEmpty) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(content: Text('يرجى إدخال اسم النزيل')),
+                      );
+                      return;
+                    }
+                    final totalAmount = CurrencyFormatter.parseAmount(totalCtrl.text) ?? 0;
+                    if (totalAmount <= 0) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(content: Text('يجب إدخال مبلغ الدين الكلي أكبر من صفر')),
+                      );
+                      return;
+                    }
+                    Navigator.pop(dialogContext, true);
+                  },
                   child: Text(existing == null ? 'إضافة الدين' : 'تحديث الدين'),
                 ),
               ],
@@ -1058,16 +1076,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         return;
       }
 
+      // ✅ التحقق من اسم النزيل والمبلغ أصبح داخل الحوار الآن
+      // لا حاجة لإعادة التحقق هنا
       final guestName = guestNameCtrl.text.trim();
-      if (guestName.isEmpty) {
-        if (mounted) {
-          // ignore: use_build_context_synchronously
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('يرجى إدخال اسم النزيل')),
-          );
-        }
-        return;
-      }
 
       final checkinDate = checkinCtrl.text.trim().isEmpty
           ? Time.nowDateString()

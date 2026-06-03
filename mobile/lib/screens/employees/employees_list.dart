@@ -388,7 +388,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
           ],
         ),
       ),
-    );
+    ).then((_) {
+      reasonController.dispose();
+    });
   }
 
   /// إعادة تفعيل موظف مفصول

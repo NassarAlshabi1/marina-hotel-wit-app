@@ -859,6 +859,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       return;
                     }
                   }
+                  // ✅ إصلاح: التحقق من المبلغ قبل إغلاق الحوار
+                  // سابقاً كان التحقق بعد الإغلاق مما يسبب إغلاق صامت بدون تغذية راجعة
+                  final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
+                  if (parsedAmount <= 0) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(
+                        content: const Text('يجب إدخال مبلغ أكبر من صفر'),
+                        backgroundColor: Theme.of(ctx).colorScheme.error,
+                      ),
+                    );
+                    return;
+                  }
                   Navigator.pop(ctx, true);
                 },
                 child: const Text('حفظ'),

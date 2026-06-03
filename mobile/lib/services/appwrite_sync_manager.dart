@@ -1376,8 +1376,23 @@ class AppwriteSyncManager {
   /// - حلقة المزامنة الدائرية (pull → update → push → pull → ...)
   bool _isRemoteDataNewer(
     Map<String, dynamic> remoteData,
-    int? localLastModified,
-  ) {
+    int? localLastModified, {
+    int? localDeletedAt,
+  }) {
+    // ✅ إصلاح: إذا حُذف السجل محلياً (soft delete) وكان الحذف أحدث
+    // من البيانات البعيدة، لا نكتب فوق الحذف المحلي — نحمي الحذف
+    if (localDeletedAt != null) {
+      final remoteDeletedAt = _asIntNullable(remoteData['deletedAt']) ??
+          _asIntNullable(remoteData['deleted_at']);
+      // إذا كانت البيانات البعيدة أيضاً محذوفة → نتابع (كلاهما محذوف)
+      if (remoteDeletedAt != null) {
+        return true; // كلاهما محذوف — نسمح بالتحديث
+      }
+      // البيانات البعيدة غير محذوفة لكن المحلي محذوف — نرفض الكتابة فوق الحذف
+      // الحذف المحلي متعمد ويجب أن يكون له أولوية أعلى
+      return false;
+    }
+
     if (localLastModified == null) {
       // لا يوجد سجل محلي — البيانات البعيدة "أحدث" (جديدة)
       return true;
@@ -1411,8 +1426,8 @@ class AppwriteSyncManager {
               ..limit(1))
             .getSingleOrNull();
 
-        if (!_isRemoteDataNewer(data, existingRoom?.lastModified)) {
-          continue; // البيانات مطابقة — لا حاجة للتحديث
+        if (!_isRemoteDataNewer(data, existingRoom?.lastModified, localDeletedAt: existingRoom?.deletedAt)) {
+          continue; // البيانات مطابقة أو السجل محذوف محلياً
         }
 
         await _adapterRegistry.rooms.upsertFromJson(data, src: Source.appwrite);
@@ -1443,8 +1458,8 @@ class AppwriteSyncManager {
         final oldRoomNumber = existingBooking?.roomNumber;
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
-        if (!_isRemoteDataNewer(data, existingBooking?.lastModified)) {
-          continue; // البيانات مطابقة — لا حاجة للتحديث
+        if (!_isRemoteDataNewer(data, existingBooking?.lastModified, localDeletedAt: existingBooking?.deletedAt)) {
+          continue; // البيانات مطابقة أو السجل محذوف محلياً
         }
 
         // ✅ تسجيل تشخيصي: تسجيل الحقول الحرجة عند السحب من Appwrite
@@ -1604,7 +1619,7 @@ class AppwriteSyncManager {
               ..where((e) => e.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
           continue;
         }
 
@@ -1643,7 +1658,7 @@ class AppwriteSyncManager {
               ..where((e) => e.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
           continue;
         }
 
@@ -2191,7 +2206,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
           continue;
         }
 
@@ -2260,7 +2275,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
           continue;
         }
 
@@ -4502,7 +4517,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
           continue;
         }
 
@@ -4535,7 +4550,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
           continue;
         }
 
@@ -4571,7 +4586,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
           continue;
         }
 
@@ -4644,7 +4659,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
           continue;
         }
 
@@ -4679,7 +4694,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
           continue;
         }
 
@@ -4797,7 +4812,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
           continue;
         }
 
@@ -4882,7 +4897,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
           continue;
         }
 
@@ -4980,7 +4995,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
           continue;
         }
 
@@ -5238,7 +5253,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
           continue;
         }
 

@@ -83,6 +83,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// إدراج أو تحديث عنصر outbox
   /// [source] — مصدر العنصر: 'local' = تغيير محلي (افتراضي)، 'restore' = استعادة من نسخة احتياطية
   /// هذا يفصل بين التغييرات المحلية والعمليات البعيدة
+  /// ✅ إصلاح حرج: تغليف العملية بالكامل في transaction لمنع إدراج سجلين مكررين
+  /// عند استدعاء merge() بالتوازي (مثلاً: debounce timer + manual sync)
   Future<int> merge({
     required String entity,
     required String op,
@@ -92,41 +94,43 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     required int clientTs,
     String source = 'local',
   }) async {
-    final existing = await (select(outbox)
-          ..where((t) =>
-              t.entity.equals(entity) &
-              t.localUuid.equals(localUuid) &
-              t.processingStatus.equals('pending'),)
-          ..limit(1))
-        .getSingleOrNull();
-
     final payloadJson = jsonEncode(payload);
     final idempKey = '$entity:$op:$localUuid:$clientTs';
 
-    if (existing != null) {
-      await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
-        OutboxCompanion(
-          op: Value(op),
-          payload: Value(payloadJson),
-          clientTs: Value(clientTs),
-          idempotencyKey: Value(idempKey),
-          serverId: Value(serverId),
-          source: Value(source),
-        ),
-      );
-      return existing.id;
-    }
+    return transaction(() async {
+      final existing = await (select(outbox)
+            ..where((t) =>
+                t.entity.equals(entity) &
+                t.localUuid.equals(localUuid) &
+                t.processingStatus.equals('pending'),)
+            ..limit(1))
+          .getSingleOrNull();
 
-    return into(outbox).insert(OutboxCompanion.insert(
-      entity: entity,
-      op: op,
-      localUuid: localUuid,
-      serverId: Value(serverId),
-      payload: payloadJson,
-      clientTs: clientTs,
-      idempotencyKey: Value(idempKey),
-      source: Value(source),
-    ),);
+      if (existing != null) {
+        await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
+          OutboxCompanion(
+            op: Value(op),
+            payload: Value(payloadJson),
+            clientTs: Value(clientTs),
+            idempotencyKey: Value(idempKey),
+            serverId: Value(serverId),
+            source: Value(source),
+          ),
+        );
+        return existing.id;
+      }
+
+      return into(outbox).insert(OutboxCompanion.insert(
+        entity: entity,
+        op: op,
+        localUuid: localUuid,
+        serverId: Value(serverId),
+        payload: payloadJson,
+        clientTs: clientTs,
+        idempotencyKey: Value(idempKey),
+        source: Value(source),
+      ),);
+    });
   }
 
   /// جلب دفعة من عناصر outbox للمعالجة
@@ -355,6 +359,26 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         processingWorker: const Value(null),
       ),
     );
+  }
+
+  /// ✅ إصلاح: حذف سجلات Outbox التي فشلت مرات عديدة مع خطأ "unknown entity"
+  /// عند إزالة أو إعادة تسمية نوع كيان في الكود، سجلات Outbox الخاصة به
+  /// لن تُعالج أبداً وستبطئ المزامنة في كل دورة.
+  /// [maxAttempts] — الحد الأقصى لمحاولات الفشل قبل الحذف
+  /// [olderThan] — لا يحذف سجلات أحدث من هذه المدة (حماية من حذف سجلات جديدة)
+  Future<int> cleanupOrphanedEntries({
+    int maxAttempts = 10,
+    Duration olderThan = const Duration(days: 3),
+  }) async {
+    final cutoff =
+        (DateTime.now().millisecondsSinceEpoch ~/ 1000) - olderThan.inSeconds;
+    final rows = await (delete(outbox)
+          ..where((t) =>
+              t.processingStatus.equals('failed') &
+              t.attempts.isBiggerOrEqualValue(maxAttempts) &
+              t.clientTs.isSmallerOrEqualValue(cutoff),))
+        .go();
+    return rows;
   }
 }
 
