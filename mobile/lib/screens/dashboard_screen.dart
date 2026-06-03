@@ -171,7 +171,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   /// لون الغرفة المتأخرة عن السداد — يُقرأ من Remote Config
   Color _overdueColor() {
     final hex = RemoteConfigService.instance.overdueRoomColor;
-    return Color(int.parse('FF$hex', radix: 16));
+    final parsed = int.tryParse('FF$hex', radix: 16);
+    if (parsed == null) {
+      return Colors.red; // fallback آمن
+    }
+    return Color(parsed);
   }
 
   @override

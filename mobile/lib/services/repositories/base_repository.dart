@@ -43,6 +43,12 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
           // سجل موجود محلياً — استخدم id المحلي لضمان التحديث الصحيح
           json['id'] = existing;
         }
+      } else {
+        // ✅ إصلاح حرج: إذا لم يكن localUuid موجوداً في بيانات السيرفر،
+        // يجب إزالة id البعيد لمنع تصادم UNIQUE constraint مع سجل محلي مختلف
+        // له نفس id — بدون هذه الإزالة سيحاول INSERT بـ id البعيد
+        // ويفشل لأن id المحلي التلقائي قد يكون مأخوذاً بالفعل
+        json.remove('id');
       }
     }
 
@@ -79,6 +85,10 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       }
     }
 
+    // ✅ إصلاح حرج: إذا استنفدنا جميع أهداف conflict ولم ننجح،
+    // لا نستخدم insertOnConflictUpdate لأنه سيكتب فوق سجل محلي مختلف
+    // له نفس id (فقدان بيانات!). بدلاً من ذلك، نرمي الخطأ ليُعالج
+    // بشكل صحيح في طبقة المزامنة (تأجيل أو تسجيل).
     if (lastError != null && lastStack != null) {
       developer.log(
         'Upsert exhausted conflict targets for ${table.actualTableName}',
@@ -89,6 +99,16 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       Error.throwWithStackTrace(lastError, lastStack);
     }
 
+    // هذه النقطة لا يمكن الوصول إليها نظرياً لأنه:
+    // 1. إذا نجحت إحدى المحاولات → نعود مبكراً من الحلقة
+    // 2. إذا فشلت جميع المحاولات → lastError != null ونرمي أعلاه
+    // لكن كحماية إضافية، نستخدم insertOnConflictUpdate
+    // مع تحذير واضح عن المخاطر
+    developer.log(
+      'WARNING: Falling back to insertOnConflictUpdate for ${table.actualTableName} — '
+      'this may overwrite an unrelated local record with the same primary key!',
+      name: 'BaseRepository',
+    );
     return db.into(table).insertOnConflictUpdate(comp);
   }
 

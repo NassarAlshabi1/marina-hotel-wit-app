@@ -1689,11 +1689,14 @@ class AppwriteSyncManager {
         );
         processed++;
       } catch (e) {
-        // تأجيل الدفعة إذا كان الخطأ FOREIGN KEY constraint
-        if (e.toString().contains('FOREIGN KEY constraint failed') ||
-            e.toString().contains('constraint failed')) {
+        // ✅ تأجيل الدفعة فقط إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
+        // (بيانات مفقودة مثل bookingLocalId) — لا نشمل 'constraint failed' عام
+        // لأنه يطابق UNIQUE و CHECK أيضاً ويؤدي لتأجيل خاطئ لسجلات مكررة
+        final errStr = e.toString();
+        if (errStr.contains('FOREIGN KEY constraint failed') ||
+            errStr.contains('NOT NULL constraint failed')) {
           _logger.debug(
-            'Deferring payment ${doc.$id}: FOREIGN KEY constraint (missing booking)',
+            'Deferring payment ${doc.$id}: FK/NOT NULL constraint (missing booking)',
             tag: 'SYNC',
           );
           deferred.add(doc);
@@ -1758,11 +1761,12 @@ class AppwriteSyncManager {
         await _adapterRegistry.debts.upsertFromJson(data, src: Source.appwrite);
         processed++;
       } catch (e) {
-        // تأجيل الدين إذا كان الخطأ FOREIGN KEY constraint
-        if (e.toString().contains('FOREIGN KEY constraint failed') ||
-            e.toString().contains('constraint failed')) {
+        // ✅ تأجيل الدين فقط إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
+        final errStr = e.toString();
+        if (errStr.contains('FOREIGN KEY constraint failed') ||
+            errStr.contains('NOT NULL constraint failed')) {
           _logger.debug(
-            'Deferring debt ${doc.$id}: FOREIGN KEY constraint (missing booking)',
+            'Deferring debt ${doc.$id}: FK/NOT NULL constraint (missing booking)',
             tag: 'SYNC',
           );
           deferred.add(doc);
@@ -4577,14 +4581,15 @@ class AppwriteSyncManager {
         );
         processed++;
       } catch (e) {
-        // ✅ تأجيل الليالي إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
+        // ✅ تأجيل الليالي فقط إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
         // bookingLocalId هو NOT NULL في booking_nights، لذا إذا فشل resolveBooking
         // سيحدث خطأ NOT NULL constraint بدلاً من FK constraint
-        if (e.toString().contains('FOREIGN KEY constraint failed') ||
-            e.toString().contains('NOT NULL constraint failed') ||
-            e.toString().contains('constraint failed')) {
+        // لا نشمل 'constraint failed' عام لأنه يطابق UNIQUE أيضاً
+        final errStr = e.toString();
+        if (errStr.contains('FOREIGN KEY constraint failed') ||
+            errStr.contains('NOT NULL constraint failed')) {
           _logger.debug(
-            'Deferring booking night ${doc.$id}: constraint failed (missing booking)',
+            'Deferring booking night ${doc.$id}: FK/NOT NULL constraint (missing booking)',
             tag: 'SYNC',
           );
           deferred.add(doc);
@@ -4899,12 +4904,13 @@ class AppwriteSyncManager {
         
         processed++;
       } catch (e) {
-        // ✅ تأجيل تعديل السعر إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
-        if (e.toString().contains('FOREIGN KEY constraint failed') ||
-            e.toString().contains('NOT NULL constraint failed') ||
-            e.toString().contains('constraint failed')) {
+        // ✅ تأجيل تعديل السعر فقط إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
+        // لا نشمل 'constraint failed' عام لأنه يطابق UNIQUE أيضاً
+        final errStr = e.toString();
+        if (errStr.contains('FOREIGN KEY constraint failed') ||
+            errStr.contains('NOT NULL constraint failed')) {
           _logger.debug(
-            'Deferring booking price adjustment ${doc.$id}: constraint failed (missing booking)',
+            'Deferring booking price adjustment ${doc.$id}: FK/NOT NULL constraint (missing booking)',
             tag: 'SYNC',
           );
           deferred.add(doc);

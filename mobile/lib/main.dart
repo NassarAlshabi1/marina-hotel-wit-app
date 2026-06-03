@@ -783,24 +783,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
               GlobalWidgetsLocalizations.delegate,
             ],
             supportedLocales: const [Locale('ar')],
-            onGenerateRoute: (settings) {
-              // إنشاء المسارات بأسلوب lazy — الصفحة لا تُنشأ إلا عند التنقل إليها
-              switch (settings.name) {
-                case '/employees':
-                  return MaterialPageRoute<void>(builder: (_) => const EmployeesListScreen());
-                case '/expenses':
-                  return MaterialPageRoute<void>(builder: (_) => const ExpensesListScreen());
-                case '/finance/cash-register':
-                case '/finance/cash-transactions':
-                  return MaterialPageRoute<void>(builder: (_) => const FinanceScreen());
-                case '/debts':
-                  return MaterialPageRoute<void>(builder: (_) => const DebtsListScreen());
-                case '/reports':
-                  return MaterialPageRoute<void>(builder: (_) => const ReportsScreen());
-                default:
-                  return null;
-              }
-            },
+            // ✅ تم إزالة onGenerateRoute — جميع المسارات تُدار عبر HomeShell
             home: const RootRouter(),
           );
         },

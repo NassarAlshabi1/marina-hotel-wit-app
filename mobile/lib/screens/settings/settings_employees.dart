@@ -770,7 +770,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                         RadioListTile<String>(
                           title: const Row(
                             children: [
-                              Icon(Icons.exit_to_app, color: Colors.orange, size: 20),
+                              Icon(Icons.logout, color: Colors.orange, size: 20),
                               SizedBox(width: 8),
                               Text('استقالة'),
                             ],
