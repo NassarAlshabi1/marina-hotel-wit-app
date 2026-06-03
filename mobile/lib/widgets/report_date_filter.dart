@@ -61,36 +61,35 @@ class DateFilterController {
       case 'week':
         final weekStart = now.subtract(Duration(days: now.weekday - 1));
         final hotelWeekStart = HotelTimeEngine.getHotelDay(weekStart);
-        // ✅ إصلاح: نهاية النطاق يجب أن تكون 14:00 وليس 23:59
-        // اليوم الفندقي ينتهي الساعة 14:00:59، وليس 23:59
+        // ✅ نطاق الأسبوع: من 14:01 أول يوم فندقي → 14:00:59 آخر يوم فندقي
         final hotelToday = HotelTimeEngine.getHotelDay(now);
         return DateRange(
           from: DateTime(hotelWeekStart.year, hotelWeekStart.month,
-              hotelWeekStart.day, 14, 1),
+              hotelWeekStart.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute,),
           to: DateTime(hotelToday.year, hotelToday.month,
-              hotelToday.day + 1, 14, 0, 59),
+              hotelToday.day + 1, HotelTimeEngine.boundaryHour, 0, 59),
         );
       case 'month':
         final monthStart = DateTime(now.year, now.month);
         final hotelMonthStart = HotelTimeEngine.getHotelDay(monthStart);
-        // ✅ إصلاح: نهاية النطاق يجب أن تكون 14:00 وليس 23:59
+        // ✅ نطاق الشهر: من 14:01 أول يوم → 14:00:59 آخر يوم
         final hotelTodayMonth = HotelTimeEngine.getHotelDay(now);
         return DateRange(
           from: DateTime(hotelMonthStart.year, hotelMonthStart.month,
-              hotelMonthStart.day, 14, 1),
+              hotelMonthStart.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute,),
           to: DateTime(hotelTodayMonth.year, hotelTodayMonth.month,
-              hotelTodayMonth.day + 1, 14, 0, 59),
+              hotelTodayMonth.day + 1, HotelTimeEngine.boundaryHour, 0, 59),
         );
       case 'year':
         final yearStart = DateTime(now.year);
         final hotelYearStart = HotelTimeEngine.getHotelDay(yearStart);
-        // ✅ إصلاح: نهاية النطاق يجب أن تكون 14:00 وليس 23:59
+        // ✅ نطاق السنة: من 14:01 أول يوم → 14:00:59 آخر يوم
         final hotelTodayYear = HotelTimeEngine.getHotelDay(now);
         return DateRange(
           from: DateTime(hotelYearStart.year, hotelYearStart.month,
-              hotelYearStart.day, 14, 1),
+              hotelYearStart.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute,),
           to: DateTime(hotelTodayYear.year, hotelTodayYear.month,
-              hotelTodayYear.day + 1, 14, 0, 59),
+              hotelTodayYear.day + 1, HotelTimeEngine.boundaryHour, 0, 59),
         );
       default:
         return getDefaultHotelDayRange();
@@ -102,7 +101,7 @@ class DateFilterController {
 ///
 /// يوفر:
 /// - شيبس الفلترة السريعة (اليوم الفندقي، الأسبوع، الشهر، السنة)
-/// - أزرار اختيار التاريخ مع ضبط تلقائي 14:00 / 13:59
+/// - أزرار اختيار التاريخ مع ضبط تلقائي 14:01 / 14:00
 /// - منطق اليوم الفندقي عبر [HotelTimeEngine]
 ///
 /// **الاستخدام الأساسي:**
@@ -228,21 +227,20 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
     if (picked != null) {
       setState(() {
         if (isFrom) {
-          // ضبط الساعة 14:01 تلقائياً
-          _fromDate = DateTime(picked.year, picked.month, picked.day, 14, 1);
+          // ✅ ضبط الساعة 14:01 تلقائياً (بداية اليوم الفندقي)
+          _fromDate = DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute);
           if (_fromDate.isAfter(_toDate)) {
-            _toDate = _fromDate
-                .add(const Duration(days: 1))
-                .subtract(const Duration(seconds: 1));
+            // نهاية اليوم الفندقي = 14:00:59 من اليوم التالي
+            _toDate = DateTime(picked.year, picked.month, picked.day + 1, HotelTimeEngine.boundaryHour, 0, 59);
           }
         } else {
-          // ضبط الساعة 14:00:59 تلقائياً
+          // ✅ ضبط الساعة 14:00:59 تلقائياً (نهاية اليوم الفندقي)
           _toDate =
-              DateTime(picked.year, picked.month, picked.day + 1, 14, 0, 59);
+              DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, 0, 59);
           if (_toDate.isBefore(_fromDate)) {
             _fromDate = _toDate.subtract(const Duration(days: 1));
             _fromDate = DateTime(
-                _fromDate.year, _fromDate.month, _fromDate.day, 14, 1,);
+                _fromDate.year, _fromDate.month, _fromDate.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute,);
           }
         }
       });
@@ -258,7 +256,7 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
   bool _isHotelDayActive() {
     final hotelDay = HotelTimeEngine.getHotelDay(DateTime.now());
     final expectedFrom =
-        DateTime(hotelDay.year, hotelDay.month, hotelDay.day, 14, 1);
+        DateTime(hotelDay.year, hotelDay.month, hotelDay.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute);
     return _fromDate.year == expectedFrom.year &&
         _fromDate.month == expectedFrom.month &&
         _fromDate.day == expectedFrom.day;
