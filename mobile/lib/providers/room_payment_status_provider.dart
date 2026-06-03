@@ -7,6 +7,22 @@ import '../services/local_db.dart';
 import '../utils/status_utils.dart';
 import 'repository_providers.dart';
 
+/// ✅ مقارنة قائمتين من RoomWithPaymentStatus لمنع إعادة الإرسال غير الضرورية
+/// هذا يمنع وميض الشاشة (flickering) عند عدم تغيير البيانات فعلياً
+bool _listsEqual(List<RoomWithPaymentStatus> a, List<RoomWithPaymentStatus> b) {
+  if (identical(a, b)) return true;
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    final ra = a[i];
+    final rb = b[i];
+    if (ra.room.localUuid != rb.room.localUuid) return false;
+    if (ra.isPaymentOverdue != rb.isPaymentOverdue) return false;
+    if (ra.activeBooking?.localUuid != rb.activeBooking?.localUuid) return false;
+    if (ra.room.status != rb.room.status) return false;
+  }
+  return true;
+}
+
 /// نموذج بيانات يجمع بين الغرفة وحالة تأخر السداد
 class RoomWithPaymentStatus {
 
@@ -72,6 +88,9 @@ final roomsWithPaymentStatusProvider =
   List<Booking>? lastBookings;
   DateTime lastTime = DateTime.now();
 
+  // ✅ تخزين آخر نتيجة مُرسلة لمنع إعادة الإرسال عند عدم التغيير
+  List<RoomWithPaymentStatus>? lastEmitted;
+
   void computeAndEmit() {
     if (lastRooms == null || lastBookings == null) {
       return;
@@ -115,6 +134,13 @@ final roomsWithPaymentStatusProvider =
         activeBooking: activeBooking,
       );
     }).toList();
+
+    // ✅ إصلاح الوميض: لا نُرسل بيانات جديدة إذا كانت مطابقة للسابقة
+    // هذا يمنع إعادة بناء الـ Widgets وإعادة تشغيل الرسوم المتحركة بدون سبب
+    if (lastEmitted != null && _listsEqual(lastEmitted!, result)) {
+      return; // لا تغيير فعلي — لا حاجة للإرسال
+    }
+    lastEmitted = result;
 
     if (!controller.isClosed) {
       controller.add(result);

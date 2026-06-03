@@ -312,43 +312,46 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد المدفوعات من JSON
+  /// ✅ إصلاح حرج: تغليف العملية بالكامل في transaction لمنع فقدان البيانات
   Future<void> importFromJson(
     List<Map<String, dynamic>> data, {
     bool clearExisting = false,
   }) async {
-    if (clearExisting) {
-      await delete(payments).go();
-    }
+    await transaction(() async {
+      if (clearExisting) {
+        await delete(payments).go();
+      }
 
-    for (final paymentJson in data) {
-      final payment = Payment.fromJson(paymentJson);
-      await into(payments).insertOnConflictUpdate(
-        PaymentsCompanion(
-          serverPaymentId: Value(payment.serverPaymentId),
-          bookingLocalId: Value(payment.bookingLocalId),
-          serverBookingId: Value(payment.serverBookingId),
-          roomNumber: Value(payment.roomNumber),
-          amount: Value(payment.amount),
-          paymentDate: Value(payment.paymentDate),
-          notes: Value(payment.notes),
-          paymentMethod: Value(payment.paymentMethod),
-          revenueType: Value(payment.revenueType),
-          hotelDayKey: Value(payment.hotelDayKey),
-          linkedDebtUuid: Value(payment.linkedDebtUuid),
-          bookingUuidCache: Value(payment.bookingUuidCache),
-          cashTransactionLocalId: Value(payment.cashTransactionLocalId),
-          cashTransactionServerId: Value(payment.cashTransactionServerId),
-          localUuid: Value(payment.localUuid),
-          serverId: Value(payment.serverId),
-          createdAt: Value(payment.createdAt),
-          updatedAt: Value(payment.updatedAt),
-          deletedAt: Value(payment.deletedAt),
-          lastModified: Value(payment.lastModified),
-          version: Value(payment.version),
-          origin: Value(payment.origin),
-        ),
-      );
-    }
+      for (final paymentJson in data) {
+        final payment = Payment.fromJson(paymentJson);
+        await into(payments).insertOnConflictUpdate(
+          PaymentsCompanion(
+            serverPaymentId: Value(payment.serverPaymentId),
+            bookingLocalId: Value(payment.bookingLocalId),
+            serverBookingId: Value(payment.serverBookingId),
+            roomNumber: Value(payment.roomNumber),
+            amount: Value(payment.amount),
+            paymentDate: Value(payment.paymentDate),
+            notes: Value(payment.notes),
+            paymentMethod: Value(payment.paymentMethod),
+            revenueType: Value(payment.revenueType),
+            hotelDayKey: Value(payment.hotelDayKey),
+            linkedDebtUuid: Value(payment.linkedDebtUuid),
+            bookingUuidCache: Value(payment.bookingUuidCache),
+            cashTransactionLocalId: Value(payment.cashTransactionLocalId),
+            cashTransactionServerId: Value(payment.cashTransactionServerId),
+            localUuid: Value(payment.localUuid),
+            serverId: Value(payment.serverId),
+            createdAt: Value(payment.createdAt),
+            updatedAt: Value(payment.updatedAt),
+            deletedAt: Value(payment.deletedAt),
+            lastModified: Value(payment.lastModified),
+            version: Value(payment.version),
+            origin: Value(payment.origin),
+          ),
+        );
+      }
+    });
   }
 
   /// الحصول على عدد السجلات

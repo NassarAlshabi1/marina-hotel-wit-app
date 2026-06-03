@@ -144,7 +144,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                     ? nights.length
                     : actualNights;
                 final nightTotal = nights.isNotEmpty
-                    ? nights.fold<double>(0, (sum, n) => sum + n.nightlyRate)
+                    // ✅ إصلاح حرج: استخدام finalRate بدلاً من nightlyRate
+                    // finalRate يتضمن تعديلات الأسعار (خصومات/إضافات)
+                    // nightlyRate هو السعر الأساسي بدون تعديلات → يُسبب مبلغ خاطئ عند الخروج
+                    ? nights.fold<double>(0, (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate))
                     : (() {
                         final checkout = actualCheckout ?? DateTime.now();
                         if (discount > 0 && discountType == 'per_night' && checkin != null) {

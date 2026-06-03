@@ -515,7 +515,11 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     );
   }
 
-  DateTime _parseDateTime(String value) {
+  /// ✅ إصلاح حرج: إرجاع null عند فشل تحليل التاريخ بدلاً من epoch(1970)
+  /// السلوك السابق كان يُرجع DateTime.fromMillisecondsSinceEpoch(0) عند الفشل
+  /// مما يُدخل سجلات فاسدة في ملخصات 1970 ويُفسد المجاميع الشهرية
+  DateTime? _parseDateTime(String value) {
+    if (value.isEmpty) return null;
     final normalized = value.contains('T')
         ? value
         : value.replaceFirst(' ', 'T');
@@ -526,8 +530,8 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         final safeDate = Time.safeIsoToDateString(value);
         return DateTime.parse('${safeDate}T00:00:00');
       } catch (_) {
-        // بيانات تاريخ فاسدة — استخدام تاريخ افتراضي آمن
-        return DateTime.fromMillisecondsSinceEpoch(0);
+        // بيانات تاريخ فاسدة — إرجاع null لتجاهل السجل في التجميع
+        return null;
       }
     }
   }

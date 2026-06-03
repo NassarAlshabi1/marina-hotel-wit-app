@@ -45,15 +45,25 @@ class _GuestPaymentsDetailReportScreenState
   Map<int, StayBalanceResult> _coverageCache = {};
 
   /// ✅ إصلاح: نسخة احتياطية آمنة من StayBalanceResult للاستخدام عند الخطأ
+  /// عند فشل تحليل تاريخ الدخول، نستخدم تاريخ اليوم الفندقي بدلاً من DateTime.now()
+  /// الذي يُنتج نتائج خاطئة (0 أيام، تاريخ خروج خاطئ)
   static StayBalanceResult _safeFallback(Booking b) {
-    final checkin = DateTime.tryParse(b.checkinDate) ?? DateTime.now();
+    final checkin = DateTime.tryParse(b.checkinDate);
     final checkout = (b.checkoutDate != null && b.checkoutDate!.isNotEmpty)
         ? DateTime.tryParse(b.checkoutDate!)
         : null;
+    // ✅ إصلاح: إذا فشل تحليل تاريخ الدخول، نستخدم بداية اليوم الفندقي الحالي
+    // بدلاً من DateTime.now() الذي يُسبب حسابات خاطئة
+    final safeCheckin = checkin ?? DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+      14,
+    );
     return StayBalanceResult(
-      checkinDate: checkin,
+      checkinDate: safeCheckin,
       manualCheckoutDate: checkout,
-      autoCheckoutDate: checkout ?? checkin.add(const Duration(days: 1)),
+      autoCheckoutDate: checkout ?? safeCheckin.add(const Duration(days: 1)),
       totalPaid: b.totalPaidCached,
       nightlyRate: 0,
       effectiveNightlyRate: 0,
@@ -73,8 +83,10 @@ class _GuestPaymentsDetailReportScreenState
   static final _dateFormatter = DateFormat('yyyy/MM/dd');
 
   /// حساب الأيام المقضية فعلياً بناءً على قاعدة الساعة 14:00
+  /// ✅ إصلاح: عند فشل تحليل تاريخ الدخول، نستخدم اليوم الفندقي بدلاً من DateTime.now()
   int _getActualDaysSpent(Booking b) {
-    final checkin = DateTime.tryParse(b.checkinDate) ?? DateTime.now();
+    final checkin = DateTime.tryParse(b.checkinDate);
+    if (checkin == null) return 0; // لا يمكن حساب بدون تاريخ دخول صالح
     final end = (b.actualCheckout != null && b.actualCheckout!.isNotEmpty)
         ? DateTime.tryParse(b.actualCheckout!)
         : DateTime.now();

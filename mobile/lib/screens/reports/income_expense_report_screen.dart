@@ -182,7 +182,7 @@ class _IncomeExpenseReportScreenState
             return false; // استبعاد السجل غير الصالح من فلترة الفترة
           }
         }
-        return true;
+        return false; // ✅ إصلاح: استبعاد الديون بدون تواريخ صالحة
       }).toList();
 
       // الديون غير المسددة: نحتاج كل الديون غير المسددة (حتى خارج الفترة)

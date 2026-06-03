@@ -412,35 +412,40 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد المصروفات من JSON
+  /// ✅ إصلاح حرج: تغليف العملية بالكامل في transaction لمنع فقدان البيانات
+  /// إذا تعطل التطبيق أثناء الاستيراد، البيانات القديمة لا تُحذف إلا بعد
+  /// نجاح إدراج جميع البيانات الجديدة
   Future<void> importFromJson(
     List<Map<String, dynamic>> data, {
     bool clearExisting = false,
   }) async {
-    if (clearExisting) {
-      await delete(expenses).go();
-    }
+    await transaction(() async {
+      if (clearExisting) {
+        await delete(expenses).go();
+      }
 
-    for (final expenseJson in data) {
-      final expense = Expense.fromJson(expenseJson);
-      await into(expenses).insertOnConflictUpdate(
-        ExpensesCompanion(
-          expenseType: Value(expense.expenseType),
-          relatedId: Value(expense.relatedId),
-          description: Value(expense.description),
-          amount: Value(expense.amount),
-          date: Value(expense.date),
-          cashTransactionId: Value(expense.cashTransactionId),
-          localUuid: Value(expense.localUuid),
-          serverId: Value(expense.serverId),
-          createdAt: Value(expense.createdAt),
-          updatedAt: Value(expense.updatedAt),
-          deletedAt: Value(expense.deletedAt),
-          lastModified: Value(expense.lastModified),
-          version: Value(expense.version),
-          origin: Value(expense.origin),
-        ),
-      );
-    }
+      for (final expenseJson in data) {
+        final expense = Expense.fromJson(expenseJson);
+        await into(expenses).insertOnConflictUpdate(
+          ExpensesCompanion(
+            expenseType: Value(expense.expenseType),
+            relatedId: Value(expense.relatedId),
+            description: Value(expense.description),
+            amount: Value(expense.amount),
+            date: Value(expense.date),
+            cashTransactionId: Value(expense.cashTransactionId),
+            localUuid: Value(expense.localUuid),
+            serverId: Value(expense.serverId),
+            createdAt: Value(expense.createdAt),
+            updatedAt: Value(expense.updatedAt),
+            deletedAt: Value(expense.deletedAt),
+            lastModified: Value(expense.lastModified),
+            version: Value(expense.version),
+            origin: Value(expense.origin),
+          ),
+        );
+      }
+    });
   }
 
   /// الحصول على عدد السجلات

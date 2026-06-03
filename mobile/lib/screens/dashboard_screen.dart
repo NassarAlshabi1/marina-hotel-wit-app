@@ -482,8 +482,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildRoomButton(BuildContext context, String roomNumber, RoomWithPaymentStatus? rws) {
     final Color bgColor = rws?.roomColor ?? Colors.grey.shade400;
-    final String tooltipText = rws != null ? rws.room.status : 'غير مسجلة';
+    final String tooltipText = rws != null ? rws.displayStatus : 'غير مسجلة';
     final bool isOverdue = rws?.isPaymentOverdue ?? false;
+
+    // ✅ إصلاح الوميض: استخدام ValueKey يمنع flutter_animate من إعادة تشغيل
+    // الرسوم المتحركة عند إعادة بناء الـ widget بنفس البيانات
+    // المفتاح يتضمن حالة التأخر فقط — لا يتغير إلا عند تغيير الحالة فعلياً
+    final keySuffix = isOverdue ? '_overdue' : '_normal';
 
     final Widget button = Tooltip(
       message: tooltipText,
@@ -492,6 +497,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ? () => _showRoomOptionsDialog(context, rws.room)
             : null,
         child: Material(
+          key: ValueKey('room_${roomNumber}$keySuffix'),
           color: bgColor,
           borderRadius: BorderRadius.circular(10),
           child: InkWell(
@@ -513,12 +519,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
 
     if (isOverdue) {
+      // ✅ إصلاح الوميض: استخدام target(uniqueKey) لمنع إعادة تشغيل
+      // الرسوم المتحركة عند إعادة بناء القائمة بدون تغيير حقيقي
       return button
-          .animate(onPlay: (controller) => controller.repeat(reverse: true))
+          .animate(key: ValueKey('anim_${roomNumber}_overdue'))
           .tint(color: const Color(0x40FF9800), duration: 800.ms)
           .scale(
             begin: const Offset(1.0, 1.0),
             end: const Offset(1.03, 1.03),
+            duration: 800.ms,
+            curve: Curves.easeInOut,
+          )
+          .then()
+          .tint(color: const Color(0x00FF9800), duration: 800.ms)
+          .scale(
+            begin: const Offset(1.03, 1.03),
+            end: const Offset(1.0, 1.0),
             duration: 800.ms,
             curve: Curves.easeInOut,
           );
