@@ -64,6 +64,16 @@ class GoogleDriveDeltaSync {
   String? get deviceId => _deviceId;
 
   Future<DeltaSyncResult> pushDeltaChanges() async {
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final pushPrefs = await SharedPreferences.getInstance();
+    final pushSyncEnabled = pushPrefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!pushSyncEnabled) {
+      return DeltaSyncResult(
+        success: false,
+        message: 'مزامنة Google Drive معطّلة',
+      );
+    }
+
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
       if (!isInitialized) {
         return _DeltaSyncStartResult.notInitialized;
@@ -137,6 +147,16 @@ class GoogleDriveDeltaSync {
   }
 
   Future<DeltaSyncResult> pullDeltaChanges() async {
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final pullPrefs = await SharedPreferences.getInstance();
+    final pullSyncEnabled = pullPrefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!pullSyncEnabled) {
+      return DeltaSyncResult(
+        success: false,
+        message: 'مزامنة Google Drive معطّلة',
+      );
+    }
+
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
       if (!isInitialized) {
         return _DeltaSyncStartResult.notInitialized;

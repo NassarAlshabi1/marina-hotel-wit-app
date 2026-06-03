@@ -247,11 +247,19 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       // التحقق من تسجيل الدخول في Google Drive
       List<DriveBackupFile> driveBackups = [];
       if (_backupService.isSignedIn && account != null) {
-        // إشعار مديري المزامنة بنجاح تسجيل الدخول الصامت (مع معالجة الأخطاء)
-        try {
-          await _notifySyncManagers(true);
-        } catch (e) {
-          debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+        // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+        // لا نُشغّل المزامنة التلقائية إذا كانت معطّلة
+        final gdSyncEnabled =
+            prefs.getBool('google_drive_sync_enabled') ?? false;
+        if (gdSyncEnabled) {
+          // إشعار مديري المزامنة بنجاح تسجيل الدخول الصامت (مع معالجة الأخطاء)
+          try {
+            await _notifySyncManagers(true);
+          } catch (e) {
+            debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+          }
+        } else {
+          debugPrint('⏸️ Google Drive sync disabled - skipping sync manager notification at init');
         }
 
         // جلب قائمة النسخ المتاحة في Google Drive (مع معالجة الأخطاء)
@@ -446,10 +454,17 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         }
 
         // إشعار مديري المزامنة بتغير حالة تسجيل الدخول (مع معالجة الأخطاء)
-        try {
-          await _notifySyncManagers(true);
-        } catch (e) {
-          debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+        // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+        final signInPrefs = await SharedPreferences.getInstance();
+        final signInSyncEnabled = signInPrefs.getBool('google_drive_sync_enabled') ?? false;
+        if (signInSyncEnabled) {
+          try {
+            await _notifySyncManagers(true);
+          } catch (e) {
+            debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+          }
+        } else {
+          debugPrint('⏸️ Google Drive sync disabled - skipping sync manager notification after sign-in');
         }
 
         state = state.copyWith(
@@ -775,10 +790,17 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           debugPrint('⚠️ خطأ في جلب قائمة النسخ: $e');
         }
 
-        try {
-          await _notifySyncManagers(true);
-        } catch (e) {
-          debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+        // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+        final refreshSyncEnabled =
+            prefs.getBool('google_drive_sync_enabled') ?? false;
+        if (refreshSyncEnabled) {
+          try {
+            await _notifySyncManagers(true);
+          } catch (e) {
+            debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+          }
+        } else {
+          debugPrint('⏸️ Google Drive sync disabled - skipping sync manager notification on refresh');
         }
 
         state = state.copyWith(

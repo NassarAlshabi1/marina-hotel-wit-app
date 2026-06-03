@@ -206,6 +206,14 @@ class SmartSyncManager {
 
     _isLoggedIn = isSignedIn;
 
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final prefs = await SharedPreferences.getInstance();
+    final gdSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!gdSyncEnabled) {
+      _log('⏸️ Google Drive sync disabled - skipping SmartSync monitoring');
+      return;
+    }
+
     if (isSignedIn && _isEnabled) {
       _log('✅ بدء المراقبة بعد تسجيل الدخول...');
       await _startSyncMonitoring();
@@ -759,6 +767,14 @@ class SmartSyncManager {
 
   /// رفع التغييرات المحلية إلى Google Drive فوراً
   Future<bool> pushLocalChanges() async {
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final pushPrefs = await SharedPreferences.getInstance();
+    final pushSyncEnabled = pushPrefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!pushSyncEnabled) {
+      _log('⏸️ Google Drive sync disabled - skipping push');
+      return false;
+    }
+
     int retries = 0;
     while (retries < 10) {
       final isSyncing = await SyncLocks.smartSyncLock.synchronized(
@@ -827,6 +843,14 @@ class SmartSyncManager {
   /// سحب التغييرات من Google Drive
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   Future<bool> pullRemoteChanges() async {
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final pullPrefs = await SharedPreferences.getInstance();
+    final pullSyncEnabled = pullPrefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!pullSyncEnabled) {
+      _log('⏸️ Google Drive sync disabled - skipping pull');
+      return false;
+    }
+
     final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
       if (_backupService == null || !_backupService!.isSignedIn) {
         return false;

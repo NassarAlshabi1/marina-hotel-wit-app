@@ -11,9 +11,7 @@ import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
-import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
-import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 
 /// بيانات معاملة واحدة من جدول salary_withdrawals
@@ -131,13 +129,11 @@ class _SalaryWithdrawalsReportScreenState
 
     // ✅ إصلاح: فلترة بـ hotelDayKey بدلاً من withdrawDate التقويمي
     // لمنع إدراج سحوبات الصباح من اليوم السابق خطأً
-    // نستخدم HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
-    final fromHotelDay = _fromDate != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: _fromDate)
-        : null;
-    final toHotelDay = _toDate != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
-        : null;
+    // ⚠️ لا نستخدم HotelTimeEngine.getHotelDayKey() لتحويل تاريخ الفلتر
+    // لأن التاريخ يأتي من DatePicker عند منتصف الليل (00:00) فيتحول لليوم السابق خطأً
+    // بدلاً من ذلك نستخدم التاريخ التقويمي مباشرة كمفتاح يوم فندقي
+    final fromHotelDay = _fromDate != null ? _dateToKey(_fromDate!) : null;
+    final toHotelDay = _toDate != null ? _dateToKey(_toDate!) : null;
 
     if (fromHotelDay != null) {
       query = query..where((tbl) =>
@@ -798,6 +794,13 @@ class _SalaryWithdrawalsReportScreenState
       debugPrint('⚠️ تعذر تحليل تاريخ سحب الراتب "$value": $e');
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
+  }
+
+  /// تحويل DateTime إلى مفتاح يوم فندقي (YYYY-MM-DD) بدون إزاحة 14:00
+  /// يُستخدم لفلتر التاريخ فقط — التاريخ من DatePicker يكون عند 00:00
+  /// و HotelTimeEngine.getHotelDayKey يُحوّله خطأً لليوم السابق
+  static String _dateToKey(DateTime dt) {
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
   }
 }
 

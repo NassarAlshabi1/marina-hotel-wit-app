@@ -188,8 +188,13 @@ class GoogleDriveUnifiedSyncCoordinator {
       prefs.getString(_prefsLastFullBackupKey),
     );
 
-    if (backupService.isSignedIn) {
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final initPrefs = await SharedPreferences.getInstance();
+    final initSyncEnabled = initPrefs.getBool('google_drive_sync_enabled') ?? false;
+    if (backupService.isSignedIn && initSyncEnabled) {
       await _startMonitoring();
+    } else if (!initSyncEnabled) {
+      _log('⏸️ Google Drive sync disabled - monitoring skipped at init');
     }
 
     _isInitialized = true;
@@ -439,6 +444,17 @@ class GoogleDriveUnifiedSyncCoordinator {
     required SyncTrigger trigger,
     SyncMode mode = SyncMode.smart,
   }) async {
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final gdPrefs = await SharedPreferences.getInstance();
+    final gdSyncEnabled = gdPrefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!gdSyncEnabled) {
+      _log('⏸️ Google Drive sync disabled - skipping performSync');
+      return SyncResult.failure(
+        message: 'مزامنة Google Drive معطّلة',
+        phase: SyncPhase.idle,
+      );
+    }
+
     final canStartResult = await SyncLocks.mainSyncLock.synchronized(() async {
       if (!_isInitialized) {
         return _PerformSyncNotInitialized();
