@@ -1350,6 +1350,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final cardDigitsController = TextEditingController();
     final bankController = TextEditingController();
 
+    // ✅ إصلاح تسرب ذاكرة: استخدام then للتأكد من dispose بعد إغلاق الحوار
     showDialog<void>(
       context: context,
       builder: (context) => Directionality(
@@ -1462,7 +1463,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ],
         ),
       ),
-    );
+    ).then((_) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
+      amountController.dispose();
+      notesController.dispose();
+      referenceController.dispose();
+      cardDigitsController.dispose();
+      bankController.dispose();
+    });
   }
 
   Future<void> _sendPaymentConfirmation(
@@ -1709,7 +1717,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ],
       ),
-    );
+    ).then((_) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكم بعد إغلاق الحوار
+      notesController.dispose();
+    });
   }
 
   /// معالجة دفع الليالي الإضافية
@@ -3458,7 +3469,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           );
         },
       ),
-    );
+    ).then((_) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
+      nightsController.dispose();
+      notesController.dispose();
+    });
   }
 
   /// معالجة تمديد الإقامة

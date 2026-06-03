@@ -1034,6 +1034,22 @@ class AppwriteSyncManager {
             );
           }
 
+          // ✅ تنظيف outbox للكيانات المحذوفة (soft/hard delete)
+          try {
+            final deletedRemoved = await _cleanupOutboxForDeletedEntities();
+            if (deletedRemoved > 0) {
+              _logger.info(
+                '🧹 تم حذف $deletedRemoved عنصر outbox لكيانات محذوفة',
+                tag: 'SYNC',
+              );
+            }
+          } catch (e) {
+            _logger.warning(
+              '⚠️ فشل تنظيف outbox للكيانات المحذوفة: $e',
+              tag: 'SYNC',
+            );
+          }
+
           // ✅ إعادة حساب حالة إشغال الغرف بناءً على الحجوزات النشطة
           // هذا يضمن أن الغرف التي تم تسجيل خروج نزلائها تظهر كـ "شاغرة"
           // والغرف التي بها حجوزات نشطة تظهر كـ "محجوزة" - بغض النظر عن
@@ -1685,10 +1701,28 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
 
-        // Financial immutability: if local payment exists and is newer, keep local
+        // ✅ إصلاح: التحقق من الحذف الناعم + عدم تجاوز البيانات المحلية الأحدث
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final incomingLastModified = _asInt(data['lastModified']);
         final existingPayment = await _getPaymentByLocalUuid(localUuid);
+
+        // منع إعادة إحياء السجلات المحذوفة softly
+        if (existingPayment != null && existingPayment.deletedAt != null) {
+          final remoteDeletedAt = _asIntNullable(data['deletedAt']) ??
+              _asIntNullable(data['deleted_at']);
+          if (remoteDeletedAt == null) {
+            // السجل محذوف محلياً لكن البعيد غير محذوف — نرفض الإحياء
+            _logger.debug(
+              'Skipping payment ${doc.$id}: locally soft-deleted, refusing revival',
+              tag: 'SYNC',
+            );
+            processed++;
+            continue;
+          }
+          // كلاهما محذوف — نسمح بالتحديث إذا كان البعيد أحدث
+        }
+
+        // Financial immutability: if local payment exists and is newer, keep local
+        final incomingLastModified = _asInt(data['lastModified']);
         if (existingPayment != null && existingPayment.lastModified > incomingLastModified) {
           _logger.debug(
             'Skipping payment ${doc.$id}: local is newer (financial immutability)',
@@ -1760,10 +1794,28 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
 
-        // Financial immutability: if local debt exists and is newer, keep local
+        // ✅ إصلاح: التحقق من الحذف الناعم + عدم تجاوز البيانات المحلية الأحدث
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final incomingLastModified = _asInt(data['lastModified']);
         final existingDebt = await _getDebtByLocalUuid(localUuid);
+
+        // منع إعادة إحياء السجلات المحذوفة softly
+        if (existingDebt != null && existingDebt.deletedAt != null) {
+          final remoteDeletedAt = _asIntNullable(data['deletedAt']) ??
+              _asIntNullable(data['deleted_at']);
+          if (remoteDeletedAt == null) {
+            // السجل محذوف محلياً لكن البعيد غير محذوف — نرفض الإحياء
+            _logger.debug(
+              'Skipping debt ${doc.$id}: locally soft-deleted, refusing revival',
+              tag: 'SYNC',
+            );
+            processed++;
+            continue;
+          }
+          // كلاهما محذوف — نسمح بالتحديث إذا كان البعيد أحدث
+        }
+
+        // Financial immutability: if local debt exists and is newer, keep local
+        final incomingLastModified = _asInt(data['lastModified']);
         if (existingDebt != null && existingDebt.lastModified > incomingLastModified) {
           _logger.debug(
             'Skipping debt ${doc.$id}: local is newer (financial immutability)',
@@ -2766,6 +2818,85 @@ class AppwriteSyncManager {
     }
 
     return totalRemoved;
+  }
+
+  /// ✅ تنظيف سجلات Outbox للكيانات المحذوفة (soft-delete أو hard-delete)
+  /// 1. يجمع localUuid لجميع عناصر outbox الحالية
+  /// 2. يتحقق من وجودها محلياً ومن حالة الحذف
+  /// 3. يزيل سجلات outbox المُكتملة للكيانات المحذوفة softly
+  /// 4. يزيل سجلات outbox المعلقة/الفاشلة للكيانات المحذوفة نهائياً
+  Future<int> _cleanupOutboxForDeletedEntities() async {
+    int totalRemoved = 0;
+
+    try {
+      // جلب جميع عناصر outbox غير المُعالجة حالياً
+      final entries = await (database.select(database.outbox)
+            ..where((t) => t.processingStatus.isIn(['pending', 'failed', 'completed'])))
+          .get();
+
+      if (entries.isEmpty) return 0;
+
+      final softDeletedUuids = <String, int?>{};
+      final missingUuids = <String>[];
+
+      for (final entry in entries) {
+        final deletedAt = await _getLocalEntityDeletedAt(entry.entity, entry.localUuid);
+        if (deletedAt == null) {
+          // الكيان غير موجود محلياً (hard-delete)
+          if (entry.processingStatus != 'completed') {
+            missingUuids.add(entry.localUuid);
+          }
+        } else if (deletedAt > 0) {
+          // الكيان محذوف softly — نظّف سجل outbox المُكتمل فقط
+          softDeletedUuids[entry.localUuid] = deletedAt;
+        }
+      }
+
+      // تنظيف سجلات outbox المُكتملة للكيانات المحذوفة softly
+      if (softDeletedUuids.isNotEmpty) {
+        totalRemoved += await outboxDao.cleanupForSoftDeletedEntities(softDeletedUuids);
+      }
+
+      // تنظيف سجلات outbox المعلقة/الفاشلة للكيانات غير الموجودة
+      if (missingUuids.isNotEmpty) {
+        totalRemoved += await outboxDao.cleanupForMissingEntities(missingUuids);
+      }
+    } catch (e) {
+      _logger.warning('فشل تنظيف outbox للكيانات المحذوفة: $e', tag: 'SYNC');
+    }
+
+    return totalRemoved;
+  }
+
+  /// جلب deletedAt لكيان محلي بناءً على entity و localUuid
+  /// يُعيد null إذا الكيان غير موجود، أو 0 إذا موجود وغير محذوف
+  Future<int?> _getLocalEntityDeletedAt(String entity, String localUuid) async {
+    try {
+      switch (entity) {
+        case 'bookings':
+          final b = await _getBookingByLocalUuid(localUuid);
+          return b?.deletedAt;
+        case 'rooms':
+          final r = await _getRoomByLocalUuid(localUuid);
+          return r?.deletedAt;
+        case 'employees':
+          final e = await _getEmployeeByLocalUuid(localUuid);
+          return e?.deletedAt;
+        case 'expenses':
+          final e = await _getExpenseByLocalUuid(localUuid);
+          return e?.deletedAt;
+        case 'payments':
+          final p = await _getPaymentByLocalUuid(localUuid);
+          return p?.deletedAt;
+        case 'debts':
+          final d = await _getDebtByLocalUuid(localUuid);
+          return d?.deletedAt;
+        default:
+          return null;
+      }
+    } catch (_) {
+      return null;
+    }
   }
 
   /// جلب lastModified لسجل محلي بناءً على entity و localUuid

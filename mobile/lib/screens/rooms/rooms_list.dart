@@ -528,6 +528,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     );
 
     if (ok != true) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات عند الإلغاء
+      roomNumberCtrl.dispose();
+      typeCtrl.dispose();
+      priceCtrl.dispose();
       return;
     }
 
@@ -587,6 +591,11 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           backgroundColor: Colors.red.shade900,
         ),
       );
+    } finally {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات دائماً
+      roomNumberCtrl.dispose();
+      typeCtrl.dispose();
+      priceCtrl.dispose();
     }
   }
 

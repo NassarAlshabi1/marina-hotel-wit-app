@@ -624,7 +624,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
         );
       } finally {
-        setState(() => _isProcessing = false);
+        if (mounted) setState(() => _isProcessing = false);
       }
     }
     } finally {

@@ -85,6 +85,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// هذا يفصل بين التغييرات المحلية والعمليات البعيدة
   /// ✅ إصلاح حرج: تغليف العملية بالكامل في transaction لمنع إدراج سجلين مكررين
   /// عند استدعاء merge() بالتوازي (مثلاً: debounce timer + manual sync)
+  /// ✅ إصلاح إضافي: البحث عن السجلات الموجودة في حالة 'pending' أو 'processing'
+  /// إذا كان السجل في حالة 'processing'، نحدثه بدلاً من إنشاء سجل جديد
+  /// لأن السجل 'processing' سيعود لاحقاً كـ 'completed' أو 'failed'
   Future<int> merge({
     required String entity,
     required String op,
@@ -98,11 +101,13 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final idempKey = '$entity:$op:$localUuid:$clientTs';
 
     return transaction(() async {
+      // ✅ البحث عن أي سجل موجود لنفس الكيان والـ UUID بغض النظر عن حالته
+      // ('pending' أو 'processing') — هذا يمنع إنشاء سجل مكرر
       final existing = await (select(outbox)
             ..where((t) =>
                 t.entity.equals(entity) &
                 t.localUuid.equals(localUuid) &
-                t.processingStatus.equals('pending'),)
+                t.processingStatus.isIn(const ['pending', 'processing']),)
             ..limit(1))
           .getSingleOrNull();
 
@@ -115,6 +120,17 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
             idempotencyKey: Value(idempKey),
             serverId: Value(serverId),
             source: Value(source),
+            // ✅ إذا كان السجل في حالة 'processing'، نعيده لـ 'pending'
+            // لأن البيانات تغيرت والسجل القديم لم يُعالج بعد
+            processingStatus: existing.processingStatus == 'processing'
+                ? const Value('pending')
+                : const Value.absent(),
+            processingStartedAt: existing.processingStatus == 'processing'
+                ? const Value(null)
+                : const Value.absent(),
+            processingWorker: existing.processingStatus == 'processing'
+                ? const Value(null)
+                : const Value.absent(),
           ),
         );
         return existing.id;
@@ -379,6 +395,49 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
               t.clientTs.isSmallerOrEqualValue(cutoff),))
         .go();
     return rows;
+  }
+
+  /// ✅ إصلاح: حذف سجلات Outbox للكيانات المحذوفة (soft-delete)
+  /// عندما يُحذف كيان محلياً (deletedAt != null) ويكون سجل outbox في حالة
+  /// 'completed' أو 'pending'، فإنه يبقى إلى الأبد لأن cleanupCompleted
+  /// يحذف فقط السجلات الأقدم من 7 أيام.
+  /// هذه الدالة تُزيل سجلات outbox للكيانات المحذوفة فوراً بعد التأكد
+  /// أن الحذف تم رفعه للسيرفر بنجاح (حالة completed).
+  /// [entityDeletedAtMap] — خريطة من localUuid → deletedAt للكيانات المحذوفة
+  Future<int> cleanupForSoftDeletedEntities(
+    Map<String, int?> entityDeletedAtMap,
+  ) async {
+    if (entityDeletedAtMap.isEmpty) return 0;
+    final uuids = entityDeletedAtMap.keys.toList();
+    // حذف سجلات outbox المُكتملة للكيانات المحذوفة
+    final rows = await (delete(outbox)
+          ..where((t) =>
+              t.localUuid.isIn(uuids) &
+              t.processingStatus.equals('completed')))
+        .go();
+    return rows;
+  }
+
+  /// ✅ إصلاح: حذف سجلات Outbox للكيانات غير الموجودة محلياً (hard-delete)
+  /// عندما يُحذف كيان تماماً من قاعدة البيانات المحلية، سجلات outbox
+  /// الخاصة به ستبقى للأبد إذا فشل رفعها سابقاً.
+  /// [missingLocalUuids] — قائمة localUuid التي لا وجود لها محلياً
+  Future<int> cleanupForMissingEntities(List<String> missingLocalUuids) async {
+    if (missingLocalUuids.isEmpty) return 0;
+    const batchSize = 500;
+    int totalRemoved = 0;
+    for (var i = 0; i < missingLocalUuids.length; i += batchSize) {
+      final end = i + batchSize > missingLocalUuids.length
+          ? missingLocalUuids.length
+          : i + batchSize;
+      final chunk = missingLocalUuids.sublist(i, end);
+      totalRemoved += await (delete(outbox)
+            ..where((t) =>
+                t.localUuid.isIn(chunk) &
+                t.processingStatus.isIn(['pending', 'failed'])))
+          .go();
+    }
+    return totalRemoved;
   }
 }
 

@@ -1062,6 +1062,17 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                       );
                       return;
                     }
+                    // ✅ إصلاح: التحقق من أن المدفوع لا يتجاوز الإجمالي
+                    final paidAmount = CurrencyFormatter.parseAmount(paidCtrl.text) ?? 0;
+                    if (paidAmount > totalAmount) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(
+                          content: Text('المبلغ المدفوع لا يمكن أن يتجاوز إجمالي الدين'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      return;
+                    }
                     Navigator.pop(dialogContext, true);
                   },
                   child: Text(existing == null ? 'إضافة الدين' : 'تحديث الدين'),

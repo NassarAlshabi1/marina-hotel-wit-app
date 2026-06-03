@@ -645,7 +645,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     await repo.create(
                       name: nameController.text.trim(),
                       position: positionController.text.trim(),
-                      salary: double.parse(salaryController.text),
+                      salary: double.tryParse(salaryController.text) ?? 0.0,
                       phone: phoneController.text.trim(),
                       hireDate: hireDateController.text,
                       status: status,
@@ -655,7 +655,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       employee.localUuid,
                       name: nameController.text.trim(),
                       position: positionController.text.trim(),
-                      salary: double.parse(salaryController.text),
+                      salary: double.tryParse(salaryController.text) ?? 0.0,
                       phone: phoneController.text.trim(),
                       hireDate: hireDateController.text,
                       status: status,
@@ -685,7 +685,14 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
+    ).then((_) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
+      nameController.dispose();
+      positionController.dispose();
+      salaryController.dispose();
+      phoneController.dispose();
+      hireDateController.dispose();
+    });
   }
 
   /// حوار إنهاء خدمة موظف
@@ -937,7 +944,10 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
+    ).then((_) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكم بعد إغلاق الحوار
+      reasonController.dispose();
+    });
   }
 
   /// إعادة تفعيل موظف مفصول
@@ -1370,7 +1380,11 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
+    ).then((_) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
+      amountController.dispose();
+      noteController.dispose();
+    });
   }
 
   Future<void> _deleteEmployee(
