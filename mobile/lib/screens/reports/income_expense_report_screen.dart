@@ -17,6 +17,7 @@ import '../../components/widgets/neu_card.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/daos/bookings_dao.dart';
 import '../../services/daos/debts_dao.dart';
+import '../../services/local_db.dart';
 import '../../services/daos/employees_dao.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
@@ -71,8 +72,8 @@ class _IncomeExpenseReportScreenState
   void initState() {
     super.initState();
     final range = DateFilterController.getDefaultHotelDayRange();
-    _fromDate = range.from;
-    _toDate = range.to;
+    _fromDate = range.from ?? HotelTimeEngine.getHotelDayRange(DateTime.now())['start']!;
+    _toDate = range.to ?? HotelTimeEngine.getHotelDayRange(DateTime.now())['end']!;
     _fetchReport();
   }
 
@@ -443,7 +444,7 @@ class _IncomeExpenseReportScreenState
 
   pw.Widget _buildIncomeDetails(ArabicPdfFonts fonts) {
     if (_incomeEntries.isEmpty) return pw.Container();
-    return pw.Column([
+    return pw.Column(children: [
       _buildSectionTitle(fonts, 'تفاصيل الإيرادات', PdfColors.success),
       EnhancedPdfUtils.buildProfessionalTable(
         headers: ['#', 'التاريخ', 'الغرفة', 'النزيل', 'طريقة الدفع', 'نوع الإيراد', 'المبلغ'],
@@ -468,7 +469,7 @@ class _IncomeExpenseReportScreenState
 
   pw.Widget _buildExpenseDetails(ArabicPdfFonts fonts) {
     if (_expenseEntries.isEmpty) return pw.Container();
-    return pw.Column([
+    return pw.Column(children: [
       _buildSectionTitle(fonts, 'تفاصيل المصروفات', PdfColors.danger),
       EnhancedPdfUtils.buildProfessionalTable(
         headers: ['#', 'التاريخ', 'النوع', 'الوصف', 'المبلغ'],
@@ -738,7 +739,7 @@ class _IncomeExpenseReportScreenState
       List<String> headers,
       List<List<String>> data,
       {List<double>? columnWidths}) {
-    return pw.Column([
+    return pw.Column(children: [
       _buildSectionTitle(fonts, title, headerColor),
       EnhancedPdfUtils.buildProfessionalTable(
         headers: headers,
@@ -994,7 +995,7 @@ class _IncomeExpenseReportScreenState
       );
     }
 
-    return pw.Column([
+    return pw.Column(children: [
       pw.Row(children: [
         pw.Expanded(child: box('إجمالي الدخل',
             EnhancedPdfUtils.formatNumber(_incomeTotal), PdfColors.success)),
@@ -1188,7 +1189,7 @@ class _IncomeExpenseReportScreenState
                   return _miniCell(
                     cell.value,
                     isBold ? fonts.bold : fonts.regular,
-                    PdfColors.black, // اصلاح: استخدام black بدل textDark
+                    PdfColors.textDark,
                     align: isBold ? pw.TextAlign.left : pw.TextAlign.center,
                   );
                 }).toList())),
@@ -1576,8 +1577,8 @@ class _IncomeExpenseReportScreenState
                     controller: _filterController,
                     onDateRangeChanged: (range) {
                       setState(() {
-                        _fromDate = range.from;
-                        _toDate = range.to;
+                        _fromDate = range.from ?? _fromDate;
+                        _toDate = range.to ?? _toDate;
                       });
                       _fetchReport();
                     },
