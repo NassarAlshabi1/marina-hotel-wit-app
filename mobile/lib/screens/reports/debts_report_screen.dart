@@ -158,74 +158,133 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         : 'غير محدد';
     final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
     final totalGuests = _guestSummaries.length;
+    final settledCount = _rows.where((d) => d.isSettled == 1).length;
+    final unsettledCount = _rows.length - settledCount;
 
+    // ═══════════════════════════════════════════════════════
+    // دالة تنسيق الأرقام بدون كسور عشرية
+    // ═══════════════════════════════════════════════════════
+    String fmt(double v) => EnhancedPdfUtils.formatNumber(v);
+
+    // ═══════════════════════════════════════════════════════
+    // ملخص حسب النزلاء
+    // ═══════════════════════════════════════════════════════
     final guestHeaders = ['النزيل', 'إجمالي الدين', 'المدفوع', 'المتبقي'];
     final guestData = _guestSummaries
         .map(
           (guest) => [
             guest.guestName,
-            EnhancedPdfUtils.formatNumber(guest.totalAmount),
-            EnhancedPdfUtils.formatNumber(guest.paidAmount),
-            EnhancedPdfUtils.formatNumber(guest.remainingAmount),
+            fmt(guest.totalAmount),
+            fmt(guest.paidAmount),
+            fmt(guest.remainingAmount),
           ],
         )
         .toList();
 
+    // ═══════════════════════════════════════════════════════
+    // تفاصيل السجلات — أعمدة مختصرة لتناسب عرض الصفحة
+    // ═══════════════════════════════════════════════════════
     final detailHeaders = [
+      '#',
       'النزيل',
-      'تاريخ التسجيل',
-      'تاريخ الخروج',
-      'إجمالي',
+      'التسجيل',
+      'الإجمالي',
       'المدفوع',
       'المتبقي',
-      'سبب الدين',
-      'مسدد؟',
-      'رهون غير مُعادة',
+      'السبب',
+      'الحالة',
     ];
-    final detailData = [
-      for (final debt in _rows)
-        [
-          debt.guestName,
-          Time.safeIsoToDateString(
-            debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate,
-          ),
-          Time.safeIsoToDateString(debt.checkoutDate),
-          EnhancedPdfUtils.formatNumber(debt.totalAmount),
-          EnhancedPdfUtils.formatNumber(debt.paidAmount),
-          EnhancedPdfUtils.formatNumber(debt.remainingAmount),
-          if (debt.debtReason.isNotEmpty) debt.debtReason else '-',
-          if (debt.isSettled == 1) 'نعم' else 'لا',
-          (_unreturnedCounts[debt.id] ?? 0).toString(),
-        ],
-      [
-        'الإجمالي',
-        '',
-        '',
-        EnhancedPdfUtils.formatNumber(_totalDebt),
-        EnhancedPdfUtils.formatNumber(_totalPaid),
-        EnhancedPdfUtils.formatNumber(_totalRemaining),
-        '',
-        '',
-        '',
-      ],
-    ];
+    final detailData = <List<String>>[];
+    for (var i = 0; i < _rows.length; i++) {
+      final debt = _rows[i];
+      detailData.add([
+        (i + 1).toString(),
+        debt.guestName,
+        Time.safeIsoToDateString(
+          debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate,
+        ),
+        fmt(debt.totalAmount),
+        fmt(debt.paidAmount),
+        fmt(debt.remainingAmount),
+        debt.debtReason.isNotEmpty ? debt.debtReason : '-',
+        debt.isSettled == 1 ? 'مسدد' : 'غير مسدد',
+      ]);
+    }
+    // صف الإجمالي
+    detailData.add([
+      '',
+      'الإجمالي',
+      '',
+      fmt(_totalDebt),
+      fmt(_totalPaid),
+      fmt(_totalRemaining),
+      '',
+      '',
+    ]);
+
+    // ═══════════════════════════════════════════════════════
+    // عرض الأعمدة لكل جدول
+    // ═══════════════════════════════════════════════════════
+    final guestColWidths = [140.0, 100.0, 100.0, 100.0];
+    final detailColWidths = [25.0, 90.0, 70.0, 70.0, 70.0, 70.0, 85.0, 60.0];
 
     await ReportPdfBuilder.buildAndShare(ReportPdfConfig(
       title: 'تقرير الديون',
       fromDate: _fromDate,
       toDate: _toDate,
       buildContent: (fonts) {
+        // ═════════════════════════════════════════════
+        // 1) بطاقات الإحصائيات العلوية
+        // ═════════════════════════════════════════════
+        final statsRow = pw.Row(
+          children: [
+            pw.Expanded(
+              child: EnhancedPdfUtils.buildStatisticsBox(
+                title: 'إجمالي الديون',
+                value: fmt(_totalDebt),
+                subtitle: '$totalGuests نزيل',
+                fonts: fonts,
+                color: PdfColors.danger,
+              ),
+            ),
+            pw.SizedBox(width: 6),
+            pw.Expanded(
+              child: EnhancedPdfUtils.buildStatisticsBox(
+                title: 'المدفوع',
+                value: fmt(_totalPaid),
+                subtitle: _totalDebt > 0
+                    ? '${(_totalPaid / _totalDebt * 100).toStringAsFixed(0)}%'
+                    : '0%',
+                fonts: fonts,
+                color: PdfColors.success,
+              ),
+            ),
+            pw.SizedBox(width: 6),
+            pw.Expanded(
+              child: EnhancedPdfUtils.buildStatisticsBox(
+                title: 'المتبقي',
+                value: fmt(_totalRemaining),
+                subtitle: '$unsettledCount غير مسدد',
+                fonts: fonts,
+                color: PdfColors.warning,
+              ),
+            ),
+          ],
+        );
+
+        // ═════════════════════════════════════════════
+        // 2) بطاقة معلومات التقرير
+        // ═════════════════════════════════════════════
         pw.Widget metaRow(String label, String value) {
           return pw.Padding(
             padding: const pw.EdgeInsets.only(bottom: 6),
             child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
-                pw.Text(
-                  value,
-                  style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                ),
+                pw.Text(label,
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
+                pw.Text(value,
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
               ],
             ),
           );
@@ -235,32 +294,61 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           title: 'تفاصيل التقرير',
           fonts: fonts,
           content: [
-            metaRow('تقرير', 'الديون'),
+            metaRow('التقرير', 'الديون'),
             metaRow('الفترة', 'من $fromLabel إلى $toLabel'),
             metaRow('عدد السجلات', _rows.length.toString()),
             metaRow('عدد النزلاء', totalGuests.toString()),
+            metaRow('مسدد', '$settledCount سجل'),
+            metaRow('غير مسدد', '$unsettledCount سجل'),
           ],
         );
 
-        pw.Widget buildLine(String title, String value, PdfColor color) {
+        // ═════════════════════════════════════════════
+        // 3) ملخص حسب النزلاء
+        // ═════════════════════════════════════════════
+        final guestSummaryCard = EnhancedPdfUtils.buildInfoCard(
+          title: 'ملخص حسب النزلاء',
+          fonts: fonts,
+          content: [
+            if (guestData.isEmpty)
+              pw.Text(
+                'لا توجد بيانات',
+                style: pw.TextStyle(font: fonts.regular, fontSize: 11),
+              )
+            else
+              EnhancedPdfUtils.buildProfessionalTable(
+                headers: guestHeaders,
+                data: guestData,
+                fonts: fonts,
+                columnWidths: guestColWidths,
+                headerColor: PdfColors.primary,
+                alternateRowColor: PdfColors.backgroundLight,
+              ),
+          ],
+        );
+
+        // ═════════════════════════════════════════════
+        // 4) ملخص الإجماليات
+        // ═════════════════════════════════════════════
+        pw.Widget buildTotalLine(String title, String value, PdfColor color) {
           return pw.Padding(
-            padding: const pw.EdgeInsets.only(bottom: 4),
+            padding: const pw.EdgeInsets.symmetric(vertical: 4),
             child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.end,
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
-                  '$title: ',
+                  title,
                   style: pw.TextStyle(
                     font: fonts.bold,
-                    fontSize: 11,
-                    color: PdfColors.textDark,
+                    fontSize: 12,
+                    color: color,
                   ),
                 ),
                 pw.Text(
                   value,
                   style: pw.TextStyle(
                     font: fonts.bold,
-                    fontSize: 12,
+                    fontSize: 13,
                     color: color,
                   ),
                 ),
@@ -269,30 +357,38 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           );
         }
 
-        final guestSummaryCard = EnhancedPdfUtils.buildInfoCard(
-          title: 'ملخص حسب النزلاء',
-          fonts: fonts,
-          content: [
-            if (guestData.isEmpty) pw.Text(
-                    'لا توجد بيانات',
-                    style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                  ) else EnhancedPdfUtils.buildProfessionalTable(
-                    headers: guestHeaders,
-                    data: guestData,
-                    fonts: fonts,
-                    headerColor: PdfColors.primary,
-                    alternateRowColor: PdfColors.backgroundLight,
-                  ),
-          ],
+        final totalsCard = pw.Container(
+          width: double.infinity,
+          padding: const pw.EdgeInsets.all(14),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.backgroundLight,
+            border: pw.Border.all(color: PdfColors.primary, width: 0.5),
+            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+          ),
+          child: pw.Column(
+            children: [
+              buildTotalLine('إجمالي الديون', fmt(_totalDebt), PdfColors.danger),
+              pw.Divider(color: PdfColors.textLight),
+              buildTotalLine('المدفوع', fmt(_totalPaid), PdfColors.success),
+              pw.Divider(color: PdfColors.textLight),
+              buildTotalLine('المتبقي', fmt(_totalRemaining), PdfColors.warning),
+            ],
+          ),
         );
 
+        // ═════════════════════════════════════════════
+        // 5) تجميع المحتوى النهائي
+        // ═════════════════════════════════════════════
         return [
-          pw.SizedBox(height: 16),
-          metaInfoCard,
           pw.SizedBox(height: 12),
+          statsRow,
+          pw.SizedBox(height: 12),
+          metaInfoCard,
           pw.SizedBox(height: 12),
           guestSummaryCard,
           pw.SizedBox(height: 12),
+          totalsCard,
+          pw.SizedBox(height: 16),
           pw.Text(
             'تفاصيل السجلات',
             style: pw.TextStyle(font: fonts.bold, fontSize: 14),
@@ -302,37 +398,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
             headers: detailHeaders,
             data: detailData,
             fonts: fonts,
+            columnWidths: detailColWidths,
             headerColor: PdfColors.primary,
             alternateRowColor: PdfColors.backgroundLight,
-          ),
-          pw.SizedBox(height: 12),
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(12),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.backgroundLight,
-              border: pw.Border.all(color: PdfColors.primary, width: 0.4),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.end,
-              children: [
-                buildLine(
-                  'الإجمالي الكلي للديون',
-                  EnhancedPdfUtils.formatNumber(_totalDebt),
-                  PdfColors.danger,
-                ),
-                buildLine(
-                  'المبالغ المدفوعة',
-                  EnhancedPdfUtils.formatNumber(_totalPaid),
-                  PdfColors.success,
-                ),
-                buildLine(
-                  'المبالغ المتبقية',
-                  EnhancedPdfUtils.formatNumber(_totalRemaining),
-                  PdfColors.warning,
-                ),
-              ],
-            ),
           ),
         ];
       },
