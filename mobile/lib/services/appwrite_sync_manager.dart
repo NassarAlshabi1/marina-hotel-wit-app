@@ -2475,15 +2475,66 @@ class AppwriteSyncManager {
       );
       return true;
     }
+
+    // ✅ إصلاح FK constraint: التأكد أن الموظف موجود على Appwrite قبل الدفع
+    // إذا لم يكن الموظف قد رُفع بعد، نرفعه أولاً لمنع فشل FK constraint
+    final employee = await (database.select(database.employees)
+          ..where((e) => e.id.equals(withdrawal.employeeId))
+          ..limit(1))
+        .getSingleOrNull();
+    if (employee != null && employee.serverId == null) {
+      // الموظف لم يُرفع بعد — نرفعه أولاً
+      _logger.info(
+        '🔄 رفع الموظف ${employee.id} أولاً لضمان FK constraint',
+        tag: 'SYNC',
+      );
+      try {
+        final empPayload = _adapterRegistry.employees.adapter.toJson(
+          employee,
+          src: Source.appwrite,
+        );
+        await appwriteService.upsertEmployee(
+          employee.localUuid,
+          _addIdempotencyKey(empPayload, entry),
+        );
+        // تحديث serverId محلياً لمنع الرفع المكرر
+        try {
+          final remoteDoc = await appwriteService.getDocument(
+            collectionId: AppwriteConfig.employeesCollectionId,
+            documentId: employee.localUuid,
+          );
+          await (database.update(database.employees)
+                ..where((e) => e.id.equals(employee.id)))
+              .write(EmployeesCompanion(
+            serverId: drift.Value(remoteDoc.$id.hashCode),
+          ));
+        } catch (_) {
+          // فشل جلب المستند البعيد — نتجاوز، الأهم أن الموظف رُفع بنجاح
+        }
+      } catch (e) {
+        _logger.warning(
+          '⚠️ فشل رفع الموظف ${employee.id} — سيتم تأجيل سحب الراتب: $e',
+          tag: 'SYNC',
+        );
+        // فشل رفع الموظف — لا نستطيع رفع السحب بدون FK
+        // نُعيد false ليبقى في الطابور للمحاولة لاحقاً
+        return false;
+      }
+    } else if (employee == null) {
+      // الموظف غير موجود محلياً — سجل يتيم
+      _logger.warning(
+        '⏭️ تخطي salary_withdrawal: الموظف ${withdrawal.employeeId} غير موجود محلياً (سجل يتيم)',
+        tag: 'SYNC',
+      );
+      // لا نستطيع رفع سحب راتب بدون موظف — نحذفه من الطابور
+      return true;
+    }
+
     final payload = _adapterRegistry.salaryWithdrawals.adapter.toJson(
       withdrawal,
       src: Source.appwrite,
     );
     // ✅ إضافة employeeUuid لربط السلف بالموضف عبر الأجهزة
-    final employee = await (database.select(database.employees)
-          ..where((e) => e.id.equals(withdrawal.employeeId))
-          ..limit(1))
-        .getSingleOrNull();
     if (employee != null) {
       payload['employeeUuid'] = employee.localUuid;
       payload['employeeLocalUuid'] = employee.localUuid;

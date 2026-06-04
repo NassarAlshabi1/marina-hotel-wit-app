@@ -181,15 +181,16 @@ class HotelDayKeyFixService {
       // ─── الخطوة 1: تعبئة expense_id من reason للسجلات الحديثة ───
       int step1Fixed = 0;
       try {
-        final result = await db.customStatement(
+        await db.customStatement(
           "UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) "
           "WHERE reason LIKE 'exp_%' "
           "AND reason NOT LIKE 'exp_%\\_%' ESCAPE '\\' "
           "AND expense_id IS NULL "
           "AND deleted_at IS NULL",
         );
-        // SQLite يُعيد عدد الصفوف المتأثرة كـ int
-        step1Fixed = result is int ? result : 0;
+        // customStatement() يُرجع void — لا يمكننا معرفة عدد الصفوف المتأثرة
+        // نعتبر العملية ناجحة إذا لم تُطلق استثناءً
+        step1Fixed = -1; // علامة على أن العملية تمت بدون خطأ
       } catch (e) {
         // العمود قد لا يكون موجوداً بعد
         debugPrint('  ⚠️ fixExpenseWithdrawalLinks step1: $e');

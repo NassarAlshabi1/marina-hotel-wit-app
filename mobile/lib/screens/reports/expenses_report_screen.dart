@@ -293,24 +293,32 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     bool hasSalaryData = false;
 
     // ═══════════════════════════════════════════════════════════════════════
-    // ✅ إصلاح تكرار البيانات — الطبعة الثالثة (خبير)
+    // ✅ إصلاح تكرار البيانات — الطبعة الرابعة (خبير — حتمي 100%)
     //
     // المشكلة الجذرية: تقرير المصروفات يعرض نفس المعاملة مرتين
     //   مرة من جدول expenses ومرة من جدول salary_withdrawals
     //
     // لماذا فشلت الحلول السابقة؟
-    //   1. نمط exp_XX في reason: لا يوجد في البيانات القديمة
-    //   2. مطابقة expense.date == sw.withdrawDate: تفشل لأن
-    //      expense.date = "2025-06-03" بينما sw.withdrawDate = "2025-06-03 14:30"
-    //      مقارنة نصية دقيقة لسلاسل بصيغ مختلفة = فشل حتمي
+    //   الطبعة 1: نمط exp_XX في reason فقط — لا يوجد في البيانات القديمة
+    //   الطبعة 2: مطابقة expense.date == sw.withdrawDate — تفشل لاختلاف الصيغ
+    //   الطبعة 3: مطابقة تقريبية hotelDayKey + employeeId + amount —
+    //             غير حتمية: false positive (إخفاء سجل مشروع) أو
+    //             false negative (عرض مكرر)
     //
-    // الحل الجديد (3 طبقات من المطابقة):
-    //   الطريقة 1: expense_id (عمود مخصص) — الأكثر موثوقية
-    //   الطريقة 2: نمط exp_XX في reason — يعمل للبيانات الحديثة
-    //   الطريقة 3: مطابقة بـ hotelDayKey + employeeId + amount (مع tolerance)
-    //              بدلاً من مطابقة نص التاريخ الدقيقة — يعمل للبيانات القديمة
+    // الحل النهائي: مطابقة حتمية فقط — بدون أي تخمين
+    //
+    //   الطريقة 1: عمود expense_id (FK مباشر) — الأكثر موثوقية
+    //   الطريقة 2: نمط exp_XX في reason — مُضمون من saveFromExpense()
+    //
+    //   ملاحظة حرجة: saveFromExpense() يضبط reason دائماً على
+    //   'exp_{expenseId}' — هذا invariant مضمون من الكود وليس تخميناً.
+    //   إذا كان reason = 'exp_42' فمؤكد أن هناك مصروف id=42 مقابل.
     //
     //   السحوبات المباشرة (reason يبدأ بـ "direct_withdrawal_") لا تُطابق أبداً
+    //   لأنها لا تحتوي على مصروف مقابل أصلاً.
+    //
+    //   تم إزالة المطابقة التقريبية (الطبعة 3) لأنها السبب الرئيسي
+    //   للمشاكل: يمكن أن تخفي بيانات مشروعة أو تفشل في إخفاء المكرر.
     // ═══════════════════════════════════════════════════════════════════════
 
     // ─── قراءة expense_id من جدول salary_withdrawals عبر SQL خام ───
@@ -327,7 +335,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         ).get();
         for (final row in rows) {
           final swId = row.read<int>('id');
-          final expId = row.readOrNull<int>('expense_id');
+          // QueryRow لا يملك readOrNull — نستخدم read مع try-catch
+          // لأن expense_id قد يكون NULL
+          final expId = _readNullableInt(row, 'expense_id');
           if (expId != null && expId > 0) {
             swExpenseIdMap[swId] = expId;
           }
@@ -374,31 +384,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             }
           }
 
-          // الطريقة 3: مطابقة بـ hotelDayKey + employeeId + amount (مع tolerance)
-          // ✅ إصلاح حرج: استخدام hotelDayKey بدلاً من مقارنة نص التاريخ الدقيقة
-          // السبب: expense.date = "2025-06-03" و sw.withdrawDate = "2025-06-03 14:30"
-          // مقارنة نصية دقيقة = فشل → تكرار في التقرير
-          // hotelDayKey = "2025-06-03" دائماً (بدون وقت) = مطابقة صحيحة
-          if (!hasMatchingExpense) {
-            final swDayKey = sw.hotelDayKey ??
-                _extractDatePart(sw.withdrawDate);
-
-            for (final expense in expenses) {
-              if (!_isSalaryType(expense.expenseType)) continue;
-              if (expense.relatedId != sw.employeeId) continue;
-
-              // مقارنة باليوم الفندقي (وليس نص التاريخ الدقيق)
-              final expDayKey = expense.hotelDayKey ??
-                  _extractDatePart(expense.date);
-              if (expDayKey != swDayKey) continue;
-
-              // مقارنة المبلغ مع tolerance (لتجنب مشاكل الفاصلة العائمة)
-              if ((expense.amount - sw.amount.abs()).abs() > 0.5) continue;
-
-              hasMatchingExpense = true;
-              break;
-            }
-          }
+          // ✅ تم إزالة المطابقة التقريبية (الطبعة 3) نهائياً
+          // كانت تسبب false positive (إخفاء سجلات مشروعة)
+          // و false negative (عدم إخفاء المكررات)
+          // الحل الحتمي أفضل: إذا لم نجد رابطاً مباشراً (expense_id أو exp_XX)
+          // فالسجل يُعتبر يتيماً ويُعرض — هذا أكثر أماناً من إخفاء بيانات مالية
         }
 
         if (!hasMatchingExpense) {
@@ -1203,6 +1193,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
 
+
+  /// قراءة حقل INTEGER قابل للقيم الفارغة من QueryRow
+  /// Drift's QueryRow لا يوفر readOrNull مباشرة — نستخدم try-catch
+  static int? _readNullableInt(QueryRow row, String column) {
+    try {
+      return row.read<int>(column);
+    } catch (_) {
+      return null;
+    }
+  }
 
   DateTime _parseExpenseDate(String value) {
     final trimmed = value.trim();

@@ -148,7 +148,7 @@ class SalaryWithdrawalsRepository {
       // البحث عن سجلات أخرى بنفس expense_id أو exp_XX
       final allExisting = await (_db.select(_db.salaryWithdrawals)
             ..where((t) => t.deletedAt.isNull()
-                & t.id.equals(matched.id).not()))
+                & t.id.equals(matched!.id).not()))
           .get();
       for (final w in allExisting) {
         if (matchesExpenseRef(w.reason, expenseId)) {
@@ -188,7 +188,7 @@ class SalaryWithdrawalsRepository {
       if (matched != null) {
         // تحديث السجل الموجود
         await (_db.update(_db.salaryWithdrawals)
-              ..where((t) => t.id.equals(matched.id)))
+              ..where((t) => t.id.equals(matched!.id)))
             .write(SalaryWithdrawalsCompanion(
               employeeId: d.Value(employeeId),
               amount: d.Value(amount),
@@ -199,18 +199,18 @@ class SalaryWithdrawalsRepository {
               hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
               updatedAt: d.Value(now),
               lastModified: d.Value(now),
-              version: d.Value(matched.version + 1),
+              version: d.Value(matched!.version + 1),
             ),);
 
         // ✅ تحديث expense_id في العمود الخام
-        await _setExpenseIdRaw(matched.id, expenseId);
+        await _setExpenseIdRaw(matched!.id, expenseId);
 
         if (!originIsServer) {
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
             op: 'update',
-            localUuid: matched.localUuid,
-            serverId: matched.serverId,
+            localUuid: matched!.localUuid,
+            serverId: matched!.serverId,
             payload: {
               'amount': amount,
               'withdrawDate': date,
