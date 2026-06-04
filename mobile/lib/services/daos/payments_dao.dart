@@ -142,6 +142,62 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
+  /// فلترة حسب نطاق الأيام الفندقية — الطريقة الصحيحة للتقارير
+  ///
+  /// على عكس [list] و [listForReport] التي تفلتر بحقل [paymentDate] الزمني
+  /// (وتشمل مدفوعات الصباح التي تنتمي لليوم الفندقي السابق)،
+  /// هذه الدالة تفلتر بحقل [hotelDayKey] وهو المفتاح الصحيح.
+  ///
+  /// مثال: إذا كان اليوم الفندقي "2026-05-18" والوقت 10:00 صباحاً
+  /// فإن list(from:"2026-05-18") تجلب مدفوعات صباح 18 مايو
+  /// التي تنتمي لليوم الفندقي 17 مايو — بينما هذه الدالة تجلب فقط
+  /// المدفوعات التي hotelDayKey فيها بين fromHotelDay و toHotelDay.
+  Future<List<Payment>> listFilteredByHotelDay({
+    String? fromHotelDay,
+    String? toHotelDay,
+    String? roomNumber,
+    String? revenueType,
+    bool excludeVoided = false,
+    bool excludePendingBalance = false,
+    bool includeDeleted = false,
+  }) async {
+    final q = select(payments);
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+    if (excludeVoided) {
+      q.where((t) => t.isVoided.equals(false));
+    }
+    if (excludePendingBalance) {
+      q.where((t) => t.isPendingBalance.equals(false));
+    }
+    if (fromHotelDay != null) {
+      // hotelDayKey >= fromHotelDay، مع fallback لحقل paymentDate عند كون hotelDayKey فارغاً
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.paymentDate.isBiggerOrEqualValue(fromHotelDay)));
+    }
+    if (toHotelDay != null) {
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.paymentDate.isSmallerOrEqualValue(toHotelDay)));
+    }
+    if (roomNumber != null && roomNumber.isNotEmpty) {
+      q.where((t) => t.roomNumber.equals(roomNumber));
+    }
+    if (revenueType != null && revenueType.isNotEmpty) {
+      q.where((t) => t.revenueType.equals(revenueType));
+    }
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+    ]);
+    return q.get();
+  }
+
   Future<List<Payment>> listByHotelDayKey(
     String hotelDayKey, {
     bool includeDeleted = false,

@@ -13,6 +13,7 @@ import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
@@ -124,30 +125,43 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
-    // من المفترض أن _fromDate و _toDate ليسا null هنا بسبب الحارس
-    final hotelStart = DateTime(
-        _fromDate!.year, _fromDate!.month, _fromDate!.day, 14, 1);
-    final hotelEnd = DateTime(
-        _toDate!.year, _toDate!.month, _toDate!.day + 1, 14, 0, 59);
-
-    final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelStart);
-    final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(hotelEnd);
+    // ✅ إصلاح: تحويل نطاق التاريخ إلى مفاتيح أيام فندقية
+    // نستخدم HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
+    // لأن PaymentsRepository.create() يخزن hotelDayKey باستخدام HotelTimeEngine
+    //
+    // ⚠️ ملاحظة حرجة: getHotelDayKey تعتبر 14:00:59 بالضبط نهاية اليوم السابق
+    // (14:01:00 = بداية اليوم الجديد). بما أن _fromDate يأتي دائماً بوقت 14:01:00
+    // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
+    // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
+    //
+    // مثال: فلتر "اليوم" عند 10:00 صباح 2026-05-19:
+    //   _fromDate = 18-May 14:01 → +1s → fromHotelDay = "2026-05-18" ✓
+    //   _toDate  = 19-May 14:00:59 → toHotelDay   = "2026-05-18" ✓
+    //   → فقط مدفوعات hotelDayKey="2026-05-18" ✅
+    final fromHotelDay = _fromDate != null
+        ? HotelTimeEngine.getHotelDayKey(
+            dateTime: _fromDate!.add(const Duration(seconds: 1)))
+        : null;
+    final toHotelDay = _toDate != null
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate!)
+        : null;
 
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
 
-    // استخدام list() مع نفس الفلاتر الصارمة لتقرير الدخل
-    final payments = await paymentsDao.list(
-      from: fromStr,
-      to: toStr,
+    // ✅ إصلاح: استخدام listFilteredByHotelDay بدلاً من list()
+    // الفلترة بـ hotelDayKey تضمن一致性 (consistency) مع باقي التقارير
+    // وتصنف المدفوعات حسب اليوم الفندقي الصحيح (14:01 كحد فاصل)
+    final payments = await paymentsDao.listFilteredByHotelDay(
+      fromHotelDay: fromHotelDay,
+      toHotelDay: toHotelDay,
+      roomNumber: _selectedRoom,
       excludeVoided: true,
       excludePendingBalance: true,
     );
 
-    // فلترة حسب الغرفة في الذاكرة إذا تم اختيار غرفة محددة
-    final filteredPayments = _selectedRoom != null && _selectedRoom!.isNotEmpty
-        ? payments.where((p) => p.roomNumber == _selectedRoom).toList()
-        : payments;
+    // ✅ إزالة فلترة الغرفة في الذاكرة — يتم الآن على مستوى قاعدة البيانات
+    final filteredPayments = payments;
 
     final bookingIds = filteredPayments
         .map((p) => p.bookingLocalId)

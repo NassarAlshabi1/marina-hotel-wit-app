@@ -102,21 +102,11 @@ class _IncomeExpenseReportScreenState
       final fromDate = _fromDate!;
       final toDate = _toDate!;
 
-      // المدفوعات: فلترة بنطاق زمني كامل (مع الوقت)
-      final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(fromDate);
-      final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(toDate);
-
-      final payments = await paymentsDao.list(
-        from: fromStr,
-        to: toStr,
-        excludeVoided: true,
-        excludePendingBalance: true,
-      );
-
-      // ✅ إصلاح: المصروفات تُفلتر بـ hotelDayKey بدلاً من date التقويمي
-      // لمنع إدراج مصروفات الصباح التي تنتمي لليوم الفندقي السابق
-      // ✅ إصلاح: استخدام HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
-      // ExpensesRepository.create() يخزن hotelDayKey باستخدام HotelTimeEngine
+      // ✅ إصلاح: المدفوعات والمصروفات تُفلتر بـ hotelDayKey بدلاً من date التقويمي
+      // لمنع إدراج معاملات الصباح التي تنتمي لليوم الفندقي السابق
+      // ✅ استخدام HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
+      // PaymentsRepository.create() و ExpensesRepository.create()
+      // يخزنان hotelDayKey باستخدام HotelTimeEngine
       // فلابد أن تكون الفلترة بنفس الدالة لتطابق المفاتيح
       //
       // ⚠️ ملاحظة حرجة: getHotelDayKey تعتبر 14:00:59 بالضبط نهاية اليوم السابق
@@ -126,6 +116,14 @@ class _IncomeExpenseReportScreenState
       final fromHotelDay = HotelTimeEngine.getHotelDayKey(
           dateTime: fromDate.add(const Duration(seconds: 1)));
       final toHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: toDate);
+
+      final payments = await paymentsDao.listFilteredByHotelDay(
+        fromHotelDay: fromHotelDay,
+        toHotelDay: toHotelDay,
+        excludeVoided: true,
+        excludePendingBalance: true,
+      );
+
       final expenses = await expensesDao.listFilteredByHotelDay(
         fromHotelDay: fromHotelDay,
         toHotelDay: toHotelDay,
