@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 
+import '../utils/expense_reason_matcher.dart';
 import '../utils/hotel_time_engine.dart';
 import 'local_db.dart';
 
@@ -49,6 +50,7 @@ class HotelDayKeyFixService {
       totalFixed += await _fixExpenses(db);
       totalFixed += await _fixSalaryWithdrawals(db);
       totalFixed += await _fixSalaryWithdrawalsEmployeeUuid(db);
+      totalFixed += await _fixExpenseWithdrawalLinks(db);
       totalFixed += await _fixPayments(db);
       totalFixed += await _fixBookingNights(db);
       totalFixed += await _fixSalaryPayments(db);
@@ -158,7 +160,150 @@ class HotelDayKeyFixService {
     }
   }
 
-  /// ✅ إصلاح employeeUuid لسجلات salary_withdrawals التي تفتقر إليه
+  /// ✅ إصلاح ربط سحوبات الرواتب بالمصروفات + تعبئة expense_id
+  ///
+  /// **المشكلة:**
+  /// سجلات salary_withdrawals القديمة قد:
+  ///   1. لا تحتوي على نمط exp_XX في حقل reason
+  ///   2. لا تحتوي على قيمة في عمود expense_id
+  /// هذا يسبب تكرار البيانات في تقرير المصروفات لأن السحب
+  /// يصبح "يتيماً" بالخطأ (لا يُطابق أي مصروف)
+  ///
+  /// **الحل:**
+  /// لكل سحب راتب بدون exp_XX وبدون expense_id:
+  ///   - نبحث عن مصروف راتب مطابق بنفس: employeeId + hotelDayKey + amount
+  ///   - إذا وُجد: نحدّث reason = 'exp_{expenseId}' + نعبّئ expense_id
+  ///   - السحوبات المباشرة (reason يبدأ بـ direct_withdrawal_) لا تُعالج
+  ///
+  /// كذلك نعبّئ expense_id للسجلات التي تحتوي exp_XX لكن expense_id فارغ
+  Future<int> _fixExpenseWithdrawalLinks(AppDatabase db) async {
+    try {
+      // ─── الخطوة 1: تعبئة expense_id من reason للسجلات الحديثة ───
+      int step1Fixed = 0;
+      try {
+        final result = await db.customStatement(
+          "UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) "
+          "WHERE reason LIKE 'exp_%' "
+          "AND reason NOT LIKE 'exp_%\\_%' ESCAPE '\\' "
+          "AND expense_id IS NULL "
+          "AND deleted_at IS NULL",
+        );
+        // SQLite يُعيد عدد الصفوف المتأثرة كـ int
+        step1Fixed = result is int ? result : 0;
+      } catch (e) {
+        // العمود قد لا يكون موجوداً بعد
+        debugPrint('  ⚠️ fixExpenseWithdrawalLinks step1: $e');
+      }
+
+      // ─── الخطوة 2: ربط السحوبات القديمة (بدون exp_XX) بالمصروفات ───
+      int step2Fixed = 0;
+      try {
+        // جلب مصروفات الرواتب النشطة
+        final salaryExpenses = await (db.select(db.expenses)
+              ..where((t) => t.deletedAt.isNull()))
+            .get();
+        final salaryTypeExpenses = salaryExpenses
+            .where((e) => _isSalaryType(e.expenseType))
+            .toList();
+
+        // جلب سحوبات الرواتب النشطة
+        final withdrawals = await (db.select(db.salaryWithdrawals)
+              ..where((t) => t.deletedAt.isNull()))
+            .get();
+
+        // بناء خريطة مصروفات الرواتب: (employeeId, hotelDayKey) → List<Expense>
+        final expenseMap = <String, List<Expense>>{};
+        for (final exp in salaryTypeExpenses) {
+          final dayKey = exp.hotelDayKey ?? _extractDatePart(exp.date);
+          final key = '${exp.relatedId}_$dayKey';
+          expenseMap.putIfAbsent(key, () => []).add(exp);
+        }
+
+        for (final sw in withdrawals) {
+          // تخطي السحوبات المباشرة (ليس لها مصروف مقابل)
+          if (sw.reason != null && sw.reason!.startsWith('direct_withdrawal_')) {
+            continue;
+          }
+
+          // تخطي السحوبات المرتبطة بالفعل
+          final hasExpRef = sw.reason != null &&
+              RegExp(r'exp_(\d+)').hasMatch(sw.reason!);
+          if (hasExpRef) continue;
+
+          // البحث عن مصروف مطابق
+          final swDayKey = sw.hotelDayKey ?? _extractDatePart(sw.withdrawDate);
+          final key = '${sw.employeeId}_$swDayKey';
+          final candidates = expenseMap[key];
+          if (candidates == null || candidates.isEmpty) continue;
+
+          // مطابقة بالمبلغ مع tolerance
+          Expense? matched;
+          for (final exp in candidates) {
+            if ((exp.amount - sw.amount.abs()).abs() <= 0.5) {
+              matched = exp;
+              break;
+            }
+          }
+          if (matched == null) continue;
+
+          // تحديث reason + expense_id
+          final newReason = 'exp_${matched.id}';
+
+          // تحديث reason عبر Drift API
+          await (db.update(db.salaryWithdrawals)
+                ..where((t) => t.id.equals(sw.id)))
+              .write(SalaryWithdrawalsCompanion(
+            reason: d.Value(newReason),
+          ));
+
+          // تحديث expense_id عبر SQL خام
+          try {
+            await db.customStatement(
+              'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
+              [matched.id, sw.id],
+            );
+          } catch (_) {
+            // العمود قد لا يكون موجوداً
+          }
+
+          step2Fixed++;
+        }
+      } catch (e) {
+        debugPrint('  ⚠️ fixExpenseWithdrawalLinks step2: $e');
+      }
+
+      final total = step1Fixed + step2Fixed;
+      if (total > 0) {
+        debugPrint(
+          '  🔗 expense_withdrawal_links: تم إصلاح $total سجل '
+          '(step1=$step1Fixed, step2=$step2Fixed)',
+        );
+      }
+      return total;
+    } catch (e) {
+      debugPrint('  ⚠️ expense_withdrawal_links: خطأ $e');
+      return 0;
+    }
+  }
+
+  /// هل نوع المصروف مرتبط بالرواتب
+  static bool _isSalaryType(String type) {
+    const salaryKeywords = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'];
+    for (final keyword in salaryKeywords) {
+      if (type.contains(keyword)) return true;
+    }
+    return false;
+  }
+
+  /// استخراج جزء التاريخ فقط (yyyy-MM-dd) من سلسلة نصية
+  static String _extractDatePart(String dateStr) {
+    final trimmed = dateStr.trim();
+    if (trimmed.length >= 10) {
+      return trimmed.substring(0, 10);
+    }
+    return trimmed;
+  }
+
   ///
   /// **المشكلة:**
   /// السجلات القديمة على Appwrite Cloud لا تحتوي على employeeUuid،

@@ -293,21 +293,49 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     bool hasSalaryData = false;
 
     // ═══════════════════════════════════════════════════════════════════════
-    // ✅ إصلاح تكرار البيانات: استراتيجية جديدة لمنع العد المزدوج
+    // ✅ إصلاح تكرار البيانات — الطبعة الثالثة (خبير)
     //
-    // المشكلة السابقة: كان التقرير يعرض نفس المصروف مرتين:
+    // المشكلة الجذرية: تقرير المصروفات يعرض نفس المعاملة مرتين
     //   مرة من جدول expenses ومرة من جدول salary_withdrawals
-    //   لأن منطق إزالة التكرار كان يعتمد على:
-    //   1. نمط exp_XX في حقل reason (لا يوجد دائماً)
-    //   2. مطابقة بنفس الموظف + المبلغ + التاريخ (تفشل أحياناً)
     //
-    // الحل الجديد:
-    //   1. نعرض جميع المصروفات من جدول expenses (بما فيها مصروفات الرواتب)
-    //   2. نضيف فقط سحوبات الرواتب "اليتيمة" التي ليس لها مصروف مقابل
-    //   3. السحب يُعتبر يتيماً إذا:
-    //      a. لا يحتوي reason على exp_XX يشير لمصروف موجود
-    //      b. ولا يوجد مصروف راتب بنفس الموظف + المبلغ + التاريخ
+    // لماذا فشلت الحلول السابقة؟
+    //   1. نمط exp_XX في reason: لا يوجد في البيانات القديمة
+    //   2. مطابقة expense.date == sw.withdrawDate: تفشل لأن
+    //      expense.date = "2025-06-03" بينما sw.withdrawDate = "2025-06-03 14:30"
+    //      مقارنة نصية دقيقة لسلاسل بصيغ مختلفة = فشل حتمي
+    //
+    // الحل الجديد (3 طبقات من المطابقة):
+    //   الطريقة 1: expense_id (عمود مخصص) — الأكثر موثوقية
+    //   الطريقة 2: نمط exp_XX في reason — يعمل للبيانات الحديثة
+    //   الطريقة 3: مطابقة بـ hotelDayKey + employeeId + amount (مع tolerance)
+    //              بدلاً من مطابقة نص التاريخ الدقيقة — يعمل للبيانات القديمة
+    //
+    //   السحوبات المباشرة (reason يبدأ بـ "direct_withdrawal_") لا تُطابق أبداً
     // ═══════════════════════════════════════════════════════════════════════
+
+    // ─── قراءة expense_id من جدول salary_withdrawals عبر SQL خام ───
+    // عمود expense_id أُضيف عبر ترحيل قاعدة البيانات (schema v40+)
+    // ولا يوجد في الـ data class المُولّد لذلك نقرأه يدوياً
+    final swExpenseIdMap = <int, int>{}; // salary_withdrawal.id → expense_id
+    if (showAll && salaryWithdrawals.isNotEmpty) {
+      try {
+        final swIds = salaryWithdrawals.map((sw) => sw.id).toList();
+        final placeholders = List.filled(swIds.length, '?').join(',');
+        final rows = await db.customSelect(
+          'SELECT id, expense_id FROM salary_withdrawals WHERE id IN ($placeholders)',
+          variables: swIds.map((id) => Variable.withInt(id)).toList(),
+        ).get();
+        for (final row in rows) {
+          final swId = row.read<int>('id');
+          final expId = row.readOrNull<int>('expense_id');
+          if (expId != null && expId > 0) {
+            swExpenseIdMap[swId] = expId;
+          }
+        }
+      } catch (_) {
+        // العمود قد لا يكون موجوداً بعد في الإصدارات القديمة — نتخطى
+      }
+    }
 
     // بناء مجموعة IDs مصروفات الرواتب الموجودة (لتحديد اليتامى)
     final salaryExpenseIds = <int>{};
@@ -323,24 +351,50 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       for (final sw in salaryWithdrawals) {
         bool hasMatchingExpense = false;
 
-        // الطريقة 1: مطابقة عبر reason الذي يحتوي exp_XX
-        if (sw.reason != null) {
-          final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
-          if (match != null) {
-            final expId = int.tryParse(match.group(1)!);
-            if (expId != null && salaryExpenseIds.contains(expId)) {
-              hasMatchingExpense = true;
+        // ─── السحوبات المباشرة لا تُطابق أبداً (ليس لها مصروف مقابل) ───
+        final isDirectWithdrawal = sw.reason != null &&
+            sw.reason!.startsWith('direct_withdrawal_');
+
+        if (!isDirectWithdrawal) {
+          // الطريقة 1: مطابقة عبر عمود expense_id (الأكثر موثوقية)
+          final expenseIdFromColumn = swExpenseIdMap[sw.id];
+          if (expenseIdFromColumn != null &&
+              salaryExpenseIds.contains(expenseIdFromColumn)) {
+            hasMatchingExpense = true;
+          }
+
+          // الطريقة 2: مطابقة عبر reason الذي يحتوي exp_XX
+          if (!hasMatchingExpense && sw.reason != null) {
+            final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
+            if (match != null) {
+              final expId = int.tryParse(match.group(1)!);
+              if (expId != null && salaryExpenseIds.contains(expId)) {
+                hasMatchingExpense = true;
+              }
             }
           }
-        }
 
-        // الطريقة 2: مطابقة بنفس الموظف + المبلغ + التاريخ
-        if (!hasMatchingExpense) {
-          for (final expense in expenses) {
-            if (!_isSalaryType(expense.expenseType)) continue;
-            if (expense.relatedId == sw.employeeId &&
-                expense.amount == sw.amount.abs() &&
-                expense.date == sw.withdrawDate) {
+          // الطريقة 3: مطابقة بـ hotelDayKey + employeeId + amount (مع tolerance)
+          // ✅ إصلاح حرج: استخدام hotelDayKey بدلاً من مقارنة نص التاريخ الدقيقة
+          // السبب: expense.date = "2025-06-03" و sw.withdrawDate = "2025-06-03 14:30"
+          // مقارنة نصية دقيقة = فشل → تكرار في التقرير
+          // hotelDayKey = "2025-06-03" دائماً (بدون وقت) = مطابقة صحيحة
+          if (!hasMatchingExpense) {
+            final swDayKey = sw.hotelDayKey ??
+                _extractDatePart(sw.withdrawDate);
+
+            for (final expense in expenses) {
+              if (!_isSalaryType(expense.expenseType)) continue;
+              if (expense.relatedId != sw.employeeId) continue;
+
+              // مقارنة باليوم الفندقي (وليس نص التاريخ الدقيق)
+              final expDayKey = expense.hotelDayKey ??
+                  _extractDatePart(expense.date);
+              if (expDayKey != swDayKey) continue;
+
+              // مقارنة المبلغ مع tolerance (لتجنب مشاكل الفاصلة العائمة)
+              if ((expense.amount - sw.amount.abs()).abs() > 0.5) continue;
+
               hasMatchingExpense = true;
               break;
             }
@@ -1165,6 +1219,17 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       debugPrint('⚠️ تعذر تحليل تاريخ المصروف "$value": $e');
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
+  }
+
+  /// استخراج جزء التاريخ فقط (yyyy-MM-dd) من سلسلة نصية
+  /// قد تحتوي على وقت مثل "2025-06-03 14:30" → "2025-06-03"
+  /// يُستخدم لمقارنة الأيام بدلاً من مقارنة نص التاريخ الكامل
+  static String _extractDatePart(String dateStr) {
+    final trimmed = dateStr.trim();
+    if (trimmed.length >= 10) {
+      return trimmed.substring(0, 10);
+    }
+    return trimmed;
   }
 }
 

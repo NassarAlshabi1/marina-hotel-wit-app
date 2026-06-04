@@ -780,7 +780,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 39;
+  int get schemaVersion => 40;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1913,6 +1913,49 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 39: add employees.terminationReason failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // ✅ Migration 40: إضافة عمود expense_id لجدول salary_withdrawals
+      //
+      // هذا العمود يربط سحب الراتب بالمصروف المقابل بشكل موثوق
+      // بدلاً من الاعتماد على نمط exp_XX في حقل reason (ربط هش)
+      //
+      // المخطط: expense_id INTEGER NULLABLE
+      // التعبئة: من حقل reason (استخراج exp_XX → expense_id)
+      // ═══════════════════════════════════════════════════════════
+      if (from < 40) {
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE salary_withdrawals ADD COLUMN expense_id INTEGER',
+          );
+          developer.log(
+            'Migration 40: added salary_withdrawals.expense_id',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          // العمود قد يكون موجوداً من ترحيل سابق فاشل — نتخطى
+          developer.log(
+            'Migration 40: add expense_id (may already exist): $e',
+            name: 'db.migration',
+          );
+        }
+        // تعبئة expense_id من حقل reason (exp_XX → XX)
+        try {
+          await m.database.customStatement(
+            "UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) "
+            "WHERE reason LIKE 'exp_%' AND expense_id IS NULL",
+          );
+          developer.log(
+            'Migration 40: populated expense_id from reason field',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 40: populate expense_id failed: $e',
             name: 'db.migration',
           );
         }

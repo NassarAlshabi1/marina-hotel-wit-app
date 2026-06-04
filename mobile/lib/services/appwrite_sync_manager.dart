@@ -17,6 +17,7 @@ import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'adapters/adapter_registry.dart';
+import 'adapters/salary_withdrawals_adapter.dart';
 import 'adapters/source.dart';
 import 'appwrite_config.dart';
 import 'appwrite_error_handler.dart';
@@ -2387,10 +2388,21 @@ class AppwriteSyncManager {
         // هذا يضمن أن FK يشير للمعرف المحلي الصحيح
         data['employeeId'] = employee.id;
 
-        await _adapterRegistry.salaryWithdrawals.upsertFromJson(
+        final insertedId = await _adapterRegistry.salaryWithdrawals.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+
+        // ✅ كتابة expense_id في العمود الخام (Migration 40+)
+        // العمود ليس في الـ data class المُولّد لذلك نكتبه يدوياً
+        final remoteExpenseId = _asIntSafe(data, 'expenseId');
+        if (remoteExpenseId != null && remoteExpenseId > 0) {
+          final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
+          if (swAdapter is SalaryWithdrawalsAdapter) {
+            await swAdapter.writeExpenseIdRaw(database, insertedId, remoteExpenseId);
+          }
+        }
+
         processed++;
       } on SqliteException catch (e) {
         if (e.resultCode == 787) {
@@ -2424,10 +2436,18 @@ class AppwriteSyncManager {
       );
       for (final data in deferred) {
         try {
-          await _adapterRegistry.salaryWithdrawals.upsertFromJson(
+          final deferredInsertedId = await _adapterRegistry.salaryWithdrawals.upsertFromJson(
             data,
             src: Source.appwrite,
           );
+          // ✅ كتابة expense_id في العمود الخام
+          final deferredExpenseId = _asIntSafe(data, 'expenseId');
+          if (deferredExpenseId != null && deferredExpenseId > 0) {
+            final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
+            if (swAdapter is SalaryWithdrawalsAdapter) {
+              await swAdapter.writeExpenseIdRaw(database, deferredInsertedId, deferredExpenseId);
+            }
+          }
           processed++;
         } catch (e) {
           _logger.warning(
