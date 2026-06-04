@@ -9,6 +9,7 @@ import '../../providers/core_providers.dart';
 import '../../providers/performance_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/crashlytics_service.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import 'debts_report_screen.dart';
 import 'expenses_report_screen.dart';
@@ -77,24 +78,33 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           if (!force && _cachedFinancials != null) {
             return _cachedFinancials!;
           }
-          final allPayments = await db.select(db.payments).get();
+          // ✅ إصلاح: فلترة المدفوعات باليوم الفندقي الحالي بدلاً من كل المدفوعات
+          //以前: كان يجلب كل المدفوعات ويجمعها بدون فلترة تاريخ
+          // الآن: يعرض فقط إيرادات ومصروفات اليوم الفندقي الحالي
+          final hotelDay = HotelTimeEngine.getHotelDayKey();
+
+          // المدفوعات: فلترة بـ hotelDayKey
+          final paymentsQuery = db.select(db.payments)
+            ..where((p) => p.deletedAt.isNull())
+            ..where((p) => p.isVoided.equals(false))
+            ..where((p) =>
+                p.hotelDayKey.equals(hotelDay) |
+                (p.hotelDayKey.isNull() & p.paymentDate.like('$hotelDay%')));
+          final todayPayments = await paymentsQuery.get();
           double income = 0;
-          for (final p in allPayments) {
-            if (p.deletedAt != null) {
-              continue;
-            }
-            if (p.isVoided == true) {
-              continue;
-            }
+          for (final p in todayPayments) {
             income += p.amount;
           }
-          final expenses = await db.select(db.expenses).get();
+
+          // المصروفات: فلترة بـ hotelDayKey
+          final expensesQuery = db.select(db.expenses)
+            ..where((e) => e.deletedAt.isNull())
+            ..where((e) =>
+                e.hotelDayKey.equals(hotelDay) |
+                (e.hotelDayKey.isNull() & e.date.like('$hotelDay%')));
+          final todayExpenses = await expensesQuery.get();
           double expense = 0;
-          for (final e in expenses) {
-            // تجاهل المصروفات المحذوفة ناعماً
-            if (e.deletedAt != null) {
-              continue;
-            }
+          for (final e in todayExpenses) {
             expense += e.amount;
           }
           final result = {'income': income, 'expense': expense};
@@ -357,41 +367,60 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
-  /// ملخص مالي سريع (إيرادات - مصروفات - صافي)
+  /// ملخص مالي سريع (إيرادات - مصروفات - صافي) لليوم الفندقي الحالي
   Widget _buildQuickFinancialSummary() {
     final income = (_chartData['income'] as num?)?.toDouble() ?? 0;
     final expense = (_chartData['expense'] as num?)?.toDouble() ?? 0;
     final net = income - expense;
+    // عرض تاريخ اليوم الفندقي الحالي
+    final hotelDay = HotelTimeEngine.getHotelDayKey();
 
     return Card(
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              child: _buildFinIndicator(
-                'الإيرادات',
-                income,
-                Colors.green,
-              ),
+            // عنوان اليوم الفندقي
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.today, size: 12, color: Colors.grey.shade500),
+                const SizedBox(width: 4),
+                Text(
+                  'اليوم الفندقي: $hotelDay',
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500, fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
-            Container(width: 1, height: 36, color: Colors.grey.shade200),
-            Expanded(
-              child: _buildFinIndicator(
-                'المصروفات',
-                expense,
-                Colors.red,
-              ),
-            ),
-            Container(width: 1, height: 36, color: Colors.grey.shade200),
-            Expanded(
-              child: _buildFinIndicator(
-                'صافي',
-                net,
-                net >= 0 ? Colors.teal : Colors.orange,
-              ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildFinIndicator(
+                    'الإيرادات',
+                    income,
+                    Colors.green,
+                  ),
+                ),
+                Container(width: 1, height: 36, color: Colors.grey.shade200),
+                Expanded(
+                  child: _buildFinIndicator(
+                    'المصروفات',
+                    expense,
+                    Colors.red,
+                  ),
+                ),
+                Container(width: 1, height: 36, color: Colors.grey.shade200),
+                Expanded(
+                  child: _buildFinIndicator(
+                    'صافي',
+                    net,
+                    net >= 0 ? Colors.teal : Colors.orange,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
