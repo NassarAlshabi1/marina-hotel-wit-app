@@ -292,50 +292,69 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     double totalAmount = 0;
     bool hasSalaryData = false;
 
-    // ─── جمع أرقام معرّفات المصروفات المرتبطة بسحوبات الرواتب ───
-    // لمنع العد المزدوج: المصروف المرتبط بـ salary_withdrawal لا يُضاف من جدول expenses
-    // ✅ إصلاح: إذا كان reason فارغاً أو لا يحتوي على exp_(\d+)،
-    // نحاول مطابقة المصروف بنوع راتب + نفس الموظف + نفس المبلغ والتاريخ
-    final swExpenseIds = <int>{};
-    if (showAll) {
+    // ═══════════════════════════════════════════════════════════════════════
+    // ✅ إصلاح تكرار البيانات: استراتيجية جديدة لمنع العد المزدوج
+    //
+    // المشكلة السابقة: كان التقرير يعرض نفس المصروف مرتين:
+    //   مرة من جدول expenses ومرة من جدول salary_withdrawals
+    //   لأن منطق إزالة التكرار كان يعتمد على:
+    //   1. نمط exp_XX في حقل reason (لا يوجد دائماً)
+    //   2. مطابقة بنفس الموظف + المبلغ + التاريخ (تفشل أحياناً)
+    //
+    // الحل الجديد:
+    //   1. نعرض جميع المصروفات من جدول expenses (بما فيها مصروفات الرواتب)
+    //   2. نضيف فقط سحوبات الرواتب "اليتيمة" التي ليس لها مصروف مقابل
+    //   3. السحب يُعتبر يتيماً إذا:
+    //      a. لا يحتوي reason على exp_XX يشير لمصروف موجود
+    //      b. ولا يوجد مصروف راتب بنفس الموظف + المبلغ + التاريخ
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // بناء مجموعة IDs مصروفات الرواتب الموجودة (لتحديد اليتامى)
+    final salaryExpenseIds = <int>{};
+    for (final expense in expenses) {
+      if (_isSalaryType(expense.expenseType)) {
+        salaryExpenseIds.add(expense.id);
+      }
+    }
+
+    // تحديد سحوبات الرواتب اليتيمة (بدون مصروف مقابل)
+    final orphanWithdrawals = <SalaryWithdrawal>[];
+    if (showAll && salaryWithdrawals.isNotEmpty) {
       for (final sw in salaryWithdrawals) {
+        bool hasMatchingExpense = false;
+
+        // الطريقة 1: مطابقة عبر reason الذي يحتوي exp_XX
         if (sw.reason != null) {
           final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
           if (match != null) {
-            swExpenseIds.add(int.parse(match.group(1)!));
+            final expId = int.tryParse(match.group(1)!);
+            if (expId != null && salaryExpenseIds.contains(expId)) {
+              hasMatchingExpense = true;
+            }
           }
         }
-      }
-      // ✅ إصلاح عد مزدوج: مطابقة إضافية بنوع الراتب + الموظف + المبلغ
-      // عندما لا يكون reason بنمط exp_(\d+)
-      for (final sw in salaryWithdrawals) {
-        if (sw.reason != null) {
-          final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
-          if (match != null) continue; // تمت معالجته أعلاه
-        }
-        // البحث عن مصروف مطابق في قائمة expenses
-        for (final expense in expenses) {
-          if (swExpenseIds.contains(expense.id)) continue; // تمت معالجته
-          if (!_isSalaryType(expense.expenseType)) continue;
-          // مطابقة: نفس الموظف + نفس المبلغ + نفس التاريخ
-          if (expense.relatedId == sw.employeeId &&
-              expense.amount == sw.amount.abs() &&
-              expense.date == sw.withdrawDate) {
-            swExpenseIds.add(expense.id);
-            break;
+
+        // الطريقة 2: مطابقة بنفس الموظف + المبلغ + التاريخ
+        if (!hasMatchingExpense) {
+          for (final expense in expenses) {
+            if (!_isSalaryType(expense.expenseType)) continue;
+            if (expense.relatedId == sw.employeeId &&
+                expense.amount == sw.amount.abs() &&
+                expense.date == sw.withdrawDate) {
+              hasMatchingExpense = true;
+              break;
+            }
           }
+        }
+
+        if (!hasMatchingExpense) {
+          orphanWithdrawals.add(sw);
         }
       }
     }
 
-    // ─── إضافة مصروفات جدول expenses (مع استبعاد المرتبطة بسحوبات الرواتب) ───
+    // ─── إضافة جميع مصروفات جدول expenses ───
     for (final expense in expenses) {
-      // تخطّي المصروفات الرواتب التي لها سجل مقابل في salary_withdrawals
-      // لأنها ستُضاف من هناك (لمنع العد المزدوج)
-      if (showAll && _isSalaryType(expense.expenseType) && swExpenseIds.contains(expense.id)) {
-        hasSalaryData = true;
-        continue;
-      }
       final employee = expense.relatedId != null
           ? employeeMap[expense.relatedId!]
           : null;
@@ -355,10 +374,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       );
     }
 
-    // ─── إضافة سحوبات الرواتب من salary_withdrawals (عند الكل فقط) ───
-    if (showAll && salaryWithdrawals.isNotEmpty) {
+    // ─── إضافة سحوبات الرواتب اليتيمة فقط (عند الكل فقط) ───
+    if (showAll && orphanWithdrawals.isNotEmpty) {
       hasSalaryData = true;
-      for (final sw in salaryWithdrawals) {
+      for (final sw in orphanWithdrawals) {
         final employee = employeeMap[sw.employeeId];
         final date = _parseExpenseDate(sw.withdrawDate);
         final wType = sw.withdrawalType ?? 'سحب راتب';

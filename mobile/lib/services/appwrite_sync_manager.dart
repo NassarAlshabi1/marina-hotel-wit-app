@@ -2141,6 +2141,16 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _expenseToRemote(expense);
+    // ✅ إضافة employeeUuid لمصروفات الرواتب لربط الموظف عبر الأجهزة
+    if (expense.relatedId != null && _isSalaryExpenseType(expense.expenseType)) {
+      final employee = await (database.select(database.employees)
+            ..where((e) => e.id.equals(expense.relatedId!))
+            ..limit(1))
+          .getSingleOrNull();
+      if (employee != null) {
+        payload['employeeUuid'] = employee.localUuid;
+      }
+    }
     await appwriteService.upsertExpense(
       expense.localUuid,
       _addIdempotencyKey(payload, entry),
@@ -2685,6 +2695,15 @@ class AppwriteSyncManager {
     if (value != null && value.isNotEmpty) {
       map[key] = value;
     }
+  }
+
+  /// هل نوع المصروف مرتبط بالرواتب
+  static bool _isSalaryExpenseType(String type) {
+    const salaryKeywords = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'];
+    for (final keyword in salaryKeywords) {
+      if (type.contains(keyword)) return true;
+    }
+    return false;
   }
 
   // ─── Delta Sync ────────────────────────────────────────────────────────
