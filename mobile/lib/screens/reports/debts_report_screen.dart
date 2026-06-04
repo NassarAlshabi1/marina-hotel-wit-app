@@ -42,6 +42,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   double _totalPaid = 0;
   double _totalRemaining = 0;
 
+  /// خريطة سعر الغرفة (سعر الليلة) لكل حجز: bookingLocalId → nightlyRate
+  final Map<int?, double> _roomPriceMap = {};
+
   final Map<int, int> _unreturnedCounts = {};
 
   @override
@@ -126,6 +129,17 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         ..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
       final monthlySummaries = monthlyMap.values.toList()
         ..sort((a, b) => a.month.compareTo(b.month));
+      // جلب بيانات الحجوزات لحساب سعر الغرفة لكل دين
+      final bookingsQuery = db.select(db.bookings);
+      final allBookings = await bookingsQuery.get();
+      _roomPriceMap.clear();
+      for (final booking in allBookings) {
+        final price = booking.totalNightsCached > 0
+            ? booking.totalDueCached / booking.totalNightsCached
+            : 0.0;
+        _roomPriceMap[booking.id] = price;
+      }
+
       _unreturnedCounts.clear();
       for (final debt in filtered) {
         _unreturnedCounts[debt.id] = 0;
@@ -188,6 +202,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       '#',
       'النزيل',
       'التسجيل',
+      'سعر الغرفة',
       'الإجمالي',
       'المدفوع',
       'المتبقي',
@@ -197,12 +212,14 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     final detailData = <List<String>>[];
     for (var i = 0; i < _rows.length; i++) {
       final debt = _rows[i];
+      final roomPrice = _roomPriceMap[debt.bookingLocalId] ?? 0.0;
       detailData.add([
         (i + 1).toString(),
         debt.guestName,
         Time.safeIsoToDateString(
           debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate,
         ),
+        fmt(roomPrice),
         fmt(debt.totalAmount),
         fmt(debt.paidAmount),
         fmt(debt.remainingAmount),
@@ -215,6 +232,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       '',
       'الإجمالي',
       '',
+      '',
       fmt(_totalDebt),
       fmt(_totalPaid),
       fmt(_totalRemaining),
@@ -226,7 +244,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     // عرض الأعمدة لكل جدول
     // ═══════════════════════════════════════════════════════
     final guestColWidths = [140.0, 100.0, 100.0, 100.0];
-    final detailColWidths = [25.0, 90.0, 70.0, 70.0, 70.0, 70.0, 85.0, 60.0];
+    final detailColWidths = [25.0, 80.0, 60.0, 55.0, 60.0, 60.0, 60.0, 75.0, 55.0];
 
     await ReportPdfBuilder.buildAndShare(ReportPdfConfig(
       title: 'تقرير الديون',
@@ -566,24 +584,28 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       child: AdminTable(
         headers: const [
           'النزيل', 'التسجيل', 'السبب', 'الدخول', 'الخروج',
-          'الدين', 'المدفوع', 'المتبقي', 'الدفع', 'الحالة', 'الرهن', 'نوع الرهن',
+          'سعر الغرفة', 'الدين', 'المدفوع', 'المتبقي', 'الدفع', 'الحالة', 'الرهن', 'نوع الرهن',
         ],
         rows: _rows
             .map(
-              (debt) => [
-                Text(debt.guestName, style: const TextStyle(fontSize: 10)),
-                Text(_formatDisplayDate(debt.dateRecorded), style: const TextStyle(fontSize: 10)),
-                Text(_formatTextFallback(debt.debtReason), style: const TextStyle(fontSize: 10)),
-                Text(Time.safeIsoToDateString(debt.checkinDate), style: const TextStyle(fontSize: 10)),
-                Text(Time.safeIsoToDateString(debt.checkoutDate), style: const TextStyle(fontSize: 10)),
-                Text(_currencyFormat.format(debt.totalAmount), style: const TextStyle(fontSize: 10)),
-                Text(_currencyFormat.format(debt.paidAmount), style: const TextStyle(fontSize: 10)),
-                Text(_currencyFormat.format(debt.remainingAmount), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
-                Text(Time.safeIsoToDateString(debt.paymentDate), style: const TextStyle(fontSize: 10)),
-                Text(_formatSettlement(debt.isSettled), style: const TextStyle(fontSize: 10)),
-                Text(debt.pledge?.isNotEmpty ?? false ? debt.pledge! : '-', style: const TextStyle(fontSize: 10)),
-                Text(debt.pledgeType?.isNotEmpty ?? false ? debt.pledgeType! : '-', style: const TextStyle(fontSize: 10)),
-              ],
+              (debt) {
+                final roomPrice = _roomPriceMap[debt.bookingLocalId] ?? 0.0;
+                return [
+                  Text(debt.guestName, style: const TextStyle(fontSize: 10)),
+                  Text(_formatDisplayDate(debt.dateRecorded), style: const TextStyle(fontSize: 10)),
+                  Text(_formatTextFallback(debt.debtReason), style: const TextStyle(fontSize: 10)),
+                  Text(Time.safeIsoToDateString(debt.checkinDate), style: const TextStyle(fontSize: 10)),
+                  Text(Time.safeIsoToDateString(debt.checkoutDate), style: const TextStyle(fontSize: 10)),
+                  Text(_currencyFormat.format(roomPrice), style: const TextStyle(fontSize: 10)),
+                  Text(_currencyFormat.format(debt.totalAmount), style: const TextStyle(fontSize: 10)),
+                  Text(_currencyFormat.format(debt.paidAmount), style: const TextStyle(fontSize: 10)),
+                  Text(_currencyFormat.format(debt.remainingAmount), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                  Text(Time.safeIsoToDateString(debt.paymentDate), style: const TextStyle(fontSize: 10)),
+                  Text(_formatSettlement(debt.isSettled), style: const TextStyle(fontSize: 10)),
+                  Text(debt.pledge?.isNotEmpty ?? false ? debt.pledge! : '-', style: const TextStyle(fontSize: 10)),
+                  Text(debt.pledgeType?.isNotEmpty ?? false ? debt.pledgeType! : '-', style: const TextStyle(fontSize: 10)),
+                ];
+              },
             )
             .toList(),
       ),
