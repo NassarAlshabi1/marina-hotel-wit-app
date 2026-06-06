@@ -113,7 +113,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     }
     // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم
     if (excludeAdvance) {
-      q.where((t) => t.expenseType.isNotEqualTo('سلفة'));
+      q.where((t) => t.expenseType.equals('سلفة').not());
     }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);
