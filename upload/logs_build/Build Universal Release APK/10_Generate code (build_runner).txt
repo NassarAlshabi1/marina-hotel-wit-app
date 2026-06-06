@@ -1,0 +1,67 @@
+﻿2026-06-06T17:33:09.9185675Z ##[group]Run flutter pub run build_runner clean
+2026-06-06T17:33:09.9186141Z [36;1mflutter pub run build_runner clean[0m
+2026-06-06T17:33:09.9186676Z [36;1mflutter pub run build_runner build --delete-conflicting-outputs[0m
+2026-06-06T17:33:09.9214984Z shell: /usr/bin/bash -e {0}
+2026-06-06T17:33:09.9215320Z env:
+2026-06-06T17:33:09.9215618Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2026-06-06T17:33:09.9216042Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2026-06-06T17:33:09.9216569Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-06-06T17:33:09.9217531Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+2026-06-06T17:33:09.9218173Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.41.0-x64/flutter
+2026-06-06T17:33:09.9218676Z   PUB_CACHE: /home/runner/.pub-cache
+2026-06-06T17:33:09.9219242Z ##[endgroup]
+2026-06-06T17:33:13.7688296Z   Deleting the build cache.
+2026-06-06T17:33:14.2488762Z   Generating the build script.
+2026-06-06T17:33:14.5598167Z   Compiling the build script.
+2026-06-06T17:33:19.2513056Z   Reading the asset graph.
+2026-06-06T17:33:19.6489494Z   Creating the asset graph.
+2026-06-06T17:33:20.1698726Z   Doing initial build cleanup.
+2026-06-06T17:33:20.1705174Z   Deleting 14 declared outputs which already existed on disk.
+2026-06-06T17:33:20.1757864Z   Updating the asset graph.
+2026-06-06T17:33:20.1760845Z   Building, full build because builders changed.
+2026-06-06T17:33:20.1900148Z   0s freezed on 394 inputs; lib/components/admin_layout.dart
+2026-06-06T17:33:20.1968110Z W SDK language version 3.11.0 is newer than `analyzer` language version 3.9.0. Run `flutter packages upgrade`.
+2026-06-06T17:33:24.3050929Z   4s freezed on 394 inputs: 1 no-op; spent 4s sdk; lib/components/admin_sidebar.dart
+2026-06-06T17:33:39.9169775Z   20s freezed on 394 inputs: 178 no-op; spent 13s analyzing, 4s sdk, 2s resolving; lib/services/background_sync_service.dart
+2026-06-06T17:33:41.0834008Z   21s freezed on 394 inputs: 237 no-op; spent 14s analyzing, 4s sdk, 2s resolving; lib/services/logging/log_models.dart
+2026-06-06T17:33:41.9169887Z   22s freezed on 394 inputs: 1 same, 393 no-op; spent 14s analyzing, 4s sdk, 2s resolving
+2026-06-06T17:33:41.9170446Z   0s json_serializable on 788 inputs; lib/components/admin_layout.dart
+2026-06-06T17:33:46.4394526Z   5s json_serializable on 788 inputs: 2 skipped, 3 no-op; spent 4s analyzing; lib/components/app_bottom_nav.freezed.dart
+2026-06-06T17:33:47.7336020Z   6s json_serializable on 788 inputs: 19 skipped, 20 no-op; spent 5s analyzing; lib/main.freezed.dart
+2026-06-06T17:33:48.7343327Z   7s json_serializable on 788 inputs: 60 skipped, 61 no-op; spent 5s analyzing; lib/screens/finance/payments_list.freezed.dart
+2026-06-06T17:33:49.7551099Z   8s json_serializable on 788 inputs: 86 skipped, 87 no-op; spent 6s analyzing; lib/screens/settings/appwrite_logs_screen.freezed.dart
+2026-06-06T17:33:50.7934559Z   9s json_serializable on 788 inputs: 115 skipped, 116 no-op; spent 7s analyzing, 1s resolving; lib/screens/settings/settings_guests.freezed.dart
+2026-06-06T17:33:51.9068242Z   10s json_serializable on 788 inputs: 173 skipped, 174 no-op; spent 8s analyzing, 1s resolving; lib/services/appwrite_sync_manager.freezed.dart
+2026-06-06T17:33:53.1870001Z   11s json_serializable on 788 inputs: 224 skipped, 225 no-op; spent 9s analyzing, 1s resolving; lib/services/google_drive_sync_service.freezed.dart
+2026-06-06T17:33:54.1881369Z   12s json_serializable on 788 inputs: 308 skipped, 1 output, 310 no-op; spent 10s analyzing, 1s resolving; lib/services/telegram/telegram_notification_service.freezed.dart
+2026-06-06T17:33:55.4106493Z   13s json_serializable on 788 inputs: 363 skipped, 1 output, 365 no-op; spent 11s analyzing, 2s resolving; test/adapters_round_trip_test.freezed.dart
+2026-06-06T17:33:55.8732810Z   14s json_serializable on 788 inputs: 393 skipped, 1 output, 394 no-op; spent 11s analyzing, 2s resolving
+2026-06-06T17:33:55.8733426Z   0s drift_dev on 3152 inputs; lib/components/admin_layout.dart
+2026-06-06T17:33:56.4107754Z   1s drift_dev on 3152 inputs: 202 skipped, 203 output; lib/services/daos/rooms_dao.freezed.dart
+2026-06-06T17:34:04.0340987Z   8s drift_dev on 3152 inputs: 587 skipped, 584 output, 6 no-op; spent 7s analyzing; lib/services/daos/booking_notes_dao.freezed.dart
+2026-06-06T17:34:08.9332494Z   13s drift_dev on 3152 inputs: 588 skipped, 585 output, 6 no-op; spent 12s analyzing; lib/services/daos/bookings_dao.freezed.dart
+2026-06-06T17:34:10.6966562Z   15s drift_dev on 3152 inputs: 589 skipped, 586 output, 6 no-op; spent 14s analyzing; lib/services/daos/cash_transactions_dao.freezed.dart
+2026-06-06T17:34:17.9921847Z   22s drift_dev on 3152 inputs: 590 skipped, 587 output, 6 no-op; spent 21s analyzing; lib/services/daos/debts_dao.freezed.dart
+2026-06-06T17:34:19.5528249Z   24s drift_dev on 3152 inputs: 591 skipped, 588 output, 6 no-op; spent 23s analyzing; lib/services/daos/employees_dao.freezed.dart
+2026-06-06T17:34:21.2484665Z   25s drift_dev on 3152 inputs: 592 skipped, 589 output, 6 no-op; spent 25s analyzing; lib/services/daos/expenses_dao.freezed.dart
+2026-06-06T17:34:31.2758817Z   35s drift_dev on 3152 inputs: 594 skipped, 591 output, 6 no-op; spent 35s analyzing; lib/services/daos/payments_dao.freezed.dart
+2026-06-06T17:34:32.8816442Z   37s drift_dev on 3152 inputs: 595 skipped, 592 output, 6 no-op; spent 36s analyzing; lib/services/daos/rooms_dao.freezed.dart
+2026-06-06T17:34:34.3491281Z   38s drift_dev on 3152 inputs: 596 skipped, 593 output, 6 no-op; spent 38s analyzing; lib/services/daos/shift_notes_dao.freezed.dart
+2026-06-06T17:34:35.7582197Z   40s drift_dev on 3152 inputs: 597 skipped, 594 output, 6 no-op; spent 39s analyzing; lib/services/daos/sync_log_dao.freezed.dart
+2026-06-06T17:35:16.1407190Z   80s drift_dev on 3152 inputs: 629 skipped, 625 output, 7 no-op; spent 79s analyzing; lib/services/local_db.freezed.dart
+2026-06-06T17:35:17.1440238Z   81s drift_dev on 3152 inputs: 1302 skipped, 763 output, 200 no-op; spent 80s analyzing, 2s building; lib/services/appwrite_service.dart.types.temp.dart
+2026-06-06T17:35:17.5098942Z W drift_dev on lib/services/local_db.dart:
+2026-06-06T17:35:17.5100685Z   Duplicate orderings/filters detected for field "bookingPriceAdjustmentsRefs" on table "$BookingsTable". Filter and orderings for this field wont be generated. Use the @ReferenceName() annotation to resolve this issue. See https://drift.simonbinder.eu/docs/manager/#name-clashes for more information
+2026-06-06T17:35:17.5102244Z W drift_dev on lib/services/local_db.dart:
+2026-06-06T17:35:17.5103791Z   Duplicate orderings/filters detected for field "bookingPriceAdjustmentsRefs" on table "$BookingsTable". Filter and orderings for this field wont be generated. Use the @ReferenceName() annotation to resolve this issue. See https://drift.simonbinder.eu/docs/manager/#name-clashes for more information
+2026-06-06T17:35:18.8922627Z   83s drift_dev on 3152 inputs: 1494 skipped, 775 output, 252 no-op; spent 80s analyzing, 3s building; lib/services/local_db.dart.types.temp.dart
+2026-06-06T17:35:19.3625775Z   83s drift_dev on 3152 inputs: 1967 skipped, 775 output, 410 no-op; spent 80s analyzing, 3s building
+2026-06-06T17:35:19.3627096Z   0s source_gen:combining_builder on 1576 inputs; lib/components/admin_layout.dart
+2026-06-06T17:35:19.8938308Z   1s source_gen:combining_builder on 1576 inputs: 618 skipped, 11 output, 196 no-op; lib/services/database_auto_backup_hooks.dart.types.temp.dart
+2026-06-06T17:35:20.3574876Z   1s source_gen:combining_builder on 1576 inputs: 1181 skipped, 13 output, 382 no-op
+2026-06-06T17:35:20.3575798Z   0s mockito:mockBuilder on 240 inputs; test/adapters_round_trip_test.dart
+2026-06-06T17:35:21.3562461Z   1s mockito:mockBuilder on 240 inputs: 1 no-op; test/adapters_round_trip_test.dart.types.temp.dart
+2026-06-06T17:35:21.6492755Z   1s mockito:mockBuilder on 240 inputs: 210 skipped, 30 no-op
+2026-06-06T17:35:21.6493200Z   Running the post build.
+2026-06-06T17:35:21.6567288Z   Writing the asset graph.
+2026-06-06T17:35:21.8920650Z   Built with build_runner in 123s; wrote 790 outputs.
