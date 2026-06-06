@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+# Security: Limit permissions for GITHUB_TOKEN
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
 env:
   flutter_version: '3.24.0'
   dart_version: '3.5.0'
