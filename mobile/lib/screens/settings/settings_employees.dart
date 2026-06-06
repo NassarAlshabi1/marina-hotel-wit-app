@@ -1085,27 +1085,22 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   Colors.green,
                 ),
                 _entitlementRow(
-                  'السحبيات',
+                  'سحب من الراتب',
                   '- ${CurrencyFormatter.formatAmount(entitlement.totalWithdrawals)}',
                   Colors.orange,
                 ),
                 _entitlementRow(
-                  'السلف',
-                  '- ${CurrencyFormatter.formatAmount(entitlement.totalAdvances)}',
-                  Colors.indigo,
-                ),
-                if (entitlement.totalAdvances > 0)
-                  _entitlementRow(
-                    'رصيد السلف المتبقي',
-                    CurrencyFormatter.formatAmount(entitlement.advanceBalance),
-                    entitlement.advanceBalance > 0 ? Colors.indigo.shade300 : Colors.grey,
-                  ),
-                _entitlementRow(
-                  'الخصومات',
+                  'خصم من الراتب',
                   '- ${CurrencyFormatter.formatAmount(entitlement.totalDeductions)}',
                   Colors.red,
                 ),
                 const Divider(),
+                _entitlementRow(
+                  'الاستحقاق (سحب + خصم)',
+                  CurrencyFormatter.formatAmount(entitlement.totalDeducted),
+                  Colors.indigo,
+                  true,
+                ),
                 _entitlementRow(
                   'المتبقي',
                   CurrencyFormatter.formatAmount(entitlement.netEntitlement),

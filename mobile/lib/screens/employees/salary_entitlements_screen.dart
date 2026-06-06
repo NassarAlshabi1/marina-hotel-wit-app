@@ -38,7 +38,6 @@ class _SalaryEntitlementsScreenState
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // ✅ تحديث تلقائي عند العودة للتطبيق
     if (state == AppLifecycleState.resumed) {
       _loadData();
     }
@@ -114,29 +113,21 @@ class _SalaryEntitlementsScreenState
             const SizedBox(height: 8),
             _row('عدد الموظفين', '${_summary['count'] ?? 0}'),
             _row(
-              'إجمالي الاستحقاقات',
+              'إجمالي الرواتب',
               CurrencyFormatter.formatAmount(
                 (_summary['totalEntitlements'] as num?)?.toDouble() ?? 0.0,
               ),
               Colors.green,
             ),
             _row(
-              'إجمالي السحبيات',
+              'سحب من الراتب',
               CurrencyFormatter.formatAmount(
                 (_summary['totalWithdrawals'] as num?)?.toDouble() ?? 0.0,
               ),
               Colors.orange,
             ),
-            // ✅ إضافة: إجمالي السلف
             _row(
-              'إجمالي السلف',
-              CurrencyFormatter.formatAmount(
-                (_summary['totalAdvances'] as num?)?.toDouble() ?? 0.0,
-              ),
-              Colors.indigo,
-            ),
-            _row(
-              'إجمالي الخصومات',
+              'خصم من الراتب',
               CurrencyFormatter.formatAmount(
                 (_summary['totalDeductions'] as num?)?.toDouble() ?? 0.0,
               ),
@@ -144,7 +135,16 @@ class _SalaryEntitlementsScreenState
             ),
             const Divider(),
             _row(
-              'صافي المستحقات',
+              'الاستحقاق (سحب + خصم)',
+              CurrencyFormatter.formatAmount(
+                (_summary['totalDeducted'] as num?)?.toDouble() ?? 0.0,
+              ),
+              Colors.indigo,
+              true,
+            ),
+            const SizedBox(height: 4),
+            _row(
+              'المتبقي',
               CurrencyFormatter.formatAmount(
                 (_summary['totalNet'] as num?)?.toDouble() ?? 0.0,
               ),
@@ -208,33 +208,27 @@ class _SalaryEntitlementsScreenState
                 ),
                 const Divider(),
                 _row(
-                  'إجمالي الاستحقاق',
+                  'إجمالي الرواتب',
                   CurrencyFormatter.formatAmount(ent.totalEntitlement),
                   Colors.green,
                 ),
                 _row(
-                  'السحبيات',
+                  'سحب من الراتب',
                   '- ${CurrencyFormatter.formatAmount(ent.totalWithdrawals)}',
                   Colors.orange,
                 ),
-                // ✅ إضافة: السلف مع رصيد متبقي
                 _row(
-                  'السلف',
-                  '- ${CurrencyFormatter.formatAmount(ent.totalAdvances)}',
-                  Colors.indigo,
-                ),
-                if (ent.totalAdvances > 0)
-                  _row(
-                    'رصيد السلف المتبقي',
-                    CurrencyFormatter.formatAmount(ent.advanceBalance),
-                    ent.advanceBalance > 0 ? Colors.indigo.shade300 : Colors.grey,
-                  ),
-                _row(
-                  'الخصومات',
+                  'خصم من الراتب',
                   '- ${CurrencyFormatter.formatAmount(ent.totalDeductions)}',
                   Colors.red,
                 ),
                 const Divider(),
+                _row(
+                  'الاستحقاق (سحب + خصم)',
+                  CurrencyFormatter.formatAmount(ent.totalDeducted),
+                  Colors.indigo,
+                  true,
+                ),
                 _row(
                   'المتبقي',
                   CurrencyFormatter.formatAmount(ent.netEntitlement),
@@ -264,23 +258,16 @@ class _SalaryEntitlementsScreenState
     );
   }
 
-  /// ✅ تحسين: عرض المعاملة بالفئة والوصف واللون المناسب
   Widget _buildTransactionRow(SalaryTransaction tx) {
     final Color typeColor;
     final IconData typeIcon;
     switch (tx.type) {
-      case 'سلفة':
-        typeColor = Colors.indigo;
-        typeIcon = Icons.account_balance_wallet;
-        break;
-      case 'سحب':
+      case 'سحب من الراتب':
         typeColor = Colors.orange;
         typeIcon = Icons.payments;
-        break;
-      case 'خصم':
+      case 'خصم من الراتب':
         typeColor = Colors.red;
         typeIcon = Icons.remove_circle_outline;
-        break;
       default:
         typeColor = Colors.grey;
         typeIcon = Icons.circle;
@@ -292,10 +279,8 @@ class _SalaryEntitlementsScreenState
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
-          // أيقونة النوع
           Icon(typeIcon, size: 12, color: typeColor),
           const SizedBox(width: 4),
-          // الفئة (سحب راتب / سلفة / خصم / غياب)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
             decoration: BoxDecoration(
@@ -308,7 +293,6 @@ class _SalaryEntitlementsScreenState
             ),
           ),
           const SizedBox(width: 6),
-          // الوصف
           Expanded(
             child: Text(
               tx.note ?? '',
@@ -318,7 +302,6 @@ class _SalaryEntitlementsScreenState
             ),
           ),
           const SizedBox(width: 4),
-          // المبلغ
           Text(
             CurrencyFormatter.formatAmount(tx.amount),
             style: TextStyle(
@@ -328,7 +311,6 @@ class _SalaryEntitlementsScreenState
             ),
           ),
           const SizedBox(width: 6),
-          // التاريخ
           Text(
             dateStr,
             style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
