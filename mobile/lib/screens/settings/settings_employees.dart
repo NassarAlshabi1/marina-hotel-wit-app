@@ -1090,6 +1090,17 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   Colors.orange,
                 ),
                 _entitlementRow(
+                  'السلف',
+                  '- ${CurrencyFormatter.formatAmount(entitlement.totalAdvances)}',
+                  Colors.indigo,
+                ),
+                if (entitlement.totalAdvances > 0)
+                  _entitlementRow(
+                    'رصيد السلف المتبقي',
+                    CurrencyFormatter.formatAmount(entitlement.advanceBalance),
+                    entitlement.advanceBalance > 0 ? Colors.indigo.shade300 : Colors.grey,
+                  ),
+                _entitlementRow(
                   'الخصومات',
                   '- ${CurrencyFormatter.formatAmount(entitlement.totalDeductions)}',
                   Colors.red,
