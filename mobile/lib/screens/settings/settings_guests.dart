@@ -188,8 +188,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
     final sortedGuests =
         guestMap.values.where((g) => g.bookings.isNotEmpty).toList()..sort(
-          (a, b) => b.bookings.first.checkinDate.compareTo(
-            a.bookings.first.checkinDate,
+          (a, b) => (b.bookings.firstOrNull?.checkinDate ?? '').compareTo(
+            a.bookings.firstOrNull?.checkinDate ?? '',
           ),
         );
     return sortedGuests;

@@ -473,7 +473,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   const SizedBox(height: 16),
                   StatefulBuilder(
                     builder: (context, setLocalState) => DropdownButtonFormField<String>(
-                      initialValue: status,
+                      value: status,
                       decoration: InputDecoration(
                         labelText: 'الحالة',
                         prefixIcon: const Icon(Icons.toggle_on),
@@ -528,6 +528,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     );
 
     if (ok != true) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات عند الإلغاء
+      roomNumberCtrl.dispose();
+      typeCtrl.dispose();
+      priceCtrl.dispose();
       return;
     }
 
@@ -587,6 +591,11 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           backgroundColor: Colors.red.shade900,
         ),
       );
+    } finally {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات دائماً
+      roomNumberCtrl.dispose();
+      typeCtrl.dispose();
+      priceCtrl.dispose();
     }
   }
 

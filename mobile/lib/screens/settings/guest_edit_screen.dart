@@ -8,6 +8,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/repositories/payments_repository.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/status_utils.dart';
 import 'guest_info.dart';
@@ -642,7 +643,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        initialValue: _idType,
+                        value: _idTypes.contains(_idType) ? _idType : null,
                         items: _idTypes
                             .map(
                               (t) => DropdownMenuItem(value: t, child: Text(t)),
@@ -887,7 +888,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 return Column(
                   children: [
                     DropdownButtonFormField<String>(
-                      initialValue: currentValue,
+                      value: currentValue,
                       items: items,
                       onChanged: (value) {
                         setState(() {
@@ -951,7 +952,9 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                       ),
                       onTap: () async {
                         final controller = _checkinDateControllers[booking.id];
-                        await _pickDate(controller);
+                        if (controller != null) {
+                          await _pickDate(controller);
+                        }
                         setState(() {});
                       },
                     ),
@@ -1008,6 +1011,17 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                               adj.reason == null) {
                             return false;
                           }
+                          
+                          // فلتر إضافي: تخطي التعديلات التي انتهت بالفعل
+                          // إذا كان endHotelDay محدداً وأقل من اليوم الفندقي الحالي،
+                          // فهذا يعني أن التخفيض/الزيادة انتهى ولا يجب عرض زر الإنهاء
+                          if (adj.endHotelDay != null && adj.endHotelDay!.isNotEmpty) {
+                            final todayHotelDay = HotelTimeEngine.getHotelDayKey();
+                            if (adj.endHotelDay!.compareTo(todayHotelDay) < 0) {
+                              return false; // التعديل انتهى بالفعل
+                            }
+                          }
+                          
                           return true;
                         }).toList();
 
@@ -1126,7 +1140,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<AdjustmentType>(
-                            initialValue: _adjustmentTypeSelections[booking.id],
+                            value: _adjustmentTypeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'نوع التعديل',
                               prefixIcon: Icon(Icons.swap_vert),
@@ -1152,7 +1166,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<AdjustmentMode>(
-                            initialValue: _adjustmentModeSelections[booking.id],
+                            value: _adjustmentModeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'طريقة الحساب',
                               prefixIcon: Icon(Icons.calculate),

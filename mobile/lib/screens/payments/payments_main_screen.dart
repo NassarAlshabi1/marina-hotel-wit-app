@@ -10,6 +10,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/crashlytics_service.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import 'booking_checkout_screen.dart';
@@ -118,12 +119,12 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // الإحصائيات السريعة
-                _buildQuickStats(payments),
+                _buildQuickStats(payments ?? []),
 
                 const SizedBox(height: 16),
 
                 // المدفوعات الأخيرة
-                _buildRecentPayments(payments),
+                _buildRecentPayments(payments ?? []),
               ],
             ),
           );
@@ -133,7 +134,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
   Widget _buildQuickStats(List<db.Payment> payments) {
     final today = DateTime.now();
-    final hotelDay = Time.hotelDayKey();
+    final hotelDay = HotelTimeEngine.getHotelDayKey();
     final startOfMonth = DateTime(today.year, today.month);
 
     // حساب المبالغ
@@ -290,7 +291,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
   Widget _buildRecentPayments(List<db.Payment> payments) {
     // عرض مدفوعات اليوم الفندقي الحالي
-    final hotelDay = Time.hotelDayKey();
+    final hotelDay = HotelTimeEngine.getHotelDayKey();
     final todayPayments = payments.where((p) {
       if (p.isVoided) {
         return false;

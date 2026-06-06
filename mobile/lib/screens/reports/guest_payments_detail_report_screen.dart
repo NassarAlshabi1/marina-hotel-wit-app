@@ -6,13 +6,13 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../services/stay_balance_calculator.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/enhanced_pdf_utils.dart' as epdf;
 import '../../utils/report_pdf_builder.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 
 // ─────────────────────────────────────────────────────────────────
@@ -41,11 +41,55 @@ class _GuestPaymentsDetailReportScreenState
   /// تُحدّث عند كل استدعاء لـ _refreshData()
   Map<int, List<BookingPriceAdjustment>> _adjustmentsByBookingId = const {};
 
+  /// ✅ إصلاح: تخزين مؤقت لنتائج _calculateCoverage لتجنب إعادة الحساب
+  /// لكل بطاقة عدة مرات. المفتاح = معرّف الحجز.
+  Map<int, StayBalanceResult> _coverageCache = {};
+
+  /// ✅ إصلاح: نسخة احتياطية آمنة من StayBalanceResult للاستخدام عند الخطأ
+  /// عند فشل تحليل تاريخ الدخول، نستخدم تاريخ اليوم الفندقي بدلاً من DateTime.now()
+  /// الذي يُنتج نتائج خاطئة (0 أيام، تاريخ خروج خاطئ)
+  static StayBalanceResult _safeFallback(Booking b) {
+    final checkin = DateTime.tryParse(b.checkinDate);
+    final checkout = (b.checkoutDate != null && b.checkoutDate!.isNotEmpty)
+        ? DateTime.tryParse(b.checkoutDate!)
+        : null;
+    // ✅ إصلاح: إذا فشل تحليل تاريخ الدخول، نستخدم بداية اليوم الفندقي الحالي
+    // بدلاً من DateTime.now() الذي يُسبب حسابات خاطئة
+    final hotelDay = HotelTimeEngine.getHotelDay(DateTime.now());
+    final safeCheckin = checkin ?? DateTime(
+      hotelDay.year,
+      hotelDay.month,
+      hotelDay.day,
+      HotelTimeEngine.boundaryHour,
+      HotelTimeEngine.boundaryMinute,
+    );
+    return StayBalanceResult(
+      checkinDate: safeCheckin,
+      manualCheckoutDate: checkout,
+      autoCheckoutDate: checkout ?? safeCheckin.add(const Duration(days: 1)),
+      totalPaid: b.totalPaidCached,
+      nightlyRate: 0,
+      effectiveNightlyRate: 0,
+      actualNightsSpent: 0,
+      totalPaidNights: 0,
+      consumedCost: 0,
+      effectiveBalance: b.remainingBalanceCached,
+      manualNightsRemaining: 0,
+      isAutoExtended: false,
+      extraNightsBeyondManual: 0,
+      surplusAfterAllNights: 0,
+      rawRemainingBalance: b.remainingBalanceCached,
+      coveredDates: const [],
+    );
+  }
+
   static final _dateFormatter = DateFormat('yyyy/MM/dd');
 
   /// حساب الأيام المقضية فعلياً بناءً على قاعدة الساعة 14:00
+  /// ✅ إصلاح: عند فشل تحليل تاريخ الدخول، نستخدم اليوم الفندقي بدلاً من DateTime.now()
   int _getActualDaysSpent(Booking b) {
-    final checkin = DateTime.tryParse(b.checkinDate) ?? DateTime.now();
+    final checkin = DateTime.tryParse(b.checkinDate);
+    if (checkin == null) return 0; // لا يمكن حساب بدون تاريخ دخول صالح
     final end = (b.actualCheckout != null && b.actualCheckout!.isNotEmpty)
         ? DateTime.tryParse(b.actualCheckout!)
         : DateTime.now();
@@ -88,10 +132,27 @@ double _getConsumedCost(Booking b) {
 
   /// استخدام المحرك الموحد لحساب الرصيد والتاريخ التلقائي
   /// يمرّر تعديلات الأسعار من booking_price_adjustments للمحرك
+  /// ✅ إصلاح: تخزين مؤقت + try-catch لمنع انهيار التطبيق
   StayBalanceResult _calculateCoverage(Booking b) {
-    final adjustments = _adjustmentsByBookingId[b.id];
-    final filtered = StayBalanceCalculator.filterActiveAdjustments(b, adjustments ?? []);
-    return StayBalanceCalculator.calculate(b, priceAdjustments: filtered);
+    // التحقق من التخزين المؤقت أولاً
+    final cached = _coverageCache[b.id];
+    if (cached != null) {
+      return cached;
+    }
+
+    try {
+      final adjustments = _adjustmentsByBookingId[b.id];
+      final filtered = StayBalanceCalculator.filterActiveAdjustments(b, adjustments ?? []);
+      final result = StayBalanceCalculator.calculate(b, priceAdjustments: filtered);
+      // حفظ في التخزين المؤقت
+      _coverageCache[b.id] = result;
+      return result;
+    } catch (e) {
+      debugPrint('⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
+      final fallback = _safeFallback(b);
+      _coverageCache[b.id] = fallback;
+      return fallback;
+    }
   }
 
   /// هل الحجز تجاوز تاريخ المغادرة المخطط؟
@@ -129,10 +190,14 @@ double _getOverdueCost(Booking b) {
     setState(() => _isLoading = true);
     try {
       final db = ref.read(databaseProvider);
-      final derivedService = BookingDerivedFieldsService(db);
-      await derivedService.refreshAllActiveBookings();
 
-      // جلب جميع تعديلات الأسعار النشطة وتجميعها حسب معرّف الحجز
+      // ✅ إصلاح حرج: إزالة refreshAllActiveBookings(forceRebuild: true)
+      // الذي يُعيد بناء سجلات الليالي لجميع الحجوزات النشطة بالتوازي
+      // مما يسبب تجميد/انهيار التطبيق (OOM / ANR).
+      // بدلاً من ذلك، نستخدم القيم المخزنة مسبقاً (cached) من قاعدة البيانات
+      // التي تم تحديثها آخر مرة تم فيها فتح الشاشة أو إجراء عملية.
+
+      // جلب جميع تعديلات الأسعار النشطة وتجميعها حسب معرّف الحجز فقط
       final allAdjustments = await (db.select(db.bookingPriceAdjustments)
             ..where((a) => a.isActive.equals(true))
             ..where((a) => a.deletedAt.isNull()))
@@ -147,9 +212,31 @@ double _getOverdueCost(Booking b) {
         grouped[adj.bookingLocalId!]!.add(adj);
       }
 
+      // ✅ إصلاح حرج: حساب مسبق لكل التغطيات هنا بدلاً من أثناء build
+      // السبب: _calculateCoverage يستدعي StayBalanceCalculator.calculate الذي
+      // يُنفّذ حلقات محاكاة يومية (حتى 3650 تكرار) — تشغيلها على الخيط
+      // الرئيسي أثناء build يُسبب تجميد/انهيار التطبيق (ANR)
+      final bookings = await ref.read(bookingsRepoProvider).watch().first;
+      final newCache = <int, StayBalanceResult>{};
+      for (final b in bookings) {
+        try {
+          final adjustments = grouped[b.id];
+          final filtered = StayBalanceCalculator.filterActiveAdjustments(b, adjustments ?? []);
+          newCache[b.id] = StayBalanceCalculator.calculate(b, priceAdjustments: filtered);
+        } catch (e) {
+          debugPrint('⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
+          newCache[b.id] = _safeFallback(b);
+        }
+        // ✅ السماح بتحديث UI كل 10 حجوزات لمنع تجميد الشاشة
+        if (newCache.length % 10 == 0) {
+          await Future.delayed(Duration.zero);
+        }
+      }
+
       if (mounted) {
         setState(() {
           _adjustmentsByBookingId = grouped;
+          _coverageCache = newCache;
         });
       }
     } catch (e) {
@@ -223,12 +310,39 @@ double _getOverdueCost(Booking b) {
         children: [
           _buildSearchAndFilters(),
           Expanded(
+            // ✅ إصلاح: انتظار اكتمال الحسابات قبل عرض البطاقات
+            // _isLoading = true حتى تنتهي _refreshData من حساب كل التغطيات
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 12),
+                        Text('جاري حساب البيانات...', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  )
                 : bookingsAsync.when(
                     loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => Center(child: Text('خطأ في تحميل البيانات: $e')),
-                    data: _buildReport,
+                    error: (e, _) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const SizedBox(height: 12),
+                            Text('خطأ في تحميل البيانات', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                            const SizedBox(height: 8),
+                            Text('$e', style: const TextStyle(fontSize: 12, color: Colors.grey), textAlign: TextAlign.center),
+                            const SizedBox(height: 16),
+                            FilledButton(onPressed: _refreshData, child: const Text('إعادة المحاولة')),
+                          ],
+                        ),
+                      ),
+                    ),
+                    data: _buildReportSafe,
                   ),
           ),
         ],
@@ -308,7 +422,7 @@ double _getOverdueCost(Booking b) {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  initialValue: _sortBy,
+                  value: _sortBy,
                   decoration: InputDecoration(
                     labelText: 'ترتيب حسب',
                     labelStyle: const TextStyle(fontSize: 12),
@@ -353,6 +467,32 @@ double _getOverdueCost(Booking b) {
   }
 
   // ───────────────────── بناء التقرير ─────────────────────
+
+  /// ✅ إصلاح: غلاف آمن لمنع انهيار التطبيق عند حدوث أي خطأ في بناء التقرير
+  Widget _buildReportSafe(List<Booking> allBookings) {
+    try {
+      return _buildReport(allBookings);
+    } catch (e) {
+      debugPrint('⚠️ خطأ في بناء تقرير المدفوعات: $e');
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.orange),
+              const SizedBox(height: 12),
+              const Text('حدث خطأ أثناء عرض التقرير', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+              const SizedBox(height: 8),
+              Text('$e', style: const TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center, maxLines: 3),
+              const SizedBox(height: 16),
+              FilledButton(onPressed: _refreshData, child: const Text('إعادة المحاولة')),
+            ],
+          ),
+        ),
+      );
+    }
+  }
 
   Widget _buildReport(List<Booking> allBookings) {
     final filtered = _filterAndSort(allBookings);
@@ -464,6 +604,14 @@ double _getOverdueCost(Booking b) {
   }
 
   Widget _buildCardHeader(Booking b, double nightlyRate) {
+    final remaining = b.remainingBalanceCached;
+    final isCredit = remaining < 0;
+    final displayRemaining = isCredit ? -remaining : remaining;
+    final remainingLabel = isCredit ? 'رصيد للنزيل' : 'متبقي';
+    final remainingColor = isCredit ? Colors.green.shade700 : Colors.red.shade700;
+    final remainingBgColor = isCredit ? Colors.green.shade50 : Colors.red.shade50;
+    final remainingBorderColor = isCredit ? Colors.green.shade200 : Colors.red.shade200;
+
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
@@ -478,7 +626,7 @@ double _getOverdueCost(Booking b) {
             decoration: BoxDecoration(color: Colors.blue.shade700, borderRadius: BorderRadius.circular(8)),
             child: Text('غرفة ${b.roomNumber}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -488,6 +636,22 @@ double _getOverdueCost(Booking b) {
               ],
             ),
           ),
+          // ✅ عرض المبلغ المتبقي بجانب الإجمالي في رأس البطاقة
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: remainingBgColor,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: remainingBorderColor),
+            ),
+            child: Column(
+              children: [
+                Text(remainingLabel, style: TextStyle(fontSize: 8, color: remainingColor, fontWeight: FontWeight.bold)),
+                Text(CurrencyFormatter.formatAmount(displayRemaining), style: TextStyle(fontSize: 12, color: remainingColor, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf, color: Colors.red, size: 18),
             onPressed: () => _exportGuestStatementPdf(b),
@@ -749,14 +913,39 @@ double _getOverdueCost(Booking b) {
               _buildPdfInfoRow(fonts, 'الأيام المتبقية حتى المغادرة:', '${coverage.manualNightsRemaining} يوم'),
               _buildPdfInfoRow(fonts, 'سعر الغرفة لليلة الواحدة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
               pw.Divider(color: const PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
-              _buildPdfInfoRow(fonts, 'إجمالي تكلفة الإقامة حتى الآن:', '${CurrencyFormatter.formatAmount(consumedCost)} ريال'),
-              _buildPdfInfoRow(fonts, 'إجمالي المبالغ المدفوعة:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال'),
-              _buildPdfInfoRow(
-                fonts,
-                b.remainingBalanceCached < 0 ? 'الرصيد المتبقي (له):' : 'الرصيد المتبقي (عليه):',
-                '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
-                valueColor: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.7, 0.3) : const PdfColor(0.9, 0.2, 0.2),
+              // ✅ عرض الإجمالي والمبلغ المتبقي في سطر واحد
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Expanded(
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('إجمالي تكلفة الإقامة:', style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: const PdfColor(0.15, 0.15, 0.15))),
+                        pw.Text('${CurrencyFormatter.formatAmount(consumedCost)} ريال', style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: const PdfColor(0, 0, 0))),
+                      ],
+                    ),
+                  ),
+                  pw.SizedBox(width: 16),
+                  pw.Expanded(
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          b.remainingBalanceCached < 0 ? 'المتبقي (له):' : 'المتبقي (عليه):',
+                          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.7, 0.3) : const PdfColor(0.9, 0.2, 0.2)),
+                        ),
+                        pw.Text(
+                          '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
+                          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.7, 0.3) : const PdfColor(0.9, 0.2, 0.2)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
+              pw.Divider(color: const PdfColor(0.85, 0.85, 0.85), thickness: 0.3),
+              _buildPdfInfoRow(fonts, 'إجمالي المبالغ المدفوعة:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: const PdfColor(0.0, 0.5, 0.2)),
             ],
           ),
         ];
@@ -937,14 +1126,39 @@ double _getOverdueCost(Booking b) {
                 _buildPdfInfoRow(fonts, 'المغادرة المتوقعة:', coverage.formatDate(coverage.manualCheckoutDate)),
                 _buildPdfInfoRow(fonts, 'الأيام المقضية:', '$actualDays يوم'),
                 _buildPdfInfoRow(fonts, 'سعر الليلة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
-                _buildPdfInfoRow(fonts, 'إجمالي العقد:', '${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال'),
-                _buildPdfInfoRow(fonts, 'إجمالي المدفوع:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: const PdfColor(0.0, 0.5, 0.2)),
-                _buildPdfInfoRow(
-                  fonts,
-                  b.remainingBalanceCached < 0 ? 'رصيد للنزيل:' : 'المتبقي عليه:',
-                  '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
-                  valueColor: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.6, 0.3) : const PdfColor(0.9, 0.2, 0.2),
+                // ✅ عرض الإجمالي والمبلغ المتبقي في سطر واحد
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Expanded(
+                      child: pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text('إجمالي العقد:', style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: const PdfColor(0.15, 0.15, 0.15))),
+                          pw.Text('${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال', style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: const PdfColor(0, 0, 0))),
+                        ],
+                      ),
+                    ),
+                    pw.SizedBox(width: 12),
+                    pw.Expanded(
+                      child: pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text(
+                            b.remainingBalanceCached < 0 ? 'المتبقي (له):' : 'المتبقي (عليه):',
+                            style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.6, 0.3) : const PdfColor(0.9, 0.2, 0.2)),
+                          ),
+                          pw.Text(
+                            '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
+                            style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.6, 0.3) : const PdfColor(0.9, 0.2, 0.2)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+                pw.Divider(color: const PdfColor(0.85, 0.85, 0.85), thickness: 0.3),
+                _buildPdfInfoRow(fonts, 'إجمالي المدفوع:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: const PdfColor(0.0, 0.5, 0.2)),
                 if (coverage.hasPayments) ...[
                   pw.Divider(color: const PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
                   _buildPdfInfoRow(fonts, 'المغادرة التلقائية:', _dateFormatter.format(coverage.autoCheckoutDate), valueColor: const PdfColor(0.0, 0.4, 0.7)),

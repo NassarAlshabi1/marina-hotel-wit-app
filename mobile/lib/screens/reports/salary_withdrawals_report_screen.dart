@@ -11,6 +11,7 @@ import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 
@@ -81,10 +82,10 @@ class _SalaryWithdrawalsReportScreenState
   }
 
   Future<void> _initializeDefaults() async {
-    // افتراضي: بداية الشهر الحالي
-    final now = DateTime.now();
-    _fromDate = DateTime(now.year, now.month);
-    _toDate = now;
+    // ✅ افتراضي: اليوم الفندقي الحالي (14:00 → 13:59)
+    final range = DateFilterController.getDefaultHotelDayRange();
+    _fromDate = range.from;
+    _toDate = range.to;
     await _fetchReport();
   }
 
@@ -96,17 +97,19 @@ class _SalaryWithdrawalsReportScreenState
     try {
       final db = ref.read(databaseProvider);
       final result = await _loadSalaryData(db);
-      setState(() {
-        _allEmployees
-          ..clear()
-          ..addAll(result.allEmployees);
-        _allRows
-          ..clear()
-          ..addAll(result.rows);
-        _employeeGroups
-          ..clear()
-          ..addAll(result.groups);
-      });
+      if (mounted) {
+        setState(() {
+          _allEmployees
+            ..clear()
+            ..addAll(result.allEmployees);
+          _allRows
+            ..clear()
+            ..addAll(result.rows);
+          _employeeGroups
+            ..clear()
+            ..addAll(result.groups);
+        });
+      }
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -125,18 +128,35 @@ class _SalaryWithdrawalsReportScreenState
     var query = db.select(db.salaryWithdrawals)
       ..where((tbl) => tbl.deletedAt.isNull());
 
-    final fromStr = _fromDate != null
-        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
+    // ✅ إصلاح: فلترة بـ hotelDayKey بدلاً من withdrawDate التقويمي
+    // لمنع إدراج سحوبات الصباح من اليوم السابق خطأً
+    //
+    // ⚠️ ملاحظة حرجة: getHotelDayKey تعتبر 14:00:59 نهاية اليوم السابق
+    // (14:01:00 = بداية اليوم الجديد). بما أن _fromDate يأتي دائماً بوقت 14:01:00
+    // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
+    // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
+    //
+    // مثال: فلتر "اليوم" عند 10:00 صباح 2026-05-19:
+    //   _fromDate = 18-May 14:00 → +1s → fromHotelDay = "2026-05-18" ✓
+    //   _toDate  = 19-May 13:59 → toHotelDay   = "2026-05-18" ✓
+    //   → فقط سحبيات hotelDayKey="2026-05-18" ✅
+    final fromHotelDay = _fromDate != null
+        ? HotelTimeEngine.getHotelDayKey(
+            dateTime: _fromDate!.add(const Duration(seconds: 1)))
         : null;
-    final toStr = _toDate != null
-        ? DateFormat('yyyy-MM-dd').format(_toDate!)
+    final toHotelDay = _toDate != null
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
         : null;
 
-    if (fromStr != null) {
-      query = query..where((tbl) => tbl.withdrawDate.isBiggerOrEqualValue(fromStr));
+    if (fromHotelDay != null) {
+      query = query..where((tbl) =>
+          (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+          (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)));
     }
-    if (toStr != null) {
-      query = query..where((tbl) => tbl.withdrawDate.isSmallerOrEqualValue('${toStr}T23:59:59'));
+    if (toHotelDay != null) {
+      query = query..where((tbl) =>
+          (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+          (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)));
     }
 
     // فلترة حسب الموظف المحدد
@@ -383,6 +403,7 @@ class _SalaryWithdrawalsReportScreenState
                         icon: const Icon(Icons.arrow_drop_down, size: 20),
                         items: [
                           const DropdownMenuItem<int?>(
+                            value: null,
                             child: Row(
                               children: [
                                 Icon(Icons.people, size: 18, color: Colors.blue),

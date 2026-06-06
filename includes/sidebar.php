@@ -2,6 +2,7 @@
 /**
  * ملف قالب القائمة الجانبية
  * يعرض القائمة الجانبية
+ * ملاحظة: هذا الملف اختياري - النظام يستخدم شريط التنقل العلوي من header.php
  */
 ?>
 
@@ -16,8 +17,8 @@
                 <i class="fas fa-user"></i>
             </div>
             <div class="user-details">
-                <div class="user-name"><?= htmlspecialchars($_SESSION['full_name']); ?></div>
-                <div class="user-role"><?= $_SESSION['user_type'] === 'admin' ? 'مدير النظام' : 'موظف'; ?></div>
+                <div class="user-name"><?= htmlspecialchars($_SESSION['full_name'] ?? 'مستخدم'); ?></div>
+                <div class="user-role"><?= ($_SESSION['user_type'] ?? '') === 'admin' ? 'مدير النظام' : 'موظف'; ?></div>
             </div>
         </div>
     </div>
@@ -46,9 +47,9 @@
             </li>
             
             <li>
-                <a href="/admin/payments/list.php" class="<?= strpos($_SERVER['PHP_SELF'], '/payments/') !== false ? 'active' : ''; ?>">
+                <a href="/admin/finance/cash_register.php" class="<?= strpos($_SERVER['PHP_SELF'], '/finance/') !== false ? 'active' : ''; ?>">
                     <i class="fas fa-money-bill-wave"></i>
-                    <span>المدفوعات</span>
+                    <span>المدفوعات والصندوق</span>
                 </a>
             </li>
             
@@ -60,14 +61,7 @@
             </li>
             
             <li>
-                <a href="/admin/finance/cash_register.php" class="<?= strpos($_SERVER['PHP_SELF'], '/finance/cash_register.php') !== false ? 'active' : ''; ?>">
-                    <i class="fas fa-cash-register"></i>
-                    <span>الصندوق</span>
-                </a>
-            </li>
-            
-            <li>
-                <a href="/admin/reports/index.php" class="<?= strpos($_SERVER['PHP_SELF'], '/reports/') !== false ? 'active' : ''; ?>">
+                <a href="/admin/reports/revenue.php" class="<?= strpos($_SERVER['PHP_SELF'], '/reports/') !== false ? 'active' : ''; ?>">
                     <i class="fas fa-chart-bar"></i>
                     <span>التقارير</span>
                 </a>
@@ -85,20 +79,34 @@
                             <i class="fas fa-users"></i>
                             <span>المستخدمين والصلاحيات</span>
                         </a>
+                    </li>
                     <li>
-                        <a href="/admin/settings/hotel.php" class="<?= basename($_SERVER['PHP_SELF']) === 'hotel.php' ? 'active' : ''; ?>">
-                            <i class="fas fa-hotel"></i>
-                            <span>إعدادات الفندق</span>
+                        <a href="/admin/settings/employees.php" class="<?= basename($_SERVER['PHP_SELF']) === 'employees.php' ? 'active' : ''; ?>">
+                            <i class="fas fa-user-tie"></i>
+                            <span>إدارة الموظفين</span>
                         </a>
                     </li>
                     <li>
-                        <a href="/admin/settings/system.php" class="<?= basename($_SERVER['PHP_SELF']) === 'system.php' ? 'active' : ''; ?>">
+                        <a href="/admin/settings/guests.php" class="<?= basename($_SERVER['PHP_SELF']) === 'guests.php' ? 'active' : ''; ?>">
+                            <i class="fas fa-user-friends"></i>
+                            <span>إدارة النزلاء</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/settings/maintenance.php" class="<?= basename($_SERVER['PHP_SELF']) === 'maintenance.php' ? 'active' : ''; ?>">
                             <i class="fas fa-wrench"></i>
-                            <span>إعدادات النظام</span>
+                            <span>صيانة النظام</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/system_tools/backup_manager.php" class="<?= basename($_SERVER['PHP_SELF']) === 'backup_manager.php' ? 'active' : ''; ?>">
+                            <i class="fas fa-database"></i>
+                            <span>النسخ الاحتياطي</span>
                         </a>
                     </li>
                 </ul>
-            </li>/ul>
+            </li>
+        </ul>
     </div>
     
     <div class="sidebar-footer">
@@ -120,9 +128,9 @@
                 this.parentElement.classList.toggle('open');
                 
                 const submenu = this.nextElementSibling;
-                if (submenu.style.maxHeight) {
+                if (submenu && submenu.style.maxHeight) {
                     submenu.style.maxHeight = null;
-                } else {
+                } else if (submenu) {
                     submenu.style.maxHeight = submenu.scrollHeight + "px";
                 }
             });

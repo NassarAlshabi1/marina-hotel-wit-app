@@ -121,7 +121,7 @@ class _CreateDebtFromBookingScreenState
                 const Text('اختر الحجز', style: _titleStyle),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Booking>(
-                  initialValue: _selectedBooking,
+                  value: bookings.contains(_selectedBooking) ? _selectedBooking : null,
                   isExpanded: true,
                   style: _fieldStyle.copyWith(color: dropdownColor),
                   decoration: const InputDecoration(

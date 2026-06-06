@@ -5,6 +5,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 import 'appwrite_delta_sync.dart';
 import 'appwrite_service.dart';
@@ -564,7 +565,7 @@ class AutoBackupManager {
 
   Future<void> _autoRenewActiveBookings() async {
     try {
-      final currentHotelDay = Time.hotelDayKey();
+      final currentHotelDay = HotelTimeEngine.getHotelDayKey();
       if (_lastRenewedHotelDay == currentHotelDay) {
         return;
       }

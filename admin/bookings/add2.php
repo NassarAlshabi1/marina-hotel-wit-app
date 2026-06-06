@@ -1,6 +1,6 @@
 <?php
-include '../../includes/db.php';
-include '../../includes/header.php';
+require_once '../../includes/security.php';
+include_once '../../includes/db.php';
 
 $conn->set_charset("utf8mb4");
 
@@ -18,6 +18,8 @@ if ($rooms_query && $rooms_query->num_rows > 0) {
 
 // معالجة نموذج الحجز
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    verify_csrf_token();
+
     $required_fields = [
         'guest_name' => 'اسم النزيل',
         'guest_id_type' => 'نوع الهوية',
@@ -107,11 +109,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $booking_id = $conn->insert_id;
 
-            // تحديث guest_id
-            $conn->query("UPDATE bookings SET guest_id = $booking_id WHERE booking_id = $booking_id");
+            // تحديث guest_id باستخدام prepared statement
+            $stmt_guest = $conn->prepare("UPDATE bookings SET guest_id = ? WHERE booking_id = ?");
+            $stmt_guest->bind_param("ii", $booking_id, $booking_id);
+            $stmt_guest->execute();
+            $stmt_guest->close();
 
-            // تحديث حالة الغرفة
-            $conn->query("UPDATE rooms SET status = 'محجوزة' WHERE room_number = '$room_number'");
+            // تحديث حالة الغرفة باستخدام prepared statement
+            $stmt_room = $conn->prepare("UPDATE rooms SET status = 'محجوزة' WHERE room_number = ?");
+            $stmt_room->bind_param("s", $room_number);
+            $stmt_room->execute();
+            $stmt_room->close();
 
             $conn->commit();
 
@@ -125,220 +133,204 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
     }
 }
+
+include_once '../../includes/header.php';
 ?>
 
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> اضافة حجز جديد</title>
-    <link href="../../assets/css/bootstrap.rtl.min.css" rel="stylesheet">
-    <link href="../../assets/css/fontawesome.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f8f9fa;
-            font-family: 'Tajawal', sans-serif;
-            font-weight: 600; /* زيادة سماكة الخط العام */
+<style>
+    .form-label {
+        font-weight: 600;
+    }
+    .form-label.required:after {
+        content: " *";
+        color: red;
+    }
+    .btn-submit {
+        background-color: #28a745;
+        border-color: #28a745;
+        font-weight: 600;
+    }
+    .page-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    .card-header h4 {
+        font-weight: 700;
+    }
+    .form-control, .form-select {
+        font-weight: 500;
+    }
+    .alert {
+        font-weight: 600;
+    }
+    @media (max-width: 768px) {
+        .container {
+            padding: 15px;
         }
-        .card {
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        .form-label {
-            font-weight: 600; /* زيادة سماكة تسميات الحقول */
-        }
-        .form-label.required:after {
-            content: " *";
-            color: red;
-        }
-        .btn-submit {
-            background-color: #28a745;
-            border-color: #28a745;
-            font-weight: 600; /* زيادة سماكة نص الأزرار */
-        }
-        .page-title {
-            font-size: 1.5rem;
-            font-weight: 700; /* زيادة سماكة العنوان الرئيسي */
-        }
-        .card-header h4 {
-            font-weight: 700; /* زيادة سماكة عنوان البطاقة */
-        }
-        .form-control, .form-select {
-            font-weight: 500; /* سماكة متوسطة لنص الحقول */
-        }
-        .alert {
-            font-weight: 600; /* زيادة سماكة نص التنبيهات */
-        }
-        @media (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-        }
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
-</head>
-<body>
-    <div class="container py-4">
-        <!-- باقي الكود يبقى كما هو -->
+    }
+</style>
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0 text-primary small-title">
+            <i class="fas fa-plus-circle me-2"></i>إضافة حجز جديد
+        </h2>
+        <a href="../dashboard.php" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>العودة
+        </a>
     </div>
-</body>
-</html>
 
-    <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="mb-0 text-primary small-title">
-                <i class="fas fa-plus-circle me-2"></i>إضافة حجز جديد
-            </h2>
-            <a href="../dashboard.php" class="btn btn-outline-primary">
-                <i class="fas fa-arrow-left me-2"></i>العودة
-            </a>
+    <?php if (!empty($errors)): ?>
+    <div class="alert alert-danger">
+        <h5 class="alert-heading">حدثت الأخطاء التالية:</h5>
+        <ul>
+            <?php foreach ($errors as $error): ?>
+            <li><?php echo $error; ?></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+    <?php endif; ?>
+
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0 small-title">
+                <i class="fas fa-door-open me-2"></i>
+                بيانات الحجز
+            </h4>
         </div>
+        <div class="card-body">
+            <form method="post">
+                <?= csrf_field(); ?>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label for="guest_name" class="form-label required">اسم الضيف</label>
+                        <input type="text" class="form-control" id="guest_name" name="guest_name" required
+                               value="<?php echo htmlspecialchars($_POST['guest_name'] ?? ''); ?>">
+                    </div>
 
-        <?php if (!empty($errors)): ?>
-        <div class="alert alert-danger">
-            <h5 class="alert-heading">حدثت الأخطاء التالية:</h5>
-            <ul>
-                <?php foreach ($errors as $error): ?>
-                <li><?php echo $error; ?></li>
-                <?php endforeach; ?>
-            </ul>
-        </div>
-        <?php endif; ?>
+                    <div class="col-md-6">
+                        <label for="guest_nationality" class="form-label required">الجنسية</label>
+                        <select class="form-select" id="guest_nationality" name="guest_nationality" required>
+                            <option value="">اختر الجنسية</option>
+                            <?php foreach ($nationalities as $nationality): ?>
+                            <option value="<?php echo $nationality; ?>"
+                                <?php if (($_POST['guest_nationality'] ?? '') === $nationality) echo 'selected'; ?>>
+                                <?php echo $nationality; ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
 
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0 small-title">
-                    <i class="fas fa-door-open me-2"></i>
-                    بيانات الحجز
-                </h4>
-            </div>
-            <div class="card-body">
-                <form method="post">
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label for="guest_name" class="form-label required">اسم الضيف</label>
-                            <input type="text" class="form-control" id="guest_name" name="guest_name" required
-                                   value="<?php echo htmlspecialchars($_POST['guest_name'] ?? ''); ?>">
-                        </div>
+                    <div class="col-md-6">
+                        <label for="guest_phone" class="form-label required">رقم الهاتف</label>
+                        <input type="tel" class="form-control" id="guest_phone" name="guest_phone" required
+                               value="<?php echo htmlspecialchars($_POST['guest_phone'] ?? ''); ?>">
+                    </div>
 
-                        <div class="col-md-6">
-                            <label for="guest_nationality" class="form-label required">الجنسية</label>
-                            <select class="form-select" id="guest_nationality" name="guest_nationality" required>
-                                <option value="">اختر الجنسية</option>
-                                <?php foreach ($nationalities as $nationality): ?>
-                                <option value="<?php echo $nationality; ?>"
-                                    <?php if (($_POST['guest_nationality'] ?? '') === $nationality) echo 'selected'; ?>>
-                                    <?php echo $nationality; ?>
+                    <div class="col-md-6">
+                        <label for="guest_email" class="form-label">البريد الإلكتروني</label>
+                        <input type="email" class="form-control" id="guest_email" name="guest_email"
+                               value="<?php echo htmlspecialchars($_POST['guest_email'] ?? ''); ?>">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="guest_id_type" class="form-label required">نوع الهوية</label>
+                        <select class="form-select" id="guest_id_type" name="guest_id_type" required>
+                            <option value="">اختر نوع الهوية</option>
+                            <option value="بطاقة شخصية" <?php if (($_POST['guest_id_type'] ?? '') === 'بطاقة شخصية') echo 'selected'; ?>>بطاقة شخصية</option>
+                            <option value="جواز سفر" <?php if (($_POST['guest_id_type'] ?? '') === 'جواز سفر') echo 'selected'; ?>>جواز سفر</option>
+                            <option value="رخصة قيادة" <?php if (($_POST['guest_id_type'] ?? '') === 'رخصة قيادة') echo 'selected'; ?>>رخصة قيادة</option>
+                            <option value="شهادة ميلاد" <?php if (($_POST['guest_id_type'] ?? '') === 'شهادة ميلاد') echo 'selected'; ?>>شهادة ميلاد</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="guest_id_number" class="form-label required">رقم الهوية</label>
+                        <input type="text" class="form-control" id="guest_id_number" name="guest_id_number" required
+                               value="<?php echo htmlspecialchars($_POST['guest_id_number'] ?? ''); ?>">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="guest_id_issue_date" class="form-label required">تاريخ الإصدار</label>
+                        <input type="date" class="form-control" id="guest_id_issue_date" name="guest_id_issue_date" required
+                               value="<?php echo htmlspecialchars($_POST['guest_id_issue_date'] ?? ''); ?>">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="guest_id_issue_place" class="form-label required">مكان الإصدار</label>
+                        <input type="text" class="form-control" id="guest_id_issue_place" name="guest_id_issue_place" required
+                               value="<?php echo htmlspecialchars($_POST['guest_id_issue_place'] ?? ''); ?>">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="guest_address" class="form-label">العنوان</label>
+                        <textarea class="form-control" id="guest_address" name="guest_address" rows="2"><?php echo htmlspecialchars($_POST['guest_address'] ?? ''); ?></textarea>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="checkin_date" class="form-label required">تاريخ الوصول</label>
+                        <input type="date" class="form-control" id="checkin_date" name="checkin_date" required
+                               value="<?php echo htmlspecialchars($_POST['checkin_date'] ?? date('Y-m-d')); ?>">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="checkout_date" class="form-label">تاريخ المغادرة</label>
+                        <input type="date" class="form-control" id="checkout_date" name="checkout_date"
+                               value="<?php echo htmlspecialchars($_POST['checkout_date'] ?? ''); ?>">
+                    </div>
+
+                    <div class="col-md-8">
+                        <label for="notes" class="form-label">ملاحظات</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="room_number" class="form-label required">رقم الغرفة</label>
+                        <select class="form-select" id="room_number" name="room_number" required>
+                            <option value="">اختر غرفة</option>
+                            <?php foreach ($rooms as $room): ?>
+                                <option value="<?php echo $room; ?>"
+                                    <?php if (($_POST['room_number'] ?? '') === $room) echo 'selected'; ?>>
+                                    <?php echo $room; ?>
                                 </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="guest_phone" class="form-label required">رقم الهاتف</label>
-                            <input type="tel" class="form-control" id="guest_phone" name="guest_phone" required
-                                   value="<?php echo htmlspecialchars($_POST['guest_phone'] ?? ''); ?>">
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="guest_email" class="form-label">البريد الإلكتروني</label>
-                            <input type="email" class="form-control" id="guest_email" name="guest_email"
-                                   value="<?php echo htmlspecialchars($_POST['guest_email'] ?? ''); ?>">
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="guest_id_type" class="form-label required">نوع الهوية</label>
-                            <select class="form-select" id="guest_id_type" name="guest_id_type" required>
-                                <option value="">اختر نوع الهوية</option>
-                                <option value="بطاقة شخصية" <?php if (($_POST['guest_id_type'] ?? '') === 'بطاقة شخصية') echo 'selected'; ?>>بطاقة شخصية</option>
-                                <option value="جواز سفر" <?php if (($_POST['guest_id_type'] ?? '') === 'جواز سفر') echo 'selected'; ?>>جواز سفر</option>
-                                <option value="رخصة قيادة" <?php if (($_POST['guest_id_type'] ?? '') === 'رخصة قيادة') echo 'selected'; ?>>رخصة قيادة</option>
-                                <option value="شهادة ميلاد" <?php if (($_POST['guest_id_type'] ?? '') === 'شهادة ميلاد') echo 'selected'; ?>>شهادة ميلاد</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="guest_id_number" class="form-label required">رقم الهوية</label>
-                            <input type="text" class="form-control" id="guest_id_number" name="guest_id_number" required
-                                   value="<?php echo htmlspecialchars($_POST['guest_id_number'] ?? ''); ?>">
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="guest_id_issue_date" class="form-label required">تاريخ الإصدار</label>
-                            <input type="date" class="form-control" id="guest_id_issue_date" name="guest_id_issue_date" required
-                                   value="<?php echo htmlspecialchars($_POST['guest_id_issue_date'] ?? ''); ?>">
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="guest_id_issue_place" class="form-label required">مكان الإصدار</label>
-                            <input type="text" class="form-control" id="guest_id_issue_place" name="guest_id_issue_place" required
-                                   value="<?php echo htmlspecialchars($_POST['guest_id_issue_place'] ?? ''); ?>">
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="guest_address" class="form-label">العنوان</label>
-                            <textarea class="form-control" id="guest_address" name="guest_address" rows="2"><?php echo htmlspecialchars($_POST['guest_address'] ?? ''); ?></textarea>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="checkin_date" class="form-label required">تاريخ الوصول</label>
-                            <input type="date" class="form-control" id="checkin_date" name="checkin_date" required
-                                   value="<?php echo htmlspecialchars($_POST['checkin_date'] ?? date('Y-m-d')); ?>">
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="checkout_date" class="form-label">تاريخ المغادرة</label>
-                            <input type="date" class="form-control" id="checkout_date" name="checkout_date"
-                                   value="<?php echo htmlspecialchars($_POST['checkout_date'] ?? ''); ?>">
-                        </div>
-
-                        <div class="col-md-8">
-                            <label for="notes" class="form-label">ملاحظات</label>
-                            <textarea class="form-control" id="notes" name="notes" rows="3"><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="room_number" class="form-label required">رقم الغرفة</label>
-                            <select class="form-select" id="room_number" name="room_number" required>
-                                <option value="">اختر غرفة</option>
-                                <?php foreach ($rooms as $room): ?>
-                                    <option value="<?php echo $room; ?>"
-                                        <?php if (($_POST['room_number'] ?? '') === $room) echo 'selected'; ?>>
-                                        <?php echo $room; ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
+                </div>
 
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary px-5">
-                            <i class="fas fa-save me-2"></i>حفظ الحجز
-                        </button>
-                        <a href="list.php" class="btn btn-secondary px-4">
-                            <i class="fas fa-times me-2"></i>إلغاء
-                        </a>
-                    </div>
-                </form>
-            </div>
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary px-5">
+                        <i class="fas fa-save me-2"></i>حفظ الحجز
+                    </button>
+                    <a href="list.php" class="btn btn-secondary px-4">
+                        <i class="fas fa-times me-2"></i>إلغاء
+                    </a>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // التحقق من صحة التواريخ
-        document.addEventListener('DOMContentLoaded', function() {
-            const checkinDate = document.getElementById('checkin_date');
-            const checkoutDate = document.getElementById('checkout_date');
+<script>
+    // التحقق من صحة التواريخ
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkinDate = document.getElementById('checkin_date');
+        const checkoutDate = document.getElementById('checkout_date');
 
-            checkinDate.addEventListener('change', function() {
-                if (checkoutDate.value && new Date(checkoutDate.value) < new Date(this.value)) {
-                    alert('تاريخ المغادرة لا يمكن أن يكون قبل تاريخ الوصول');
-                    checkoutDate.value = '';
-                }
-            });
+        checkinDate.addEventListener('change', function() {
+            if (checkoutDate.value && new Date(checkoutDate.value) < new Date(this.value)) {
+                alert('تاريخ المغادرة لا يمكن أن يكون قبل تاريخ الوصول');
+                checkoutDate.value = '';
+            }
+        });
 
-            checkoutDate.addEventListener('change', function() {
-                if (checkinDate.value && new Date(this.value) < new Date(checkinDate.value)) {
-                    alert('تاريخ المغادرة لا يمكن أن يكون
+        checkoutDate.addEventListener('change', function() {
+            if (checkinDate.value && new Date(this.value) < new Date(checkinDate.value)) {
+                alert('تاريخ المغادرة لا يمكن أن يكون قبل تاريخ الوصول');
+                checkoutDate.value = '';
+            }
+        });
+    });
+</script>
+
+<?php include_once '../../includes/footer.php'; ?>

@@ -176,6 +176,8 @@ const collections = [
       { key: "phone", type: "string", size: 20, required: true },
       { key: "hireDate", type: "string", size: 50, required: true },
       { key: "status", type: "string", size: 50, required: true },
+      { key: "terminationDate", type: "string", size: 50, required: false },
+      { key: "terminationReason", type: "string", size: 500, required: false },
       { key: "localUuid", type: "string", size: 100, required: true, unique: true },
       { key: "serverId", type: "integer" },
       { key: "createdAt", type: "integer", required: true },

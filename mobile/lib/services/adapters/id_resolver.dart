@@ -47,8 +47,10 @@ class IdResolver {
   Future<int?> resolveEmployee({
     int? localId,
     String? uuid,
+    int? serverId,
+    int? employeeId,
   }) async {
-    // البحث بالـ UUID أولاً
+    // 1. البحث بالـ UUID أولاً (الأكثر دقة للمزامنة)
     if (uuid != null && uuid.isNotEmpty) {
       final row =
           await (db.select(db.employees)
@@ -59,11 +61,33 @@ class IdResolver {
         return row.id;
       }
     }
-    // البحث بالـ id المحلي
+    // 2. البحث بالـ id المحلي
     if (localId != null) {
       final row =
           await (db.select(db.employees)
                 ..where((e) => e.id.equals(localId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+    }
+    // 3. البحث بالـ serverId (المعرف الأصلي من السيرفر)
+    if (serverId != null) {
+      final row =
+          await (db.select(db.employees)
+                ..where((e) => e.serverId.equals(serverId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+    }
+    // 4. البحث بالـ employeeId (كخيار أخير للتوافق)
+    if (employeeId != null) {
+      final row =
+          await (db.select(db.employees)
+                ..where((e) => e.id.equals(employeeId))
                 ..limit(1))
               .getSingleOrNull();
       if (row != null) {

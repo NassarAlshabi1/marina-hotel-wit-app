@@ -3,6 +3,7 @@
 require_once '../../includes/db.php';
 require_once '../../includes/auth_check.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/report_functions.php';
 
 // تحديد نطاق التاريخ الافتراضي (الشهر الحالي)
 $today = date('Y-m-d');

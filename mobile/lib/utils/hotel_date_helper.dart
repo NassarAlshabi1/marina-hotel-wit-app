@@ -4,9 +4,9 @@ import 'time.dart';
 
 /// مساعد أيام الفندق (Hotel Day Logic)
 ///
-/// نظام احتساب الأيام الفندقية يعتمد على ساعة بداية اليوم (14:00).
-/// اليوم الفندقي يمتد من 14:00 حتى 14:00 من اليوم التالي.
-/// أي تجاوز لساعة 14:00 = يبدأ يوم فندقي جديد.
+/// نظام احتساب الأيام الفندقية يعتمد على ساعة بداية اليوم (14:01).
+/// اليوم الفندقي يمتد من 14:01 حتى 14:00 من اليوم التالي.
+/// أي تجاوز لساعة 14:01 = يبدأ يوم فندقي جديد.
 ///
 /// يحتوي أيضاً على قائمة الحقول المحسوبة التي يجب:
 /// - عدم مزامنتها إلى Appwrite (مصدر حقيقة محلي فقط)
@@ -15,17 +15,20 @@ class HotelDateHelper {
   /// ساعة بداية اليوم الفندقي
   static const int hotelStartHour = 14;
 
+  /// دقيقة بداية اليوم الفندقي
+  static const int hotelStartMinute = 1;
+
   // ─── تحويل التاريخ إلى يوم فندقي ──────────────────────────────
 
   /// تحويل أي DateTime إلى "مفتاح اليوم الفندقي" (Hotel Day Key).
   ///
   /// القاعدة:
-  /// - إذا الوقت **بعد** 14:00:00 (مش لازم يساوي) → اليوم = نفس اليوم
-  /// - إذا الوقت **عند أو قبل** 14:00:00 → اليوم = اليوم السابق
+  /// - إذا الوقت **عند أو بعد** 14:01:00 → اليوم = نفس اليوم
+  /// - إذا الوقت **قبل** 14:01:00 → اليوم = اليوم السابق
   ///
-  /// ملاحظة مهمة: نستخدم `isAfter` (أكبر من وليس أكبر أو يساوي)
-  /// لأن الساعة 14:00:00 بالضبط هي **نهاية** اليوم الفندقي السابق
-  /// وليس بداية اليوم الجديد. هذا يتطابق مع الأمثلة:
+  /// ملاحظة مهمة: نستخدم `>=` (أكبر أو يساوي)
+  /// لأن الساعة 14:01:00 بالضبط هي **بداية** اليوم الفندقي الجديد.
+  /// الساعة 14:00:59 هي **نهاية** اليوم الفندقي السابق.
   ///
   /// مثال 1: 01/01 14:01 → 02/01 14:00 = 1 يوم ✅
   /// مثال 2: 01/01 14:01 → 02/01 14:01 = 2 يوم ✅
@@ -35,8 +38,9 @@ class HotelDateHelper {
       dateTime.month,
       dateTime.day,
       hotelStartHour,
+      hotelStartMinute,
     );
-    if (dateTime.isAfter(cutoff)) {
+    if (!dateTime.isBefore(cutoff)) {
       return DateTime(dateTime.year, dateTime.month, dateTime.day);
     } else {
       return DateTime(dateTime.year, dateTime.month, dateTime.day)
@@ -100,6 +104,7 @@ class HotelDateHelper {
       discountStartDate.month,
       discountStartDate.day,
       hotelStartHour,
+      hotelStartMinute,
     );
     final effectiveStart =
         discountDayStart.isAfter(checkIn) ? discountDayStart : checkIn;
@@ -112,27 +117,25 @@ class HotelDateHelper {
   // ─── فحوصات الوقت ──────────────────────────────────────────────
 
   /// هل الوقت الحالي بعد ساعة بداية اليوم الفندقي؟
-  /// true إذا الوقت > 14:00:00 (حتى ثانية واحدة إضافية).
+  /// true إذا الوقت >= 14:01:00.
   static bool isNowAfterCutoff() {
     final now = DateTime.now();
     return now.hour > hotelStartHour ||
-        (now.hour == hotelStartHour &&
-            (now.minute > 0 || now.second > 0));
+        (now.hour == hotelStartHour && now.minute >= hotelStartMinute);
   }
 
   /// هل الوقت المحدد بعد ساعة بداية اليوم الفندقي؟
   static bool isAfterCutoff(DateTime dateTime) {
     return dateTime.hour > hotelStartHour ||
-        (dateTime.hour == hotelStartHour &&
-            (dateTime.minute > 0 || dateTime.second > 0));
+        (dateTime.hour == hotelStartHour && dateTime.minute >= hotelStartMinute);
   }
 
   // ─── تحديث تلقائي ──────────────────────────────────────────────
 
-  /// الفترة المتبقية حتى بداية اليوم الفندقي التالي (14:00).
+  /// الفترة المتبقية حتى بداية اليوم الفندقي التالي (14:01).
   static Duration timeUntilNextHotelDay() {
     final now = DateTime.now();
-    var next = DateTime(now.year, now.month, now.day, hotelStartHour);
+    var next = DateTime(now.year, now.month, now.day, hotelStartHour, hotelStartMinute);
     if (!now.isBefore(next)) {
       next = next.add(const Duration(days: 1));
     }
@@ -161,7 +164,7 @@ class HotelDateHelper {
   /// ```
   static Timer createAutoRefreshTimer(VoidCallback onTick) {
     final until = timeUntilNextHotelDay();
-    // نضيف ثانية واحدة للأمان لضمان تجاوز الساعة 14:00
+    // نضيف ثانية واحدة للأمان لضمان تجاوز الساعة 14:01
     final delay = until + const Duration(seconds: 1);
     return Timer(delay, () {
       onTick();
@@ -180,24 +183,21 @@ class HotelDateHelper {
 
   // ─── الحقول المحسوبة (لا تُزامن إلى Appwrite) ───────────────
 
-  /// الحقول المحسوبة في جدول الحجوزات (bookings).
+  /// الحقول المحسوبة في جدول الحجوزات (bookings) — لا تُزامن إلى Appwrite.
   ///
-  /// هذه الحقول تُحسب محلياً من البيانات الأساسية (checkin, checkout, rate...)
-  /// ويجب **ألا تُدفع إلى Appwrite** لأنها تختلف من جهاز لآخر.
-  /// بعد كل عملية سحب (pull)، يجب إعادة حسابها محلياً.
+  /// هذه الحقول تعتمد على الوقت الحالي وتختلف من جهاز لآخر،
+  /// لذا لا تُدفع إلى Appwrite ويُعاد حسابها محلياً بعد كل سحب.
+  ///
+  /// ⚠️ تم إزالة الحقول التالية من هذه القائمة لأنها موجودة في Appwrite
+  /// Cloud مع بيانات ويجب مزامنتها بين الأجهزة (موجودة في _bookingToRemote):
+  /// - calculatedNights, totalNightsCached, totalDueCached, totalPaidCached,
+  ///   remainingBalanceCached, isFullyPaid, hotelDayCheckin, hotelDayCheckout
   static const bookingComputedFields = <String>{
-    'calculatedNights',
-    'totalNightsCached',
-    'stayDurationIso',
-    'lastNightEpoch',
-    'isOverdue',
-    'needsCheckoutReview',
-    'totalDueCached',
-    'totalPaidCached',
-    'remainingBalanceCached',
-    'isFullyPaid',
-    'hotelDayCheckin',
-    'hotelDayCheckout',
+    // ── حقول ديناميكية تعتمد على الوقت الحالي — لا تُزامن ──
+    'stayDurationIso',   // حساب مدة البقاء — يختلف حسب وقت الاستعلام
+    'lastNightEpoch',    // حساب آخر ليلة — يختلف حسب وقت الاستعلام
+    'isOverdue',         // يعتمد على الوقت الحالي
+    'needsCheckoutReview', // يعتمد على الوقت الحالي
   };
 
   /// فحص هل حقل معين في الحجوزات هو حقل محسوب (لا يُزامن).

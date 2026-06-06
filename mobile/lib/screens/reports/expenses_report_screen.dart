@@ -13,7 +13,9 @@ import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
+import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
 
@@ -136,11 +138,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   Future<void> _loadExpenseTypes() async {
     final db = ref.read(databaseProvider);
+    // ✅ إصلاح: فلترة المصروفات المحذوفة soft-delete
+    // بدون هذا الفلتر، أنواع المصروفات المحذوفة تظهر في القائمة المنسدلة
     final query = await db
-        .customSelect('SELECT DISTINCT expense_type FROM expenses')
+        .customSelect('SELECT DISTINCT expense_type FROM expenses WHERE deleted_at IS NULL')
         .get();
+    // ✅ إزالة "سحب راتب" — نوع مُشتق يُحفظ تلقائياً عند "رواتب" → "سحب من الراتب"
     final types =
-        query.map((row) => row.data['expense_type'] as String).toList()..sort();
+        query.map((row) => row.data['expense_type'] as String)
+            .where((t) => t != 'سحب راتب')
+            .toList()..sort();
     setState(() {
       _availableTypes
         ..clear()
@@ -195,11 +202,25 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   Future<_ExpensesReportResult> _loadExpensesReport(AppDatabase db) async {
     final outboxDao = OutboxDao(db);
     final expensesDao = ExpensesDao(db, outboxDao);
-    final fromStr = _fromDate != null
-        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
+    // ✅ إصلاح: تحويل نطاق التاريخ إلى مفاتيح أيام فندقية
+    // نستخدم HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
+    // لأن ExpensesRepository.create() يخزن hotelDayKey باستخدام HotelTimeEngine
+    //
+    // ⚠️ ملاحظة حرجة: getHotelDayKey تعتبر 14:00:59 بالضبط نهاية اليوم السابق
+    // (14:01:00 = بداية اليوم الجديد). بما أن _fromDate يأتي دائماً بوقت 14:01:00
+    // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
+    // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
+    //
+    // مثال: فلتر "اليوم" عند 10:00 صباح 2026-05-19:
+    //   _fromDate = 18-May 14:01 → +1s → fromHotelDay = "2026-05-18" ✓
+    //   _toDate  = 19-May 14:00:59 → toHotelDay   = "2026-05-18" ✓
+    //   → فقط مصروفات hotelDayKey="2026-05-18" ✅
+    final fromHotelDay = _fromDate != null
+        ? HotelTimeEngine.getHotelDayKey(
+            dateTime: _fromDate!.add(const Duration(seconds: 1)))
         : null;
-    final toStr = _toDate != null
-        ? DateFormat('yyyy-MM-dd').format(_toDate!)
+    final toHotelDay = _toDate != null
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
         : null;
     final selectedType =
         widget.showTypeFilter &&
@@ -211,10 +232,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // هل نعرض الكل (بدون فلتر نوع)؟
     final showAll = selectedType == null;
 
-    var expenses = await expensesDao.listFiltered(
-      from: fromStr,
-      to: toStr,
+    // ✅ فلترة بحقل hotelDayKey بدلاً من date التقويمي
+    // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
+    var expenses = await expensesDao.listFilteredByHotelDay(
+      fromHotelDay: fromHotelDay,
+      toHotelDay: toHotelDay,
       expenseType: selectedType,
+      excludeAdvance: true,
     );
 
     if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
@@ -238,11 +262,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       try {
         var swQuery = db.select(db.salaryWithdrawals)
           ..where((tbl) => tbl.deletedAt.isNull());
-        if (fromStr != null) {
-          swQuery = swQuery..where((tbl) => tbl.withdrawDate.isBiggerOrEqualValue(fromStr));
+        // ✅ إصلاح: فلترة salary_withdrawals بـ hotelDayKey أيضاً
+        if (fromHotelDay != null) {
+          swQuery = swQuery..where((tbl) =>
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)));
         }
-        if (toStr != null) {
-          swQuery = swQuery..where((tbl) => tbl.withdrawDate.isSmallerOrEqualValue('${toStr}T23:59:59'));
+        if (toHotelDay != null) {
+          swQuery = swQuery..where((tbl) =>
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)));
         }
         salaryWithdrawals = await swQuery.get();
         // إضافة أرقام الموظفين من salary_withdrawals
@@ -268,26 +297,117 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     double totalAmount = 0;
     bool hasSalaryData = false;
 
-    // ─── جمع أرقام معرّفات المصروفات المرتبطة بسحوبات الرواتب ───
-    // لمنع العد المزدوج: المصروف المرتبط بـ salary_withdrawal لا يُضاف من جدول expenses
-    final swExpenseIds = <int>{};
-    if (showAll) {
-      for (final sw in salaryWithdrawals) {
-        if (sw.reason != null) {
-          final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
-          if (match != null) {
-            swExpenseIds.add(int.parse(match.group(1)!));
+    // ═══════════════════════════════════════════════════════════════════════
+    // ✅ إصلاح تكرار البيانات — الطبعة الرابعة (خبير — حتمي 100%)
+    //
+    // المشكلة الجذرية: تقرير المصروفات يعرض نفس المعاملة مرتين
+    //   مرة من جدول expenses ومرة من جدول salary_withdrawals
+    //
+    // لماذا فشلت الحلول السابقة؟
+    //   الطبعة 1: نمط exp_XX في reason فقط — لا يوجد في البيانات القديمة
+    //   الطبعة 2: مطابقة expense.date == sw.withdrawDate — تفشل لاختلاف الصيغ
+    //   الطبعة 3: مطابقة تقريبية hotelDayKey + employeeId + amount —
+    //             غير حتمية: false positive (إخفاء سجل مشروع) أو
+    //             false negative (عرض مكرر)
+    //
+    // الحل النهائي: مطابقة حتمية فقط — بدون أي تخمين
+    //
+    //   الطريقة 1: عمود expense_id (FK مباشر) — الأكثر موثوقية
+    //   الطريقة 2: نمط exp_XX في reason — مُضمون من saveFromExpense()
+    //
+    //   ملاحظة حرجة: saveFromExpense() يضبط reason دائماً على
+    //   'exp_{expenseId}' — هذا invariant مضمون من الكود وليس تخميناً.
+    //   إذا كان reason = 'exp_42' فمؤكد أن هناك مصروف id=42 مقابل.
+    //
+    //   السحوبات المباشرة (reason يبدأ بـ "direct_withdrawal_") لا تُطابق أبداً
+    //   لأنها لا تحتوي على مصروف مقابل أصلاً.
+    //
+    //   تم إزالة المطابقة التقريبية (الطبعة 3) لأنها السبب الرئيسي
+    //   للمشاكل: يمكن أن تخفي بيانات مشروعة أو تفشل في إخفاء المكرر.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // ─── قراءة expense_id من جدول salary_withdrawals عبر SQL خام ───
+    // عمود expense_id أُضيف عبر ترحيل قاعدة البيانات (schema v40+)
+    // ولا يوجد في الـ data class المُولّد لذلك نقرأه يدوياً
+    final swExpenseIdMap = <int, int>{}; // salary_withdrawal.id → expense_id
+    if (showAll && salaryWithdrawals.isNotEmpty) {
+      try {
+        final swIds = salaryWithdrawals.map((sw) => sw.id).toList();
+        final placeholders = List.filled(swIds.length, '?').join(',');
+        final rows = await db.customSelect(
+          'SELECT id, expense_id FROM salary_withdrawals WHERE id IN ($placeholders)',
+          variables: swIds.map((id) => Variable.withInt(id)).toList(),
+        ).get();
+        for (final row in rows) {
+          final swId = row.read<int>('id');
+          // QueryRow لا يملك readOrNull — نستخدم read مع try-catch
+          // لأن expense_id قد يكون NULL
+          final expId = _readNullableInt(row, 'expense_id');
+          if (expId != null && expId > 0) {
+            swExpenseIdMap[swId] = expId;
           }
+        }
+      } catch (_) {
+        // العمود قد لا يكون موجوداً بعد في الإصدارات القديمة — نتخطى
+      }
+    }
+
+    // بناء مجموعة IDs مصروفات الرواتب الموجودة (لتحديد اليتامى)
+    final salaryExpenseIds = <int>{};
+    for (final expense in expenses) {
+      if (_isSalaryType(expense.expenseType)) {
+        salaryExpenseIds.add(expense.id);
+      }
+    }
+
+    // تحديد سحوبات الرواتب اليتيمة (بدون مصروف مقابل)
+    final orphanWithdrawals = <SalaryWithdrawal>[];
+    if (showAll && salaryWithdrawals.isNotEmpty) {
+      for (final sw in salaryWithdrawals) {
+        bool hasMatchingExpense = false;
+
+        // ─── السحوبات المباشرة لا تُطابق أبداً (ليس لها مصروف مقابل) ───
+        final isDirectWithdrawal = sw.reason != null &&
+            sw.reason!.startsWith('direct_withdrawal_');
+
+        if (!isDirectWithdrawal) {
+          // الطريقة 1: مطابقة عبر عمود expense_id (الأكثر موثوقية)
+          final expenseIdFromColumn = swExpenseIdMap[sw.id];
+          if (expenseIdFromColumn != null &&
+              salaryExpenseIds.contains(expenseIdFromColumn)) {
+            hasMatchingExpense = true;
+          }
+
+          // الطريقة 2: مطابقة عبر reason الذي يحتوي exp_XX
+          if (!hasMatchingExpense && sw.reason != null) {
+            final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
+            if (match != null) {
+              final expId = int.tryParse(match.group(1)!);
+              if (expId != null && salaryExpenseIds.contains(expId)) {
+                hasMatchingExpense = true;
+              }
+            }
+          }
+
+          // ✅ تم إزالة المطابقة التقريبية (الطبعة 3) نهائياً
+          // كانت تسبب false positive (إخفاء سجلات مشروعة)
+          // و false negative (عدم إخفاء المكررات)
+          // الحل الحتمي أفضل: إذا لم نجد رابطاً مباشراً (expense_id أو exp_XX)
+          // فالسجل يُعتبر يتيماً ويُعرض — هذا أكثر أماناً من إخفاء بيانات مالية
+        }
+
+        if (!hasMatchingExpense) {
+          orphanWithdrawals.add(sw);
         }
       }
     }
 
-    // ─── إضافة مصروفات جدول expenses (مع استبعاد المرتبطة بسحوبات الرواتب) ───
+    // ─── إضافة جميع مصروفات جدول expenses (باستثناء السلفة — تسبب تكرار بيانات) ───
     for (final expense in expenses) {
-      // تخطّي المصروفات الرواتب التي لها سجل مقابل في salary_withdrawals
-      // لأنها ستُضاف من هناك (لمنع العد المزدوج)
-      if (showAll && _isSalaryType(expense.expenseType) && swExpenseIds.contains(expense.id)) {
-        hasSalaryData = true;
+      // ✅ إلغاء عرض السلفة من تقرير المصروفات لأنها تسبب تكرار البيانات
+      // السلفة تُسجّل تلقائياً مع سحوبات الرواتب وأقساط الخصم
+      // فظهورها هنا يُكرر المبالغ في الإجماليات
+      if (expense.expenseType == 'سلفة') {
         continue;
       }
       final employee = expense.relatedId != null
@@ -309,10 +429,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       );
     }
 
-    // ─── إضافة سحوبات الرواتب من salary_withdrawals (عند الكل فقط) ───
-    if (showAll && salaryWithdrawals.isNotEmpty) {
+    // ─── إضافة سحوبات الرواتب اليتيمة فقط (عند الكل فقط) ───
+    if (showAll && orphanWithdrawals.isNotEmpty) {
       hasSalaryData = true;
-      for (final sw in salaryWithdrawals) {
+      for (final sw in orphanWithdrawals) {
         final employee = employeeMap[sw.employeeId];
         final date = _parseExpenseDate(sw.withdrawDate);
         final wType = sw.withdrawalType ?? 'سحب راتب';
@@ -561,7 +681,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           SizedBox(
             width: 160,
             child: DropdownButtonFormField<String?>(
-              initialValue: _selectedType,
+              value: _selectedType,
               decoration: InputDecoration(
                 labelText: widget.typeLabel,
                 isDense: true,
@@ -570,6 +690,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
               items: [
                 DropdownMenuItem<String?>(
+                  value: null,
                   child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
                 ),
                 ..._availableTypes.map(
@@ -1084,6 +1205,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
 
 
+  /// قراءة حقل INTEGER قابل للقيم الفارغة من QueryRow
+  /// Drift's QueryRow لا يوفر readOrNull مباشرة — نستخدم try-catch
+  static int? _readNullableInt(QueryRow row, String column) {
+    try {
+      return row.read<int>(column);
+    } catch (_) {
+      return null;
+    }
+  }
+
   DateTime _parseExpenseDate(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) {
@@ -1099,6 +1230,17 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       debugPrint('⚠️ تعذر تحليل تاريخ المصروف "$value": $e');
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
+  }
+
+  /// استخراج جزء التاريخ فقط (yyyy-MM-dd) من سلسلة نصية
+  /// قد تحتوي على وقت مثل "2025-06-03 14:30" → "2025-06-03"
+  /// يُستخدم لمقارنة الأيام بدلاً من مقارنة نص التاريخ الكامل
+  static String _extractDatePart(String dateStr) {
+    final trimmed = dateStr.trim();
+    if (trimmed.length >= 10) {
+      return trimmed.substring(0, 10);
+    }
+    return trimmed;
   }
 }
 

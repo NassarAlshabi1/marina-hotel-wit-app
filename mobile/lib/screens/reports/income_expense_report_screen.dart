@@ -22,7 +22,9 @@ import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
@@ -61,6 +63,7 @@ class _IncomeExpenseReportScreenState
   int _unsettledDebtsCount = 0;
   double _unsettledDebtsAmount = 0;
   int _activeEmployeesCount = 0;
+  int _terminatedEmployeesCount = 0;
   double _totalSalaryObligation = 0;
   // الديون غير المسددة في الفترة المحددة فقط
   int _unsettledDebtsInPeriodCount = 0;
@@ -69,7 +72,7 @@ class _IncomeExpenseReportScreenState
   @override
   void initState() {
     super.initState();
-    // الافتراضي: اليوم الفندقي الحالي (14:00 → 14:00)
+    // الافتراضي: اليوم الفندقي الحالي (14:01 → 14:00)
     final range = DateFilterController.getDefaultHotelDayRange();
     _fromDate = range.from;
     _toDate = range.to;
@@ -87,45 +90,58 @@ class _IncomeExpenseReportScreenState
       // ═══════════════════════════════════════════════════════════════
       // حساب نطاق الفلترة بدقة خارقة
       // _fromDate يأتي من ReportDateFilterWidget:
-      //   - اليوم الفندقي: 14:00 أمس/اليوم → 13:59 اليوم/غداً
-      //   - الأسبوع: 14:00 بداية الأسبوع → 13:59 نهاية اليوم
-      //   - الشهر: 14:00 أول الشهر → 13:59 نهاية اليوم
-      //   - السنة: 14:00 أول السنة → 13:59 نهاية اليوم
+      //   - اليوم الفندقي: 14:01 أمس/اليوم → 14:00:59 اليوم/غداً
+      //   - الأسبوع: 14:01 بداية الأسبوع → 14:00:59 نهاية اليوم
+      //   - الشهر: 14:01 أول الشهر → 14:00:59 نهاية اليوم
+      //   - السنة: 14:01 أول السنة → 14:00:59 نهاية اليوم
       //   - يدوي: من تاريخ → إلى تاريخ
       //
-      // _fromDate دائماً يحتوي على وقت البداية (14:00 أو وقت منتقي)
-      // _toDate دائماً يحتوي على وقت النهاية (13:59:59 أو وقت منتقي)
+      // _fromDate دائماً يحتوي على وقت البداية (14:01 أو وقت منتقي)
+      // _toDate دائماً يحتوي على وقت النهاية (14:00:59 أو وقت منتقي)
       // ═══════════════════════════════════════════════════════════════
       final fromDate = _fromDate!;
       final toDate = _toDate!;
 
-      // المدفوعات: فلترة بنطاق زمني كامل (مع الوقت)
-      final fromStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(fromDate);
-      final toStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(toDate);
+      // ✅ إصلاح: المدفوعات والمصروفات تُفلتر بـ hotelDayKey بدلاً من date التقويمي
+      // لمنع إدراج معاملات الصباح التي تنتمي لليوم الفندقي السابق
+      // ✅ استخدام HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
+      // PaymentsRepository.create() و ExpensesRepository.create()
+      // يخزنان hotelDayKey باستخدام HotelTimeEngine
+      // فلابد أن تكون الفلترة بنفس الدالة لتطابق المفاتيح
+      //
+      // ⚠️ ملاحظة حرجة: getHotelDayKey تعتبر 14:00:59 بالضبط نهاية اليوم السابق
+      // (14:01:00 = بداية اليوم الجديد). بما أن fromDate يأتي دائماً بوقت 14:01:00
+      // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
+      // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
+      final fromHotelDay = HotelTimeEngine.getHotelDayKey(
+          dateTime: fromDate.add(const Duration(seconds: 1)));
+      final toHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: toDate);
 
-      final payments = await paymentsDao.list(
-        from: fromStr,
-        to: toStr,
+      final payments = await paymentsDao.listFilteredByHotelDay(
+        fromHotelDay: fromHotelDay,
+        toHotelDay: toHotelDay,
         excludeVoided: true,
         excludePendingBalance: true,
       );
 
-      // المصروفات: تُخزن بتاريخ بدون وقت (yyyy-MM-dd)
-      // نطاق التاريخ يشمل كل الأيام من بداية اليوم الفندقي الأول
-      // إلى نهاية اليوم الفندقي الأخير
-      final expenseFromStr = DateFormat('yyyy-MM-dd').format(fromDate);
-      final expenseToStr = DateFormat('yyyy-MM-dd').format(toDate);
-      final expenses = await expensesDao.list(from: expenseFromStr, to: expenseToStr);
+      // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
+      final expenses = await expensesDao.listFilteredByHotelDay(
+        fromHotelDay: fromHotelDay,
+        toHotelDay: toHotelDay,
+        excludeAdvance: true,
+      );
 
       // بيانات إضافية للتقرير التفصيلي للدورة المالية
       final bookingsDao = BookingsDao(db, outboxDao);
       final debtsDao = DebtsDao(db, outboxDao);
       final employeesDao = EmployeesDao(db, outboxDao);
 
-      // الحجوزات: فلترة بنطاق تاريخ checkin
+      // الحجوزات: فلترة بنطاق تاريخ checkin (تاريخ فقط بدون وقت)
+      final bookingFromStr = DateFormat('yyyy-MM-dd').format(fromDate);
+      final bookingToStr = DateFormat('yyyy-MM-dd').format(toDate);
       final bookings = await bookingsDao.list(
-        from: expenseFromStr,
-        to: expenseToStr,
+        from: bookingFromStr,
+        to: bookingToStr,
       );
 
       // الديون: فلترة بتاريخ التسجيل ضمن الفترة المحددة
@@ -166,7 +182,7 @@ class _IncomeExpenseReportScreenState
             return false; // استبعاد السجل غير الصالح من فلترة الفترة
           }
         }
-        return true;
+        return false; // ✅ إصلاح: استبعاد الديون بدون تواريخ صالحة
       }).toList();
 
       // الديون غير المسددة: نحتاج كل الديون غير المسددة (حتى خارج الفترة)
@@ -176,6 +192,9 @@ class _IncomeExpenseReportScreenState
       final allEmployees = await employeesDao.list();
       final employees = allEmployees
           .where((e) => StatusUtils.isEmployeeActive(e.status))
+          .toList();
+      final terminatedEmployees = allEmployees
+          .where((e) => StatusUtils.isEmployeeTerminated(e.status))
           .toList();
 
       // بناء خريطة بين معرف الحجز واسم النزيل لاستخدامه في المدفوعات
@@ -227,6 +246,7 @@ class _IncomeExpenseReportScreenState
           unsettledDebtsInPeriodCount: debtsInPeriod.where((d) => d.isSettled == 0).length,
           unsettledDebtsInPeriodAmount: debtsInPeriod.where((d) => d.isSettled == 0).fold<double>(0, (s, d) => s + d.remainingAmount),
           activeEmployeesCount: employees.length,
+          terminatedEmployeesCount: terminatedEmployees.length,
           totalSalaryObligation: employees.fold<double>(0, (s, e) => s + e.basicSalary),
         ),
       );
@@ -248,6 +268,7 @@ class _IncomeExpenseReportScreenState
           _unsettledDebtsInPeriodCount = result.unsettledDebtsInPeriodCount;
           _unsettledDebtsInPeriodAmount = result.unsettledDebtsInPeriodAmount;
           _activeEmployeesCount = result.activeEmployeesCount;
+          _terminatedEmployeesCount = result.terminatedEmployeesCount;
           _totalSalaryObligation = result.totalSalaryObligation;
           _loading = false;
         });
@@ -680,6 +701,7 @@ class _IncomeExpenseReportScreenState
               columnWidths: [200, 130],
               data: [
                 ['عدد الموظفين النشطين', '$_activeEmployeesCount موظف'],
+                ['عدد الموظفين المنهية خدمتهم', '$_terminatedEmployeesCount موظف'],
                 ['إجمالي الالتزامات الرواتب الشهرية',
                   EnhancedPdfUtils.formatNumber(_totalSalaryObligation),],
                 ['الرواتب المدفوعة في الفترة',
@@ -1518,6 +1540,7 @@ class _IncomeExpenseReportScreenState
               columnWidths: [200, 130],
               data: [
                 ['عدد الموظفين النشطين', '$_activeEmployeesCount موظف'],
+                ['عدد الموظفين المنهية خدمتهم', '$_terminatedEmployeesCount موظف'],
                 ['إجمالي الالتزامات الرواتب الشهرية',
                   EnhancedPdfUtils.formatNumber(_totalSalaryObligation),],
                 ['الرواتب المدفوعة في الفترة',
@@ -2516,6 +2539,7 @@ class _ReportParams {
     this.unsettledDebtsInPeriodCount = 0,
     this.unsettledDebtsInPeriodAmount = 0,
     this.activeEmployeesCount = 0,
+    this.terminatedEmployeesCount = 0,
     this.totalSalaryObligation = 0,
   });
   final List<Map<String, dynamic>> payments;
@@ -2531,6 +2555,7 @@ class _ReportParams {
   final int unsettledDebtsInPeriodCount;
   final double unsettledDebtsInPeriodAmount;
   final int activeEmployeesCount;
+  final int terminatedEmployeesCount;
   final double totalSalaryObligation;
 }
 
@@ -2552,6 +2577,7 @@ class _ReportResult {
     this.unsettledDebtsInPeriodCount = 0,
     this.unsettledDebtsInPeriodAmount = 0,
     this.activeEmployeesCount = 0,
+    this.terminatedEmployeesCount = 0,
     this.totalSalaryObligation = 0,
   });
   final List<_IncomeEntry> incomeEntries;
@@ -2569,40 +2595,15 @@ class _ReportResult {
   final int unsettledDebtsInPeriodCount;
   final double unsettledDebtsInPeriodAmount;
   final int activeEmployeesCount;
+  final int terminatedEmployeesCount;
   final double totalSalaryObligation;
 }
 
 _ReportResult _processReportData(_ReportParams params) {
-  // نطاق الفلترة: من fromDate → toDate يأتي مباشرة من ويدجت الفلترة
-  // - اليوم الفندقي: 14:00 → 13:59 اليوم التالي
-  // - الأسبوع: 14:00 بداية الأسبوع → 13:59 اليوم
-  // - الشهر/السنة: بداية الفترة → نهاية اليوم
-  // - يدوي: ما يختاره المستخدم
-  final hotelStart = params.fromDate;
-  final hotelEnd = params.toDate;
-
-  bool isWithinRange(DateTime date) {
-    // دعم تواريخ بدون وقت (كما في المصروفات) ومع وقت (كما في المدفوعات)
-    final normalizedDate = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      date.hour,
-      date.minute,
-      date.second,
-    );
-    // المصروفات بتاريخ بدون وقت تعتبر ضمن يوم الفندق إذا تطابق التاريخ
-    final dateOnly = DateTime(date.year, date.month, date.day);
-    final hotelStartDateOnly = DateTime(hotelStart.year, hotelStart.month, hotelStart.day);
-    final hotelEndDateOnly = DateTime(hotelEnd.year, hotelEnd.month, hotelEnd.day);
-    final isDateOnly = date.hour == 0 && date.minute == 0 && date.second == 0;
-    if (isDateOnly) {
-      // تاريخ بدون وقت: يتضمن إذا كان ضمن أي يوم من أيام الفندق
-      return !dateOnly.isBefore(hotelStartDateOnly) && !dateOnly.isAfter(hotelEndDateOnly);
-    }
-    // تاريخ مع وقت: فحص دقيق ضمن نطاق 14:00 → 13:59
-    return !normalizedDate.isBefore(hotelStart) && !normalizedDate.isAfter(hotelEnd);
-  }
+  // ✅ إصلاح: إزالة الفلترة المزدوجة — البيانات مُفلترة مسبقاً من SQL
+  // المدفوعات: مُفلترة بنطاق زمني كامل من paymentsDao.list()
+  // المصروفات: مُفلترة بـ hotelDayKey من expensesDao.listFilteredByHotelDay()
+  // لا حاجة لإعادة الفلترة في Dart — كان يسبب استبعاد بيانات صحيحة
 
   bool isSalaryExpense(String type) {
     final normalized = type.trim();
@@ -2628,9 +2629,7 @@ _ReportResult _processReportData(_ReportParams params) {
     } catch (_) {
       continue;
     }
-    if (!isWithinRange(dt)) {
-      continue;
-    }
+    // ✅ إزالة isWithinRange — البيانات مُفلترة مسبقاً من SQL
     final room = (p['roomNumber'] ?? '').toString().trim();
     final desc = room.isNotEmpty
         ? 'دفعة من حجز رقم $room'
@@ -2662,9 +2661,7 @@ _ReportResult _processReportData(_ReportParams params) {
     } catch (_) {
       continue;
     }
-    if (!isWithinRange(dt)) {
-      continue;
-    }
+    // ✅ إزالة isWithinRange — البيانات مُفلترة مسبقاً من SQL
     final type = (e['type'] ?? '').toString();
     expenseList.add(
       _ExpenseEntry(
@@ -2702,6 +2699,7 @@ _ReportResult _processReportData(_ReportParams params) {
     unsettledDebtsInPeriodCount: params.unsettledDebtsInPeriodCount,
     unsettledDebtsInPeriodAmount: params.unsettledDebtsInPeriodAmount,
     activeEmployeesCount: params.activeEmployeesCount,
+    terminatedEmployeesCount: params.terminatedEmployeesCount,
     totalSalaryObligation: params.totalSalaryObligation,
   );
 }

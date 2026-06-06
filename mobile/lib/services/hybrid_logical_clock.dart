@@ -121,8 +121,8 @@ class HybridLogicalClock {
       }
 
       return HybridLogicalClock._(
-        physicalTime: int.parse(parts[0]),
-        logicalCounter: int.parse(parts[1]),
+        physicalTime: int.tryParse(parts[0]) ?? 0,
+        logicalCounter: int.tryParse(parts[1]) ?? 0,
         deviceId: parts[2],
       );
     } catch (e) {

@@ -8,11 +8,11 @@ import 'time.dart';
 /// - يُستخدم مباشرة من UI عبر BookingComputedStreamService
 /// - لا يعتمد على أي حقل محسوب في قاعدة البيانات
 ///
-/// **قاعدة 14:00:**
-/// - اليوم الفندقي يمتد من 14:00 حتى 14:00 من اليوم التالي
-/// - check-in قبل 14:00 = يوم فندقي سابق
-/// - check-in في 14:00 أو بعد = يوم فندقي جديد
-/// - checkout بعد 14:00 = ليلة إضافية
+/// **قاعدة 14:01:**
+/// - اليوم الفندقي يمتد من 14:01 حتى 14:00 من اليوم التالي
+/// - check-in قبل 14:01 = يوم فندقي سابق
+/// - check-in في 14:01 أو بعد = يوم فندقي جديد
+/// - checkout بعد 14:01 = ليلة إضافية
 class HotelTimeEngine {
   HotelTimeEngine._();
 
@@ -20,26 +20,30 @@ class HotelTimeEngine {
   // ثوابت
   // ═══════════════════════════════════════════════════════════════
 
-  /// ساعة بداية اليوم الفندقي (14:00)
+  /// ساعة بداية اليوم الفندقي (14)
   static const int boundaryHour = 14;
 
+  /// دقيقة بداية اليوم الفندقي (01)
+  /// اليوم الفندقي يبدأ الساعة 14:01 وليس 14:00
+  static const int boundaryMinute = 1;
+
   /// دالة لتحديد بداية ونهاية اليوم الفندقي لتاريخ معين.
-  /// اليوم الفندقي يبدأ الساعة 14:00 وينتهي في اليوم التالي الساعة 13:59:59.
+  /// اليوم الفندقي يبدأ الساعة 14:01 وينتهي في اليوم التالي الساعة 14:00:59.
   static Map<String, DateTime> getHotelDayRange(DateTime date) {
     DateTime hotelDayStart;
     DateTime hotelDayEnd;
 
-    // إذا كان الوقت الحالي قبل الساعة 14:00
-    if (date.hour < boundaryHour) {
-      // اليوم الفندقي بدأ أمس الساعة 14:00
-      hotelDayStart = DateTime(date.year, date.month, date.day - 1, boundaryHour);
-      // وينتهي اليوم الساعة 13:59:59
-      hotelDayEnd = DateTime(date.year, date.month, date.day, boundaryHour - 1, 59, 59, 999);
-    } else { // إذا كان الوقت الحالي بعد أو يساوي الساعة 14:00
-      // اليوم الفندقي بدأ اليوم الساعة 14:00
-      hotelDayStart = DateTime(date.year, date.month, date.day, boundaryHour);
-      // وينتهي غداً الساعة 13:59:59
-      hotelDayEnd = DateTime(date.year, date.month, date.day + 1, boundaryHour - 1, 59, 59, 999);
+    // إذا كان الوقت الحالي قبل الساعة 14:01
+    if (date.hour < boundaryHour || (date.hour == boundaryHour && date.minute < boundaryMinute)) {
+      // اليوم الفندقي بدأ أمس الساعة 14:01
+      hotelDayStart = DateTime(date.year, date.month, date.day - 1, boundaryHour, boundaryMinute);
+      // وينتهي اليوم الساعة 14:00:59
+      hotelDayEnd = DateTime(date.year, date.month, date.day, boundaryHour, 0, 59, 999);
+    } else { // إذا كان الوقت الحالي بعد أو يساوي الساعة 14:01
+      // اليوم الفندقي بدأ اليوم الساعة 14:01
+      hotelDayStart = DateTime(date.year, date.month, date.day, boundaryHour, boundaryMinute);
+      // وينتهي غداً الساعة 14:00:59
+      hotelDayEnd = DateTime(date.year, date.month, date.day + 1, boundaryHour, 0, 59, 999);
     }
 
     return {
@@ -55,11 +59,11 @@ class HotelTimeEngine {
   /// تحويل أي DateTime إلى "يوم فندقي" (Date فقط، بدون وقت).
   ///
   /// القاعدة:
-  /// - الوقت > 14:00:00 (حتى ثانية واحدة) → نفس اليوم
-  /// - الوقت <= 14:00:00 → اليوم السابق
+  /// - الوقت >= 14:01:00 → نفس اليوم (يوم فندقي جديد)
+  /// - الوقت < 14:01:00 → اليوم السابق
   ///
-  /// 14:00:00 بالضبط = نهاية اليوم الفندقي الحالي (يعود لليوم السابق).
-  /// 14:00:01 = بداية اليوم الفندقي الجديد.
+  /// 14:00:59 بالضبط = نهاية اليوم الفندقي الحالي (يعود لليوم السابق).
+  /// 14:01:00 = بداية اليوم الفندقي الجديد.
   ///
   /// مثال:
   /// - 2025-01-15 13:59 → 2025-01-14 (يوم فندقي سابق)
@@ -67,7 +71,7 @@ class HotelTimeEngine {
   /// - 2025-01-15 14:01 → 2025-01-15 (بداية يوم فندقي جديد)
   static DateTime getHotelDay(DateTime dt) {
     final isAfterBoundary = dt.hour > boundaryHour ||
-        (dt.hour == boundaryHour && (dt.minute > 0 || dt.second > 0));
+        (dt.hour == boundaryHour && dt.minute >= boundaryMinute);
     if (isAfterBoundary) {
       return DateTime(dt.year, dt.month, dt.day);
     } else {
@@ -108,12 +112,12 @@ class HotelTimeEngine {
   ///
   /// القواعد:
   /// - نفس اليوم = ليلة واحدة كحد أدنى
-  /// - checkout بعد 14:00 (حتى ثانية واحدة) = ليلة إضافية
-  /// - checkout عند 14:00:00 بالضبط = لا تُحتسب ليلة إضافية
+  /// - checkout بعد 14:01 (حتى دقيقة واحدة) = ليلة إضافية
+  /// - checkout عند 14:00:59 بالضبط = لا تُحتسب ليلة إضافية
   ///
   /// مثال:
   /// - 01/01 14:01 → 02/01 14:01 = 2 ليالي
-  /// - 01/01 14:01 → 02/01 13:59 = 1 ليلة
+  /// - 01/01 14:01 → 02/01 14:00 = 1 ليلة
   /// - 01/01 14:01 → (الآن بعد 3 أيام) = 3 ليالي
   static int calculateDays(DateTime checkIn, {DateTime? checkOut}) {
     return Time.nightsWithCutoff(
@@ -139,6 +143,7 @@ class HotelTimeEngine {
       discountStartDate.month,
       discountStartDate.day,
       boundaryHour,
+      boundaryMinute,
     );
     final effectiveStart =
         discountDayStart.isAfter(checkIn) ? discountDayStart : checkIn;
@@ -153,19 +158,17 @@ class HotelTimeEngine {
   // ═══════════════════════════════════════════════════════════════
 
   /// هل الوقت الحالي بعد ساعة بداية اليوم الفندقي؟
-  /// true إذا الوقت > 14:00:00 (حتى ثانية واحدة إضافية).
+  /// true إذا الوقت >= 14:01:00.
   static bool isNowAfterCutoff() {
     final now = DateTime.now();
     return now.hour > boundaryHour ||
-        (now.hour == boundaryHour &&
-            (now.minute > 0 || now.second > 0));
+        (now.hour == boundaryHour && now.minute >= boundaryMinute);
   }
 
   /// هل الوقت المحدد بعد ساعة بداية اليوم الفندقي؟
   static bool isAfterCutoff(DateTime dateTime) {
     return dateTime.hour > boundaryHour ||
-        (dateTime.hour == boundaryHour &&
-            (dateTime.minute > 0 || dateTime.second > 0));
+        (dateTime.hour == boundaryHour && dateTime.minute >= boundaryMinute);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -249,10 +252,10 @@ class HotelTimeEngine {
     return calculateDays(checkIn, checkOut: checkOut);
   }
 
-  /// الفترة المتبقية حتى بداية اليوم الفندقي التالي (14:00).
+  /// الفترة المتبقية حتى بداية اليوم الفندقي التالي (14:01).
   static Duration timeUntilNextHotelDay() {
     final now = DateTime.now();
-    var next = DateTime(now.year, now.month, now.day, boundaryHour);
+    var next = DateTime(now.year, now.month, now.day, boundaryHour, boundaryMinute);
     if (!now.isBefore(next)) {
       next = next.add(const Duration(days: 1));
     }

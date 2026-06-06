@@ -740,8 +740,8 @@ class _GoogleDriveBackupContentState
   void _showTimeSelection(AutoBackupSettings currentSettings) {
     final timeParts = currentSettings.time.split(':');
     final currentTime = TimeOfDay(
-      hour: int.parse(timeParts[0]),
-      minute: int.parse(timeParts[1]),
+      hour: int.tryParse(timeParts[0]) ?? 0,
+      minute: int.tryParse(timeParts[1]) ?? 0,
     );
 
     showTimePicker(

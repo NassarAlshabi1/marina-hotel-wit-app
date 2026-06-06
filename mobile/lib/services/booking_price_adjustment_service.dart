@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
+import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
 import 'auto_backup_manager.dart';
@@ -27,8 +28,7 @@ enum AdjustmentType {
 
 enum AdjustmentMode {
   perNight('per_night'),
-  total('total'),
-  percentage('percentage');
+  total('total');
 
   const AdjustmentMode(this.value);
   final String value;
@@ -237,8 +237,6 @@ class BookingPriceAdjustmentService {
           return 0;
         }
         return sign * (amount.toDouble() / totalNights);
-      case AdjustmentMode.percentage:
-        return sign * (baseRate * amount / 100);
     }
   }
 
@@ -345,7 +343,7 @@ class BookingPriceAdjustmentService {
     // ملاحظة: نضع أمس وليس اليوم لأن _isWithinRange يستخدم isAfter
     // (تضميني على كلا الطرفين)، فلو وضعنا اليوم ستُحسب ليلة اليوم
     // كمخفّضة وهذا خطأ لأن المستخدم أنهى التخفيض بنفس اليوم.
-    final todayHotelDay = Time.hotelDayKey();
+    final todayHotelDay = HotelTimeEngine.getHotelDayKey();
     final yesterdayHotelDay = Time.dateToString(
       DateTime.parse(todayHotelDay).subtract(const Duration(days: 1)),
     );
@@ -390,6 +388,7 @@ class BookingPriceAdjustmentService {
       op: 'update',
       localUuid: adjustmentUuid,
       payload: {
+        'isActive': !fullyCancelled,
         'endHotelDay': effectiveEnd,
         'cancelledAt': nowIso,
         'cancelledBy': cancelledBy,

@@ -185,6 +185,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> start() async {
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final prefs = await SharedPreferences.getInstance();
+    final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!syncEnabled) {
+      _log('⏸️ Google Drive sync disabled - engine will not start');
+      return;
+    }
+
     final canStart = await SyncLocks.autoEngineLock.synchronized(() async {
       if (!_isInitialized) {
         return _StartResult.notInitialized;
@@ -390,6 +398,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
       return;
     }
 
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final prefs = await SharedPreferences.getInstance();
+    final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!syncEnabled) {
+      _log('⏸️ Google Drive sync disabled - skipping health check sync');
+      return;
+    }
+
     _log('❤️ Performing health check...');
 
     final hadConnection = _hasNetworkConnection;
@@ -421,6 +437,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   Future<void> _onNetworkRestored() async {
     _log('🌐 Network restored handler triggered');
+
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final prefs = await SharedPreferences.getInstance();
+    final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!syncEnabled) {
+      _log('⏸️ Google Drive sync disabled - skipping network restore sync');
+      return;
+    }
 
     _retryTimer?.cancel();
     _failedAttempts = 0;
@@ -479,6 +503,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
     }
 
     _log('📱 App resumed - triggering foreground sync');
+
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final prefs = await SharedPreferences.getInstance();
+    final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!syncEnabled) {
+      _log('⏸️ Google Drive sync disabled - skipping foreground sync');
+      return;
+    }
 
     if (!_hasNetworkConnection) {
       _log('📴 No network - checking connectivity first');
@@ -620,6 +652,16 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _emitState();
 
     if (isSignedIn) {
+      // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+      final prefs = await SharedPreferences.getInstance();
+      final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+      if (!syncEnabled) {
+        _log('⏸️ Google Drive sync disabled - skipping monitoring after sign-in');
+        // نُعلم الـ orchestrator بتغيّر حالة تسجيل الدخول (بدون تشغيل مزامنة)
+        await _orchestrator.onDriveSignInChanged(true);
+        return;
+      }
+
       _failedAttempts = 0;
       _nextRetryAt = null;
 
@@ -701,6 +743,19 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   Future<SyncResult> forceSyncNow() async {
     _log('🚀 Force sync triggered by user');
+
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final prefs = await SharedPreferences.getInstance();
+    final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!syncEnabled) {
+      const message = 'مزامنة Google Drive معطّلة';
+      _log('⏸️ $message');
+      return SyncResult.failure(
+        message: message,
+        error: 'SyncDisabled',
+        phase: SyncPhase.idle,
+      );
+    }
 
     if (!_hasNetworkConnection) {
       const message = 'لا يوجد اتصال بالإنترنت';

@@ -66,6 +66,60 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
+  /// فلترة حسب نطاق الأيام الفندقية — الطريقة الصحيحة للتقارير
+  ///
+  /// على عكس [listFiltered] التي تفلتر بحقل [date] التقويمي
+  /// (وتشمل مصروفات الصباح التي تنتمي لليوم الفندقي السابق)،
+  /// هذه الدالة تفلتر بحقل [hotelDayKey] وهو المفتاح الصحيح.
+  ///
+  /// مثال: إذا كان اليوم الفندقي "2026-05-18" والوقت 10:00 صباحاً
+  /// فإن listFiltered(from:"2026-05-18") تجلب مصروفات صباح 18 مايو
+  /// التي تنتمي لليوم الفندقي 17 مايو — بينما هذه الدالة تجلب فقط
+  /// المصروفات التي hotelDayKey فيها بين fromHotelDay و toHotelDay.
+  Future<List<Expense>> listFilteredByHotelDay({
+    String? fromHotelDay,
+    String? toHotelDay,
+    String? expenseType,
+    String? search,
+    bool includeDeleted = false,
+    bool excludeAdvance = false,
+  }) async {
+    final q = select(expenses);
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+
+    if (fromHotelDay != null) {
+      // hotelDayKey >= fromHotelDay، مع fallback لحقل date عند كون hotelDayKey فارغاً
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.date.isBiggerOrEqualValue(fromHotelDay)));
+    }
+    if (toHotelDay != null) {
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.date.isSmallerOrEqualValue(toHotelDay)));
+    }
+    if (expenseType != null && expenseType.isNotEmpty) {
+      q.where((t) => t.expenseType.equals(expenseType));
+    }
+    if (search != null && search.trim().isNotEmpty) {
+      final s = '%${search.trim()}%';
+      q.where((t) => t.description.like(s) | t.expenseType.like(s));
+    }
+    // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم
+    if (excludeAdvance) {
+      q.where((t) => t.expenseType.equals('سلفة').not());
+    }
+
+    q.orderBy([(t) => OrderingTerm.desc(t.date)]);
+    return q.get();
+  }
+
   Stream<List<Expense>> watchList({bool includeDeleted = false}) {
     final q = select(expenses);
     if (!includeDeleted) {
@@ -298,8 +352,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
             ),
           );
       if (rows > 0 && !originIsServer) {
+        // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
+        // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
         await _mergeOutbox(
-          op: 'delete',
+          op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
           clientTs: now,
@@ -361,35 +417,40 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد المصروفات من JSON
+  /// ✅ إصلاح حرج: تغليف العملية بالكامل في transaction لمنع فقدان البيانات
+  /// إذا تعطل التطبيق أثناء الاستيراد، البيانات القديمة لا تُحذف إلا بعد
+  /// نجاح إدراج جميع البيانات الجديدة
   Future<void> importFromJson(
     List<Map<String, dynamic>> data, {
     bool clearExisting = false,
   }) async {
-    if (clearExisting) {
-      await delete(expenses).go();
-    }
+    await transaction(() async {
+      if (clearExisting) {
+        await delete(expenses).go();
+      }
 
-    for (final expenseJson in data) {
-      final expense = Expense.fromJson(expenseJson);
-      await into(expenses).insertOnConflictUpdate(
-        ExpensesCompanion(
-          expenseType: Value(expense.expenseType),
-          relatedId: Value(expense.relatedId),
-          description: Value(expense.description),
-          amount: Value(expense.amount),
-          date: Value(expense.date),
-          cashTransactionId: Value(expense.cashTransactionId),
-          localUuid: Value(expense.localUuid),
-          serverId: Value(expense.serverId),
-          createdAt: Value(expense.createdAt),
-          updatedAt: Value(expense.updatedAt),
-          deletedAt: Value(expense.deletedAt),
-          lastModified: Value(expense.lastModified),
-          version: Value(expense.version),
-          origin: Value(expense.origin),
-        ),
-      );
-    }
+      for (final expenseJson in data) {
+        final expense = Expense.fromJson(expenseJson);
+        await into(expenses).insertOnConflictUpdate(
+          ExpensesCompanion(
+            expenseType: Value(expense.expenseType),
+            relatedId: Value(expense.relatedId),
+            description: Value(expense.description),
+            amount: Value(expense.amount),
+            date: Value(expense.date),
+            cashTransactionId: Value(expense.cashTransactionId),
+            localUuid: Value(expense.localUuid),
+            serverId: Value(expense.serverId),
+            createdAt: Value(expense.createdAt),
+            updatedAt: Value(expense.updatedAt),
+            deletedAt: Value(expense.deletedAt),
+            lastModified: Value(expense.lastModified),
+            version: Value(expense.version),
+            origin: Value(expense.origin),
+          ),
+        );
+      }
+    });
   }
 
   /// الحصول على عدد السجلات

@@ -74,6 +74,8 @@ class EmployeesRepository {
     String? phone,
     String? hireDate,
     String? status,
+    String? terminationDate,
+    String? terminationReason,
   }) async {
     try {
     final result = await dao.updateById(
@@ -88,6 +90,12 @@ class EmployeesRepository {
         hireDate: hireDate != null ? d.Value(hireDate) : const d.Value.absent(),
         status: status != null
             ? d.Value(_normalizeStatus(status))
+            : const d.Value.absent(),
+        terminationDate: terminationDate != null
+            ? d.Value(terminationDate)
+            : const d.Value.absent(),
+        terminationReason: terminationReason != null
+            ? d.Value(terminationReason)
             : const d.Value.absent(),
       ),
     );
@@ -120,6 +128,8 @@ class EmployeesRepository {
     String? phone,
     String? hireDate,
     String? status,
+    String? terminationDate,
+    String? terminationReason,
   }) => dao.updateByLocalUuid(
     localUuid,
     EmployeesCompanion(
@@ -133,8 +143,84 @@ class EmployeesRepository {
       status: status != null
           ? d.Value(_normalizeStatus(status))
           : const d.Value.absent(),
+      terminationDate: terminationDate != null
+          ? d.Value(terminationDate)
+          : const d.Value.absent(),
+      terminationReason: terminationReason != null
+          ? d.Value(terminationReason)
+          : const d.Value.absent(),
     ),
   );
+
+  /// إنهاء خدمة موظف - يغير الحالة ويسجل تاريخ وسبب الإنهاء
+  Future<int> terminate({
+    required int id,
+    required String terminationType,
+    required String terminationDate,
+    String? terminationReason,
+  }) async {
+    try {
+    final result = await dao.updateById(
+      id,
+      EmployeesCompanion(
+        status: d.Value(_normalizeStatus(terminationType)),
+        terminationDate: d.Value(terminationDate),
+        terminationReason: d.Value(terminationReason ?? ''),
+      ),
+    );
+    if (result > 0) {
+      unawaited(AutoBackupManager.instance.onDataChange(
+        'employees',
+        'TERMINATE',
+        recordData: {'id': id, 'type': terminationType},
+      ),);
+    }
+    return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'EmployeesRepository',
+        action: 'terminate',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.fatal,
+        extra: {'id': '$id', 'type': terminationType},
+      );
+      rethrow;
+    }
+  }
+
+  /// إعادة تفعيل موظف مفصول / مستغنى عنه
+  Future<int> reactivate({
+    required int id,
+  }) async {
+    try {
+    final result = await dao.updateById(
+      id,
+      EmployeesCompanion(
+        status: const d.Value('active'),
+        terminationDate: const d.Value<String?>(null),
+        terminationReason: const d.Value<String?>(null),
+      ),
+    );
+    if (result > 0) {
+      unawaited(AutoBackupManager.instance.onDataChange(
+        'employees',
+        'REACTIVATE',
+        recordData: {'id': id},
+      ),);
+    }
+    return result;
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'EmployeesRepository',
+        action: 'reactivate',
+        error: e,
+        stackTrace: stack,
+        extra: {'id': '$id'},
+      );
+      rethrow;
+    }
+  }
 
   Future<int> delete(int id) async {
     try {

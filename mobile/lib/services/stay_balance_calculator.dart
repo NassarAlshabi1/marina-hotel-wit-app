@@ -204,6 +204,12 @@ class StayBalanceCalculator {
     final checkin = DateTime.tryParse(booking.checkinDate) ?? moment;
     final checkinDateOnly = DateTime(checkin.year, checkin.month, checkin.day);
 
+    // ✅ حماية: إذا كان checkinDate فارغ أو تالف بالكامل، نستخدم now
+    // لمنع القيم السلبية أو الحلقات اللانهائية
+    if (booking.checkinDate.isEmpty) {
+      return _fallbackResult(booking, moment);
+    }
+
     // تاريخ المغادرة اليدوي
     final DateTime? manualCheckout =
         (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty)
@@ -211,11 +217,22 @@ class StayBalanceCalculator {
             : null;
 
     // سعر الليلة الأساسي: يُفضّل السعر المُمرّر، وإلا يُحسب من إجمالي العقد
-    final double baseRate = (roomRate != null && roomRate > 0)
-        ? roomRate
-        : (booking.calculatedNights > 0
-            ? booking.totalDueCached / booking.calculatedNights
-            : 0);
+    // ✅ حماية: التأكد من أن totalDueCached و calculatedNights ليسا صفراً
+    // لتجنب القسمة على صفر أو قيم NaN
+    final double baseRate;
+    if (roomRate != null && roomRate > 0) {
+      baseRate = roomRate;
+    } else if (booking.calculatedNights > 0 && booking.totalDueCached > 0) {
+      baseRate = booking.totalDueCached / booking.calculatedNights;
+    } else {
+      baseRate = 0;
+    }
+
+    // ✅ حماية: إذا كان سعر الليلة صفراً ولا توجد مدفوعات،
+    // نُعيد نتيجة آمنة بدون محاكاة مكلفة
+    if (baseRate <= 0 && booking.totalPaidCached <= 0) {
+      return _fallbackResult(booking, moment);
+    }
 
     // ─── بناء خريطة تعديلات الأسعار لكل ليلة ───
     final adjMap = _buildPerNightAdjustments(
@@ -381,8 +398,11 @@ class StayBalanceCalculator {
     }
 
     final map = <String, double>{};
+    // ✅ إصلاح: تقليص farFuture من 3650 إلى 365 يوم (سنة واحدة)
+    // الحجوزات التي تمتد لأكثر من سنة بدون تاريخ مغادرة يدوي نادرة جداً
+    // وغالباً تشير إلى بيانات تالفة
     final farFuture =
-        manualCheckout ?? checkinDateOnly.add(const Duration(days: 3650));
+        manualCheckout ?? checkinDateOnly.add(const Duration(days: 365));
 
     for (final adj in adjustments) {
       final effectiveDate = DateTime.tryParse(adj.effectiveHotelDay);
@@ -409,9 +429,14 @@ class StayBalanceCalculator {
 
       if (adj.adjustmentMode == 'total') {
         // توزيع إجمالي المبلغ بالتساوي على ليالي النطاق
-        final daysInRange = adjEnd.difference(effDateOnly).inDays + 1;
+        int daysInRange = adjEnd.difference(effDateOnly).inDays + 1;
         if (daysInRange <= 0) {
           continue;
+        }
+        // ✅ إصلاح: حد أمان لمنع حلقات طويلة جداً (أقصى 365 يوم)
+        // التعديلات التي تمتد لأكثر من سنة غير منطقية وغالباً بيانات تالفة
+        if (daysInRange > 365) {
+          daysInRange = 365;
         }
 
         final amountPerNight = rawAmount / daysInRange;
@@ -426,7 +451,8 @@ class StayBalanceCalculator {
         // per_night: يُطبّق المبلغ كاملاً على كل ليلة في النطاق
         DateTime night = effDateOnly;
         int safetyCounter = 0;
-        while (!night.isAfter(adjEnd) && safetyCounter < 3650) {
+        // ✅ إصلاح: تقليص حد الأمان من 3650 إلى 365 (سنة واحدة)
+        while (!night.isAfter(adjEnd) && safetyCounter < 365) {
           final key = Time.dateToString(night);
           final signed = isDiscount ? -rawAmount : rawAmount;
           map[key] = (map[key] ?? 0.0) + signed;
@@ -437,5 +463,32 @@ class StayBalanceCalculator {
     }
 
     return map;
+  }
+
+  /// ✅ نتيجة احتياطية آمنة عند وجود بيانات تالفة أو ناقصة
+  /// تُستخدم بدلاً من رمي استثناء يُنهي التطبيق
+  static StayBalanceResult _fallbackResult(Booking booking, DateTime moment) {
+    final checkin = DateTime.tryParse(booking.checkinDate) ?? moment;
+    final checkout = (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty)
+        ? DateTime.tryParse(booking.checkoutDate!)
+        : null;
+    return StayBalanceResult(
+      checkinDate: checkin,
+      manualCheckoutDate: checkout,
+      autoCheckoutDate: checkout ?? checkin.add(const Duration(days: 1)),
+      totalPaid: booking.totalPaidCached,
+      nightlyRate: 0,
+      effectiveNightlyRate: 0,
+      actualNightsSpent: 0,
+      totalPaidNights: 0,
+      consumedCost: 0,
+      effectiveBalance: booking.remainingBalanceCached,
+      manualNightsRemaining: 0,
+      isAutoExtended: false,
+      extraNightsBeyondManual: 0,
+      surplusAfterAllNights: 0,
+      rawRemainingBalance: booking.remainingBalanceCached,
+      coveredDates: const [],
+    );
   }
 }

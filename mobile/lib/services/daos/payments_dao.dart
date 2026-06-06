@@ -142,6 +142,62 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
+  /// فلترة حسب نطاق الأيام الفندقية — الطريقة الصحيحة للتقارير
+  ///
+  /// على عكس [list] و [listForReport] التي تفلتر بحقل [paymentDate] الزمني
+  /// (وتشمل مدفوعات الصباح التي تنتمي لليوم الفندقي السابق)،
+  /// هذه الدالة تفلتر بحقل [hotelDayKey] وهو المفتاح الصحيح.
+  ///
+  /// مثال: إذا كان اليوم الفندقي "2026-05-18" والوقت 10:00 صباحاً
+  /// فإن list(from:"2026-05-18") تجلب مدفوعات صباح 18 مايو
+  /// التي تنتمي لليوم الفندقي 17 مايو — بينما هذه الدالة تجلب فقط
+  /// المدفوعات التي hotelDayKey فيها بين fromHotelDay و toHotelDay.
+  Future<List<Payment>> listFilteredByHotelDay({
+    String? fromHotelDay,
+    String? toHotelDay,
+    String? roomNumber,
+    String? revenueType,
+    bool excludeVoided = false,
+    bool excludePendingBalance = false,
+    bool includeDeleted = false,
+  }) async {
+    final q = select(payments);
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+    if (excludeVoided) {
+      q.where((t) => t.isVoided.equals(false));
+    }
+    if (excludePendingBalance) {
+      q.where((t) => t.isPendingBalance.equals(false));
+    }
+    if (fromHotelDay != null) {
+      // hotelDayKey >= fromHotelDay، مع fallback لحقل paymentDate عند كون hotelDayKey فارغاً
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.paymentDate.isBiggerOrEqualValue(fromHotelDay)));
+    }
+    if (toHotelDay != null) {
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.paymentDate.isSmallerOrEqualValue(toHotelDay)));
+    }
+    if (roomNumber != null && roomNumber.isNotEmpty) {
+      q.where((t) => t.roomNumber.equals(roomNumber));
+    }
+    if (revenueType != null && revenueType.isNotEmpty) {
+      q.where((t) => t.revenueType.equals(revenueType));
+    }
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+    ]);
+    return q.get();
+  }
+
   Future<List<Payment>> listByHotelDayKey(
     String hotelDayKey, {
     bool includeDeleted = false,
@@ -258,8 +314,10 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
             ),
           );
       if (rows > 0 && !originIsServer) {
+        // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
+        // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
         await _mergeOutbox(
-          op: 'delete',
+          op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
           clientTs: now,
@@ -310,43 +368,46 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد المدفوعات من JSON
+  /// ✅ إصلاح حرج: تغليف العملية بالكامل في transaction لمنع فقدان البيانات
   Future<void> importFromJson(
     List<Map<String, dynamic>> data, {
     bool clearExisting = false,
   }) async {
-    if (clearExisting) {
-      await delete(payments).go();
-    }
+    await transaction(() async {
+      if (clearExisting) {
+        await delete(payments).go();
+      }
 
-    for (final paymentJson in data) {
-      final payment = Payment.fromJson(paymentJson);
-      await into(payments).insertOnConflictUpdate(
-        PaymentsCompanion(
-          serverPaymentId: Value(payment.serverPaymentId),
-          bookingLocalId: Value(payment.bookingLocalId),
-          serverBookingId: Value(payment.serverBookingId),
-          roomNumber: Value(payment.roomNumber),
-          amount: Value(payment.amount),
-          paymentDate: Value(payment.paymentDate),
-          notes: Value(payment.notes),
-          paymentMethod: Value(payment.paymentMethod),
-          revenueType: Value(payment.revenueType),
-          hotelDayKey: Value(payment.hotelDayKey),
-          linkedDebtUuid: Value(payment.linkedDebtUuid),
-          bookingUuidCache: Value(payment.bookingUuidCache),
-          cashTransactionLocalId: Value(payment.cashTransactionLocalId),
-          cashTransactionServerId: Value(payment.cashTransactionServerId),
-          localUuid: Value(payment.localUuid),
-          serverId: Value(payment.serverId),
-          createdAt: Value(payment.createdAt),
-          updatedAt: Value(payment.updatedAt),
-          deletedAt: Value(payment.deletedAt),
-          lastModified: Value(payment.lastModified),
-          version: Value(payment.version),
-          origin: Value(payment.origin),
-        ),
-      );
-    }
+      for (final paymentJson in data) {
+        final payment = Payment.fromJson(paymentJson);
+        await into(payments).insertOnConflictUpdate(
+          PaymentsCompanion(
+            serverPaymentId: Value(payment.serverPaymentId),
+            bookingLocalId: Value(payment.bookingLocalId),
+            serverBookingId: Value(payment.serverBookingId),
+            roomNumber: Value(payment.roomNumber),
+            amount: Value(payment.amount),
+            paymentDate: Value(payment.paymentDate),
+            notes: Value(payment.notes),
+            paymentMethod: Value(payment.paymentMethod),
+            revenueType: Value(payment.revenueType),
+            hotelDayKey: Value(payment.hotelDayKey),
+            linkedDebtUuid: Value(payment.linkedDebtUuid),
+            bookingUuidCache: Value(payment.bookingUuidCache),
+            cashTransactionLocalId: Value(payment.cashTransactionLocalId),
+            cashTransactionServerId: Value(payment.cashTransactionServerId),
+            localUuid: Value(payment.localUuid),
+            serverId: Value(payment.serverId),
+            createdAt: Value(payment.createdAt),
+            updatedAt: Value(payment.updatedAt),
+            deletedAt: Value(payment.deletedAt),
+            lastModified: Value(payment.lastModified),
+            version: Value(payment.version),
+            origin: Value(payment.origin),
+          ),
+        );
+      }
+    });
   }
 
   /// الحصول على عدد السجلات

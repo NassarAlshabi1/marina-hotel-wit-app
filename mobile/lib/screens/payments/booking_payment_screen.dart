@@ -21,6 +21,7 @@ import '../../utils/currency_formatter.dart';
 import '../../utils/date_parser.dart';
 import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 
@@ -409,7 +410,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       .where((p) => !p.isVoided)
                       .fold<double>(0, (s, p) => s + p.amount);
                   // حساب المدفوعات في اليوم الفندقي الحالي لهذا الحجز
-                  final hotelDay = Time.hotelDayKey();
+                  final hotelDay = HotelTimeEngine.getHotelDayKey();
                   final todayPaidAmount = dbPayments
                       .where((p) =>
                           !p.isVoided &&
@@ -1349,6 +1350,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final cardDigitsController = TextEditingController();
     final bankController = TextEditingController();
 
+    // ✅ إصلاح تسرب ذاكرة: استخدام then للتأكد من dispose بعد إغلاق الحوار
     showDialog<void>(
       context: context,
       builder: (context) => Directionality(
@@ -1461,7 +1463,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ],
         ),
       ),
-    );
+    ).then((_) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
+      amountController.dispose();
+      notesController.dispose();
+      referenceController.dispose();
+      cardDigitsController.dispose();
+      bankController.dispose();
+    });
   }
 
   Future<void> _sendPaymentConfirmation(
@@ -1708,7 +1717,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ],
       ),
-    );
+    ).then((_) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكم بعد إغلاق الحوار
+      notesController.dispose();
+    });
   }
 
   /// معالجة دفع الليالي الإضافية
@@ -2715,7 +2727,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// تسجيل خروجه فيتم احتساب يوم إضافي بالخطأ
   void _showCancelTodayPaymentDialog(BookingPaymentSummary summary) {
     final paymentsRepo = ref.read(paymentsRepoProvider);
-    final hotelDay = Time.hotelDayKey();
+    final hotelDay = HotelTimeEngine.getHotelDayKey();
 
     // عرض نافذة التأكيد مع تفاصيل الدفعات
     showDialog<void>(
@@ -3457,7 +3469,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           );
         },
       ),
-    );
+    ).then((_) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
+      nightsController.dispose();
+      notesController.dispose();
+    });
   }
 
   /// معالجة تمديد الإقامة

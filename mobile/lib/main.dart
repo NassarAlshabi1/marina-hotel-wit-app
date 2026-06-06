@@ -48,6 +48,7 @@ import 'services/google_drive_backup_service.dart';
 import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_logger.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
+import 'services/hotel_day_key_fix_service.dart';
 import 'services/local_db.dart';
 import 'services/logging/log_models.dart';
 import 'services/remote_config_service.dart';
@@ -408,6 +409,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           syncManager: ref.read(appwrite.appwriteSyncManagerProvider),
         );
         await Seeder(database).seedIfEmpty();
+        // ✅ إصلاح hotelDayKey القديم (14:00 → 14:01) لجميع الجداول
+        // يعمل مرة واحدة فقط لكل جلسة — يُصلح البيانات المحلية
+        // وعند المزامنة التالية يُرفع hotelDayKey المصحح إلى Appwrite Cloud
+        await HotelDayKeyFixService.instance.runIfNeeded(database);
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
         _startRealtimeSync();
@@ -783,24 +788,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
               GlobalWidgetsLocalizations.delegate,
             ],
             supportedLocales: const [Locale('ar')],
-            onGenerateRoute: (settings) {
-              // إنشاء المسارات بأسلوب lazy — الصفحة لا تُنشأ إلا عند التنقل إليها
-              switch (settings.name) {
-                case '/employees':
-                  return MaterialPageRoute<void>(builder: (_) => const EmployeesListScreen());
-                case '/expenses':
-                  return MaterialPageRoute<void>(builder: (_) => const ExpensesListScreen());
-                case '/finance/cash-register':
-                case '/finance/cash-transactions':
-                  return MaterialPageRoute<void>(builder: (_) => const FinanceScreen());
-                case '/debts':
-                  return MaterialPageRoute<void>(builder: (_) => const DebtsListScreen());
-                case '/reports':
-                  return MaterialPageRoute<void>(builder: (_) => const ReportsScreen());
-                default:
-                  return null;
-              }
-            },
+            // ✅ تم إزالة onGenerateRoute — جميع المسارات تُدار عبر HomeShell
             home: const RootRouter(),
           );
         },

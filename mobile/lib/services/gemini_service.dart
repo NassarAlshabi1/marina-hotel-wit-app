@@ -6,7 +6,9 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
+import '../utils/time.dart';
 import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
 import 'price_adjustment_service.dart';
@@ -645,7 +647,7 @@ class GeminiService {
         s.writeln();
         s.writeln('أكبر الديون (أول 10):');
         for (final d in topDebts.take(10)) {
-          final pledgeInfo = d.pledge != null && d.pledge!.isNotEmpty ? ' | رهن: ${d.pledge}' : '';
+          final pledgeInfo = (d.pledge?.isNotEmpty ?? false) ? ' | رهن: ${d.pledge}' : '';
           s.writeln('  ${d.guestName}: ${d.remainingAmount.toStringAsFixed(0)} ريال | سبب: ${d.debtReason}$pledgeInfo');
         }
       }
@@ -718,7 +720,7 @@ class GeminiService {
         s.writeln('تفاصيل المدفوعات اليوم (آخر $limit من ${sorted.length}):');
         for (final p in sorted.take(limit)) {
           final room = p.roomNumber ?? '-';
-          final note = (p.notes != null && p.notes!.trim().isNotEmpty) ? ' | ملاحظة: ${p.notes}' : '';
+          final note = (p.notes?.trim().isNotEmpty ?? false) ? ' | ملاحظة: ${p.notes}' : '';
           s.writeln('  $room | ${p.amount.toStringAsFixed(0)} ريال | ${p.paymentMethod} | ${p.revenueType} | ${p.paymentDate}$note');
         }
       }
@@ -729,7 +731,7 @@ class GeminiService {
         final limit = sorted.length < 60 ? sorted.length : 60;
         s.writeln('تفاصيل المصروفات اليوم (آخر $limit من ${sorted.length}):');
         for (final e in sorted.take(limit)) {
-          final desc = (e.description != null && e.description!.trim().isNotEmpty) ? ' | ${e.description}' : '';
+          final desc = e.description.trim().isNotEmpty ? ' | ${e.description}' : '';
           s.writeln('  ${e.expenseType}: ${e.amount.toStringAsFixed(0)} ريال | ${e.date}$desc');
         }
       }
@@ -949,14 +951,14 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       s.writeln();
       s.writeln('═══ اليوم الفندقي (Hotel Day) ═══');
-      s.writeln('قاعدة الحسم: الساعة 14:00 (ظهراً)');
-      s.writeln('اليوم الفندقي يمتد من 14:00 حتى 14:00 من اليوم التالي');
+      s.writeln('قاعدة الحسم: الساعة 14:01 (ظهراً)');
+      s.writeln('اليوم الفندقي يمتد من 14:01 حتى 14:00 من اليوم التالي');
       s.writeln('التاريخ/الوقت الحالي: ${now.toIso8601String()}');
       final currentHotelDay = today; // مبسّط — التطبيق يحسب بال HotelTimeEngine
       s.writeln('اليوم الفندقي الحالي: $currentHotelDay');
 
       // الغرف التي يتغير يومها الفندقي قريباً (تنبيه)
-      final timeToNext = DateTime(now.year, now.month, now.day, 14);
+      final timeToNext = DateTime(now.year, now.month, now.day, 14, 1);
       final actualNext = now.isAfter(timeToNext)
           ? timeToNext.add(const Duration(days: 1))
           : timeToNext;
@@ -1060,7 +1062,7 @@ class GeminiService {
         final limit = sorted.length < 60 ? sorted.length : 60;
         s.writeln('تفاصيل حركة الصندوق اليوم (آخر $limit من ${sorted.length}):');
         for (final t in sorted.take(limit)) {
-          final desc = (t.description != null && t.description!.trim().isNotEmpty) ? ' | ${t.description}' : '';
+          final desc = (t.description?.trim().isNotEmpty ?? false) ? ' | ${t.description}' : '';
           s.writeln('  ${t.transactionType}: ${t.amount.toStringAsFixed(0)} ريال | ${t.transactionTime}$desc');
         }
       }
@@ -1159,7 +1161,7 @@ class GeminiService {
         final limit = sorted.length < 50 ? sorted.length : 50;
         s.writeln('تفاصيل عناصر بانتظار الرفع (آخر $limit من ${sorted.length}):');
         for (final o in sorted.take(limit)) {
-          final err = (o.lastError != null && o.lastError!.trim().isNotEmpty) ? ' | آخر خطأ: ${o.lastError}' : '';
+          final err = (o.lastError?.trim().isNotEmpty ?? false) ? ' | آخر خطأ: ${o.lastError}' : '';
           s.writeln('  ${o.entity}/${o.op} | uuid: ${o.localUuid} | محاولات: ${o.attempts} | مصدر: ${o.source} | الحالة: ${o.processingStatus}$err');
         }
       }
@@ -1168,7 +1170,7 @@ class GeminiService {
         final limit = sorted.length < 50 ? sorted.length : 50;
         s.writeln('تفاصيل عناصر فشل الرفع (آخر $limit من ${sorted.length}):');
         for (final o in sorted.take(limit)) {
-          final err = (o.lastError != null && o.lastError!.trim().isNotEmpty) ? ' | آخر خطأ: ${o.lastError}' : '';
+          final err = (o.lastError?.trim().isNotEmpty ?? false) ? ' | آخر خطأ: ${o.lastError}' : '';
           s.writeln('  ${o.entity}/${o.op} | uuid: ${o.localUuid} | محاولات: ${o.attempts} | مصدر: ${o.source} | الحالة: ${o.processingStatus}$err');
         }
       }
@@ -1620,12 +1622,15 @@ class GeminiService {
             :final amount
           ):
           final uuid = _uuid.v4();
+          final expenseDate = now.toIso8601String().split('T')[0];
           await db.into(db.expenses).insert(
             ExpensesCompanion(
               expenseType: Value(expenseType),
               description: Value(desc),
               amount: Value(amount),
-              date: Value(now.toIso8601String().split('T')[0]),
+              date: Value(expenseDate),
+              // ✅ إصلاح: حساب hotelDayKey من الوقت الفعلي بدلاً من التاريخ التقويمي
+              hotelDayKey: Value(HotelTimeEngine.getHotelDayKey()),
               localUuid: Value(uuid),
               createdAt: Value(now.millisecondsSinceEpoch),
               updatedAt: Value(now.millisecondsSinceEpoch),
@@ -1996,6 +2001,10 @@ class GeminiService {
 
   String _systemPromptImpl() {
     final today = DateTime.now().toIso8601String().split('T')[0];
+    final todayHotelDay = HotelTimeEngine.getHotelDayKey();
+    final timeUntilNext = HotelTimeEngine.timeUntilNextHotelDay();
+    final hoursLeft = timeUntilNext.inHours;
+    final minsLeft = timeUntilNext.inMinutes % 60;
     return '''
 أنت "ماريانا" — مساعد ذكي متقدم لنظام إدارة فندق Marina Hotel. أنت مستشار فندقي محترف يتحدث باللغة العربية فقط.
 
@@ -2019,6 +2028,101 @@ class GeminiService {
 - لا تضع JSON بين ``` فقط أرسله مباشرة في سطر منفصل
 - المبالغ بالريال اليمني — الأرقام بدون فواصل (50000 وليس 50,000)
 
+═══ اليوم الفندقي — المفهوم الأساسي ═══
+هذا هو المفهوم الأهم في النظام. كل شيء يدور حوله:
+
+▸ التعريف: اليوم الفندقي يمتد من الساعة 14:01 إلى 14:00 من اليوم التالي
+  - مثال: اليوم الفندقي "2026-05-19" يبدأ 14:01 يوم 19 مايو وينتهي 14:00 يوم 20 مايو
+
+▸ قاعدة الحسم (14:01:00 بالضبط):
+  - الوقت < 14:01 → نحن في اليوم الفندقي السابق (التقويمي)
+  - الوقت = 14:01:00 بالضبط → بداية يوم فندقي جديد
+  - الوقت > 14:01:00 → يوم فندقي جديد
+
+▸ أمثلة عملية:
+  - 10:00 صباح 19 مايو → اليوم الفندقي = "2026-05-18"
+  - 14:00 ظهر 19 مايو → اليوم الفندقي = "2026-05-18" (نهاية اليوم الفندقي)
+  - 14:01 ظهر 19 مايو → اليوم الفندقي = "2026-05-19" (بداية يوم جديد)
+  - 14:00 ظهر 20 مايو → اليوم الفندقي = "2026-05-19"
+
+▸ مفتاح اليوم الفندقي (hotelDayKey):
+  - صيغة YYYY-MM-DD (مثال: "2026-05-19")
+  - يُخزّن في المدفوعات والمصروفات والحجوزات لضمان الفلترة الصحيحة
+  - عند الفلترة: كل المدفوعات/المصروفات في "اليوم الحالي" تُفلتر بـ hotelDayKey وليس بالتاريخ التقويمي
+
+▸ الوقت الحالي الآن: $today | اليوم الفندقي الحالي: $todayHotelDay | متبقي حتى اليوم الفندقي التالي: ${hoursLeft}س ${minsLeft}د
+
+═══ دورة حياة الحجز ═══
+▸ الحالات بالترتيب:
+  1. "مؤقت" (provisional) — حجز أولي قبل تأكيد الدفع
+  2. "محجوزة" أو "نشط" — حجز مؤكد والضيف في الغرفة
+  3. "مكتمل" — تم تسجيل الخروج
+
+▸ التثبيت التلقائي: الحجوزات المؤقتة تتحول تلقائياً إلى "محجوزة" عند بلوغ ساعة cutoff (14:01)
+▸ الكشف عن التأخير: الحجز النشط الذي تجاوز تاريخ الخروج المحدد يُعلّم كـ isOverdue=true
+▸ مراجعة الخروج: الحجز يحتاج مراجعة (needsCheckoutReview) إذا كان متأخراً أو لديه رصيد متبقي
+
+▸ حساب الليالي (المصدر الوحيد: HotelTimeEngine.calculateDays):
+  - نفس اليوم = ليلة واحدة كحد أدنى
+  - checkout عند أو بعد 14:01:00 = ليلة إضافية
+  - checkout قبل 14:01:00 = لا تُحتسب ليلة إضافية
+  - مثال: دخول 14:01 يوم 19 → خروج 14:00 يوم 21 = ليلتان | خروج 14:01 يوم 21 = 3 ليالٍ
+
+═══ الحسابات المالية ═══
+▸ الإجمالي المستحق = عدد الليالي × سعر الليلة - الخصم
+  - خصم per_night: يُطرح من كل ليلة (المستحق = الليالي × (السعر - الخصم))
+  - خصم total: يُطرح من الإجمالي (المستحق = الليالي × السعر - الخصم)
+  - discountStartDate: الخصم يبدأ من تاريخ معين — الليالي قبله بالسعر الكامل
+
+▸ الرصيد المتبقي = الإجمالي المستحق - إجمالي المدفوعات
+▸ الحجز مسدد بالكامل إذا remainingBalance ≤ 0
+
+▸ تعديلات الأسعار (booking_price_adjustments):
+  - تخفيض/زيادة لكل ليلة (per_night) أو إجمالي يُوزع بالتساوي (total)
+  - نطاق زمني: effectiveHotelDay → endHotelDay
+  - نوع التعديل: adjustmentType=0 (تخفيض) أو 1 (زيادة)
+  - عند تغيير سعر الغرفة، تُعاد حساب جميع الحجوزات النشطة تلقائياً
+
+▸ الرصيد الفعّال (StayBalanceCalculator):
+  - consumedCost = تكلفة الأيام المقضية فعلياً حتى الآن
+  - effectiveBalance = totalPaid - consumedCost (الرصيد الحقيقي)
+  - autoCheckoutDate = تاريخ الدخول + عدد الليالي المغطاة بالمدفوع
+
+═══ أنواع المصروفات والرواتب ═══
+▸ المصروفات العادية: صيانة, ديزل, كهرباء, ماء, طعام, تنظيف, نقل, أخرى
+▸ مصروفات الرواتب (تؤثر على حساب استحقاقات الموظف):
+  - "سحب راتب" / "رواتب" / "سحب من الراتب" → سحب من الراتب
+  - "خصم راتب" / "خصم من الراتب" / "غياب" → خصم من الراتب
+  - "سلفة" → سلفة مقسطة أو مباشرة (السلفة غير التلقائية تُحسب كسحب)
+
+▸ استحقاق الموظف = (عدد الأشهر × الراتب الأساسي) - المسحوبات - الخصومات
+▸ أشهر العمل = (سنة الحالية - سنة التعيين) × 12 + (شهر الحالي - شهر التعيين)
+
+═══ الديون ═══
+▸ تنشأ من الحجوزات غير المسددة عند الخروج
+▸ حقول: totalAmount, paidAmount, remainingAmount, isSettled
+▸ معلومات الرهن: pledge (وصف), pledgeType (نوع)
+▸ التسوية: دفع جزئي أو كامل عبر أمر settle_debt
+▸ حقول اليوم الفندقي: hotelDayOpened, hotelDayClosed
+
+═══ حالات النظام الكاملة ═══
+▸ حالات الغرف:
+  - شاغرة/متاحة → الغرفة فارطة وجاهزة
+  - محجوزة/مشغولة → يوجد ضيف في الغرفة
+  - تنظيف → قيد التنظيف
+  - صيانة → قيد الصيانة
+
+▸ حالات الموظفين:
+  - نشط (active) — يعمل حالياً
+  - مفصول (terminated) — تم فصله
+  - استقالة (resigned) — استقال
+  - استغناء (laid_off) — تم الاستغناء عنه
+  - مجمد (frozen) — مجمد مؤقتاً
+
+▸ طرق الدفع: نقدي (cash), تحويل بنكي (transfer), بطاقة (card), أخرى (other)
+▸ أنواع الإيرادات: إيجار غرفة (room_rent), خدمات إضافية (extra_services), غرامات (penalty), أخرى (other)
+▸ أنواع الغرف: single, double, triple, suite, family
+
 ═══ قدراتك التحليلية ═══
 بناءً على البيانات المقدمة لك، يمكنك:
 1. تحليل الأداء المالي: مقارنة الإيرادات اليومية، حساب متوسط الإيرادات، تحليل الصافي
@@ -2033,20 +2137,24 @@ class GeminiService {
    - الأرصدة السالبة (المدفوع أكبر من المستحق)
    - الدفعات الزائدة عن التكلفة
    - الغرف المحجوزة بدون أي دفعة (مع تنبيه حسب مدة الإقامة)
+9. تحليل الرواتب: مقارنة الاستحقاقات بالمسحوبات، اكتشاف الموظفين ذوي السلف الكثيرة
+10. تحليل اتجاه الإيرادات: آخر 14 يوم لمقارنة الأداء واكتشاف الانحرافات
 
 ═══ تنسيق البيانات ═══
 يتم تزويدك ببيانات حية من الفندق تتضمن:
 - بيانات الغرف: الأنواع والأسعار والحالات وتوزيع الأسعار
 - الحجوزات النشطة: تفاصيل كاملة لكل ضيف مع الجنسية والمدفوعات
+- تنبيهات الخروج: ضيوف يغادرون اليوم أو غداً
 - الديون: إجمالي وتفاصيل كل دين مع معلومات الرهن
-- الإيرادات والمصروفات: تفصيل حسب النوع وطريقة الدفع
+- إيرادات ومصروفات اليوم: تفصيل حسب النوع وطريقة الدفع
 - المؤشرات المالية: نسبة الإشغال، نسبة التحصيل، المتوسطات
 - اتجاه الإيرادات: آخر 14 يوم لمقارنة الأداء
-- دفتر اليوم الفندقي: ملخص يومي شامل
+- دفتر اليوم الفندقي: ملخص يومي شامل (آخر 10 أيام + إحصائيات 30 يوم)
 - ملاحظات الوردية: تنبيهات وملاحظات من الموظفين
 - تعديلات الأسعار: سجل التغييرات الأخيرة
+- إحصائيات عامة: متوسط مدة الإقامة، متوسط الفاتورة
 - التحقق من صحة الحسابات: 4 فحوصات تلقائية
-- اليوم الفندقي: قاعدة 14:00 وتوزيع الحجوزات حسب الأيام
+- اليوم الفندقي: قاعدة 14:01 وتوزيع الحجوزات حسب الأيام
 - الموظفين والرواتب: بيانات الموظفين ودورات الرواتب والمسحوبات
 - التسويات المالية: حركات الصندوق والمدفوعات المعلقة والملغاة
 - ترحيل البيانات: دفتر اليوم وAutoFix والمزامنة مع السيرفر وسجلات المزامنة والتعارضات
@@ -2066,13 +2174,13 @@ class GeminiService {
 - discount_type: per_night (لكل ليلة) أو total (إجمالي)
 
 4. تغيير حالة غرفة:
-{"action": "update_room_status", "room_number": "101", "new_status": "available"}
+{"action": "update_room_status", "room_number": "101", "new_status": "شاغرة"}
 
 5. إضافة مصروف:
 {"action": "add_expense", "expense_type": "صيانة", "description": "صيانة مكيف", "amount": 20000}
 
 6. تسجيل دفعة:
-{"action": "add_payment", "room_number": "101", "amount": 50000, "notes": "دفعة نقدية"}
+{"action": "add_payment", "room_number": "101", "amount": 50000, "payment_method": "نقدي", "notes": "دفعة نقدية"}
 
 7. إنهاء حجز (تسجيل خروج):
 {"action": "checkout", "room_number": "101"}
@@ -2087,7 +2195,7 @@ class GeminiService {
 {"action": "settle_debt", "guest_name": "أحمد", "amount": 30000}
 
 10. إضافة حجز جديد:
-{"action": "add_booking", "room_number": "101", "guest_name": "أحمد محمد", "guest_phone": "777123456", "guest_nationality": "يمني", "checkin_date": "2025-01-15", "expected_nights": 2}
+{"action": "add_booking", "room_number": "101", "guest_name": "أحمد محمد", "guest_phone": "777123456", "guest_nationality": "يمني", "checkin_date": "2026-01-15", "expected_nights": 2}
 
 11. تحديث بيانات ضيف:
 {"action": "update_booking_guest", "room_number": "101", "guest_name": "الاسم الجديد", "extend_nights": 1}
@@ -2104,20 +2212,13 @@ class GeminiService {
 {"action": "report", "report_type": "expenses", "date_from": "2026-05-10", "date_to": "2026-05-10"}
 {"action": "report", "report_type": "payroll", "date_from": "today"}
 
-═══ مرجع البيانات ═══
-- حالات الغرف: available (شاغرة), occupied (محجوزة), cleaning (تنظيف), maintenance (صيانة), reserved (محجوزة مسبقاً)
-- أنواع المصروفات: صيانة, طعام, كهرباء, ماء, تنظيف, نقل, أخرى
-- أنواع الغرف: single, double, triple, suite, family
-- طرق الدفع: cash (نقدي), transfer (تحويل), card (بطاقة), other (أخرى)
-- أنواع الإيرادات: room_rent (إيجار غرفة), extra_services (خدمات إضافية), penalty (غرامات), other (أخرى)
-- اليوم الفندقي: يبدأ من 14:00 ظهراً وينتهي 14:00 من اليوم التالي (قاعدة الحسم 14:00)
-  - دخول قبل 14:00 يُحسب ضمن اليوم الفندقي السابق
-  - دخول بعد 14:00 يُحسب ضمن يوم فندقي جديد
-  - خروج بعد 14:00 يُحتسب كليالي إضافية
-  - المفتاح بصيغة YYYY-MM-DD (مثال: 2025-01-15)
-- ترحيل البيانات: كل يوم فندقي يُرحّل في دفتر اليوم (HotelDayLedger) الذي يخزن إجمالي الدخل والمصروفات والإشغال
-- AutoFix: إصلاح تلقائي يُعيد حساب الليالي والمدفوعات عند تغيير الأسعار أو detect أخطاء
-- تاريخ اليوم: $today''';
+═══ تحذيرات مهمة ═══
+- عند اقتراح إضافة حجز، تأكد أن الغرفة شاغرة فعلاً — الغرفة المحجوزة لا تقبل حجزين نشطين
+- عند اقتراح تغيير سعر، اذكر الأثر على الحجوزات النشطة (إعادة الحساب تلقائية)
+- الخصم يبدأ فوراً إلا إذا حدد المستخدم discountStartDate
+- أوامر المصروفات من نوع "رواتب" تُنشئ تلقائياً سجل سحب راتب للموظف المرتبط
+- لا تقترح سحب راتب لموظف غير نشط أو مفصول
+- تاريخ اليوم: $today | اليوم الفندقي: $todayHotelDay''';
   }
 
   // ───────────────────────────────────────────────────────────
@@ -2824,7 +2925,7 @@ class GeminiService {
     final expenses = await (db.select(db.expenses)
           ..where((e) => e.date.isBiggerOrEqualValue(dateFrom))
           ..where((e) => e.date.isSmallerOrEqualValue(dateToEnd))
-          ..where((e) => e.deletedAt.isNull())))
+          ..where((e) => e.deletedAt.isNull()))
         .get();
 
     if (expenses.isEmpty) {

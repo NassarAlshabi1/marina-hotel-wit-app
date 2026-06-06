@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 import '../auto_backup_manager.dart';
 import '../booking_derived_fields_service.dart';
@@ -73,7 +74,7 @@ class PaymentsRepository {
     bool isPendingBalance = false,
   }) async {
     try {
-      final hotelDayKey = Time.hotelDayKeyFromIso(paymentDate);
+      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);
 
       String? bookingUuidCache;
       if (bookingLocalId != null) {
@@ -180,7 +181,7 @@ class PaymentsRepository {
       final oldBookingId = before?.bookingLocalId;
 
       final hotelDayKey = paymentDate != null
-          ? Time.hotelDayKeyFromIso(paymentDate)
+          ? HotelTimeEngine.getHotelDayKeyFromIso(paymentDate)
           : null;
 
       // ✅ تغليف العملية في معاملة لضمان اتساق البيانات

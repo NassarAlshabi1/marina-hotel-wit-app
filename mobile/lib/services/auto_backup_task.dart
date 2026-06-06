@@ -130,8 +130,8 @@ class AutoBackupTask {
   static Duration _calculateInitialDelay(String time) {
     final now = DateTime.now();
     final timeParts = time.split(':');
-    final targetHour = int.parse(timeParts[0]);
-    final targetMinute = int.parse(timeParts[1]);
+    final targetHour = int.tryParse(timeParts[0]) ?? 0;
+    final targetMinute = int.tryParse(timeParts[1]) ?? 0;
 
     var targetTime = DateTime(
       now.year,
@@ -153,8 +153,8 @@ class AutoBackupTask {
   static Duration _calculateWeeklyInitialDelay(String time, int weekday) {
     final now = DateTime.now();
     final timeParts = time.split(':');
-    final targetHour = int.parse(timeParts[0]);
-    final targetMinute = int.parse(timeParts[1]);
+    final targetHour = int.tryParse(timeParts[0]) ?? 0;
+    final targetMinute = int.tryParse(timeParts[1]) ?? 0;
 
     // العثور على التاريخ المستهدف في الأسبوع الحالي أو التالي
     final daysUntilWeekday = (weekday - now.weekday + 7) % 7;
@@ -180,8 +180,8 @@ class AutoBackupTask {
   static Duration _calculateMonthlyInitialDelay(String time, int day) {
     final now = DateTime.now();
     final timeParts = time.split(':');
-    final targetHour = int.parse(timeParts[0]);
-    final targetMinute = int.parse(timeParts[1]);
+    final targetHour = int.tryParse(timeParts[0]) ?? 0;
+    final targetMinute = int.tryParse(timeParts[1]) ?? 0;
 
     var targetDate = DateTime(now.year, now.month, day);
 

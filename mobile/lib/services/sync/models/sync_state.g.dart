@@ -14,7 +14,7 @@ _$SyncSettingsImpl _$$SyncSettingsImplFromJson(Map<String, dynamic> json) =>
       compressData: json['compressData'] as bool? ?? true,
       defaultPriority:
           $enumDecodeNullable(_$SyncPriorityEnumMap, json['defaultPriority']) ??
-              SyncPriority.normal,
+          SyncPriority.normal,
     );
 
 Map<String, dynamic> _$$SyncSettingsImplToJson(_$SyncSettingsImpl instance) =>

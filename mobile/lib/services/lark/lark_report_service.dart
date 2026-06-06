@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
 import 'lark_api_client.dart';
@@ -90,7 +91,7 @@ class LarkReportService {
   Future<DailyReportData> collectReportData() async {
     try {
       final db = DatabaseManager.instance;
-      final hotelDayKey = Time.hotelDayKey();
+      final hotelDayKey = HotelTimeEngine.getHotelDayKey();
       final now = DateTime.now();
 
       // ─────────────────────────────────
@@ -547,7 +548,7 @@ class LarkReportService {
       }
 
       // التحقق من عدم إرسال تقرير مكرر لنفس اليوم
-      final today = Time.hotelDayKey();
+      final today = HotelTimeEngine.getHotelDayKey();
       final lastSent = await LarkConfig.getLastReportSent();
       if (lastSent == today) {
         debugPrint('ℹ️ Lark Report: تم إرسال تقرير اليوم بالفعل');

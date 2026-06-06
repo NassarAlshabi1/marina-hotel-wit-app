@@ -164,4 +164,11 @@ class DiagnosticsLogger extends ChangeNotifier {
       );
     } catch (_) {}
   }
+
+  /// ✅ إصلاح: إضافة dispose() لتنظيف المستمعين ومنع تسرب الذاكرة
+  @override
+  void dispose() {
+    _logs.clear();
+    super.dispose();
+  }
 }

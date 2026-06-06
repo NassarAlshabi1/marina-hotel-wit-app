@@ -1,32 +1,6 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل مغادرة النزيل</title>
-    <link href="../../includes/css/bootstrap.min.css" rel="stylesheet">
-    <link href="../../includes/css/all.min.css" rel="stylesheet">
-    <link href="../../includes/css/tajawal-font.css" rel="stylesheet">
-    <style>
-        /* ضمان عمل الخطوط بدون انترنت */
-        body {
-            font-family: 'Tajawal', 'Cairo', 'Arial', sans-serif !important;
-            direction: rtl;
-            text-align: right;
-            background-color: #f8f9fa;
-        }
-        
-        /* تحسين Font Awesome للعمل محلياً */
-        .fas, .far, .fab, .fa {
-            font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands" !important;
-            font-weight: 900;
-        }
-    </style>
-</head>
-<body>
 <?php
+require_once '../../includes/security.php';
 include_once '../../includes/db.php';
-include_once '../../includes/header.php';
 
 if ($conn->connect_error) {
     die("فشل الاتصال بقاعدة البيانات: " . $conn->connect_error);
@@ -78,6 +52,8 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf_token();
+
     if ($remaining > 0) {
         $error = "لا يمكن تسجيل المغادرة. يوجد مبلغ متبقي قدره: " . number_format($remaining, 0);
     } else {
@@ -110,6 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+include_once '../../includes/header.php';
 ?>
 
 <div class="container py-4" style="max-width:700px;">
@@ -171,6 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <hr>
 
                 <form method="post" onsubmit="return confirm('هل أنت متأكد من تسجيل مغادرة النزيل؟');">
+                    <?= csrf_field(); ?>
                     <?php if ($remaining > 0): ?>
                         <div class="alert alert-warning">
                             <i class="fas fa-exclamation-triangle me-2"></i>
@@ -196,6 +175,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 </div>
 
-<script src="../../includes/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+<?php include_once '../../includes/footer.php'; ?>

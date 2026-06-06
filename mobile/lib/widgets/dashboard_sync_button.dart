@@ -114,6 +114,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       deviceId = 'unknown';
     }
 
+    // ✅ إصلاح: التحقق من _isPulling قبل كتابة سجل المزامنة
+    // سابقاً كان السجل يُكتب قبل التحقق مما يُنشئ سجلات وهمية
+    if (_isPulling) {
+      return;
+    }
+
     // تسجيل بداية العملية
     final db = ref.read(databaseProvider);
     final syncLogDao = SyncLogDao(db);
@@ -124,9 +130,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       target: 'Appwrite',
       status: 'in_progress',
     );
-    if (_isPulling) {
-      return;
-    }
 
     unawaited(_pullAnimationController.repeat());
     if (mounted) {
@@ -320,6 +323,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       deviceId = 'unknown';
     }
 
+    // ✅ إصلاح: التحقق من _isPushing قبل كتابة سجل المزامنة
+    if (_isPushing) {
+      return;
+    }
+
     // تسجيل بداية العملية
     final db = ref.read(databaseProvider);
     final syncLogDao = SyncLogDao(db);
@@ -330,9 +338,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       target: 'Appwrite+GoogleDrive',
       status: 'in_progress',
     );
-    if (_isPushing) {
-      return;
-    }
 
     if (_pendingChangesCount == 0) {
       if (mounted) {

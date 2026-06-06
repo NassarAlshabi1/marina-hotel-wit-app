@@ -389,6 +389,8 @@ class AppwriteEmployee {
     required this.position,
     required this.salary,
     required this.status,
+    this.terminationDate,
+    this.terminationReason,
     this.lastModified,
     this.lastModifiedBy,
   });
@@ -401,6 +403,8 @@ class AppwriteEmployee {
       position: (json['position'] as String?) ?? '',
       salary: ((json['salary'] as num?) ?? 0).toDouble(),
       status: (json['status'] as String?) ?? '',
+      terminationDate: json['terminationDate'] as String?,
+      terminationReason: json['terminationReason'] as String?,
       lastModified: json['lastModified'] != null
           ? DateTime.parse(json['lastModified'] as String)
           : null,
@@ -413,6 +417,8 @@ class AppwriteEmployee {
   final String position;
   final double salary;
   final String status;
+  final String? terminationDate;
+  final String? terminationReason;
   final DateTime? lastModified;
   final String? lastModifiedBy;
 
@@ -423,6 +429,8 @@ class AppwriteEmployee {
       'position': position,
       'salary': salary,
       'status': status,
+      if (terminationDate != null) 'terminationDate': terminationDate,
+      if (terminationReason != null) 'terminationReason': terminationReason,
       if (lastModified != null) 'lastModified': lastModified!.toIso8601String(),
       if (lastModifiedBy != null) 'lastModifiedBy': lastModifiedBy,
     };

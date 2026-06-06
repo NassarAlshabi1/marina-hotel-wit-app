@@ -1,6 +1,9 @@
 import 'dart:convert';
+
 import 'package:drift/drift.dart' as d;
+
 import '../models/financial_models.dart';
+import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
@@ -64,8 +67,8 @@ class EnhancedBookingCalculationService {
       bookingActive: context.bookingActive,
       stayDurationIso: stayDurationIso,
       lastNightEpoch: lastNightEpoch,
-      hotelDayCheckin: Time.hotelDayKey(now: context.checkin),
-      hotelDayCheckout: Time.hotelDayKey(now: context.checkout),
+      hotelDayCheckin: HotelTimeEngine.getHotelDayKey(dateTime: context.checkin),
+      hotelDayCheckout: HotelTimeEngine.getHotelDayKey(dateTime: context.checkout),
     );
   }
 

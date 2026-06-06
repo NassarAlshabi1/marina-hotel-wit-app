@@ -75,6 +75,12 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                           employee: e,
                           onTap: () => _edit(context, ref, existing: e),
                           onDelete: () => _deleteEmployee(context, ref, e),
+                          onTerminate: StatusUtils.isEmployeeActive(e.status)
+                              ? () => _showTerminateDialog(context, ref, e)
+                              : null,
+                          onReactivate: StatusUtils.isEmployeeTerminated(e.status)
+                              ? () => _reactivateEmployee(context, ref, e)
+                              : null,
                         ),
                       );
                     },
@@ -131,6 +137,345 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         ],
       ),
     );
+  }
+
+  /// حوار إنهاء خدمة موظف
+  void _showTerminateDialog(
+    BuildContext context,
+    WidgetRef ref,
+    Employee employee,
+  ) {
+    String terminationType = 'مفصول';
+    DateTime? terminationDate = DateTime.now();
+    final reasonController = TextEditingController();
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.person_off,
+                  color: Colors.red,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'إنهاء خدمة موظف',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'الموظف: ${employee.name}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // نوع الإنهاء
+                const Text(
+                  'نوع الإنهاء *',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 8),
+                StatefulBuilder(
+                  builder: (context, setDialogState) {
+                    return Column(
+                      children: [
+                        RadioListTile<String>(
+                          title: const Row(
+                            children: [
+                              Icon(Icons.cancel, color: Colors.red, size: 20),
+                              SizedBox(width: 8),
+                              Text('فصل'),
+                            ],
+                          ),
+                          value: 'مفصول',
+                          groupValue: terminationType,
+                          onChanged: (v) =>
+                              setDialogState(() => terminationType = v!),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        RadioListTile<String>(
+                          title: const Row(
+                            children: [
+                              Icon(Icons.logout, color: Colors.orange, size: 20),
+                              SizedBox(width: 8),
+                              Text('استقالة'),
+                            ],
+                          ),
+                          value: 'استقالة',
+                          groupValue: terminationType,
+                          onChanged: (v) =>
+                              setDialogState(() => terminationType = v!),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        RadioListTile<String>(
+                          title: const Row(
+                            children: [
+                              Icon(Icons.business_center, color: Colors.grey, size: 20),
+                              SizedBox(width: 8),
+                              Text('استغناء'),
+                            ],
+                          ),
+                          value: 'استغناء',
+                          groupValue: terminationType,
+                          onChanged: (v) =>
+                              setDialogState(() => terminationType = v!),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // تاريخ الإنهاء
+                StatefulBuilder(
+                  builder: (context, setDialogState) {
+                    return InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: terminationDate ?? DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setDialogState(() => terminationDate = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'تاريخ الإنهاء',
+                          prefixIcon: const Icon(Icons.calendar_today),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          terminationDate != null
+                              ? '${terminationDate!.year}/${terminationDate!.month.toString().padLeft(2, '0')}/${terminationDate!.day.toString().padLeft(2, '0')}'
+                              : 'اختر التاريخ',
+                          style: TextStyle(
+                            color: terminationDate != null
+                                ? Colors.black
+                                : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // سبب الإنهاء
+                TextField(
+                  controller: reasonController,
+                  decoration: InputDecoration(
+                    labelText: 'سبب الإنهاء (اختياري)',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: const Icon(Icons.info_outline),
+                  ),
+                  maxLines: 2,
+                ),
+
+                const SizedBox(height: 16),
+
+                // تحذير
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.orange, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'سيتم إيقاف صرف السلف والرواتب تلقائياً لهذا الموظف',
+                          style: TextStyle(fontSize: 12, color: Colors.orange),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              onPressed: () async {
+                final dateStr = terminationDate != null
+                    ? '${terminationDate!.year}-${terminationDate!.month.toString().padLeft(2, '0')}-${terminationDate!.day.toString().padLeft(2, '0')}'
+                    : DateTime.now().toString().split(' ')[0];
+
+                try {
+                  final repo = ref.read(employeesRepoProvider);
+                  await repo.terminate(
+                    id: employee.id,
+                    terminationType: terminationType,
+                    terminationDate: dateStr,
+                    terminationReason: reasonController.text.trim(),
+                  );
+
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                  }
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'تم إنهاء خدمة ${employee.name} ($terminationType)',
+                        ),
+                        backgroundColor: Colors.orange,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('فشل إنهاء الخدمة: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.person_off, size: 18),
+              label: const Text('إنهاء الخدمة'),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) {
+      reasonController.dispose();
+    });
+  }
+
+  /// إعادة تفعيل موظف مفصول
+  Future<void> _reactivateEmployee(
+    BuildContext context,
+    WidgetRef ref,
+    Employee employee,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.person_add,
+                  color: Colors.green,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text('إعادة تفعيل الموظف'),
+            ],
+          ),
+          content: Text(
+            'هل تريد إعادة تفعيل الموظف "${employee.name}"؟\n'
+            'سيتم تغيير الحالة إلى "نشط" ومسح بيانات إنهاء الخدمة.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.green,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('إعادة التفعيل'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final repo = ref.read(employeesRepoProvider);
+      await repo.reactivate(id: employee.id);
+      markDataChanged();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إعادة تفعيل الموظف بنجاح'),
+            backgroundColor: AppColors.successColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل إعادة التفعيل: $e'),
+            backgroundColor: AppColors.dangerColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _deleteEmployee(
@@ -398,7 +743,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                   StatefulBuilder(
                     builder: (context, setLocalState) =>
                         DropdownButtonFormField<String>(
-                          initialValue: status,
+                          value: status,
                           decoration: InputDecoration(
                             labelText: 'الحالة',
                             prefixIcon: const Icon(Icons.toggle_on),
@@ -435,6 +780,48 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                                 ],
                               ),
                             ),
+                            DropdownMenuItem(
+                              value: 'مفصول',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.person_off,
+                                    color: Colors.red,
+                                    size: 18,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('مفصول'),
+                                ],
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 'استقالة',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.logout,
+                                    color: Colors.orange,
+                                    size: 18,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('استقالة'),
+                                ],
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 'استغناء',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.business_center,
+                                    color: Colors.grey,
+                                    size: 18,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('استغناء'),
+                                ],
+                              ),
+                            ),
                           ],
                           onChanged: (v) =>
                               setLocalState(() => status = v ?? status),
@@ -462,6 +849,10 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         ),
       ),
     );
+    nameCtrl.dispose();
+    salaryCtrl.dispose();
+    positionCtrl.dispose();
+    phoneCtrl.dispose();
     if (ok != true) {
       return;
     }
@@ -546,47 +937,53 @@ class _EmployeeCard extends StatelessWidget {
     required this.employee,
     required this.onTap,
     required this.onDelete,
+    this.onTerminate,
+    this.onReactivate,
   });
   final Employee employee;
   final VoidCallback onTap;
   final VoidCallback onDelete;
+  final VoidCallback? onTerminate;
+  final VoidCallback? onReactivate;
 
   @override
   Widget build(BuildContext context) {
     final isActive = StatusUtils.isEmployeeActive(employee.status);
-    final statusColor = isActive ? AppColors.successColor : AppColors.dangerColor;
+    final isTerminated = StatusUtils.isEmployeeTerminated(employee.status);
+    final statusLabel = StatusUtils.employeeStatusLabel(employee.status);
+    final statusColor = Color(StatusUtils.employeeStatusColor(employee.status));
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
+      margin: const EdgeInsets.symmetric(vertical: 1),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: statusColor.withValues(alpha: 0.2)),
+        borderRadius: BorderRadius.circular(6),
+        side: BorderSide(color: statusColor.withValues(alpha: 0.15)),
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           child: Row(
             children: [
               // صورة رمزية للموظف
               Container(
-                width: 48,
-                height: 48,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(5),
                   border: Border.all(
-                    color: AppColors.primaryColor.withValues(alpha: 0.3),
+                    color: statusColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Icon(
-                  isActive ? Icons.person : Icons.person_off,
-                  color: AppColors.primaryColor,
-                  size: 24,
+                  isTerminated ? Icons.person_off : Icons.person,
+                  color: statusColor,
+                  size: 14,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 5),
 
               // بيانات الموظف
               Expanded(
@@ -598,21 +995,22 @@ class _EmployeeCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             employee.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 15,
+                              fontSize: 11,
+                              decoration: isTerminated ? TextDecoration.lineThrough : null,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
+                            horizontal: 4,
+                            vertical: 0,
                           ),
                           decoration: BoxDecoration(
                             color: statusColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -620,17 +1018,19 @@ class _EmployeeCard extends StatelessWidget {
                               Icon(
                                 isActive
                                     ? Icons.check_circle
-                                    : Icons.cancel,
-                                size: 12,
+                                    : isTerminated
+                                        ? Icons.person_off
+                                        : Icons.cancel,
+                                size: 10,
                                 color: statusColor,
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 2),
                               Text(
-                                isActive ? 'نشط' : 'غير نشط',
+                                statusLabel,
                                 style: TextStyle(
                                   color: statusColor,
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 11,
+                                  fontSize: 9,
                                 ),
                               ),
                             ],
@@ -638,7 +1038,7 @@ class _EmployeeCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 1),
                     Row(
                       children: [
                         // المنصب
@@ -646,52 +1046,75 @@ class _EmployeeCard extends StatelessWidget {
                             employee.position != 'موظف') ...[
                           const Icon(
                             Icons.badge,
-                            size: 13,
+                            size: 9,
                             color: AppColors.textSecondary,
                           ),
-                          const SizedBox(width: 3),
-                          Text(
-                            employee.position,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              employee.position,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                color: AppColors.textSecondary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 6),
                         ],
                         // الراتب
                         const Icon(
                           Icons.attach_money,
-                          size: 13,
+                          size: 9,
                           color: AppColors.textSecondary,
                         ),
-                        const SizedBox(width: 3),
+                        const SizedBox(width: 1),
                         Text(
                           CurrencyFormatter.formatAmount(employee.basicSalary),
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 9,
                             color: AppColors.textSecondary,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
                     // رقم الهاتف
                     if (employee.phone.isNotEmpty) ...[
+                      const SizedBox(height: 1),
                       Row(
                         children: [
                           const Icon(
                             Icons.phone,
-                            size: 13,
+                            size: 9,
                             color: AppColors.textSecondary,
                           ),
-                          const SizedBox(width: 3),
+                          const SizedBox(width: 1),
                           Text(
                             employee.phone,
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 9,
                               color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    // تاريخ وسبب إنهاء الخدمة
+                    if (isTerminated && employee.terminationDate != null && employee.terminationDate!.isNotEmpty) ...[
+                      const SizedBox(height: 1),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.event_busy,
+                            size: 9,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(width: 1),
+                          Text(
+                            'إنهاء: ${employee.terminationDate}',
+                            style: const TextStyle(
+                              fontSize: 8,
+                              color: Colors.red,
                             ),
                           ),
                         ],
@@ -701,14 +1124,55 @@ class _EmployeeCard extends StatelessWidget {
                 ),
               ),
 
-              // زر الحذف
-              IconButton(
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, size: 20),
-                color: AppColors.dangerColor,
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.dangerColor.withValues(alpha: 0.1),
-                ),
+              // أزرار العمليات
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (onTerminate != null)
+                    SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: IconButton(
+                        onPressed: onTerminate,
+                        icon: const Icon(Icons.person_off, size: 11),
+                        color: Colors.red,
+                        padding: EdgeInsets.zero,
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.red.withValues(alpha: 0.1),
+                        ),
+                        tooltip: 'إنهاء خدمة',
+                      ),
+                    ),
+                  if (onReactivate != null)
+                    SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: IconButton(
+                        onPressed: onReactivate,
+                        icon: const Icon(Icons.person_add, size: 11),
+                        color: Colors.green,
+                        padding: EdgeInsets.zero,
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.green.withValues(alpha: 0.1),
+                        ),
+                        tooltip: 'إعادة تفعيل',
+                      ),
+                    ),
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: IconButton(
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_outline, size: 11),
+                      color: AppColors.dangerColor,
+                      padding: EdgeInsets.zero,
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.dangerColor.withValues(alpha: 0.1),
+                      ),
+                      tooltip: 'حذف',
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

@@ -144,7 +144,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                     ? nights.length
                     : actualNights;
                 final nightTotal = nights.isNotEmpty
-                    ? nights.fold<double>(0, (sum, n) => sum + n.nightlyRate)
+                    // ✅ إصلاح حرج: استخدام finalRate بدلاً من nightlyRate
+                    // finalRate يتضمن تعديلات الأسعار (خصومات/إضافات)
+                    // nightlyRate هو السعر الأساسي بدون تعديلات → يُسبب مبلغ خاطئ عند الخروج
+                    ? nights.fold<double>(0, (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate))
                     : (() {
                         final checkout = actualCheckout ?? DateTime.now();
                         if (discount > 0 && discountType == 'per_night' && checkin != null) {
@@ -507,7 +510,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedMethod,
+                  value: selectedMethod,
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'طريقة الدفع',
@@ -521,7 +524,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedType,
+                  value: selectedType,
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'نوع الإيراد',
@@ -624,7 +627,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
         );
       } finally {
-        setState(() => _isProcessing = false);
+        if (mounted) setState(() => _isProcessing = false);
       }
     }
     } finally {

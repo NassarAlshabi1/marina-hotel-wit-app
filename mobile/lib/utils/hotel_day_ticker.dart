@@ -2,7 +2,7 @@ import 'dart:async';
 
 /// تيار تفاعلي عالمي لبداية اليوم الفندقي الجديد.
 ///
-/// يُصدر حدث (event) تلقائياً عند عبور الساعة 14:00
+/// يُصدر حدث (event) تلقائياً عند عبور الساعة 14:01
 /// لتحديث جميع الشاشات المفتوحة ديناميكياً بدون إعادة فتحها.
 ///
 /// ## الاستخدام
@@ -53,11 +53,12 @@ class HotelDayTicker {
   static final HotelDayTicker instance = HotelDayTicker._();
 
   static const int _hotelStartHour = 14;
+  static const int _hotelStartMinute = 1;
 
   StreamController<void>? _controller;
   Timer? _timer;
 
-  /// تيار يُصدر `null` عند كل بداية يوم فندقي جديد (14:00).
+  /// تيار يُصدر `null` عند كل بداية يوم فندقي جديد (14:01).
   /// لا يُصدر قيمة عند الاشتراك — فقط عند الحدث.
   Stream<void> get stream {
     _ensureStarted();
@@ -81,8 +82,8 @@ class HotelDayTicker {
   void _scheduleNext() {
     _timer?.cancel();
     final now = DateTime.now();
-    var next = DateTime(now.year, now.month, now.day, _hotelStartHour);
-    // إذا تجاوزنا 14:00 اليوم، الهدف هو 14:00 غداً
+    var next = DateTime(now.year, now.month, now.day, _hotelStartHour, _hotelStartMinute);
+    // إذا تجاوزنا 14:01 اليوم، الهدف هو 14:01 غداً
     if (!now.isBefore(next)) {
       next = next.add(const Duration(days: 1));
     }

@@ -174,8 +174,10 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
             ),
           );
       if (rows > 0 && !originIsServer) {
+        // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
+        // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
         await _mergeOutbox(
-          op: 'delete',
+          op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
           clientTs: now,
@@ -311,6 +313,8 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
           phone: Value(employee.phone),
           hireDate: Value(employee.hireDate),
           status: Value(employee.status),
+          terminationDate: Value(employee.terminationDate),
+          terminationReason: Value(employee.terminationReason),
           localUuid: Value(employee.localUuid),
           serverId: Value(employee.serverId),
           createdAt: Value(employee.createdAt),

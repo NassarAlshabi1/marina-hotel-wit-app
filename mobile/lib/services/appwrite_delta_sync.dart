@@ -416,11 +416,14 @@ class AppwriteDeltaSync {
 
       // ✅ معالجة المستندات المسحوبة
       for (final doc in documents) {
-        final data = Map<String, dynamic>.from(doc.data);
+        var data = Map<String, dynamic>.from(doc.data);
         final sourceDeviceId = data['deviceId'] as String?;
 
         // تخطي المستندات التي أرسلها هذا الجهاز نفسه
         if (sourceDeviceId == _deviceId) continue;
+
+        // ✅ تحويل أنواع المبالغ من integer (Cloud) إلى double (محلي)
+        data = AppwriteSyncUtils.convertAmountTypesFromAppwrite(collectionId, data);
 
         // ✅ استخراج $updatedAt من Appwrite (متوفر دائماً في كل مستند)
         // نستخدمه كمرجع زمني أساسي لفحص التعارضات
@@ -546,14 +549,24 @@ class AppwriteDeltaSync {
       price: d.Value(_asDouble(data['price'])),
       status: d.Value(_asString(data['status']) ?? 'available'),
       imageUrl: _nullableValue<String>(_asString(data['imageUrl'])),
+      cleaningStatus: d.Value(_asString(data['cleaningStatus']) ?? 'clean'),
+      lastCleanedHotelDay: _nullableValue<String>(_asString(data['lastCleanedHotelDay'])),
+      lastOccupiedHotelDay: _nullableValue<String>(_asString(data['lastOccupiedHotelDay'])),
+      requiresMaintenance: d.Value(_asBool(data['requiresMaintenance']) ?? false),
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
       createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(incomingLastModified),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
     );
 
     final existingByUuid =
@@ -629,7 +642,11 @@ class AppwriteDeltaSync {
       guestAddress: _nullableValue<String>(_asString(data['guestAddress'])),
       checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
       checkoutDate: _nullableValue<String>(_asString(data['checkoutDate'])),
-      actualCheckout: _nullableValue<String>(_asString(data['actualCheckout'])),
+      // ✅ إصلاح حرج: actualCheckout يجب أن يُرسل دائماً (حتى لو null)
+      // بدلاً من Value.absent() لأن insertOnConflictUpdate يعتمد على القيمة
+      // و Value.absent() لا يُحدّث الحقل عند التعارض، مما يبقي actualCheckout
+      // محتفظاً بقيمته القديمة (null) حتى لو كانت البيانات البعيدة تحدد قيمة
+      actualCheckout: d.Value(_asString(data['actualCheckout'])),
       status: d.Value(_asString(data['status']) ?? ''),
       notes: _nullableValue<String>(_asString(data['notes'])),
       expectedNights: d.Value(_asInt(data['expectedNights']) ?? 1),
@@ -637,6 +654,15 @@ class AppwriteDeltaSync {
       discount: d.Value(_asDouble(data['discount'])),
       discountType: d.Value(_asString(data['discountType']) ?? 'per_night'),
       discountStartDate: _nullableValue<String>(_asString(data['discountStartDate'])),
+      totalNightsCached: d.Value(_asInt(data['totalNightsCached']) ?? 0),
+      hotelDayCheckin: _nullableValue<String>(_asString(data['hotelDayCheckin'])),
+      hotelDayCheckout: _nullableValue<String>(_asString(data['hotelDayCheckout'])),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
     );
 
     await db.into(db.bookings).insertOnConflictUpdate(companion);
@@ -675,8 +701,14 @@ class AppwriteDeltaSync {
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       serverPaymentId: _nullableValue<int>(_asInt(data['serverPaymentId'])),
       bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
       serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
@@ -695,6 +727,15 @@ class AppwriteDeltaSync {
       referenceNumber: _nullableValue<String>(
         _asString(data['referenceNumber']),
       ),
+      hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
+      isPendingBalance: d.Value(_asBool(data['isPendingBalance']) ?? false),
+      linkedDebtUuid: _nullableValue<String>(_asString(data['linkedDebtUuid'])),
+      bookingUuidCache: _nullableValue<String>(_asString(data['bookingUuidCache'])),
+      discountAmount: _nullableValue<double>(_asDoubleNull(data['discountAmount'])),
+      discountStartDate: _nullableValue<String>(_asString(data['discountStartDate'])),
+      isVoided: d.Value(_asBool(data['isVoided']) ?? false),
+      voidedAt: _nullableValue<int>(_asInt(data['voidedAt'])),
+      voidedBy: _nullableValue<String>(_asString(data['voidedBy'])),
     );
 
     await db.into(db.payments).insertOnConflictUpdate(companion);
@@ -715,14 +756,24 @@ class AppwriteDeltaSync {
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       expenseType: d.Value(expenseType),
       relatedId: _nullableValue<int>(_asInt(data['relatedId'])),
       description: d.Value(_asString(data['description']) ?? ''),
       amount: d.Value(_asDouble(data['amount'])),
       date: d.Value(_asString(data['date']) ?? ''),
       cashTransactionId: _nullableValue<int>(_asInt(data['cashTransactionId'])),
+      hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
+      categoryUuid: _nullableValue<String>(_asString(data['categoryUuid'])),
+      cashFlowUuid: _nullableValue<String>(_asString(data['cashFlowUuid'])),
+      isAutoGenerated: d.Value(_asBool(data['isAutoGenerated']) ?? false),
     );
 
     await db.into(db.expenses).insertOnConflictUpdate(companion);
@@ -744,8 +795,6 @@ class AppwriteDeltaSync {
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
-      version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
       bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
       guestName: d.Value(guestName),
       checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
@@ -764,6 +813,19 @@ class AppwriteDeltaSync {
       pledge: _nullableValue<String>(_asString(data['pledge'])),
       pledgeType: _nullableValue<String>(_asString(data['pledgeType'])),
       note: _nullableValue<String>(_asString(data['note'])),
+      debtUuid: _nullableValue<String>(_asString(data['debtUuid'])),
+      hotelDayOpened: _nullableValue<String>(_asString(data['hotelDayOpened'])),
+      hotelDayClosed: _nullableValue<String>(_asString(data['hotelDayClosed'])),
+      isFromAutoFix: d.Value(_asBool(data['isFromAutoFix']) ?? false),
+      settlementConfirmed: d.Value(_asBool(data['settlementConfirmed']) ?? false),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: const d.Value('appwrite_delta'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
     );
 
     await db.into(db.debts).insertOnConflictUpdate(companion);
@@ -784,14 +846,22 @@ class AppwriteDeltaSync {
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       name: d.Value(name),
       basicSalary: d.Value(_asDouble(data['basicSalary'])),
       position: d.Value(_asString(data['position']) ?? ''),
       phone: d.Value(_asString(data['phone']) ?? ''),
       hireDate: d.Value(_asString(data['hireDate']) ?? ''),
       status: d.Value(_asString(data['status']) ?? ''),
+      terminationDate: _nullableValue<String>(_asString(data['terminationDate'])),
+      terminationReason: _nullableValue<String>(_asString(data['terminationReason'])),
     );
 
     await db.into(db.employees).insertOnConflictUpdate(companion);
@@ -939,8 +1009,14 @@ class AppwriteDeltaSync {
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(incomingLastModified),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
     );
 
     await db.into(db.guestInfos).insertOnConflictUpdate(companion);
@@ -951,28 +1027,38 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
-    final employeeId = _asInt(data['employeeId']);
-    if (employeeId == null) return;
+    // ✅ حل FK للموظف: UUID → id → serverId (مثل Full Pull)
+    final resolvedEmployeeId = await _resolveEmployeeId(db, data);
+    if (resolvedEmployeeId == null) return; // يتيم — تخطي
 
     final incomingLastModified =
         _asInt(data['lastModified']) ?? Time.nowEpoch();
+    final createdAt = _asInt(data['createdAt']) ?? Time.nowEpoch();
 
     final companion = SalaryWithdrawalsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
-      employeeId: d.Value(employeeId),
+      employeeId: d.Value(resolvedEmployeeId),
       amount: d.Value(_asDouble(data['amount'])),
       withdrawDate: d.Value(_asString(data['withdrawDate']) ?? ''),
       reason: _nullableValue<String>(_asString(data['reason'])),
       hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
       withdrawalType: _nullableValue<String>(_asString(data['withdrawalType'])),
       description: _nullableValue<String>(_asString(data['description'])),
-      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      createdAt: d.Value(createdAt),
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(incomingLastModified),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? createdAt),
+      lastModifiedEpoch: d.Value(
+        _asInt(data['lastModifiedEpoch']) ?? incomingLastModified,
+      ),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
     );
 
     await db.into(db.salaryWithdrawals).insertOnConflictUpdate(companion);
@@ -983,8 +1069,9 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
-    final bookingLocalId = _asInt(data['bookingLocalId']);
-    if (bookingLocalId == null) return;
+    // ✅ حل FK للحجز: UUID → localId → serverId
+    final resolvedBookingId = await _resolveBookingId(db, data);
+    if (resolvedBookingId == null) return; // يتيم — تخطي
 
     final now = Time.nowEpoch();
     final createdAt = _asInt(data['createdAt']) ?? now;
@@ -1006,7 +1093,7 @@ class AppwriteDeltaSync {
       deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? createdAt),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? lastModified),
-      bookingLocalId: d.Value(bookingLocalId),
+      bookingLocalId: d.Value(resolvedBookingId),
       hotelDayKey: d.Value(_asString(data['hotelDayKey']) ?? ''),
       nightStart: d.Value(_asString(data['nightStart']) ?? ''),
       nightEnd: d.Value(_asString(data['nightEnd']) ?? ''),
@@ -1028,8 +1115,9 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
-    final bookingId = _asInt(data['bookingId']);
-    if (bookingId == null) return;
+    // ✅ حل FK للحجز: UUID → localId → serverId
+    final resolvedBookingId = await _resolveBookingId(db, data);
+    if (resolvedBookingId == null) return; // يتيم — تخطي
 
     final companion = BookingNotesCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
@@ -1038,9 +1126,15 @@ class AppwriteDeltaSync {
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
-      bookingId: d.Value(bookingId),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      bookingId: d.Value(resolvedBookingId),
       noteText: d.Value(_asString(data['noteText']) ?? ''),
       alertType: d.Value(_asString(data['alertType']) ?? ''),
       alertUntil: _nullableValue<String>(_asString(data['alertUntil'])),
@@ -1062,8 +1156,14 @@ class AppwriteDeltaSync {
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       registerId: _nullableValue<int>(_asInt(data['registerId'])),
       transactionType: d.Value(_asString(data['transactionType']) ?? ''),
       amount: d.Value(_asDouble(data['amount'])),
@@ -1089,8 +1189,14 @@ class AppwriteDeltaSync {
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       title: d.Value(_asString(data['title']) ?? ''),
       content: d.Value(_asString(data['content']) ?? ''),
       priority: d.Value(_asString(data['priority']) ?? 'medium'),
@@ -1108,19 +1214,31 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
-    final employeeId = _asInt(data['employeeId']);
-    if (employeeId == null) return;
+    // ✅ حل FK للموظف: UUID → id → serverId (مثل Full Pull)
+    final resolvedEmployeeId = await _resolveEmployeeId(db, data);
+    if (resolvedEmployeeId == null) return; // يتيم — تخطي
+
+    final createdAt = _asInt(data['createdAt']) ?? Time.nowEpoch();
+    final lastModified = _asInt(data['lastModified']) ?? Time.nowEpoch();
 
     final companion = SalaryCyclesCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
-      createdAt: d.Value(_asInt(data['createdAt']) ?? Time.nowEpoch()),
+      createdAt: d.Value(createdAt),
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
-      lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      lastModified: d.Value(lastModified),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? createdAt),
+      lastModifiedEpoch: d.Value(
+        _asInt(data['lastModifiedEpoch']) ?? lastModified,
+      ),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
-      employeeId: d.Value(employeeId),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      employeeId: d.Value(resolvedEmployeeId),
       cycleKey: d.Value(_asString(data['cycleKey']) ?? ''),
       hotelDayStart: _nullableValue<String>(_asString(data['hotelDayStart'])),
       hotelDayEnd: _nullableValue<String>(_asString(data['hotelDayEnd'])),
@@ -1138,8 +1256,9 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
-    final cycleId = _asInt(data['cycleId']);
-    if (cycleId == null) return;
+    // ✅ حل FK لدورة الراتب: UUID → localId → serverId (مثل _resolveEmployeeId)
+    final resolvedCycleId = await _resolveCycleId(db, data);
+    if (resolvedCycleId == null) return; // يتيم — تخطي
 
     final companion = SalaryPaymentsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
@@ -1148,9 +1267,15 @@ class AppwriteDeltaSync {
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
+      lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
-      cycleId: d.Value(cycleId),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      cycleId: d.Value(resolvedCycleId),
       amount: d.Value(_asInt(data['amount']) ?? 0),
       hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
       paymentDateIso: d.Value(_asString(data['paymentDateIso']) ?? ''),
@@ -1430,6 +1555,152 @@ class AppwriteDeltaSync {
     return value == null ? const d.Value.absent() : d.Value(value);
   }
 
+  /// حل FK للموظف من البيانات البعيدة: UUID → id → serverId
+  /// يُرجع المعرف المحلي أو null إذا كان السجل يتيم
+  Future<int?> _resolveEmployeeId(
+    AppDatabase db,
+    Map<String, dynamic> data,
+  ) async {
+    final remoteEmployeeId = _asInt(data['employeeId']) ??
+        _asInt(data['employee_id']);
+    final employeeUuid = _asString(data['employeeUuid']) ??
+        _asString(data['employee_uuid']) ??
+        _asString(data['employeeLocalUuid']) ??
+        _asString(data['employee_local_uuid']);
+
+    if (remoteEmployeeId == null && (employeeUuid == null || employeeUuid.isEmpty)) {
+      return null;
+    }
+
+    Employee? employee;
+
+    // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+    if (employeeUuid != null && employeeUuid.isNotEmpty) {
+      employee = await (db.select(db.employees)
+            ..where((e) => e.localUuid.equals(employeeUuid))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    // الطريقة 2: البحث بالـ id البعيد كـ id محلي
+    if (employee == null && remoteEmployeeId != null) {
+      employee = await (db.select(db.employees)
+            ..where((e) => e.id.equals(remoteEmployeeId))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
+    if (employee == null && remoteEmployeeId != null) {
+      employee = await (db.select(db.employees)
+            ..where((e) => e.serverId.equals(remoteEmployeeId))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    if (employee == null) return null; // يتيم
+
+    return employee.id;
+  }
+
+  /// حل FK للحجز من البيانات البعيدة: UUID → id → serverId
+  /// يُرجع المعرف المحلي أو null إذا كان السجل يتيم
+  Future<int?> _resolveBookingId(
+    AppDatabase db,
+    Map<String, dynamic> data,
+  ) async {
+    final remoteBookingId = _asInt(data['bookingId']) ??
+        _asInt(data['bookingLocalId']) ??
+        _asInt(data['booking_local_id']) ??
+        _asInt(data['booking_id']);
+    final bookingUuid = _asString(data['bookingUuid']) ??
+        _asString(data['booking_uuid']) ??
+        _asString(data['bookingLocalUuid']) ??
+        _asString(data['booking_local_uuid']);
+
+    if (remoteBookingId == null && (bookingUuid == null || bookingUuid.isEmpty)) {
+      return null;
+    }
+
+    Booking? booking;
+
+    // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+    if (bookingUuid != null && bookingUuid.isNotEmpty) {
+      booking = await (db.select(db.bookings)
+            ..where((b) => b.localUuid.equals(bookingUuid))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    // الطريقة 2: البحث بالـ id البعيد كـ id محلي
+    if (booking == null && remoteBookingId != null) {
+      booking = await (db.select(db.bookings)
+            ..where((b) => b.id.equals(remoteBookingId))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
+    if (booking == null && remoteBookingId != null) {
+      booking = await (db.select(db.bookings)
+            ..where((b) => b.serverId.equals(remoteBookingId))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    if (booking == null) return null; // يتيم
+
+    return booking.id;
+  }
+
+  /// حل FK لدورة الراتب من البيانات البعيدة: UUID → localId → serverId
+  /// يُرجع المعرف المحلي أو null إذا كان السجل يتيم
+  Future<int?> _resolveCycleId(
+    AppDatabase db,
+    Map<String, dynamic> data,
+  ) async {
+    final remoteCycleId = _asInt(data['cycleId']) ??
+        _asInt(data['cycle_id']);
+    final cycleUuid = _asString(data['cycleUuid']) ??
+        _asString(data['cycle_uuid']) ??
+        _asString(data['cycleLocalUuid']) ??
+        _asString(data['cycle_local_uuid']);
+
+    if (remoteCycleId == null && (cycleUuid == null || cycleUuid.isEmpty)) {
+      return null;
+    }
+
+    SalaryCycle? cycle;
+
+    // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+    if (cycleUuid != null && cycleUuid.isNotEmpty) {
+      cycle = await (db.select(db.salaryCycles)
+            ..where((c) => c.localUuid.equals(cycleUuid))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    // الطريقة 2: البحث بالـ id البعيد كـ id محلي
+    if (cycle == null && remoteCycleId != null) {
+      cycle = await (db.select(db.salaryCycles)
+            ..where((c) => c.id.equals(remoteCycleId))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
+    if (cycle == null && remoteCycleId != null) {
+      cycle = await (db.select(db.salaryCycles)
+            ..where((c) => c.serverId.equals(remoteCycleId))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    if (cycle == null) return null; // يتيم
+
+    return cycle.id;
+  }
+
   int? _asInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;
@@ -1453,6 +1724,7 @@ class AppwriteDeltaSync {
       serverId: _nullableValue<int>(_asInt(data['serverId']) ?? _asInt(data['server_id'])),
       bookingLocalUuid: d.Value(bookingUuid),
       bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId']) ?? _asInt(data['booking_local_id'])),
+      roomNumber: _nullableValue<String>(_asString(data['roomNumber']) ?? _asString(data['room_number'])),
       adjustmentType: d.Value(_asInt(data['adjustmentType']) ?? _asInt(data['adjustment_type']) ?? 0),
       adjustmentMode: d.Value(_asString(data['adjustmentMode']) ?? _asString(data['adjustment_mode']) ?? 'per_night'),
       amount: d.Value(_asDouble(data['amount'])),
@@ -1541,6 +1813,18 @@ class AppwriteDeltaSync {
       return double.tryParse(value) ?? fallback;
     }
     return fallback;
+  }
+
+  /// مثل _asDouble لكن يُرجع null بدلاً من fallback — للاستخدام مع الحقول القابلة للفراغ
+  double? _asDoubleNull(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is num) return value.toDouble();
+    if (value is String && value.isNotEmpty) {
+      return double.tryParse(value);
+    }
+    return null;
   }
 
   String? _asString(dynamic value) {

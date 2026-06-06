@@ -140,11 +140,13 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
         fallback: '',
       ),
       checkoutDate: _vStr(json, 'checkoutDate', src, altKey: 'checkout_date'),
-      actualCheckout: _vStr(
-        json,
-        'actualCheckout',
-        src,
-        altKey: 'actual_checkout',
+      // ✅ إصلاح حرج: actualCheckout يجب أن يُرسل دائماً (حتى لو null)
+      // لأن Value.absent() يمنع insertOnConflictUpdate من تحديث الحقل
+      // عند التعارض — مما يبقي actualCheckout=null حتى لو كانت البيانات
+      // البعيدة تحدد قيمة (مثل تاريخ تسجيل الخروج)
+      actualCheckout: d.Value(
+        _asString(json, 'actualCheckout', src) ??
+            _asString(json, 'actual_checkout', src),
       ),
       status: _vStr(json, 'status', src, fallback: ''),
       notes: _vStr(json, 'notes', src),

@@ -12,7 +12,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
-import '../../utils/time.dart';
+import '../../utils/hotel_time_engine.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -65,8 +65,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   final DateFormat _dateFormat = DateFormat('yyyy/MM/dd');
   DateTime? _fromDate;
   DateTime? _toDate;
-  String? selectedType;
+  String? _selectedFilterType;
   late Stream<List<Expense>> _expensesStream;
+  int _streamVersion = 0;
   static const String _salaryType = 'رواتب';
   static const String _salaryWithdrawAction = 'سحب من الراتب';
   static const String _salaryDeductionAction = 'خصم من الراتب';
@@ -83,17 +84,16 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   /// أنواع المصروفات تُقرأ من القائمة الديناميكية (مباشرة من Provider)
+  /// ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
   List<String> get _expenseTypes {
     final asyncTypes = ref.watch(customListNamesProvider(kListKeyExpenseType));
-    return asyncTypes.valueOrNull ?? kDefaultExpenseTypes;
+    final types = asyncTypes.valueOrNull ?? kDefaultExpenseTypes;
+    return types.where((t) => t != 'سلفة').toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final employeesAsync = ref.watch(employeesListProvider);
-
-    final todaySummary = ref.watch(todayExpensesSummaryProvider);
-    final todayData = todaySummary.valueOrNull ?? (count: 0, total: 0.0);
 
     return wrapWithSyncOnExit(
       child: AppScaffold(
@@ -114,6 +114,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               for (final emp in employees) emp.id: emp.name,
             };
             return StreamBuilder<List<Expense>>(
+              key: ValueKey(_streamVersion),
               stream: _expensesStream,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
@@ -125,7 +126,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 if (expensesData == null) {
                   return const Center(child: CircularProgressIndicator());
                 }
+                // ✅ السلفة مُستبعدة من قاعدة البيانات (excludeAdvance: true)
                 final filteredExpenses = expensesData;
+                // ✅ إصلاح: حساب الإحصائيات من القائمة المفلترة فعلياً
+                // بدلاً من todayExpensesSummaryProvider الذي يعرض بيانات اليوم الحالي فقط
+                final filteredTotal = filteredExpenses.fold<double>(0, (sum, e) => sum + e.amount);
+                final filteredCount = filteredExpenses.length;
 
                 return RefreshIndicator(
                   onRefresh: () async {
@@ -134,11 +140,15 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                   child: ListView(
                     padding: const EdgeInsets.all(12),
                     children: [
+                      _buildSearchBar(),
+                      const SizedBox(height: 8),
+                      _buildTypeFilterRow(),
+                      const SizedBox(height: 6),
                       _buildCompactFiltersCard(),
                       const SizedBox(height: 8),
                       _buildCompactSummaryCard(
-                        totalAmount: todayData.total,
-                        count: todayData.count,
+                        totalAmount: filteredTotal,
+                        count: filteredCount,
                       ),
                       const SizedBox(height: 10),
                       if (filteredExpenses.isEmpty)
@@ -173,25 +183,64 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   bool _filterActive = false;
+  String _searchQuery = '';
+  Timer? _debounceTimer;
+  final _searchController = TextEditingController();
+
+  /// حساب مفتاح اليوم الفندقي من تاريخ المنتقي
+  ///
+  /// المنتقي يعطي تاريخ بدون وقت (منتصف الليل) — تحويله بـ HotelTimeEngine
+  /// مباشرة يُنتج اليوم السابق خطأً لأن منتصف الليل < 14:01.
+  ///
+  /// ✅ الإصلاح: نمرّر الوقت 14:01 لضمان أن getHotelDayKey يُعيد
+  /// مفتاح اليوم الفندقي الصحيح المطابق للتاريخ التقويمي المختار.
+  /// هذا يضمن أن اختيار "19 مايو" يعرض مصروفات hotelDayKey="2026-05-19"
+  /// (أي المصروفات من 14:01 يوم 19 إلى 14:00 يوم 20).
+  String _hotelDayKeyFromDate(DateTime date) {
+    return HotelTimeEngine.getHotelDayKey(
+        dateTime: DateTime(date.year, date.month, date.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute));
+  }
 
   Stream<List<Expense>> _buildExpensesStream() {
     final repo = ref.read(expensesRepoProvider);
+    // ✅ إصلاح: كلا المسارين يستخدمان نفس المنطق — hotelDayKey عبر HotelTimeEngine
+    //
+    // الافتراضي: نستخدم HotelTimeEngine.getHotelDayKey() الذي يعتمد على الوقت الحالي
+    // → عند 10:00 صباح 19 مايو: hotelDay = "2026-05-18" (اليوم الفندقي الحالي)
+    //
+    // يدوي: نستخدم _hotelDayKeyFromDate() الذي يمرّر 14:01 من التاريخ المختار
+    // → اختيار 19 مايو: hotelDay = "2026-05-19" (يوم فندقي يبدأ 14:01 من نفس اليوم)
+    //
+    // هذا يضمن الاتساق: كلا المسارين يستخدمان HotelTimeEngine.getHotelDayKey()
     if (!_filterActive) {
-      // الافتراضي: عرض مصروفات اليوم الفندقي فقط
-      final hotelDay = Time.hotelDayKey();
+      final hotelDay = HotelTimeEngine.getHotelDayKey();
       return Stream.fromFuture(
-        repo.listFiltered(from: hotelDay, to: hotelDay),
+        repo.listFilteredByHotelDay(
+          fromHotelDay: hotelDay,
+          toHotelDay: hotelDay,
+          expenseType: _selectedFilterType,
+          search: _searchQuery.isNotEmpty ? _searchQuery : null,
+          excludeAdvance: true,
+        ),
       );
     }
-    final fromStr = _fromDate != null ? Time.dateToString(_fromDate!) : null;
-    final toStr = _toDate != null ? Time.dateToString(_toDate!) : null;
-    return Stream.fromFuture(repo.listFiltered(from: fromStr, to: toStr));
+    final fromHotelDay = _fromDate != null ? _hotelDayKeyFromDate(_fromDate!) : null;
+    final toHotelDay = _toDate != null ? _hotelDayKeyFromDate(_toDate!) : null;
+    return Stream.fromFuture(
+      repo.listFilteredByHotelDay(
+        fromHotelDay: fromHotelDay,
+        toHotelDay: toHotelDay,
+        expenseType: _selectedFilterType,
+        search: _searchQuery.isNotEmpty ? _searchQuery : null,
+        excludeAdvance: true,
+      ),
+    );
   }
 
   void _refreshExpensesStream() {
-    setState(() {
-      _expensesStream = _buildExpensesStream();
-    });
+    _streamVersion++;
+    _expensesStream = _buildExpensesStream();
+    setState(() {});
   }
 
   DateTime _parseExpenseDate(String value) {
@@ -216,27 +265,163 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     }
     setState(() {
       _filterActive = true;
+      // ✅ إصلاح: ضبط الأوقات حسب حدود اليوم الفندقي (14:01/14:00:59)
+      // بدلاً من منتصف الليل/23:59 الذي لا يتطابق مع اليوم الفندقي
       if (isFrom) {
-        _fromDate = DateTime(picked.year, picked.month, picked.day);
-        // إذا لم يكن "إلى" محدد، اجعله نفس تاريخ "من"
-        _toDate ??= DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+        // "من" = بداية اليوم الفندقي (14:01)
+        _fromDate = DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute);
+        // إذا لم يكن "إلى" محدد، اجعله نهاية نفس اليوم الفندقي
+        _toDate ??= DateTime(picked.year, picked.month, picked.day + 1, HotelTimeEngine.boundaryHour, 0, 59);
         if (_fromDate!.isAfter(_toDate!)) {
-          _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+          _toDate = DateTime(picked.year, picked.month, picked.day + 1, HotelTimeEngine.boundaryHour, 0, 59);
         }
       } else {
-        _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
-        // إذا لم يكن "من" محدد، اجعله نفس تاريخ "إلى"
-        _fromDate ??= DateTime(picked.year, picked.month, picked.day);
+        // "إلى" = نهاية اليوم الفندقي (14:00:59 من اليوم التالي)
+        _toDate = DateTime(picked.year, picked.month, picked.day + 1, HotelTimeEngine.boundaryHour, 0, 59);
+        // إذا لم يكن "من" محدد، اجعله بداية نفس اليوم الفندقي
+        _fromDate ??= DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute);
         if (_toDate!.isBefore(_fromDate!)) {
-          _fromDate = DateTime(picked.year, picked.month, picked.day);
+          _fromDate = DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute);
         }
       }
+      _streamVersion++;
       _expensesStream = _buildExpensesStream();
     });
   }
 
+  /// شريط البحث بالوصف — تصميم رشيق ومضغوط
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        decoration: InputDecoration(
+          hintText: 'ابحث بالوصف أو النوع...',
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 4, right: 4),
+            child: Icon(Icons.search, color: Colors.grey.shade500, size: 18),
+          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? Padding(
+                  padding: const EdgeInsets.only(left: 4, right: 4),
+                  child: IconButton(
+                    icon: Icon(Icons.clear, color: Colors.grey.shade500, size: 16),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                    onPressed: () {
+                      _searchController.clear();
+                      _debounceTimer?.cancel();
+                      setState(() {
+                        _searchQuery = '';
+                        _refreshExpensesStream();
+                      });
+                    },
+                  ),
+                )
+              : null,
+          suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 28),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 6),
+          isDense: true,
+        ),
+        onChanged: (value) {
+          _debounceTimer?.cancel();
+          _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+            setState(() {
+              _searchQuery = value;
+              _refreshExpensesStream();
+            });
+          });
+        },
+      ),
+    );
+  }
+
+  /// صف فلتر نوع المصروف (قائمة منسدلة)
+  Widget _buildTypeFilterRow() {
+    final types = _expenseTypes;
+    final dropdownTextColor = Theme.of(context).textTheme.bodyMedium?.color;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.filter_list, size: 14, color: Colors.indigo.shade700),
+          const SizedBox(width: 6),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                value: _selectedFilterType,
+                hint: Text(
+                  'كل الأنواع',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
+                ),
+                isDense: true,
+                isExpanded: true,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: dropdownTextColor),
+                items: [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text(
+                      'كل الأنواع',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                    ),
+                  ),
+                  ...types.map(
+                    (type) => DropdownMenuItem<String?>(
+                      value: type,
+                      child: Text(
+                        type,
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: dropdownTextColor),
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedFilterType = value;
+                    _refreshExpensesStream();
+                  });
+                },
+              ),
+            ),
+          ),
+          if (_selectedFilterType != null) ...[
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTap: () => setState(() {
+                _selectedFilterType = null;
+                _refreshExpensesStream();
+              }),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(Icons.close, size: 12, color: Colors.red.shade700),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildCompactFiltersCard() {
-    final hotelDay = Time.hotelDayKey();
+    final hotelDay = HotelTimeEngine.getHotelDayKey();
     final fromDisplay = (_filterActive && _fromDate != null)
         ? _dateFormat.format(_fromDate!)
         : hotelDay;
@@ -382,12 +567,15 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     List<Employee> employees,
   ) {
     final date = _parseExpenseDate(expense.date);
+    // ✅ السلفة مُستبعدة بالفعل من القائمة أعلاه — لا حاجة لفحص إضافي هنا
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 4),
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: InkWell(
         onTap: () => _edit(existing: expense, employees: employees),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -398,29 +586,60 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       expense.description.isNotEmpty
                           ? expense.description
                           : 'مصروف بدون وصف',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     CurrencyFormatter.formatAmount(expense.amount),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.red,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // زر التعديل
+                  InkWell(
+                    onTap: () => _edit(existing: expense, employees: employees),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(Icons.edit, size: 16, color: Colors.blue.shade700),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // زر الحذف
+                  InkWell(
+                    onTap: () => _deleteExpense(expense),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade700),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
+              const SizedBox(height: 4),
+              Row(
                 children: [
-                  _buildMetaChip(Icons.category, expense.expenseType),
-                  _buildMetaChip(
-                    Icons.calendar_today,
-                    _dateFormat.format(date),
-                  ),
-                  _buildMetaChip(Icons.person, employeeName ?? 'بدون موظف'),
+                  _buildSmallMeta(Icons.category, expense.expenseType),
+                  const SizedBox(width: 10),
+                  _buildSmallMeta(Icons.calendar_today, _dateFormat.format(date)),
+                  if (employeeName != null) ...[
+                    const SizedBox(width: 10),
+                    Expanded(child: _buildSmallMeta(Icons.person, employeeName)),
+                  ],
                 ],
               ),
             ],
@@ -430,12 +649,83 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     );
   }
 
-  Widget _buildMetaChip(IconData icon, String label) {
-    return Chip(
-      avatar: Icon(icon, size: 16),
-      label: Text(label),
-      visualDensity: VisualDensity.compact,
+  Widget _buildSmallMeta(IconData icon, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 10, color: Colors.grey.shade600),
+        const SizedBox(width: 3),
+        Flexible(
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
+  }
+
+  /// حذف مصروف مع تأكيد
+  Future<void> _deleteExpense(Expense expense) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد الحذف'),
+        content: Text(
+          'هل تريد حذف المصروف "${expense.description.isNotEmpty ? expense.description : 'مصروف بدون وصف'}" بمبلغ ${CurrencyFormatter.formatAmount(expense.amount)}؟',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final repo = ref.read(expensesRepoProvider);
+      final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
+
+      // ✅ إصلاح: حذف سحب الراتب أولاً ثم المصروف — لحماية تكامل البيانات
+      // إذا فشل حذف المصروف، سحب الراتب يبقى مرتبطاً (آمن)
+      // إذا فشل حذف سحب الراتب بعد حذف المصروف، نحاول مرة أخرى
+      await salaryRepo.deleteByExpenseId(expense.id);
+      await repo.delete(expense.id);
+
+      markDataChanged();
+
+      if (mounted) {
+        _refreshExpensesStream();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _refreshExpensesStream();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم حذف المصروف بنجاح'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حذف المصروف: $e'),
+          backgroundColor: Colors.red.shade900,
+        ),
+      );
+    }
   }
 
   Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
@@ -447,18 +737,19 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           ? CurrencyFormatter.formatAmount(existing.amount)
           : '',
     );
+    final installments = TextEditingController();
     DateTime selectedDate;
     try {
-      selectedDate = DateTime.parse(existing?.date ?? Time.hotelDayKey());
+      // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
+      selectedDate = DateTime.parse(existing?.date ?? HotelTimeEngine.getHotelDayKey());
     } catch (_) {
       selectedDate = DateTime.now();
     }
 
     try {
     String dialogSalaryAction = _salaryWithdrawAction;
-    final installments = TextEditingController();
     bool startNextMonth = true;
-    selectedType = existing?.expenseType ?? 'اخرى';
+    String selectedType = existing?.expenseType ?? 'اخرى';
 
     if (existing != null && _isSalaryAction(existing.expenseType)) {
       selectedType = _salaryType;
@@ -486,7 +777,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: selectedType,
+                    value: selectedType,
                     decoration: const InputDecoration(labelText: 'نوع المصروف'),
                     style: dropdownTextStyle,
                     items: _expenseTypes
@@ -520,7 +811,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       const Text('لا يوجد موظفين مسجلين حالياً.'),
                     if (availableEmployees.isNotEmpty) ...[
                       DropdownButtonFormField<int>(
-                        initialValue: selectedEmployeeId,
+                        value: selectedEmployeeId,
                         style: dropdownTextStyle,
                         decoration: const InputDecoration(
                           labelText: 'اسم الموظف',
@@ -538,7 +829,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: dialogSalaryAction,
+                        value: dialogSalaryAction,
                         decoration: const InputDecoration(
                           labelText: 'نوع المعاملة',
                         ),
@@ -648,19 +939,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     );
                     return;
                   }
-                  if (existing == null &&
-                      selectedType == _salaryType &&
-                      dialogSalaryAction == _salaryAdvanceAction) {
-                    final count = int.tryParse(installments.text.trim()) ?? 0;
-                    if (count <= 0) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(
-                          content: const Text('يجب إدخال عدد الأقساط'),
-                          backgroundColor: Theme.of(ctx).colorScheme.error,
-                        ),
-                      );
-                      return;
-                    }
+                  // ✅ إصلاح: التحقق من المبلغ قبل إغلاق الحوار
+                  // سابقاً كان التحقق بعد الإغلاق مما يسبب إغلاق صامت بدون تغذية راجعة
+                  final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
+                  if (parsedAmount <= 0) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(
+                        content: const Text('يجب إدخال مبلغ أكبر من صفر'),
+                        backgroundColor: Theme.of(ctx).colorScheme.error,
+                      ),
+                    );
+                    return;
                   }
                   Navigator.pop(ctx, true);
                 },
@@ -692,43 +981,30 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     try {
       if (existing == null) {
-        if (isSalaryExpense &&
-            selectedEmployeeId != null &&
-            dialogSalaryAction == _salaryAdvanceAction) {
-          final count = int.tryParse(installments.text.trim()) ?? 0;
-          await ref
-              .read(salaryAdvanceInstallmentsServiceProvider)
-              .createInstallmentAdvance(
-                employeeId: selectedEmployeeId!,
-                totalAmount: parsedAmount,
-                advanceDate: trimmedDate,
-                description: trimmedDescription,
-                installments: count,
-                startNextMonth: startNextMonth,
-              );
-        } else {
-          final newId = await repo.create(
-            expenseType: savedType,
-            relatedId: isSalaryExpense ? selectedEmployeeId : null,
-            description: trimmedDescription,
-            amount: parsedAmount,
-            date: trimmedDate,
-          );
+        // ✅ إلغاء السلفة — تم إزالة خيار السلفة من القائمة المنسدلة
+        // جميع المصروفات الجديدة تُنشأ بالطريقة العادية
+        final newId = await repo.create(
+          expenseType: savedType,
+          relatedId: isSalaryExpense ? selectedEmployeeId : null,
+          description: trimmedDescription,
+          amount: parsedAmount,
+          date: trimmedDate,
+        );
 
-          if (isSalaryExpense && selectedEmployeeId != null) {
-            final signedAmount = savedType == _salaryDeductionAction
-                ? -parsedAmount
-                : parsedAmount;
-            await salaryRepo.saveFromExpense(
-              expenseId: newId,
-              employeeId: selectedEmployeeId!,
-              action: savedType,
-              amount: signedAmount,
-              date: trimmedDate,
-              note: trimmedDescription,
-              hotelDayKey: trimmedDate,
-            );
-          }
+        if (isSalaryExpense && selectedEmployeeId != null) {
+          final signedAmount = savedType == _salaryDeductionAction
+              ? -parsedAmount
+              : parsedAmount;
+          await salaryRepo.saveFromExpense(
+            expenseId: newId,
+            employeeId: selectedEmployeeId!,
+            action: savedType,
+            amount: signedAmount,
+            date: trimmedDate,
+            note: trimmedDescription,
+            // ✅ إصلاح: استخدام _hotelDayKeyFromDate لضمان الاتساق مع حساب hotelDayKey في ExpensesRepository
+            hotelDayKey: _hotelDayKeyFromDate(DateTime.parse(trimmedDate)),
+          );
         }
       } else {
         await repo.update(
@@ -750,7 +1026,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
-            hotelDayKey: trimmedDate,
+            // ✅ إصلاح: استخدام _hotelDayKeyFromDate لضمان الاتساق مع حساب hotelDayKey في ExpensesRepository
+            hotelDayKey: _hotelDayKeyFromDate(DateTime.parse(trimmedDate)),
           );
         } else {
           await salaryRepo.deleteByExpenseId(existing.id);
@@ -758,8 +1035,37 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       }
 
       markDataChanged();
+
+      // ✅ إصلاح: توسيع الفلتر تلقائياً إذا كان hotelDayKey للمصروف المحفوظ
+      // يختلف عن نطاق الفلتر الحالي — لضمان ظهور المصروف الجديد دائماً
+      final savedHotelDayKey = _hotelDayKeyFromDate(DateTime.parse(trimmedDate));
+      final currentFromKey = _filterActive && _fromDate != null
+          ? _hotelDayKeyFromDate(_fromDate!)
+          : HotelTimeEngine.getHotelDayKey();
+      final currentToKey = _filterActive && _toDate != null
+          ? _hotelDayKeyFromDate(_toDate!)
+          : HotelTimeEngine.getHotelDayKey();
+      if (savedHotelDayKey.compareTo(currentFromKey) < 0 ||
+          savedHotelDayKey.compareTo(currentToKey) > 0) {
+        // المصروف خارج نطاق الفلتر — توسيع النطاق ليشمله
+        _filterActive = true;
+        final minKey = savedHotelDayKey.compareTo(currentFromKey) < 0
+            ? savedHotelDayKey
+            : currentFromKey;
+        final maxKey = savedHotelDayKey.compareTo(currentToKey) > 0
+            ? savedHotelDayKey
+            : currentToKey;
+        _fromDate = DateTime.parse('${minKey}T14:00:00');
+        _toDate =
+            DateTime.parse('${maxKey}T13:59:59').add(const Duration(days: 1));
+      }
+
       if (mounted) {
         _refreshExpensesStream();
+        // ✅ شبكة أمان: تحديث ثانٍ بعد إطار لضمان ظهور البيانات الجديدة
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _refreshExpensesStream();
+        });
       }
 
       // إرسال رسالة واتساب للموظف عند تسجيل مصروف راتب
@@ -882,6 +1188,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     } catch (e) {
       debugPrint('WhatsApp salary notification error: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _searchController.dispose();
+    super.dispose();
   }
 
   bool _isSalaryAction(String? type) {
