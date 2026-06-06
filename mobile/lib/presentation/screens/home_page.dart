@@ -146,18 +146,20 @@ class _DateSelectors extends StatelessWidget {
   });
 
   Future<void> _selectDate(BuildContext context, bool isCheckIn) async {
+    // Strip time from now to get today at midnight
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final DateTime initialDate = isCheckIn
-        ? (checkIn ?? now)
-        : (checkOut ?? checkIn ?? now);
+        ? (checkIn ?? today)
+        : (checkOut ?? checkIn ?? today);
     final DateTime firstDate =
-        isCheckIn ? now : (checkIn ?? now);
+        isCheckIn ? today : (checkIn ?? today);
 
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
       firstDate: firstDate,
-      lastDate: now.add(const Duration(days: 365)),
+      lastDate: today.add(const Duration(days: 365)),
     );
 
     if (picked != null) {
