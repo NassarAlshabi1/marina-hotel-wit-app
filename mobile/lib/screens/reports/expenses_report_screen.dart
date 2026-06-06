@@ -143,11 +143,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final query = await db
         .customSelect('SELECT DISTINCT expense_type FROM expenses WHERE deleted_at IS NULL')
         .get();
-    // ✅ استبعاد السلفة — تسبب تكرار بيانات
     // ✅ إزالة "سحب راتب" — نوع مُشتق يُحفظ تلقائياً عند "رواتب" → "سحب من الراتب"
     final types =
         query.map((row) => row.data['expense_type'] as String)
-            .where((t) => t != 'سلفة' && t != 'سحب راتب')
+            .where((t) => t != 'سحب راتب')
             .toList()..sort();
     setState(() {
       _availableTypes
