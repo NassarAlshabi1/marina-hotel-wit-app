@@ -97,8 +97,8 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-/// Guest name input widget - Performance optimized with const
-class _GuestNameField extends StatelessWidget {
+/// Guest name input widget - Fixed memory leak and performance issues
+class _GuestNameField extends StatefulWidget {
   final String value;
   final String? error;
   final ValueChanged<String> onChanged;
@@ -110,23 +110,45 @@ class _GuestNameField extends StatelessWidget {
   });
 
   @override
+  State<_GuestNameField> createState() => _GuestNameFieldState();
+}
+
+class _GuestNameFieldState extends State<_GuestNameField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void didUpdateWidget(covariant _GuestNameField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Sync controller text when value changes externally
+    if (widget.value != _controller.text) {
+      _controller.text = widget.value;
+      _controller.selection = TextSelection.collapsed(offset: widget.value.length);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return TextField(
+      controller: _controller,
       decoration: InputDecoration(
         labelText: 'Guest Name',
-        // Performance: const border
         border: const OutlineInputBorder(),
         prefixIcon: const Icon(Icons.person),
-        errorText: error,
+        errorText: widget.error,
       ),
-      onChanged: onChanged,
-      // Performance: Use TextEditingController efficiently
-      controller: TextEditingController.fromValue(
-        TextEditingValue(
-          text: value,
-          selection: TextSelection.collapsed(offset: value.length),
-        ),
-      ),
+      onChanged: widget.onChanged,
     );
   }
 }
