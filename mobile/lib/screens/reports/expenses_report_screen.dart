@@ -143,8 +143,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final query = await db
         .customSelect('SELECT DISTINCT expense_type FROM expenses WHERE deleted_at IS NULL')
         .get();
+    // ✅ استبعاد السلفة — تسبب تكرار بيانات
     final types =
-        query.map((row) => row.data['expense_type'] as String).toList()..sort();
+        query.map((row) => row.data['expense_type'] as String)
+            .where((t) => t != 'سلفة')
+            .toList()..sort();
     setState(() {
       _availableTypes
         ..clear()
@@ -230,10 +233,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final showAll = selectedType == null;
 
     // ✅ فلترة بحقل hotelDayKey بدلاً من date التقويمي
+    // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
     var expenses = await expensesDao.listFilteredByHotelDay(
       fromHotelDay: fromHotelDay,
       toHotelDay: toHotelDay,
       expenseType: selectedType,
+      excludeAdvance: true,
     );
 
     if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {

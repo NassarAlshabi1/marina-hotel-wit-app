@@ -82,6 +82,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     String? expenseType,
     String? search,
     bool includeDeleted = false,
+    bool excludeAdvance = false,
   }) async {
     final q = select(expenses);
     if (!includeDeleted) {
@@ -109,6 +110,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.description.like(s) | t.expenseType.like(s));
+    }
+    // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم
+    if (excludeAdvance) {
+      q.where((t) => t.expenseType.isNotEqualTo('سلفة'));
     }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);

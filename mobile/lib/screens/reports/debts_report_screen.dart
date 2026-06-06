@@ -501,9 +501,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   Widget _buildSummaryRow() {
     return Card(
       elevation: 0.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
         child: Row(
           children: [
             Expanded(
@@ -513,7 +513,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                 Colors.red,
               ),
             ),
-            Container(width: 1, height: 28, color: Colors.grey.shade200),
+            Container(width: 1, height: 22, color: Colors.grey.shade200),
             Expanded(
               child: _buildSummaryChip(
                 'المدفوعة',
@@ -521,7 +521,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                 Colors.green,
               ),
             ),
-            Container(width: 1, height: 28, color: Colors.grey.shade200),
+            Container(width: 1, height: 22, color: Colors.grey.shade200),
             Expanded(
               child: _buildSummaryChip(
                 'المتبقية',
@@ -529,7 +529,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                 Colors.orange,
               ),
             ),
-            Container(width: 1, height: 28, color: Colors.grey.shade200),
+            Container(width: 1, height: 22, color: Colors.grey.shade200),
             Expanded(
               child: _buildSummaryChip(
                 'سجلات',
@@ -548,12 +548,12 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       children: [
         Text(
           value,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: color),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 1),
         Text(
           label,
-          style: const TextStyle(fontSize: 9, color: Colors.grey),
+          style: const TextStyle(fontSize: 8, color: Colors.grey),
         ),
       ],
     );
@@ -567,10 +567,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         rows: _guestSummaries
             .map(
               (guest) => [
-                Text(guest.guestName, style: const TextStyle(fontSize: 11)),
-                Text(_currencyFormat.format(guest.totalAmount), style: const TextStyle(fontSize: 11)),
-                Text(_currencyFormat.format(guest.paidAmount), style: const TextStyle(fontSize: 11)),
-                Text(_currencyFormat.format(guest.remainingAmount), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                Text(guest.guestName, style: const TextStyle(fontSize: 10)),
+                Text(_currencyFormat.format(guest.totalAmount), style: const TextStyle(fontSize: 10)),
+                Text(_currencyFormat.format(guest.paidAmount), style: const TextStyle(fontSize: 10)),
+                Text(_currencyFormat.format(guest.remainingAmount), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
               ],
             )
             .toList(),
@@ -591,19 +591,19 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
               (debt) {
                 final roomPrice = _roomPriceMap[debt.bookingLocalId] ?? 0.0;
                 return [
-                  Text(debt.guestName, style: const TextStyle(fontSize: 10)),
-                  Text(_formatDisplayDate(debt.dateRecorded), style: const TextStyle(fontSize: 10)),
-                  Text(_formatTextFallback(debt.debtReason), style: const TextStyle(fontSize: 10)),
-                  Text(Time.safeIsoToDateString(debt.checkinDate), style: const TextStyle(fontSize: 10)),
-                  Text(Time.safeIsoToDateString(debt.checkoutDate), style: const TextStyle(fontSize: 10)),
-                  Text(_currencyFormat.format(roomPrice), style: const TextStyle(fontSize: 10)),
-                  Text(_currencyFormat.format(debt.totalAmount), style: const TextStyle(fontSize: 10)),
-                  Text(_currencyFormat.format(debt.paidAmount), style: const TextStyle(fontSize: 10)),
-                  Text(_currencyFormat.format(debt.remainingAmount), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
-                  Text(Time.safeIsoToDateString(debt.paymentDate), style: const TextStyle(fontSize: 10)),
-                  Text(_formatSettlement(debt.isSettled), style: const TextStyle(fontSize: 10)),
-                  Text(debt.pledge?.isNotEmpty ?? false ? debt.pledge! : '-', style: const TextStyle(fontSize: 10)),
-                  Text(debt.pledgeType?.isNotEmpty ?? false ? debt.pledgeType! : '-', style: const TextStyle(fontSize: 10)),
+                  Text(debt.guestName, style: const TextStyle(fontSize: 9)),
+                  Text(_formatDisplayDate(debt.dateRecorded), style: const TextStyle(fontSize: 9)),
+                  Text(_formatTextFallback(debt.debtReason), style: const TextStyle(fontSize: 9)),
+                  Text(Time.safeIsoToDateString(debt.checkinDate), style: const TextStyle(fontSize: 9)),
+                  Text(Time.safeIsoToDateString(debt.checkoutDate), style: const TextStyle(fontSize: 9)),
+                  Text(_currencyFormat.format(roomPrice), style: const TextStyle(fontSize: 9)),
+                  Text(_currencyFormat.format(debt.totalAmount), style: const TextStyle(fontSize: 9)),
+                  Text(_currencyFormat.format(debt.paidAmount), style: const TextStyle(fontSize: 9)),
+                  Text(_currencyFormat.format(debt.remainingAmount), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+                  Text(Time.safeIsoToDateString(debt.paymentDate), style: const TextStyle(fontSize: 9)),
+                  Text(_formatSettlement(debt.isSettled), style: const TextStyle(fontSize: 9)),
+                  Text(debt.pledge?.isNotEmpty ?? false ? debt.pledge! : '-', style: const TextStyle(fontSize: 9)),
+                  Text(debt.pledgeType?.isNotEmpty ?? false ? debt.pledgeType! : '-', style: const TextStyle(fontSize: 9)),
                 ];
               },
             )

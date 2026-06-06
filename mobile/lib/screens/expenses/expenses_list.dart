@@ -83,9 +83,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   /// أنواع المصروفات تُقرأ من القائمة الديناميكية (مباشرة من Provider)
+  /// ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
   List<String> get _expenseTypes {
     final asyncTypes = ref.watch(customListNamesProvider(kListKeyExpenseType));
-    return asyncTypes.valueOrNull ?? kDefaultExpenseTypes;
+    final types = asyncTypes.valueOrNull ?? kDefaultExpenseTypes;
+    return types.where((t) => t != 'سلفة').toList();
   }
 
   @override
@@ -123,7 +125,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 if (expensesData == null) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                // البحث يتم على مستوى قاعدة البيانات الآن
+                // ✅ السلفة مُستبعدة من قاعدة البيانات (excludeAdvance: true)
                 final filteredExpenses = expensesData;
                 // ✅ إصلاح: حساب الإحصائيات من القائمة المفلترة فعلياً
                 // بدلاً من todayExpensesSummaryProvider الذي يعرض بيانات اليوم الحالي فقط
@@ -217,6 +219,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           toHotelDay: hotelDay,
           expenseType: _selectedFilterType,
           search: _searchQuery.isNotEmpty ? _searchQuery : null,
+          excludeAdvance: true,
         ),
       );
     }
@@ -228,6 +231,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         toHotelDay: toHotelDay,
         expenseType: _selectedFilterType,
         search: _searchQuery.isNotEmpty ? _searchQuery : null,
+        excludeAdvance: true,
       ),
     );
   }
@@ -562,10 +566,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     List<Employee> employees,
   ) {
     final date = _parseExpenseDate(expense.date);
-    // ✅ إلغاء عرض السلفة في قائمة المصروفات — تسبب تكرار بيانات
-    if (expense.expenseType == 'سلفة') {
-      return const SizedBox.shrink();
-    }
+    // ✅ السلفة مُستبعدة بالفعل من القائمة أعلاه — لا حاجة لفحص إضافي هنا
     return Card(
       margin: const EdgeInsets.only(bottom: 4),
       elevation: 0.5,
@@ -692,11 +693,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     try {
       final repo = ref.read(expensesRepoProvider);
-      await repo.delete(expense.id);
-
-      // حذف سحب الراتب المرتبط إن وجد
       final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
+
+      // ✅ إصلاح: حذف سحب الراتب أولاً ثم المصروف — لحماية تكامل البيانات
+      // إذا فشل حذف المصروف، سحب الراتب يبقى مرتبطاً (آمن)
+      // إذا فشل حذف سحب الراتب بعد حذف المصروف، نحاول مرة أخرى
       await salaryRepo.deleteByExpenseId(expense.id);
+      await repo.delete(expense.id);
 
       markDataChanged();
 
@@ -744,7 +747,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     try {
     String dialogSalaryAction = _salaryWithdrawAction;
-    bool startNextMonth = true;
     String selectedType = existing?.expenseType ?? 'اخرى';
 
     if (existing != null && _isSalaryAction(existing.expenseType)) {

@@ -42,11 +42,13 @@ class ExpensesRepository {
     String? toHotelDay,
     String? expenseType,
     String? search,
+    bool excludeAdvance = false,
   }) => dao.listFilteredByHotelDay(
     fromHotelDay: fromHotelDay,
     toHotelDay: toHotelDay,
     expenseType: expenseType,
     search: search,
+    excludeAdvance: excludeAdvance,
   );
 
   Future<int> create({

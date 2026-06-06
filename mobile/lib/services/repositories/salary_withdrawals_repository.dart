@@ -170,9 +170,12 @@ class SalaryWithdrawalsRepository {
         ),);
 
         if (!originIsServer) {
+          // ✅ إصلاح حرج: استخدام op:'update' بدلاً من op:'delete'
+          // الحذف الناعم (soft-delete) يجب أن يستخدم 'update' لكي يُحدث سجل Appwrite
+          // بدلاً من حذفه نهائياً — هذا يضمن رؤية deletedAt على الأجهزة الأخرى
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
-            op: 'delete',
+            op: 'update',
             localUuid: stale.localUuid,
             serverId: stale.serverId,
             payload: {
@@ -212,6 +215,7 @@ class SalaryWithdrawalsRepository {
             localUuid: matched!.localUuid,
             serverId: matched!.serverId,
             payload: {
+              'employeeId': employeeId,
               'amount': amount,
               'withdrawDate': date,
               'reason': reasonText,
@@ -278,7 +282,7 @@ class SalaryWithdrawalsRepository {
   /// ✅ إصلاح: حذف ناعم (soft delete) بدلاً من الحذف الفعلي
   /// لتوافق مع آلية المزامنة التي تعتمد على deletedAt
   /// ✅ إصلاح خبير: البحث أولاً عبر عمود expense_id ثم عبر reason
-  Future<void> deleteByExpenseId(int expenseId) async {
+  Future<void> deleteByExpenseId(int expenseId, {bool originIsServer = false}) async {
     // الطريقة 1: بحث عبر عمود expense_id
     List<SalaryWithdrawal> toDelete = [];
     try {
@@ -320,17 +324,22 @@ class SalaryWithdrawalsRepository {
           version: d.Value(item.version + 1),
         ),);
 
-        await _outboxDao.merge(
-          entity: 'salary_withdrawals',
-          op: 'delete',
-          localUuid: item.localUuid,
-          serverId: item.serverId,
-          payload: {
-            'deletedAt': now,
-            'lastModified': now,
-          },
-          clientTs: now,
-        );
+        // ✅ إصلاح حرج: استخدام op:'update' بدلاً من op:'delete'
+        // الحذف الناعم (soft-delete) يجب أن يستخدم 'update' لكي يُحدث سجل Appwrite
+        // بدلاً من حذفه نهائياً — هذا يضمن رؤية deletedAt على الأجهزة الأخرى
+        if (!originIsServer) {
+          await _outboxDao.merge(
+            entity: 'salary_withdrawals',
+            op: 'update',
+            localUuid: item.localUuid,
+            serverId: item.serverId,
+            payload: {
+              'deletedAt': now,
+              'lastModified': now,
+            },
+            clientTs: now,
+          );
+        }
       }
     });
   }

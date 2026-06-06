@@ -124,9 +124,11 @@ class _IncomeExpenseReportScreenState
         excludePendingBalance: true,
       );
 
+      // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
       final expenses = await expensesDao.listFilteredByHotelDay(
         fromHotelDay: fromHotelDay,
         toHotelDay: toHotelDay,
+        excludeAdvance: true,
       );
 
       // بيانات إضافية للتقرير التفصيلي للدورة المالية
