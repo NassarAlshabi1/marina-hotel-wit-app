@@ -397,8 +397,14 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       }
     }
 
-    // ─── إضافة جميع مصروفات جدول expenses ───
+    // ─── إضافة جميع مصروفات جدول expenses (باستثناء السلفة — تسبب تكرار بيانات) ───
     for (final expense in expenses) {
+      // ✅ إلغاء عرض السلفة من تقرير المصروفات لأنها تسبب تكرار البيانات
+      // السلفة تُسجّل تلقائياً مع سحوبات الرواتب وأقساط الخصم
+      // فظهورها هنا يُكرر المبالغ في الإجماليات
+      if (expense.expenseType == 'سلفة') {
+        continue;
+      }
       final employee = expense.relatedId != null
           ? employeeMap[expense.relatedId!]
           : null;

@@ -75,7 +75,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   static const List<String> _salaryActions = [
     _salaryWithdrawAction,
     _salaryDeductionAction,
-    _salaryAdvanceAction,
   ];
   @override
   void initState() {
@@ -563,6 +562,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     List<Employee> employees,
   ) {
     final date = _parseExpenseDate(expense.date);
+    // ✅ إلغاء عرض السلفة في قائمة المصروفات — تسبب تكرار بيانات
+    if (expense.expenseType == 'سلفة') {
+      return const SizedBox.shrink();
+    }
     return Card(
       margin: const EdgeInsets.only(bottom: 4),
       elevation: 0.5,
@@ -593,6 +596,34 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       fontWeight: FontWeight.bold,
                       color: Colors.red,
                       fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // زر التعديل
+                  InkWell(
+                    onTap: () => _edit(existing: expense, employees: employees),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(Icons.edit, size: 16, color: Colors.blue.shade700),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // زر الحذف
+                  InkWell(
+                    onTap: () => _deleteExpense(expense),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade700),
                     ),
                   ),
                 ],
@@ -632,6 +663,65 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         ),
       ],
     );
+  }
+
+  /// حذف مصروف مع تأكيد
+  Future<void> _deleteExpense(Expense expense) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد الحذف'),
+        content: Text(
+          'هل تريد حذف المصروف "${expense.description.isNotEmpty ? expense.description : 'مصروف بدون وصف'}" بمبلغ ${CurrencyFormatter.formatAmount(expense.amount)}؟',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final repo = ref.read(expensesRepoProvider);
+      await repo.delete(expense.id);
+
+      // حذف سحب الراتب المرتبط إن وجد
+      final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
+      await salaryRepo.deleteByExpenseId(expense.id);
+
+      markDataChanged();
+
+      if (mounted) {
+        _refreshExpensesStream();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _refreshExpensesStream();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم حذف المصروف بنجاح'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حذف المصروف: $e'),
+          backgroundColor: Colors.red.shade900,
+        ),
+      );
+    }
   }
 
   Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
@@ -754,27 +844,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                           setState(() => dialogSalaryAction = value);
                         },
                       ),
-                      if (existing == null &&
-                          dialogSalaryAction == _salaryAdvanceAction) ...[
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: installments,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'عدد الأقساط',
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        CheckboxListTile(
-                          value: startNextMonth,
-                          onChanged: (v) => setState(() {
-                            startNextMonth = v ?? true;
-                          }),
-                          title: const Text('ابدأ الخصم من الشهر القادم'),
-                          controlAffinity: ListTileControlAffinity.leading,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ],
                     ],
                   ],
                   const SizedBox(height: 12),
@@ -845,20 +914,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     );
                     return;
                   }
-                  if (existing == null &&
-                      selectedType == _salaryType &&
-                      dialogSalaryAction == _salaryAdvanceAction) {
-                    final count = int.tryParse(installments.text.trim()) ?? 0;
-                    if (count <= 0) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(
-                          content: const Text('يجب إدخال عدد الأقساط'),
-                          backgroundColor: Theme.of(ctx).colorScheme.error,
-                        ),
-                      );
-                      return;
-                    }
-                  }
                   // ✅ إصلاح: التحقق من المبلغ قبل إغلاق الحوار
                   // سابقاً كان التحقق بعد الإغلاق مما يسبب إغلاق صامت بدون تغذية راجعة
                   final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
@@ -901,44 +956,30 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     try {
       if (existing == null) {
-        if (isSalaryExpense &&
-            selectedEmployeeId != null &&
-            dialogSalaryAction == _salaryAdvanceAction) {
-          final count = int.tryParse(installments.text.trim()) ?? 0;
-          await ref
-              .read(salaryAdvanceInstallmentsServiceProvider)
-              .createInstallmentAdvance(
-                employeeId: selectedEmployeeId!,
-                totalAmount: parsedAmount,
-                advanceDate: trimmedDate,
-                description: trimmedDescription,
-                installments: count,
-                startNextMonth: startNextMonth,
-              );
-        } else {
-          final newId = await repo.create(
-            expenseType: savedType,
-            relatedId: isSalaryExpense ? selectedEmployeeId : null,
-            description: trimmedDescription,
-            amount: parsedAmount,
-            date: trimmedDate,
-          );
+        // ✅ إلغاء السلفة — تم إزالة خيار السلفة من القائمة المنسدلة
+        // جميع المصروفات الجديدة تُنشأ بالطريقة العادية
+        final newId = await repo.create(
+          expenseType: savedType,
+          relatedId: isSalaryExpense ? selectedEmployeeId : null,
+          description: trimmedDescription,
+          amount: parsedAmount,
+          date: trimmedDate,
+        );
 
-          if (isSalaryExpense && selectedEmployeeId != null) {
-            final signedAmount = savedType == _salaryDeductionAction
-                ? -parsedAmount
-                : parsedAmount;
-            await salaryRepo.saveFromExpense(
-              expenseId: newId,
-              employeeId: selectedEmployeeId!,
-              action: savedType,
-              amount: signedAmount,
-              date: trimmedDate,
-              note: trimmedDescription,
-              // ✅ إصلاح: استخدام _hotelDayKeyFromDate لضمان الاتساق مع حساب hotelDayKey في ExpensesRepository
-              hotelDayKey: _hotelDayKeyFromDate(DateTime.parse(trimmedDate)),
-            );
-          }
+        if (isSalaryExpense && selectedEmployeeId != null) {
+          final signedAmount = savedType == _salaryDeductionAction
+              ? -parsedAmount
+              : parsedAmount;
+          await salaryRepo.saveFromExpense(
+            expenseId: newId,
+            employeeId: selectedEmployeeId!,
+            action: savedType,
+            amount: signedAmount,
+            date: trimmedDate,
+            note: trimmedDescription,
+            // ✅ إصلاح: استخدام _hotelDayKeyFromDate لضمان الاتساق مع حساب hotelDayKey في ExpensesRepository
+            hotelDayKey: _hotelDayKeyFromDate(DateTime.parse(trimmedDate)),
+          );
         }
       } else {
         await repo.update(
@@ -1140,7 +1181,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         normalized == 'سحب راتب' ||
         normalized == _salaryWithdrawAction ||
         normalized == _salaryDeductionAction ||
-        normalized == _salaryAdvanceAction ||
         normalized == 'خصم راتب';
   }
 
