@@ -748,13 +748,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         // تعديل مصروف موجود — استخدام تاريخه المخزن
         selectedDate = DateTime.parse(existing.date);
       } else {
-        // ✅ إصلاح: مصروف جديد — التاريخ التقويمي اليوم
-        // المستخدم يرى تاريخ اليوم التقويمي في الحوار
-        // لكن hotelDayKey يُحسب حسب اليوم الفندقي الفعلي (حسب الوقت الحالي)
-        selectedDate = DateTime.now();
+        // ✅ إصلاح: مصروف جديد — التاريخ حسب اليوم الفندقي
+        // قبل 14:01 → التاريخ = اليوم السابق (اليوم الفندقي الحالي)
+        // بعد 14:01 → التاريخ = اليوم الحالي (اليوم الفندقي الحالي)
+        selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
       }
     } catch (_) {
-      selectedDate = DateTime.now();
+      selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
     }
 
     try {
@@ -970,17 +970,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     try {
       if (existing == null) {
-        // ✅ إصلاح: مصروف جديد — hotelDayKey = اليوم الفندقي الحالي
-        // عند 10 صباحاً من 19 مايو: getHotelDayKey() = "2026-05-18"
-        // المصروف الجديد ينتمي لليوم الفندقي الحالي تلقائياً
-        final currentHotelDayKey = HotelTimeEngine.getHotelDayKey();
+        // ✅ إصلاح: مصروف جديد — date و hotelDayKey حسب اليوم الفندقي
+        // selectedDate يُعيَّن افتراضياً من HotelTimeEngine.getHotelDay()
+        // hotelDayKey يُحسب من selectedDate لضمان الاتساق حتى لو غيّر المستخدم التاريخ
+        final newHotelDayKey = _hotelDayKeyFromDate(selectedDate);
         final newId = await repo.create(
           expenseType: savedType,
           relatedId: isSalaryExpense ? selectedEmployeeId : null,
           description: trimmedDescription,
           amount: parsedAmount,
           date: trimmedDate,
-          hotelDayKey: currentHotelDayKey,
+          hotelDayKey: newHotelDayKey,
         );
 
         if (isSalaryExpense && selectedEmployeeId != null) {
@@ -994,8 +994,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
-            // ✅ hotelDayKey مطابق لليوم الفندقي الحالي (نفس المصدر)
-            hotelDayKey: currentHotelDayKey,
+            // ✅ hotelDayKey مطابق لليوم الفندقي من التاريخ المختار
+            hotelDayKey: newHotelDayKey,
           );
         }
       } else {
