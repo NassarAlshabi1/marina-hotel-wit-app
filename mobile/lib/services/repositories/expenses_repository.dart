@@ -57,16 +57,14 @@ class ExpensesRepository {
     required String description,
     required double amount,
     required String date,
+    String? hotelDayKey,
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      // ✅ إصلاح: حساب hotelDayKey باستخدام 14:01 من التاريخ التقويمي
-      // المنتقي يعطي تاريخ بدون وقت — تمريره مباشرة يُفسَّر كمنتصف الليل (00:00)
-      // مما يُعطي اليوم الفندقي السابق خطأً.
-      // مثال: اختيار "19 مايو" → getHotelDayKeyFromIso("2026-05-19") = midnight < 14:00 → "2026-05-18" ❌
-      // بينما المستخدم يقصد اليوم الفندقي 19 مايو (14:01 يوم 19 → 14:00 يوم 20)
-      // الحل: نمرّر 14:01 مثلما تفعل شاشة الفلترة (_hotelDayKeyFromDate)
-      final hotelDayKey = _hotelDayKeyFromCalendarDate(normalizedDate);
+      // ✅ إصلاح: استخدام hotelDayKey الممرّر إن وُجد، وإلا حسابه
+      // - للمصروفات الجديدة: يُمرّر HotelTimeEngine.getHotelDayKey() (اليوم الفندقي الحالي)
+      // - للمصروفات القديمة / الاستيراد: يُحسب من التاريخ التقويمي
+      final effectiveHotelDayKey = hotelDayKey ?? _hotelDayKeyFromCalendarDate(normalizedDate);
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -74,7 +72,7 @@ class ExpensesRepository {
           description: d.Value(description),
           amount: d.Value(amount),
           date: d.Value(normalizedDate),
-          hotelDayKey: d.Value(hotelDayKey),
+          hotelDayKey: d.Value(effectiveHotelDayKey),
         ),
       );
       unawaited(AutoBackupManager.instance.onDataChange(
@@ -145,6 +143,7 @@ class ExpensesRepository {
     String? description,
     double? amount,
     String? date,
+    String? hotelDayKey,
   }) async {
     try {
       final normalizedDate = date != null ? Time.safeIsoToDateString(date) : null;
@@ -164,10 +163,12 @@ class ExpensesRepository {
           date: normalizedDate != null
               ? d.Value(normalizedDate)
               : const d.Value.absent(),
-          // ✅ إصلاح: حساب hotelDayKey بنفس طريقة create — باستخدام 14:01
-          hotelDayKey: date != null
-              ? d.Value(_hotelDayKeyFromCalendarDate(normalizedDate!))
-              : const d.Value.absent(),
+          // ✅ إصلاح: استخدام hotelDayKey الممرّر إن وُجد، وإلا حسابه من التاريخ
+          hotelDayKey: hotelDayKey != null
+              ? d.Value(hotelDayKey)
+              : date != null
+                  ? d.Value(_hotelDayKeyFromCalendarDate(normalizedDate!))
+                  : const d.Value.absent(),
         ),
       );
       if (result > 0) {

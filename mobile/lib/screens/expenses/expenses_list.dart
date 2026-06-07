@@ -744,8 +744,15 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final installments = TextEditingController();
     DateTime selectedDate;
     try {
-      // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
-      selectedDate = DateTime.parse(existing?.date ?? HotelTimeEngine.getHotelDayKey());
+      if (existing != null) {
+        // تعديل مصروف موجود — استخدام تاريخه المخزن
+        selectedDate = DateTime.parse(existing.date);
+      } else {
+        // ✅ إصلاح: مصروف جديد — التاريخ التقويمي اليوم
+        // المستخدم يرى تاريخ اليوم التقويمي في الحوار
+        // لكن hotelDayKey يُحسب حسب اليوم الفندقي الفعلي (حسب الوقت الحالي)
+        selectedDate = DateTime.now();
+      }
     } catch (_) {
       selectedDate = DateTime.now();
     }
@@ -963,14 +970,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     try {
       if (existing == null) {
-        // ✅ إلغاء السلفة — تم إزالة خيار السلفة من القائمة المنسدلة
-        // جميع المصروفات الجديدة تُنشأ بالطريقة العادية
+        // ✅ إصلاح: مصروف جديد — hotelDayKey = اليوم الفندقي الحالي
+        // عند 10 صباحاً من 19 مايو: getHotelDayKey() = "2026-05-18"
+        // المصروف الجديد ينتمي لليوم الفندقي الحالي تلقائياً
+        final currentHotelDayKey = HotelTimeEngine.getHotelDayKey();
         final newId = await repo.create(
           expenseType: savedType,
           relatedId: isSalaryExpense ? selectedEmployeeId : null,
           description: trimmedDescription,
           amount: parsedAmount,
           date: trimmedDate,
+          hotelDayKey: currentHotelDayKey,
         );
 
         if (isSalaryExpense && selectedEmployeeId != null) {
@@ -984,11 +994,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
-            // ✅ إصلاح: استخدام _hotelDayKeyFromDate لضمان الاتساق مع حساب hotelDayKey في ExpensesRepository
-            hotelDayKey: _hotelDayKeyFromDate(DateTime.parse(trimmedDate)),
+            // ✅ hotelDayKey مطابق لليوم الفندقي الحالي (نفس المصدر)
+            hotelDayKey: currentHotelDayKey,
           );
         }
       } else {
+        // ✅ تعديل مصروف موجود — إعادة حساب hotelDayKey من التاريخ المختار
+        final updatedHotelDayKey = _hotelDayKeyFromDate(DateTime.parse(trimmedDate));
         await repo.update(
           existing.id,
           expenseType: savedType,
@@ -996,6 +1008,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           description: trimmedDescription,
           amount: parsedAmount,
           date: trimmedDate,
+          hotelDayKey: updatedHotelDayKey,
         );
 
         if (isSalaryExpense && selectedEmployeeId != null) {
@@ -1008,8 +1021,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
-            // ✅ إصلاح: استخدام _hotelDayKeyFromDate لضمان الاتساق مع حساب hotelDayKey في ExpensesRepository
-            hotelDayKey: _hotelDayKeyFromDate(DateTime.parse(trimmedDate)),
+            // ✅ hotelDayKey مطابق للمصروف المُحدّث
+            hotelDayKey: updatedHotelDayKey,
           );
         } else {
           await salaryRepo.deleteByExpenseId(existing.id);
