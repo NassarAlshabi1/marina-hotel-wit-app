@@ -154,6 +154,7 @@ class SalaryWithdrawalsRepository {
             localUuid: matched.localUuid,
             serverId: matched.serverId,
             payload: {
+              'employeeId': employeeId,
               'amount': amount,
               'withdrawDate': date,
               'reason': reasonText,

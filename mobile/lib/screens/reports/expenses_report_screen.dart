@@ -260,6 +260,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // ونستبعد مصروفات الرواتب من جدول expenses بالكامل
     final bool salaryFromWithdrawals = showAll;
     List<SalaryWithdrawal> salaryWithdrawals = [];
+    final Set<int> salaryExpenseIds = {};
     if (salaryFromWithdrawals) {
       try {
         var swQuery = db.select(db.salaryWithdrawals)
@@ -280,6 +281,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         for (final sw in salaryWithdrawals) {
           employeeIds.add(sw.employeeId);
         }
+        // ✅ إصلاح: استخراج معرفات المصروفات من reason لمنع فقدان البيانات
+        // نستخدمها لمعرفة أي مصروف راتب له سجل مقابل في salary_withdrawals
+        // هذا يضمن عدم فقدان مصروفات الرواتب التي ليس لها سجل مقابل
+        // الحاوية مُصرّحة أعلاه قبل كتلة if لضمان نطاق الرؤية
+        for (final sw in salaryWithdrawals) {
+          final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason ?? '');
+          if (match != null) {
+            salaryExpenseIds.add(int.parse(match.group(1)!));
+          }
+        }
       } catch (_) {
         // في حال عدم وجود الجدول أو خطأ آخر
       }
@@ -299,13 +310,18 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     double totalAmount = 0;
     bool hasSalaryData = false;
 
-    // ─── إضافة مصروفات جدول expenses (مع استبعاد مصروفات الرواتب عند showAll) ───
-    // عند showAll: مصروفات الرواتب تُعرض من salary_withdrawals فقط
-    // لمنع التكرار نهائياً
+    // ─── إضافة مصروفات جدول expenses ───
+    // ✅ إصلاح: عند showAll لا نتخطى جميع مصروفات الرواتب بشكل أعمى
+    // بل نتخطى فقط المصروفات التي لها سجل مطابق في salary_withdrawals
+    // المصروفات بدون سجل مطابق تُعرض من جدول expenses لمنع فقدان البيانات
+    // والمصروفات غير المرتبطة بالرواتب تُعرض كالمعتاد
     for (final expense in expenses) {
       if (salaryFromWithdrawals && _isSalaryType(expense.expenseType)) {
         hasSalaryData = true;
-        continue;
+        // تخطي فقط إذا كان هناك سجل مطابق في سحوبات الرواتب
+        if (expense.id != null && salaryExpenseIds.contains(expense.id)) {
+          continue;
+        }
       }
       final employee = expense.relatedId != null
           ? employeeMap[expense.relatedId!]

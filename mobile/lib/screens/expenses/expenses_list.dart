@@ -210,7 +210,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     //
     // هذا يضمن الاتساق: كلا المسارين يستخدمان HotelTimeEngine.getHotelDayKey()
     if (!_filterActive) {
-      final hotelDay = HotelTimeEngine.getHotelDayKey();
+      final hotelDay = _hotelDayKeyFromDate(DateTime.now());
       return Stream.fromFuture(
         repo.listFilteredByHotelDay(
           fromHotelDay: hotelDay,

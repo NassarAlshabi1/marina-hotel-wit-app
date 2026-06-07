@@ -60,7 +60,13 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.date.isSmallerOrEqual(Variable(to)));
     }
     if (expenseType != null && expenseType.isNotEmpty) {
-      q.where((t) => t.expenseType.equals(expenseType));
+      if (expenseType == 'رواتب') {
+        q.where((t) =>
+            t.expenseType.equals('سحب راتب') |
+            t.expenseType.equals('خصم من الراتب'));
+      } else {
+        q.where((t) => t.expenseType.equals(expenseType));
+      }
     }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);
@@ -98,17 +104,25 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
           (t.hotelDayKey.isNotNull() &
               t.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay))) |
           (t.hotelDayKey.isNull() &
-              t.date.isBiggerOrEqual(Variable(fromHotelDay))));
+              (t.date.isBiggerOrEqual(Variable(fromHotelDay)) |
+               t.date.like('$fromHotelDay%'))));
     }
     if (toHotelDay != null) {
       q.where((t) =>
           (t.hotelDayKey.isNotNull() &
               t.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay))) |
           (t.hotelDayKey.isNull() &
-              t.date.isSmallerOrEqual(Variable(toHotelDay))));
+              (t.date.isSmallerOrEqual(Variable(toHotelDay)) |
+               t.date.like('$toHotelDay%'))));
     }
     if (expenseType != null && expenseType.isNotEmpty) {
-      q.where((t) => t.expenseType.equals(expenseType));
+      if (expenseType == 'رواتب') {
+        q.where((t) =>
+            t.expenseType.equals('سحب راتب') |
+            t.expenseType.equals('خصم من الراتب'));
+      } else {
+        q.where((t) => t.expenseType.equals(expenseType));
+      }
     }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
