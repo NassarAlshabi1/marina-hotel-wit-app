@@ -9,8 +9,8 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/daos/expenses_dao.dart';
-import '../../services/daos/outbox_dao.dart';
+import '../../services/repositories/expenses_repository.dart';
+
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/expense_types.dart';
@@ -166,21 +166,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
   Future<_ExpensesReportResult> _loadExpensesReport(AppDatabase db) async {
-    final outboxDao = OutboxDao(db);
-    final expensesDao = ExpensesDao(db, outboxDao);
-    // ✅ إصلاح: تحويل نطاق التاريخ إلى مفاتيح أيام فندقية
-    // نستخدم HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
-    // لأن ExpensesRepository.create() يخزن hotelDayKey باستخدام HotelTimeEngine
-    //
-    // ⚠️ ملاحظة حرجة: getHotelDayKey تعتبر 14:00:00 بالضبط نهاية اليوم السابق
-    // (14:00:01 = بداية اليوم الجديد). بما أن _fromDate يأتي دائماً بوقت 14:00:00
-    // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
-    // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
-    //
-    // مثال: فلتر "اليوم" عند 10:00 صباح 2026-05-19:
-    //   _fromDate = 18-May 14:00 → +1s → fromHotelDay = "2026-05-18" ✓
-    //   _toDate  = 19-May 13:59 → toHotelDay   = "2026-05-18" ✓
-    //   → فقط مصروفات hotelDayKey="2026-05-18" ✅
+    final repo = ExpensesRepository(db);
+    // ✅ تحويل نطاق التاريخ إلى hotelDayKey
     final fromHotelDay = _fromDate != null
         ? HotelTimeEngine.getHotelDayKey(
             dateTime: _fromDate!.add(const Duration(seconds: 1)))
@@ -198,8 +185,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // هل نعرض الكل (بدون فلتر نوع)؟
     final showAll = selectedType == null;
 
-    // ✅ فلترة بحقل hotelDayKey بدلاً من date التقويمي + بحث نصي
-    var expenses = await expensesDao.listFilteredByHotelDay(
+    // ✅ استخدام repo.listFilteredByHotelDay لتوسيع فئة 'رواتب' تلقائياً
+    var expenses = await repo.listFilteredByHotelDay(
       fromHotelDay: fromHotelDay,
       toHotelDay: toHotelDay,
       expenseType: selectedType,
