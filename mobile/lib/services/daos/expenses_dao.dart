@@ -163,7 +163,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       for (var i = 1; i < expenseTypes.length; i++) {
         typeCondition = typeCondition | expenses.expenseType.equals(expenseTypes[i]);
       }
-      q.where(typeCondition);
+      q.where((_) => typeCondition);
     }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
