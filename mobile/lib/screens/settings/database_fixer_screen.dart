@@ -250,6 +250,8 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
               _buildIssueItem(
                 'مصروفات يتيمة',
                 report.orphanExpenses,
+              _buildIssueItem('سحوبات بدون رابط', report.unlinkedSalaryWithdrawals),
+              _buildIssueItem('سحوبات بدون exp_', report.salaryWithdrawalsWithoutRef),
                 Icons.money_off,
               ),
               const Divider(height: 24),
@@ -329,6 +331,7 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
               _buildFixItem('serverId', result.serverIdFixed),
               _buildFixItem('مدفوعات يتيمة', result.orphanPaymentsFixed),
               _buildFixItem('مصروفات يتيمة', result.orphanExpensesFixed),
+              _buildFixItem('سحوبات راتب مرتبطة', result.salaryLinksFixed),
               const Divider(height: 24),
               Text(
                 '✓ تم إصلاح ${result.totalFixed} مشكلة',
