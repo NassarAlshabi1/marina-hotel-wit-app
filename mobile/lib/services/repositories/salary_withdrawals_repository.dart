@@ -267,6 +267,63 @@ class SalaryWithdrawalsRepository {
         .get();
   }
 
+  /// 🔧 ترحيل لمرة واحدة: إصلاح الـ reason في السجلات القديمة (بدون exp_)
+  /// يربط السحوبات القديمة بالمصروفات عبر (الموظف، اليوم الفندقي، المبلغ)
+  Future<int> migrateOldRecords() async {
+    int fixed = 0;
+    final all = await (_db.select(_db.salaryWithdrawals)
+          ..where((t) => t.deletedAt.isNull()))
+        .get();
+
+    final targets = all.where((sw) {
+      if (sw.reason == null || sw.reason!.isEmpty) return true;
+      return !sw.reason!.contains('exp_');
+    }).toList();
+
+    if (targets.isEmpty) {
+      return 0;
+    }
+
+    final now = Time.nowEpoch();
+    for (final sw in targets) {
+      final matchingExpenses = await (_db.select(_db.expenses)
+            ..where((t) => t.deletedAt.isNull())
+            ..where((t) => t.relatedId.equals(sw.employeeId))
+            ..where((t) => t.hotelDayKey.equals(sw.hotelDayKey ?? ''))
+            ..where((t) => t.amount.equals(sw.amount.abs())))
+          .get();
+
+      if (matchingExpenses.isEmpty) continue;
+
+      final expense = matchingExpenses.first;
+      final newReason = 'exp_${expense.id}';
+
+      await (_db.update(_db.salaryWithdrawals)
+            ..where((t) => t.id.equals(sw.id)))
+          .write(SalaryWithdrawalsCompanion(
+            reason: d.Value(newReason),
+            updatedAt: d.Value(now),
+            lastModified: d.Value(now),
+            version: d.Value(sw.version + 1),
+          ));
+
+      await _outboxDao.merge(
+        entity: 'salary_withdrawals',
+        op: 'update',
+        localUuid: sw.localUuid,
+        serverId: sw.serverId,
+        payload: {
+          'reason': newReason,
+          'lastModified': now,
+        },
+        clientTs: now,
+      );
+
+      fixed++;
+    }
+    return fixed;
+  }
+
   /// جلب السحوبات النشطة (غير المحذوفة)
   Future<List<SalaryWithdrawal>> listActive() async {
     return (_db.select(_db.salaryWithdrawals)
