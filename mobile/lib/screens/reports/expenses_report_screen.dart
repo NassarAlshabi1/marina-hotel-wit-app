@@ -214,7 +214,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // ونستبعد مصروفات الرواتب من جدول expenses بالكامل
     final bool salaryFromWithdrawals = showAll;
     List<SalaryWithdrawal> salaryWithdrawals = [];
-    final Set<int> salaryExpenseIds = {};
     if (salaryFromWithdrawals) {
       try {
         var swQuery = db.select(db.salaryWithdrawals)
@@ -235,16 +234,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         for (final sw in salaryWithdrawals) {
           employeeIds.add(sw.employeeId);
         }
-        // ✅ إصلاح: استخراج معرفات المصروفات من reason لمنع فقدان البيانات
-        // نستخدمها لمعرفة أي مصروف راتب له سجل مقابل في salary_withdrawals
-        // هذا يضمن عدم فقدان مصروفات الرواتب التي ليس لها سجل مقابل
-        // الحاوية مُصرّحة أعلاه قبل كتلة if لضمان نطاق الرؤية
-        for (final sw in salaryWithdrawals) {
-          final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason ?? '');
-          if (match != null) {
-            salaryExpenseIds.add(int.parse(match.group(1)!));
-          }
-        }
       } catch (_) {
         // في حال عدم وجود الجدول أو خطأ آخر
       }
@@ -263,19 +252,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final rows = <_ExpenseReportRow>[];
     double totalAmount = 0;
     bool hasSalaryData = false;
+    final Set<int> addedExpenseIds = {};
 
-    // ─── إضافة مصروفات جدول expenses ───
-    // ✅ إصلاح: عند showAll لا نتخطى جميع مصروفات الرواتب بشكل أعمى
-    // بل نتخطى فقط المصروفات التي لها سجل مطابق في salary_withdrawals
-    // المصروفات بدون سجل مطابق تُعرض من جدول expenses لمنع فقدان البيانات
-    // والمصروفات غير المرتبطة بالرواتب تُعرض كالمعتاد
+    // ─── أولاً: إضافة جميع مصروفات جدول expenses (باستثناء السلفة) ───
     for (final expense in expenses) {
-      if (salaryFromWithdrawals && ExpenseTypes.isSalaryType(expense.expenseType)) {
-        hasSalaryData = true;
-        // تخطي فقط إذا كان هناك سجل مطابق في سحوبات الرواتب
-        if (expense.id != null && salaryExpenseIds.contains(expense.id)) {
-          continue;
-        }
+      if (expense.expenseType == ExpenseTypes.salaryAdvance) {
+        continue;
       }
       final employee = expense.relatedId != null
           ? employeeMap[expense.relatedId!]
@@ -294,43 +276,78 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           employee: employee,
         ),
       );
-    }
-
-    // ─── إضافة سحوبات الرواتب من salary_withdrawals (عند الكل فقط) ───
-    if (showAll && salaryWithdrawals.isNotEmpty) {
-      hasSalaryData = true;
-      for (final sw in salaryWithdrawals) {
-        final employee = employeeMap[sw.employeeId];
-        final date = _parseExpenseDate(sw.withdrawDate);
-        final wType = sw.withdrawalType ?? 'سحب راتب';
-        final isDeduction = ExpenseTypes.normalizeSalaryType(wType) == ExpenseTypes.salaryDeduction;
-        final displayType = isDeduction ? 'خصم من الراتب' : 'سحب راتب';
-        // بناء الوصف: السبب + الملاحظات
-        final descParts = <String>[];
-        if (sw.reason != null && sw.reason!.isNotEmpty && !sw.reason!.startsWith('exp_')) {
-          descParts.add(sw.reason!);
-        }
-        if (sw.description != null && sw.description!.isNotEmpty) {
-          descParts.add(sw.description!);
-        }
-        final description = descParts.join(' — ');
-
-        final displayAmount = isDeduction ? sw.amount.abs() : sw.amount;
-        totalAmount += displayAmount;
-        rows.add(
-          _ExpenseReportRow(
-            date: date,
-            amount: displayAmount,
-            type: displayType,
-            description: description,
-            employee: employee,
-            isSalaryWithdrawal: true,
-          ),
-        );
+      if (expense.id != null) {
+        addedExpenseIds.add(expense.id);
       }
     }
 
-    // ترتيب حسب التاريخ الأحدث
+    // ─── ثانياً: إضافة سحوبات الرواتب اليتيمة فقط (بدون مصروف مقابل) ───
+    if (salaryFromWithdrawals && salaryWithdrawals.isNotEmpty) {
+      hasSalaryData = true;
+      for (final sw in salaryWithdrawals) {
+        bool hasMatchingExpense = false;
+
+        // الطريقة 1: مطابقة عبر reason الذي يحتوي exp_XX
+        if (sw.reason != null) {
+          final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
+          if (match != null) {
+            final expId = int.tryParse(match.group(1)!);
+            if (expId != null && addedExpenseIds.contains(expId)) {
+              hasMatchingExpense = true;
+            }
+          }
+        }
+
+        // الطريقة 2 (الاحتياطية): مطابقة بالبيانات للمعاملات القديمة
+        if (!hasMatchingExpense) {
+          for (final expense in expenses) {
+            if (expense.expenseType == ExpenseTypes.salaryAdvance) continue;
+            if (ExpenseTypes.isSalaryType(expense.expenseType) &&
+                expense.relatedId == sw.employeeId &&
+                expense.hotelDayKey?.isNotEmpty == true &&
+                expense.hotelDayKey == sw.hotelDayKey &&
+                expense.amount.abs() == sw.amount.abs()) {
+              hasMatchingExpense = true;
+              debugPrint('⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر البيانات');
+              break;
+            }
+          }
+        }
+
+        // إذا لم يتم العثور على مصروف مقابل → سحب يتيم → أضفه
+        if (!hasMatchingExpense) {
+          final employee = employeeMap[sw.employeeId];
+          final date = _parseExpenseDate(sw.withdrawDate);
+          final wType = sw.withdrawalType ?? 'سحب راتب';
+          final isDeduction = ExpenseTypes.normalizeSalaryType(wType) == ExpenseTypes.salaryDeduction;
+          final displayType = isDeduction ? 'خصم من الراتب' : 'سحب راتب';
+
+          final descParts = <String>[];
+          if (sw.reason != null && sw.reason!.isNotEmpty && !sw.reason!.startsWith('exp_')) {
+            descParts.add(sw.reason!);
+          }
+          if (sw.description != null && sw.description!.isNotEmpty) {
+            descParts.add(sw.description!);
+          }
+          final description = descParts.join(' — ');
+
+          final displayAmount = isDeduction ? sw.amount.abs() : sw.amount;
+          totalAmount += displayAmount;
+          rows.add(
+            _ExpenseReportRow(
+              date: date,
+              amount: displayAmount,
+              type: displayType,
+              description: description,
+              employee: employee,
+              isSalaryWithdrawal: true,
+            ),
+          );
+        }
+      }
+    }
+
+    // ترتيب حسب التاريخ الأحدث    // ترتيب حسب التاريخ الأحدث
     rows.sort((a, b) => b.date.compareTo(a.date));
 
     return _ExpensesReportResult(rows: rows, totalAmount: totalAmount, hasSalaryData: hasSalaryData);
