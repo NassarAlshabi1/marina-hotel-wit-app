@@ -212,12 +212,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     //
     // هذا يضمن الاتساق: كلا المسارين يستخدمان HotelTimeEngine.getHotelDayKey()
     if (!_filterActive) {
-      // ✅ إصلاح: عرض المصروفات حسب اليوم التقويمي الفندقي
-      // نستخدم _hotelDayKeyFromDate(DateTime.now()) بدلاً من getHotelDayKey()
-      // لأن getHotelDayKey() يعتمد على الوقت الحالي ويعطي اليوم الفندقي الحقيقي
-      // مثال: الساعة 10 صباحاً → hotelDay = أمس، لكن المستخدم يتوقع رؤية مصروفات اليوم
-      // _hotelDayKeyFromDate(DateTime.now()) يمرّر 14:01 من تاريخ اليوم = مفتاح اليوم التقويمي
-      final hotelDay = _hotelDayKeyFromDate(DateTime.now());
+      // ✅ عرض المصروفات حسب اليوم الفندقي (14:01 → 14:00)
+      // getHotelDayKey() يعتمد على الوقت الحالي:
+      // → عند 10:00 صباح 19 مايو: hotelDay = "2026-05-18" (اليوم الفندقي الحالي)
+      // → عند 15:00 ظهر 19 مايو: hotelDay = "2026-05-19" (بعد تجاوز 14:01)
+      final hotelDay = HotelTimeEngine.getHotelDayKey();
       return Stream.fromFuture(
         repo.listFilteredByHotelDay(
           fromHotelDay: hotelDay,
@@ -425,8 +424,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   Widget _buildCompactFiltersCard() {
-    // ✅ إصلاح: استخدام _hotelDayKeyFromDate للاتساق مع _buildExpensesStream
-    final hotelDay = _hotelDayKeyFromDate(DateTime.now());
+    // ✅ عرض التاريخ حسب اليوم الفندقي — اتساقاً مع _buildExpensesStream
+    final hotelDay = HotelTimeEngine.getHotelDayKey();
     final fromDisplay = (_filterActive && _fromDate != null)
         ? _dateFormat.format(_fromDate!)
         : hotelDay;
@@ -1024,10 +1023,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       final savedHotelDayKey = _hotelDayKeyFromDate(DateTime.parse(trimmedDate));
       final currentFromKey = _filterActive && _fromDate != null
           ? _hotelDayKeyFromDate(_fromDate!)
-          : _hotelDayKeyFromDate(DateTime.now());
+          : HotelTimeEngine.getHotelDayKey();
       final currentToKey = _filterActive && _toDate != null
           ? _hotelDayKeyFromDate(_toDate!)
-          : _hotelDayKeyFromDate(DateTime.now());
+          : HotelTimeEngine.getHotelDayKey();
       if (savedHotelDayKey.compareTo(currentFromKey) < 0 ||
           savedHotelDayKey.compareTo(currentToKey) > 0) {
         // المصروف خارج نطاق الفلتر — توسيع النطاق ليشمله
