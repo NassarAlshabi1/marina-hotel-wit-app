@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 
 import '../utils/expense_reason_matcher.dart';
 import '../utils/hotel_time_engine.dart';
+import '../utils/time.dart';
+import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 
 /// ✅ خدمة إصلاح hotelDayKey لجميع الجداول
@@ -161,6 +163,7 @@ class HotelDayKeyFixService {
   }
 
   /// ✅ إصلاح ربط سحوبات الرواتب بالمصروفات + تعبئة expense_id
+  /// + إنشاء outbox للمزامنة مع Appwrite Cloud
   ///
   /// **المشكلة:**
   /// سجلات salary_withdrawals القديمة قد:
@@ -173,10 +176,13 @@ class HotelDayKeyFixService {
   /// لكل سحب راتب بدون exp_XX وبدون expense_id:
   ///   - نبحث عن مصروف راتب مطابق بنفس: employeeId + hotelDayKey + amount
   ///   - إذا وُجد: نحدّث reason = 'exp_{expenseId}' + نعبّئ expense_id
+  ///   - نُنشئ عنصر outbox (op='update') لمزامنة التغيير مع Appwrite
   ///   - السحوبات المباشرة (reason يبدأ بـ direct_withdrawal_) لا تُعالج
   ///
   /// كذلك نعبّئ expense_id للسجلات التي تحتوي exp_XX لكن expense_id فارغ
   Future<int> _fixExpenseWithdrawalLinks(AppDatabase db) async {
+    final outboxDao = OutboxDao(db);
+
     try {
       // ─── الخطوة 1: تعبئة expense_id من reason للسجلات الحديثة ───
       int step1Fixed = 0;
@@ -197,7 +203,9 @@ class HotelDayKeyFixService {
       }
 
       // ─── الخطوة 2: ربط السحوبات القديمة (بدون exp_XX) بالمصروفات ───
+      // ✅ مع إنشاء outbox للمزامنة مع Appwrite Cloud
       int step2Fixed = 0;
+      int outboxCreated = 0;
       try {
         // جلب مصروفات الرواتب النشطة
         final salaryExpenses = await (db.select(db.expenses)
@@ -218,6 +226,15 @@ class HotelDayKeyFixService {
           final dayKey = exp.hotelDayKey ?? _extractDatePart(exp.date);
           final key = '${exp.relatedId}_$dayKey';
           expenseMap.putIfAbsent(key, () => []).add(exp);
+        }
+
+        // جلب الموظفين لبناء خريطة id → localUuid (لـ employeeUuid في outbox)
+        final employees = await (db.select(db.employees)
+              ..where((t) => t.deletedAt.isNull()))
+            .get();
+        final empUuidMap = <int, String>{};
+        for (final emp in employees) {
+          empUuidMap[emp.id] = emp.localUuid;
         }
 
         for (final sw in withdrawals) {
@@ -249,12 +266,16 @@ class HotelDayKeyFixService {
 
           // تحديث reason + expense_id
           final newReason = 'exp_${matched.id}';
+          final now = Time.nowEpoch();
 
-          // تحديث reason عبر Drift API
+          // تحديث reason + updatedAt + lastModified عبر Drift API
           await (db.update(db.salaryWithdrawals)
                 ..where((t) => t.id.equals(sw.id)))
               .write(SalaryWithdrawalsCompanion(
             reason: d.Value(newReason),
+            updatedAt: d.Value(now),
+            lastModified: d.Value(now),
+            version: d.Value(sw.version + 1),
           ));
 
           // تحديث expense_id عبر SQL خام
@@ -267,7 +288,39 @@ class HotelDayKeyFixService {
             // العمود قد لا يكون موجوداً
           }
 
+          // ✅ إنشاء عنصر outbox لمزامنة التغيير مع Appwrite Cloud
+          // هذا يضمن أن reason = 'exp_XXX' و expenseId يُحدثان على السحابة
+          try {
+            final empUuid = empUuidMap[sw.employeeId];
+            await outboxDao.merge(
+              entity: 'salary_withdrawals',
+              op: 'update',
+              localUuid: sw.localUuid,
+              serverId: sw.serverId,
+              payload: {
+                'employeeId': sw.employeeId,
+                'amount': sw.amount,
+                'reason': newReason,
+                'expenseId': matched.id,
+                'withdrawDate': sw.withdrawDate,
+                'hotelDayKey': sw.hotelDayKey ?? swDayKey,
+                'withdrawalType': sw.withdrawalType,
+                'description': sw.description,
+                'lastModified': now,
+                if (empUuid != null) 'employeeUuid': empUuid,
+              },
+              clientTs: now,
+            );
+            outboxCreated++;
+          } catch (e) {
+            debugPrint('  ⚠️ fixExpenseWithdrawalLinks outbox: فشل إنشاء outbox لـ sw.id=${sw.id}: $e');
+          }
+
           step2Fixed++;
+          debugPrint(
+            '  🔗 ربط سحب راتب قديم: sw.id=${sw.id} → expense.id=${matched.id} '
+            '(موظف=${sw.employeeId}, يوم=$swDayKey, مبلغ=${sw.amount})',
+          );
         }
       } catch (e) {
         debugPrint('  ⚠️ fixExpenseWithdrawalLinks step2: $e');
@@ -277,7 +330,7 @@ class HotelDayKeyFixService {
       if (total > 0) {
         debugPrint(
           '  🔗 expense_withdrawal_links: تم إصلاح $total سجل '
-          '(step1=$step1Fixed, step2=$step2Fixed)',
+          '(step1=$step1Fixed, step2=$step2Fixed, outbox=$outboxCreated)',
         );
       }
       return total;
