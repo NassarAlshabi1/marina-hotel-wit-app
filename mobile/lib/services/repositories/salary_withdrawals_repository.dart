@@ -173,12 +173,14 @@ class SalaryWithdrawalsRepository {
           // ✅ إصلاح حرج: استخدام op:'update' بدلاً من op:'delete'
           // الحذف الناعم (soft-delete) يجب أن يستخدم 'update' لكي يُحدث سجل Appwrite
           // بدلاً من حذفه نهائياً — هذا يضمن رؤية deletedAt على الأجهزة الأخرى
+          // ✅ إصلاح: إضافة employeeId للحمولة لضمان مزامنة relatedId/employeeId بشكل صحيح
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
             op: 'update',
             localUuid: stale.localUuid,
             serverId: stale.serverId,
             payload: {
+              'employeeId': stale.employeeId,
               'deletedAt': now,
               'lastModified': now,
             },
@@ -327,6 +329,7 @@ class SalaryWithdrawalsRepository {
         // ✅ إصلاح حرج: استخدام op:'update' بدلاً من op:'delete'
         // الحذف الناعم (soft-delete) يجب أن يستخدم 'update' لكي يُحدث سجل Appwrite
         // بدلاً من حذفه نهائياً — هذا يضمن رؤية deletedAt على الأجهزة الأخرى
+        // ✅ إصلاح: إضافة employeeId للحمولة لضمان مزامنة relatedId/employeeId بشكل صحيح
         if (!originIsServer) {
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
@@ -334,6 +337,7 @@ class SalaryWithdrawalsRepository {
             localUuid: item.localUuid,
             serverId: item.serverId,
             payload: {
+              'employeeId': item.employeeId,
               'deletedAt': now,
               'lastModified': now,
             },

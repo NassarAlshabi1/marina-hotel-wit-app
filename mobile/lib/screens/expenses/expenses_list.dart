@@ -212,9 +212,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     //
     // هذا يضمن الاتساق: كلا المسارين يستخدمان HotelTimeEngine.getHotelDayKey()
     if (!_filterActive) {
-      // ✅ إصلاح: فلترة الرواتب حسب اليوم الفندقي
-      // المصروفات تُعرض حسب اليوم الفندقي (14:01 → 14:00 اليوم التالي)
-      final hotelDay = HotelTimeEngine.getHotelDayKey();
+      // ✅ إصلاح: عرض المصروفات حسب اليوم التقويمي الفندقي
+      // نستخدم _hotelDayKeyFromDate(DateTime.now()) بدلاً من getHotelDayKey()
+      // لأن getHotelDayKey() يعتمد على الوقت الحالي ويعطي اليوم الفندقي الحقيقي
+      // مثال: الساعة 10 صباحاً → hotelDay = أمس، لكن المستخدم يتوقع رؤية مصروفات اليوم
+      // _hotelDayKeyFromDate(DateTime.now()) يمرّر 14:01 من تاريخ اليوم = مفتاح اليوم التقويمي
+      final hotelDay = _hotelDayKeyFromDate(DateTime.now());
       return Stream.fromFuture(
         repo.listFilteredByHotelDay(
           fromHotelDay: hotelDay,
@@ -422,7 +425,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   Widget _buildCompactFiltersCard() {
-    final hotelDay = HotelTimeEngine.getHotelDayKey();
+    // ✅ إصلاح: استخدام _hotelDayKeyFromDate للاتساق مع _buildExpensesStream
+    final hotelDay = _hotelDayKeyFromDate(DateTime.now());
     final fromDisplay = (_filterActive && _fromDate != null)
         ? _dateFormat.format(_fromDate!)
         : hotelDay;
@@ -1020,10 +1024,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       final savedHotelDayKey = _hotelDayKeyFromDate(DateTime.parse(trimmedDate));
       final currentFromKey = _filterActive && _fromDate != null
           ? _hotelDayKeyFromDate(_fromDate!)
-          : HotelTimeEngine.getHotelDayKey();
+          : _hotelDayKeyFromDate(DateTime.now());
       final currentToKey = _filterActive && _toDate != null
           ? _hotelDayKeyFromDate(_toDate!)
-          : HotelTimeEngine.getHotelDayKey();
+          : _hotelDayKeyFromDate(DateTime.now());
       if (savedHotelDayKey.compareTo(currentFromKey) < 0 ||
           savedHotelDayKey.compareTo(currentToKey) > 0) {
         // المصروف خارج نطاق الفلتر — توسيع النطاق ليشمله
