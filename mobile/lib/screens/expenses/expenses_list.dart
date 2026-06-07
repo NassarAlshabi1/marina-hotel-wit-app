@@ -201,17 +201,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
   Stream<List<Expense>> _buildExpensesStream() {
     final repo = ref.read(expensesRepoProvider);
-    // ✅ إصلاح: كلا المسارين يستخدمان نفس المنطق — hotelDayKey عبر HotelTimeEngine
-    //
-    // الافتراضي: نستخدم HotelTimeEngine.getHotelDayKey() الذي يعتمد على الوقت الحالي
-    // → عند 10:00 صباح 19 مايو: hotelDay = "2026-05-18" (اليوم الفندقي الحالي)
-    //
-    // يدوي: نستخدم _hotelDayKeyFromDate() الذي يمرّر 14:00:01 من التاريخ المختار
-    // → اختيار 19 مايو: hotelDay = "2026-05-19" (يوم فندقي يبدأ 14:00 من نفس اليوم)
-    //
-    // هذا يضمن الاتساق: كلا المسارين يستخدمان HotelTimeEngine.getHotelDayKey()
+    // ✅ اليوم الفندقي يُحتسب من الوقت الحالي (14:00 نقطة القطع)
+    // → عند 10:00 صباحاً: اليوم الفندقي = اليوم السابق
+    // → عند 15:00 مساءً:  اليوم الفندقي = نفس اليوم
     if (!_filterActive) {
-      final hotelDay = _hotelDayKeyFromDate(DateTime.now());
+      final hotelDay = HotelTimeEngine.getHotelDayKey();
       return Stream.fromFuture(
         repo.listFilteredByHotelDay(
           fromHotelDay: hotelDay,
@@ -646,7 +640,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     DateTime selectedDate;
     try {
       // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
-      selectedDate = DateTime.parse(existing?.date ?? _hotelDayKeyFromDate(DateTime.now()));
+      selectedDate = DateTime.parse(existing?.date ?? HotelTimeEngine.getHotelDayKey());
     } catch (_) {
       selectedDate = DateTime.now();
     }
