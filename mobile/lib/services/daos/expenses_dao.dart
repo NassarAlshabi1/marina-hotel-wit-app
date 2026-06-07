@@ -87,7 +87,6 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     String? search,
     bool includeDeleted = false,
     bool excludeAdvance = false,
-    bool excludeAdvance = false,
   }) async {
     final q = select(expenses);
     if (!includeDeleted) {
@@ -122,7 +121,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.description.like(s) | t.expenseType.like(s));
     }
     if (excludeAdvance) {
-      q.where((t) => t.expenseType.notEquals('سلفة'));
+      q.where((t) => t.expenseType.equals('سلفة').not());
     }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);
@@ -160,18 +159,18 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
                t.date.like('$toHotelDay%'))));
     }
     if (expenseTypes.isNotEmpty) {
-      var typeCondition = t.expenseType.equals(expenseTypes.first);
+      var typeCondition = expenses.expenseType.equals(expenseTypes.first);
       for (var i = 1; i < expenseTypes.length; i++) {
-        typeCondition = typeCondition | t.expenseType.equals(expenseTypes[i]);
+        typeCondition = typeCondition | expenses.expenseType.equals(expenseTypes[i]);
       }
-      q.where((t) => typeCondition);
+      q.where(typeCondition);
     }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.description.like(s) | t.expenseType.like(s));
     }
     if (excludeAdvance) {
-      q.where((t) => t.expenseType.notEquals('سلفة'));
+      q.where((t) => t.expenseType.equals('سلفة').not());
     }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);
