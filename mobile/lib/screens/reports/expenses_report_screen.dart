@@ -301,32 +301,25 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     bool hasSalaryData = false;
 
     // ═══════════════════════════════════════════════════════════════════════
-    // ✅ إصلاح تكرار البيانات — الطبعة الرابعة (خبير — حتمي 100%)
+    // ✅ إصلاح تكرار البيانات — الطبعة الخامسة (حتمي + شبكة أمان)
     //
     // المشكلة الجذرية: تقرير المصروفات يعرض نفس المعاملة مرتين
     //   مرة من جدول expenses ومرة من جدول salary_withdrawals
     //
-    // لماذا فشلت الحلول السابقة؟
-    //   الطبعة 1: نمط exp_XX في reason فقط — لا يوجد في البيانات القديمة
-    //   الطبعة 2: مطابقة expense.date == sw.withdrawDate — تفشل لاختلاف الصيغ
-    //   الطبعة 3: مطابقة تقريبية hotelDayKey + employeeId + amount —
-    //             غير حتمية: false positive (إخفاء سجل مشروع) أو
-    //             false negative (عرض مكرر)
+    // السبب: السجلات القديمة (قبل إضافة عمود expense_id أو تنسيق exp_XX)
+    //   لا تحتوي على رابط مباشر → تُعتبر يتيماً → تُضاف مكررة
     //
-    // الحل النهائي: مطابقة حتمية فقط — بدون أي تخمين
+    // ثلاث طرق مطابقة (مرتبة بالأولوية):
     //
     //   الطريقة 1: عمود expense_id (FK مباشر) — الأكثر موثوقية
     //   الطريقة 2: نمط exp_XX في reason — مُضمون من saveFromExpense()
-    //
-    //   ملاحظة حرجة: saveFromExpense() يضبط reason دائماً على
-    //   'exp_{expenseId}' — هذا invariant مضمون من الكود وليس تخميناً.
-    //   إذا كان reason = 'exp_42' فمؤكد أن هناك مصروف id=42 مقابل.
+    //   الطريقة 3: مطابقة بيانات احتياطية (hotelDayKey + employeeId + amount)
+    //              → شبكة أمان للسجلات القديمة بدون expense_id أو exp_XX
+    //              → احتمال false positive منخفض جداً (ثلاثة حقول متطابقة)
+    //              → حتى لو حدث false positive: إخفاء مكرر أفضل من عرض مكرر
     //
     //   السحوبات المباشرة (reason يبدأ بـ "direct_withdrawal_") لا تُطابق أبداً
     //   لأنها لا تحتوي على مصروف مقابل أصلاً.
-    //
-    //   تم إزالة المطابقة التقريبية (الطبعة 3) لأنها السبب الرئيسي
-    //   للمشاكل: يمكن أن تخفي بيانات مشروعة أو تفشل في إخفاء المكرر.
     // ═══════════════════════════════════════════════════════════════════════
 
     // ─── قراءة expense_id من جدول salary_withdrawals عبر SQL خام ───
@@ -355,57 +348,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       }
     }
 
-    // بناء مجموعة IDs مصروفات الرواتب الموجودة (لتحديد اليتامى)
-    final salaryExpenseIds = <int>{};
-    for (final expense in expenses) {
-      if (_isSalaryType(expense.expenseType)) {
-        salaryExpenseIds.add(expense.id);
-      }
-    }
+    // ─── بناء مجموعة من المصروفات التي تمت إضافتها بالفعل ───
+    final Set<int> addedExpenseIds = {};      // معرفات المصروفات المضافة
+    final Set<int> addedWithdrawalIds = {};   // معرفات السحوبات المضافة (لتجنب التكرار)
 
-    // تحديد سحوبات الرواتب اليتيمة (بدون مصروف مقابل)
-    final orphanWithdrawals = <SalaryWithdrawal>[];
-    if (shouldFetchSalaryWithdrawals && salaryWithdrawals.isNotEmpty) {
-      for (final sw in salaryWithdrawals) {
-        bool hasMatchingExpense = false;
-
-        // ─── السحوبات المباشرة لا تُطابق أبداً (ليس لها مصروف مقابل) ───
-        final isDirectWithdrawal = sw.reason != null &&
-            sw.reason!.startsWith('direct_withdrawal_');
-
-        if (!isDirectWithdrawal) {
-          // الطريقة 1: مطابقة عبر عمود expense_id (الأكثر موثوقية)
-          final expenseIdFromColumn = swExpenseIdMap[sw.id];
-          if (expenseIdFromColumn != null &&
-              salaryExpenseIds.contains(expenseIdFromColumn)) {
-            hasMatchingExpense = true;
-          }
-
-          // الطريقة 2: مطابقة عبر reason الذي يحتوي exp_XX
-          if (!hasMatchingExpense && sw.reason != null) {
-            final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
-            if (match != null) {
-              final expId = int.tryParse(match.group(1)!);
-              if (expId != null && salaryExpenseIds.contains(expId)) {
-                hasMatchingExpense = true;
-              }
-            }
-          }
-
-          // ✅ تم إزالة المطابقة التقريبية (الطبعة 3) نهائياً
-          // كانت تسبب false positive (إخفاء سجلات مشروعة)
-          // و false negative (عدم إخفاء المكررات)
-          // الحل الحتمي أفضل: إذا لم نجد رابطاً مباشراً (expense_id أو exp_XX)
-          // فالسجل يُعتبر يتيماً ويُعرض — هذا أكثر أماناً من إخفاء بيانات مالية
-        }
-
-        if (!hasMatchingExpense) {
-          orphanWithdrawals.add(sw);
-        }
-      }
-    }
-
-    // ─── إضافة جميع مصروفات جدول expenses (باستثناء السلفة — تسبب تكرار بيانات) ───
+    // ─── أولاً: إضافة جميع المصروفات من جدول expenses (باستثناء السلفة) ───
     for (final expense in expenses) {
       // ✅ إلغاء عرض السلفة من تقرير المصروفات لأنها تسبب تكرار البيانات
       // السلفة تُسجّل تلقائياً مع سحوبات الرواتب وأقساط الخصم
@@ -413,9 +360,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       if (expense.expenseType == 'سلفة') {
         continue;
       }
-      final employee = expense.relatedId != null
-          ? employeeMap[expense.relatedId!]
-          : null;
+      final employee = expense.relatedId != null ? employeeMap[expense.relatedId!] : null;
       // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
       // المصروفات القديمة قد يكون date فيها تقويمياً مختلفاً عن hotelDayKey
       final displayDateStr = (expense.hotelDayKey != null && expense.hotelDayKey!.isNotEmpty)
@@ -436,43 +381,95 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           relatedId: expense.relatedId,
         ),
       );
+      addedExpenseIds.add(expense.id);
     }
 
-    // ─── إضافة سحوبات الرواتب اليتيمة ───
-    if (shouldFetchSalaryWithdrawals && orphanWithdrawals.isNotEmpty) {
+    // ─── ثانياً: معالجة سحوبات الرواتب – إضافة اليتيمة فقط ───
+    if (shouldFetchSalaryWithdrawals && salaryWithdrawals.isNotEmpty) {
       hasSalaryData = true;
-      for (final sw in orphanWithdrawals) {
-        final employee = employeeMap[sw.employeeId];
-        // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
-        final swDisplayDate = (sw.hotelDayKey != null && sw.hotelDayKey!.isNotEmpty)
-            ? sw.hotelDayKey!
-            : sw.withdrawDate;
-        final date = _parseExpenseDate(swDisplayDate);
-        final wType = sw.withdrawalType ?? 'سحب راتب';
-        final isDeduction = wType.contains('خصم') || wType.contains('deduction');
-        final displayType = isDeduction ? 'خصم من الراتب' : 'سحب راتب';
-        // بناء الوصف: السبب + الملاحظات
-        final descParts = <String>[];
-        if (sw.reason != null && sw.reason!.isNotEmpty && !sw.reason!.startsWith('exp_')) {
-          descParts.add(sw.reason!);
-        }
-        if (sw.description != null && sw.description!.isNotEmpty) {
-          descParts.add(sw.description!);
-        }
-        final description = descParts.join(' — ');
 
-        totalAmount += sw.amount;
-        rows.add(
-          _ExpenseReportRow(
-            date: date,
-            amount: sw.amount,
-            type: displayType,
-            description: description,
-            employee: employee,
-            relatedId: sw.employeeId,
-            isSalaryWithdrawal: true,
-          ),
-        );
+      for (final sw in salaryWithdrawals) {
+        // تجنب إضافة نفس السحب مرتين (أمان)
+        if (addedWithdrawalIds.contains(sw.id)) {
+          continue;
+        }
+
+        bool hasMatchingExpense = false;
+
+        // ─── السحوبات المباشرة لا تُطابق أبداً (ليس لها مصروف مقابل) ───
+        final isDirectWithdrawal = sw.reason != null &&
+            sw.reason!.startsWith('direct_withdrawal_');
+
+        if (!isDirectWithdrawal) {
+          // ─── الطريقة 1: مطابقة عبر عمود expense_id (الأكثر موثوقية) ───
+          final expenseIdFromColumn = swExpenseIdMap[sw.id];
+          if (expenseIdFromColumn != null && addedExpenseIds.contains(expenseIdFromColumn)) {
+            hasMatchingExpense = true;
+          }
+
+          // ─── الطريقة 2: مطابقة عبر reason الذي يحتوي exp_XX ───
+          if (!hasMatchingExpense && sw.reason != null) {
+            final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
+            if (match != null) {
+              final expId = int.tryParse(match.group(1)!);
+              if (expId != null && addedExpenseIds.contains(expId)) {
+                hasMatchingExpense = true;
+              }
+            }
+          }
+
+          // ─── الطريقة 3 (الاحتياطية): مطابقة بالبيانات (للسجلات القديمة جداً) ───
+          // هذه تمنع التكرار حتى لو فشلت الطريقتان السابقتان
+          // شرط المطابقة: نفس نوع راتب، نفس الموظف، نفس اليوم الفندقي، نفس المبلغ
+          if (!hasMatchingExpense) {
+            for (final expense in expenses) {
+              if (_isSalaryType(expense.expenseType) &&
+                  expense.relatedId == sw.employeeId &&
+                  _hotelDayKeysMatch(expense.hotelDayKey, sw.hotelDayKey, expense.date, sw.withdrawDate) &&
+                  expense.amount.abs() == sw.amount.abs()) {
+                hasMatchingExpense = true;
+                debugPrint('⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر المطابقة بالبيانات');
+                break;
+              }
+            }
+          }
+        }
+
+        // إذا لم يتم العثور على مصروف مقابل، فهذا السحب يتيم – أضفه
+        if (!hasMatchingExpense) {
+          final employee = employeeMap[sw.employeeId];
+          // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
+          final swDisplayDate = (sw.hotelDayKey != null && sw.hotelDayKey!.isNotEmpty)
+              ? sw.hotelDayKey!
+              : sw.withdrawDate;
+          final date = _parseExpenseDate(swDisplayDate);
+          final wType = sw.withdrawalType ?? 'سحب راتب';
+          final isDeduction = wType.contains('خصم') || wType.contains('deduction');
+          final displayType = isDeduction ? 'خصم من الراتب' : 'سحب راتب';
+
+          final descParts = <String>[];
+          if (sw.reason != null && sw.reason!.isNotEmpty && !sw.reason!.startsWith('exp_')) {
+            descParts.add(sw.reason!);
+          }
+          if (sw.description != null && sw.description!.isNotEmpty) {
+            descParts.add(sw.description!);
+          }
+          final description = descParts.join(' — ');
+
+          totalAmount += sw.amount;
+          rows.add(
+            _ExpenseReportRow(
+              date: date,
+              amount: sw.amount,
+              type: displayType,
+              description: description,
+              employee: employee,
+              relatedId: sw.employeeId,
+              isSalaryWithdrawal: true,
+            ),
+          );
+          addedWithdrawalIds.add(sw.id);
+        }
       }
     }
 
@@ -1229,6 +1226,24 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     } catch (_) {
       return null;
     }
+  }
+
+  /// مطابقة مفتاحي اليوم الفندقي بين مصروف وسحب راتب
+  /// تأخذ بعين الاعتبار أن البيانات القديمة قد لا تحتوي على hotelDayKey
+  /// في هذه الحالة نلجأ لمقارنة جزء التاريخ فقط (yyyy-MM-dd)
+  static bool _hotelDayKeysMatch(
+    String? expenseHotelDayKey,
+    String? swHotelDayKey,
+    String expenseDate,
+    String swDate,
+  ) {
+    // أفضل حالة: كلاهما يحتوي على hotelDayKey
+    if (expenseHotelDayKey != null && expenseHotelDayKey.isNotEmpty &&
+        swHotelDayKey != null && swHotelDayKey.isNotEmpty) {
+      return expenseHotelDayKey == swHotelDayKey;
+    }
+    // حالة احتياطية: مقارنة جزء التاريخ فقط (للسجلات القديمة بدون hotelDayKey)
+    return _extractDatePart(expenseDate) == _extractDatePart(swDate);
   }
 
   DateTime _parseExpenseDate(String value) {
