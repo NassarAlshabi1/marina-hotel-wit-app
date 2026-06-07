@@ -742,9 +742,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           : '',
     );
     final installments = TextEditingController();
-    // ✅ إصلاح: تعريف employeeSearchController قبل كتلة try
-    // لأنه يُستخدم في كتلة finally للتنظيف — المتغيرات داخل try غير مرئية في finally
-    final employeeSearchController = TextEditingController();
     DateTime selectedDate;
     try {
       if (existing != null) {
@@ -772,11 +769,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final List<Employee> availableEmployees =
         employees ?? await ref.read(employeesRepoProvider).watchAll().first;
     int? selectedEmployeeId = existing?.relatedId;
-    // ✅ إصلاح: ضبط نص البحث بعد الحصول على availableEmployees
-    if (existing?.relatedId != null) {
-      final empName = availableEmployees.where((e) => e.id == existing!.relatedId).firstOrNull?.name ?? '';
-      employeeSearchController.text = empName;
-    }
 
     final ok = await showDialog<bool>(
       // ignore: use_build_context_synchronously
@@ -787,13 +779,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           final dropdownTextStyle = Theme.of(
             ctx,
           ).textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.bold, color: dropdownTextColor);
-          
-          // تصفية الموظفين بناءً على نص البحث
-          final filteredEmployees = availableEmployees.where((emp) {
-            final query = employeeSearchController.text.toLowerCase();
-            return emp.name.toLowerCase().contains(query);
-          }).toList();
-
           return AlertDialog(
             alignment: const Alignment(0, -0.4),
             title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
@@ -820,8 +805,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       setState(() {
                         selectedType = value;
                         if (selectedType == _salaryType) {
-                          if (availableEmployees.isNotEmpty && selectedEmployeeId == null) {
-                             // لا نغير الموظف إذا كان مختاراً بالفعل (في حالة التعديل مثلاً)
+                          if (availableEmployees.isNotEmpty) {
+                            selectedEmployeeId ??= availableEmployees.first.id;
                           }
                         } else {
                           selectedEmployeeId = null;
@@ -835,40 +820,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     if (availableEmployees.isEmpty)
                       const Text('لا يوجد موظفين مسجلين حالياً.'),
                     if (availableEmployees.isNotEmpty) ...[
-                      // حقل بحث عن الموظف لضمان المطابقة
-                      TextField(
-                        controller: employeeSearchController,
-                        decoration: const InputDecoration(
-                          labelText: 'بحث عن موظف (الاسم)',
-                          prefixIcon: Icon(Icons.search),
-                          hintText: 'اكتب اسم الموظف للبحث...',
-                        ),
-                        onChanged: (value) => setState(() {
-                          // عند تغيير نص البحث، إذا طابق الاسم تماماً موظفاً واحداً، نقوم باختياره
-                          final exactMatch = availableEmployees.where(
-                            (e) => e.name.trim() == value.trim()
-                          ).firstOrNull;
-                          if (exactMatch != null) {
-                            selectedEmployeeId = exactMatch.id;
-                          } else {
-                            // إذا لم يطابق، نتحقق إذا كان المعرف الحالي لا يزال في القائمة المفلترة
-                            if (selectedEmployeeId != null) {
-                              final current = availableEmployees.firstWhere((e) => e.id == selectedEmployeeId);
-                              if (!current.name.toLowerCase().contains(value.toLowerCase())) {
-                                selectedEmployeeId = null;
-                              }
-                            }
-                          }
-                        }),
-                      ),
-                      const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
                         value: selectedEmployeeId,
                         style: dropdownTextStyle,
                         decoration: const InputDecoration(
-                          labelText: 'اختيار الموظف من القائمة',
+                          labelText: 'اسم الموظف',
                         ),
-                        items: filteredEmployees
+                        items: availableEmployees
                             .map(
                               (employee) => DropdownMenuItem<int>(
                                 value: employee.id,
@@ -876,15 +834,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                               ),
                             )
                             .toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedEmployeeId = value;
-                            if (value != null) {
-                              final emp = availableEmployees.firstWhere((e) => e.id == value);
-                              employeeSearchController.text = emp.name;
-                            }
-                          });
-                        },
+                        onChanged: (value) =>
+                            setState(() => selectedEmployeeId = value),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
@@ -1036,9 +987,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           final signedAmount = savedType == _salaryDeductionAction
               ? -parsedAmount
               : parsedAmount;
+              
+          // التأكد من وجود الموظف قبل الحفظ
+          final employee = availableEmployees.firstWhere((e) => e.id == selectedEmployeeId);
+          
           await salaryRepo.saveFromExpense(
             expenseId: newId,
-            employeeId: selectedEmployeeId!,
+            employeeId: employee.id, // استخدام employee.id كـ EmployeeID
             action: savedType,
             amount: signedAmount,
             date: trimmedDate,
@@ -1063,9 +1018,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         if (isSalaryExpense && selectedEmployeeId != null) {
           final signedAmount =
               savedType == _salaryDeductionAction ? -parsedAmount : parsedAmount;
+          
+          // التأكد من وجود الموظف قبل الحفظ
+          final employee = availableEmployees.firstWhere((e) => e.id == selectedEmployeeId);
+          
           await salaryRepo.saveFromExpense(
             expenseId: existing.id,
-            employeeId: selectedEmployeeId!,
+            employeeId: employee.id, // استخدام employee.id كـ EmployeeID
             action: savedType,
             amount: signedAmount,
             date: trimmedDate,
@@ -1140,7 +1099,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       description.dispose();
       amount.dispose();
       installments.dispose();
-      employeeSearchController.dispose();
     }
   }
 
