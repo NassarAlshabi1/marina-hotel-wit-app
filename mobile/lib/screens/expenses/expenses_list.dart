@@ -212,7 +212,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     //
     // هذا يضمن الاتساق: كلا المسارين يستخدمان HotelTimeEngine.getHotelDayKey()
     if (!_filterActive) {
-      final hotelDay = HotelTimeEngine.getHotelDayKey();
+      // ✅ إصلاح: استخدام اليوم التقويمي بدلاً من اليوم الفندقي
+      // المصروفات تُعرض حسب التاريخ التقويمي المختار وليس حسب اليوم الفندقي
+      // هذا يمنع ارتباك المستخدم عند رؤية مصروفات اليوم السابق
+      final hotelDay = _hotelDayKeyFromDate(DateTime.now());
       return Stream.fromFuture(
         repo.listFilteredByHotelDay(
           fromHotelDay: hotelDay,

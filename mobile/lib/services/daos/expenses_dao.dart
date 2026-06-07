@@ -59,7 +59,16 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.date.isSmallerOrEqualValue(to));
     }
     if (expenseType != null && expenseType.isNotEmpty) {
-      q.where((t) => t.expenseType.equals(expenseType));
+      // ✅ إصلاح: توسيع فلتر 'رواتب' ليشمل أنواع الرواتب المشتقة
+      // 'رواتب' → أيضاً 'سحب راتب' و 'خصم من الراتب'
+      // لأن المستخدم يختار 'رواتب' لكن البيانات تُحفظ بأنواع مختلفة
+      if (expenseType == 'رواتب') {
+        q.where((t) => t.expenseType.isIn(
+          ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'],
+        ));
+      } else {
+        q.where((t) => t.expenseType.equals(expenseType));
+      }
     }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);
@@ -91,21 +100,34 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
 
     if (fromHotelDay != null) {
       // hotelDayKey >= fromHotelDay، مع fallback لحقل date عند كون hotelDayKey فارغاً
+      // ✅ إضافة LIKE prefix fallback: بعض السجلات القديمة تحتوي على وقت في date
+      // (مثل "2026-05-19 14:30") مما يجعل المقارنة النصية دقيقة
       q.where((t) =>
           (t.hotelDayKey.isNotNull() &
               t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
           (t.hotelDayKey.isNull() &
-              t.date.isBiggerOrEqualValue(fromHotelDay)));
+              t.date.isBiggerOrEqualValue(fromHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.date.like('$fromHotelDay%')));
     }
     if (toHotelDay != null) {
       q.where((t) =>
           (t.hotelDayKey.isNotNull() &
               t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
           (t.hotelDayKey.isNull() &
-              t.date.isSmallerOrEqualValue(toHotelDay)));
+              t.date.isSmallerOrEqualValue(toHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.date.like('$toHotelDay%')));
     }
     if (expenseType != null && expenseType.isNotEmpty) {
-      q.where((t) => t.expenseType.equals(expenseType));
+      // ✅ إصلاح: توسيع فلتر 'رواتب' ليشمل أنواع الرواتب المشتقة
+      if (expenseType == 'رواتب') {
+        q.where((t) => t.expenseType.isIn(
+          ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'],
+        ));
+      } else {
+        q.where((t) => t.expenseType.equals(expenseType));
+      }
     }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
