@@ -86,6 +86,8 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     String? expenseType,
     String? search,
     bool includeDeleted = false,
+    bool excludeAdvance = false,
+    bool excludeAdvance = false,
   }) async {
     final q = select(expenses);
     if (!includeDeleted) {
@@ -119,6 +121,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       final s = '%${search.trim()}%';
       q.where((t) => t.description.like(s) | t.expenseType.like(s));
     }
+    if (excludeAdvance) {
+      q.where((t) => t.expenseType.notEquals('سلفة'));
+    }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);
     return q.get();
@@ -131,6 +136,7 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     required List<String> expenseTypes,
     String? search,
     bool includeDeleted = false,
+    bool excludeAdvance = false,
   }) async {
     final q = select(expenses);
     if (!includeDeleted) {
@@ -163,6 +169,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.description.like(s) | t.expenseType.like(s));
+    }
+    if (excludeAdvance) {
+      q.where((t) => t.expenseType.notEquals('سلفة'));
     }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);

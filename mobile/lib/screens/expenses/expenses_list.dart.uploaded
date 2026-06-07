@@ -12,7 +12,6 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
-import '../../utils/expense_types.dart';
 import '../../utils/hotel_time_engine.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
@@ -67,13 +66,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   DateTime? _fromDate;
   DateTime? _toDate;
   String? _selectedFilterType;
-  String? selectedType;
   late Stream<List<Expense>> _expensesStream;
   int _streamVersion = 0;
-  static const String _salaryType = ExpenseTypes.salaryCategory;
-  static const String _salaryWithdrawAction = ExpenseTypes.salaryWithdraw;
-  static const String _salaryDeductionAction = ExpenseTypes.salaryDeduction;
-  static const String _salaryAdvanceAction = ExpenseTypes.salaryAdvance;
+  static const String _salaryType = 'رواتب';
+  static const String _salaryWithdrawAction = 'سحب من الراتب';
+  static const String _salaryDeductionAction = 'خصم من الراتب';
+  static const String _salaryAdvanceAction = 'سلفة';
   static const List<String> _salaryActions = [
     _salaryWithdrawAction,
     _salaryDeductionAction,
@@ -85,11 +83,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   /// أنواع المصروفات تُقرأ من القائمة الديناميكية (مباشرة من Provider)
+  /// ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
   List<String> get _expenseTypes {
     final asyncTypes = ref.watch(customListNamesProvider(kListKeyExpenseType));
     final types = asyncTypes.valueOrNull ?? kDefaultExpenseTypes;
-    // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
-    return types.where((t) => t != ExpenseTypes.salaryAdvance).toList();
+    return types.where((t) => t != 'سلفة').toList();
   }
 
   @override
@@ -127,7 +125,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 if (expensesData == null) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                // البحث يتم على مستوى قاعدة البيانات الآن
+                // ✅ السلفة مُستبعدة من قاعدة البيانات (excludeAdvance: true)
                 final filteredExpenses = expensesData;
                 // ✅ إصلاح: حساب الإحصائيات من القائمة المفلترة فعلياً
                 // بدلاً من todayExpensesSummaryProvider الذي يعرض بيانات اليوم الحالي فقط
@@ -191,24 +189,33 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   /// حساب مفتاح اليوم الفندقي من تاريخ المنتقي
   ///
   /// المنتقي يعطي تاريخ بدون وقت (منتصف الليل) — تحويله بـ HotelTimeEngine
-  /// مباشرة يُنتج اليوم السابق خطأً لأن منتصف الليل < 14:00.
+  /// مباشرة يُنتج اليوم السابق خطأً لأن منتصف الليل < 14:01.
   ///
-  /// ✅ الإصلاح: نمرّر الوقت 14:00:01 لضمان أن getHotelDayKey يُعيد
+  /// ✅ الإصلاح: نمرّر الوقت 14:01 لضمان أن getHotelDayKey يُعيد
   /// مفتاح اليوم الفندقي الصحيح المطابق للتاريخ التقويمي المختار.
   /// هذا يضمن أن اختيار "19 مايو" يعرض مصروفات hotelDayKey="2026-05-19"
-  /// (أي المصروفات من 14:00 يوم 19 إلى 13:59 يوم 20).
+  /// (أي المصروفات من 14:01 يوم 19 إلى 14:00 يوم 20).
   String _hotelDayKeyFromDate(DateTime date) {
     return HotelTimeEngine.getHotelDayKey(
-        dateTime: DateTime(date.year, date.month, date.day, 
-            HotelTimeEngine.boundaryHour, 0, 1));
+        dateTime: DateTime(date.year, date.month, date.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute));
   }
 
   Stream<List<Expense>> _buildExpensesStream() {
     final repo = ref.read(expensesRepoProvider);
-    // ✅ اليوم الفندقي يُحتسب من الوقت الحالي (14:00 نقطة القطع)
-    // → عند 10:00 صباحاً: اليوم الفندقي = اليوم السابق
-    // → عند 15:00 مساءً:  اليوم الفندقي = نفس اليوم
+    // ✅ إصلاح: كلا المسارين يستخدمان نفس المنطق — hotelDayKey عبر HotelTimeEngine
+    //
+    // الافتراضي: نستخدم HotelTimeEngine.getHotelDayKey() الذي يعتمد على الوقت الحالي
+    // → عند 10:00 صباح 19 مايو: hotelDay = "2026-05-18" (اليوم الفندقي الحالي)
+    //
+    // يدوي: نستخدم _hotelDayKeyFromDate() الذي يمرّر 14:01 من التاريخ المختار
+    // → اختيار 19 مايو: hotelDay = "2026-05-19" (يوم فندقي يبدأ 14:01 من نفس اليوم)
+    //
+    // هذا يضمن الاتساق: كلا المسارين يستخدمان HotelTimeEngine.getHotelDayKey()
     if (!_filterActive) {
+      // ✅ عرض المصروفات حسب اليوم الفندقي (14:01 → 14:00)
+      // getHotelDayKey() يعتمد على الوقت الحالي:
+      // → عند 10:00 صباح 19 مايو: hotelDay = "2026-05-18" (اليوم الفندقي الحالي)
+      // → عند 15:00 ظهر 19 مايو: hotelDay = "2026-05-19" (بعد تجاوز 14:01)
       final hotelDay = HotelTimeEngine.getHotelDayKey();
       return Stream.fromFuture(
         repo.listFilteredByHotelDay(
@@ -261,23 +268,23 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     }
     setState(() {
       _filterActive = true;
-      // ✅ إصلاح: ضبط الأوقات حسب حدود اليوم الفندقي (14:00/13:59)
+      // ✅ إصلاح: ضبط الأوقات حسب حدود اليوم الفندقي (14:01/14:00:59)
       // بدلاً من منتصف الليل/23:59 الذي لا يتطابق مع اليوم الفندقي
       if (isFrom) {
-        // "من" = بداية اليوم الفندقي (14:00)
-        _fromDate = DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, 0, 0);
+        // "من" = بداية اليوم الفندقي (14:01)
+        _fromDate = DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute);
         // إذا لم يكن "إلى" محدد، اجعله نهاية نفس اليوم الفندقي
         _toDate ??= DateTime(picked.year, picked.month, picked.day + 1, HotelTimeEngine.boundaryHour, 0, 59);
         if (_fromDate!.isAfter(_toDate!)) {
           _toDate = DateTime(picked.year, picked.month, picked.day + 1, HotelTimeEngine.boundaryHour, 0, 59);
         }
       } else {
-        // "إلى" = نهاية اليوم الفندقي (13:59 من اليوم التالي)
+        // "إلى" = نهاية اليوم الفندقي (14:00:59 من اليوم التالي)
         _toDate = DateTime(picked.year, picked.month, picked.day + 1, HotelTimeEngine.boundaryHour, 0, 59);
         // إذا لم يكن "من" محدد، اجعله بداية نفس اليوم الفندقي
-        _fromDate ??= DateTime(picked.year, picked.month, picked.day, 14);
+        _fromDate ??= DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute);
         if (_toDate!.isBefore(_fromDate!)) {
-          _fromDate = DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, 0, 0);
+          _fromDate = DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute);
         }
       }
       _streamVersion++;
@@ -417,6 +424,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   Widget _buildCompactFiltersCard() {
+    // ✅ عرض التاريخ حسب اليوم الفندقي — اتساقاً مع _buildExpensesStream
     final hotelDay = HotelTimeEngine.getHotelDayKey();
     final fromDisplay = (_filterActive && _fromDate != null)
         ? _dateFormat.format(_fromDate!)
@@ -563,6 +571,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     List<Employee> employees,
   ) {
     final date = _parseExpenseDate(expense.date);
+    // ✅ السلفة مُستبعدة بالفعل من القائمة أعلاه — لا حاجة لفحص إضافي هنا
     return Card(
       margin: const EdgeInsets.only(bottom: 4),
       elevation: 0.5,
@@ -596,13 +605,29 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     ),
                   ),
                   const SizedBox(width: 4),
+                  // زر التعديل
+                  InkWell(
+                    onTap: () => _edit(existing: expense, employees: employees),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(Icons.edit, size: 16, color: Colors.blue.shade700),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // زر الحذف
                   InkWell(
                     onTap: () => _deleteExpense(expense),
+                    borderRadius: BorderRadius.circular(16),
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade700),
                     ),
@@ -646,6 +671,67 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     );
   }
 
+  /// حذف مصروف مع تأكيد
+  Future<void> _deleteExpense(Expense expense) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد الحذف'),
+        content: Text(
+          'هل تريد حذف المصروف "${expense.description.isNotEmpty ? expense.description : 'مصروف بدون وصف'}" بمبلغ ${CurrencyFormatter.formatAmount(expense.amount)}؟',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final repo = ref.read(expensesRepoProvider);
+      final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
+
+      // ✅ إصلاح: حذف سحب الراتب أولاً ثم المصروف — لحماية تكامل البيانات
+      // إذا فشل حذف المصروف، سحب الراتب يبقى مرتبطاً (آمن)
+      // إذا فشل حذف سحب الراتب بعد حذف المصروف، نحاول مرة أخرى
+      await salaryRepo.deleteByExpenseId(expense.id);
+      await repo.delete(expense.id);
+
+      markDataChanged();
+
+      if (mounted) {
+        _refreshExpensesStream();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _refreshExpensesStream();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم حذف المصروف بنجاح'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حذف المصروف: $e'),
+          backgroundColor: Colors.red.shade900,
+        ),
+      );
+    }
+  }
+
   Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
     final description = TextEditingController(
       text: existing?.description ?? '',
@@ -655,18 +741,25 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           ? CurrencyFormatter.formatAmount(existing.amount)
           : '',
     );
+    final installments = TextEditingController();
     DateTime selectedDate;
-    if (existing != null) {
-      selectedDate = DateTime.parse(existing.date);
-    } else {
-      selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
-    }
-    if (selectedDate == null) {
+    try {
+      if (existing != null) {
+        // تعديل مصروف موجود — استخدام تاريخه المخزن
+        selectedDate = DateTime.parse(existing.date);
+      } else {
+        // ✅ إصلاح: مصروف جديد — التاريخ حسب اليوم الفندقي
+        // قبل 14:01 → التاريخ = اليوم السابق (اليوم الفندقي الحالي)
+        // بعد 14:01 → التاريخ = اليوم الحالي (اليوم الفندقي الحالي)
+        selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
+      }
+    } catch (_) {
       selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
     }
 
+    try {
     String dialogSalaryAction = _salaryWithdrawAction;
-    selectedType = existing?.expenseType ?? 'اخرى';
+    String selectedType = existing?.expenseType ?? 'اخرى';
 
     if (existing != null && _isSalaryAction(existing.expenseType)) {
       selectedType = _salaryType;
@@ -765,7 +858,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                           setState(() => dialogSalaryAction = value);
                         },
                       ),
-
                     ],
                   ],
                   const SizedBox(height: 12),
@@ -836,10 +928,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     );
                     return;
                   }
-
-                  // ✅ التحقق من صحة المبلغ قبل إغلاق الحوار
-                  final parsedAmt = CurrencyFormatter.parseAmount(amount.text) ?? 0;
-                  if (parsedAmt <= 0) {
+                  // ✅ إصلاح: التحقق من المبلغ قبل إغلاق الحوار
+                  // سابقاً كان التحقق بعد الإغلاق مما يسبب إغلاق صامت بدون تغذية راجعة
+                  final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
+                  if (parsedAmount <= 0) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(
                         content: const Text('يجب إدخال مبلغ أكبر من صفر'),
@@ -878,6 +970,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     try {
       if (existing == null) {
+        // ✅ إصلاح: مصروف جديد — date و hotelDayKey حسب اليوم الفندقي
+        // selectedDate يُعيَّن افتراضياً من HotelTimeEngine.getHotelDay()
+        // hotelDayKey يُحسب من selectedDate لضمان الاتساق حتى لو غيّر المستخدم التاريخ
         final newHotelDayKey = _hotelDayKeyFromDate(selectedDate);
         final newId = await repo.create(
           expenseType: savedType,
@@ -892,17 +987,23 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           final signedAmount = savedType == _salaryDeductionAction
               ? -parsedAmount
               : parsedAmount;
+              
+          // التأكد من وجود الموظف قبل الحفظ
+          final employee = availableEmployees.firstWhere((e) => e.id == selectedEmployeeId);
+          
           await salaryRepo.saveFromExpense(
             expenseId: newId,
-            employeeId: selectedEmployeeId!,
+            employeeId: employee.id, // استخدام employee.id كـ EmployeeID
             action: savedType,
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
+            // ✅ hotelDayKey مطابق لليوم الفندقي من التاريخ المختار
             hotelDayKey: newHotelDayKey,
           );
         }
       } else {
+        // ✅ تعديل مصروف موجود — إعادة حساب hotelDayKey من التاريخ المختار
         final updatedHotelDayKey = _hotelDayKeyFromDate(DateTime.parse(trimmedDate));
         await repo.update(
           existing.id,
@@ -917,13 +1018,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         if (isSalaryExpense && selectedEmployeeId != null) {
           final signedAmount =
               savedType == _salaryDeductionAction ? -parsedAmount : parsedAmount;
+          
+          // التأكد من وجود الموظف قبل الحفظ
+          final employee = availableEmployees.firstWhere((e) => e.id == selectedEmployeeId);
+          
           await salaryRepo.saveFromExpense(
             expenseId: existing.id,
-            employeeId: selectedEmployeeId!,
+            employeeId: employee.id, // استخدام employee.id كـ EmployeeID
             action: savedType,
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
+            // ✅ hotelDayKey مطابق للمصروف المُحدّث
             hotelDayKey: updatedHotelDayKey,
           );
         } else {
@@ -932,9 +1038,34 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       }
 
       markDataChanged();
+
+      // ✅ إصلاح: توسيع الفلتر تلقائياً إذا كان hotelDayKey للمصروف المحفوظ
+      // يختلف عن نطاق الفلتر الحالي — لضمان ظهور المصروف الجديد دائماً
+      final savedHotelDayKey = _hotelDayKeyFromDate(DateTime.parse(trimmedDate));
+      final currentFromKey = _filterActive && _fromDate != null
+          ? _hotelDayKeyFromDate(_fromDate!)
+          : HotelTimeEngine.getHotelDayKey();
+      final currentToKey = _filterActive && _toDate != null
+          ? _hotelDayKeyFromDate(_toDate!)
+          : HotelTimeEngine.getHotelDayKey();
+      if (savedHotelDayKey.compareTo(currentFromKey) < 0 ||
+          savedHotelDayKey.compareTo(currentToKey) > 0) {
+        // المصروف خارج نطاق الفلتر — توسيع النطاق ليشمله
+        _filterActive = true;
+        final minKey = savedHotelDayKey.compareTo(currentFromKey) < 0
+            ? savedHotelDayKey
+            : currentFromKey;
+        final maxKey = savedHotelDayKey.compareTo(currentToKey) > 0
+            ? savedHotelDayKey
+            : currentToKey;
+        _fromDate = DateTime.parse('${minKey}T14:00:00');
+        _toDate =
+            DateTime.parse('${maxKey}T13:59:59').add(const Duration(days: 1));
+      }
+
       if (mounted) {
         _refreshExpensesStream();
-        // شبكة أمان: تحديث ثانٍ بعد إطار لضمان ظهور البيانات الجديدة
+        // ✅ شبكة أمان: تحديث ثانٍ بعد إطار لضمان ظهور البيانات الجديدة
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _refreshExpensesStream();
         });
@@ -963,68 +1094,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           backgroundColor: Colors.red.shade900,
         ),
       );
+    }
     } finally {
       description.dispose();
       amount.dispose();
-    }
-  }
-
-  /// حذف مصروف مع تأكيد
-  Future<void> _deleteExpense(Expense expense) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
-        content: Text(
-          'هل تريد حذف المصروف "${expense.description.isNotEmpty ? expense.description : 'مصروف بدون وصف'}" بمبلغ ${CurrencyFormatter.formatAmount(expense.amount)}؟',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      final repo = ref.read(expensesRepoProvider);
-      final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
-
-      // ✅ حذف سحب الراتب أولاً ثم المصروف — لحماية تكامل البيانات
-      await salaryRepo.deleteByExpenseId(expense.id);
-      await repo.delete(expense.id);
-
-      markDataChanged();
-
-      if (mounted) {
-        _refreshExpensesStream();
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _refreshExpensesStream();
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم حذف المصروف بنجاح'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('فشل حذف المصروف: $e'),
-          backgroundColor: Colors.red.shade900,
-        ),
-      );
+      installments.dispose();
     }
   }
 
@@ -1130,18 +1204,32 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     if (type == null) {
       return false;
     }
-    return ExpenseTypes.isSalaryType(type.trim());
+    final normalized = type.trim();
+    return normalized == _salaryType ||
+        normalized == 'سحب راتب' ||
+        normalized == _salaryWithdrawAction ||
+        normalized == _salaryDeductionAction ||
+        normalized == 'خصم راتب';
   }
 
   String _mapExpenseTypeToSalaryAction(String type) {
-    final normalized = ExpenseTypes.normalizeSalaryType(type.trim());
-    if (normalized == ExpenseTypes.salaryDeduction) {
-      return ExpenseTypes.salaryDeduction;
+    final normalized = type.trim();
+    if (normalized == _salaryDeductionAction || normalized == 'خصم راتب') {
+      return _salaryDeductionAction;
     }
-    return ExpenseTypes.salaryWithdraw;
+    if (normalized == _salaryAdvanceAction) {
+      return _salaryAdvanceAction;
+    }
+    return _salaryWithdrawAction;
   }
 
   String _deriveSalaryExpenseType(String action) {
-    return ExpenseTypes.normalizeSalaryType(action);
+    if (action == _salaryDeductionAction) {
+      return _salaryDeductionAction;
+    }
+    if (action == _salaryAdvanceAction) {
+      return _salaryAdvanceAction;
+    }
+    return 'سحب راتب';
   }
 }
