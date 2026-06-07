@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/expense_types.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 import '../auto_backup_manager.dart';
@@ -42,12 +43,25 @@ class ExpensesRepository {
     String? toHotelDay,
     String? expenseType,
     String? search,
-  }) => dao.listFilteredByHotelDay(
-    fromHotelDay: fromHotelDay,
-    toHotelDay: toHotelDay,
-    expenseType: expenseType,
-    search: search,
-  );
+  }) {
+    // توسيع فئة 'رواتب' إلى أنواع التخزين الفعلية
+    if (expenseType == ExpenseTypes.salaryCategory) {
+      return dao.listFilteredByHotelDayMultiTypes(
+        fromHotelDay: fromHotelDay,
+        toHotelDay: toHotelDay,
+        expenseTypes: ExpenseTypes.salaryStorageTypes,
+        search: search,
+      );
+    }
+    return dao.listFilteredByHotelDay(
+      fromHotelDay: fromHotelDay,
+      toHotelDay: toHotelDay,
+      expenseType: expenseType,
+      search: search,
+    );
+  }
+
+
 
   Future<int> create({
     required String expenseType,
@@ -58,9 +72,8 @@ class ExpensesRepository {
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      // ✅ إصلاح: استخدام getHotelDayKeyFromDate للتواريخ التقويمية
-      // التاريخ من منتقي التواريخ يعامل كـ 14:00:01 (بعد نقطة القطع = نفس اليوم)
-      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromDate(date);
+      // اليوم الفندقي بناءً على الوقت الحالي (وليس التاريخ المختار)
+      final hotelDayKey = HotelTimeEngine.getHotelDayKey();
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -100,8 +113,8 @@ class ExpensesRepository {
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      // ✅ إصلاح: استخدام getHotelDayKeyFromDate للتواريخ التقويمية
-      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromDate(date);
+      // اليوم الفندقي بناءً على الوقت الحالي (وليس التاريخ المختار)
+      final hotelDayKey = HotelTimeEngine.getHotelDayKey();
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -158,9 +171,9 @@ class ExpensesRepository {
           date: normalizedDate != null
               ? d.Value(normalizedDate)
               : const d.Value.absent(),
-          // ✅ إصلاح: استخدام getHotelDayKeyFromDate للتواريخ التقويمية
+          // اليوم الفندقي بناءً على الوقت الحالي
           hotelDayKey: date != null
-              ? d.Value(HotelTimeEngine.getHotelDayKeyFromDate(date))
+              ? d.Value(HotelTimeEngine.getHotelDayKey())
               : const d.Value.absent(),
         ),
       );

@@ -12,6 +12,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/expense_types.dart';
 import '../../utils/hotel_time_engine.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
@@ -69,9 +70,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   String? selectedType;
   late Stream<List<Expense>> _expensesStream;
   int _streamVersion = 0;
-  static const String _salaryType = 'رواتب';
-  static const String _salaryWithdrawAction = 'سحب من الراتب';
-  static const String _salaryDeductionAction = 'خصم من الراتب';
+  static const String _salaryType = ExpenseTypes.salaryCategory;
+  static const String _salaryWithdrawAction = ExpenseTypes.salaryWithdraw;
+  static const String _salaryDeductionAction = ExpenseTypes.salaryDeduction;
   static const List<String> _salaryActions = [
     _salaryWithdrawAction,
     _salaryDeductionAction,
@@ -645,7 +646,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     DateTime selectedDate;
     try {
       // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
-      selectedDate = DateTime.parse(existing?.date ?? HotelTimeEngine.getHotelDayKey());
+      selectedDate = DateTime.parse(existing?.date ?? _hotelDayKeyFromDate(DateTime.now()));
     } catch (_) {
       selectedDate = DateTime.now();
     }
@@ -871,7 +872,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
-            hotelDayKey: HotelTimeEngine.getHotelDayKeyFromDate(trimmedDate),
+            hotelDayKey: HotelTimeEngine.getHotelDayKey(),
           );
         }
       } else {
@@ -894,7 +895,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             amount: signedAmount,
             date: trimmedDate,
             note: trimmedDescription,
-            hotelDayKey: HotelTimeEngine.getHotelDayKeyFromDate(trimmedDate),
+            hotelDayKey: HotelTimeEngine.getHotelDayKey(),
           );
         } else {
           await salaryRepo.deleteByExpenseId(existing.id);
@@ -1033,27 +1034,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     if (type == null) {
       return false;
     }
-    final normalized = type.trim();
-    return normalized == _salaryType ||
-        normalized == 'سحب راتب' ||
-        normalized == _salaryWithdrawAction ||
-        normalized == _salaryDeductionAction ||
-        normalized == 'سلفة' ||
-        normalized == 'خصم راتب';
+    return ExpenseTypes.isSalaryType(type.trim());
   }
 
   String _mapExpenseTypeToSalaryAction(String type) {
-    final normalized = type.trim();
-    if (normalized == _salaryDeductionAction || normalized == 'خصم راتب') {
-      return _salaryDeductionAction;
+    final normalized = ExpenseTypes.normalizeSalaryType(type.trim());
+    if (normalized == ExpenseTypes.salaryDeduction) {
+      return ExpenseTypes.salaryDeduction;
     }
-    return _salaryWithdrawAction;
+    return ExpenseTypes.salaryWithdraw;
   }
 
   String _deriveSalaryExpenseType(String action) {
-    if (action == _salaryDeductionAction) {
-      return _salaryDeductionAction;
-    }
-    return 'سحب راتب';
+    return ExpenseTypes.normalizeSalaryType(action);
   }
 }

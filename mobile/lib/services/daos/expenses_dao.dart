@@ -52,21 +52,18 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.deletedAt.isNull());
     }
 
-    // ✅ إصلاح: إضافة like للمقارنة لأن date قد يحتوي على وقت
     if (from != null) {
-      q.where((t) => t.date.isBiggerOrEqual(Variable(from)));
+      q.where((t) =>
+          t.date.isBiggerOrEqual(Variable(from)) |
+          t.date.like('$from%'));
     }
     if (to != null) {
-      q.where((t) => t.date.isSmallerOrEqual(Variable(to)));
+      q.where((t) =>
+          t.date.isSmallerOrEqual(Variable(to)) |
+          t.date.like('$to%'));
     }
     if (expenseType != null && expenseType.isNotEmpty) {
-      if (expenseType == 'رواتب') {
-        q.where((t) =>
-            t.expenseType.equals('سحب راتب') |
-            t.expenseType.equals('خصم من الراتب'));
-      } else {
-        q.where((t) => t.expenseType.equals(expenseType));
-      }
+      q.where((t) => t.expenseType.equals(expenseType));
     }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);
@@ -116,13 +113,52 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
                t.date.like('$toHotelDay%'))));
     }
     if (expenseType != null && expenseType.isNotEmpty) {
-      if (expenseType == 'رواتب') {
-        q.where((t) =>
-            t.expenseType.equals('سحب راتب') |
-            t.expenseType.equals('خصم من الراتب'));
-      } else {
-        q.where((t) => t.expenseType.equals(expenseType));
+      q.where((t) => t.expenseType.equals(expenseType));
+    }
+    if (search != null && search.trim().isNotEmpty) {
+      final s = '%${search.trim()}%';
+      q.where((t) => t.description.like(s) | t.expenseType.like(s));
+    }
+
+    q.orderBy([(t) => OrderingTerm.desc(t.date)]);
+    return q.get();
+  }
+
+  /// فلترة حسب نطاق الأيام الفندقية مع دعم أنواع متعددة
+  Future<List<Expense>> listFilteredByHotelDayMultiTypes({
+    String? fromHotelDay,
+    String? toHotelDay,
+    required List<String> expenseTypes,
+    String? search,
+    bool includeDeleted = false,
+  }) async {
+    final q = select(expenses);
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+
+    if (fromHotelDay != null) {
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay))) |
+          (t.hotelDayKey.isNull() &
+              (t.date.isBiggerOrEqual(Variable(fromHotelDay)) |
+               t.date.like('$fromHotelDay%'))));
+    }
+    if (toHotelDay != null) {
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay))) |
+          (t.hotelDayKey.isNull() &
+              (t.date.isSmallerOrEqual(Variable(toHotelDay)) |
+               t.date.like('$toHotelDay%'))));
+    }
+    if (expenseTypes.isNotEmpty) {
+      var typeCondition = t.expenseType.equals(expenseTypes.first);
+      for (var i = 1; i < expenseTypes.length; i++) {
+        typeCondition = typeCondition | t.expenseType.equals(expenseTypes[i]);
       }
+      q.where((t) => typeCondition);
     }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';

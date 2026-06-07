@@ -13,45 +13,12 @@ import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
+import '../../utils/expense_types.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
 
-/// أيقونات وألوان لأنواع المصروفات
-const _typeConfig = <String, _ExpenseTypeConfig>{
-  'رواتب': _ExpenseTypeConfig(Icons.account_balance_wallet, Colors.purple),
-  'سحب راتب': _ExpenseTypeConfig(Icons.account_balance_wallet, Colors.purple),
-  'سحب من الراتب': _ExpenseTypeConfig(Icons.account_balance_wallet, Colors.purple),
-  'خصم راتب': _ExpenseTypeConfig(Icons.remove_circle_outline, Colors.purple),
-  'خصم من الراتب': _ExpenseTypeConfig(Icons.remove_circle_outline, Colors.purple),
-  'ديزل': _ExpenseTypeConfig(Icons.local_gas_station, Colors.amber),
-  'صيانة': _ExpenseTypeConfig(Icons.build, Colors.orange),
-  'فواتير كهرباء ومياه': _ExpenseTypeConfig(Icons.electrical_services, Colors.teal),
-  'مستلزمات': _ExpenseTypeConfig(Icons.inventory_2, Colors.indigo),
-  'مساعدة محتاج': _ExpenseTypeConfig(Icons.volunteer_activism, Colors.pink),
-  'اخرى': _ExpenseTypeConfig(Icons.more_horiz, Colors.grey),
-};
-
-_ExpenseTypeConfig _configForType(String type) {
-  for (final key in _typeConfig.keys) {
-    if (type.contains(key)) {
-      return _typeConfig[key]!;
-    }
-  }
-  return const _ExpenseTypeConfig(Icons.receipt, Colors.grey);
-}
-
-/// هل النوع مرتبط بالرواتب
-bool _isSalaryType(String type) {
-  const salaryKeywords = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب', 'سلفة'];
-  for (final keyword in salaryKeywords) {
-    if (type.contains(keyword)) {
-      return true;
-    }
-  }
-  return false;
-}
 
 class ExpensesReportScreen extends ConsumerStatefulWidget {
   const ExpensesReportScreen({
@@ -316,7 +283,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // المصروفات بدون سجل مطابق تُعرض من جدول expenses لمنع فقدان البيانات
     // والمصروفات غير المرتبطة بالرواتب تُعرض كالمعتاد
     for (final expense in expenses) {
-      if (salaryFromWithdrawals && _isSalaryType(expense.expenseType)) {
+      if (salaryFromWithdrawals && ExpenseTypes.isSalaryType(expense.expenseType)) {
         hasSalaryData = true;
         // تخطي فقط إذا كان هناك سجل مطابق في سحوبات الرواتب
         if (expense.id != null && salaryExpenseIds.contains(expense.id)) {
@@ -328,7 +295,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           : null;
       final date = _parseExpenseDate(expense.date);
       totalAmount += expense.amount;
-      if (_isSalaryType(expense.expenseType)) {
+      if (ExpenseTypes.isSalaryType(expense.expenseType)) {
         hasSalaryData = true;
       }
       rows.add(
@@ -349,7 +316,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         final employee = employeeMap[sw.employeeId];
         final date = _parseExpenseDate(sw.withdrawDate);
         final wType = sw.withdrawalType ?? 'سحب راتب';
-        final isDeduction = wType.contains('خصم') || wType.contains('deduction');
+        final isDeduction = ExpenseTypes.normalizeSalaryType(wType) == ExpenseTypes.salaryDeduction;
         final displayType = isDeduction ? 'خصم من الراتب' : 'سحب راتب';
         // بناء الوصف: السبب + الملاحظات
         final descParts = <String>[];
@@ -361,11 +328,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         }
         final description = descParts.join(' — ');
 
-        totalAmount += sw.amount;
+        final displayAmount = isDeduction ? sw.amount.abs() : sw.amount;
+        totalAmount += displayAmount;
         rows.add(
           _ExpenseReportRow(
             date: date,
-            amount: sw.amount,
+            amount: displayAmount,
             type: displayType,
             description: description,
             employee: employee,
@@ -496,7 +464,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
         // ملخص الرواتب مقابل المصروفات التشغيلية
         final salaryTotal = _rows
-            .where((r) => _isSalaryType(r.type))
+            .where((r) => ExpenseTypes.isSalaryType(r.type))
             .fold<double>(0, (sum, r) => sum + r.amount);
         final nonSalaryTotal = _totalAmount - salaryTotal;
 
@@ -722,7 +690,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       final type = sortedTypes[t];
       final items = _grouped[type]!;
       final subtotal = _typeSubtotals[type] ?? 0.0;
-      final cfg = _configForType(type);
+      final cfg = ExpenseTypes.configFor(type);
       // رأس المجموعة
       widgets.add(
         _buildGroupHeader(
@@ -820,10 +788,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   /// بطاقة المصروف المفصلة (مصغّرة)
   Widget _buildDetailedExpenseCard(_ExpenseReportRow row, {required int rowIndex}) {
-    final cfg = _configForType(row.type);
+    final cfg = ExpenseTypes.configFor(row.type);
     final hasDesc = row.description.isNotEmpty;
     final hasEmployee = row.employee != null;
-    final isSalary = _isSalaryType(row.type);
+    final isSalary = ExpenseTypes.isSalaryType(row.type);
 
     return Card(
       elevation: 0.3,
@@ -1040,10 +1008,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
     // حساب إجمالي الرواتب والمصروفات التشغيلية
     final salaryTotal = _rows
-        .where((r) => _isSalaryType(r.type))
+        .where((r) => ExpenseTypes.isSalaryType(r.type))
         .fold<double>(0, (sum, r) => sum + r.amount);
     final nonSalaryTotal = _totalAmount - salaryTotal;
-    final salaryCount = _rows.where((r) => _isSalaryType(r.type)).length;
+    final salaryCount = _rows.where((r) => ExpenseTypes.isSalaryType(r.type)).length;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -1242,8 +1210,4 @@ class _ExpensesReportResult {
   final bool hasSalaryData;
 }
 
-class _ExpenseTypeConfig {
-  const _ExpenseTypeConfig(this.icon, this.color);
-  final IconData icon;
-  final Color color;
-}
+
