@@ -293,17 +293,20 @@ class DatabaseFixer {
   }
 }
 
-  /// ربط سحوبات الرواتب القديمة بالمصروفات عبر (الموظف، اليوم الفندقي، المبلغ)
+  /// ربط سحوبات الرواتب القديمة بالمصروفات عبر expenseId + reason
   Future<int> _fixSalaryWithdrawalLinks() async {
     int fixed = 0;
     try {
+      // أولاً: ربط السجلات التي لها reason = exp_XX ولكن expenseId فارغ
+      await db.customStatement(
+        "UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) WHERE reason LIKE 'exp_%' AND (expense_id IS NULL OR expense_id = 0)"
+      );
+      fixed += db.changes;
+
+      // ثانياً: السجلات بدون أي رابط — مطابقة بالبيانات
       final all = await (db.select(db.salaryWithdrawals)
             ..where((t) => t.deletedAt.isNull())).get();
-
-      final targets = all.where((sw) {
-        if (sw.reason == null || sw.reason!.isEmpty) return true;
-        return !sw.reason!.contains('exp_');
-      }).toList();
+      final targets = all.where((sw) => sw.expenseId == null || sw.expenseId == 0).toList();
 
       for (final sw in targets) {
         final matches = await (db.select(db.expenses)
@@ -321,6 +324,7 @@ class DatabaseFixer {
         await (db.update(db.salaryWithdrawals)
               ..where((t) => t.id.equals(sw.id)))
             .write(SalaryWithdrawalsCompanion(
+              expenseId: Value(expense.id),
               reason: Value('exp_${expense.id}'),
               updatedAt: Value(now),
               lastModified: Value(now),

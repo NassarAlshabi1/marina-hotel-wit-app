@@ -208,6 +208,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     // ✅ اليوم الفندقي يُحتسب من الوقت الحالي (14:00 نقطة القطع)
     // → عند 10:00 صباحاً: اليوم الفندقي = اليوم السابق
     // → عند 15:00 مساءً:  اليوم الفندقي = نفس اليوم
+    if (!_filterActive && _selectedFilterType == null && _searchQuery.isEmpty) {
+      final hotelDay = HotelTimeEngine.getHotelDayKey();
+      // 🟢 استخدام watch stream للتحديث الفوري (بدون فلتر)
+      return repo.dao.watchByHotelDayKey(hotelDay).map((list) {
+        // تطبيق excludeAdvance بعد الاستعلام
+        return list.where((e) => e.expenseType != ExpenseTypes.salaryAdvance).toList();
+      });
+    }
     if (!_filterActive) {
       final hotelDay = HotelTimeEngine.getHotelDayKey();
       return Stream.fromFuture(

@@ -287,8 +287,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       for (final sw in salaryWithdrawals) {
         bool hasMatchingExpense = false;
 
-        // الطريقة 1: مطابقة عبر reason الذي يحتوي exp_XX
-        if (sw.reason != null) {
+        // الطريقة 1 (الأسرع): مطابقة عبر expenseId (العمود المباشر)
+        if (sw.expenseId != null && addedExpenseIds.contains(sw.expenseId)) {
+          hasMatchingExpense = true;
+        }
+
+        // الطريقة 2: مطابقة عبر reason الذي يحتوي exp_XX (للبيانات القديمة بدون expenseId)
+        if (!hasMatchingExpense && sw.reason != null) {
           final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
           if (match != null) {
             final expId = int.tryParse(match.group(1)!);
@@ -298,7 +303,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           }
         }
 
-        // الطريقة 2 (الاحتياطية): مطابقة بالبيانات للمعاملات القديمة
+        // الطريقة 3 (الاحتياطية): مطابقة بالبيانات للمعاملات القديمة جداً
         if (!hasMatchingExpense) {
           for (final expense in expenses) {
             if (expense.expenseType == ExpenseTypes.salaryAdvance) continue;
@@ -308,7 +313,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 expense.hotelDayKey == sw.hotelDayKey &&
                 expense.amount.abs() == sw.amount.abs()) {
               hasMatchingExpense = true;
-              debugPrint('⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر البيانات');
               break;
             }
           }

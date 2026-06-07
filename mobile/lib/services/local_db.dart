@@ -630,6 +630,7 @@ class SalaryWithdrawals extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   // ✅ إصلاح: إضافة FK constraint إلى جدول الموظفين
   IntColumn get employeeId => integer().references(Employees, #id)();
+  IntColumn get expenseId => integer().nullable()();
   RealColumn get amount => real()();
   TextColumn get withdrawDate => text()();
   TextColumn get reason => text().nullable()();
@@ -641,6 +642,10 @@ class SalaryWithdrawals extends Table with SyncFields {
     Index(
       'idx_salary_withdrawals_employee',
       'CREATE INDEX idx_salary_withdrawals_employee ON salary_withdrawals (employee_id)',
+    ),
+    Index(
+      'idx_salary_withdrawals_expense',
+      'CREATE INDEX idx_salary_withdrawals_expense ON salary_withdrawals (expense_id)',
     ),
   ];
 }
@@ -792,7 +797,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 43;
+  int get schemaVersion => 44;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2025,6 +2030,24 @@ class AppDatabase extends _$AppDatabase {
       // ✅ Migration 43: إصلاح hotelDayKey للمصروفات والمدفوعات
       // التواريخ التقويمية كانت تُفسر كمنتصف الليل (00:00) بدلاً من بعد نقطة القطع (14:00)
       // مما يعطي مفتاح اليوم الفندقي السابق بدلاً من اليوم الصحيح
+      if (from < 44) {
+        try {
+          await m.addColumn(salaryWithdrawals, salaryWithdrawals.expenseId);
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense ON salary_withdrawals (expense_id)',
+          );
+          // ربط السجلات القديمة: ملء expenseId من reason pattern exp_XX
+          await m.database.customStatement(
+            "UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) WHERE reason LIKE 'exp_%'",
+          );
+          developer.log(
+            'Migration 44: Added expenseId column to salary_withdrawals',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log('Migration 44: Add expenseId failed: $e', name: 'db.migration');
+        }
+      }
       if (from < 43) {
         try {
           // إصلاح المصروفات: حساب hotelDayKey الصحيح لكل مصروف
