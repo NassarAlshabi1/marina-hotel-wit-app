@@ -742,6 +742,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           : '',
     );
     final installments = TextEditingController();
+    // ✅ إصلاح: تعريف employeeSearchController قبل كتلة try
+    // لأنه يُستخدم في كتلة finally للتنظيف — المتغيرات داخل try غير مرئية في finally
+    final employeeSearchController = TextEditingController();
     DateTime selectedDate;
     try {
       if (existing != null) {
@@ -769,11 +772,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final List<Employee> availableEmployees =
         employees ?? await ref.read(employeesRepoProvider).watchAll().first;
     int? selectedEmployeeId = existing?.relatedId;
-    final employeeSearchController = TextEditingController(
-      text: existing?.relatedId != null 
-          ? availableEmployees.where((e) => e.id == existing!.relatedId).firstOrNull?.name ?? ''
-          : '',
-    );
+    // ✅ إصلاح: ضبط نص البحث بعد الحصول على availableEmployees
+    if (existing?.relatedId != null) {
+      final empName = availableEmployees.where((e) => e.id == existing!.relatedId).firstOrNull?.name ?? '';
+      employeeSearchController.text = empName;
+    }
 
     final ok = await showDialog<bool>(
       // ignore: use_build_context_synchronously
