@@ -256,9 +256,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         .whereType<int>()
         .toSet();
 
-    // ─── عند اختيار الكل: سحب سحوبات الرواتب من salary_withdrawals ───
+    // ─── سحب سحوبات الرواتب من salary_withdrawals ───
+    // ✅ إصلاح: جلب salary_withdrawals أيضاً عند اختيار نوع راتب
+    // لعرض السحوبات اليتيمة المرتبطة بنوع الراتب المحدد
+    final shouldFetchSalaryWithdrawals = showAll || (selectedType != null && _isSalaryType(selectedType));
     List<SalaryWithdrawal> salaryWithdrawals = [];
-    if (showAll) {
+    if (shouldFetchSalaryWithdrawals) {
       try {
         var swQuery = db.select(db.salaryWithdrawals)
           ..where((tbl) => tbl.deletedAt.isNull());
@@ -330,7 +333,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // عمود expense_id أُضيف عبر ترحيل قاعدة البيانات (schema v40+)
     // ولا يوجد في الـ data class المُولّد لذلك نقرأه يدوياً
     final swExpenseIdMap = <int, int>{}; // salary_withdrawal.id → expense_id
-    if (showAll && salaryWithdrawals.isNotEmpty) {
+    if (shouldFetchSalaryWithdrawals && salaryWithdrawals.isNotEmpty) {
       try {
         final swIds = salaryWithdrawals.map((sw) => sw.id).toList();
         final placeholders = List.filled(swIds.length, '?').join(',');
@@ -362,7 +365,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
     // تحديد سحوبات الرواتب اليتيمة (بدون مصروف مقابل)
     final orphanWithdrawals = <SalaryWithdrawal>[];
-    if (showAll && salaryWithdrawals.isNotEmpty) {
+    if (shouldFetchSalaryWithdrawals && salaryWithdrawals.isNotEmpty) {
       for (final sw in salaryWithdrawals) {
         bool hasMatchingExpense = false;
 
@@ -413,7 +416,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       final employee = expense.relatedId != null
           ? employeeMap[expense.relatedId!]
           : null;
-      final date = _parseExpenseDate(expense.date);
+      // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
+      // المصروفات القديمة قد يكون date فيها تقويمياً مختلفاً عن hotelDayKey
+      final displayDateStr = (expense.hotelDayKey != null && expense.hotelDayKey!.isNotEmpty)
+          ? expense.hotelDayKey!
+          : expense.date;
+      final date = _parseExpenseDate(displayDateStr);
       totalAmount += expense.amount;
       if (_isSalaryType(expense.expenseType)) {
         hasSalaryData = true;
@@ -425,16 +433,21 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           type: expense.expenseType,
           description: expense.description,
           employee: employee,
+          relatedId: expense.relatedId,
         ),
       );
     }
 
-    // ─── إضافة سحوبات الرواتب اليتيمة فقط (عند الكل فقط) ───
-    if (showAll && orphanWithdrawals.isNotEmpty) {
+    // ─── إضافة سحوبات الرواتب اليتيمة ───
+    if (shouldFetchSalaryWithdrawals && orphanWithdrawals.isNotEmpty) {
       hasSalaryData = true;
       for (final sw in orphanWithdrawals) {
         final employee = employeeMap[sw.employeeId];
-        final date = _parseExpenseDate(sw.withdrawDate);
+        // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
+        final swDisplayDate = (sw.hotelDayKey != null && sw.hotelDayKey!.isNotEmpty)
+            ? sw.hotelDayKey!
+            : sw.withdrawDate;
+        final date = _parseExpenseDate(swDisplayDate);
         final wType = sw.withdrawalType ?? 'سحب راتب';
         final isDeduction = wType.contains('خصم') || wType.contains('deduction');
         final displayType = isDeduction ? 'خصم من الراتب' : 'سحب راتب';
@@ -456,6 +469,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             type: displayType,
             description: description,
             employee: employee,
+            relatedId: sw.employeeId,
             isSalaryWithdrawal: true,
           ),
         );
@@ -963,7 +977,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                     ),
                     const SizedBox(width: 3),
                     Text(
-                      hasEmployee ? row.employee!.name : 'موظف غير محدد',
+                      hasEmployee 
+                          ? row.employee!.name 
+                          : (row.relatedId != null ? 'موظف #${row.relatedId}' : 'موظف غير محدد'),
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -1251,6 +1267,7 @@ class _ExpenseReportRow {
     required this.type,
     required this.description,
     required this.employee,
+    this.relatedId,
     this.isSalaryWithdrawal = false,
   });
 
@@ -1259,6 +1276,7 @@ class _ExpenseReportRow {
   final String type;
   final String description;
   final Employee? employee;
+  final int? relatedId;
   final bool isSalaryWithdrawal;
 }
 
