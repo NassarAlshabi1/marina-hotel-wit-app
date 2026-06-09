@@ -332,16 +332,10 @@ class SettingsEmployeesScreen extends ConsumerWidget {
 
             const SizedBox(height: 4),
 
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDetailRow(
-                    'تاريخ التوظيف',
-                    employee.hireDate,
-                    Icons.calendar_today,
-                  ),
-                ),
-                Expanded(
+            _buildDetailRow(
+              'تاريخ التوظيف',
+              employee.hireDate,
+              Icons.calendar_today,
             ),
 
             // عرض تاريخ وسبب إنهاء الخدمة إذا كان مفصولاً
