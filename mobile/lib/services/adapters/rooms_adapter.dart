@@ -121,6 +121,7 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
         altKey: 'vector_clock',
         fallback: '{}',
       ),
+      deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
 
@@ -149,6 +150,7 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'deviceId': model.deviceId,
     };
   }
 }

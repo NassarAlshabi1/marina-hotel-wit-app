@@ -4,6 +4,7 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
+import '../appwrite_sync_manager.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
 
@@ -70,6 +71,7 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
+        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       );
       final id = await into(employees).insert(comp);
       if (!originIsServer) {

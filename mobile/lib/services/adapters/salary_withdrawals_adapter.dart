@@ -152,6 +152,7 @@ class SalaryWithdrawalsAdapter
         altKey: 'vector_clock',
         fallback: '{}',
       ),
+      deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
 
@@ -181,6 +182,7 @@ class SalaryWithdrawalsAdapter
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'deviceId': model.deviceId,
     };
 
     // حقول إضافية مطلوبة من Appwrite Schema

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../appwrite_sync_manager.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
 
@@ -55,6 +56,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
+        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       );
       final id = await into(bookingNotes).insert(comp);
       if (!originIsServer) {

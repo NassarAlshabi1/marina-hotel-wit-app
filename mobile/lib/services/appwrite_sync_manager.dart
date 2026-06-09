@@ -266,6 +266,7 @@ class AppwriteSyncManager {
     final prefs = await SharedPreferences.getInstance();
     // قراءة الإعدادات المحفوظة (بدون تغييرها)
     _currentDeviceId = prefs.getString('appwrite_device_id');
+    AppwriteSyncManager.updateStaticDeviceId(_currentDeviceId);
 
     final lastSyncEpoch = prefs.getInt('appwrite_last_sync_time');
     _lastSyncTime = lastSyncEpoch != null
@@ -428,6 +429,7 @@ class AppwriteSyncManager {
         });
 
         _currentDeviceId = device.$id;
+        AppwriteSyncManager.updateStaticDeviceId(_currentDeviceId);
         await _saveSettings();
 
         _logger.info('Device registered: $_currentDeviceId', tag: 'SYNC');
@@ -2565,6 +2567,7 @@ class AppwriteSyncManager {
       'lastModified': room.lastModified,
       'version': room.version,
       'origin': room.origin,
+      'deviceId': room.deviceId,
       // حقول مطلوبة إضافية من Appwrite schema
       'roomType': room.type,
       'basePrice': room.price,
@@ -2626,6 +2629,7 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'hotelDayCheckin', booking.hotelDayCheckin);
     _putIfStringNotEmpty(data, 'hotelDayCheckout', booking.hotelDayCheckout);
     _putIfStringNotEmpty(data, 'vectorClock', booking.vectorClock);
+    data['deviceId'] = booking.deviceId;
     // ✅ حقول SyncFields المضافة حديثاً إلى Appwrite Cloud
     _putIfStringNotEmpty(data, 'deletedAtIso', booking.deletedAtIso);
     _putIfNotNull(data, 'createdAtEpoch', booking.createdAtEpoch);
@@ -2646,6 +2650,7 @@ class AppwriteSyncManager {
       'version': expense.version,
       'origin': expense.origin,
       'vectorClock': expense.vectorClock,
+      'deviceId': expense.deviceId,
     };
     _putIfNotNull(data, 'relatedId', expense.relatedId);
     _putIfNotNull(data, 'cashTransactionId', expense.cashTransactionId);
@@ -2706,6 +2711,7 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'createdAtEpoch', payment.createdAtEpoch);
     _putIfNotNull(data, 'lastModifiedEpoch', payment.lastModifiedEpoch);
     data['vectorClock'] = payment.vectorClock;
+    data['deviceId'] = payment.deviceId;
     return AppwriteSyncUtils.sanitizePayload('payments', data, collectionId: AppwriteConfig.paymentsCollectionId);
   }
 
@@ -2747,6 +2753,7 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'hotelDayClosed', debt.hotelDayClosed);
     // ✅ حقول SyncFields المضافة حديثاً إلى Appwrite Cloud
     data['vectorClock'] = debt.vectorClock;
+    data['deviceId'] = debt.deviceId;
     _putIfNotNull(data, 'createdAtEpoch', debt.createdAtEpoch);
     _putIfNotNull(data, 'lastModifiedEpoch', debt.lastModifiedEpoch);
     return AppwriteSyncUtils.sanitizePayload('debts', data, collectionId: AppwriteConfig.debtsCollectionId);
@@ -4006,6 +4013,7 @@ class AppwriteSyncManager {
       'lastModified': employee.lastModified,
       'version': employee.version,
       'origin': employee.origin,
+      'deviceId': employee.deviceId,
     };
     _putIfNotNull(data, 'serverId', employee.serverId);
     _putIfNotNull(data, 'deletedAt', employee.deletedAt);
@@ -4024,6 +4032,7 @@ class AppwriteSyncManager {
       'lastModified': note.lastModified,
       'version': note.version,
       'origin': note.origin,
+      'deviceId': note.deviceId,
     };
     _putIfNotNull(data, 'serverId', note.serverId);
     _putIfNotNull(data, 'deletedAt', note.deletedAt);
@@ -4050,6 +4059,7 @@ class AppwriteSyncManager {
       'version': night.version,
       'origin': night.origin,
       'vectorClock': night.vectorClock,
+      'deviceId': night.deviceId,
     };
     _putIfNotNull(data, 'serverId', night.serverId);
     _putIfNotNull(data, 'deletedAt', night.deletedAt);
@@ -4069,6 +4079,7 @@ class AppwriteSyncManager {
       'lastModified': transaction.lastModified,
       'version': transaction.version,
       'origin': transaction.origin,
+      'deviceId': transaction.deviceId,
     };
     _putIfNotNull(data, 'registerId', transaction.registerId);
     _putIfNotNull(data, 'referenceId', transaction.referenceId);
@@ -4095,6 +4106,7 @@ class AppwriteSyncManager {
       'version': cycle.version,
       'origin': cycle.origin,
       'vectorClock': cycle.vectorClock,
+      'deviceId': cycle.deviceId,
     };
     _putIfNotNull(data, 'serverId', cycle.serverId);
     _putIfNotNull(data, 'deletedAt', cycle.deletedAt);
@@ -4115,6 +4127,7 @@ class AppwriteSyncManager {
       'lastModified': payment.lastModified,
       'version': payment.version,
       'origin': payment.origin,
+      'deviceId': payment.deviceId,
     };
     _putIfNotNull(data, 'serverId', payment.serverId);
     _putIfNotNull(data, 'deletedAt', payment.deletedAt);
@@ -4140,6 +4153,7 @@ class AppwriteSyncManager {
       'lastModified': note.lastModified, // مطلوب للـ Delta Sync
       'createdBy': note.createdBy,
       'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
+      'deviceId': note.deviceId,
       // ✅ تم حذف حقل 'note' المكرر — Appwrite shift_notes لا يملكه (يستخدم content)
     };
     _putIfStringNotEmpty(data, 'expiresAt', note.expiresAt);
@@ -4340,6 +4354,7 @@ class AppwriteSyncManager {
       'lastModified': now,
       'origin': 'mobile',
       'syncTimestamp': now,
+      'deviceId': row.deviceId,
       if (row.serverId != null) 'serverId': row.serverId,
     };
   }
@@ -4379,6 +4394,7 @@ class AppwriteSyncManager {
       'lastModified': item.lastModified,
       'origin': 'mobile',
       'syncTimestamp': now,
+      'deviceId': item.deviceId,
       if (item.serverId != null) 'serverId': item.serverId,
     };
   }
@@ -4713,6 +4729,16 @@ class AppwriteSyncManager {
   DateTime? get lastSyncTime => _lastSyncTime;
   String? get currentDeviceId => _currentDeviceId;
   bool get isSyncing => _currentStatus == SyncStatus.syncing;
+
+  /// ✅ static getter لمعرف الجهاز — يُستخدم من DAOs و Repositories
+  /// لتعيين deviceId عند إنشاء سجلات جديدة محلياً
+  static String? _staticDeviceId;
+  static String? get currentDeviceIdStatic => _staticDeviceId;
+
+  /// تحديث الـ static deviceId — يُستدعى عند تسجيل الجهاز أو تهيئة المزامنة
+  static void updateStaticDeviceId(String? id) {
+    _staticDeviceId = id;
+  }
 
   /// ✅ معرف الجهاز المحلي من SharedPreferences (fallback إذا لم يُسجَّل في Appwrite)
   Future<String?> _getLocalDeviceId() async {

@@ -237,6 +237,7 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
         altKey: 'vector_clock',
         fallback: '{}',
       ),
+      deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
 
@@ -291,6 +292,7 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'deviceId': model.deviceId,
     };
   }
 }

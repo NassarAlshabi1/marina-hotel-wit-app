@@ -29,6 +29,7 @@ mixin SyncFields on Table {
   IntColumn get version => integer().withDefault(const Constant(1))();
   TextColumn get origin => text().withDefault(const Constant('local'))();
   TextColumn get vectorClock => text().withDefault(const Constant('{}'))();
+  TextColumn get deviceId => text().withDefault(const Constant(''))();
 }
 
 class Rooms extends Table with SyncFields {
@@ -780,7 +781,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 40;
+  int get schemaVersion => 41;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1959,6 +1960,35 @@ class AppDatabase extends _$AppDatabase {
             name: 'db.migration',
           );
         }
+      }
+      // ═══════════════════════════════════════════════════════════
+      // Migration 41: إضافة حقل device_id إلى جميع جداول SyncFields
+      // لتتبع أي جهاز أنشأ أو عدّل كل سجل
+      // ═══════════════════════════════════════════════════════════
+      if (from < 41) {
+        const syncTables = [
+          'rooms', 'bookings', 'booking_notes', 'employees', 'expenses',
+          'cash_transactions', 'payments', 'debts', 'shift_notes',
+          'booking_nights', 'hotel_day_ledger', 'price_adjustments',
+          'booking_price_adjustments', 'payment_voids', 'guest_infos',
+          'salary_cycles', 'salary_payments', 'salary_withdrawals',
+        ];
+        for (final table in syncTables) {
+          try {
+            await m.database.customStatement(
+              'ALTER TABLE $table ADD COLUMN device_id TEXT NOT NULL DEFAULT \'\'',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 41: add device_id to $table (may exist): $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        developer.log(
+          'Migration 41: added device_id to all SyncFields tables',
+          name: 'db.migration',
+        );
       }
     },
   );

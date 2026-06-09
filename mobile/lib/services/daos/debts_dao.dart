@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../appwrite_sync_manager.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
 
@@ -70,6 +71,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
         lastModified: Value(now),
         version: const Value(1),
         origin: Value(originIsServer ? 'server' : 'local'),
+        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       );
       final id = await into(debts).insert(companion);
       if (!originIsServer) {

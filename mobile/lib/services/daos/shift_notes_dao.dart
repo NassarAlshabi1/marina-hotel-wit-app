@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../appwrite_sync_manager.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
 
@@ -53,6 +54,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
         isRead: const Value(0),
         createdBy: const Value('user'),
         localUuid: Value(uuid),
+        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       );
 
       final id = await into(shiftNotes).insert(companion);

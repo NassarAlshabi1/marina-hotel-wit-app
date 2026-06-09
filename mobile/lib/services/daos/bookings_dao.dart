@@ -5,6 +5,7 @@ import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 import '../local_db.dart';
+import '../appwrite_sync_manager.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
 
@@ -96,6 +97,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
+        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       );
       final id = await into(bookings).insert(comp);
       if (!originIsServer) {
