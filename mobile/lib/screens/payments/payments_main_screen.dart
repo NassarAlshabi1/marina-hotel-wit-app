@@ -137,12 +137,14 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     final hotelDay = HotelTimeEngine.getHotelDayKey();
     final startOfMonth = DateTime(today.year, today.month);
 
-    // حساب المبالغ (استبعاد المدفوعات الملغاة والمعلقة)
-    final validPayments = payments.where((p) => !p.isVoided && !p.isPendingBalance).toList();
-    final totalAmount = validPayments.fold<double>(0, (sum, p) => sum + p.amount);
+    // حساب المبالغ
+    final totalAmount = payments.fold<double>(0, (sum, p) => sum + p.amount);
 
     // مدفوعات اليوم الفندقي الحالي
-    final todayPayments = validPayments.where((p) {
+    final todayPayments = payments.where((p) {
+      if (p.isVoided) {
+        return false;
+      }
       if (p.hotelDayKey == hotelDay) {
         return true;
       }
@@ -157,7 +159,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     );
 
     // مدفوعات هذا الشهر
-    final monthlyPayments = validPayments.where((p) {
+    final monthlyPayments = payments.where((p) {
       try {
         final date = DateTime.parse(p.paymentDate);
         return date.isAfter(startOfMonth);
@@ -687,11 +689,6 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       return;
     }
 
-    // ✅ إصلاح: حفظ مرجع الـ Navigator قبل الـ async await
-    // لمنع مشاكل Race Condition عند استخدام dialogContext بعد await
-    final navigator = Navigator.of(dialogContext);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
     setState(() => _isSavingPayment = true);
 
     try {
@@ -720,9 +717,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       );
 
       if (mounted) {
-        // ✅ إصلاح: استخدام المرجع المحفوظ لـ Navigator
-        navigator.pop();
-        scaffoldMessenger.showSnackBar(
+        // ignore: use_build_context_synchronously
+        Navigator.pop(dialogContext);
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               'تم تسجيل الدفعة ${CurrencyFormatter.formatAmount(parsedAmount)} بنجاح',
@@ -740,9 +737,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         extra: {'amount': amountText, 'method': method.name},
       );
       if (mounted) {
-        // ✅ إصلاح: استخدام المرجع المحفوظ لـ Navigator
-        navigator.pop();
-        scaffoldMessenger.showSnackBar(
+        // ignore: use_build_context_synchronously
+        Navigator.pop(dialogContext);
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل الدفعة: $e'),
             backgroundColor: Colors.red,

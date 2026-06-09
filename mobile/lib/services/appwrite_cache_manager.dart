@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 import 'appwrite_config.dart';
 
 /// نموذج عنصر الذاكرة المؤقتة
@@ -208,7 +207,7 @@ class AppwriteCacheManager {
     _cleanupTimer = Timer.periodic(interval, (timer) {
       final removed = clearExpired();
       if (removed > 0 && kDebugMode) {
-        AppLogger.debug('Cache cleanup: removed $removed expired entries');
+        debugPrint('🧹 Cache cleanup: removed $removed expired entries');
       }
     });
   }

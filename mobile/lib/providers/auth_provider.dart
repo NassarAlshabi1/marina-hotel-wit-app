@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
 import '../utils/app_logger.dart';
@@ -196,7 +197,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _startSessionCheck();
       }
     } catch (e) {
-      AppLogger.error('خطأ في تحميل حسابات السحابة', tag: 'AUTH', error: e);
+      debugPrint('Error loading cloud accounts: \$e');
     }
   }
 
@@ -234,7 +235,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _startSessionCheck();
       }
     } catch (e) {
-      AppLogger.error('خطأ في تحميل حسابات السحابة', tag: 'AUTH', error: e);
+      debugPrint('Error loading cloud accounts: \$e');
     }
   }
 

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 
 import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
@@ -315,7 +314,7 @@ class BookingPriceAdjustmentService {
           ..where((a) => a.localUuid.equals(uuid)))
         .getSingle();
 
-    AppLogger.info('تم تطبيق تعديل السعر: $uuid للحجز $bookingLocalUuid');
+    debugPrint('✅ تم تطبيق تعديل السعر: $uuid للحجز $bookingLocalUuid');
 
     return result;
   }
@@ -498,7 +497,7 @@ class BookingPriceAdjustmentService {
       forceRebuild: true,
     );
 
-    AppLogger.debug('تم إعادة حساب الحجز #$bookingId');
+    debugPrint('🔄 تم إعادة حساب الحجز #$bookingId');
   }
 
   Future<void> recalculateAfterSync(int bookingId) async {
@@ -515,7 +514,7 @@ class BookingPriceAdjustmentService {
     final bookings = await (db.select(db.bookings)
           ..where((b) => b.deletedAt.isNull())
           ..where((b) => b.actualCheckout.isNull())
-          ..where((b) => b.checkinDate.isSmallerOrEqual(Variable(cutoffStr))))
+          ..where((b) => b.checkinDate.isSmallerOrEqualValue(cutoffStr)))
         .get();
 
     final result = <Booking>[];
@@ -544,10 +543,10 @@ class BookingPriceAdjustmentService {
       ..where((a) => a.deletedAt.isNull());
 
     if (fromHotelDay != null) {
-      query.where((a) => a.effectiveHotelDay.isBiggerOrEqual(Variable(fromHotelDay)));
+      query.where((a) => a.effectiveHotelDay.isBiggerOrEqualValue(fromHotelDay));
     }
     if (toHotelDay != null) {
-      query.where((a) => a.effectiveHotelDay.isSmallerOrEqual(Variable(toHotelDay)));
+      query.where((a) => a.effectiveHotelDay.isSmallerOrEqualValue(toHotelDay));
     }
 
     final adjustments = await query.get();

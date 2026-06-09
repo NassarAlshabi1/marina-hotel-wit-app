@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/widgets/empty_state.dart';
@@ -30,9 +31,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
 
-  // ignore: unused_element
-  String _formatNumber(num value) => _currencyFmt.format(value);
-
   DateTime? _fromDate;
   DateTime? _toDate;
   String? _selectedRoom;
@@ -46,7 +44,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   double _totalOtherPaid = 0;
   double _totalRemaining = 0;
   double _totalDue = 0;
-  List<_BookingSummary> _bookingSummaries = [];
 
   String _formatBookingCode(int bookingId) =>
       bookingId.toString().padLeft(6, '0');
@@ -79,39 +76,45 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   Future<void> _loadRooms() async {
     final db = ref.read(databaseProvider);
     final rooms = await db.select(db.rooms).get();
-    setState(() {
-      _availableRooms
-        ..clear()
-        ..addAll(rooms.map((e) => e.roomNumber).toList()..sort());
-      if (_availableRooms.isNotEmpty &&
-          !_availableRooms.contains(_selectedRoom)) {
-        _selectedRoom = null;
-      }
-    });
+    if (mounted) {
+      setState(() {
+        _availableRooms
+          ..clear()
+          ..addAll(rooms.map((e) => e.roomNumber).toList()..sort());
+        if (_availableRooms.isNotEmpty &&
+            !_availableRooms.contains(_selectedRoom)) {
+          _selectedRoom = null;
+        }
+      });
+    }
   }
 
   Future<void> _fetchReport() async {
-    if (_loading) {
+    if (_loading) return;
+
+    // ✅ حارس: تفادي null في التواريخ
+    if (_fromDate == null || _toDate == null) {
+      // يمكن إظهار رسالة أو تجاهل الطلب
       return;
     }
+
     setState(() {
       _loading = true;
     });
     try {
       final db = ref.read(databaseProvider);
       final result = await _loadPaymentsReport(db);
-      setState(() {
-        _rows
-          ..clear()
-          ..addAll(result.rows);
-        _totalPaid = result.totalPaid;
-        _totalOtherPaid = result.totalOtherPaid;
-        _totalRemaining = result.totalRemaining;
-        _totalDue = result.totalDue;
-        _bookingSummaries
-          ..clear()
-          ..addAll(result.bookingSummaries);
-      });
+      if (mounted) {
+        setState(() {
+          _rows
+            ..clear()
+            ..addAll(result.rows);
+          _totalPaid = result.totalPaid;
+          _totalOtherPaid = result.totalOtherPaid;
+          _totalRemaining = result.totalRemaining;
+          _totalDue = result.totalDue;
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -122,28 +125,43 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   }
 
   Future<_PaymentsReportResult> _loadPaymentsReport(AppDatabase db) async {
+    // ✅ إصلاح: تحويل نطاق التاريخ إلى مفاتيح أيام فندقية
+    // نستخدم HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
+    // لأن PaymentsRepository.create() يخزن hotelDayKey باستخدام HotelTimeEngine
+    //
+    // ⚠️ ملاحظة حرجة: getHotelDayKey تعتبر 14:00:59 بالضبط نهاية اليوم السابق
+    // (14:01:00 = بداية اليوم الجديد). بما أن _fromDate يأتي دائماً بوقت 14:01:00
+    // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
+    // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
+    //
+    // مثال: فلتر "اليوم" عند 10:00 صباح 2026-05-19:
+    //   _fromDate = 18-May 14:01 → +1s → fromHotelDay = "2026-05-18" ✓
+    //   _toDate  = 19-May 14:00:59 → toHotelDay   = "2026-05-18" ✓
+    //   → فقط مدفوعات hotelDayKey="2026-05-18" ✅
+    final fromHotelDay = _fromDate != null
+        ? HotelTimeEngine.getHotelDayKey(
+            dateTime: _fromDate!.add(const Duration(seconds: 1)))
+        : null;
+    final toHotelDay = _toDate != null
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate!)
+        : null;
+
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
 
-    // ✅ إصلاح: استخدام hotelDayKey للفلترة بدلاً من مقارنة paymentDate كنص
-    // مقارنة النصوص "2026-05-18 10:30:00" >= "2026-05-18 14:00:00" تُعطي نتائج خاطئة
-    // لأن الساعة 10:30 أقل من 14:00 لكن المقارنة النصية تعتبرها أكبر!
-    // hotelDayKey يُخزن كـ "yyyy-MM-dd" دائماً فيُحسب من قاعدة الساعة 14:00 تلقائياً
-    final fromHotelDay = HotelTimeEngine.getHotelDayKey(
-        dateTime: _fromDate!.add(const Duration(seconds: 1)));
-    final toHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: _toDate!);
-
-    // استخدام listByHotelDayKey للفلترة الدقيقة
+    // ✅ إصلاح: استخدام listFilteredByHotelDay بدلاً من list()
+    // الفلترة بـ hotelDayKey تضمن一致性 (consistency) مع باقي التقارير
+    // وتصنف المدفوعات حسب اليوم الفندقي الصحيح (14:01 كحد فاصل)
     final payments = await paymentsDao.listFilteredByHotelDay(
       fromHotelDay: fromHotelDay,
       toHotelDay: toHotelDay,
+      roomNumber: _selectedRoom,
       excludeVoided: true,
       excludePendingBalance: true,
     );
-    // فلترة حسب الغرفة في الذاكرة إذا تم اختيار غرفة محددة
-    final filteredPayments = _selectedRoom != null && _selectedRoom!.isNotEmpty
-        ? payments.where((p) => p.roomNumber == _selectedRoom).toList()
-        : payments;
+
+    // ✅ إزالة فلترة الغرفة في الذاكرة — يتم الآن على مستوى قاعدة البيانات
+    final filteredPayments = payments;
 
     final bookingIds = filteredPayments
         .map((p) => p.bookingLocalId)
@@ -151,32 +169,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         .toSet();
     final bookings = bookingIds.isEmpty
         ? <Booking>[]
-        : await (db.select(
-            db.bookings,
-          )..where((tbl) => tbl.id.isIn(bookingIds))).get();
+        : await (db.select(db.bookings)..where((tbl) => tbl.id.isIn(bookingIds)))
+            .get();
     final bookingMap = {for (final b in bookings) b.id: b};
-
-    final roomNumbers = <String>{};
-    for (final payment in filteredPayments) {
-      final room = payment.roomNumber;
-      if (room != null) {
-        roomNumbers.add(room);
-      }
-      final bookingRoom = bookingMap[payment.bookingLocalId]?.roomNumber;
-      if (bookingRoom != null) {
-        roomNumbers.add(bookingRoom);
-      }
-    }
-    // جلب أسعار الغرف الأصلية لعرضها في التقرير
-    final roomPriceMap = <String, double>{};
-    if (roomNumbers.isNotEmpty) {
-      final rooms = await (db.select(db.rooms)
-            ..where((r) => r.roomNumber.isIn(roomNumbers.toList())))
-          .get();
-      for (final room in rooms) {
-        roomPriceMap[room.roomNumber] = room.price;
-      }
-    }
 
     final rows = <_PaymentReportRow>[];
     double totalRoomPaid = 0;
@@ -184,11 +179,15 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     final relevantBookingIds = <int>{};
 
     for (final payment in filteredPayments) {
-      // ✅ استبعاد المدفوعات الملغاة والمعلقة من الإجمالي
-      if (payment.isVoided || payment.isPendingBalance) continue;
+      // ✅ تحسين تحليل التاريخ: إرجاع null عند الخطأ، وتجاهل الدفعة
       final paymentDate = _parseDateTime(payment.paymentDate);
-      
-      // ✅ تمت الفلترة بـ hotelDayKey على مستوى DB — لا حاجة لفلترة إضافية بالتاريخ
+      if (paymentDate == null) {
+        // لا يمكن تحديد تاريخ الدفعة، نهملها مع إمكانية تسجيل خطأ
+        debugPrint('تجاهل دفعة ذات تاريخ غير صالح: ${payment.paymentDate}');
+        continue;
+      }
+
+      // ✅ إزالة الفلترة المكررة: نثق أن قاعدة البيانات أرجعَت دفعات ضمن النطاق
 
       final booking = bookingMap[payment.bookingLocalId];
       final roomNumber =
@@ -197,17 +196,17 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final bookingCode = booking != null
           ? _formatBookingCode(booking.id)
           : null;
-          
+
       if (_isRoomPayment(payment.revenueType)) {
         totalRoomPaid += payment.amount;
       } else {
         totalOtherPaid += payment.amount;
       }
-      
+
       if (booking != null) {
         relevantBookingIds.add(booking.id);
       }
-      
+
       rows.add(
         _PaymentReportRow(
           paymentDate: paymentDate,
@@ -222,49 +221,20 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       );
     }
 
-    // حساب إجمالي المستحق والمتبقي باستخدام القيم المحسوبة الموثوقة من الحجز
-    // (totalDueCached محسوب من تعديلات الأسعار + الخصومات الفعلية)
-    // (remainingBalanceCached = totalDueCached - totalPaidCached)
+    // حساب إجمالي المستحق والمتبقي باستخدام القيم المحسوبة من الحجز
     double totalDue = 0;
     double totalRemaining = 0;
     if (relevantBookingIds.isNotEmpty) {
       for (final bookingId in relevantBookingIds) {
         final booking = bookingMap[bookingId];
-        if (booking == null) {
-          continue;
-        }
+        if (booking == null) continue;
+
         totalDue += booking.totalDueCached;
-        final remaining = booking.remainingBalanceCached;
-        if (remaining > 0) {
-          totalRemaining += remaining;
-        }
+
+        // ✅ تصحيح حساب المبلغ المتبقي: جمع الأرصدة بغض النظر عن الإشارة
+        // (تشمل الأرصدة السالبة = دائنة، والموجبة = مستحقة)
+        totalRemaining += booking.remainingBalanceCached;
       }
-    }
-
-    // بناء ملخص الحجوزات مع سعر الغرفة والخصم والمتبقي
-    final bookingSummaries = <_BookingSummary>[];
-    for (final bookingId in relevantBookingIds) {
-      final booking = bookingMap[bookingId];
-      if (booking == null) continue;
-
-      final roomPrice = roomPriceMap[booking.roomNumber] ?? 0;
-      final nights = booking.calculatedNights > 0 ? booking.calculatedNights : 1;
-      final effectivePricePerNight = booking.totalDueCached / nights;
-
-      bookingSummaries.add(_BookingSummary(
-        bookingId: booking.id,
-        bookingCode: _formatBookingCode(booking.id),
-        guestName: booking.guestName,
-        roomNumber: booking.roomNumber,
-        nights: nights,
-        roomPricePerNight: roomPrice,
-        discount: booking.discount,
-        discountType: booking.discountType,
-        totalDue: booking.totalDueCached,
-        totalPaid: booking.totalPaidCached,
-        remainingBalance: booking.remainingBalanceCached,
-        effectivePricePerNight: effectivePricePerNight,
-      ));
     }
 
     return _PaymentsReportResult(
@@ -273,7 +243,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       totalOtherPaid: totalOtherPaid,
       totalRemaining: totalRemaining,
       totalDue: totalDue,
-      bookingSummaries: bookingSummaries,
     );
   }
 
@@ -338,119 +307,87 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             color: PdfColors.backgroundLight,
             border: pw.Border.all(color: PdfColors.primary, width: 0.5),
           ),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.end,
+          child: pw.Column(
             children: [
-              pw.Text(
-                'الإجمالي الكلي: ',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 12,
-                  color: PdfColors.textDark,
-                ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Row(
+                    children: [
+                      pw.Text(
+                        'الإجمالي المدفوع: ',
+                        style: pw.TextStyle(
+                          font: fonts.bold,
+                          fontSize: 12,
+                          color: PdfColors.textDark,
+                        ),
+                      ),
+                      pw.Text(
+                        EnhancedPdfUtils.formatNumber(_totalPaid + _totalOtherPaid),
+                        style: pw.TextStyle(
+                          font: fonts.bold,
+                          fontSize: 14,
+                          color: PdfColors.secondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.Row(
+                    children: [
+                      pw.Text(
+                        'المبلغ المتبقي: ',
+                        style: pw.TextStyle(
+                          font: fonts.bold,
+                          fontSize: 12,
+                          color: _totalRemaining > 0
+                              ? const PdfColor(0.9, 0.2, 0.2)
+                              : const PdfColor(0.0, 0.5, 0.2),
+                        ),
+                      ),
+                      pw.Text(
+                        EnhancedPdfUtils.formatNumber(_totalRemaining),
+                        style: pw.TextStyle(
+                          font: fonts.bold,
+                          fontSize: 12,
+                          color: _totalRemaining > 0
+                              ? const PdfColor(0.9, 0.2, 0.2)
+                              : const PdfColor(0.0, 0.5, 0.2),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              pw.Text(
-                EnhancedPdfUtils.formatNumber(_totalPaid),
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 14,
-                  color: PdfColors.secondary,
+              if (_totalDue > 0) ...[
+                pw.SizedBox(height: 8),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'إجمالي ما على النزيل: ',
+                      style: pw.TextStyle(
+                        font: fonts.bold,
+                        fontSize: 11,
+                        color: PdfColors.textDark,
+                      ),
+                    ),
+                    pw.Text(
+                      EnhancedPdfUtils.formatNumber(_totalDue),
+                      style: pw.TextStyle(
+                        font: fonts.bold,
+                        fontSize: 13,
+                        color: PdfColors.info,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
+              ],
             ],
           ),
         ),
-        // ─── ملخص الحجوزات: سعر الغرفة والخصم والمتبقي ───
-        if (_bookingSummaries.isNotEmpty) ...[
-          pw.SizedBox(height: 24),
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.accent,
-              borderRadius: pw.BorderRadius.circular(6),
-            ),
-            child: pw.Text(
-              'ملخص الحجوزات - سعر الغرفة والخصم والمتبقي',
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 14,
-                color: PdfColors.textWhite,
-              ),
-              textAlign: pw.TextAlign.center,
-            ),
-          ),
-          pw.SizedBox(height: 10),
-          EnhancedPdfUtils.buildProfessionalTable(
-            headers: [
-              'النزيل',
-              'الغرفة',
-              'الليالي',
-              'سعر الليلة',
-              'الخصم',
-              'بعد الخصم',
-              'المستحق',
-              'المدفوع',
-              'المتبقي',
-            ],
-            data: [
-              for (final s in _bookingSummaries)
-                [
-                  s.guestName,
-                  s.roomNumber,
-                  s.nights.toString(),
-                  EnhancedPdfUtils.formatNumber(s.roomPricePerNight),
-                  s.discount > 0
-                      ? '${EnhancedPdfUtils.formatNumber(s.discount)}${s.discountType == 'total' ? ' (إجمالي)' : ' (لليلة)'}'
-                      : '-',
-                  EnhancedPdfUtils.formatNumber(s.effectivePricePerNight),
-                  EnhancedPdfUtils.formatNumber(s.totalDue),
-                  EnhancedPdfUtils.formatNumber(s.totalPaid),
-                  EnhancedPdfUtils.formatNumber(s.remainingBalance),
-                ],
-            ],
-            fonts: fonts,
-            headerColor: PdfColors.accent,
-            alternateRowColor: PdfColors.backgroundLight,
-          ),
-          pw.SizedBox(height: 14),
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(16),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.backgroundLight,
-              border: pw.Border.all(
-                color: _totalRemaining > 0 ? PdfColors.danger : PdfColors.success,
-                width: 1,
-              ),
-              borderRadius: pw.BorderRadius.circular(6),
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'إجمالي المتبقي على النزلاء:',
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 14,
-                    color: PdfColors.textDark,
-                  ),
-                ),
-                pw.Text(
-                  '${EnhancedPdfUtils.formatNumber(_totalRemaining)} ريال',
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 18,
-                    color: _totalRemaining > 0 ? PdfColors.danger : PdfColors.success,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ],
       fileName: ReportPdfBuilder.generateFileName('مدفوعات النزلاء'),
-    ),);
+    ));
   }
 
   @override
@@ -473,7 +410,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         SizedBox(
           width: 140,
           child: DropdownButtonFormField<String?>(
-            initialValue: _selectedRoom,
+            value: _selectedRoom,
             decoration: const InputDecoration(
               labelText: 'الغرفة',
               isDense: true,
@@ -482,6 +419,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
             items: [
               DropdownMenuItem<String?>(
+                value: null,
                 child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
               ),
               ..._availableRooms.map(
@@ -597,8 +535,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   Widget _buildSummary() {
     final totalAll = _totalPaid + _totalOtherPaid;
-    final isRoomSelected = _selectedRoom != null && _selectedRoom!.isNotEmpty;
-
     return Card(
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -606,86 +542,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Column(
           children: [
-            // ─── تفاصيل الغرفة المحددة (بنفس طريقة المربعات) ───
-            if (isRoomSelected && _bookingSummaries.isNotEmpty) ...[
-              for (final s in _bookingSummaries) ...[
-                // صف ١: سعر الليلة + الخصم
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSummaryTile(
-                        'سعر الليلة',
-                        _currencyFmt.format(s.roomPricePerNight),
-                        Colors.orange,
-                      ),
-                    ),
-                    Container(width: 1, height: 28, color: Colors.grey.shade200),
-                    Expanded(
-                      child: _buildSummaryTile(
-                        s.discount > 0
-                            ? 'الخصم (${s.discountType == 'total' ? 'إجمالي' : 'لليلة'})'
-                            : 'الخصم',
-                        s.discount > 0 ? _currencyFmt.format(s.discount) : 'لا يوجد',
-                        s.discount > 0 ? Colors.green : Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(height: 16),
-                // صف ٢: السعر بعد الخصم + عدد الليالي
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSummaryTile(
-                        'بعد الخصم / الليلة',
-                        _currencyFmt.format(s.effectivePricePerNight),
-                        Colors.deepOrange,
-                      ),
-                    ),
-                    Container(width: 1, height: 28, color: Colors.grey.shade200),
-                    Expanded(
-                      child: _buildSummaryTile(
-                        'عدد الليالي',
-                        '${s.nights}',
-                        Colors.purple,
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(height: 16),
-                // صف ٣: المستحق + المدفوع
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSummaryTile(
-                        'إجمالي المستحق',
-                        _currencyFmt.format(s.totalDue),
-                        Colors.blue,
-                      ),
-                    ),
-                    Container(width: 1, height: 28, color: Colors.grey.shade200),
-                    Expanded(
-                      child: _buildSummaryTile(
-                        'إجمالي المدفوع',
-                        _currencyFmt.format(s.totalPaid),
-                        Colors.green,
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(height: 16),
-                // صف ٤: المتبقي (بارز)
-                _buildSummaryTile(
-                  'المبلغ المتبقي',
-                  _currencyFmt.format(s.remainingBalance),
-                  s.remainingBalance > 0 ? Colors.red : Colors.green,
-                  isLarge: true,
-                ),
-                const Divider(height: 16),
-              ],
-            ],
-
-            // ─── المجاميع العامة ───
             Row(
               children: [
                 Expanded(
@@ -710,27 +566,22 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               children: [
                 Expanded(
                   child: _buildSummaryTile(
-                    'إجمالي المستحق',
-                    _currencyFmt.format(_totalDue),
-                    Colors.blue,
+                    'إجمالي المدفوعات',
+                    _currencyFmt.format(totalAll),
+                    Colors.indigo,
+                    isLarge: true,
                   ),
                 ),
                 Container(width: 1, height: 28, color: Colors.grey.shade200),
                 Expanded(
                   child: _buildSummaryTile(
-                    'المتبقي على النزلاء',
+                    'المبلغ المتبقي',
                     _currencyFmt.format(_totalRemaining),
                     _totalRemaining > 0 ? Colors.red : Colors.green,
+                    isLarge: true,
                   ),
                 ),
               ],
-            ),
-            const Divider(height: 16),
-            _buildSummaryTile(
-              'إجمالي المدفوعات (الدخل)',
-              _currencyFmt.format(totalAll),
-              Colors.indigo,
-              isLarge: true,
             ),
           ],
         ),
@@ -755,9 +606,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     return value;
   }
 
-  /// هل الدفعة تُحسب ضمن رسوم الغرفة؟
-  /// يجب أن يتطابق هذا المنطق مع _getTotalPayments في
-  /// EnhancedBookingCalculationService لضمان تناسق المجاميع.
   static bool _isRoomPayment(String? revenueType) {
     if (revenueType == null || revenueType.isEmpty) {
       return true;
@@ -772,8 +620,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         Text(
           value,
           style: TextStyle(
-            fontWeight: FontWeight.bold, 
-            fontSize: isLarge ? 18 : 13, 
+            fontWeight: FontWeight.bold,
+            fontSize: isLarge ? 18 : 13,
             color: color,
           ),
         ),
@@ -781,7 +629,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         Text(
           label,
           style: TextStyle(
-            fontSize: isLarge ? 12 : 10, 
+            fontSize: isLarge ? 12 : 10,
             color: isLarge ? Colors.black87 : Colors.grey,
             fontWeight: isLarge ? FontWeight.bold : FontWeight.normal,
           ),
@@ -790,17 +638,22 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     );
   }
 
-  DateTime _parseDateTime(String value) {
+  /// ✅ تحسين تحليل التاريخ: إرجاع null عند فشل التحليل بدلاً من DateTime.now()
+  DateTime? _parseDateTime(String value) {
     final normalized = value.contains('T')
         ? value
         : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
     } catch (_) {
-      return DateTime.now();
+      // طباعة الخطأ (اختياري) وإرجاع null ليتجاهل المُستدعي السجل
+      debugPrint('_parseDateTime: فشل تحليل "$value"');
+      return null;
     }
   }
 }
+
+// ------------ الكلاسات المساعدة (دون تغيير) ------------
 
 class _PaymentReportRow {
   _PaymentReportRow({
@@ -831,7 +684,6 @@ class _PaymentsReportResult {
     required this.totalOtherPaid,
     required this.totalRemaining,
     required this.totalDue,
-    required this.bookingSummaries,
   });
 
   final List<_PaymentReportRow> rows;
@@ -839,35 +691,4 @@ class _PaymentsReportResult {
   final double totalOtherPaid;
   final double totalRemaining;
   final double totalDue;
-  final List<_BookingSummary> bookingSummaries;
-}
-
-class _BookingSummary {
-  _BookingSummary({
-    required this.bookingId,
-    required this.bookingCode,
-    required this.guestName,
-    required this.roomNumber,
-    required this.nights,
-    required this.roomPricePerNight,
-    required this.discount,
-    required this.discountType,
-    required this.totalDue,
-    required this.totalPaid,
-    required this.remainingBalance,
-    required this.effectivePricePerNight,
-  });
-
-  final int bookingId;
-  final String bookingCode;
-  final String guestName;
-  final String roomNumber;
-  final int nights;
-  final double roomPricePerNight;
-  final double discount;
-  final String discountType;
-  final double totalDue;
-  final double totalPaid;
-  final double remainingBalance;
-  final double effectivePricePerNight;
 }

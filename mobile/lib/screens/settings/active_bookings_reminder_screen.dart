@@ -9,7 +9,6 @@ import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
-import '../../utils/hotel_date_helper.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/whatsapp_template_manager.dart';
 
@@ -107,7 +106,7 @@ class _ActiveBookingsReminderScreenState
     if (checkout == null) {
       return 0;
     }
-    return HotelDateHelper.calculateNights(checkIn: checkout, checkOut: DateTime.now());
+    return DateTime.now().difference(checkout).inDays;
   }
 
   /// بناء رسالة تذكير بالمبلغ المتبقي للحجز النشط

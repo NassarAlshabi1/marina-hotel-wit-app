@@ -9,16 +9,50 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/repositories/expenses_repository.dart';
-
+import '../../services/daos/expenses_dao.dart';
+import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
-import '../../utils/expense_types.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
+import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
 
+/// أيقونات وألوان لأنواع المصروفات
+const _typeConfig = <String, _ExpenseTypeConfig>{
+  'رواتب': _ExpenseTypeConfig(Icons.account_balance_wallet, Colors.purple),
+  'سحب راتب': _ExpenseTypeConfig(Icons.account_balance_wallet, Colors.purple),
+  'سحب من الراتب': _ExpenseTypeConfig(Icons.account_balance_wallet, Colors.purple),
+  'خصم راتب': _ExpenseTypeConfig(Icons.remove_circle_outline, Colors.purple),
+  'خصم من الراتب': _ExpenseTypeConfig(Icons.remove_circle_outline, Colors.purple),
+  'ديزل': _ExpenseTypeConfig(Icons.local_gas_station, Colors.amber),
+  'صيانة': _ExpenseTypeConfig(Icons.build, Colors.orange),
+  'فواتير كهرباء ومياه': _ExpenseTypeConfig(Icons.electrical_services, Colors.teal),
+  'مستلزمات': _ExpenseTypeConfig(Icons.inventory_2, Colors.indigo),
+  'مساعدة محتاج': _ExpenseTypeConfig(Icons.volunteer_activism, Colors.pink),
+  'اخرى': _ExpenseTypeConfig(Icons.more_horiz, Colors.grey),
+};
+
+_ExpenseTypeConfig _configForType(String type) {
+  for (final key in _typeConfig.keys) {
+    if (type.contains(key)) {
+      return _typeConfig[key]!;
+    }
+  }
+  return const _ExpenseTypeConfig(Icons.receipt, Colors.grey);
+}
+
+/// هل النوع مرتبط بالرواتب
+bool _isSalaryType(String type) {
+  const salaryKeywords = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'];
+  for (final keyword in salaryKeywords) {
+    if (type.contains(keyword)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 class ExpensesReportScreen extends ConsumerStatefulWidget {
   const ExpensesReportScreen({
@@ -64,11 +98,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   String? _selectedType;
   double _totalAmount = 0;
 
-  /// ✅ بحث نصي بالوصف أو النوع — يُمرّر لمستوى قاعدة البيانات
-  String _searchQuery = '';
-  Timer? _debounceTimer;
-  final _searchController = TextEditingController();
-
   /// النتائج مجمعة حسب النوع
   Map<String, List<_ExpenseReportRow>> _grouped = {};
   Map<String, double> _typeSubtotals = {};
@@ -109,11 +138,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   Future<void> _loadExpenseTypes() async {
     final db = ref.read(databaseProvider);
+    // ✅ إصلاح: فلترة المصروفات المحذوفة soft-delete
+    // بدون هذا الفلتر، أنواع المصروفات المحذوفة تظهر في القائمة المنسدلة
     final query = await db
-        .customSelect('SELECT DISTINCT expense_type FROM expenses')
+        .customSelect('SELECT DISTINCT expense_type FROM expenses WHERE deleted_at IS NULL')
         .get();
+    // ✅ إزالة "سحب راتب" — نوع مُشتق يُحفظ تلقائياً عند "رواتب" → "سحب من الراتب"
     final types =
-        query.map((row) => row.data['expense_type'] as String).toList()..sort();
+        query.map((row) => row.data['expense_type'] as String)
+            .where((t) => t != 'سحب راتب')
+            .toList()..sort();
     setState(() {
       _availableTypes
         ..clear()
@@ -166,8 +200,21 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
   Future<_ExpensesReportResult> _loadExpensesReport(AppDatabase db) async {
-    final repo = ExpensesRepository(db);
-    // ✅ تحويل نطاق التاريخ إلى hotelDayKey
+    final outboxDao = OutboxDao(db);
+    final expensesDao = ExpensesDao(db, outboxDao);
+    // ✅ إصلاح: تحويل نطاق التاريخ إلى مفاتيح أيام فندقية
+    // نستخدم HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
+    // لأن ExpensesRepository.create() يخزن hotelDayKey باستخدام HotelTimeEngine
+    //
+    // ⚠️ ملاحظة حرجة: getHotelDayKey تعتبر 14:00:59 بالضبط نهاية اليوم السابق
+    // (14:01:00 = بداية اليوم الجديد). بما أن _fromDate يأتي دائماً بوقت 14:01:00
+    // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
+    // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
+    //
+    // مثال: فلتر "اليوم" عند 10:00 صباح 2026-05-19:
+    //   _fromDate = 18-May 14:01 → +1s → fromHotelDay = "2026-05-18" ✓
+    //   _toDate  = 19-May 14:00:59 → toHotelDay   = "2026-05-18" ✓
+    //   → فقط مصروفات hotelDayKey="2026-05-18" ✅
     final fromHotelDay = _fromDate != null
         ? HotelTimeEngine.getHotelDayKey(
             dateTime: _fromDate!.add(const Duration(seconds: 1)))
@@ -185,12 +232,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // هل نعرض الكل (بدون فلتر نوع)؟
     final showAll = selectedType == null;
 
-    // ✅ استخدام repo.listFilteredByHotelDay لتوسيع فئة 'رواتب' تلقائياً
-    var expenses = await repo.listFilteredByHotelDay(
+    // ✅ فلترة بحقل hotelDayKey بدلاً من date التقويمي
+    // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
+    var expenses = await expensesDao.listFilteredByHotelDay(
       fromHotelDay: fromHotelDay,
       toHotelDay: toHotelDay,
       expenseType: selectedType,
-      search: _searchQuery.isNotEmpty ? _searchQuery : null,
+      excludeAdvance: true,
     );
 
     if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
@@ -208,26 +256,25 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         .whereType<int>()
         .toSet();
 
-    // ─── عند اختيار الكل: سحب سحوبات الرواتب من salary_withdrawals ───
-    // كل سحب راتب يُنشئ سجلين: expenses + salary_withdrawals
-    // لمنع التكرار: عند showAll نعرض الرواتب من salary_withdrawals فقط
-    // ونستبعد مصروفات الرواتب من جدول expenses بالكامل
-    final bool salaryFromWithdrawals = showAll;
+    // ─── سحب سحوبات الرواتب من salary_withdrawals ───
+    // ✅ إصلاح: جلب salary_withdrawals أيضاً عند اختيار نوع راتب
+    // لعرض السحوبات اليتيمة المرتبطة بنوع الراتب المحدد
+    final shouldFetchSalaryWithdrawals = showAll || (selectedType != null && _isSalaryType(selectedType));
     List<SalaryWithdrawal> salaryWithdrawals = [];
-    if (salaryFromWithdrawals) {
+    if (shouldFetchSalaryWithdrawals) {
       try {
         var swQuery = db.select(db.salaryWithdrawals)
           ..where((tbl) => tbl.deletedAt.isNull());
-        // فلترة salary_withdrawals بـ hotelDayKey أيضاً
+        // ✅ إصلاح: فلترة salary_withdrawals بـ hotelDayKey أيضاً
         if (fromHotelDay != null) {
           swQuery = swQuery..where((tbl) =>
-              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay))) |
-              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isBiggerOrEqual(Variable(fromHotelDay))));
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)));
         }
         if (toHotelDay != null) {
           swQuery = swQuery..where((tbl) =>
-              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay))) |
-              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isSmallerOrEqual(Variable(toHotelDay))));
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)));
         }
         salaryWithdrawals = await swQuery.get();
         // إضافة أرقام الموظفين من salary_withdrawals
@@ -252,19 +299,76 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final rows = <_ExpenseReportRow>[];
     double totalAmount = 0;
     bool hasSalaryData = false;
-    final Set<int> addedExpenseIds = {};
 
-    // ─── أولاً: إضافة جميع مصروفات جدول expenses (باستثناء السلفة) ───
+    // ═══════════════════════════════════════════════════════════════════════
+    // ✅ إصلاح تكرار البيانات — الطبعة الخامسة (حتمي + شبكة أمان)
+    //
+    // المشكلة الجذرية: تقرير المصروفات يعرض نفس المعاملة مرتين
+    //   مرة من جدول expenses ومرة من جدول salary_withdrawals
+    //
+    // السبب: السجلات القديمة (قبل إضافة عمود expense_id أو تنسيق exp_XX)
+    //   لا تحتوي على رابط مباشر → تُعتبر يتيماً → تُضاف مكررة
+    //
+    // ثلاث طرق مطابقة (مرتبة بالأولوية):
+    //
+    //   الطريقة 1: عمود expense_id (FK مباشر) — الأكثر موثوقية
+    //   الطريقة 2: نمط exp_XX في reason — مُضمون من saveFromExpense()
+    //   الطريقة 3: مطابقة بيانات احتياطية (hotelDayKey + employeeId + amount)
+    //              → شبكة أمان للسجلات القديمة بدون expense_id أو exp_XX
+    //              → احتمال false positive منخفض جداً (ثلاثة حقول متطابقة)
+    //              → حتى لو حدث false positive: إخفاء مكرر أفضل من عرض مكرر
+    //
+    //   السحوبات المباشرة (reason يبدأ بـ "direct_withdrawal_") لا تُطابق أبداً
+    //   لأنها لا تحتوي على مصروف مقابل أصلاً.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // ─── قراءة expense_id من جدول salary_withdrawals عبر SQL خام ───
+    // عمود expense_id أُضيف عبر ترحيل قاعدة البيانات (schema v40+)
+    // ولا يوجد في الـ data class المُولّد لذلك نقرأه يدوياً
+    final swExpenseIdMap = <int, int>{}; // salary_withdrawal.id → expense_id
+    if (shouldFetchSalaryWithdrawals && salaryWithdrawals.isNotEmpty) {
+      try {
+        final swIds = salaryWithdrawals.map((sw) => sw.id).toList();
+        final placeholders = List.filled(swIds.length, '?').join(',');
+        final rows = await db.customSelect(
+          'SELECT id, expense_id FROM salary_withdrawals WHERE id IN ($placeholders)',
+          variables: swIds.map((id) => Variable.withInt(id)).toList(),
+        ).get();
+        for (final row in rows) {
+          final swId = row.read<int>('id');
+          // QueryRow لا يملك readOrNull — نستخدم read مع try-catch
+          // لأن expense_id قد يكون NULL
+          final expId = _readNullableInt(row, 'expense_id');
+          if (expId != null && expId > 0) {
+            swExpenseIdMap[swId] = expId;
+          }
+        }
+      } catch (_) {
+        // العمود قد لا يكون موجوداً بعد في الإصدارات القديمة — نتخطى
+      }
+    }
+
+    // ─── بناء مجموعة من المصروفات التي تمت إضافتها بالفعل ───
+    final Set<int> addedExpenseIds = {};      // معرفات المصروفات المضافة
+    final Set<int> addedWithdrawalIds = {};   // معرفات السحوبات المضافة (لتجنب التكرار)
+
+    // ─── أولاً: إضافة جميع المصروفات من جدول expenses (باستثناء السلفة) ───
     for (final expense in expenses) {
-      if (expense.expenseType == ExpenseTypes.salaryAdvance) {
+      // ✅ إلغاء عرض السلفة من تقرير المصروفات لأنها تسبب تكرار البيانات
+      // السلفة تُسجّل تلقائياً مع سحوبات الرواتب وأقساط الخصم
+      // فظهورها هنا يُكرر المبالغ في الإجماليات
+      if (expense.expenseType == 'سلفة') {
         continue;
       }
-      final employee = expense.relatedId != null
-          ? employeeMap[expense.relatedId!]
-          : null;
-      final date = _parseExpenseDate(expense.date);
+      final employee = expense.relatedId != null ? employeeMap[expense.relatedId!] : null;
+      // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
+      // المصروفات القديمة قد يكون date فيها تقويمياً مختلفاً عن hotelDayKey
+      final displayDateStr = (expense.hotelDayKey != null && expense.hotelDayKey!.isNotEmpty)
+          ? expense.hotelDayKey!
+          : expense.date;
+      final date = _parseExpenseDate(displayDateStr);
       totalAmount += expense.amount;
-      if (ExpenseTypes.isSalaryType(expense.expenseType)) {
+      if (_isSalaryType(expense.expenseType)) {
         hasSalaryData = true;
       }
       rows.add(
@@ -274,56 +378,73 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           type: expense.expenseType,
           description: expense.description,
           employee: employee,
+          relatedId: expense.relatedId,
         ),
       );
-      if (expense.id != null) {
-        addedExpenseIds.add(expense.id);
-      }
+      addedExpenseIds.add(expense.id);
     }
 
-    // ─── ثانياً: إضافة سحوبات الرواتب اليتيمة فقط (بدون مصروف مقابل) ───
-    if (salaryFromWithdrawals && salaryWithdrawals.isNotEmpty) {
+    // ─── ثانياً: معالجة سحوبات الرواتب – إضافة اليتيمة فقط ───
+    if (shouldFetchSalaryWithdrawals && salaryWithdrawals.isNotEmpty) {
       hasSalaryData = true;
+
       for (final sw in salaryWithdrawals) {
+        // تجنب إضافة نفس السحب مرتين (أمان)
+        if (addedWithdrawalIds.contains(sw.id)) {
+          continue;
+        }
+
         bool hasMatchingExpense = false;
 
-        // الطريقة 1 (الأسرع): مطابقة عبر expenseId (العمود المباشر)
-        if (sw.expenseId != null && addedExpenseIds.contains(sw.expenseId)) {
-          hasMatchingExpense = true;
-        }
+        // ─── السحوبات المباشرة لا تُطابق أبداً (ليس لها مصروف مقابل) ───
+        final isDirectWithdrawal = sw.reason != null &&
+            sw.reason!.startsWith('direct_withdrawal_');
 
-        // الطريقة 2: مطابقة عبر reason الذي يحتوي exp_XX (للبيانات القديمة بدون expenseId)
-        if (!hasMatchingExpense && sw.reason != null) {
-          final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
-          if (match != null) {
-            final expId = int.tryParse(match.group(1)!);
-            if (expId != null && addedExpenseIds.contains(expId)) {
-              hasMatchingExpense = true;
+        if (!isDirectWithdrawal) {
+          // ─── الطريقة 1: مطابقة عبر عمود expense_id (الأكثر موثوقية) ───
+          final expenseIdFromColumn = swExpenseIdMap[sw.id];
+          if (expenseIdFromColumn != null && addedExpenseIds.contains(expenseIdFromColumn)) {
+            hasMatchingExpense = true;
+          }
+
+          // ─── الطريقة 2: مطابقة عبر reason الذي يحتوي exp_XX ───
+          if (!hasMatchingExpense && sw.reason != null) {
+            final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
+            if (match != null) {
+              final expId = int.tryParse(match.group(1)!);
+              if (expId != null && addedExpenseIds.contains(expId)) {
+                hasMatchingExpense = true;
+              }
+            }
+          }
+
+          // ─── الطريقة 3 (الاحتياطية): مطابقة بالبيانات (للسجلات القديمة جداً) ───
+          // هذه تمنع التكرار حتى لو فشلت الطريقتان السابقتان
+          // شرط المطابقة: نفس نوع راتب، نفس الموظف، نفس اليوم الفندقي، نفس المبلغ
+          if (!hasMatchingExpense) {
+            for (final expense in expenses) {
+              if (_isSalaryType(expense.expenseType) &&
+                  expense.relatedId == sw.employeeId &&
+                  _hotelDayKeysMatch(expense.hotelDayKey, sw.hotelDayKey, expense.date, sw.withdrawDate) &&
+                  expense.amount.abs() == sw.amount.abs()) {
+                hasMatchingExpense = true;
+                debugPrint('⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر المطابقة بالبيانات');
+                break;
+              }
             }
           }
         }
 
-        // الطريقة 3 (الاحتياطية): مطابقة بالبيانات للمعاملات القديمة جداً
-        if (!hasMatchingExpense) {
-          for (final expense in expenses) {
-            if (expense.expenseType == ExpenseTypes.salaryAdvance) continue;
-            if (ExpenseTypes.isSalaryType(expense.expenseType) &&
-                expense.relatedId == sw.employeeId &&
-                expense.hotelDayKey?.isNotEmpty == true &&
-                expense.hotelDayKey == sw.hotelDayKey &&
-                expense.amount.abs() == sw.amount.abs()) {
-              hasMatchingExpense = true;
-              break;
-            }
-          }
-        }
-
-        // إذا لم يتم العثور على مصروف مقابل → سحب يتيم → أضفه
+        // إذا لم يتم العثور على مصروف مقابل، فهذا السحب يتيم – أضفه
         if (!hasMatchingExpense) {
           final employee = employeeMap[sw.employeeId];
-          final date = _parseExpenseDate(sw.withdrawDate);
+          // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
+          final swDisplayDate = (sw.hotelDayKey != null && sw.hotelDayKey!.isNotEmpty)
+              ? sw.hotelDayKey!
+              : sw.withdrawDate;
+          final date = _parseExpenseDate(swDisplayDate);
           final wType = sw.withdrawalType ?? 'سحب راتب';
-          final isDeduction = ExpenseTypes.normalizeSalaryType(wType) == ExpenseTypes.salaryDeduction;
+          final isDeduction = wType.contains('خصم') || wType.contains('deduction');
           final displayType = isDeduction ? 'خصم من الراتب' : 'سحب راتب';
 
           final descParts = <String>[];
@@ -335,23 +456,24 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           }
           final description = descParts.join(' — ');
 
-          final displayAmount = isDeduction ? sw.amount.abs() : sw.amount;
-          totalAmount += displayAmount;
+          totalAmount += sw.amount;
           rows.add(
             _ExpenseReportRow(
               date: date,
-              amount: displayAmount,
+              amount: sw.amount,
               type: displayType,
               description: description,
               employee: employee,
+              relatedId: sw.employeeId,
               isSalaryWithdrawal: true,
             ),
           );
+          addedWithdrawalIds.add(sw.id);
         }
       }
     }
 
-    // ترتيب حسب التاريخ الأحدث    // ترتيب حسب التاريخ الأحدث
+    // ترتيب حسب التاريخ الأحدث
     rows.sort((a, b) => b.date.compareTo(a.date));
 
     return _ExpensesReportResult(rows: rows, totalAmount: totalAmount, hasSalaryData: hasSalaryData);
@@ -472,7 +594,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
         // ملخص الرواتب مقابل المصروفات التشغيلية
         final salaryTotal = _rows
-            .where((r) => ExpenseTypes.isSalaryType(r.type))
+            .where((r) => _isSalaryType(r.type))
             .fold<double>(0, (sum, r) => sum + r.amount);
         final nonSalaryTotal = _totalAmount - salaryTotal;
 
@@ -549,72 +671,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     ),);
   }
 
-  /// ✅ شريط البحث بالوصف أو النوع — تصميم رشيق ومضغوط (نفس expenses_list)
-  Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: TextField(
-        controller: _searchController,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-        decoration: InputDecoration(
-          hintText: 'ابحث بالوصف أو النوع...',
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 12),
-          prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 4, right: 4),
-            child: Icon(Icons.search, color: Colors.grey.shade500, size: 18),
-          ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? Padding(
-                  padding: const EdgeInsets.only(left: 4, right: 4),
-                  child: IconButton(
-                    icon: Icon(Icons.clear, color: Colors.grey.shade500, size: 16),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                    onPressed: () {
-                      _searchController.clear();
-                      _debounceTimer?.cancel();
-                      setState(() {
-                        _searchQuery = '';
-                      });
-                      _fetchReport();
-                    },
-                  ),
-                )
-              : null,
-          suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 28),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 6),
-          isDense: true,
-        ),
-        onChanged: (value) {
-          _debounceTimer?.cancel();
-          _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-            setState(() {
-              _searchQuery = value;
-            });
-            _fetchReport();
-          });
-        },
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _debounceTimer?.cancel();
-    _searchController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final dropdownTextColor = Theme.of(context).textTheme.bodyMedium?.color;
     return ReportPageScaffold(
       title: widget.title,
       filterController: _filterController,
@@ -626,50 +684,38 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         _fetchReport();
       },
       onExportPdf: _exportPdf,
-      // ✅ بدون زر بحث — الفلترة تلقائية
+      onSearch: _fetchReport,
       isPdfEnabled: _rows.isNotEmpty,
       isLoading: _loading,
-      searchBar: _buildSearchBar(),
       filterWidgets: [
         if (widget.showTypeFilter)
           SizedBox(
             width: 160,
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String?>(
-                value: _selectedType,
-                hint: Text(
-                  'كل الأنواع',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
-                ),
+            child: DropdownButtonFormField<String?>(
+              value: _selectedType,
+              decoration: InputDecoration(
+                labelText: widget.typeLabel,
                 isDense: true,
-                isExpanded: true,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: dropdownTextColor),
-                items: [
-                  DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text(
-                      'كل الأنواع',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
-                    ),
-                  ),
-                  ..._availableTypes.map(
-                    (type) => DropdownMenuItem<String?>(
-                      value: type,
-                      child: Text(
-                        type,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: dropdownTextColor),
-                      ),
-                    ),
-                  ),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedType = value;
-                  });
-                  // ✅ فلترة تلقائية عند تغيير النوع
-                  _fetchReport();
-                },
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               ),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
+              items: [
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
+                ),
+                ..._availableTypes.map(
+                  (type) => DropdownMenuItem<String?>(
+                    value: type,
+                    child: Text(type, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
+                  ),
+                ),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedType = value;
+                });
+              },
             ),
           ),
       ],
@@ -698,7 +744,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       final type = sortedTypes[t];
       final items = _grouped[type]!;
       final subtotal = _typeSubtotals[type] ?? 0.0;
-      final cfg = ExpenseTypes.configFor(type);
+      final cfg = _configForType(type);
       // رأس المجموعة
       widgets.add(
         _buildGroupHeader(
@@ -796,10 +842,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
   /// بطاقة المصروف المفصلة (مصغّرة)
   Widget _buildDetailedExpenseCard(_ExpenseReportRow row, {required int rowIndex}) {
-    final cfg = ExpenseTypes.configFor(row.type);
+    final cfg = _configForType(row.type);
     final hasDesc = row.description.isNotEmpty;
     final hasEmployee = row.employee != null;
-    final isSalary = ExpenseTypes.isSalaryType(row.type);
+    final isSalary = _isSalaryType(row.type);
 
     return Card(
       elevation: 0.3,
@@ -928,7 +974,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                     ),
                     const SizedBox(width: 3),
                     Text(
-                      hasEmployee ? row.employee!.name : 'موظف غير محدد',
+                      hasEmployee 
+                          ? row.employee!.name 
+                          : (row.relatedId != null ? 'موظف #${row.relatedId}' : 'موظف غير محدد'),
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -1016,10 +1064,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
     // حساب إجمالي الرواتب والمصروفات التشغيلية
     final salaryTotal = _rows
-        .where((r) => ExpenseTypes.isSalaryType(r.type))
+        .where((r) => _isSalaryType(r.type))
         .fold<double>(0, (sum, r) => sum + r.amount);
     final nonSalaryTotal = _totalAmount - salaryTotal;
-    final salaryCount = _rows.where((r) => ExpenseTypes.isSalaryType(r.type)).length;
+    final salaryCount = _rows.where((r) => _isSalaryType(r.type)).length;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -1170,6 +1218,34 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
 
 
+  /// قراءة حقل INTEGER قابل للقيم الفارغة من QueryRow
+  /// Drift's QueryRow لا يوفر readOrNull مباشرة — نستخدم try-catch
+  static int? _readNullableInt(QueryRow row, String column) {
+    try {
+      return row.read<int>(column);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// مطابقة مفتاحي اليوم الفندقي بين مصروف وسحب راتب
+  /// تأخذ بعين الاعتبار أن البيانات القديمة قد لا تحتوي على hotelDayKey
+  /// في هذه الحالة نلجأ لمقارنة جزء التاريخ فقط (yyyy-MM-dd)
+  static bool _hotelDayKeysMatch(
+    String? expenseHotelDayKey,
+    String? swHotelDayKey,
+    String expenseDate,
+    String swDate,
+  ) {
+    // أفضل حالة: كلاهما يحتوي على hotelDayKey
+    if (expenseHotelDayKey != null && expenseHotelDayKey.isNotEmpty &&
+        swHotelDayKey != null && swHotelDayKey.isNotEmpty) {
+      return expenseHotelDayKey == swHotelDayKey;
+    }
+    // حالة احتياطية: مقارنة جزء التاريخ فقط (للسجلات القديمة بدون hotelDayKey)
+    return _extractDatePart(expenseDate) == _extractDatePart(swDate);
+  }
+
   DateTime _parseExpenseDate(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) {
@@ -1186,6 +1262,17 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
   }
+
+  /// استخراج جزء التاريخ فقط (yyyy-MM-dd) من سلسلة نصية
+  /// قد تحتوي على وقت مثل "2025-06-03 14:30" → "2025-06-03"
+  /// يُستخدم لمقارنة الأيام بدلاً من مقارنة نص التاريخ الكامل
+  static String _extractDatePart(String dateStr) {
+    final trimmed = dateStr.trim();
+    if (trimmed.length >= 10) {
+      return trimmed.substring(0, 10);
+    }
+    return trimmed;
+  }
 }
 
 class _ExpenseReportRow {
@@ -1195,6 +1282,7 @@ class _ExpenseReportRow {
     required this.type,
     required this.description,
     required this.employee,
+    this.relatedId,
     this.isSalaryWithdrawal = false,
   });
 
@@ -1203,6 +1291,7 @@ class _ExpenseReportRow {
   final String type;
   final String description;
   final Employee? employee;
+  final int? relatedId;
   final bool isSalaryWithdrawal;
 }
 
@@ -1218,4 +1307,8 @@ class _ExpensesReportResult {
   final bool hasSalaryData;
 }
 
-
+class _ExpenseTypeConfig {
+  const _ExpenseTypeConfig(this.icon, this.color);
+  final IconData icon;
+  final Color color;
+}

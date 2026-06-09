@@ -347,7 +347,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                       validator: _requiredValidator,
                     ),
                     DropdownButtonFormField<String>(
-                      initialValue: selectedIdType,
+                      value: _idTypes.contains(selectedIdType) ? selectedIdType : null,
                       decoration: const InputDecoration(
                         labelText: 'نوع الهوية',
                       ),
@@ -418,6 +418,14 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         );
       },
     );
+    roomController.dispose();
+    guestNameController.dispose();
+    nationalityController.dispose();
+    idNumberController.dispose();
+    issueDateController.dispose();
+    issuePlaceController.dispose();
+    governorateController.dispose();
+    notesController.dispose();
 
     if (confirmed != true) {
       return;

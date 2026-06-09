@@ -5,7 +5,6 @@ import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/sync_service.dart';
-import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import 'guest_edit_screen.dart';
@@ -189,8 +188,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
     final sortedGuests =
         guestMap.values.where((g) => g.bookings.isNotEmpty).toList()..sort(
-          (a, b) => b.bookings.first.checkinDate.compareTo(
-            a.bookings.first.checkinDate,
+          (a, b) => (b.bookings.firstOrNull?.checkinDate ?? '').compareTo(
+            a.bookings.firstOrNull?.checkinDate ?? '',
           ),
         );
     return sortedGuests;
@@ -479,7 +478,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
     return _buildDetailRow(
       'سعر الغرفة',
-      '${CurrencyFormatter.formatAmount(basePrice)} ريال',
+      basePrice.toStringAsFixed(2),
       Icons.hotel_class,
     );
   }

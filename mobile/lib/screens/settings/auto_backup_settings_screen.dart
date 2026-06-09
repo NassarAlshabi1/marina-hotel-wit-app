@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../providers/auto_backup_provider.dart' hide googleDriveBackupServiceProvider;
+import '../../providers/auto_backup_provider.dart';
 import '../../providers/backup_provider.dart';
 import '../../services/alarm_backup.dart';
 import '../../services/auto_backup_manager.dart';
@@ -54,8 +54,8 @@ class _AutoBackupSettingsScreenState
       _maxBackupsController.text = maxBackups.toString();
       _retentionDaysController.text = retentionDays.toString();
       _scheduledTime = TimeOfDay(
-        hour: int.parse(timeParts[0]),
-        minute: int.parse(timeParts[1]),
+        hour: int.tryParse(timeParts[0]) ?? 0,
+        minute: int.tryParse(timeParts[1]) ?? 0,
       );
       _isScheduledBackupEnabled = scheduledEnabled;
     });

@@ -1,8 +1,7 @@
 import 'package:drift/drift.dart' as d;
-import '../utils/app_logger.dart';
+import 'package:flutter/foundation.dart';
 
 import '../utils/status_utils.dart';
-import '../utils/hotel_date_helper.dart';
 import '../utils/time.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
@@ -130,7 +129,7 @@ class BookingDerivedFieldsService {
         await refreshForBooking(booking, now: moment, forceRebuild: true);
         return (promoted: didPromote, refreshed: true);
       } catch (e) {
-        AppLogger.warning('خطأ في تحديث حجز ${booking.id}: $e');
+        debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
         return (promoted: false, refreshed: false);
       }
     }),);
@@ -138,10 +137,10 @@ class BookingDerivedFieldsService {
     refreshed = results.where((r) => r.refreshed).length;
 
     if (promoted > 0) {
-      AppLogger.info('تم تثبيت $promoted حجز مؤقت → محجوزة');
+      debugPrint('✅ تم تثبيت $promoted حجز مؤقت → محجوزة');
     }
     if (refreshed > 0) {
-      AppLogger.debug('تم تجديد إقامة $refreshed حجز نشط تلقائياً');
+      debugPrint('🔄 تم تجديد إقامة $refreshed حجز نشط تلقائياً');
     }
     return refreshed;
   }
@@ -228,7 +227,7 @@ class BookingDerivedFieldsService {
     final segments = <_NightSegment>[];
 
     // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
-    final int totalNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkout);
+    final int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: resolvedCutoffHour);
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
     DateTime startOfCheckinHotelDay = DateTime(

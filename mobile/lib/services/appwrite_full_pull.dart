@@ -8,7 +8,6 @@ import 'appwrite_logger.dart';
 import 'appwrite_service.dart';
 import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
-import 'sync_locks.dart';
 
 /// ✅ خدمة السحب الشامل من Appwrite
 /// تجلب جميع البيانات بدون أي فلترة - كل الجداول وكل الحقول
@@ -43,72 +42,75 @@ class AppwriteFullPull {
       return FullPullResult(success: false, message: 'الخدمة غير مهيأة');
     }
 
-    return SyncLocks.appwriteSyncLock.synchronized(() async {
-      try {
-        _logger.info('🚀 بدء السحب الشامل من Appwrite...', tag: 'FULL_PULL');
+    _logger.info('🚀 بدء السحب الشامل من Appwrite...', tag: 'FULL_PULL');
 
-        final result = FullPullResult(success: true, message: 'تم السحب بنجاح');
+    final result = FullPullResult(success: true, message: 'تم السحب بنجاح');
 
-        // ✅ لا نعطل FK - بل نرتب السحب بشكل صحيح ونتخطى السجلات اليتيمة
-        final entities = _getEntitiesInOrder();
+    // ✅ لا نعطل FK - بل نرتب السحب بشكل صحيح ونتخطى السجلات اليتيمة
+    // PRAGMA foreign_keys=OFF كان يسمح بإدراج بيانات فاسدة (يتيمة)
+    // الآن نحافظ على قيود FK ونتخطى السجلات التي تشير لآباء غير موجودين
 
-        for (final entity in entities) {
-          try {
-            final count = await _pullEntity(entity, result);
-            result.counts[entity.name] = count;
-            _logger.info(
-              '✅ تم سحب $count سجل من ${entity.name}',
-              tag: 'FULL_PULL',
-            );
-          } catch (e) {
-            _logger.error('❌ فشل سحب ${entity.name}: $e', tag: 'FULL_PULL');
-            result.failedEntities.add(entity.name);
-          }
-        }
+    try {
+      // ترتيب السحب حسب العلاقات
+      final entities = _getEntitiesInOrder();
 
-        // تحديث حالة الإشغال للغرف
-        if (result.totalPulled > 0) {
-          await _refreshRoomOccupancy();
-        }
-
-        result.success = result.failedEntities.isEmpty;
-        result.message = result.failedEntities.isEmpty
-            ? 'تم سحب ${result.totalPulled} سجل من ${result.counts.length} جدول'
-            : 'تم سحب ${result.totalPulled} سجل، فشل في: ${result.failedEntities.join(', ')}';
-
-        _logger.info('✅ ${result.message}', tag: 'FULL_PULL');
-
-        return result;
-      } finally {
-        // ✅ فحص سلامة FK بعد السحب
+      for (final entity in entities) {
         try {
-          final violations = await _database!.customSelect(
-            'PRAGMA foreign_key_check',
-            readsFrom: Set.unmodifiable({}),
-          ).get();
-          if (violations.isNotEmpty) {
-            _logger.warning(
-              '⚠️ ${violations.length} انتهاك FK بعد السحب الشامل',
-              tag: 'FULL_PULL',
-            );
-            for (final row in violations) {
-              final table = row.data['table']?.toString() ?? '';
-              final rowId = row.data['rowid']?.toString() ?? '';
-              try {
-                await _database!.customStatement(
-                  'DELETE FROM $table WHERE rowid = ?',
-                  [int.tryParse(rowId)],
-                );
-                _logger.info(
-                  '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
-                  tag: 'FULL_PULL',
-                );
-              } catch (_) {}
-            }
-          }
-        } catch (_) {}
+          final count = await _pullEntity(entity, result);
+          result.counts[entity.name] = count;
+          _logger.info(
+            '✅ تم سحب $count سجل من ${entity.name}',
+            tag: 'FULL_PULL',
+          );
+        } catch (e) {
+          _logger.error('❌ فشل سحب ${entity.name}: $e', tag: 'FULL_PULL');
+          result.failedEntities.add(entity.name);
+        }
       }
-    });
+
+      // تحديث حالة الإشغال للغرف
+      if (result.totalPulled > 0) {
+        await _refreshRoomOccupancy();
+      }
+
+      result.success = result.failedEntities.isEmpty;
+      result.message = result.failedEntities.isEmpty
+          ? 'تم سحب ${result.totalPulled} سجل من ${result.counts.length} جدول'
+          : 'تم سحب ${result.totalPulled} سجل، فشل في: ${result.failedEntities.join(', ')}';
+
+      _logger.info('✅ ${result.message}', tag: 'FULL_PULL');
+    } finally {
+      // ✅ فحص سلامة FK بعد السحب
+      try {
+        final violations = await _database!.customSelect(
+          'PRAGMA foreign_key_check',
+          readsFrom: Set.unmodifiable({}),
+        ).get();
+        if (violations.isNotEmpty) {
+          _logger.warning(
+            '⚠️ ${violations.length} انتهاك FK بعد السحب الشامل',
+            tag: 'FULL_PULL',
+          );
+          // حذف السجلات اليتيمة تلقائياً
+          for (final row in violations) {
+            final table = row.data['table']?.toString() ?? '';
+            final rowId = row.data['rowid']?.toString() ?? '';
+            try {
+              await _database!.customStatement(
+                'DELETE FROM $table WHERE rowid = ?',
+                [int.tryParse(rowId)],
+              );
+              _logger.info(
+                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
+                tag: 'FULL_PULL',
+              );
+            } catch (_) {}
+          }
+        }
+      } catch (_) {}
+    }
+
+    return result;
   }
 
   /// ترتيب الكيانات للسحب (حسب العلاقات)
@@ -492,67 +494,6 @@ class AppwriteFullPull {
               return false;
             }
           }
-
-        // ✅ booking_nights: Bookings ← BookingNights.bookingLocalId (nullable بعد v40)
-        // نحاول حل FK عبر UUID/serverId قبل الإدراج
-        case 'booking_nights': {
-          final bookingUuid = (data['bookingUuidCache'] as String?) ??
-              (data['booking_uuid_cache'] as String?) ??
-              (data['booking_uuid'] as String?);
-          final serverBookingId = _asIntSafe(data, 'serverBookingId') ??
-              _asIntSafe(data, 'server_booking_id') ??
-              _asIntSafe(data, 'booking_id');
-          final rawBookingLocalId = _asIntSafe(data, 'bookingLocalId') ??
-              _asIntSafe(data, 'booking_local_id');
-
-          // محاولة حل FK
-          Booking? booking;
-
-          // الطريقة 1: حل عبر UUID (الأكثر موثوقية عبر الأجهزة)
-          if (bookingUuid != null && bookingUuid.isNotEmpty) {
-            booking = await (db.select(db.bookings)
-                  ..where((b) => b.localUuid.equals(bookingUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-          }
-
-          // الطريقة 2: حل عبر serverBookingId
-          if (booking == null && serverBookingId != null) {
-            booking = await (db.select(db.bookings)
-                  ..where((b) => b.serverBookingId.equals(serverBookingId))
-                  ..limit(1))
-                .getSingleOrNull();
-          }
-
-          // الطريقة 3: حل عبر serverId
-          if (booking == null && serverBookingId != null) {
-            booking = await (db.select(db.bookings)
-                  ..where((b) => b.serverId.equals(serverBookingId))
-                  ..limit(1))
-                .getSingleOrNull();
-          }
-
-          // الطريقة 4: المطابقة المباشرة بـ bookingLocalId
-          if (booking == null && rawBookingLocalId != null) {
-            booking = await (db.select(db.bookings)
-                  ..where((b) => b.id.equals(rawBookingLocalId))
-                  ..limit(1))
-                .getSingleOrNull();
-          }
-
-          if (booking != null) {
-            // ✅ استبدال bookingLocalId البعيد بالمعرف المحلي الصحيح
-            data['bookingLocalId'] = booking.id;
-            // ✅ حفظ بيانات الحل للأجهزة الأخرى
-            data['bookingUuidCache'] = booking.localUuid;
-            if (booking.serverBookingId != null) {
-              data['serverBookingId'] = booking.serverBookingId;
-            }
-          }
-          // ✅ bookingLocalId أصبح nullable — يمكن تخزين الليلة بدون حجز
-          // سيتم ربطها لاحقاً عبر backfill عند وصول الحجز
-          break;
-        }
 
         // باقي الجداول: FK nullable أو يُعالجها adapter بـ drift.Value.absent()
       }

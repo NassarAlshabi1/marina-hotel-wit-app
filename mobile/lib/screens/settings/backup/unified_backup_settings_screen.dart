@@ -283,9 +283,13 @@ class _UnifiedBackupSettingsScreenState
             const Divider(height: 1),
             SwitchListTile(
               title: const Text('مزامنة Google Drive'),
-              subtitle: const Text('⚠️ معطلة حالياً'),
-              value: false,
-              onChanged: null, // Disabled — Google Drive sync disabled
+              subtitle: const Text('مزامنة تلقائية مع السحابة'),
+              value: state.googleDriveSyncEnabled,
+              onChanged: state.isWorking
+                  ? null
+                  : (value) => ref
+                      .read(backupStatusProvider.notifier)
+                      .setGoogleDriveSyncEnabled(value),
               secondary: const Icon(Icons.sync),
             ),
             const Divider(height: 1),

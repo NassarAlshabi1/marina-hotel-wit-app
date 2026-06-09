@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:drift/drift.dart' as d;
@@ -14,7 +13,6 @@ import 'booking_derived_fields_service.dart';
 import 'delta_sync_service.dart';
 import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
-import 'restore_fix_service.dart';
 import 'sync_locks.dart';
 
 class AppwriteDeltaSyncResult {
@@ -283,8 +281,6 @@ class AppwriteDeltaSync {
         'audit_logs': AppwriteConfig.auditLogsCollectionId,
         'payment_voids': AppwriteConfig.paymentVoidsCollectionId,
         'guest_infos': AppwriteConfig.guestInfosCollectionId,
-        // ✅ blacklist - يُخزن في جدول shift_notes محلياً مع createdBy='blacklist'
-        'blacklist': AppwriteConfig.blacklistCollectionId,
       };
 
       for (final entry in entitiesToPull.entries) {
@@ -314,30 +310,6 @@ class AppwriteDeltaSync {
         } catch (e) {
           _logger.warning(
             'فشل تحديث حالة الإشغال: $e',
-            tag: 'DELTA_SYNC',
-          );
-        }
-
-        // 🔄 إعادة حساب المدفوعات تلقائياً بعد السحب من Appwrite
-        // ملاحظة: نتجاهل rebuild hotel_day_ledger لأنه محلي فقط ولا يتم مزامنته
-        try {
-          final fixService = RestoreFixService(_database);
-          final fixReport = await fixService.runAutoFixAfterRestore(
-            skipLedgerRebuild: true,
-          );
-          _logger.info(
-            '✅ تم إصلاح ${fixReport.bookingsFixed} حجز و ${fixReport.paymentsRecalculated} دفعة',
-            tag: 'DELTA_SYNC',
-          );
-          if (fixReport.changes.isNotEmpty) {
-            _logger.info(
-              '📝 التغييرات: ${fixReport.changes.take(5).join(", ")}${fixReport.changes.length > 5 ? "..." : ""}',
-              tag: 'DELTA_SYNC',
-            );
-          }
-        } catch (e) {
-          _logger.warning(
-            'فشل الإصلاح التلقائي بعد السحب: $e',
             tag: 'DELTA_SYNC',
           );
         }
@@ -453,18 +425,9 @@ class AppwriteDeltaSync {
         // ✅ تحويل أنواع المبالغ من integer (Cloud) إلى double (محلي)
         data = AppwriteSyncUtils.convertAmountTypesFromAppwrite(collectionId, data);
 
-        // ✅ تطبيع lastModified من remote إلى epoch seconds (قد يكون بالملي ثانية)
-        final rawLm = _asInt(data['lastModified']);
-        if (rawLm != null) {
-          data['lastModified'] = _normalizeEpochToSeconds(rawLm);
-        }
-        final rawLmEpoch = _asInt(data['lastModifiedEpoch']);
-        if (rawLmEpoch != null) {
-          data['lastModifiedEpoch'] = _normalizeEpochToSeconds(rawLmEpoch);
-        }
-
-        // ✅ فلترة إضافية بالوقت باستخدام $updatedAt (ساعة السيرفر الموثوقة)
-        // $updatedAt يُستخدم فقط لفلترة السحب (Pull Filter)، وليس لكشف التعارض
+        // ✅ استخراج $updatedAt من Appwrite (متوفر دائماً في كل مستند)
+        // نستخدمه كمرجع زمني أساسي لفحص التعارضات
+        // $updatedAt يُحدَّث تلقائياً عند أي تعديل على المستند في Appwrite
         int? remoteUpdatedAtSec;
         try {
           remoteUpdatedAtSec = (DateTime.parse(doc.$updatedAt).millisecondsSinceEpoch / 1000).round();
@@ -472,21 +435,27 @@ class AppwriteDeltaSync {
           _logger.warning('Cannot parse \$updatedAt for doc ${doc.$id}: $e', tag: 'DELTA_SYNC');
         }
 
+        // ✅ فلترة إضافية بالوقت للتأكد من أننا لا نعالج بيانات قديمة
         if (lastPullTs > 0 && remoteUpdatedAtSec != null) {
           if (remoteUpdatedAtSec * 1000 <= lastPullMs) {
             continue;
           }
         }
 
-        // ✅ كشف التعارض باستخدام lastModified فقط (ساعة الجهاز)
-        // lastModified يحدد ما إذا كان الجهاز المحلي يحتوي على تعديلات أحدث لم تُرفع بعد
-        final remoteLastModified = _asInt(data['lastModified']);
+        // ✅ فحص التعارضات: مقارنة lastModified المحلي مع البعيد — الأحدث أولاً
+        // نستخدم data['lastModified'] كمرجع أساسي (متوفر في كل 17 مجموعة بعد الفحص)
+        // و $updatedAt كبديل موثوق في حال عدم وجود lastModified
+        int effectiveRemoteTs = remoteUpdatedAtSec ?? Time.nowEpoch();
+        final dataLastModified = _asInt(data['lastModified']);
+        if (dataLastModified != null && dataLastModified > effectiveRemoteTs) {
+          effectiveRemoteTs = dataLastModified;
+        }
 
-        final shouldApply = await _shouldApplyRemote(entity, doc.$id, remoteLastModified);
+        final shouldApply = await _shouldApplyRemote(entity, doc.$id, effectiveRemoteTs);
         if (!shouldApply) {
           _skippedConflicts++;
           _logger.debug(
-            '⚡ تعارض $entity/${doc.$id}: المحلية أحدث (local > $remoteLastModified) → تخطي',
+            '⚡ تعارض $entity/${doc.$id}: المحلية أحدث (local > $effectiveRemoteTs) → تخطي',
             tag: 'DELTA_SYNC',
           );
           continue;
@@ -560,8 +529,6 @@ class AppwriteDeltaSync {
         await _applyGuestInfoChange(db, documentId, data);
       case 'salary_withdrawals':
         await _applySalaryWithdrawalChange(db, documentId, data);
-      case 'blacklist':
-        await _applyBlacklistChange(db, documentId, data);
     }
   }
 
@@ -675,7 +642,11 @@ class AppwriteDeltaSync {
       guestAddress: _nullableValue<String>(_asString(data['guestAddress'])),
       checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
       checkoutDate: _nullableValue<String>(_asString(data['checkoutDate'])),
-      actualCheckout: _nullableValue<String>(_asString(data['actualCheckout'])),
+      // ✅ إصلاح حرج: actualCheckout يجب أن يُرسل دائماً (حتى لو null)
+      // بدلاً من Value.absent() لأن insertOnConflictUpdate يعتمد على القيمة
+      // و Value.absent() لا يُحدّث الحقل عند التعارض، مما يبقي actualCheckout
+      // محتفظاً بقيمته القديمة (null) حتى لو كانت البيانات البعيدة تحدد قيمة
+      actualCheckout: d.Value(_asString(data['actualCheckout'])),
       status: d.Value(_asString(data['status']) ?? ''),
       notes: _nullableValue<String>(_asString(data['notes'])),
       expectedNights: d.Value(_asInt(data['expectedNights']) ?? 1),
@@ -723,9 +694,6 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
-    // ✅ حل FK للحجز: UUID → localId → serverId (مثل _applyBookingNightChange)
-    final resolvedBookingId = await _resolveBookingId(db, data);
-
     final companion = PaymentsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
@@ -742,8 +710,7 @@ class AppwriteDeltaSync {
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       serverPaymentId: _nullableValue<int>(_asInt(data['serverPaymentId'])),
-      // ✅ استخدام resolvedBookingId بدلاً من القيمة المباشرة
-      bookingLocalId: _nullableValue<int>(resolvedBookingId),
+      bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
       serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
       roomNumber: _nullableValue<String>(_asString(data['roomNumber'])),
       amount: d.Value(_asDouble(data['amount'])),
@@ -769,7 +736,6 @@ class AppwriteDeltaSync {
       isVoided: d.Value(_asBool(data['isVoided']) ?? false),
       voidedAt: _nullableValue<int>(_asInt(data['voidedAt'])),
       voidedBy: _nullableValue<String>(_asString(data['voidedBy'])),
-      voidReason: _nullableValue<String>(_asString(data['voidReason'])),  // ✅ استقبال السبب من Appwrite
     );
 
     await db.into(db.payments).insertOnConflictUpdate(companion);
@@ -822,9 +788,6 @@ class AppwriteDeltaSync {
         _asString(data['guestName']) ?? _asString(data['debtorName']);
     if (guestName == null || guestName.isEmpty) return;
 
-    // ✅ حل FK للحجز: UUID → localId → serverId (مثل _applyPaymentChange)
-    final resolvedBookingId = await _resolveBookingId(db, data);
-
     final companion = DebtsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
@@ -832,8 +795,7 @@ class AppwriteDeltaSync {
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
-      // ✅ استخدام resolvedBookingId بدلاً من القيمة المباشرة
-      bookingLocalId: _nullableValue<int>(resolvedBookingId),
+      bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
       guestName: d.Value(guestName),
       checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
       checkoutDate: d.Value(_asString(data['checkoutDate']) ?? ''),
@@ -1078,27 +1040,11 @@ class AppwriteDeltaSync {
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
       employeeId: d.Value(resolvedEmployeeId),
       amount: d.Value(_asDouble(data['amount'])),
-      // ✅ دعم الحقول القديمة: date → withdrawDate
-      withdrawDate: d.Value(
-        _asString(data['withdrawDate']) ??
-        _asString(data['date']) ?? '',
-      ),
-      // ✅ دعم الحقول القديمة: expenseId → reason
-      reason: _nullableValue<String>(
-        _asString(data['reason']) ??
-        _asString(data['expenseId']),
-      ),
+      withdrawDate: d.Value(_asString(data['withdrawDate']) ?? ''),
+      reason: _nullableValue<String>(_asString(data['reason'])),
       hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
-      // ✅ دعم الحقول القديمة: action → withdrawalType
-      withdrawalType: _nullableValue<String>(
-        _asString(data['withdrawalType']) ??
-        _asString(data['action']),
-      ),
-      // ✅ دعم الحقول القديمة: note → description
-      description: _nullableValue<String>(
-        _asString(data['description']) ??
-        _asString(data['note']),
-      ),
+      withdrawalType: _nullableValue<String>(_asString(data['withdrawalType'])),
+      description: _nullableValue<String>(_asString(data['description'])),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
@@ -1125,9 +1071,7 @@ class AppwriteDeltaSync {
   ) async {
     // ✅ حل FK للحجز: UUID → localId → serverId
     final resolvedBookingId = await _resolveBookingId(db, data);
-    // bookingLocalId هو NOT NULL — لا يمكن حفظ يتيم بدون FK
-    // يتم تأجيله في _syncBookingNights للمحاولة لاحقاً
-    if (resolvedBookingId == null) return;
+    if (resolvedBookingId == null) return; // يتيم — تخطي
 
     final now = Time.nowEpoch();
     final createdAt = _asInt(data['createdAt']) ?? now;
@@ -1155,7 +1099,6 @@ class AppwriteDeltaSync {
       nightEnd: d.Value(_asString(data['nightEnd']) ?? ''),
       nightlyRate: d.Value(_asDouble(data['nightlyRate'])),
       sequence: d.Value(_asInt(data['sequence']) ?? 0),
-      // ✅ Cloud default = true لكننا نصر على false كقيمة محلية افتراضية
       isProcessedByAutoFix: d.Value(_asBool(data['isProcessedByAutoFix']) ?? false),
       baseRate: d.Value(_asDouble(data['baseRate'])),
       adjustment: d.Value(_asDouble(data['adjustment'])),
@@ -1344,12 +1287,12 @@ class AppwriteDeltaSync {
   }
 
 
-  /// كشف التعارض باستخدام lastModified فقط: هل يجب تطبيق البيانات البعيدة؟
-  /// lastModified (ساعة الجهاز) يحدد ما إذا كان الجهاز المحلي يحتوي على تعديلات أحدث
+  /// فحص التعارضات: هل يجب تطبيق البيانات البعيدة؟
+  /// يقارن $updatedAt البعيد (من Appwrite) مع lastModified المحلي — الأحدث يفوز
   Future<bool> _shouldApplyRemote(
     String entity,
     String localUuid,
-    int? remoteLastModified,
+    int remoteUpdatedAtSec,
   ) async {
     final db = _database;
     final localLastModified = await _getLocalLastModified(db, entity, localUuid);
@@ -1357,13 +1300,10 @@ class AppwriteDeltaSync {
     // لا يوجد سجل محلي → إدراج آمن
     if (localLastModified == null) return true;
 
-    // لا يوجد lastModified في البيانات البعيدة → نطبق البعيد بحذر
-    if (remoteLastModified == null) return true;
-
     // البيانات المحلية أحدث بفارق > 5 ثوانٍ → تجاهل البعيد (الأحدث أولاً)
     // نستخدم هامش 5 ثوانٍ لتجنب التعارضات في حالات السباق
     const toleranceSeconds = 5;
-    if (localLastModified > remoteLastModified + toleranceSeconds) {
+    if (localLastModified > remoteUpdatedAtSec + toleranceSeconds) {
       return false;
     }
 
@@ -1487,13 +1427,6 @@ class AppwriteDeltaSync {
               ..limit(1))
             .getSingleOrNull();
         return row?.lastModified;
-      case 'blacklist':
-        // القائمة السوداء تُخزن في جدول shift_notes مع createdBy='blacklist'
-        final blRow = await (db.select(db.shiftNotes)
-              ..where((t) => t.localUuid.equals(localUuid))
-              ..limit(1))
-            .getSingleOrNull();
-        return blRow?.lastModified;
       default:
         return null;
     }
@@ -1550,8 +1483,6 @@ class AppwriteDeltaSync {
         return AppwriteConfig.guestInfosCollectionId;
       case 'salary_withdrawals':
         return AppwriteConfig.salaryWithdrawalsCollectionId;
-      case 'blacklist':
-        return AppwriteConfig.blacklistCollectionId;
       default:
         return null;
     }
@@ -1622,118 +1553,6 @@ class AppwriteDeltaSync {
 
   d.Value<T?> _nullableValue<T>(T? value) {
     return value == null ? const d.Value.absent() : d.Value(value);
-  }
-
-  /// تطبيق تغييرات القائمة السوداء (blacklist) — مخزنة في shiftNotes مع createdBy='blacklist'
-  Future<void> _applyBlacklistChange(
-    AppDatabase db,
-    String localUuid,
-    Map<String, dynamic> data,
-  ) async {
-    final name = _asString(data['name']);
-    if (name == null || name.isEmpty) return;
-
-    // تحويل بيانات Appwrite إلى صيغة shift_notes المحلية
-    final content = _encodeBlacklistContent(data);
-
-    // Appwrite blacklist: createdAt/updatedAt/deletedAt هي STRING (ISO)
-    final createdAtIso = _asString(data['createdAt']) ??
-        _asString(data['createdAtIso']) ??
-        DateTime.now().toIso8601String();
-    final updatedAtIso = _asString(data['updatedAt']) ??
-        _asString(data['updatedAtIso']) ??
-        createdAtIso;
-
-    // تحويل ISO إلى epoch seconds
-    int createdAtEpoch;
-    try {
-      createdAtEpoch = DateTime.parse(createdAtIso).millisecondsSinceEpoch ~/ 1000;
-    } catch (_) {
-      createdAtEpoch = Time.nowEpoch();
-    }
-    int updatedAtEpoch;
-    try {
-      updatedAtEpoch = DateTime.parse(updatedAtIso).millisecondsSinceEpoch ~/ 1000;
-    } catch (_) {
-      updatedAtEpoch = Time.nowEpoch();
-    }
-
-    final lastModified = _asInt(data['lastModified']) ?? createdAtEpoch;
-
-    // معالجة الحذف الناعم
-    final deletedAtVal = data['deletedAt'];
-    if (deletedAtVal != null) {
-      int? deletedAtEpoch;
-      final deletedAtStr = _asString(deletedAtVal);
-      if (deletedAtStr != null && deletedAtStr.isNotEmpty) {
-        try {
-          deletedAtEpoch = DateTime.parse(deletedAtStr).millisecondsSinceEpoch ~/ 1000;
-        } catch (_) {
-          deletedAtEpoch = _asInt(deletedAtVal);
-        }
-      } else {
-        deletedAtEpoch = _asInt(deletedAtVal);
-      }
-      if (deletedAtEpoch != null && deletedAtEpoch > 0) {
-        // حذف السجل المحلي
-        final existing = await (db.select(db.shiftNotes)
-              ..where((t) => t.localUuid.equals(localUuid)))
-            .getSingleOrNull();
-        if (existing != null) {
-          await (db.delete(db.shiftNotes)
-                ..where((t) => t.localUuid.equals(localUuid)))
-              .go();
-        }
-        return;
-      }
-    }
-
-    final companion = ShiftNotesCompanion(
-      title: d.Value(name),
-      content: d.Value(content),
-      priority: const d.Value('high'),
-      shiftType: const d.Value('all'),
-      createdAt: d.Value(createdAtEpoch),
-      createdAtIso: d.Value(createdAtIso),
-      updatedAt: d.Value(updatedAtEpoch),
-      lastModified: d.Value(lastModified),
-      expiresAt: const d.Value(null),
-      isRead: const d.Value(0),
-      createdBy: const d.Value('blacklist'),
-      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
-      serverId: _nullableValue<int>(_asInt(data['serverId'])),
-    );
-
-    // upsert: البحث عن سجل موجود بنفس localUuid
-    final existing = await (db.select(db.shiftNotes)
-          ..where((t) => t.localUuid.equals(localUuid)))
-        .getSingleOrNull();
-
-    if (existing != null) {
-      await (db.update(db.shiftNotes)
-            ..where((t) => t.localUuid.equals(localUuid)))
-          .write(companion);
-    } else {
-      await db.into(db.shiftNotes).insert(companion);
-    }
-  }
-
-  /// تحويل محتوى القائمة السوداء إلى JSON string
-  String _encodeBlacklistContent(Map<String, dynamic> data) {
-    final Map<String, dynamic> content = {
-      'nationality': _asString(data['nationality']) ?? '',
-      'nationalId': _asString(data['nationalId']) ?? '',
-      'phone': _asString(data['phone']) ?? '',
-      'reason': _asString(data['reason']) ?? '',
-      'notes': _asString(data['notes']) ?? '',
-      'reportedBy': _asString(data['reportedBy']) ?? 'police',
-      'active': _asBool(data['active']) ?? true,
-    };
-    try {
-      return jsonEncode(content);
-    } catch (_) {
-      return '{}';
-    }
   }
 
   /// حل FK للموظف من البيانات البعيدة: UUID → id → serverId
@@ -1890,19 +1709,6 @@ class AppwriteDeltaSync {
       return int.tryParse(value) ?? double.tryParse(value)?.toInt();
     }
     return null;
-  }
-
-  /// تطبيع epoch timestamp: إذا كانت القيمة بالملي ثانية (> 10^10) تحوّل إلى ثوانٍ
-  /// @[value] epoch timestamp (قد يكون ثوانٍ أو ملي ثانية)
-  /// returns: epoch timestamp بالثواني دائماً
-  int _normalizeEpochToSeconds(int value) {
-    // 10000000000 ثانية = 2286-11-20 — Heuristic: epoch seconds لا تتجاوز هذا
-    // إذا كانت القيمة أكبر، فهي على الأرجح بالملي ثانية
-    const millisThreshold = 10000000000;
-    if (value > millisThreshold) {
-      return value ~/ 1000;
-    }
-    return value;
   }
 
   Future<void> _applyBookingPriceAdjustmentChange(

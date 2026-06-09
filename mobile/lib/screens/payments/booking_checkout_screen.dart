@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../services/central_sync_coordinator.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
@@ -36,13 +35,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   @override
   void initState() {
     super.initState();
-    // ✅ إصلاح: حذف _refreshBookingNights() من initState
-    // كان يعيد حساب الليالي بـ DateTime.now() كل مرة تُفتح فيها الشاشة
-    // مما يغيّر المبلغ الإجمالي والمتبقي للحجوزات النشطة بدون سبب
-    // الآن cached values تتحدث فقط عند:
-    // 1. إضافة/إلغاء دفعة (repository يُسمي refreshForBookingId تلقائياً)
-    // 2. تغير اليوم الفندقي (HotelDayTicker)
-    // 3. سحب الشاشة للأسفل (RefreshIndicator)
+    _refreshBookingNights();
     _startHotelDayAutoRefresh();
   }
 
@@ -76,7 +69,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     DateTime? discountStartDate,
   ) {
     if (discountStartDate == null) {
-      return HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkout);
+      return Time.nightsWithCutoff(checkin, checkout: checkout);
     }
     final discountDayStart = DateTime(
       discountStartDate.year,
@@ -88,20 +81,13 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     if (!checkout.isAfter(effectiveStart)) {
       return 0;
     }
-    return HotelDateHelper.calculateNights(checkIn: effectiveStart, checkOut: checkout);
+    return Time.nightsWithCutoff(effectiveStart, checkout: checkout);
   }
 
   @override
   Widget build(BuildContext context) {
     final paymentsRepo = ref.watch(paymentsRepoProvider);
     final roomsRepo = ref.watch(roomsRepoProvider);
-
-    // ✅ إصلاح: استخدام HotelDateHelper بدلاً من DateTime.now()
-    // لضمان اتساق الحسابات عند إعادة فتح الشاشة
-    // اليوم الفندقي (14:00 -> 14:00) يضمن ثبات الحسابات
-    final now = HotelDateHelper.getHotelDay(DateTime.now());
-    // ignore: unused_local_variable
-    final hotelDayNow = HotelDateHelper.getHotelDayKey();
 
     return wrapWithSyncOnExit(
       child: AppScaffold(
@@ -120,21 +106,20 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             final expectedNights = widget.booking.expectedNights > 0
                 ? widget.booking.expectedNights
                 : (checkin != null
-                      ? HotelDateHelper.calculateNights(
-                          checkIn: checkin,
-                          checkOut: plannedCheckout,
+                      ? Time.nightsWithCutoff(
+                          checkin,
+                          checkout: plannedCheckout,
                         )
                       : 1);
-            // ✅ إصلاح: استخدام تاريخ اليوم الفندقي بدلاً من DateTime.now()
-            // هذا يضمن اتساق الحسابات عند إعادة فتح الشاشة في أوقات مختلفة
-            //Guest who hasn't checked out: use HotelDay for consistent calculations
-            final effectiveCheckout = actualCheckout ?? now;
+            // إذا لم يسجل النزيل خروج، نستخدم الوقت الحالي لحساب الليالي
+            // حتى يتم تطبيق قاعدة الساعة 14:00 (إضافة ليلة إذا تجاوزت الساعة 14)
+            final effectiveCheckout = actualCheckout ?? DateTime.now();
             final hasNotCheckedOut = actualCheckout == null;
             final nowIsAfterCutoff = HotelDateHelper.isNowAfterCutoff();
             final actualNights = checkin != null
-                ? HotelDateHelper.calculateNights(
-                    checkIn: checkin,
-                    checkOut: effectiveCheckout,
+                ? Time.nightsWithCutoff(
+                    checkin,
+                    checkout: effectiveCheckout,
                   )
                 : expectedNights;
 
@@ -159,11 +144,12 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                     ? nights.length
                     : actualNights;
                 final nightTotal = nights.isNotEmpty
-                    ? nights.fold<double>(0, (sum, n) =>
-                        sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate))
+                    // ✅ إصلاح حرج: استخدام finalRate بدلاً من nightlyRate
+                    // finalRate يتضمن تعديلات الأسعار (خصومات/إضافات)
+                    // nightlyRate هو السعر الأساسي بدون تعديلات → يُسبب مبلغ خاطئ عند الخروج
+                    ? nights.fold<double>(0, (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate))
                     : (() {
-                        // ✅ إصلاح: استخدام effectiveCheckout (الذي هو now أو actualCheckout)
-                        final checkout = effectiveCheckout;
+                        final checkout = actualCheckout ?? DateTime.now();
                         if (discount > 0 && discountType == 'per_night' && checkin != null) {
                           final discountedNights = _countNightsWithDiscount(
                             checkin,
@@ -307,9 +293,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                               );
                             }
 
-                            // ✅ استبعاد المدفوعات الملغاة والمعلقة
+                            // ✅ استبعاد المدفوعات الملغاة
                             final totalPaid = payments
-                                .where((p) => !p.isVoided && !p.isPendingBalance)
+                                .where((p) => !p.isVoided)
                                 .fold<double>(
                                   0,
                                   (sum, payment) => sum + payment.amount,
@@ -441,10 +427,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                 widget.booking.id,
                               ),
                               builder: (context, snapshot) {
-                                // ✅ استبعاد المدفوعات الملغاة والمعلقة
+                                // ✅ استبعاد المدفوعات الملغاة
                                 final totalPaid =
                                     snapshot.data
-                                        ?.where((p) => !p.isVoided && !p.isPendingBalance)
+                                        ?.where((p) => !p.isVoided)
                                         .fold<double>(
                                           0,
                                           (sum, payment) => sum + payment.amount,
@@ -524,7 +510,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedMethod,
+                  value: selectedMethod,
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'طريقة الدفع',
@@ -538,7 +524,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedType,
+                  value: selectedType,
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'نوع الإيراد',
@@ -641,7 +627,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
         );
       } finally {
-        setState(() => _isProcessing = false);
+        if (mounted) setState(() => _isProcessing = false);
       }
     }
     } finally {
@@ -687,7 +673,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         final checkin =
             DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
         final nowDate = DateTime.parse(nowIso);
-        final actualNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: nowDate);
+        final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
 
         // استخدام refreshAllRoomOccupancy بدلاً من تحديث يدوي جزئي
         // هذا يضمن تناسق جميع حالات الغرف
@@ -697,19 +683,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           actualCheckout: nowIso,
           calculatedNights: actualNights,
         );
-        // ✅ تحديث الحقول المشتقة بعد تسجيل المغادرة (hotelDayCheckout, cached totals)
-        final db = ref.read(databaseProvider);
-        final derivedService = BookingDerivedFieldsService(db);
-        await derivedService.refreshForBookingId(widget.booking.id);
         // تحديث حالة الغرفة إلى شاغرة عبر المستودع الموحد
         await roomsRepo.refreshAllRoomOccupancy();
         markDataChanged();
-        // ✅ دفع فوري إلى Appwrite (بدون انتظار التايمر الدوري 15 دقيقة)
-        CentralSyncCoordinator.instance.syncNow(
-          push: true,
-          pull: false,
-          reason: 'checkout_complete',
-        );
 
         if (mounted) {
           // ignore: use_build_context_synchronously

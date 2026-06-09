@@ -1,4 +1,4 @@
-import '../utils/app_logger.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -105,7 +105,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
         lastReportSent: lastReportSent,
       );
     } catch (e) {
-      AppLogger.error('خطأ في تهيئة TelegramNotifier: $e');
+      debugPrint('❌ خطأ في تهيئة TelegramNotifier: $e');
     }
   }
 
@@ -171,7 +171,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
         await AlarmBackup.cancelTelegramReportAlarm();
       }
     } catch (e) {
-      AppLogger.warning('خطأ في جدولة إنذار Telegram: $e');
+      debugPrint('⚠️ خطأ في جدولة إنذار Telegram: $e');
     }
     _clearMessageAfterDelay();
   }
@@ -190,7 +190,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
         );
       }
     } catch (e) {
-      AppLogger.warning('خطأ في إعادة جدولة إنذار Telegram: $e');
+      debugPrint('⚠️ خطأ في إعادة جدولة إنذار Telegram: $e');
     }
   }
 
@@ -261,7 +261,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
     try {
       return await _reports.sendDailyReport();
     } catch (e) {
-      AppLogger.error('خطأ في إرسال التقرير اليومي: $e');
+      debugPrint('❌ خطأ في إرسال التقرير اليومي: $e');
       return false;
     }
   }

@@ -38,7 +38,7 @@ class FcmService {
       // 3. الحصول على التوكن
       _currentToken = await _getToken();
       if (_currentToken != null) {
-        AppLogger.info('FCM token obtained: ${_currentToken!.substring(0, 20)}...');
+        debugPrint('✅ FCM token obtained: ${_currentToken!.substring(0, 20)}...');
 
         // 4. حفظ التوكن في SharedPreferences
         final prefs = await SharedPreferences.getInstance();
@@ -47,7 +47,7 @@ class FcmService {
 
       // 5. الاستماع لتغيير التوكن — حفظ الاشتراك لإلغائه عند التنظيف
       _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((newToken) async {
-        AppLogger.debug('FCM token refreshed');
+        debugPrint('🔄 FCM token refreshed');
         _currentToken = newToken;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('fcm_token', newToken);
@@ -67,9 +67,9 @@ class FcmService {
       //    لتجنب تكرار الطلب
 
       _isInitialized = true;
-      AppLogger.info('FCM Service initialized');
+      debugPrint('✅ FCM Service initialized');
     } catch (e) {
-      AppLogger.warning('FCM initialization error: $e');
+      debugPrint('⚠️ FCM initialization error: $e');
       // لا نمنع التطبيق من العمل إذا فشل FCM
     }
   }
@@ -88,7 +88,7 @@ class FcmService {
     }
 
     final settings = await _messaging.getNotificationSettings();
-    AppLogger.debug('FCM notification settings: ${settings.authorizationStatus}');
+    debugPrint('📱 FCM notification settings: ${settings.authorizationStatus}');
   }
 
   /// الحصول على توكن FCM الحالي
@@ -106,7 +106,7 @@ class FcmService {
       }
       return token;
     } catch (e) {
-      AppLogger.warning('Failed to get FCM token: $e');
+      debugPrint('⚠️ Failed to get FCM token: $e');
       return null;
     }
   }
@@ -164,7 +164,7 @@ class FcmService {
 
   /// تشغيل سحب التغييرات من Appwrite
   Future<void> _triggerPull() async {
-    AppLogger.debug('FCM: triggering pull from Appwrite...');
+    debugPrint('🔄 FCM: triggering pull from Appwrite...');
 
     // إشعار Realtime بانتظار تغييرات
     try {
@@ -180,10 +180,10 @@ class FcmService {
       final syncManager = _getSyncManager();
       if (syncManager != null) {
         await syncManager.sync(push: false);
-        AppLogger.info('FCM: pull completed');
+        debugPrint('✅ FCM: pull completed');
       }
     } catch (e) {
-      AppLogger.warning('FCM: pull error: $e');
+      debugPrint('⚠️ FCM: pull error: $e');
     }
   }
 
@@ -242,7 +242,7 @@ class FcmService {
     _onMessageOpenedAppSubscription = null;
     _currentToken = null;
     _isInitialized = false;
-    AppLogger.error('FCM Service disposed');
+    debugPrint('🛑 FCM Service disposed');
   }
 
   /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)

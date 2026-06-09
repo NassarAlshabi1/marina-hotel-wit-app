@@ -15,7 +15,8 @@ class SalaryEntitlementsScreen extends ConsumerStatefulWidget {
 }
 
 class _SalaryEntitlementsScreenState
-    extends ConsumerState<SalaryEntitlementsScreen> {
+    extends ConsumerState<SalaryEntitlementsScreen>
+    with WidgetsBindingObserver {
   late SalaryEntitlementService _service;
   List<SalaryEntitlement> _entitlements = [];
   Map<String, dynamic> _summary = {};
@@ -24,8 +25,23 @@ class _SalaryEntitlementsScreenState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _service = SalaryEntitlementService(DatabaseManager.instance);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // ✅ تحديث تلقائي عند العودة للتطبيق
+    if (state == AppLifecycleState.resumed) {
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {
@@ -106,18 +122,32 @@ class _SalaryEntitlementsScreenState
             ),
             _row(
               'إجمالي السحبيات',
-              CurrencyFormatter.formatAmount((_summary['totalWithdrawals'] as num?)?.toDouble() ?? 0.0),
+              CurrencyFormatter.formatAmount(
+                (_summary['totalWithdrawals'] as num?)?.toDouble() ?? 0.0,
+              ),
               Colors.orange,
+            ),
+            // ✅ إضافة: إجمالي السلف
+            _row(
+              'إجمالي السلف',
+              CurrencyFormatter.formatAmount(
+                (_summary['totalAdvances'] as num?)?.toDouble() ?? 0.0,
+              ),
+              Colors.indigo,
             ),
             _row(
               'إجمالي الخصومات',
-              CurrencyFormatter.formatAmount((_summary['totalDeductions'] as num?)?.toDouble() ?? 0.0),
+              CurrencyFormatter.formatAmount(
+                (_summary['totalDeductions'] as num?)?.toDouble() ?? 0.0,
+              ),
               Colors.red,
             ),
             const Divider(),
             _row(
               'صافي المستحقات',
-              CurrencyFormatter.formatAmount((_summary['totalNet'] as num?)?.toDouble() ?? 0.0),
+              CurrencyFormatter.formatAmount(
+                (_summary['totalNet'] as num?)?.toDouble() ?? 0.0,
+              ),
               Colors.blue.shade700,
               true,
             ),
@@ -187,6 +217,18 @@ class _SalaryEntitlementsScreenState
                   '- ${CurrencyFormatter.formatAmount(ent.totalWithdrawals)}',
                   Colors.orange,
                 ),
+                // ✅ إضافة: السلف مع رصيد متبقي
+                _row(
+                  'السلف',
+                  '- ${CurrencyFormatter.formatAmount(ent.totalAdvances)}',
+                  Colors.indigo,
+                ),
+                if (ent.totalAdvances > 0)
+                  _row(
+                    'رصيد السلف المتبقي',
+                    CurrencyFormatter.formatAmount(ent.advanceBalance),
+                    ent.advanceBalance > 0 ? Colors.indigo.shade300 : Colors.grey,
+                  ),
                 _row(
                   'الخصومات',
                   '- ${CurrencyFormatter.formatAmount(ent.totalDeductions)}',
@@ -205,47 +247,91 @@ class _SalaryEntitlementsScreenState
                     alignment: Alignment.centerRight,
                     child: Text(
                       'آخر المعاملات:',
-                      style: TextStyle(fontSize: 12),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  ...ent.transactions
-                      .take(5)
-                      .map(
-                        (tx) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Row(
-                            children: [
-                              Text(
-                                tx.type,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: tx.type == 'سحب'
-                                      ? Colors.orange
-                                      : Colors.red,
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                CurrencyFormatter.formatAmount(tx.amount),
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                tx.date.length > 10
-                                    ? tx.date.substring(0, 10)
-                                    : tx.date,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                  const SizedBox(height: 4),
+                  ...ent.transactions.take(8).map(_buildTransactionRow),
                 ],
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ✅ تحسين: عرض المعاملة بالفئة والوصف واللون المناسب
+  Widget _buildTransactionRow(SalaryTransaction tx) {
+    final Color typeColor;
+    final IconData typeIcon;
+    switch (tx.type) {
+      case 'سلفة':
+        typeColor = Colors.indigo;
+        typeIcon = Icons.account_balance_wallet;
+        break;
+      case 'سحب':
+        typeColor = Colors.orange;
+        typeIcon = Icons.payments;
+        break;
+      case 'خصم':
+        typeColor = Colors.red;
+        typeIcon = Icons.remove_circle_outline;
+        break;
+      default:
+        typeColor = Colors.grey;
+        typeIcon = Icons.circle;
+    }
+
+    final dateStr = tx.date.length > 10 ? tx.date.substring(0, 10) : tx.date;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          // أيقونة النوع
+          Icon(typeIcon, size: 12, color: typeColor),
+          const SizedBox(width: 4),
+          // الفئة (سحب راتب / سلفة / خصم / غياب)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            decoration: BoxDecoration(
+              color: typeColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              tx.category ?? tx.type,
+              style: TextStyle(fontSize: 9, color: typeColor, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: 6),
+          // الوصف
+          Expanded(
+            child: Text(
+              tx.note ?? '',
+              style: const TextStyle(fontSize: 10, color: Colors.black87),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+          const SizedBox(width: 4),
+          // المبلغ
+          Text(
+            CurrencyFormatter.formatAmount(tx.amount),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: typeColor,
+            ),
+          ),
+          const SizedBox(width: 6),
+          // التاريخ
+          Text(
+            dateStr,
+            style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
           ),
         ],
       ),

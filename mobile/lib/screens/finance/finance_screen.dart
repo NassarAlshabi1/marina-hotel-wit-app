@@ -28,6 +28,25 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   String get screenId => 'finance';
   bool _isSavingPayment = false;
 
+  /// ✅ إصلاح: استخراج الوقت من سلسلة تاريخ بأي صيغة (ISO أو SQL)
+  /// بدلاً من split(' ').last.substring(0, 5) الذي يفشل مع صيغة ISO
+  String _extractTime(String dateStr) {
+    try {
+      final normalized = dateStr.contains('T')
+          ? dateStr
+          : dateStr.replaceFirst(' ', 'T');
+      final dt = DateTime.parse(normalized);
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      // Fallback: محاولة split على المسافة
+      final parts = dateStr.split(' ');
+      if (parts.length >= 2 && parts.last.length >= 5) {
+        return parts.last.substring(0, 5);
+      }
+      return '--:--';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return wrapWithSyncOnExit(
@@ -436,9 +455,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           else
             ...sortedKeys.map((key) {
               final groupPayments = grouped[key]!;
-              final total = groupPayments
-                  .where((p) => !p.isVoided && !p.isPendingBalance)
-                  .fold<double>(
+              final total = groupPayments.fold<double>(
                 0, (s, p) => s + p.amount,
               );
               final isOther = key == '__other__';
@@ -521,8 +538,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  // ✅ إصلاح: تحليل التاريخ بشكل صحيح بدلاً من split(' ')
+                  // التاريخ قد يكون بصيغة ISO (2025-06-15T14:30:00) بدون مسافة
                   Text(
-                    p.paymentDate.split(' ').last.substring(0, 5), // Time only HH:mm
+                    _extractTime(p.paymentDate),
                     style: TextStyle(fontSize: 8, color: Colors.grey.shade500),
                   ),
                 ],
@@ -531,7 +550,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           else
             Expanded(
               child: Text(
-                p.paymentDate.split(' ').last.substring(0, 5), // Time only HH:mm
+                // ✅ إصلاح: تحليل التاريخ بشكل صحيح بدلاً من split(' ')
+                _extractTime(p.paymentDate),
                 style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
               ),
             ),
@@ -813,7 +833,11 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           ),
         ),
       ),
-    );
+    ).then((_) {
+      amountController.dispose();
+      notesController.dispose();
+      referenceController.dispose();
+    });
   }
 
   Future<void> _saveStandalonePayment(

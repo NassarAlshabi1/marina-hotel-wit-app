@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
-import '../../utils/hotel_date_helper.dart';
 
 class CreateDebtFromBookingScreen extends ConsumerStatefulWidget {
   const CreateDebtFromBookingScreen({super.key});
@@ -122,7 +121,7 @@ class _CreateDebtFromBookingScreenState
                 const Text('اختر الحجز', style: _titleStyle),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Booking>(
-                  initialValue: _selectedBooking,
+                  value: bookings.contains(_selectedBooking) ? _selectedBooking : null,
                   isExpanded: true,
                   style: _fieldStyle.copyWith(color: dropdownColor),
                   decoration: const InputDecoration(
@@ -311,35 +310,15 @@ class _CreateDebtFromBookingScreenState
 
     try {
       final booking = _selectedBooking!;
-      final nights = HotelDateHelper.calculateNights(checkIn: _fromDate, checkOut: _toDate);
+      final nights = _toDate.difference(_fromDate).inDays;
       if (nights <= 0) {
         _showError('فترة غير صالحة');
         return;
       }
 
-      // حساب السعر الفعلي لليلة مع مراعاة الخصم
-      // نستخدم السعر من الغرفة عبر قاعدة البيانات مباشرة
-      final db = ref.read(databaseProvider);
-      final room = await (db.select(db.rooms)
-            ..where((r) => r.roomNumber.equals(booking.roomNumber))
-            ..where((r) => r.deletedAt.isNull()))
-          .getSingleOrNull();
-      final roomPrice = room?.price ?? 0.0;
-      final discount = booking.discount;
-      final double nightlyRate;
-      if (discount > 0 && booking.discountType == 'per_night') {
-        nightlyRate = (roomPrice - discount).clamp(0.0, roomPrice);
-      } else if (discount > 0 && booking.discountType == 'total' && booking.totalNightsCached > 0) {
-        // خصم إجمالي: نوزعه على الليالي للحصول على متوسط السعر بعد الخصم
-        final totalBeforeDiscount = roomPrice * booking.totalNightsCached;
-        final totalAfterDiscount = (totalBeforeDiscount - discount).clamp(0.0, totalBeforeDiscount);
-        nightlyRate = totalAfterDiscount / booking.totalNightsCached;
-      } else if (booking.totalNightsCached > 0) {
-        // لا خصم — نستخدم متوسط السعر المخزن
-        nightlyRate = booking.totalDueCached / booking.totalNightsCached;
-      } else {
-        nightlyRate = roomPrice;
-      }
+      final nightlyRate = booking.totalNightsCached > 0
+          ? booking.totalDueCached / booking.totalNightsCached
+          : 0.0;
 
       final total = nightlyRate * nights;
       final paid = booking.totalPaidCached;

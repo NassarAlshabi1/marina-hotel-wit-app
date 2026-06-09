@@ -31,10 +31,10 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.deletedAt.isNull());
     }
     if (excludeVoided) {
-      q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
+      q.where((t) => t.isVoided.equals(false));
     }
     if (excludePendingBalance) {
-      q.where((t) => t.isPendingBalance.equals(false) | t.isPendingBalance.isNull());
+      q.where((t) => t.isPendingBalance.equals(false));
     }
     if (bookingLocalId != null) {
       q.where((t) => t.bookingLocalId.equals(bookingLocalId));
@@ -45,8 +45,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (from != null && to != null) {
       q.where(
         (t) =>
-            t.paymentDate.isBiggerOrEqual(Variable(from)) &
-            t.paymentDate.isSmallerOrEqual(Variable(to)),
+            t.paymentDate.isBiggerOrEqualValue(from) &
+            t.paymentDate.isSmallerOrEqualValue(to),
       );
     }
     q.orderBy([
@@ -66,14 +66,14 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.deletedAt.isNull());
     }
     // استبعاد المدفوعات المُلغاة والمعلقة من التقارير المالية
-    q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
-    q.where((t) => t.isPendingBalance.equals(false) | t.isPendingBalance.isNull());
+    q.where((t) => t.isVoided.equals(false));
+    q.where((t) => t.isPendingBalance.equals(false));
 
     if (from != null && to != null) {
       q.where(
         (t) =>
-            t.paymentDate.isBiggerOrEqual(Variable(from)) &
-            t.paymentDate.isSmallerOrEqual(Variable(to)),
+            t.paymentDate.isBiggerOrEqualValue(from) &
+            t.paymentDate.isSmallerOrEqualValue(to),
       );
     }
 
@@ -113,7 +113,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     final q = select(payments);
     q.where((t) => t.deletedAt.isNull());
     if (!includeVoided) {
-      q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
+      q.where((t) => t.isVoided.equals(false));
     }
     // حالة 1: hotelDayKey يطابق اليوم
     q.where(
@@ -136,9 +136,65 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.deletedAt.isNull());
     }
     if (!includeVoided) {
-      q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
+      q.where((t) => t.isVoided.equals(false));
     }
     q.where((t) => t.paymentDate.like('$date%'));
+    return q.get();
+  }
+
+  /// فلترة حسب نطاق الأيام الفندقية — الطريقة الصحيحة للتقارير
+  ///
+  /// على عكس [list] و [listForReport] التي تفلتر بحقل [paymentDate] الزمني
+  /// (وتشمل مدفوعات الصباح التي تنتمي لليوم الفندقي السابق)،
+  /// هذه الدالة تفلتر بحقل [hotelDayKey] وهو المفتاح الصحيح.
+  ///
+  /// مثال: إذا كان اليوم الفندقي "2026-05-18" والوقت 10:00 صباحاً
+  /// فإن list(from:"2026-05-18") تجلب مدفوعات صباح 18 مايو
+  /// التي تنتمي لليوم الفندقي 17 مايو — بينما هذه الدالة تجلب فقط
+  /// المدفوعات التي hotelDayKey فيها بين fromHotelDay و toHotelDay.
+  Future<List<Payment>> listFilteredByHotelDay({
+    String? fromHotelDay,
+    String? toHotelDay,
+    String? roomNumber,
+    String? revenueType,
+    bool excludeVoided = false,
+    bool excludePendingBalance = false,
+    bool includeDeleted = false,
+  }) async {
+    final q = select(payments);
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+    if (excludeVoided) {
+      q.where((t) => t.isVoided.equals(false));
+    }
+    if (excludePendingBalance) {
+      q.where((t) => t.isPendingBalance.equals(false));
+    }
+    if (fromHotelDay != null) {
+      // hotelDayKey >= fromHotelDay، مع fallback لحقل paymentDate عند كون hotelDayKey فارغاً
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.paymentDate.isBiggerOrEqualValue(fromHotelDay)));
+    }
+    if (toHotelDay != null) {
+      q.where((t) =>
+          (t.hotelDayKey.isNotNull() &
+              t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.paymentDate.isSmallerOrEqualValue(toHotelDay)));
+    }
+    if (roomNumber != null && roomNumber.isNotEmpty) {
+      q.where((t) => t.roomNumber.equals(roomNumber));
+    }
+    if (revenueType != null && revenueType.isNotEmpty) {
+      q.where((t) => t.revenueType.equals(revenueType));
+    }
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+    ]);
     return q.get();
   }
 
@@ -153,7 +209,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.deletedAt.isNull());
     }
     if (!includeVoided) {
-      q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
+      q.where((t) => t.isVoided.equals(false));
     }
 
     final byKey = payments.hotelDayKey.equals(hotelDayKey);
@@ -167,54 +223,6 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.revenueType.equals(revenueType));
     }
 
-    return q.get();
-  }
-
-  /// فلترة المدفوعات بنطاق hotelDayKey مع استبعاد الملغاة والمعلقة
-  /// يُستخدم في شاشات التقارير لضمان دقة الفلترة الفندقية
-  Future<List<Payment>> listFilteredByHotelDay({
-    String? fromHotelDay,
-    String? toHotelDay,
-    bool excludeVoided = false,
-    bool excludePendingBalance = false,
-    String? roomNumber,
-  }) async {
-    final q = select(payments);
-    q.where((t) => t.deletedAt.isNull());
-    if (excludeVoided) {
-      q.where((t) => t.isVoided.equals(false) | t.isVoided.isNull());
-    }
-    if (excludePendingBalance) {
-      q.where((t) => t.isPendingBalance.equals(false) | t.isPendingBalance.isNull());
-    }
-
-    // ✅ إصلاح خارق: فلترة بنطاق hotelDayKey مع fallback لحقل paymentDate
-    // إضافة like ('$fromHotelDay%') للمقارنة لأن paymentDate قد يحتوي على وقت
-    // مثل "2026-05-18 10:30:00" والمقارنة النصية <= "2026-05-18" تُعطي FALSE
-    if (fromHotelDay != null) {
-      q.where((t) =>
-          (t.hotelDayKey.isNotNull() &
-              t.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay))) |
-          (t.hotelDayKey.isNull() &
-              (t.paymentDate.isBiggerOrEqual(Variable(fromHotelDay)) |
-               t.paymentDate.like('$fromHotelDay%'))));
-    }
-    if (toHotelDay != null) {
-      q.where((t) =>
-          (t.hotelDayKey.isNotNull() &
-              t.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay))) |
-          (t.hotelDayKey.isNull() &
-              (t.paymentDate.isSmallerOrEqual(Variable(toHotelDay)) |
-               t.paymentDate.like('$toHotelDay%'))));
-    }
-
-    if (roomNumber != null && roomNumber.isNotEmpty) {
-      q.where((t) => t.roomNumber.equals(roomNumber));
-    }
-
-    q.orderBy([
-      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
-    ]);
     return q.get();
   }
 
@@ -360,43 +368,46 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد المدفوعات من JSON
+  /// ✅ إصلاح حرج: تغليف العملية بالكامل في transaction لمنع فقدان البيانات
   Future<void> importFromJson(
     List<Map<String, dynamic>> data, {
     bool clearExisting = false,
   }) async {
-    if (clearExisting) {
-      await delete(payments).go();
-    }
+    await transaction(() async {
+      if (clearExisting) {
+        await delete(payments).go();
+      }
 
-    for (final paymentJson in data) {
-      final payment = Payment.fromJson(paymentJson);
-      await into(payments).insertOnConflictUpdate(
-        PaymentsCompanion(
-          serverPaymentId: Value(payment.serverPaymentId),
-          bookingLocalId: Value(payment.bookingLocalId),
-          serverBookingId: Value(payment.serverBookingId),
-          roomNumber: Value(payment.roomNumber),
-          amount: Value(payment.amount),
-          paymentDate: Value(payment.paymentDate),
-          notes: Value(payment.notes),
-          paymentMethod: Value(payment.paymentMethod),
-          revenueType: Value(payment.revenueType),
-          hotelDayKey: Value(payment.hotelDayKey),
-          linkedDebtUuid: Value(payment.linkedDebtUuid),
-          bookingUuidCache: Value(payment.bookingUuidCache),
-          cashTransactionLocalId: Value(payment.cashTransactionLocalId),
-          cashTransactionServerId: Value(payment.cashTransactionServerId),
-          localUuid: Value(payment.localUuid),
-          serverId: Value(payment.serverId),
-          createdAt: Value(payment.createdAt),
-          updatedAt: Value(payment.updatedAt),
-          deletedAt: Value(payment.deletedAt),
-          lastModified: Value(payment.lastModified),
-          version: Value(payment.version),
-          origin: Value(payment.origin),
-        ),
-      );
-    }
+      for (final paymentJson in data) {
+        final payment = Payment.fromJson(paymentJson);
+        await into(payments).insertOnConflictUpdate(
+          PaymentsCompanion(
+            serverPaymentId: Value(payment.serverPaymentId),
+            bookingLocalId: Value(payment.bookingLocalId),
+            serverBookingId: Value(payment.serverBookingId),
+            roomNumber: Value(payment.roomNumber),
+            amount: Value(payment.amount),
+            paymentDate: Value(payment.paymentDate),
+            notes: Value(payment.notes),
+            paymentMethod: Value(payment.paymentMethod),
+            revenueType: Value(payment.revenueType),
+            hotelDayKey: Value(payment.hotelDayKey),
+            linkedDebtUuid: Value(payment.linkedDebtUuid),
+            bookingUuidCache: Value(payment.bookingUuidCache),
+            cashTransactionLocalId: Value(payment.cashTransactionLocalId),
+            cashTransactionServerId: Value(payment.cashTransactionServerId),
+            localUuid: Value(payment.localUuid),
+            serverId: Value(payment.serverId),
+            createdAt: Value(payment.createdAt),
+            updatedAt: Value(payment.updatedAt),
+            deletedAt: Value(payment.deletedAt),
+            lastModified: Value(payment.lastModified),
+            version: Value(payment.version),
+            origin: Value(payment.origin),
+          ),
+        );
+      }
+    });
   }
 
   /// الحصول على عدد السجلات
@@ -404,85 +415,6 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     final query = selectOnly(payments)..addColumns([payments.id.count()]);
     final result = await query.getSingle();
     return result.read(payments.id.count()) ?? 0;
-  }
-
-  /// ✅ إصلاح: إضافة دالة لإلغاء المدفوعات (void payment)
-  /// تُستخدم لإلغاء مدفوعة مع_reason ولضمان عدم احتسابها في التقارير
-  Future<int> voidPayment(
-    int id,
-    String reason, {
-    bool originIsServer = false,
-  }) async {
-    return db.transaction(() async {
-      final now = Time.nowEpoch();
-      final existing = await getById(id);
-      if (existing == null) {
-        return 0;
-      }
-      if (existing.isVoided) {
-        return 0; // Already voided
-      }
-
-      final comp = PaymentsCompanion(
-        isVoided: const Value(true),
-        voidedAt: Value(now),
-        voidReason: Value(reason),  // ✅ حفظ السبب منفصلاً للمزامنة
-        voidedBy: Value(existing.voidedBy),  // ✅ إضافة voidedBy
-        notes: existing.notes != null
-            ? Value('${existing.notes}\n[ملغاة]: $reason')
-            : Value('[ملغاة]: $reason'),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-        version: Value(existing.version + 1),
-      );
-
-      final rows = await (update(payments)..where((t) => t.id.equals(id))).write(comp);
-
-      if (rows > 0 && !originIsServer) {
-        await _mergeOutbox(
-          op: 'update',
-          localUuid: existing.localUuid,
-          serverId: existing.serverId,
-          clientTs: now,
-        );
-      }
-      return rows;
-    });
-  }
-
-  /// ✅ إصلاح: إضافة دالة لاستعادة المدفوعات الملغاة (unvoid)
-  Future<int> unvoidPayment(int id, {bool originIsServer = false}) async {
-    return db.transaction(() async {
-      final now = Time.nowEpoch();
-      final existing = await getById(id);
-      if (existing == null) {
-        return 0;
-      }
-      if (!existing.isVoided) {
-        return 0; // Not voided
-      }
-
-      final comp = PaymentsCompanion(
-        isVoided: const Value(false),
-        voidedAt: const Value(null),
-        voidReason: const Value(null),  // ✅ مسح السبب عند الاستعادة
-        updatedAt: Value(now),
-        lastModified: Value(now),
-        version: Value(existing.version + 1),
-      );
-
-      final rows = await (update(payments)..where((t) => t.id.equals(id))).write(comp);
-
-      if (rows > 0 && !originIsServer) {
-        await _mergeOutbox(
-          op: 'update',
-          localUuid: existing.localUuid,
-          serverId: existing.serverId,
-          clientTs: now,
-        );
-      }
-      return rows;
-    });
   }
 
   /// مسح جميع البيانات

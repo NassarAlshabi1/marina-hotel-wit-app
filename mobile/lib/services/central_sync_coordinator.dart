@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 
 import 'unified_sync_orchestrator.dart';
 
@@ -21,7 +20,7 @@ class CentralSyncCoordinator {
   static const Duration syncCooldown = Duration(seconds: 10);
 
   void notifyLocalChange({required String table, required String operation}) {
-    AppLogger.info('CentralSyncCoordinator: تغيير في $table ($operation)');
+    debugPrint('🔔 CentralSyncCoordinator: تغيير في $table ($operation)');
 
     _debounceTimer?.cancel();
     _debounceTimer = Timer(unifiedDebounce, () async {
@@ -84,14 +83,14 @@ class CentralSyncCoordinator {
 
       if (success) {
         _lastSyncTime = DateTime.now();
-        AppLogger.info('[$_syncCount] المزامنة نجحت: $reason');
+        debugPrint('✅ [$_syncCount] المزامنة نجحت: $reason');
       } else {
-        AppLogger.error('[$_syncCount] المزامنة فشلت: $reason');
+        debugPrint('❌ [$_syncCount] المزامنة فشلت: $reason');
       }
 
       return success;
     } catch (e, stackTrace) {
-      AppLogger.error('[$_syncCount] خطأ في المزامنة: $e');
+      debugPrint('❌ [$_syncCount] خطأ في المزامنة: $e');
       debugPrint('Stack trace: $stackTrace');
       return false;
     } finally {

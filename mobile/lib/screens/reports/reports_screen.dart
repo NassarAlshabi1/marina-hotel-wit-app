@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide Column;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,11 +34,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   Map<String, dynamic>? _cachedFinancials;
   bool _loading = true;
   String? _loadError;
-
-  // ═══════════════════════════════════════════════════════════════
-  // ✅ إصلاح خارق: تتبع آخر 7 أيام فندقية للرسوم البيانية
-  // ═══════════════════════════════════════════════════════════════
-  List<String> _last7HotelDays = [];
 
   /// RefreshableObject flag — للتحكم بإعادة التحميل
   @override
@@ -83,24 +79,33 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           if (!force && _cachedFinancials != null) {
             return _cachedFinancials!;
           }
-          final allPayments = await db.select(db.payments).get();
+          // ✅ إصلاح: فلترة المدفوعات باليوم الفندقي الحالي بدلاً من كل المدفوعات
+          //以前: كان يجلب كل المدفوعات ويجمعها بدون فلترة تاريخ
+          // الآن: يعرض فقط إيرادات ومصروفات اليوم الفندقي الحالي
+          final hotelDay = HotelTimeEngine.getHotelDayKey();
+
+          // المدفوعات: فلترة بـ hotelDayKey
+          final paymentsQuery = db.select(db.payments)
+            ..where((p) => p.deletedAt.isNull())
+            ..where((p) => p.isVoided.equals(false))
+            ..where((p) =>
+                p.hotelDayKey.equals(hotelDay) |
+                (p.hotelDayKey.isNull() & p.paymentDate.like('$hotelDay%')));
+          final todayPayments = await paymentsQuery.get();
           double income = 0;
-          for (final p in allPayments) {
-            if (p.deletedAt != null) {
-              continue;
-            }
-            if (p.isVoided == true) {
-              continue;
-            }
+          for (final p in todayPayments) {
             income += p.amount;
           }
-          final expenses = await db.select(db.expenses).get();
+
+          // المصروفات: فلترة بـ hotelDayKey
+          final expensesQuery = db.select(db.expenses)
+            ..where((e) => e.deletedAt.isNull())
+            ..where((e) =>
+                e.hotelDayKey.equals(hotelDay) |
+                (e.hotelDayKey.isNull() & e.date.like('$hotelDay%')));
+          final todayExpenses = await expensesQuery.get();
           double expense = 0;
-          for (final e in expenses) {
-            // تجاهل المصروفات المحذوفة ناعماً
-            if (e.deletedAt != null) {
-              continue;
-            }
+          for (final e in todayExpenses) {
             expense += e.amount;
           }
           final result = {'income': income, 'expense': expense};
@@ -110,57 +115,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         recordsProcessed: 1,
       );
 
-      // 3. ✅ إصلاح خارق: حساب آخر 7 أيام فندقية
-      _last7HotelDays = [];
-      final now = DateTime.now();
-      for (int i = 6; i >= 0; i--) {
-        final day = now.subtract(Duration(days: i));
-        _last7HotelDays.add(HotelTimeEngine.getHotelDayKey(dateTime: day));
-      }
-
-      // 4. ✅ إصلاح: بناء الرسم البياني للإشغال اليومي بأيام حقيقية
-      //    + إصلاح status casting (null safety)
-      final Map<String, int> dailyOccupancy = {};
-      for (final hotelDay in _last7HotelDays) {
-        dailyOccupancy[hotelDay] = 0;
-      }
-
-      // حساب الإشغال لكل يوم فندقي من الحجوزات النشطة
-      final allBookings = await db.select(db.bookings).get();
-      final activeStatuses = StatusUtils.activeBookingStatuses;
-
-      for (final booking in allBookings) {
-        if (booking.deletedAt != null) continue;
-        final status = booking.status;
-        if (!activeStatuses.contains(status) && !StatusUtils.isActiveBooking(status)) {
-          continue;
-        }
-
-        // فحص إذا كان الحجز نشطاً في أي يوم من الأيام السبعة
-        final checkin = _parseHotelDate(booking.checkinDate);
-        final checkout = _parseHotelDate(booking.checkoutDate);
-
-        for (final hotelDay in _last7HotelDays) {
-          final dayDate = DateTime.parse(hotelDay);
-          if (!dayDate.isBefore(checkin) && dayDate.isBefore(checkout.add(const Duration(days: 1)))) {
-            dailyOccupancy[hotelDay] = (dailyOccupancy[hotelDay] ?? 0) + 1;
-          }
-        }
-      }
-
+      // 3. بناء الرسوم البيانية
       final total = rooms.isEmpty ? 1 : rooms.length;
-      final daily = <BarChartGroupData>[];
-      for (int i = 0; i < _last7HotelDays.length; i++) {
-        final hotelDay = _last7HotelDays[i];
-        final occupiedCount = dailyOccupancy[hotelDay] ?? 0;
-        final occ = (occupiedCount * 100 / total).round().toDouble();
-        daily.add(
-          BarChartGroupData(
-            x: i,
-            barRods: [BarChartRodData(toY: occ, color: Colors.teal)],
-          ),
+
+      final daily = List.generate(7, (i) {
+        final busy =
+            rooms.where((r) => StatusUtils.isRoomOccupied(r.status as String)).length;
+        final occ = (busy * 100 / total).round().toDouble();
+        return BarChartGroupData(
+          x: i,
+          barRods: [BarChartRodData(toY: occ, color: Colors.teal)],
         );
-      }
+      });
 
       final revExp = [
         BarChartGroupData(
@@ -173,27 +139,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ),
       ];
 
-      // 5. ✅ إصلاح: أعلى الغرف إشغالاً - حساب حقيقي
-      final Map<String, int> roomOccupancyCount = {};
-      for (final booking in allBookings) {
-        if (booking.deletedAt != null) continue;
-        final status = booking.status;
-        if (!StatusUtils.isActiveBooking(status)) continue;
-
-        final room = booking.roomNumber;
-        if (room.isNotEmpty) {
-          roomOccupancyCount[room] = (roomOccupancyCount[room] ?? 0) + 1;
-        }
-      }
-
-      // ترتيب الغرف حسب الإشغال
-      final sortedRooms = roomOccupancyCount.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
-      final topRooms = sortedRooms.take(5).toList();
+      final topRooms = rooms.take(5).toList();
       final topBars = <BarChartGroupData>[];
-      final maxCount = sortedRooms.isEmpty ? 1 : sortedRooms.first.value;
       for (var i = 0; i < topRooms.length; i++) {
-        final v = (topRooms[i].value / maxCount) * 100;
+        final r = topRooms[i];
+        final v = StatusUtils.isRoomOccupied(r.status as String) ? 100.0 : 20.0;
         topBars.add(
           BarChartGroupData(
             x: i,
@@ -418,41 +368,60 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
-  /// ملخص مالي سريع (إيرادات - مصروفات - صافي)
+  /// ملخص مالي سريع (إيرادات - مصروفات - صافي) لليوم الفندقي الحالي
   Widget _buildQuickFinancialSummary() {
     final income = (_chartData['income'] as num?)?.toDouble() ?? 0;
     final expense = (_chartData['expense'] as num?)?.toDouble() ?? 0;
     final net = income - expense;
+    // عرض تاريخ اليوم الفندقي الحالي
+    final hotelDay = HotelTimeEngine.getHotelDayKey();
 
     return Card(
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              child: _buildFinIndicator(
-                'الإيرادات',
-                income,
-                Colors.green,
-              ),
+            // عنوان اليوم الفندقي
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.today, size: 12, color: Colors.grey.shade500),
+                const SizedBox(width: 4),
+                Text(
+                  'اليوم الفندقي: $hotelDay',
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500, fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
-            Container(width: 1, height: 36, color: Colors.grey.shade200),
-            Expanded(
-              child: _buildFinIndicator(
-                'المصروفات',
-                expense,
-                Colors.red,
-              ),
-            ),
-            Container(width: 1, height: 36, color: Colors.grey.shade200),
-            Expanded(
-              child: _buildFinIndicator(
-                'صافي',
-                net,
-                net >= 0 ? Colors.teal : Colors.orange,
-              ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildFinIndicator(
+                    'الإيرادات',
+                    income,
+                    Colors.green,
+                  ),
+                ),
+                Container(width: 1, height: 36, color: Colors.grey.shade200),
+                Expanded(
+                  child: _buildFinIndicator(
+                    'المصروفات',
+                    expense,
+                    Colors.red,
+                  ),
+                ),
+                Container(width: 1, height: 36, color: Colors.grey.shade200),
+                Expanded(
+                  child: _buildFinIndicator(
+                    'صافي',
+                    net,
+                    net >= 0 ? Colors.teal : Colors.orange,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -484,20 +453,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   /// التنقل بأسلوب lazy — الـ WidgetBuilder لا يُنفذ إلا عند التنقل الفعلي
   void _navigate(WidgetBuilder builder) {
     Navigator.push<void>(context, MaterialPageRoute(builder: builder));
-  }
-
-  /// ✅ إصلاح: تحويل تاريخ ISO إلى DateTime مع معالجة الأخطاء
-  DateTime _parseHotelDate(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) {
-      return DateTime.now();
-    }
-    try {
-      // تحويل أي صيغة إلى DateTime
-      final normalized = dateStr.contains('T') ? dateStr : dateStr.replaceFirst(' ', 'T');
-      return DateTime.parse(normalized);
-    } catch (_) {
-      return DateTime.now();
-    }
   }
 }
 

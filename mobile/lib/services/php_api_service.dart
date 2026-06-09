@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../utils/field_mapper.dart';
@@ -102,7 +101,7 @@ class PhpApiService {
 
   void _onConfigChanged() {
     _initializeDio();
-    AppLogger.debug('تم تحديث إعدادات Dio');
+    debugPrint('🔄 تم تحديث إعدادات Dio');
   }
 
   Future<void> _onRequest(

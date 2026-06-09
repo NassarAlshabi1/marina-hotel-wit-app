@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 
 import 'smart_sync_manager.dart';
 import 'sync_core/circuit_breaker.dart';
@@ -47,13 +46,13 @@ class ScreenSyncController {
     _hasChanges = true;
     _emitStatus(SyncStatus.pending);
     _resetDebounceTimer();
-    AppLogger.info('[$screenId] تم تسجيل تغيير - إعادة ضبط المؤقت');
+    debugPrint('📝 [$screenId] تم تسجيل تغيير - إعادة ضبط المؤقت');
   }
 
   void _resetDebounceTimer() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(debounceDelay, () {
-      AppLogger.debug('[$screenId] انتهى المؤقت - بدء المزامنة التلقائية');
+      debugPrint('⏰ [$screenId] انتهى المؤقت - بدء المزامنة التلقائية');
       syncNow();
     });
   }
@@ -114,14 +113,14 @@ class ScreenSyncController {
 
       if (networkValidation.warnings.isNotEmpty) {
         for (final warning in networkValidation.warnings) {
-          AppLogger.warning('[$screenId] $warning');
+          debugPrint('⚠️ [$screenId] $warning');
         }
       }
 
       final success = await _retryStrategy.executeWithFallback(
         operation: () async {
           return _circuitBreaker.execute(() async {
-            AppLogger.debug('[$screenId] بدء المزامنة مع الحماية...');
+            debugPrint('🌐 [$screenId] بدء المزامنة مع الحماية...');
             return SmartSyncManager.instance.pushLocalChanges();
           });
         },
@@ -139,14 +138,14 @@ class ScreenSyncController {
           return false;
         },
         onRetry: (attempt, error) {
-          AppLogger.debug('[$screenId] إعادة المحاولة $attempt');
+          debugPrint('🔄 [$screenId] إعادة المحاولة $attempt');
         },
       );
 
       if (success ?? false) {
         _hasChanges = false;
         _emitStatus(SyncStatus.synced);
-        AppLogger.info('[$screenId] تمت المزامنة بنجاح');
+        debugPrint('✅ [$screenId] تمت المزامنة بنجاح');
         return true;
       } else {
         debugPrint(
@@ -164,7 +163,7 @@ class ScreenSyncController {
         stackTrace: stackTrace,
         context: {'screenId': screenId, 'operation': 'syncNow'},
       );
-      AppLogger.error('[$screenId] خطأ في المزامنة: $e');
+      debugPrint('❌ [$screenId] خطأ في المزامنة: $e');
       _emitStatus(SyncStatus.error);
       return false;
     } finally {
@@ -179,7 +178,7 @@ class ScreenSyncController {
   }
 
   Future<bool> syncOnExit() async {
-    AppLogger.debug('[$screenId] الخروج من الشاشة...');
+    debugPrint('🚪 [$screenId] الخروج من الشاشة...');
     cancelTimer();
     return syncNow();
   }

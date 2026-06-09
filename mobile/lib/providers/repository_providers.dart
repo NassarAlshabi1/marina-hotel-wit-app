@@ -23,9 +23,10 @@ import '../services/whatsapp_service.dart';
 import '../utils/env.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
+import '../utils/time.dart';
 
 // إضافة Auto Backup Providers
-export '../providers/auto_backup_provider.dart' hide googleDriveBackupServiceProvider;
+export '../providers/auto_backup_provider.dart';
 // إضافة Backup Providers
 export '../providers/backup_provider.dart';
 // إضافة Smart Sync Providers
@@ -136,19 +137,15 @@ final whatsappServiceProvider = Provider<WhatsAppService>(
 final roomsListProvider = StreamProvider.autoDispose<List<Room>>(
   (ref) => ref.watch(roomsRepoProvider).watchAll(),
 );
-/// ✅ محسّن: يشتق الغرف المتاحة من roomsListProvider بدلاً من إنشاء stream جديد
-/// هذا يقلل عدد استعلامات DB المتزامنة على الأجهزة الضعيفة
-final availableRoomsProvider = StreamProvider.autoDispose<List<Room>>(
-  (ref) {
-    final roomsAsync = ref.watch(roomsListProvider);
-    return roomsAsync.when(
-      data: (rooms) => Stream.value(rooms
-          .where((room) => StatusUtils.isRoomAvailable(room.status))
-          .toList()),
-      loading: () => Stream.value([]),
-      error: (_, __) => Stream.value([]),
-    );
-  },
+final availableRoomsProvider = StreamProvider.autoDispose(
+  (ref) => ref
+      .watch(roomsRepoProvider)
+      .watchAll()
+      .map(
+        (rooms) => rooms
+            .where((room) => StatusUtils.isRoomAvailable(room.status))
+            .toList(),
+      ),
 );
 
 final bookingsListProvider = StreamProvider.autoDispose<List<Booking>>(
@@ -224,14 +221,13 @@ final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {
   // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
   final hotelDay = HotelTimeEngine.getHotelDayKey();
   final repo = ref.watch(expensesRepoProvider);
-  final total = await repo.getTotalByHotelDayKey(hotelDay);
-  // ✅ إصلاح: استخدام listFilteredByHotelDay بدلاً من listFiltered
-  // listFiltered تُفلتر بحقل date التقويمي بينما getTotalByHotelDayKey تُفلتر بـ hotelDayKey
-  // هذا يسبب عدم تطابق بين count و total
+  // ✅ استبعاد السلفة — تسبب تكرار بيانات
   final expenses = await repo.listFilteredByHotelDay(
     fromHotelDay: hotelDay,
     toHotelDay: hotelDay,
+    excludeAdvance: true,
   );
+  final total = expenses.fold<double>(0, (sum, e) => sum + e.amount);
   return (count: expenses.length, total: total);
 });
 final bookingPaymentsProvider = StreamProvider.family.autoDispose<List<Payment>, int>(

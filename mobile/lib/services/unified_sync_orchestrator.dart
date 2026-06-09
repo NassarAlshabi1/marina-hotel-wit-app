@@ -1,14 +1,14 @@
 import 'dart:async';
 
-import '../utils/app_logger.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart' as models;
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
-import 'google_drive_unified_sync_coordinator.dart'
-    show GoogleDriveUnifiedSyncCoordinator;
-import 'google_drive_auto_sync_engine.dart' show SyncResult;
+import 'google_drive_backup_service.dart';
+import 'google_drive_logger.dart';
+import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
 import 'sync_integrity_checker.dart';
@@ -167,7 +167,7 @@ class UnifiedSyncOrchestrator {
           _emit(
             _state.copyWith(
               phase: 'completing',
-              message: result.message ?? 'تمت المزامنة',
+              message: result.message,
               timestamp: DateTime.now(),
               lastPushAt:
                   result.pushedChanges != null && result.pushedChanges! > 0
@@ -183,7 +183,7 @@ class UnifiedSyncOrchestrator {
           _emit(
             _state.copyWith(
               phase: 'error',
-              message: result.message ?? 'فشل المزامنة',
+              message: result.message,
               timestamp: DateTime.now(),
               lastError: result.error,
             ),
@@ -227,24 +227,24 @@ class UnifiedSyncOrchestrator {
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!appwriteEnabled) {
-        AppLogger.info('Appwrite sync معطل - تخطي الرفع التلقائي');
+        debugPrint('ℹ️ Appwrite sync معطل - تخطي الرفع التلقائي');
         return true;
       }
 
       _syncing = true;
-      AppLogger.debug('رفع تلقائي إلى Appwrite: $reason');
+      debugPrint('🔄 رفع تلقائي إلى Appwrite: $reason');
 
       final success = await _syncAppwrite(push: true, pull: false);
 
       if (success) {
-        AppLogger.info('تم الرفع التلقائي إلى Appwrite');
+        debugPrint('✅ تم الرفع التلقائي إلى Appwrite');
       } else {
-        AppLogger.error('فشل الرفع التلقائي إلى Appwrite');
+        debugPrint('❌ فشل الرفع التلقائي إلى Appwrite');
       }
 
       return success;
     } catch (e) {
-      AppLogger.error('خطأ في الرفع التلقائي: $e');
+      debugPrint('❌ خطأ في الرفع التلقائي: $e');
       return false;
     } finally {
       _syncing = false;
@@ -452,14 +452,57 @@ class UnifiedSyncOrchestrator {
     return manager;
   }
 
-  /// Google Drive sync — DISABLED
   Future<bool> _syncGoogleDrive({
     required bool push,
     required bool pull,
     required String reason,
   }) async {
-    AppLogger.info('Google Drive sync disabled — skipping _syncGoogleDrive');
-    return false;
+    final coordinator =
+        _driveCoordinator ?? GoogleDriveUnifiedSyncCoordinator.instance;
+    _driveCoordinator ??= coordinator;
+
+    if (!coordinator.isInitialized) {
+      final backupService = GoogleDriveBackupService();
+      final account = await backupService.attemptSilentSignIn();
+      if (account == null) {
+        return false;
+      }
+      final logger = GoogleDriveLogger();
+      await logger.initialize(
+        
+      );
+      final db = _database ?? DatabaseManager.instance;
+      _database ??= db;
+      await coordinator.initialize(
+        backupService: backupService,
+        database: db,
+        logger: logger,
+      );
+    }
+
+    if (push && pull) {
+      final result = await coordinator.performSync(
+        trigger: SyncTrigger.manual,
+      );
+      return result.success;
+    }
+
+    if (push && !pull) {
+      final result = await coordinator.performSync(
+        trigger: SyncTrigger.localChange,
+      );
+      return result.success;
+    }
+
+    if (!push && pull) {
+      final result = await coordinator.performSync(
+        trigger: SyncTrigger.periodic,
+        mode: SyncMode.deltaOnly,
+      );
+      return result.success;
+    }
+
+    return true;
   }
 
   Future<void> _verifySyncIntegrity() async {

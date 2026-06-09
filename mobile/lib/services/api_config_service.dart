@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/env.dart';
 
@@ -124,7 +123,7 @@ class ApiConfigService {
     configNotifier.value = config;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_configKey, jsonEncode(config.toJson()));
-    AppLogger.info('تم حفظ إعدادات API: ${config.baseUrl}');
+    debugPrint('✅ تم حفظ إعدادات API: ${config.baseUrl}');
   }
 
   Future<void> updateBaseUrl(String url) async {

@@ -1,5 +1,5 @@
 import 'dart:async';
-import '../utils/app_logger.dart';
+import 'package:flutter/foundation.dart';
 import 'local_db.dart';
 
 class DatabaseHealthChecker {
@@ -47,7 +47,7 @@ class DatabaseHealthChecker {
         _updateHealth(DatabaseHealth.healthy(responseTime));
       }
     } catch (e) {
-      AppLogger.error('Database health check failed: $e');
+      debugPrint('❌ Database health check failed: $e');
       _updateHealth(DatabaseHealth.error(e.toString()));
     }
   }
@@ -63,7 +63,7 @@ class DatabaseHealthChecker {
     Duration timeout = const Duration(seconds: 5),
   }) async {
     if (!DatabaseManager.isInitialized) {
-      AppLogger.warning('Database not initialized');
+      debugPrint('⚠️ Database not initialized');
       return false;
     }
 
@@ -72,7 +72,7 @@ class DatabaseHealthChecker {
       await db.customStatement('SELECT 1').timeout(timeout);
       return true;
     } catch (e) {
-      AppLogger.error('Database health check failed: $e');
+      debugPrint('❌ Database health check failed: $e');
       return false;
     }
   }

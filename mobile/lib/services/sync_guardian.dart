@@ -105,7 +105,7 @@ class SyncGuardian {
         }
         _pendingChangesCount = 0;
       } catch (e) {
-        AppLogger.warning('فشل رفع التغييرات: $e');
+        debugPrint('⚠️ فشل رفع التغييرات: $e');
         try {
           await AutoSyncTask.scheduleImmediateSync();
         } catch (e, st) {

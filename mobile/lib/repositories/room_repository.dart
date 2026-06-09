@@ -275,7 +275,7 @@ RoomStatistics:
   Occupied: $occupied
   Occupancy Rate: ${(occupancyRate * 100).toStringAsFixed(1)}%
   Price Range: $minPrice - $maxPrice
-  Average Price: ${avgPrice.round()}
+  Average Price: ${avgPrice.toStringAsFixed(2)}
 ''';
 }
 

@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
@@ -80,7 +79,7 @@ class SqliteBackupRestore {
         dir = downloadsDir ?? await getApplicationDocumentsDirectory();
       }
     } catch (e) {
-      AppLogger.warning('Failed to resolve user dir, falling back to app docs: $e');
+      debugPrint('⚠️ Failed to resolve user dir, falling back to app docs: $e');
     }
 
     dir ??= await getApplicationDocumentsDirectory();
@@ -108,10 +107,10 @@ class SqliteBackupRestore {
 
       await srcFile.copy(destPath);
 
-      AppLogger.info('SQLite backup created at: $destPath');
+      debugPrint('✅ SQLite backup created at: $destPath');
       return destPath;
     } catch (e, st) {
-      AppLogger.error('Failed to backup database: $e\n$st');
+      debugPrint('❌ Failed to backup database: $e\n$st');
       rethrow;
     }
   }
@@ -182,9 +181,9 @@ class SqliteBackupRestore {
         await DatabaseManager.reopen();
       }
 
-      AppLogger.info('SQLite database restored from: $sourcePath');
+      debugPrint('✅ SQLite database restored from: $sourcePath');
     } catch (e, st) {
-      AppLogger.error('Failed to restore database: $e\n$st');
+      debugPrint('❌ Failed to restore database: $e\n$st');
       rethrow;
     }
   }

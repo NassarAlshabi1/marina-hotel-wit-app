@@ -40,8 +40,8 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     if (from != null && to != null) {
       q.where(
         (t) =>
-            t.checkinDate.isBiggerOrEqual(Variable(from)) &
-            t.checkinDate.isSmallerOrEqual(Variable(to)),
+            t.checkinDate.isBiggerOrEqualValue(from) &
+            t.checkinDate.isSmallerOrEqualValue(to),
       );
     }
     if (search != null && search.trim().isNotEmpty) {
@@ -178,52 +178,6 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> deleteById(int id, {bool originIsServer = false}) =>
       softDelete(id, originIsServer: originIsServer);
-
-  /// ✅ فلترة الحجوزات بنطاق الأيام الفندقية — الطريقة الصحيحة للتقارير
-  ///
-  /// على عكس [list] التي تفلتر بحقل [checkinDate] التقويمي
-  /// (وتشمل حجوزات الصباح التي تنتمي لليوم الفندقي السابق)،
-  /// هذه الدالة تفلتر بحقل [hotelDayCheckin] وهو المفتاح الصحيح.
-  ///
-  /// مثال: إذا كان اليوم الفندقي "2026-05-18" وكانت هناك عملية تسجيل دخول
-  /// في الساعة 10:00 صباحاً يوم 18 مايو، فإن checkinDate = "2026-05-18"
-  /// لكن hotelDayCheckin = "2026-05-17" (قبل الساعة 14:00) —
-  /// بينما هذه الدالة تجلب فقط الحجوزات التي hotelDayCheckin فيها
-  /// بين fromHotelDay و toHotelDay.
-  Future<List<Booking>> listFilteredByHotelDay({
-    String? fromHotelDay,
-    String? toHotelDay,
-    bool includeDeleted = false,
-  }) async {
-    final q = select(bookings);
-    if (!includeDeleted) {
-      q.where((t) => t.deletedAt.isNull());
-    }
-
-    if (fromHotelDay != null) {
-      // hotelDayCheckin >= fromHotelDay، مع fallback لحقل checkinDate
-      // إضافة like لأن checkinDate قد يحتوي على وقت
-      q.where((t) =>
-          (t.hotelDayCheckin.isNotNull() &
-              t.hotelDayCheckin.isBiggerOrEqual(Variable(fromHotelDay))) |
-          (t.hotelDayCheckin.isNull() &
-              (t.checkinDate.isBiggerOrEqual(Variable(fromHotelDay)) |
-               t.checkinDate.like('$fromHotelDay%'))));
-    }
-    if (toHotelDay != null) {
-      q.where((t) =>
-          (t.hotelDayCheckin.isNotNull() &
-              t.hotelDayCheckin.isSmallerOrEqual(Variable(toHotelDay))) |
-          (t.hotelDayCheckin.isNull() &
-              (t.checkinDate.isSmallerOrEqual(Variable(toHotelDay)) |
-               t.checkinDate.like('$toHotelDay%'))));
-    }
-
-    q.orderBy([
-      (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),
-    ]);
-    return q.get();
-  }
 
   Future<List<Booking>> getAll({bool includeDeleted = false}) {
     final query = select(bookings);

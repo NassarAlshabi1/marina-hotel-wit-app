@@ -1031,8 +1031,8 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
   Future<void> _selectReportTime(BuildContext context) async {
     final state = ref.read(larkProvider);
     final parts = state.dailyReportTime.split(':');
-    final int hour = int.parse(parts[0]);
-    final int minute = int.parse(parts[1]);
+    final int hour = int.tryParse(parts[0]) ?? 0;
+    final int minute = int.tryParse(parts[1]) ?? 0;
 
     if (!context.mounted) {
       return;

@@ -221,7 +221,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                         RadioListTile<String>(
                           title: const Row(
                             children: [
-                              Icon(Icons.exit_to_app, color: Colors.orange, size: 20),
+                              Icon(Icons.logout, color: Colors.orange, size: 20),
                               SizedBox(width: 8),
                               Text('استقالة'),
                             ],
@@ -388,7 +388,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
           ],
         ),
       ),
-    );
+    ).then((_) {
+      reasonController.dispose();
+    });
   }
 
   /// إعادة تفعيل موظف مفصول
@@ -741,7 +743,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                   StatefulBuilder(
                     builder: (context, setLocalState) =>
                         DropdownButtonFormField<String>(
-                          initialValue: status,
+                          value: status,
                           decoration: InputDecoration(
                             labelText: 'الحالة',
                             prefixIcon: const Icon(Icons.toggle_on),
@@ -797,7 +799,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                               child: Row(
                                 children: [
                                   Icon(
-                                    Icons.exit_to_app,
+                                    Icons.logout,
                                     color: Colors.orange,
                                     size: 18,
                                   ),
@@ -847,6 +849,10 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         ),
       ),
     );
+    nameCtrl.dispose();
+    salaryCtrl.dispose();
+    positionCtrl.dispose();
+    phoneCtrl.dispose();
     if (ok != true) {
       return;
     }
@@ -950,23 +956,23 @@ class _EmployeeCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 1),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         side: BorderSide(color: statusColor.withValues(alpha: 0.15)),
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           child: Row(
             children: [
               // صورة رمزية للموظف
               Container(
-                width: 30,
-                height: 30,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(5),
                   border: Border.all(
                     color: statusColor.withValues(alpha: 0.3),
                   ),
@@ -974,10 +980,10 @@ class _EmployeeCard extends StatelessWidget {
                 child: Icon(
                   isTerminated ? Icons.person_off : Icons.person,
                   color: statusColor,
-                  size: 16,
+                  size: 14,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 5),
 
               // بيانات الموظف
               Expanded(
@@ -991,7 +997,7 @@ class _EmployeeCard extends StatelessWidget {
                             employee.name,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                              fontSize: 11,
                               decoration: isTerminated ? TextDecoration.lineThrough : null,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -1040,7 +1046,7 @@ class _EmployeeCard extends StatelessWidget {
                             employee.position != 'موظف') ...[
                           const Icon(
                             Icons.badge,
-                            size: 10,
+                            size: 9,
                             color: AppColors.textSecondary,
                           ),
                           const SizedBox(width: 2),
@@ -1048,7 +1054,7 @@ class _EmployeeCard extends StatelessWidget {
                             child: Text(
                               employee.position,
                               style: const TextStyle(
-                                fontSize: 10,
+                                fontSize: 9,
                                 color: AppColors.textSecondary,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -1059,14 +1065,14 @@ class _EmployeeCard extends StatelessWidget {
                         // الراتب
                         const Icon(
                           Icons.attach_money,
-                          size: 10,
+                          size: 9,
                           color: AppColors.textSecondary,
                         ),
                         const SizedBox(width: 1),
                         Text(
                           CurrencyFormatter.formatAmount(employee.basicSalary),
                           style: const TextStyle(
-                            fontSize: 10,
+                            fontSize: 9,
                             color: AppColors.textSecondary,
                           ),
                         ),
@@ -1079,14 +1085,14 @@ class _EmployeeCard extends StatelessWidget {
                         children: [
                           const Icon(
                             Icons.phone,
-                            size: 10,
+                            size: 9,
                             color: AppColors.textSecondary,
                           ),
                           const SizedBox(width: 1),
                           Text(
                             employee.phone,
                             style: const TextStyle(
-                              fontSize: 10,
+                              fontSize: 9,
                               color: AppColors.textSecondary,
                             ),
                           ),
@@ -1100,14 +1106,14 @@ class _EmployeeCard extends StatelessWidget {
                         children: [
                           const Icon(
                             Icons.event_busy,
-                            size: 10,
+                            size: 9,
                             color: Colors.red,
                           ),
                           const SizedBox(width: 1),
                           Text(
                             'إنهاء: ${employee.terminationDate}',
                             style: const TextStyle(
-                              fontSize: 9,
+                              fontSize: 8,
                               color: Colors.red,
                             ),
                           ),
@@ -1124,11 +1130,11 @@ class _EmployeeCard extends StatelessWidget {
                 children: [
                   if (onTerminate != null)
                     SizedBox(
-                      width: 26,
-                      height: 26,
+                      width: 22,
+                      height: 22,
                       child: IconButton(
                         onPressed: onTerminate,
-                        icon: const Icon(Icons.person_off, size: 13),
+                        icon: const Icon(Icons.person_off, size: 11),
                         color: Colors.red,
                         padding: EdgeInsets.zero,
                         style: IconButton.styleFrom(
@@ -1139,11 +1145,11 @@ class _EmployeeCard extends StatelessWidget {
                     ),
                   if (onReactivate != null)
                     SizedBox(
-                      width: 26,
-                      height: 26,
+                      width: 22,
+                      height: 22,
                       child: IconButton(
                         onPressed: onReactivate,
-                        icon: const Icon(Icons.person_add, size: 13),
+                        icon: const Icon(Icons.person_add, size: 11),
                         color: Colors.green,
                         padding: EdgeInsets.zero,
                         style: IconButton.styleFrom(
@@ -1153,11 +1159,11 @@ class _EmployeeCard extends StatelessWidget {
                       ),
                     ),
                   SizedBox(
-                    width: 26,
-                    height: 26,
+                    width: 22,
+                    height: 22,
                     child: IconButton(
                       onPressed: onDelete,
-                      icon: const Icon(Icons.delete_outline, size: 13),
+                      icon: const Icon(Icons.delete_outline, size: 11),
                       color: AppColors.dangerColor,
                       padding: EdgeInsets.zero,
                       style: IconButton.styleFrom(

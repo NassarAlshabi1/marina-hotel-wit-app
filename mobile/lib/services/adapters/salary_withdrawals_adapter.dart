@@ -13,6 +13,19 @@ class SalaryWithdrawalsAdapter
   SalaryWithdrawalsAdapter(this.resolver);
   final IdResolver resolver;
 
+  /// ✅ كتابة expense_id في عمود SQL خام بعد الإدراج
+  /// العمود أُضيف عبر Migration 40 ولا يوجد في الـ data class المُولّد
+  Future<void> writeExpenseIdRaw(AppDatabase db, int salaryWithdrawalId, int expenseId) async {
+    try {
+      await db.customStatement(
+        'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
+        [expenseId, salaryWithdrawalId],
+      );
+    } catch (_) {
+      // العمود قد لا يكون موجوداً
+    }
+  }
+
   @override
   String get collectionId => 'salary_withdrawals';
 

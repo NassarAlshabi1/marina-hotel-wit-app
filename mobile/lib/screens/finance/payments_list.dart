@@ -312,19 +312,9 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   // ═══════════════════════════════════════════
 
   Widget _buildStatsBar(List<dynamic> payments) {
-    // ✅ فلترة المدفوعات الصالحة فقط (غير ملغاة وغير معلقة)
-    final validPayments = payments.where((p) {
-      try {
-        final isVoided = p.isVoided as bool? ?? false;
-        final isPending = p.isPendingBalance as bool? ?? false;
-        return !isVoided && !isPending;
-      } catch (_) {
-        return true;
-      }
-    }).toList();
-    final total = validPayments.fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
+    final total = payments.fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
     final now = DateTime.now();
-    final today = validPayments.where((p) {
+    final today = payments.where((p) {
       try {
         final d = DateTime.parse(p.paymentDate as String);
         return d.year == now.year && d.month == now.month && d.day == now.day;
@@ -333,10 +323,10 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
       }
     });
     final todayTotal = today.fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
-    final cashTotal = validPayments
+    final cashTotal = payments
         .where((p) => p.paymentMethod == 'نقدي')
         .fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
-    final transferTotal = validPayments
+    final transferTotal = payments
         .where((p) => p.paymentMethod == 'تحويل')
         .fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
 

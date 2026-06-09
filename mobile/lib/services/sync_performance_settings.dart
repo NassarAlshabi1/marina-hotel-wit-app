@@ -1,4 +1,4 @@
-import '../utils/app_logger.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// إعدادات أداء المزامنة - يحتوي على ملفات التعريف المحددة مسبقاً وإدارة الإعدادات
@@ -47,7 +47,7 @@ class SyncPerformanceSettings {
         return 'balanced';
       }
     } catch (e) {
-      AppLogger.error('خطأ في قراءة ملف التعريف الحالي: $e');
+      debugPrint('❌ خطأ في قراءة ملف التعريف الحالي: $e');
       return 'balanced'; // القيمة الافتراضية
     }
   }
@@ -81,9 +81,9 @@ class SyncPerformanceSettings {
       // تطبيق إعدادات إضافية حسب ملف التعريف
       await _applyProfileSpecificSettings(profileKey, profile);
 
-      AppLogger.info('تم تطبيق ملف التعريف "$profileKey" بنجاح');
+      debugPrint('✅ تم تطبيق ملف التعريف "$profileKey" بنجاح');
     } catch (e) {
-      AppLogger.error('خطأ في تطبيق ملف التعريف "$profileKey": $e');
+      debugPrint('❌ خطأ في تطبيق ملف التعريف "$profileKey": $e');
       rethrow;
     }
   }
@@ -168,7 +168,7 @@ class SyncPerformanceSettings {
         'max_retry_attempts': prefs.getInt('max_retry_attempts') ?? 3,
       };
     } catch (e) {
-      AppLogger.error('خطأ في قراءة جميع الإعدادات: $e');
+      debugPrint('❌ خطأ في قراءة جميع الإعدادات: $e');
       return {};
     }
   }
@@ -177,9 +177,9 @@ class SyncPerformanceSettings {
   static Future<void> resetToDefaults() async {
     try {
       await applyProfile('balanced'); // تطبيق ملف التعريف المتوازن كافتراضي
-      AppLogger.debug('تم إعادة تعيين الإعدادات إلى القيم الافتراضية');
+      debugPrint('🔄 تم إعادة تعيين الإعدادات إلى القيم الافتراضية');
     } catch (e) {
-      AppLogger.error('خطأ في إعادة تعيين الإعدادات: $e');
+      debugPrint('❌ خطأ في إعادة تعيين الإعدادات: $e');
       rethrow;
     }
   }

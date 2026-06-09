@@ -1,100 +1,350 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:marina_hotel_mobile/providers/backup_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// ✅ Google Drive Login Screen - For backup & restore only
-class GoogleDriveLoginScreen extends ConsumerWidget {
+import '../../providers/appwrite_providers.dart' as appwrite;
+import '../../providers/backup_provider.dart';
+import '../../services/auto_backup_manager.dart';
+import '../../utils/theme.dart';
+
+class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
   const GoogleDriveLoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final backupState = ref.watch(backupStatusProvider);
+  ConsumerState<GoogleDriveLoginScreen> createState() =>
+      _GoogleDriveLoginScreenState();
+}
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Google Drive'),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+class _GoogleDriveLoginScreenState
+    extends ConsumerState<GoogleDriveLoginScreen> {
+  bool _isSigningIn = false;
+  bool _isCheckingSilent = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _trySilentSignIn();
+  }
+
+  /// محاولة تسجيل الدخول الصامت تلقائياً — إذا سبق تسجيل الدخول
+  /// يتم الانتقال مباشرة بدون إظهار أي واجهة
+  Future<void> _trySilentSignIn() async {
+    try {
+      await ref.read(backupStatusProvider.notifier).silentSignInToDrive();
+      final state = ref.read(backupStatusProvider);
+      if (state.isSignedIn && mounted) {
+        // نجح تسجيل الدخول الصامت — الانتقال مباشرة
+        try {
+          final autoBackupManager = AutoBackupManager.instance;
+          await autoBackupManager.setEnabled(true);
+        } catch (_) {}
+      }
+    } catch (_) {
+      // فشل الصامت — يظهر الواجهة العادية
+    }
+    if (mounted) {
+      setState(() => _isCheckingSilent = false);
+    }
+  }
+
+  Future<void> _handleSignIn() async {
+    setState(() {
+      _isSigningIn = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await ref.read(backupStatusProvider.notifier).signInToDrive();
+      final state = ref.read(backupStatusProvider);
+
+      if (state.isSignedIn) {
+        try {
+          final autoBackupManager = AutoBackupManager.instance;
+          await autoBackupManager.setEnabled(true);
+          debugPrint('✅ تم تفعيل المزامنة التلقائية');
+        } catch (e) {
+          debugPrint('⚠️ خطأ في تفعيل المزامنة التلقائية: $e');
+        }
+        if (mounted) {
+          setState(() {
+            _isSigningIn = false;
+            _errorMessage = null;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _errorMessage = state.message ?? 'فشل تسجيل الدخول';
+            _isSigningIn = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'خطأ في تسجيل الدخول: $e';
+          _isSigningIn = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleSkip() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Row(
             children: [
               Icon(
-                Icons.cloud_upload_outlined,
-                size: 80,
-                color: Colors.blue.shade300,
+                Icons.warning_amber,
+                color: AppColors.warningColor,
+                size: 28,
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'Google Drive',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              SizedBox(width: 8),
+              Text('تحذير'),
+            ],
+          ),
+          content: const Text(
+            'إذا تخطيت تسجيل الدخول إلى Google Drive:\n\n'
+            '• لن تعمل المزامنة التلقائية للبيانات\n'
+            '• لن يتم حفظ نسخ احتياطية سحابية\n'
+            '• قد تفقد بياناتك في حالة تلف الجهاز\n\n'
+            'يمكنك تسجيل الدخول لاحقاً من الإعدادات.',
+            style: TextStyle(fontSize: 15, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('العودة لتسجيل الدخول'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warningColor,
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'نسخ احتياطي واستعادة فقط',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'المزامنة التلقائية معطلة',
-                style: TextStyle(fontSize: 13, color: Colors.orange.shade700),
-              ),
-              const SizedBox(height: 32),
-              if (!backupState.isSignedIn)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      ref.read(backupStatusProvider.notifier).signInToDrive();
-                    },
-                    icon: const Icon(Icons.login),
-                    label: const Text('تسجيل الدخول بـ Google'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.all(16),
-                    ),
-                  ),
-                )
-              else ...[
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        const Icon(Icons.check_circle, color: Colors.green, size: 40),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'متصل بـ Google Drive',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+              child: const Text('المتابعة بدون مزامنة'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed ?? false) {
+      await ref.read(backupStatusProvider.notifier).setSkippedDriveLogin(true);
+      unawaited(_pullAppwriteOnceAfterSkip());
+      if (mounted) {
+        setState(() {
+          _errorMessage = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _pullAppwriteOnceAfterSkip() async {
+    const key = 'appwrite_pull_after_drive_skip_done';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final done = prefs.getBool(key) ?? false;
+      if (done) {
+        return;
+      }
+      await prefs.setBool(key, true);
+
+      final manager = ref.read(appwrite.appwriteSyncManagerProvider);
+      await manager.initialize();
+      // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل السحب
+      await manager.pullAllDataWithDisabledFK();
+    } catch (e) {
+      debugPrint('❌ Appwrite auto pull after skip error: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // أثناء فحص تسجيل الدخول الصامت — إظهار مؤشر تحميل
+    if (_isCheckingSilent) {
+      return const Scaffold(
+        backgroundColor: AppColors.backgroundColor,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundColor,
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Icon(
+                        Icons.cloud_outlined,
+                        size: 80,
+                        color: AppColors.primaryColor,
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'تسجيل الدخول إلى Google Drive',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
                         ),
-                        if (backupState.signedInAccount != null)
-                          Text(
-                            backupState.signedInAccount!.email,
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'للحصول على أفضل تجربة والمزامنة التلقائية للبيانات بين أجهزتك، يرجى تسجيل الدخول إلى Google Drive',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: AppColors.textSecondary,
+                          height: 1.5,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.infoColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.successColor,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'مزامنة تلقائية للبيانات',
+                                    style: TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.successColor,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'نسخ احتياطي آمن في السحابة',
+                                    style: TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.successColor,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'إمكانية الوصول من أي جهاز',
+                                    style: TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.dangerColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'النسخ الاحتياطي والاستعادة متاحان',
-                          style: TextStyle(color: Colors.green.shade700, fontSize: 12),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: AppColors.dangerColor,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(
+                                    color: AppColors.dangerColor,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
-                    ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _isSigningIn ? null : _handleSignIn,
+                        icon: _isSigningIn
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.login),
+                        label: Text(
+                          _isSigningIn
+                              ? 'جارٍ تسجيل الدخول...'
+                              : 'تسجيل الدخول بـ Google Drive',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: _isSigningIn ? null : _handleSkip,
+                        child: const Text(
+                          'تخطي',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      ref.read(backupStatusProvider.notifier).signOut();
-                    },
-                    icon: const Icon(Icons.logout),
-                    label: const Text('تسجيل الخروج'),
-                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                  ),
-                ),
-              ],
-            ],
+              ),
+            ),
           ),
         ),
       ),

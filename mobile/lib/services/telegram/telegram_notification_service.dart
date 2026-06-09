@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../../utils/currency_formatter.dart';
 import 'telegram_config.dart';
 import 'telegram_service.dart';
 
@@ -103,7 +102,7 @@ class TelegramNotificationService {
       }
 
       if (event.amount != null && event.amount! > 0) {
-        buffer.writeln('💵 المبلغ: <b>${CurrencyFormatter.formatAmount(event.amount!)} ريال</b>');
+        buffer.writeln('💵 المبلغ: <b>\$${event.amount!.toStringAsFixed(2)}</b>');
       }
 
       if (event.details != null && event.details!.isNotEmpty) {
@@ -159,7 +158,7 @@ class TelegramNotificationService {
       details.writeln('🌙 الليالي: $nights');
     }
     if (totalDue != null) {
-      details.writeln('💰 الإجمالي: ${CurrencyFormatter.formatAmount(totalDue)} ريال');
+      details.writeln('💰 الإجمالي: \$${totalDue.toStringAsFixed(2)}');
     }
 
     return sendEventNotification(TelegramEvent(
@@ -207,10 +206,10 @@ class TelegramNotificationService {
       details.writeln('🌙 الليالي الفعلية: $actualNights');
     }
     if (totalPaid != null) {
-      details.writeln('💰 المدفوع: ${CurrencyFormatter.formatAmount(totalPaid)} ريال');
+      details.writeln('💰 المدفوع: \$${totalPaid.toStringAsFixed(2)}');
     }
     if (remaining != null && remaining > 0) {
-      details.writeln('⚠️ المتبقي: ${CurrencyFormatter.formatAmount(remaining)} ريال');
+      details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
     }
 
     return sendEventNotification(TelegramEvent(
@@ -234,7 +233,7 @@ class TelegramNotificationService {
     details.writeln('💳 طريقة الدفع: $paymentMethod');
     if (remaining != null) {
       if (remaining > 0) {
-        details.writeln('⚠️ المتبقي: ${CurrencyFormatter.formatAmount(remaining)} ريال');
+        details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
       } else {
         details.writeln('✅ مسدد بالكامل');
       }
@@ -294,7 +293,7 @@ class TelegramNotificationService {
       details.writeln('➕ ليالي إضافية: $extraNights');
     }
     if (extraCharge != null) {
-      details.writeln('💵 تكلفة إضافية: ${CurrencyFormatter.formatAmount(extraCharge)} ريال');
+      details.writeln('💵 تكلفة إضافية: \$${extraCharge.toStringAsFixed(2)}');
     }
 
     return sendEventNotification(TelegramEvent(

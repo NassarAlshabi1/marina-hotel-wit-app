@@ -216,7 +216,7 @@ class RecalculationReport {
         }
         if ((booking.oldTotalDue - booking.newTotalDue).abs() > 0.01) {
           buffer.writeln(
-            '    totalDue: ${booking.oldTotalDue.round()} → ${booking.newTotalDue.round()}',
+            '    totalDue: ${booking.oldTotalDue.toStringAsFixed(2)} → ${booking.newTotalDue.toStringAsFixed(2)}',
           );
         }
       }

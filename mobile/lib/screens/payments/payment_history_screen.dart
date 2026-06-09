@@ -159,10 +159,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           );
         }
 
-        // ✅ استبعاد المدفوعات الملغاة والمعلقة من الإجمالي
-        final totalAmount = payments
-            .where((p) => !p.isVoided && !p.isPendingBalance)
-            .fold<double>(
+        final totalAmount = payments.fold<double>(
           0,
           (sum, payment) => sum + payment.amount,
         );
@@ -413,7 +410,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedRevenueType,
+                    value: _revenueTypes.contains(_selectedRevenueType) ? _selectedRevenueType : null,
                     style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                     decoration: const InputDecoration(
                       labelText: 'نوع الإيراد',
@@ -435,7 +432,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedPaymentMethod,
+                    value: _paymentMethods.contains(_selectedPaymentMethod) ? _selectedPaymentMethod : null,
                     style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                     decoration: const InputDecoration(
                       labelText: 'طريقة الدفع',

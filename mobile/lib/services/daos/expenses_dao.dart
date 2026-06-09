@@ -30,8 +30,8 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     if (from != null && to != null) {
       q.where(
         (t) =>
-            t.date.isBiggerOrEqual(Variable(from)) &
-            t.date.isSmallerOrEqual(Variable(to)),
+            t.date.isBiggerOrEqualValue(from) &
+            t.date.isSmallerOrEqualValue(to),
       );
     }
     if (search != null && search.trim().isNotEmpty) {
@@ -53,17 +53,22 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     }
 
     if (from != null) {
-      q.where((t) =>
-          t.date.isBiggerOrEqual(Variable(from)) |
-          t.date.like('$from%'));
+      q.where((t) => t.date.isBiggerOrEqualValue(from));
     }
     if (to != null) {
-      q.where((t) =>
-          t.date.isSmallerOrEqual(Variable(to)) |
-          t.date.like('$to%'));
+      q.where((t) => t.date.isSmallerOrEqualValue(to));
     }
     if (expenseType != null && expenseType.isNotEmpty) {
-      q.where((t) => t.expenseType.equals(expenseType));
+      // ✅ إصلاح: توسيع فلتر 'رواتب' ليشمل أنواع الرواتب المشتقة
+      // 'رواتب' → أيضاً 'سحب راتب' و 'خصم من الراتب'
+      // لأن المستخدم يختار 'رواتب' لكن البيانات تُحفظ بأنواع مختلفة
+      if (expenseType == 'رواتب') {
+        q.where((t) => t.expenseType.isIn(
+          ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'],
+        ));
+      } else {
+        q.where((t) => t.expenseType.equals(expenseType));
+      }
     }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);
@@ -95,80 +100,40 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
 
     if (fromHotelDay != null) {
       // hotelDayKey >= fromHotelDay، مع fallback لحقل date عند كون hotelDayKey فارغاً
-      // ✅ إصلاح: استخدام like بدلاً من isBiggerOrEqualValue للمقارنة
-      // لأن date قد يحتوي على وقت مثل "2026-05-18 10:30:00"
-      // والمقارنة النصية "2026-05-18" >= "2026-05-18 10:30:00" تُعطي نتيجة خاطئة
+      // ✅ إضافة LIKE prefix fallback: بعض السجلات القديمة تحتوي على وقت في date
+      // (مثل "2026-05-19 14:30") مما يجعل المقارنة النصية دقيقة
       q.where((t) =>
           (t.hotelDayKey.isNotNull() &
-              t.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay))) |
+              t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
           (t.hotelDayKey.isNull() &
-              (t.date.isBiggerOrEqual(Variable(fromHotelDay)) |
-               t.date.like('$fromHotelDay%'))));
+              t.date.isBiggerOrEqualValue(fromHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.date.like('$fromHotelDay%')));
     }
     if (toHotelDay != null) {
       q.where((t) =>
           (t.hotelDayKey.isNotNull() &
-              t.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay))) |
+              t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
           (t.hotelDayKey.isNull() &
-              (t.date.isSmallerOrEqual(Variable(toHotelDay)) |
-               t.date.like('$toHotelDay%'))));
+              t.date.isSmallerOrEqualValue(toHotelDay)) |
+          (t.hotelDayKey.isNull() &
+              t.date.like('$toHotelDay%')));
     }
     if (expenseType != null && expenseType.isNotEmpty) {
-      q.where((t) => t.expenseType.equals(expenseType));
-    }
-    if (search != null && search.trim().isNotEmpty) {
-      final s = '%${search.trim()}%';
-      q.where((t) => t.description.like(s) | t.expenseType.like(s));
-    }
-    if (excludeAdvance) {
-      q.where((t) => t.expenseType.equals('سلفة').not());
-    }
-
-    q.orderBy([(t) => OrderingTerm.desc(t.date)]);
-    return q.get();
-  }
-
-  /// فلترة حسب نطاق الأيام الفندقية مع دعم أنواع متعددة
-  Future<List<Expense>> listFilteredByHotelDayMultiTypes({
-    String? fromHotelDay,
-    String? toHotelDay,
-    required List<String> expenseTypes,
-    String? search,
-    bool includeDeleted = false,
-    bool excludeAdvance = false,
-  }) async {
-    final q = select(expenses);
-    if (!includeDeleted) {
-      q.where((t) => t.deletedAt.isNull());
-    }
-
-    if (fromHotelDay != null) {
-      q.where((t) =>
-          (t.hotelDayKey.isNotNull() &
-              t.hotelDayKey.isBiggerOrEqual(Variable(fromHotelDay))) |
-          (t.hotelDayKey.isNull() &
-              (t.date.isBiggerOrEqual(Variable(fromHotelDay)) |
-               t.date.like('$fromHotelDay%'))));
-    }
-    if (toHotelDay != null) {
-      q.where((t) =>
-          (t.hotelDayKey.isNotNull() &
-              t.hotelDayKey.isSmallerOrEqual(Variable(toHotelDay))) |
-          (t.hotelDayKey.isNull() &
-              (t.date.isSmallerOrEqual(Variable(toHotelDay)) |
-               t.date.like('$toHotelDay%'))));
-    }
-    if (expenseTypes.isNotEmpty) {
-      var typeCondition = expenses.expenseType.equals(expenseTypes.first);
-      for (var i = 1; i < expenseTypes.length; i++) {
-        typeCondition = typeCondition | expenses.expenseType.equals(expenseTypes[i]);
+      // ✅ إصلاح: توسيع فلتر 'رواتب' ليشمل أنواع الرواتب المشتقة
+      if (expenseType == 'رواتب') {
+        q.where((t) => t.expenseType.isIn(
+          ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'],
+        ));
+      } else {
+        q.where((t) => t.expenseType.equals(expenseType));
       }
-      q.where((_) => typeCondition);
     }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.description.like(s) | t.expenseType.like(s));
     }
+    // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم
     if (excludeAdvance) {
       q.where((t) => t.expenseType.equals('سلفة').not());
     }
@@ -474,35 +439,40 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد المصروفات من JSON
+  /// ✅ إصلاح حرج: تغليف العملية بالكامل في transaction لمنع فقدان البيانات
+  /// إذا تعطل التطبيق أثناء الاستيراد، البيانات القديمة لا تُحذف إلا بعد
+  /// نجاح إدراج جميع البيانات الجديدة
   Future<void> importFromJson(
     List<Map<String, dynamic>> data, {
     bool clearExisting = false,
   }) async {
-    if (clearExisting) {
-      await delete(expenses).go();
-    }
+    await transaction(() async {
+      if (clearExisting) {
+        await delete(expenses).go();
+      }
 
-    for (final expenseJson in data) {
-      final expense = Expense.fromJson(expenseJson);
-      await into(expenses).insertOnConflictUpdate(
-        ExpensesCompanion(
-          expenseType: Value(expense.expenseType),
-          relatedId: Value(expense.relatedId),
-          description: Value(expense.description),
-          amount: Value(expense.amount),
-          date: Value(expense.date),
-          cashTransactionId: Value(expense.cashTransactionId),
-          localUuid: Value(expense.localUuid),
-          serverId: Value(expense.serverId),
-          createdAt: Value(expense.createdAt),
-          updatedAt: Value(expense.updatedAt),
-          deletedAt: Value(expense.deletedAt),
-          lastModified: Value(expense.lastModified),
-          version: Value(expense.version),
-          origin: Value(expense.origin),
-        ),
-      );
-    }
+      for (final expenseJson in data) {
+        final expense = Expense.fromJson(expenseJson);
+        await into(expenses).insertOnConflictUpdate(
+          ExpensesCompanion(
+            expenseType: Value(expense.expenseType),
+            relatedId: Value(expense.relatedId),
+            description: Value(expense.description),
+            amount: Value(expense.amount),
+            date: Value(expense.date),
+            cashTransactionId: Value(expense.cashTransactionId),
+            localUuid: Value(expense.localUuid),
+            serverId: Value(expense.serverId),
+            createdAt: Value(expense.createdAt),
+            updatedAt: Value(expense.updatedAt),
+            deletedAt: Value(expense.deletedAt),
+            lastModified: Value(expense.lastModified),
+            version: Value(expense.version),
+            origin: Value(expense.origin),
+          ),
+        );
+      }
+    });
   }
 
   /// الحصول على عدد السجلات

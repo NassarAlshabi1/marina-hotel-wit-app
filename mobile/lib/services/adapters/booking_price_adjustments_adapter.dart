@@ -75,7 +75,11 @@ class BookingPriceAdjustmentsAdapter
         'bookingLocalUuid',
         src,
         altKey: 'booking_local_uuid',
-        fallback: refs.bookingUuidCache ?? '',
+        // ✅ إصلاح FK: لا نستخدم fallback فارغ لأن bookingLocalUuid هو FK NOT NULL
+        // إذا لم يكن bookingUuidCache موجوداً، نستخدم القيمة الأصلية من JSON
+        // وإذا لم تكن موجودة أيضاً، ستكون Value.absent() مما يسمح لـ Drift
+        // برفع خطأ FK الذي يُعالج بنمط التأجيل في SyncManager
+        fallback: refs.bookingUuidCache,
       ),
       // ✅ إصلاح حرج: لا نستخدم bookingLocalId الخام من الجهاز البعيد
       // معرّف الزيادة التلقائية يختلف بين الأجهزة — bookingLocalId=5 على جهاز A ≠ جهاز B

@@ -1,4 +1,3 @@
-import '../utils/app_logger.dart';
 import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
@@ -55,7 +54,7 @@ class SyncService {
   /// تهيئة محسن الأداء
   Future<void> initializePerformanceOptimizer() async {
     await _performanceOptimizer.initialize();
-    AppLogger.debug('تم تهيئة محسن أداء المزامنة');
+    debugPrint('🔧 تم تهيئة محسن أداء المزامنة');
   }
 
   /// الحصول على إحصائيات الأداء
@@ -95,11 +94,11 @@ class SyncService {
       _performanceOptimizer.recordSyncAttempt(success: true);
       _status.add(SyncStatus.idle);
 
-      AppLogger.info('تم إنجاز المزامنة بنجاح');
+      debugPrint('✅ تم إنجاز المزامنة بنجاح');
     } catch (e) {
       _performanceOptimizer.recordSyncAttempt(success: false);
       _status.add(SyncStatus.error);
-      AppLogger.error('فشل في المزامنة: $e');
+      debugPrint('❌ فشل في المزامنة: $e');
       rethrow;
     } finally {
       _syncMutex.release();
@@ -176,7 +175,7 @@ class SyncService {
         );
       });
     } catch (e) {
-      AppLogger.error('فشل في إرسال بيانات المزامنة: $e');
+      debugPrint('❌ فشل في إرسال بيانات المزامنة: $e');
       rethrow;
     }
   }
@@ -933,7 +932,7 @@ class SyncService {
         hotelDayKey == null ||
         nightStart == null ||
         nightEnd == null) {
-      AppLogger.warning('تخطي booking_nights/$localUuid لعدم اكتمال البيانات');
+      debugPrint('⚠️ تخطي booking_nights/$localUuid لعدم اكتمال البيانات');
       return;
     }
 
@@ -1053,7 +1052,7 @@ class SyncService {
 
     final hotelDayKey = _asString(data['hotel_day_key']);
     if (hotelDayKey == null || hotelDayKey.isEmpty) {
-      AppLogger.warning('تخطي hotel_day_ledger/$localUuid لعدم اكتمال البيانات');
+      debugPrint('⚠️ تخطي hotel_day_ledger/$localUuid لعدم اكتمال البيانات');
       return;
     }
 

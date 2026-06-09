@@ -114,6 +114,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       deviceId = 'unknown';
     }
 
+    // ✅ إصلاح: التحقق من _isPulling قبل كتابة سجل المزامنة
+    // سابقاً كان السجل يُكتب قبل التحقق مما يُنشئ سجلات وهمية
+    if (_isPulling) {
+      return;
+    }
+
     // تسجيل بداية العملية
     final db = ref.read(databaseProvider);
     final syncLogDao = SyncLogDao(db);
@@ -124,9 +130,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       target: 'Appwrite',
       status: 'in_progress',
     );
-    if (_isPulling) {
-      return;
-    }
 
     unawaited(_pullAnimationController.repeat());
     if (mounted) {
@@ -320,6 +323,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       deviceId = 'unknown';
     }
 
+    // ✅ إصلاح: التحقق من _isPushing قبل كتابة سجل المزامنة
+    if (_isPushing) {
+      return;
+    }
+
     // تسجيل بداية العملية
     final db = ref.read(databaseProvider);
     final syncLogDao = SyncLogDao(db);
@@ -327,12 +335,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       syncId: syncId,
       direction: 'push',
       deviceId: deviceId,
-      target: 'Appwrite',
+      target: 'Appwrite+GoogleDrive',
       status: 'in_progress',
     );
-    if (_isPushing) {
-      return;
-    }
 
     if (_pendingChangesCount == 0) {
       if (mounted) {
@@ -362,12 +367,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
 
     try {
-      // ⚠️ Smart Sync (Google Drive) is DISABLED — only Appwrite sync is active
+      final smartSyncManager = ref.read(smartSyncManagerProvider);
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
+      final smartEnabled = await smartSyncManager.isEnabled();
+      final isGoogleDriveSignedIn = ref.read(
+        smartSyncGoogleDriveSignInStatusProvider,
+      );
       final appwriteEnabled = await _isAppwriteSyncEnabled();
 
-      if (!appwriteEnabled) {
+      if (!smartEnabled && !appwriteEnabled) {
         if (mounted) {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
@@ -398,7 +407,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       final targets = <String>[];
-      // ⚠️ Google Drive sync target removed (disabled)
+      if (smartEnabled && isGoogleDriveSignedIn) {
+        targets.add('Google Drive');
+      }
       if (appwriteEnabled && appwriteConnected) {
         targets.add('Appwrite');
       }
@@ -475,7 +486,23 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
       }
 
-      // ⚠️ Google Drive push disabled — Appwrite-only push
+      // رفع إلى Google Drive (بدون سحب - نسخ احتياطي فقط)
+      if (smartEnabled && isGoogleDriveSignedIn) {
+        try {
+          final result = await smartSyncManager.pushLocalChanges();
+          results['Google Drive'] = {
+            'success': result,
+            'pushed': _pendingChangesCount,
+          };
+        } catch (e) {
+          results['Google Drive'] = {
+            'success': false,
+            'pushed': 0,
+            'error': e.toString(),
+          };
+          debugPrint('❌ خطأ في رفع التغييرات إلى Google Drive: $e');
+        }
+      }
 
       await _loadPendingChangesCount();
 
@@ -605,6 +632,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
       }
 
+      ref.invalidate(smartSyncStatusProvider);
     } catch (e) {
       debugPrint('❌ فشل رفع التغييرات: $e');
 
@@ -614,7 +642,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         syncId: syncId,
         direction: 'push',
         deviceId: deviceId,
-        target: 'Appwrite',
+        target: 'Appwrite+GoogleDrive',
         status: 'failed',
         errorMessage: e.toString(),
         durationMs: stopwatch.elapsedMilliseconds,
@@ -1013,11 +1041,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   @override
   Widget build(BuildContext context) {
-    // ⚠️ Smart Sync (Google Drive) disabled — isGoogleDriveSignedIn no longer needed
-    // final isGoogleDriveSignedIn = ref.watch(
-    //   smartSyncGoogleDriveSignInStatusProvider,
-    // );
-    const isGoogleDriveSignedIn = false; // Google Drive sync is disabled
+    final isGoogleDriveSignedIn = ref.watch(
+      smartSyncGoogleDriveSignInStatusProvider,
+    );
 
     // ✅ تحسين: استخدام ValueListenableBuilder المدمج لكل من hasRemoteChanges و pendingRemoteChangesCount
     return ValueListenableBuilder<bool>(

@@ -22,9 +22,6 @@ class DatabaseFixer {
       // 3. إصلاح المصروفات التي تشير لبيانات غير موجودة
       result.orphanExpensesFixed = await _fixOrphanExpenses();
 
-      // 4. ربط سحوبات الرواتب القديمة بالمصروفات (exp_XX)
-      result.salaryLinksFixed = await _fixSalaryWithdrawalLinks();
-
       result.success = true;
     } catch (e) {
       result.error = e.toString();
@@ -258,82 +255,11 @@ class DatabaseFixer {
           report.invalidServerIds > 0 ||
           report.orphanPayments > 0 ||
           report.orphanExpenses > 0;
-
-    // التحقق من سحوبات الرواتب غير المرتبطة
-    try {
-      final unlinked = await (db.select(db.salaryWithdrawals)
-            ..where((t) => t.deletedAt.isNull())
-            ..where((t) => t.reason.isNull() | t.reason.equals('')))
-          .get();
-      report.unlinkedSalaryWithdrawals = unlinked.length;
-      if (unlinked.length > 0) {
-        report.hasIssues = true;
-      }
-    } catch (_) {}
-
-    // التحقق من سحوبات بدون exp_ في reason
-    try {
-      final all = await (db.select(db.salaryWithdrawals)
-            ..where((t) => t.deletedAt.isNull())).get();
-      final withoutRef = all.where((sw) => sw.reason == null || !sw.reason!.contains('exp_')).length;
-      if (withoutRef > 0) {
-        report.salaryWithdrawalsWithoutRef = withoutRef;
-        report.hasIssues = true;
-      }
-    } catch (_) {}
-
-    report.hasIssues = report.hasIssues || report.unlinkedSalaryWithdrawals > 0 ||
-        report.salaryWithdrawalsWithoutRef > 0 ||
-          report.orphanExpenses > 0;
     } catch (e) {
       report.error = e.toString();
     }
 
     return report;
-  }
-}
-
-  /// ربط سحوبات الرواتب القديمة بالمصروفات عبر expenseId + reason
-  Future<int> _fixSalaryWithdrawalLinks() async {
-    int fixed = 0;
-    try {
-      // أولاً: ربط السجلات التي لها reason = exp_XX ولكن expenseId فارغ
-      await db.customStatement(
-        "UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) WHERE reason LIKE 'exp_%' AND (expense_id IS NULL OR expense_id = 0)"
-      );
-      fixed += db.changes;
-
-      // ثانياً: السجلات بدون أي رابط — مطابقة بالبيانات
-      final all = await (db.select(db.salaryWithdrawals)
-            ..where((t) => t.deletedAt.isNull())).get();
-      final targets = all.where((sw) => sw.expenseId == null || sw.expenseId == 0).toList();
-
-      for (final sw in targets) {
-        final matches = await (db.select(db.expenses)
-              ..where((t) => t.deletedAt.isNull())
-              ..where((t) => t.relatedId.equals(sw.employeeId))
-              ..where((t) => t.hotelDayKey.equals(sw.hotelDayKey ?? ''))
-              ..where((t) => t.amount.equals(sw.amount.abs())))
-            .get();
-
-        if (matches.isEmpty) continue;
-
-        final expense = matches.first;
-        final now = DateTime.now().millisecondsSinceEpoch;
-
-        await (db.update(db.salaryWithdrawals)
-              ..where((t) => t.id.equals(sw.id)))
-            .write(SalaryWithdrawalsCompanion(
-              expenseId: Value(expense.id),
-              reason: Value('exp_${expense.id}'),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-              version: Value(sw.version + 1),
-            ));
-        fixed++;
-      }
-    } catch (_) {}
-    return fixed;
   }
 }
 
@@ -343,10 +269,9 @@ class FixResult {
   int serverIdFixed = 0;
   int orphanPaymentsFixed = 0;
   int orphanExpensesFixed = 0;
-  int salaryLinksFixed = 0;
 
   int get totalFixed =>
-      serverIdFixed + orphanPaymentsFixed + orphanExpensesFixed + salaryLinksFixed;
+      serverIdFixed + orphanPaymentsFixed + orphanExpensesFixed;
 
   @override
   String toString() {
@@ -358,7 +283,6 @@ class FixResult {
 - serverId فاسدة: $serverIdFixed
 - مدفوعات يتيمة: $orphanPaymentsFixed
 - مصروفات يتيمة: $orphanExpensesFixed
-- سحوبات راتب مرتبطة: $salaryLinksFixed
 الإجمالي: $totalFixed
     ''';
   }
@@ -370,8 +294,6 @@ class ValidationReport {
   int invalidServerIds = 0;
   int orphanPayments = 0;
   int orphanExpenses = 0;
-  int unlinkedSalaryWithdrawals = 0;
-  int salaryWithdrawalsWithoutRef = 0;
 
   int get totalIssues => invalidServerIds + orphanPayments + orphanExpenses;
 
@@ -388,8 +310,6 @@ class ValidationReport {
 - serverId فاسدة: $invalidServerIds
 - مدفوعات يتيمة: $orphanPayments
 - مصروفات يتيمة: $orphanExpenses
-- سحوبات راتب بدون رابط: $unlinkedSalaryWithdrawals
-- سحوبات بدون exp_: $salaryWithdrawalsWithoutRef
 الإجمالي: $totalIssues
     ''';
   }

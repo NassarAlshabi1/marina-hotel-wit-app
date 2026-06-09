@@ -206,6 +206,14 @@ class SmartSyncManager {
 
     _isLoggedIn = isSignedIn;
 
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final prefs = await SharedPreferences.getInstance();
+    final gdSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!gdSyncEnabled) {
+      _log('⏸️ Google Drive sync disabled - skipping SmartSync monitoring');
+      return;
+    }
+
     if (isSignedIn && _isEnabled) {
       _log('✅ بدء المراقبة بعد تسجيل الدخول...');
       await _startSyncMonitoring();
@@ -240,17 +248,16 @@ class SmartSyncManager {
       }
 
       // ترتيب حسب التاريخ (الأحدث أولاً)
-      backupFiles.sort((a, b) => (b.createdTime ?? b.modifiedTime).compareTo(a.createdTime ?? a.modifiedTime));
+      backupFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
       final latestBackup = backupFiles.first;
 
       // التحقق من آخر timestamp محفوظ محلياً
       final lastRemoteTimestamp = await _getLastRemoteTimestamp();
 
-      final latestBackupTime = latestBackup.createdTime ?? latestBackup.modifiedTime;
       if (lastRemoteTimestamp == null ||
-          latestBackupTime.isAfter(lastRemoteTimestamp)) {
+          latestBackup.createdTime.isAfter(lastRemoteTimestamp)) {
         // التحقق من أن النسخة ليست من نفس الجهاز
-        final backupDeviceId = latestBackup.appProperties?['device_id'];
+        final backupDeviceId = latestBackup.appProperties['device_id'];
         if (backupDeviceId != _deviceId) {
           _log('🆕 تم العثور على نسخة احتياطية جديدة من جهاز آخر');
           await _handleNewBackupFound(latestBackup);
@@ -281,7 +288,7 @@ class SmartSyncManager {
       final backupData = await _backupService!.downloadBackup(newBackup.fileId);
 
       // تسجيل استهلاك البيانات
-      final backupSize = newBackup.size;
+      final backupSize = newBackup.size ?? 0;
       if (backupSize > 0) {
         await DataUsageManager.instance.recordDataUsage(backupSize.toDouble());
       }
@@ -293,7 +300,7 @@ class SmartSyncManager {
       await _performDataSync(backupData, newBackup, conflictResolution);
 
       // حفظ timestamp النسخة الجديدة
-      await _setLastRemoteTimestamp(newBackup.createdTime ?? newBackup.modifiedTime);
+      await _setLastRemoteTimestamp(newBackup.createdTime);
 
       // إشعار النجاح
       await _notifySuccessfulSync(newBackup);
@@ -564,11 +571,11 @@ class SmartSyncManager {
 
   /// إشعار نجاح المزامنة
   Future<void> _notifySuccessfulSync(DriveBackupFile backup) async {
-    final deviceId = backup.appProperties?['device_id'] ?? 'جهاز آخر';
+    final deviceId = backup.appProperties['device_id'] ?? 'جهاز آخر';
     _log('🎉 تمت مزامنة البيانات من $deviceId');
     _log('📅 تاريخ النسخة: ${backup.createdTime}');
 
-    final recordsCount = backup.appProperties?['records_count'] ?? 'غير محدد';
+    final recordsCount = backup.appProperties['records_count'] ?? 'غير محدد';
     _log('📊 عدد السجلات: $recordsCount');
 
     // إرسال إشعار للمستخدم بوصول تغييرات جديدة
@@ -760,6 +767,14 @@ class SmartSyncManager {
 
   /// رفع التغييرات المحلية إلى Google Drive فوراً
   Future<bool> pushLocalChanges() async {
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final pushPrefs = await SharedPreferences.getInstance();
+    final pushSyncEnabled = pushPrefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!pushSyncEnabled) {
+      _log('⏸️ Google Drive sync disabled - skipping push');
+      return false;
+    }
+
     int retries = 0;
     while (retries < 10) {
       final isSyncing = await SyncLocks.smartSyncLock.synchronized(
@@ -828,6 +843,14 @@ class SmartSyncManager {
   /// سحب التغييرات من Google Drive
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   Future<bool> pullRemoteChanges() async {
+    // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
+    final pullPrefs = await SharedPreferences.getInstance();
+    final pullSyncEnabled = pullPrefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!pullSyncEnabled) {
+      _log('⏸️ Google Drive sync disabled - skipping pull');
+      return false;
+    }
+
     final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
       if (_backupService == null || !_backupService!.isSignedIn) {
         return false;
@@ -852,7 +875,7 @@ class SmartSyncManager {
         final deltaResult = await GoogleDriveDeltaSync.instance
             .pullDeltaChanges();
 
-        if (deltaResult.success && (deltaResult.changesCount ?? 0) > 0) {
+        if (deltaResult.success && deltaResult.changesCount > 0) {
           await _updateLastSyncTime();
           _log('✅ تم سحب ${deltaResult.changesCount} تغيير عبر Delta Sync');
           return true;
@@ -872,18 +895,17 @@ class SmartSyncManager {
       }
 
       // ترتيب حسب التاريخ (الأحدث أولاً)
-      backupFiles.sort((a, b) => (b.createdTime ?? b.modifiedTime).compareTo(a.createdTime ?? a.modifiedTime));
+      backupFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
       final latestBackup = backupFiles.first;
 
       // التحقق من آخر timestamp محفوظ محلياً
       final lastRemoteTimestamp = await _getLastRemoteTimestamp();
 
       // إذا كانت النسخة أحدث من آخر سحب
-      final latestBackupTime = latestBackup.createdTime ?? latestBackup.modifiedTime;
       if (lastRemoteTimestamp == null ||
-          latestBackupTime.isAfter(lastRemoteTimestamp)) {
+          latestBackup.createdTime.isAfter(lastRemoteTimestamp)) {
         // التحقق من أن النسخة ليست من نفس الجهاز
-        final backupDeviceId = latestBackup.appProperties?['device_id'];
+        final backupDeviceId = latestBackup.appProperties['device_id'];
         if (backupDeviceId == _deviceId) {
           _log('📱 النسخة الأحدث من نفس هذا الجهاز');
           return false;
@@ -900,7 +922,7 @@ class SmartSyncManager {
         );
 
         // تحديث timestamp
-        await _setLastRemoteTimestamp(latestBackup.createdTime ?? latestBackup.modifiedTime);
+        await _setLastRemoteTimestamp(latestBackup.createdTime);
         await _updateLastSyncTime();
 
         _log('✅ تم تطبيق التغييرات الجديدة بنجاح');

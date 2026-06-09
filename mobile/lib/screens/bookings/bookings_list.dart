@@ -9,7 +9,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
-import '../../utils/hotel_date_helper.dart';
+import '../../utils/time.dart';
 import '../payments/booking_payment_screen.dart';
 import '../payments/payments_main_screen.dart';
 import 'booking_edit.dart';
@@ -127,34 +127,32 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                 ? DateTime.tryParse(booking.actualCheckout!)
                                 : null;
                             final price = room?.price ?? 0;
-                            // استخدام القيم المحسوبة مسبقاً من BookingDerivedFieldsService
-                            // وهي متوافقة مع EnhancedBookingCalculationService
-                            final actualNights = booking.calculatedNights > 0
-                                ? booking.calculatedNights
-                                : (checkin != null
-                                    ? HotelDateHelper.calculateNights(
-                                        checkIn: checkin,
-                                        checkOut: actualCheckout ?? plannedCheckout,
-                                      )
-                                    : 1);
-                            final expectedNights = booking.expectedNights > 0
-                                ? booking.expectedNights
-                                : actualNights;
-                            // استخدام totalDueCached إذا توفر (يشمل التعديلات والخصومات)
-                            final totalAmount = booking.totalDueCached > 0
-                                ? booking.totalDueCached
-                                : (() {
-                                    final discount = booking.discount;
-                                    final discountType = booking.discountType;
-                                    if (discount > 0 && discountType == 'total') {
-                                      return (actualNights * price - discount)
-                                          .clamp(0.0, actualNights * price);
-                                    } else if (discount > 0 && discountType == 'per_night') {
-                                      return actualNights * (price - discount)
-                                          .clamp(0.0, price);
-                                    }
-                                    return (actualNights * price).toDouble();
-                                  })();
+                            // إذا لم يُسجَّل خروج → احتساب ديناميكي من الآن
+                            final hasNoCheckout = plannedCheckout == null &&
+                                actualCheckout == null;
+                            final dynamicNights =
+                                hasNoCheckout && checkin != null
+                                    ? Time.nightsWithCutoff(checkin)
+                                    : null;
+                            final expectedNights = dynamicNights ??
+                                (booking.expectedNights > 0
+                                    ? booking.expectedNights
+                                    : (checkin == null
+                                          ? 1
+                                          : Time.nightsWithCutoff(
+                                              checkin,
+                                              checkout: plannedCheckout,
+                                            )));
+                            final actualNights = dynamicNights ??
+                                (checkin == null
+                                    ? expectedNights
+                                    : Time.nightsWithCutoff(
+                                        checkin,
+                                        checkout:
+                                            actualCheckout ?? plannedCheckout,
+                                      ));
+                            final totalAmount = actualNights * price
+                                ;
                             return RepaintBoundary(
                               child: _BookingRow(
                                 index: index,
@@ -193,33 +191,31 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                           ? DateTime.tryParse(booking.actualCheckout!)
                           : null;
                       final price = room?.price ?? 0;
-                      // استخدام القيم المحسوبة مسبقاً من BookingDerivedFieldsService
-                      final actualNights = booking.calculatedNights > 0
-                          ? booking.calculatedNights
-                          : (checkin != null
-                              ? HotelDateHelper.calculateNights(
-                                  checkIn: checkin,
-                                  checkOut: actualCheckout ?? plannedCheckout,
-                                )
-                              : 1);
-                      final expectedNights = booking.expectedNights > 0
-                          ? booking.expectedNights
-                          : actualNights;
-                      // استخدام totalDueCached إذا توفر
-                      final totalAmount = booking.totalDueCached > 0
-                          ? booking.totalDueCached
-                          : (() {
-                              final discount = booking.discount;
-                              final discountType = booking.discountType;
-                              if (discount > 0 && discountType == 'total') {
-                                return (actualNights * price - discount)
-                                    .clamp(0.0, actualNights * price);
-                              } else if (discount > 0 && discountType == 'per_night') {
-                                return actualNights * (price - discount)
-                                    .clamp(0.0, price);
-                              }
-                              return (actualNights * price).toDouble();
-                            })();
+                      // إذا لم يُسجَّل خروج → احتساب ديناميكي من الآن
+                      final hasNoCheckout = plannedCheckout == null &&
+                          actualCheckout == null;
+                      final dynamicNights =
+                          hasNoCheckout && checkin != null
+                              ? Time.nightsWithCutoff(checkin)
+                              : null;
+                      final expectedNights = dynamicNights ??
+                          (booking.expectedNights > 0
+                              ? booking.expectedNights
+                              : (checkin == null
+                                    ? 1
+                                    : Time.nightsWithCutoff(
+                                        checkin,
+                                        checkout: plannedCheckout,
+                                      )));
+                      final actualNights = dynamicNights ??
+                          (checkin == null
+                              ? expectedNights
+                              : Time.nightsWithCutoff(
+                                  checkin,
+                                  checkout:
+                                      actualCheckout ?? plannedCheckout,
+                                ));
+                      final totalAmount = actualNights * price;
                       return RepaintBoundary(
                         child: _BookingRow(
                           index: index + 1,
@@ -501,21 +497,12 @@ class _BookingRow extends ConsumerWidget {
     ];
     final guestTooltip = guestTooltipLines.join('\n');
 
-    // استخدام القيم المحسوبة مسبقاً إذا توفرت (أدق لأنها تستبعد voided + pending)
-    double paid;
-    double remaining;
-    if (booking.totalPaidCached > 0 || booking.remainingBalanceCached > 0) {
-      paid = booking.totalPaidCached;
-      remaining = booking.remainingBalanceCached;
-    } else {
-      paid = paymentsAsync.maybeWhen(
-        data: (payments) => payments
-            .where((p) => !p.isVoided && !p.isPendingBalance)
-            .fold<double>(0, (s, p) => s + p.amount),
-        orElse: () => 0.0,
-      );
-      remaining = (totalAmount - paid).clamp(0.0, totalAmount);
-    }
+    final paid = paymentsAsync.maybeWhen(
+      data: (payments) => payments.fold<double>(0, (s, p) => s + p.amount),
+      orElse: () => 0.0,
+    );
+    final remaining = (totalAmount - paid)
+        .clamp(0.0, totalAmount);
     final Color statusColor = remaining <= 0.0
         ? Colors.green
         : (paid > 0 ? Colors.orange : Colors.red);

@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'appwrite_config.dart';
 
@@ -27,7 +26,7 @@ class AppwriteConfigManager {
     _apiKeyValue = prefs.getString(_apiKey) ?? '';
 
     if (kDebugMode) {
-      AppLogger.debug('Appwrite Config Loaded:');
+      debugPrint('📱 Appwrite Config Loaded:');
       debugPrint('   Endpoint: $_endpoint');
       debugPrint('   Project ID: $_projectId');
       debugPrint('   Database ID: $_databaseId');
@@ -53,7 +52,7 @@ class AppwriteConfigManager {
     _apiKeyValue = apiKey;
 
     if (kDebugMode) {
-      AppLogger.debug('Appwrite Config Saved:');
+      debugPrint('💾 Appwrite Config Saved:');
       debugPrint('   Endpoint: $_endpoint');
       debugPrint('   Project ID: $_projectId');
       debugPrint('   Database ID: $_databaseId');
@@ -74,7 +73,7 @@ class AppwriteConfigManager {
     _apiKeyValue = '';
 
     if (kDebugMode) {
-      AppLogger.debug('Appwrite Config Reset to Defaults');
+      debugPrint('🔄 Appwrite Config Reset to Defaults');
     }
   }
 

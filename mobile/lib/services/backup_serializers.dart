@@ -142,61 +142,6 @@ class LenientValueSerializer extends ValueSerializer {
 
 const lenientValueSerializer = LenientValueSerializer();
 
-/// تنسيقات النسخ الاحتياطي المدعومة
-enum BackupFormat {
-  json,
-  sqlite,
-  compressed,
-}
-
-/// بيانات تعريف النسخة الاحتياطية
-class BackupMetadata {
-  const BackupMetadata({
-    required this.appVersion,
-    required this.databaseVersion,
-    required this.backupTimestamp,
-    required this.totalRecords,
-    required this.deviceInfo,
-    this.format = BackupFormat.json,
-    this.compressed = false,
-  });
-
-  final String appVersion;
-  final int databaseVersion;
-  final DateTime backupTimestamp;
-  final int totalRecords;
-  final String deviceInfo;
-  final BackupFormat format;
-  final bool compressed;
-
-  Map<String, dynamic> toJson() => {
-        'app_version': appVersion,
-        'database_version': databaseVersion,
-        'backup_timestamp': backupTimestamp.toIso8601String(),
-        'total_records': totalRecords,
-        'device_info': deviceInfo,
-        'format': format.name,
-        'compressed': compressed,
-      };
-
-  factory BackupMetadata.fromJson(Map<String, dynamic> json) {
-    return BackupMetadata(
-      appVersion: json['app_version'] as String? ?? 'unknown',
-      databaseVersion: json['database_version'] as int? ?? 0,
-      backupTimestamp: json['backup_timestamp'] != null
-          ? DateTime.parse(json['backup_timestamp'] as String)
-          : DateTime.now(),
-      totalRecords: json['total_records'] as int? ?? 0,
-      deviceInfo: json['device_info'] as String? ?? 'unknown',
-      format: BackupFormat.values.firstWhere(
-        (f) => f.name == json['format'],
-        orElse: () => BackupFormat.json,
-      ),
-      compressed: json['compressed'] as bool? ?? false,
-    );
-  }
-}
-
 /// حاوية بيانات الجداول المشتركة بين خدمات النسخ الاحتياطي
 /// لتجنب تكرار قائمة المعاملات الطويلة في كل خدمة نسخ احتياطي
 class BackupTableData {

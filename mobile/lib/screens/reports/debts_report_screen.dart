@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -11,7 +10,6 @@ import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
-import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
@@ -44,6 +42,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   double _totalPaid = 0;
   double _totalRemaining = 0;
 
+  /// خريطة سعر الغرفة (سعر الليلة) لكل حجز: bookingLocalId → nightlyRate
+  final Map<int?, double> _roomPriceMap = {};
+
   final Map<int, int> _unreturnedCounts = {};
 
   @override
@@ -69,47 +70,30 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     });
     try {
       final db = ref.read(databaseProvider);
-
-      // ═══════════════════════════════════════════════════════════════
-      // ✅ إصلاح: استخدام hotelDayOpened بدلاً من paymentDate التقويمي
-      //
-      // السبب: الدين المُسجل في الصباح (10:00) ينتمي لليوم الفندقي السابق
-      // مثال: دين بتاريخ 2026-05-29 10:00 → hotelDayOpened = "2026-05-28"
-      // فلترة paymentDate كانت تُدرج الديون في اليوم الخاطئ
-      //
-      // النطاق: _fromDate/_toDate يأتيان من ReportDateFilterWidget
-      // بنفس المنطق المستخدم في التقارير الأخرى
-      // ═══════════════════════════════════════════════════════════════
-
-      // حساب مفاتيح الأيام الفندقية للفلترة
-      // +1 ثانية لـ fromDate لأن getHotelDayKey يعتبر 14:00:00 نهاية اليوم السابق
-      final fromHotelDay = _fromDate != null
-          ? HotelTimeEngine.getHotelDayKey(
-              dateTime: _fromDate!.add(const Duration(seconds: 1)))
-          : null;
-      final toHotelDay = _toDate != null
-          ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
-          : null;
-
-      // فلترة على مستوى DB مع hotelDayOpened + deletedAt
-      var query = db.select(db.debts)
-        ..where((tbl) => tbl.deletedAt.isNull());
-
-      if (fromHotelDay != null) {
-        query = query..where((tbl) =>
-            tbl.hotelDayOpened.isBiggerOrEqual(Variable(fromHotelDay)));
+      final query = db.select(db.debts);
+      final allDebts = await query.get();
+      final filtered = <Debt>[];
+      final fromFilter = _fromDate;
+      final toFilter = _toDate;
+      for (final debt in allDebts) {
+        final paymentDate = _parseDateTime(debt.paymentDate);
+        if (paymentDate == null) continue;
+        if (fromFilter != null && paymentDate.isBefore(fromFilter)) {
+          continue;
+        }
+        if (toFilter != null && paymentDate.isAfter(toFilter)) {
+          continue;
+        }
+        filtered.add(debt);
       }
-      if (toHotelDay != null) {
-        query = query..where((tbl) =>
-            tbl.hotelDayOpened.isSmallerOrEqual(Variable(toHotelDay)));
-      }
-
-      final filtered = await query.get();
-      filtered.sort(
-        (a, b) => _parseDateTime(
-          b.paymentDate,
-        ).compareTo(_parseDateTime(a.paymentDate)),
-      );
+      filtered.sort((a, b) {
+        final dateA = _parseDateTime(a.paymentDate);
+        final dateB = _parseDateTime(b.paymentDate);
+        if (dateA == null && dateB == null) return 0;
+        if (dateA == null) return 1;
+        if (dateB == null) return -1;
+        return dateB.compareTo(dateA);
+      });
       final guestMap = <String, _GuestDebtSummary>{};
       final monthlyMap = <String, _MonthlyDebtSummary>{};
       double totalDebt = 0;
@@ -127,6 +111,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         guestEntry.paidAmount += debt.paidAmount;
         guestEntry.remainingAmount += debt.remainingAmount;
         final date = _parseDateTime(debt.paymentDate);
+        if (date == null) continue;
         final monthKey =
             '${date.year}-${date.month.toString().padLeft(2, '0')}';
         final monthEntry = monthlyMap.putIfAbsent(
@@ -144,18 +129,31 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         ..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
       final monthlySummaries = monthlyMap.values.toList()
         ..sort((a, b) => a.month.compareTo(b.month));
+      // جلب بيانات الحجوزات لحساب سعر الغرفة لكل دين
+      final bookingsQuery = db.select(db.bookings);
+      final allBookings = await bookingsQuery.get();
+      _roomPriceMap.clear();
+      for (final booking in allBookings) {
+        final price = booking.totalNightsCached > 0
+            ? booking.totalDueCached / booking.totalNightsCached
+            : 0.0;
+        _roomPriceMap[booking.id] = price;
+      }
+
       _unreturnedCounts.clear();
       for (final debt in filtered) {
         _unreturnedCounts[debt.id] = 0;
       }
-      setState(() {
-        _rows = filtered;
-        _guestSummaries = guestSummaries;
-        _monthlySummaries = monthlySummaries;
-        _totalDebt = totalDebt;
-        _totalPaid = totalPaid;
-        _totalRemaining = totalRemaining;
-      });
+      if (mounted) {
+        setState(() {
+          _rows = filtered;
+          _guestSummaries = guestSummaries;
+          _monthlySummaries = monthlySummaries;
+          _totalDebt = totalDebt;
+          _totalPaid = totalPaid;
+          _totalRemaining = totalRemaining;
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -174,74 +172,137 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         : 'غير محدد';
     final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
     final totalGuests = _guestSummaries.length;
+    final settledCount = _rows.where((d) => d.isSettled == 1).length;
+    final unsettledCount = _rows.length - settledCount;
 
+    // ═══════════════════════════════════════════════════════
+    // دالة تنسيق الأرقام بدون كسور عشرية
+    // ═══════════════════════════════════════════════════════
+    String fmt(double v) => EnhancedPdfUtils.formatNumber(v);
+
+    // ═══════════════════════════════════════════════════════
+    // ملخص حسب النزلاء
+    // ═══════════════════════════════════════════════════════
     final guestHeaders = ['النزيل', 'إجمالي الدين', 'المدفوع', 'المتبقي'];
     final guestData = _guestSummaries
         .map(
           (guest) => [
             guest.guestName,
-            EnhancedPdfUtils.formatNumber(guest.totalAmount),
-            EnhancedPdfUtils.formatNumber(guest.paidAmount),
-            EnhancedPdfUtils.formatNumber(guest.remainingAmount),
+            fmt(guest.totalAmount),
+            fmt(guest.paidAmount),
+            fmt(guest.remainingAmount),
           ],
         )
         .toList();
 
+    // ═══════════════════════════════════════════════════════
+    // تفاصيل السجلات — أعمدة مختصرة لتناسب عرض الصفحة
+    // ═══════════════════════════════════════════════════════
     final detailHeaders = [
+      '#',
       'النزيل',
-      'تاريخ التسجيل',
-      'تاريخ الخروج',
-      'إجمالي',
+      'التسجيل',
+      'سعر الغرفة',
+      'الإجمالي',
       'المدفوع',
       'المتبقي',
-      'سبب الدين',
-      'مسدد؟',
-      'رهون غير مُعادة',
+      'السبب',
+      'الحالة',
     ];
-    final detailData = [
-      for (final debt in _rows)
-        [
-          debt.guestName,
-          Time.safeIsoToDateString(
-            debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate,
-          ),
-          Time.safeIsoToDateString(debt.checkoutDate),
-          EnhancedPdfUtils.formatNumber(debt.totalAmount),
-          EnhancedPdfUtils.formatNumber(debt.paidAmount),
-          EnhancedPdfUtils.formatNumber(debt.remainingAmount),
-          if (debt.debtReason.isNotEmpty) debt.debtReason else '-',
-          if (debt.isSettled == 1) 'نعم' else 'لا',
-          (_unreturnedCounts[debt.id] ?? 0).toString(),
-        ],
-      [
-        'الإجمالي',
-        '',
-        '',
-        EnhancedPdfUtils.formatNumber(_totalDebt),
-        EnhancedPdfUtils.formatNumber(_totalPaid),
-        EnhancedPdfUtils.formatNumber(_totalRemaining),
-        '',
-        '',
-        '',
-      ],
-    ];
+    final detailData = <List<String>>[];
+    for (var i = 0; i < _rows.length; i++) {
+      final debt = _rows[i];
+      final roomPrice = _roomPriceMap[debt.bookingLocalId] ?? 0.0;
+      detailData.add([
+        (i + 1).toString(),
+        debt.guestName,
+        Time.safeIsoToDateString(
+          debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate,
+        ),
+        fmt(roomPrice),
+        fmt(debt.totalAmount),
+        fmt(debt.paidAmount),
+        fmt(debt.remainingAmount),
+        debt.debtReason.isNotEmpty ? debt.debtReason : '-',
+        debt.isSettled == 1 ? 'مسدد' : 'غير مسدد',
+      ]);
+    }
+    // صف الإجمالي
+    detailData.add([
+      '',
+      'الإجمالي',
+      '',
+      '',
+      fmt(_totalDebt),
+      fmt(_totalPaid),
+      fmt(_totalRemaining),
+      '',
+      '',
+    ]);
+
+    // ═══════════════════════════════════════════════════════
+    // عرض الأعمدة لكل جدول
+    // ═══════════════════════════════════════════════════════
+    final guestColWidths = [140.0, 100.0, 100.0, 100.0];
+    final detailColWidths = [25.0, 80.0, 60.0, 55.0, 60.0, 60.0, 60.0, 75.0, 55.0];
 
     await ReportPdfBuilder.buildAndShare(ReportPdfConfig(
       title: 'تقرير الديون',
       fromDate: _fromDate,
       toDate: _toDate,
       buildContent: (fonts) {
+        // ═════════════════════════════════════════════
+        // 1) بطاقات الإحصائيات العلوية
+        // ═════════════════════════════════════════════
+        final statsRow = pw.Row(
+          children: [
+            pw.Expanded(
+              child: EnhancedPdfUtils.buildStatisticsBox(
+                title: 'إجمالي الديون',
+                value: fmt(_totalDebt),
+                subtitle: '$totalGuests نزيل',
+                fonts: fonts,
+                color: PdfColors.danger,
+              ),
+            ),
+            pw.SizedBox(width: 6),
+            pw.Expanded(
+              child: EnhancedPdfUtils.buildStatisticsBox(
+                title: 'المدفوع',
+                value: fmt(_totalPaid),
+                subtitle: _totalDebt > 0
+                    ? '${(_totalPaid / _totalDebt * 100).toStringAsFixed(0)}%'
+                    : '0%',
+                fonts: fonts,
+                color: PdfColors.success,
+              ),
+            ),
+            pw.SizedBox(width: 6),
+            pw.Expanded(
+              child: EnhancedPdfUtils.buildStatisticsBox(
+                title: 'المتبقي',
+                value: fmt(_totalRemaining),
+                subtitle: '$unsettledCount غير مسدد',
+                fonts: fonts,
+                color: PdfColors.warning,
+              ),
+            ),
+          ],
+        );
+
+        // ═════════════════════════════════════════════
+        // 2) بطاقة معلومات التقرير
+        // ═════════════════════════════════════════════
         pw.Widget metaRow(String label, String value) {
           return pw.Padding(
             padding: const pw.EdgeInsets.only(bottom: 6),
             child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
-                pw.Text(
-                  value,
-                  style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                ),
+                pw.Text(label,
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
+                pw.Text(value,
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
               ],
             ),
           );
@@ -251,32 +312,61 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           title: 'تفاصيل التقرير',
           fonts: fonts,
           content: [
-            metaRow('تقرير', 'الديون'),
+            metaRow('التقرير', 'الديون'),
             metaRow('الفترة', 'من $fromLabel إلى $toLabel'),
             metaRow('عدد السجلات', _rows.length.toString()),
             metaRow('عدد النزلاء', totalGuests.toString()),
+            metaRow('مسدد', '$settledCount سجل'),
+            metaRow('غير مسدد', '$unsettledCount سجل'),
           ],
         );
 
-        pw.Widget buildLine(String title, String value, PdfColor color) {
+        // ═════════════════════════════════════════════
+        // 3) ملخص حسب النزلاء
+        // ═════════════════════════════════════════════
+        final guestSummaryCard = EnhancedPdfUtils.buildInfoCard(
+          title: 'ملخص حسب النزلاء',
+          fonts: fonts,
+          content: [
+            if (guestData.isEmpty)
+              pw.Text(
+                'لا توجد بيانات',
+                style: pw.TextStyle(font: fonts.regular, fontSize: 11),
+              )
+            else
+              EnhancedPdfUtils.buildProfessionalTable(
+                headers: guestHeaders,
+                data: guestData,
+                fonts: fonts,
+                columnWidths: guestColWidths,
+                headerColor: PdfColors.primary,
+                alternateRowColor: PdfColors.backgroundLight,
+              ),
+          ],
+        );
+
+        // ═════════════════════════════════════════════
+        // 4) ملخص الإجماليات
+        // ═════════════════════════════════════════════
+        pw.Widget buildTotalLine(String title, String value, PdfColor color) {
           return pw.Padding(
-            padding: const pw.EdgeInsets.only(bottom: 4),
+            padding: const pw.EdgeInsets.symmetric(vertical: 4),
             child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.end,
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
-                  '$title: ',
+                  title,
                   style: pw.TextStyle(
                     font: fonts.bold,
-                    fontSize: 11,
-                    color: PdfColors.textDark,
+                    fontSize: 12,
+                    color: color,
                   ),
                 ),
                 pw.Text(
                   value,
                   style: pw.TextStyle(
                     font: fonts.bold,
-                    fontSize: 12,
+                    fontSize: 13,
                     color: color,
                   ),
                 ),
@@ -285,30 +375,38 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           );
         }
 
-        final guestSummaryCard = EnhancedPdfUtils.buildInfoCard(
-          title: 'ملخص حسب النزلاء',
-          fonts: fonts,
-          content: [
-            if (guestData.isEmpty) pw.Text(
-                    'لا توجد بيانات',
-                    style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                  ) else EnhancedPdfUtils.buildProfessionalTable(
-                    headers: guestHeaders,
-                    data: guestData,
-                    fonts: fonts,
-                    headerColor: PdfColors.primary,
-                    alternateRowColor: PdfColors.backgroundLight,
-                  ),
-          ],
+        final totalsCard = pw.Container(
+          width: double.infinity,
+          padding: const pw.EdgeInsets.all(14),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.backgroundLight,
+            border: pw.Border.all(color: PdfColors.primary, width: 0.5),
+            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+          ),
+          child: pw.Column(
+            children: [
+              buildTotalLine('إجمالي الديون', fmt(_totalDebt), PdfColors.danger),
+              pw.Divider(color: PdfColors.textLight),
+              buildTotalLine('المدفوع', fmt(_totalPaid), PdfColors.success),
+              pw.Divider(color: PdfColors.textLight),
+              buildTotalLine('المتبقي', fmt(_totalRemaining), PdfColors.warning),
+            ],
+          ),
         );
 
+        // ═════════════════════════════════════════════
+        // 5) تجميع المحتوى النهائي
+        // ═════════════════════════════════════════════
         return [
-          pw.SizedBox(height: 16),
-          metaInfoCard,
           pw.SizedBox(height: 12),
+          statsRow,
+          pw.SizedBox(height: 12),
+          metaInfoCard,
           pw.SizedBox(height: 12),
           guestSummaryCard,
           pw.SizedBox(height: 12),
+          totalsCard,
+          pw.SizedBox(height: 16),
           pw.Text(
             'تفاصيل السجلات',
             style: pw.TextStyle(font: fonts.bold, fontSize: 14),
@@ -318,37 +416,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
             headers: detailHeaders,
             data: detailData,
             fonts: fonts,
+            columnWidths: detailColWidths,
             headerColor: PdfColors.primary,
             alternateRowColor: PdfColors.backgroundLight,
-          ),
-          pw.SizedBox(height: 12),
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(12),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.backgroundLight,
-              border: pw.Border.all(color: PdfColors.primary, width: 0.4),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.end,
-              children: [
-                buildLine(
-                  'الإجمالي الكلي للديون',
-                  EnhancedPdfUtils.formatNumber(_totalDebt),
-                  PdfColors.danger,
-                ),
-                buildLine(
-                  'المبالغ المدفوعة',
-                  EnhancedPdfUtils.formatNumber(_totalPaid),
-                  PdfColors.success,
-                ),
-                buildLine(
-                  'المبالغ المتبقية',
-                  EnhancedPdfUtils.formatNumber(_totalRemaining),
-                  PdfColors.warning,
-                ),
-              ],
-            ),
           ),
         ];
       },
@@ -431,9 +501,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   Widget _buildSummaryRow() {
     return Card(
       elevation: 0.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
         child: Row(
           children: [
             Expanded(
@@ -443,7 +513,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                 Colors.red,
               ),
             ),
-            Container(width: 1, height: 28, color: Colors.grey.shade200),
+            Container(width: 1, height: 22, color: Colors.grey.shade200),
             Expanded(
               child: _buildSummaryChip(
                 'المدفوعة',
@@ -451,7 +521,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                 Colors.green,
               ),
             ),
-            Container(width: 1, height: 28, color: Colors.grey.shade200),
+            Container(width: 1, height: 22, color: Colors.grey.shade200),
             Expanded(
               child: _buildSummaryChip(
                 'المتبقية',
@@ -459,7 +529,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                 Colors.orange,
               ),
             ),
-            Container(width: 1, height: 28, color: Colors.grey.shade200),
+            Container(width: 1, height: 22, color: Colors.grey.shade200),
             Expanded(
               child: _buildSummaryChip(
                 'سجلات',
@@ -478,12 +548,12 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       children: [
         Text(
           value,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: color),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 1),
         Text(
           label,
-          style: const TextStyle(fontSize: 9, color: Colors.grey),
+          style: const TextStyle(fontSize: 8, color: Colors.grey),
         ),
       ],
     );
@@ -497,10 +567,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         rows: _guestSummaries
             .map(
               (guest) => [
-                Text(guest.guestName, style: const TextStyle(fontSize: 11)),
-                Text(_currencyFormat.format(guest.totalAmount), style: const TextStyle(fontSize: 11)),
-                Text(_currencyFormat.format(guest.paidAmount), style: const TextStyle(fontSize: 11)),
-                Text(_currencyFormat.format(guest.remainingAmount), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                Text(guest.guestName, style: const TextStyle(fontSize: 10)),
+                Text(_currencyFormat.format(guest.totalAmount), style: const TextStyle(fontSize: 10)),
+                Text(_currencyFormat.format(guest.paidAmount), style: const TextStyle(fontSize: 10)),
+                Text(_currencyFormat.format(guest.remainingAmount), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
               ],
             )
             .toList(),
@@ -514,31 +584,39 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       child: AdminTable(
         headers: const [
           'النزيل', 'التسجيل', 'السبب', 'الدخول', 'الخروج',
-          'الدين', 'المدفوع', 'المتبقي', 'الدفع', 'الحالة', 'الرهن', 'نوع الرهن',
+          'سعر الغرفة', 'الدين', 'المدفوع', 'المتبقي', 'الدفع', 'الحالة', 'الرهن', 'نوع الرهن',
         ],
         rows: _rows
             .map(
-              (debt) => [
-                Text(debt.guestName, style: const TextStyle(fontSize: 10)),
-                Text(_formatDisplayDate(debt.dateRecorded), style: const TextStyle(fontSize: 10)),
-                Text(_formatTextFallback(debt.debtReason), style: const TextStyle(fontSize: 10)),
-                Text(Time.safeIsoToDateString(debt.checkinDate), style: const TextStyle(fontSize: 10)),
-                Text(Time.safeIsoToDateString(debt.checkoutDate), style: const TextStyle(fontSize: 10)),
-                Text(_currencyFormat.format(debt.totalAmount), style: const TextStyle(fontSize: 10)),
-                Text(_currencyFormat.format(debt.paidAmount), style: const TextStyle(fontSize: 10)),
-                Text(_currencyFormat.format(debt.remainingAmount), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
-                Text(Time.safeIsoToDateString(debt.paymentDate), style: const TextStyle(fontSize: 10)),
-                Text(_formatSettlement(debt.isSettled), style: const TextStyle(fontSize: 10)),
-                Text(debt.pledge?.isNotEmpty ?? false ? debt.pledge! : '-', style: const TextStyle(fontSize: 10)),
-                Text(debt.pledgeType?.isNotEmpty ?? false ? debt.pledgeType! : '-', style: const TextStyle(fontSize: 10)),
-              ],
+              (debt) {
+                final roomPrice = _roomPriceMap[debt.bookingLocalId] ?? 0.0;
+                return [
+                  Text(debt.guestName, style: const TextStyle(fontSize: 9)),
+                  Text(_formatDisplayDate(debt.dateRecorded), style: const TextStyle(fontSize: 9)),
+                  Text(_formatTextFallback(debt.debtReason), style: const TextStyle(fontSize: 9)),
+                  Text(Time.safeIsoToDateString(debt.checkinDate), style: const TextStyle(fontSize: 9)),
+                  Text(Time.safeIsoToDateString(debt.checkoutDate), style: const TextStyle(fontSize: 9)),
+                  Text(_currencyFormat.format(roomPrice), style: const TextStyle(fontSize: 9)),
+                  Text(_currencyFormat.format(debt.totalAmount), style: const TextStyle(fontSize: 9)),
+                  Text(_currencyFormat.format(debt.paidAmount), style: const TextStyle(fontSize: 9)),
+                  Text(_currencyFormat.format(debt.remainingAmount), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+                  Text(Time.safeIsoToDateString(debt.paymentDate), style: const TextStyle(fontSize: 9)),
+                  Text(_formatSettlement(debt.isSettled), style: const TextStyle(fontSize: 9)),
+                  Text(debt.pledge?.isNotEmpty ?? false ? debt.pledge! : '-', style: const TextStyle(fontSize: 9)),
+                  Text(debt.pledgeType?.isNotEmpty ?? false ? debt.pledgeType! : '-', style: const TextStyle(fontSize: 9)),
+                ];
+              },
             )
             .toList(),
       ),
     );
   }
 
-  DateTime _parseDateTime(String value) {
+  /// ✅ إصلاح حرج: إرجاع null عند فشل تحليل التاريخ بدلاً من epoch(1970)
+  /// السلوك السابق كان يُرجع DateTime.fromMillisecondsSinceEpoch(0) عند الفشل
+  /// مما يُدخل سجلات فاسدة في ملخصات 1970 ويُفسد المجاميع الشهرية
+  DateTime? _parseDateTime(String value) {
+    if (value.isEmpty) return null;
     final normalized = value.contains('T')
         ? value
         : value.replaceFirst(' ', 'T');
@@ -549,8 +627,8 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         final safeDate = Time.safeIsoToDateString(value);
         return DateTime.parse('${safeDate}T00:00:00');
       } catch (_) {
-        // بيانات تاريخ فاسدة — استخدام تاريخ افتراضي آمن
-        return DateTime.fromMillisecondsSinceEpoch(0);
+        // بيانات تاريخ فاسدة — إرجاع null لتجاهل السجل في التجميع
+        return null;
       }
     }
   }

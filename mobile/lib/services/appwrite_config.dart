@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 
 /// إعدادات Appwrite المركزية
 class AppwriteConfig {
@@ -70,13 +69,13 @@ class AppwriteConfig {
   static void printConfig() {
     if (kDebugMode) {
       debugPrint('═══════════════════════════════════════');
-      AppLogger.debug('Appwrite Configuration');
+      debugPrint('🔧 Appwrite Configuration');
       debugPrint('═══════════════════════════════════════');
       debugPrint('Endpoint: $endpoint');
       debugPrint('Project ID: $projectId');
-      AppLogger.debug('Database ID: $databaseId');
-      AppLogger.debug('Sync Interval: ${syncInterval.inMinutes} minutes');
-      AppLogger.debug('Cache Expiry: ${cacheExpiry.inHours} hours');
+      debugPrint('Database ID: $databaseId');
+      debugPrint('Sync Interval: ${syncInterval.inMinutes} minutes');
+      debugPrint('Cache Expiry: ${cacheExpiry.inHours} hours');
       debugPrint('Max Cache Size: $maxCacheSizeMB MB');
       debugPrint('Default Page Size: $defaultPageSize');
       debugPrint('Max Page Size: $maxPageSize');
@@ -91,7 +90,7 @@ class AppwriteConfig {
   /// التحقق من صحة الإعدادات
   static bool validateConfig() {
     if (projectId == 'YOUR_PROJECT_ID_HERE') {
-      AppLogger.error('Error: Please set your Appwrite Project ID');
+      debugPrint('❌ Error: Please set your Appwrite Project ID');
       return false;
     }
     return true;

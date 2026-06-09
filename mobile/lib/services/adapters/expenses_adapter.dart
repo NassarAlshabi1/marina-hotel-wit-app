@@ -29,9 +29,44 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
   }) async {
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
+
+    // ✅ حل FK الموظف لمصروفات الرواتب (relatedId)
+    // عندما يكون expenseType مرتبطاً بالرواتب، نحل relatedId
+    // عبر UUID لضمان التوافق عبر الأجهزة
+    int? employeeRelatedId;
+    final expenseType = _asString(json, 'expenseType', src) ?? '';
+    if (_isSalaryExpenseType(expenseType)) {
+      final remoteEmployeeUuid = _asString(json, 'employeeUuid', src) ??
+          _asString(json, 'employee_local_uuid', src);
+      final remoteRelatedId = _asInt(json, 'relatedId', src) ??
+          _asInt(json, 'related_id', src);
+
+      if (remoteEmployeeUuid != null && remoteEmployeeUuid.isNotEmpty) {
+        // حل عبر UUID (الأكثر دقة)
+        final row = await (db.select(db.employees)
+              ..where((e) => e.localUuid.equals(remoteEmployeeUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          employeeRelatedId = row.id;
+        }
+      }
+      // Fallback: إذا لم يتم الحل عبر UUID، نحاول بالـ relatedId كـ local id
+      if (employeeRelatedId == null && remoteRelatedId != null) {
+        final row = await (db.select(db.employees)
+              ..where((e) => e.id.equals(remoteRelatedId))
+              ..limit(1))
+            .getSingleOrNull();
+        if (row != null) {
+          employeeRelatedId = row.id;
+        }
+      }
+    }
+
     return ResolveResult(
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
+      employeeRelatedId: employeeRelatedId,
     );
   }
 
@@ -57,7 +92,14 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       ),
       serverId: _vInt(json, 'serverId', src),
       expenseType: _vStr(json, 'expenseType', src, fallback: ''),
-      relatedId: _vInt(json, 'relatedId', src),
+      // ✅ إصلاح: لمصروفات الرواتب، استخدم relatedId المحلول عبر UUID
+      // لتوافق الأجهزة المختلفة (relatedId على جهاز آخر قد لا يتطابق)
+      relatedId: (_isSalaryExpenseType(
+                  _asString(json, 'expenseType', src) ?? '',
+                ) &&
+                refs.employeeRelatedId != null)
+          ? d.Value(refs.employeeRelatedId!)
+          : _vInt(json, 'relatedId', src),
       description: _vStr(json, 'description', src, fallback: ''),
       amount: _vDouble(json, 'amount', src, fallback: 0),
       date: _vStr(json, 'date', src, fallback: ''),
@@ -99,7 +141,7 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
 
   @override
   Map<String, dynamic> toJson(Expense model, {required Source src}) {
-    return {
+    final map = <String, dynamic>{
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
@@ -122,6 +164,13 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
     };
+
+    // ✅ إضافة employeeUuid لمصروفات الرواتب عند المزامنة مع Appwrite
+    // هذا يسمح بحل FK الموظف عبر الأجهزة المختلفة
+    // ملاحظة: لا يمكننا إضافة employeeUuid هنا لأننا لا نملك
+    // بيانات الموظف — سيتم إضافتها في AppwriteSyncManager
+
+    return map;
   }
 }
 
@@ -268,6 +317,15 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
     return json[alt];
   }
   return null;
+}
+
+/// هل نوع المصروف مرتبط بالرواتب
+bool _isSalaryExpenseType(String type) {
+  const salaryKeywords = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'];
+  for (final keyword in salaryKeywords) {
+    if (type.contains(keyword)) return true;
+  }
+  return false;
 }
 
 String _k(Source src, String camel, String snake) =>

@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart' as d;
 import 'package:intl/intl.dart';
-import '../utils/hotel_date_helper.dart';
+import '../utils/time.dart';
 import 'local_db.dart';
 
 /// نموذج تفصيلي لحسابات المدفوعات والأيام للنزيل الواحد
@@ -114,8 +114,8 @@ class GuestPaymentCalculationService {
     final payments = await (db.select(db.payments)
           ..where((p) => p.bookingLocalId.equals(booking.id))
           ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull())
-          ..where((p) => p.isPendingBalance.equals(false) | p.isPendingBalance.isNull())
+          ..where((p) => p.isVoided.equals(false))
+          ..where((p) => p.isPendingBalance.equals(false))
           ..where((p) =>
               p.revenueType.equals('room') |
               p.revenueType.equals('') |
@@ -129,16 +129,16 @@ class GuestPaymentCalculationService {
         ? DateTime.tryParse(booking.actualCheckout!)
         : null;
     
-    final actualDaysSpent = HotelDateHelper.calculateNights(
-      checkIn: checkin,
-      checkOut: actualCheckout ?? moment,
+    final actualDaysSpent = Time.nightsWithCutoff(
+      checkin,
+      checkout: actualCheckout ?? moment,
     );
 
     // حساب الأيام المتبقية حتى موعد المغادرة المخطط
     final plannedCheckout = DateTime.tryParse(booking.checkoutDate ?? '');
     int plannedDaysRemaining = 0;
     if (plannedCheckout != null && !plannedCheckout.isBefore(moment)) {
-      plannedDaysRemaining = HotelDateHelper.calculateNights(checkIn: moment, checkOut: plannedCheckout);
+      plannedDaysRemaining = Time.nightsWithCutoff(moment, checkout: plannedCheckout);
     }
 
     // حساب سعر الليلة الواحدة بناءً على السعر المخزن في الغرفة
@@ -161,7 +161,7 @@ class GuestPaymentCalculationService {
     final isOverdue = plannedCheckout != null && moment.isAfter(plannedCheckout) && actualCheckout == null;
     int overdueDays = 0;
     if (isOverdue) {
-      overdueDays = HotelDateHelper.calculateNights(checkIn: plannedCheckout, checkOut: moment);
+      overdueDays = Time.nightsWithCutoff(plannedCheckout, checkout: moment);
     }
     final overdueCost = overdueDays * nightlyRate;
 

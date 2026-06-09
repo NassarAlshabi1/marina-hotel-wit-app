@@ -24,6 +24,7 @@ import '../../services/daos/payments_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
@@ -71,7 +72,7 @@ class _IncomeExpenseReportScreenState
   @override
   void initState() {
     super.initState();
-    // الافتراضي: اليوم الفندقي الحالي (14:00 → 14:00)
+    // الافتراضي: اليوم الفندقي الحالي (14:01 → 14:00)
     final range = DateFilterController.getDefaultHotelDayRange();
     _fromDate = range.from;
     _toDate = range.to;
@@ -89,20 +90,29 @@ class _IncomeExpenseReportScreenState
       // ═══════════════════════════════════════════════════════════════
       // حساب نطاق الفلترة بدقة خارقة
       // _fromDate يأتي من ReportDateFilterWidget:
-      //   - اليوم الفندقي: 14:00 أمس/اليوم → 13:59 اليوم/غداً
-      //   - الأسبوع: 14:00 بداية الأسبوع → 13:59 نهاية اليوم
-      //   - الشهر: 14:00 أول الشهر → 13:59 نهاية اليوم
-      //   - السنة: 14:00 أول السنة → 13:59 نهاية اليوم
+      //   - اليوم الفندقي: 14:01 أمس/اليوم → 14:00:59 اليوم/غداً
+      //   - الأسبوع: 14:01 بداية الأسبوع → 14:00:59 نهاية اليوم
+      //   - الشهر: 14:01 أول الشهر → 14:00:59 نهاية اليوم
+      //   - السنة: 14:01 أول السنة → 14:00:59 نهاية اليوم
       //   - يدوي: من تاريخ → إلى تاريخ
       //
-      // _fromDate دائماً يحتوي على وقت البداية (14:00 أو وقت منتقي)
-      // _toDate دائماً يحتوي على وقت النهاية (13:59:59 أو وقت منتقي)
+      // _fromDate دائماً يحتوي على وقت البداية (14:01 أو وقت منتقي)
+      // _toDate دائماً يحتوي على وقت النهاية (14:00:59 أو وقت منتقي)
       // ═══════════════════════════════════════════════════════════════
       final fromDate = _fromDate!;
       final toDate = _toDate!;
 
-      // ✅ إصلاح: استخدام hotelDayKey للمدفوعات أيضاً بدلاً من مقارنة paymentDate كنص
-      // نفس السبب: مقارنة نصية "2026-05-18 10:30:00" >= "2026-05-18 14:00:00" خاطئة
+      // ✅ إصلاح: المدفوعات والمصروفات تُفلتر بـ hotelDayKey بدلاً من date التقويمي
+      // لمنع إدراج معاملات الصباح التي تنتمي لليوم الفندقي السابق
+      // ✅ استخدام HotelTimeEngine.getHotelDayKey للتوافق مع البيانات المُخزنة
+      // PaymentsRepository.create() و ExpensesRepository.create()
+      // يخزنان hotelDayKey باستخدام HotelTimeEngine
+      // فلابد أن تكون الفلترة بنفس الدالة لتطابق المفاتيح
+      //
+      // ⚠️ ملاحظة حرجة: getHotelDayKey تعتبر 14:00:59 بالضبط نهاية اليوم السابق
+      // (14:01:00 = بداية اليوم الجديد). بما أن fromDate يأتي دائماً بوقت 14:01:00
+      // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
+      // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
       final fromHotelDay = HotelTimeEngine.getHotelDayKey(
           dateTime: fromDate.add(const Duration(seconds: 1)));
       final toHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: toDate);
@@ -114,12 +124,11 @@ class _IncomeExpenseReportScreenState
         excludePendingBalance: true,
       );
 
-      // ✅ إصلاح: المصروفات تُفلتر بـ hotelDayKey بدلاً من date التقويمي
-      // لمنع إدراج مصروفات الصباح التي تنتمي لليوم الفندقي السابق
-      // fromHotelDay/toHotelDay تم حسابهما أعلاه
+      // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
       final expenses = await expensesDao.listFilteredByHotelDay(
         fromHotelDay: fromHotelDay,
         toHotelDay: toHotelDay,
+        excludeAdvance: true,
       );
 
       // بيانات إضافية للتقرير التفصيلي للدورة المالية
@@ -127,60 +136,58 @@ class _IncomeExpenseReportScreenState
       final debtsDao = DebtsDao(db, outboxDao);
       final employeesDao = EmployeesDao(db, outboxDao);
 
-      // ✅ إصلاح خارق: الحجوزات تُفلتر بـ hotelDayCheckin بدلاً من checkinDate التقويمي
-      // نفس السبب: حجز تسجيل دخول في الصباح (10:00) يكون checkinDate = "2026-05-18"
-      // لكن hotelDayCheckin = "2026-05-17" (قبل الساعة 14:00)
-      // فلترة checkinDate كانت تُدرج حجوزات لا تنتمي لليوم الفندقي المحدد
-      final bookings = await bookingsDao.listFilteredByHotelDay(
-        fromHotelDay: fromHotelDay,
-        toHotelDay: toHotelDay,
+      // الحجوزات: فلترة بنطاق تاريخ checkin (تاريخ فقط بدون وقت)
+      final bookingFromStr = DateFormat('yyyy-MM-dd').format(fromDate);
+      final bookingToStr = DateFormat('yyyy-MM-dd').format(toDate);
+      final bookings = await bookingsDao.list(
+        from: bookingFromStr,
+        to: bookingToStr,
       );
 
-      // ✅ إصلاح خارق: الديون تُفلترة بتاريخ التسجيل ضمن الفترة المحددة
-      // باستخدام HotelTimeEngine لمقارنة الأيام الفندقية بدلاً من الأيام التقويمية
+      // الديون: فلترة بتاريخ التسجيل ضمن الفترة المحددة
       final allDebts = await debtsDao.list();
       final debtsInPeriod = allDebts.where((d) {
-        // ✅ إصلاح: استبعاد الديون المحذوفة ناعماً (deleted_at IS NOT NULL)
-        // debtsDao.list() يفلترة افتراضياً، لكن نتحقق احتياطياً
-
-        // فلترة الديون بنطاق التاريخ باستخدام اليوم الفندقي
-        // نحاول dateRecorded أولاً ثم paymentDate
-        String? debtDateStr;
+        // فلترة الديون بنطاق التاريخ
         if (d.dateRecorded.isNotEmpty) {
-          debtDateStr = d.dateRecorded;
-        } else if (d.paymentDate.isNotEmpty) {
-          debtDateStr = d.paymentDate;
+          try {
+            final debtDate = DateTime.parse(
+              d.dateRecorded.length > 10
+                  ? d.dateRecorded.replaceFirst(' ', 'T')
+                  : d.dateRecorded,
+            );
+            // مقارنة باليوم فقط (بدون وقت) ضمن النطاق
+            final debtDay = DateTime(debtDate.year, debtDate.month, debtDate.day);
+            final fromDay = DateTime(fromDate.year, fromDate.month, fromDate.day);
+            final toDay = DateTime(toDate.year, toDate.month, toDate.day);
+            return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
+          } catch (e) {
+            debugPrint('⚠️ تعذر تحليل تاريخ الدين dateRecorded="${d.dateRecorded}": $e');
+            return false; // استبعاد السجل غير الصالح من فلترة الفترة
+          }
         }
-
-        if (debtDateStr == null) {
-          // ✅ إصلاح: ديون بدون أي تاريخ لا يمكن تحديد فترتها
-          // استبعادها بدلاً من إدراجها في كل الفترات (كان return true خاطئاً)
-          return false;
+        // إذا لم يوجد dateRecorded نعتمد على paymentDate
+        if (d.paymentDate.isNotEmpty) {
+          try {
+            final debtDate = DateTime.parse(
+              d.paymentDate.length > 10
+                  ? d.paymentDate.replaceFirst(' ', 'T')
+                  : d.paymentDate,
+            );
+            final debtDay = DateTime(debtDate.year, debtDate.month, debtDate.day);
+            final fromDay = DateTime(fromDate.year, fromDate.month, fromDate.day);
+            final toDay = DateTime(toDate.year, toDate.month, toDate.day);
+            return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
+          } catch (e) {
+            debugPrint('⚠️ تعذر تحليل تاريخ الدين paymentDate="${d.paymentDate}": $e');
+            return false; // استبعاد السجل غير الصالح من فلترة الفترة
+          }
         }
-
-        try {
-          final debtDate = DateTime.parse(
-            debtDateStr.length > 10
-                ? debtDateStr.replaceFirst(' ', 'T')
-                : debtDateStr,
-          );
-          // ✅ إصلاح خارق: مقارنة باليوم الفندقي بدلاً من اليوم التقويمي
-          // دين مُسجل في الصباح (10:00) ينتمي لليوم الفندقي السابق
-          final debtHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: debtDate);
-          // مقارنة نصية للأيام الفندقية (yyyy-MM-dd)
-          return debtHotelDay.compareTo(fromHotelDay) >= 0 &&
-                 debtHotelDay.compareTo(toHotelDay) <= 0;
-        } catch (e) {
-          debugPrint('⚠️ تعذر تحليل تاريخ الدين "$debtDateStr": $e');
-          return false;
-        }
+        return false; // ✅ إصلاح: استبعاد الديون بدون تواريخ صالحة
       }).toList();
 
-      // ✅ إصلاح خارق: الديون غير المسددة - معالجة NULL في isSettled
-      // isSettled أُضيف عبر addColumn migration — السجلات القديمة قد تحتوي NULL
-      // NULL != 1 يعني "غير مسدد" — نفس منطق isPendingBalance
-      // بما أن Drift قد يُرجع 0 كقيمة افتراضية، نتحقق بـ != 1
-      final unsettledDebtsAll = allDebts.where((d) => d.isSettled != 1).toList();
+      // الديون غير المسددة: نحتاج كل الديون غير المسددة (حتى خارج الفترة)
+      // لأنها تمثل التزامات مالية لا تزال قائمة
+      final unsettledDebtsAll = allDebts.where((d) => d.isSettled == 0).toList();
 
       final allEmployees = await employeesDao.list();
       final employees = allEmployees
@@ -208,11 +215,6 @@ class _IncomeExpenseReportScreenState
               .map(
                 (p) => {
                   'date': p.paymentDate,
-                  // ✅ إصلاح خارق: تمرير hotelDayKey للتجميع الصحيح
-                  // بدلاً من التجميع بالتاريخ التقويمي الذي يُسبب خطأ:
-                  // دفعة في 10:00 صباح 18 مايو تنتمي لليوم الفندقي 17 مايو
-                  // لكن التجميع بالتاريخ التقويمي يضعها تحت "18 مايو" — خطأ!
-                  'hotelDayKey': p.hotelDayKey ?? '',
                   'roomNumber': p.roomNumber ?? '',
                   'guestName': p.bookingLocalId != null
                       ? (bookingGuestMap[p.bookingLocalId] ?? '')
@@ -227,8 +229,6 @@ class _IncomeExpenseReportScreenState
               .map(
                 (e) => {
                   'date': e.date,
-                  // ✅ إصلاح خارق: تمرير hotelDayKey للتجميع الصحيح
-                  'hotelDayKey': e.hotelDayKey ?? '',
                   'type': e.expenseType,
                   'description': e.description,
                   'amount': e.amount,
@@ -243,9 +243,8 @@ class _IncomeExpenseReportScreenState
           totalDebtsCount: debtsInPeriod.length,
           unsettledDebtsCount: unsettledDebtsAll.length,
           unsettledDebtsAmount: unsettledDebtsAll.fold<double>(0, (s, d) => s + d.remainingAmount),
-          // ✅ إصلاح: isSettled != 1 بدلاً من == 0 لمعالجة NULL
-          unsettledDebtsInPeriodCount: debtsInPeriod.where((d) => d.isSettled != 1).length,
-          unsettledDebtsInPeriodAmount: debtsInPeriod.where((d) => d.isSettled != 1).fold<double>(0, (s, d) => s + d.remainingAmount),
+          unsettledDebtsInPeriodCount: debtsInPeriod.where((d) => d.isSettled == 0).length,
+          unsettledDebtsInPeriodAmount: debtsInPeriod.where((d) => d.isSettled == 0).fold<double>(0, (s, d) => s + d.remainingAmount),
           activeEmployeesCount: employees.length,
           terminatedEmployeesCount: terminatedEmployees.length,
           totalSalaryObligation: employees.fold<double>(0, (s, e) => s + e.basicSalary),
@@ -296,25 +295,7 @@ class _IncomeExpenseReportScreenState
   }
 
   // ===== تجميع البيانات =====
-  // ✅ إصلاح خارق: استخدام hotelDayKey للتجميع اليومي بدلاً من التاريخ التقويمي
-  // دفعة في 10:00 صباح 18 مايو → hotelDayKey = "2026-05-17" (قبل الساعة 14:00)
-  // التجميع بالتاريخ التقويمي يضعها تحت "18 مايو" — خطأ!
-  // التجميع بـ hotelDayKey يضعها تحت "17 مايو" — صحيح!
-  String _getGroupKey(_IncomeEntry entry, String groupBy) {
-    if (groupBy == 'daily' && entry.hotelDayKey.isNotEmpty) {
-      return entry.hotelDayKey; // التجميع باليوم الفندقي
-    }
-    return _getGroupKeyFromDate(entry.date, groupBy);
-  }
-
-  String _getGroupKeyForExpense(_ExpenseEntry entry, String groupBy) {
-    if (groupBy == 'daily' && entry.hotelDayKey.isNotEmpty) {
-      return entry.hotelDayKey; // التجميع باليوم الفندقي
-    }
-    return _getGroupKeyFromDate(entry.date, groupBy);
-  }
-
-  String _getGroupKeyFromDate(DateTime date, String groupBy) {
+  String _getGroupKey(DateTime date, String groupBy) {
     switch (groupBy) {
       case 'daily':
         return DateFormat('yyyy-MM-dd').format(date);
@@ -360,11 +341,11 @@ class _IncomeExpenseReportScreenState
     final expenseMap = <String, List<_ExpenseEntry>>{};
 
     for (final e in _incomeEntries) {
-      final key = _getGroupKey(e, groupBy);
+      final key = _getGroupKey(e.date, groupBy);
       incomeMap.putIfAbsent(key, () => []).add(e);
     }
     for (final e in _expenseEntries) {
-      final key = _getGroupKeyForExpense(e, groupBy);
+      final key = _getGroupKey(e.date, groupBy);
       expenseMap.putIfAbsent(key, () => []).add(e);
     }
 
@@ -947,7 +928,7 @@ class _IncomeExpenseReportScreenState
         ['نسبة الديون غير المسددة الكلية من الإيرادات',
           if (_incomeTotal > 0) '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',],
         ['قدرة تغطية الديون (صافي / ديون)',
-          if (debtCoverage > 0) '${debtCoverage.round()}x' else 'غير كافٍ',],
+          if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',],
       ],
     );
   }
@@ -991,7 +972,7 @@ class _IncomeExpenseReportScreenState
         ],
         [
           'معدل تغطية الديون',
-          if (debtCoverage > 0) '${debtCoverage.round()}x' else 'غير كافٍ',
+          if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',
           if (debtCoverage > 2) 'ممتاز' else debtCoverage > 1
                   ? 'جيد'
                   : 'ضعيف',
@@ -2497,7 +2478,6 @@ class _IncomeEntry {
     this.guestName = '',
     this.paymentMethod = '',
     this.revenueType = '',
-    this.hotelDayKey = '',
   });
 
   final DateTime date;
@@ -2507,9 +2487,6 @@ class _IncomeEntry {
   final String guestName;
   final String paymentMethod;
   final String revenueType;
-  // ✅ إصلاح خارق: مفتاح اليوم الفندقي للتجميع الصحيح
-  // بدلاً من التجميع بالتاريخ التقويمي
-  final String hotelDayKey;
 }
 
 class _ExpenseEntry {
@@ -2519,7 +2496,6 @@ class _ExpenseEntry {
     required this.description,
     required this.amount,
     required this.isSalary,
-    this.hotelDayKey = '',
   });
 
   final DateTime date;
@@ -2527,8 +2503,6 @@ class _ExpenseEntry {
   final String description;
   final double amount;
   final bool isSalary;
-  // ✅ إصلاح خارق: مفتاح اليوم الفندقي للتجميع الصحيح
-  final String hotelDayKey;
 }
 
 class _CombinedEntry {
@@ -2669,8 +2643,6 @@ _ReportResult _processReportData(_ReportParams params) {
         guestName: (p['guestName'] ?? '').toString(),
         paymentMethod: (p['paymentMethod'] ?? '').toString(),
         revenueType: (p['revenueType'] ?? '').toString(),
-        // ✅ إصلاح خارق: تمرير hotelDayKey للتجميع حسب اليوم الفندقي
-        hotelDayKey: (p['hotelDayKey'] ?? '').toString(),
       ),
     );
   }
@@ -2698,8 +2670,6 @@ _ReportResult _processReportData(_ReportParams params) {
         description: (e['description'] ?? '').toString(),
         amount: ((e['amount'] ?? 0) as num).toDouble(),
         isSalary: isSalaryExpense(type),
-        // ✅ إصلاح خارق: تمرير hotelDayKey للتجميع حسب اليوم الفندقي
-        hotelDayKey: (e['hotelDayKey'] ?? '').toString(),
       ),
     );
   }

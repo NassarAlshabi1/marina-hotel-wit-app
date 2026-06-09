@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'connectivity_service.dart';
@@ -313,7 +312,7 @@ class SyncOrchestrator {
     await _loadPersistedMetrics();
 
     _setState(OrchestratorState.idle);
-    AppLogger.info('[Orchestrator] تم التهيئة بنجاح');
+    debugPrint('✅ [Orchestrator] تم التهيئة بنجاح');
   }
 
   CircuitBreaker getCircuitBreaker(String name) {
@@ -384,7 +383,7 @@ class SyncOrchestrator {
         );
       } else {
         _metrics.recordFailure(duration);
-        AppLogger.error('[Orchestrator] ${task.name}: ${result.error}');
+        debugPrint('❌ [Orchestrator] ${task.name}: ${result.error}');
       }
 
       _metricsController.add(_metrics);
@@ -470,7 +469,7 @@ class SyncOrchestrator {
     _healthController.add(health);
 
     if (!health.isHealthy) {
-      AppLogger.warning('[Orchestrator] صحة النظام: غير صحي');
+      debugPrint('⚠️ [Orchestrator] صحة النظام: غير صحي');
 
       if (_metrics.consecutiveFailures >= 5) {
         _setState(OrchestratorState.recovering);
@@ -480,7 +479,7 @@ class SyncOrchestrator {
   }
 
   Future<void> _attemptRecovery() async {
-    AppLogger.debug('[Orchestrator] محاولة الاسترداد...');
+    debugPrint('🔧 [Orchestrator] محاولة الاسترداد...');
 
     for (final cb in _circuitBreakers.values) {
       if (cb.state == CircuitState.open) {
@@ -492,7 +491,7 @@ class SyncOrchestrator {
     _metrics.consecutiveFailures = 0;
 
     _setState(OrchestratorState.idle);
-    AppLogger.info('[Orchestrator] تم الاسترداد');
+    debugPrint('✅ [Orchestrator] تم الاسترداد');
   }
 
   Future<List<DataIntegrityCheck>> verifyDataIntegrity() async {
@@ -534,7 +533,7 @@ class SyncOrchestrator {
           ),
         );
       } catch (e) {
-        AppLogger.warning('[Orchestrator] خطأ في فحص $table: $e');
+        debugPrint('⚠️ [Orchestrator] خطأ في فحص $table: $e');
       }
     }
 
@@ -554,7 +553,7 @@ class SyncOrchestrator {
         _metrics.totalConflicts = (data['totalConflicts'] as num?)?.toInt() ?? 0;
       }
     } catch (e) {
-      AppLogger.warning('[Orchestrator] خطأ في تحميل المقاييس: $e');
+      debugPrint('⚠️ [Orchestrator] خطأ في تحميل المقاييس: $e');
     }
   }
 
@@ -566,7 +565,7 @@ class SyncOrchestrator {
         jsonEncode(_metrics.toJson()),
       );
     } catch (e) {
-      AppLogger.warning('[Orchestrator] خطأ في حفظ المقاييس: $e');
+      debugPrint('⚠️ [Orchestrator] خطأ في حفظ المقاييس: $e');
     }
   }
 
@@ -576,7 +575,7 @@ class SyncOrchestrator {
     }
     _state = newState;
     _stateController.add(newState);
-    AppLogger.debug('[Orchestrator] الحالة: ${newState.name}');
+    debugPrint('🔄 [Orchestrator] الحالة: ${newState.name}');
   }
 
   void pause() {

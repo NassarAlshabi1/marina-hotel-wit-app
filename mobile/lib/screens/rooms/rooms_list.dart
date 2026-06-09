@@ -11,7 +11,6 @@ import '../../services/price_adjustment_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/theme.dart';
-import '../../components/widgets/optimized_image.dart';
 
 class RoomsListScreen extends ConsumerStatefulWidget {
   const RoomsListScreen({super.key});
@@ -186,9 +185,11 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                     itemCount: floorRooms.length,
                     itemBuilder: (context, i) {
                       final roomData = floorRooms[i];
-                      return _RoomGridCard(
-                        roomData: roomData,
-                        onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
+                      return RepaintBoundary(
+                        child: _RoomGridCard(
+                          roomData: roomData,
+                          onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
+                        ),
                       );
                     },
                   ),
@@ -391,7 +392,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     final formKey = GlobalKey<FormState>();
     final roomNumberCtrl = TextEditingController(text: existing?.roomNumber ?? '');
     final typeCtrl = TextEditingController(text: existing?.type ?? '');
-    final priceCtrl = TextEditingController(text: existing != null ? existing.price.toInt().toString() : '');
+    final priceCtrl = TextEditingController(text: existing?.price.toString() ?? '');
     String status = existing?.status ?? 'شاغرة';
     final String? imageUrl = existing?.imageUrl;
 
@@ -472,7 +473,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   const SizedBox(height: 16),
                   StatefulBuilder(
                     builder: (context, setLocalState) => DropdownButtonFormField<String>(
-                      initialValue: status,
+                      value: status,
                       decoration: InputDecoration(
                         labelText: 'الحالة',
                         prefixIcon: const Icon(Icons.toggle_on),
@@ -527,6 +528,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     );
 
     if (ok != true) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات عند الإلغاء
+      roomNumberCtrl.dispose();
+      typeCtrl.dispose();
+      priceCtrl.dispose();
       return;
     }
 
@@ -586,6 +591,11 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           backgroundColor: Colors.red.shade900,
         ),
       );
+    } finally {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات دائماً
+      roomNumberCtrl.dispose();
+      typeCtrl.dispose();
+      priceCtrl.dispose();
     }
   }
 
@@ -862,6 +872,18 @@ class _RoomGridCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (room.type.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  room.type,
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Colors.grey[600],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
           ),
         ),
@@ -908,7 +930,7 @@ class _RoomListCard extends StatelessWidget {
                     room.roomNumber,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                      fontSize: 16,
                       color: statusColor,
                     ),
                   ),

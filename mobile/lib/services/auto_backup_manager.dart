@@ -3,15 +3,16 @@ import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/hotel_time_engine.dart';
+import '../utils/time.dart';
 import 'appwrite_delta_sync.dart';
 import 'appwrite_service.dart';
 import 'booking_derived_fields_service.dart';
+import 'google_drive_backup_service.dart';
+import 'google_drive_delta_sync.dart';
 import 'local_db.dart';
-import 'google_drive_backup_service.dart' as gd;
 import 'smart_sync_manager.dart';
 
 /// مدير النسخ الاحتياطي التلقائي الذكي
@@ -19,8 +20,6 @@ import 'smart_sync_manager.dart';
 enum BackupMode { fullBackup, deltaSync, both }
 
 class AutoBackupManager {
-  // ⚠️ Google Drive backup service - disabled
-  gd.GoogleDriveBackupService? _backupService;
 
   AutoBackupManager._();
   static const String _lastAutoBackupKey = 'last_auto_backup_timestamp';
@@ -32,10 +31,14 @@ class AutoBackupManager {
   static const String _backupModeKey = 'backup_mode';
   static const String _appwriteDeltaSyncEnabledKey =
       'appwrite_delta_sync_enabled';
+  static const String _googleDriveDeltaSyncEnabledKey =
+      'google_drive_delta_sync_enabled';
 
   static AutoBackupManager? _instance;
   static AutoBackupManager get instance => _instance ??= AutoBackupManager._();
 
+  GoogleDriveBackupService? _backupService;
+  GoogleDriveDeltaSync? _googleDriveDeltaSync;
   AppwriteDeltaSync? _appwriteDeltaSync;
   // ignore: unused_field
   AppwriteService? _appwriteService;
@@ -65,24 +68,27 @@ class AutoBackupManager {
   static const int _defaultRetentionDays = 14;
 
   /// تهيئة المدير مع خدمة النسخ الاحتياطي
-  Future<void> initialize({
+  Future<void> initialize(
+    GoogleDriveBackupService backupService, {
     AppwriteService? appwriteService,
     AppDatabase? database,
   }) async {
+    _backupService = backupService;
     _appwriteService = appwriteService;
     _database = database;
-    
-    // تهيئة خدمة Google Drive للنسخ الاحتياطي (backup only — no sync)
-    _backupService = gd.GoogleDriveBackupService();
-    await _backupService!.initialize();
-    
     await _initializeDeviceId();
     await _loadBackupMode();
     await _schedulePeriodicCleanup();
 
-    if (database != null && appwriteService != null) {
-      _appwriteDeltaSync = AppwriteDeltaSync.instance;
-      await _appwriteDeltaSync!.initialize(appwriteService, database);
+    if (database != null) {
+      _googleDriveDeltaSync = GoogleDriveDeltaSync.instance;
+      await _googleDriveDeltaSync!.initialize(backupService, database);
+
+      if (appwriteService != null) {
+        _appwriteDeltaSync = AppwriteDeltaSync.instance;
+        await _appwriteDeltaSync!.initialize(appwriteService, database);
+      }
+
       await _startDeltaSyncTimer();
     }
 
@@ -111,7 +117,7 @@ class AutoBackupManager {
     _deltaSyncTimer = Timer.periodic(const Duration(minutes: 5), (timer) async {
       await performDeltaSync();
     });
-    AppLogger.debug('تم جدولة المزامنة التفاضلية كل 5 دقائق');
+    debugPrint('⏰ تم جدولة المزامنة التفاضلية كل 5 دقائق');
   }
 
   /// تهيئة معرف الجهاز للتمييز بين الأجهزة
@@ -170,24 +176,90 @@ class AutoBackupManager {
       );
     }
 
-    // ⚠️ Automatic Google Drive backup DISABLED — only Appwrite delta sync runs automatically.
-    // Manual backup/restore via Google Drive still works through BackupStatusNotifier.
     if (_currentMode == BackupMode.fullBackup ||
         _currentMode == BackupMode.both) {
-      // No longer triggers automatic Google Drive backup
-      _pendingChanges = 0;
+      _debounceTimer?.cancel();
+      _debounceTimer = Timer(const Duration(seconds: _debounceSeconds), () {
+        _performAutoBackup(
+          reason: 'تغييرات تلقائية ($tableName: $operation)',
+          changesCount: _pendingChanges,
+        );
+        _pendingChanges = 0;
+      });
     }
   }
 
-  /// إجراء نسخة احتياطية تلقائية — DISABLED
-  /// Automatic Google Drive backup is permanently disabled.
-  /// Use BackupStatusNotifier.createBackup() for manual backup to Google Drive.
+  /// إجراء نسخة احتياطية تلقائية
   Future<void> _performAutoBackup({
     required String reason,
     int changesCount = 1,
   }) async {
-    AppLogger.info('Automatic Google Drive backup is DISABLED — skipping (reason: $reason). Use manual backup instead.');
-    return;
+    if (_isBackingUp || _backupService == null || !_backupService!.isSignedIn) {
+      debugPrint(
+        '⏸️ نسخ تلقائي مؤجل: نسخ جارية $_isBackingUp، مسجل دخول ${_backupService?.isSignedIn}',
+      );
+      return;
+    }
+
+    try {
+      _isBackingUp = true;
+      debugPrint('🚀 بدء النسخ التلقائي: $reason ($changesCount تغييرات)');
+
+      // التحقق من آخر نسخة احتياطية لتجنب النسخ المتكررة
+      final lastBackupTime = await _getLastAutoBackupTime();
+      final now = DateTime.now();
+
+      if (lastBackupTime != null &&
+          now.difference(lastBackupTime).inMinutes < 5) {
+        debugPrint(
+          '⏭️ تم تخطي النسخ التلقائي: نسخة حديثة موجودة (${now.difference(lastBackupTime).inMinutes} دقائق)',
+        );
+        return;
+      }
+
+      // إنشاء وتصدير البيانات
+      final backupData = await _backupService!.exportDatabaseToJson();
+
+      // تحديث البيانات الوصفية لتمييز النسخة التلقائية
+      final existingMetadata = backupData['metadata'];
+      Map<String, dynamic> metadata;
+      if (existingMetadata is Map<String, dynamic>) {
+        metadata = existingMetadata;
+      } else if (existingMetadata is Map) {
+        metadata = Map<String, dynamic>.from(existingMetadata);
+        backupData['metadata'] = metadata;
+      } else {
+        metadata = <String, dynamic>{};
+        backupData['metadata'] = metadata;
+      }
+      metadata['backup_type'] = 'auto';
+      metadata['trigger_reason'] = reason;
+      metadata['changes_count'] = changesCount;
+      metadata['device_info'] = '${Platform.operatingSystem} (تلقائي)';
+      metadata['device_id'] = _deviceId;
+      metadata['created_by_device'] = _deviceId;
+
+      // رفع النسخة الاحتياطية كملف تلقائي
+      final fileId = await _backupService!.uploadBackup(
+        backupData,
+        isSync: true,
+      );
+
+      // حفظ وقت آخر نسخة تلقائية
+      await _setLastAutoBackupTime(now);
+
+      debugPrint('✅ نسخ تلقائي مكتمل: $fileId ($changesCount تغييرات)');
+
+      // تنظيف النسخ القديمة في الخلفية
+      unawaited(_cleanupOldBackups());
+
+      // إشعار مدير المزامنة الذكية لمزامنة الأجهزة الأخرى
+      await _notifySmartSync();
+    } catch (e) {
+      debugPrint('❌ فشل النسخ التلقائي: $e');
+    } finally {
+      _isBackingUp = false;
+    }
   }
 
   /// حذف النسخ الاحتياطية القديمة حسب التاريخ والعدد
@@ -197,7 +269,7 @@ class AutoBackupManager {
     }
 
     try {
-      AppLogger.debug('بدء تنظيف النسخ القديمة...');
+      debugPrint('🧹 بدء تنظيف النسخ القديمة...');
 
       final backupFiles = await _backupService!.listBackupFiles();
       if (backupFiles.isEmpty) {
@@ -205,64 +277,67 @@ class AutoBackupManager {
       }
 
       // ترتيب النسخ حسب التاريخ (الأحدث أولاً)
-      backupFiles.sort((gd.GoogleDriveBackupFile a, gd.GoogleDriveBackupFile b) =>
-          (b.createdTime ?? b.modifiedTime).compareTo(a.createdTime ?? a.modifiedTime));
+      backupFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
 
       final maxBackups = await _getMaxBackupCount();
       final retentionDays = await _getRetentionDays();
       final cutoffDate = DateTime.now().subtract(Duration(days: retentionDays));
 
-      final filesToDelete = <gd.DriveBackupFile>[];
+      final filesToDelete = <DriveBackupFile>[];
 
       // حذف النسخ الزائدة عن العدد المحدد
       if (backupFiles.length > maxBackups) {
         final excessFiles = backupFiles.sublist(maxBackups);
         filesToDelete.addAll(excessFiles);
-        AppLogger.info('نسخ زائدة عن العدد المحدد: ${excessFiles.length}');
+        debugPrint('📊 نسخ زائدة عن العدد المحدد: ${excessFiles.length}');
       }
 
       // حذف النسخ الأقدم من فترة الاحتفاظ
       for (final file in backupFiles) {
-        if (file.createdTime != null && file.createdTime!.isBefore(cutoffDate) &&
+        if (file.createdTime.isBefore(cutoffDate) &&
             !filesToDelete.contains(file)) {
           filesToDelete.add(file);
         }
       }
 
       if (filesToDelete.isNotEmpty) {
-        AppLogger.debug('حذف ${filesToDelete.length} نسخة احتياطية قديمة...');
+        debugPrint('🗑️ حذف ${filesToDelete.length} نسخة احتياطية قديمة...');
 
         for (final file in filesToDelete) {
           try {
             await _backupService!.deleteBackupFile(file.fileId);
             debugPrint(
-              '✅ تم حذف: ${file.name} (${_formatDateTime(file.createdTime ?? file.modifiedTime)})',
+              '✅ تم حذف: ${file.fileName} (${_formatDateTime(file.createdTime)})',
             );
           } catch (e) {
-            AppLogger.error('فشل حذف ${file.name}: $e');
+            debugPrint('❌ فشل حذف ${file.fileName}: $e');
           }
         }
 
-        AppLogger.debug('اكتمل التنظيف: تم حذف ${filesToDelete.length} نسخة');
+        debugPrint('🧹 اكتمل التنظيف: تم حذف ${filesToDelete.length} نسخة');
       } else {
         debugPrint('✨ لا توجد نسخ قديمة للحذف');
       }
     } catch (e) {
-      AppLogger.error('خطأ في تنظيف النسخ القديمة: $e');
+      debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
     }
   }
 
-  /// جدولة تنظيف دوري للنسخ القديمة — DISABLED (automatic Google Drive operation)
-  /// Use cleanupNow() for manual cleanup.
+  /// جدولة تنظيف دوري للنسخ القديمة
   Future<void> _schedulePeriodicCleanup() async {
     _cleanupTimer?.cancel();
-    // Automatic periodic cleanup disabled — Google Drive auto operations are disabled
-    AppLogger.debug('Automatic periodic cleanup DISABLED — use cleanupNow() for manual cleanup');
+
+    // تنظيف دوري كل 6 ساعات
+    _cleanupTimer = Timer.periodic(const Duration(hours: 6), (timer) {
+      _cleanupOldBackups();
+    });
+
+    debugPrint('⏰ تم جدولة التنظيف الدوري كل 6 ساعات');
   }
 
   /// تنظيف فوري للنسخ القديمة (يمكن استدعاؤه يدوياً)
   Future<void> cleanupNow() async {
-    AppLogger.debug('تنظيف فوري مطلوب...');
+    debugPrint('🧹 تنظيف فوري مطلوب...');
     await _cleanupOldBackups();
   }
 
@@ -276,7 +351,7 @@ class AutoBackupManager {
   Future<void> setEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_autoBackupEnabledKey, enabled);
-    AppLogger.debug('النسخ التلقائي: ${enabled ? 'مفعل' : 'معطل'}');
+    debugPrint('🔧 النسخ التلقائي: ${enabled ? 'مفعل' : 'معطل'}');
   }
 
   Future<int> _getMaxBackupCount() async {
@@ -287,7 +362,7 @@ class AutoBackupManager {
   Future<void> setMaxBackupCount(int count) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_maxBackupCountKey, count);
-    AppLogger.debug('عدد النسخ القصوى: $count');
+    debugPrint('🔧 عدد النسخ القصوى: $count');
   }
 
   Future<int> getMaxBackupCount() async {
@@ -302,7 +377,7 @@ class AutoBackupManager {
   Future<void> setRetentionDays(int days) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_backupRetentionDaysKey, days);
-    AppLogger.debug('فترة الاحتفاظ: $days يوماً');
+    debugPrint('🔧 فترة الاحتفاظ: $days يوماً');
   }
 
   Future<int> getRetentionDays() async {
@@ -344,7 +419,7 @@ class AutoBackupManager {
     _deltaSyncDebounceTimer?.cancel();
     _deltaSyncTimer?.cancel();
     _cleanupTimer?.cancel();
-    AppLogger.error('مدير النسخ التلقائي: تم التنظيف');
+    debugPrint('🛑 مدير النسخ التلقائي: تم التنظيف');
   }
 
   /// التحقق من حالة المزامنة التفاضلية
@@ -360,11 +435,11 @@ class AutoBackupManager {
     try {
       final smartSync = SmartSyncManager.instance;
       if (await smartSync.isEnabled()) {
-        AppLogger.info('إشعار مدير المزامنة الذكية بالنسخة الجديدة...');
+        debugPrint('🔔 إشعار مدير المزامنة الذكية بالنسخة الجديدة...');
         await smartSync.onLocalBackupUploaded();
       }
     } catch (e) {
-      AppLogger.warning('خطأ في إشعار مدير المزامنة: $e');
+      debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
     }
   }
 
@@ -372,7 +447,7 @@ class AutoBackupManager {
   Future<void> setInstantSyncEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_instantSyncEnabledKey, enabled);
-    AppLogger.debug('المزامنة الفورية: ${enabled ? 'مفعلة' : 'معطلة'}');
+    debugPrint('🔧 المزامنة الفورية: ${enabled ? 'مفعلة' : 'معطلة'}');
   }
 
   /// التحقق من تفعيل المزامنة الفورية
@@ -381,19 +456,24 @@ class AutoBackupManager {
     return prefs.getBool(_instantSyncEnabledKey) ?? true;
   }
 
-  /// مزامنة فورية عند الطلب — Appwrite delta sync only
-  /// Google Drive auto backup is disabled; use BackupStatusNotifier.createBackup() for manual Google Drive backup.
+  /// مزامنة فورية عند الطلب
   Future<void> syncNow() async {
-    AppLogger.debug('بدء المزامنة الفورية...');
+    debugPrint('🚀 بدء المزامنة الفورية...');
 
-    // Appwrite delta sync (still active)
     if (_currentMode == BackupMode.deltaSync ||
         _currentMode == BackupMode.both) {
       await performDeltaSync();
     }
 
-    // Google Drive automatic backup DISABLED
-    // Use BackupStatusNotifier.createBackup() for manual Google Drive backup
+    if (_currentMode == BackupMode.fullBackup ||
+        _currentMode == BackupMode.both) {
+      if (_backupService != null && _backupService!.isSignedIn) {
+        await _performAutoBackup(
+          reason: 'مزامنة فورية يدوية',
+          changesCount: _pendingChanges > 0 ? _pendingChanges : 1,
+        );
+      }
+    }
 
     _pendingChanges = 0;
   }
@@ -406,12 +486,41 @@ class AutoBackupManager {
 
     _isDeltaSyncing = true;
     final results = <String, dynamic>{
+      'google_drive': null,
       'appwrite': null,
       'success': true,
     };
 
     try {
-      AppLogger.debug('بدء المزامنة التفاضلية...');
+      debugPrint('🔄 بدء المزامنة التفاضلية...');
+
+      if (await isGoogleDriveDeltaSyncEnabled() &&
+          _googleDriveDeltaSync != null) {
+        try {
+          final pushResult = await _googleDriveDeltaSync!.pushDeltaChanges();
+          final pullResult = await _googleDriveDeltaSync!.pullDeltaChanges();
+          results['google_drive'] = {
+            'push': {
+              'success': pushResult.success,
+              'count': pushResult.changesCount,
+            },
+            'pull': {
+              'success': pullResult.success,
+              'count': pullResult.changesCount,
+            },
+          };
+          if (!pushResult.success || !pullResult.success) {
+            results['success'] = false;
+          }
+          debugPrint(
+            '✅ Google Drive Delta: رفع ${pushResult.changesCount}، سحب ${pullResult.changesCount}',
+          );
+        } catch (e) {
+          results['google_drive'] = {'error': e.toString()};
+          results['success'] = false;
+          debugPrint('❌ خطأ في مزامنة Google Drive التفاضلية: $e');
+        }
+      }
 
       if (await isAppwriteDeltaSyncEnabled() && _appwriteDeltaSync != null) {
         try {
@@ -436,17 +545,17 @@ class AutoBackupManager {
         } catch (e) {
           results['appwrite'] = {'error': e.toString()};
           results['success'] = false;
-          AppLogger.error('خطأ في مزامنة Appwrite التفاضلية: $e');
+          debugPrint('❌ خطأ في مزامنة Appwrite التفاضلية: $e');
         }
       }
 
-      AppLogger.info('اكتملت المزامنة التفاضلية');
+      debugPrint('✅ اكتملت المزامنة التفاضلية');
 
       await _autoRenewActiveBookings();
     } catch (e) {
       results['success'] = false;
       results['error'] = e.toString();
-      AppLogger.error('خطأ في المزامنة التفاضلية: $e');
+      debugPrint('❌ خطأ في المزامنة التفاضلية: $e');
     } finally {
       _isDeltaSyncing = false;
     }
@@ -471,7 +580,7 @@ class AutoBackupManager {
         debugPrint('🏨 تجديد تلقائي: $count حجز نشط (يوم فندقي: $currentHotelDay)');
       }
     } catch (e) {
-      AppLogger.warning('خطأ في تجديد الحجوزات النشطة: $e');
+      debugPrint('⚠️ خطأ في تجديد الحجوزات النشطة: $e');
     }
   }
 
@@ -489,7 +598,20 @@ class AutoBackupManager {
     } else {
       _deltaSyncTimer?.cancel();
     }
-    AppLogger.debug('المزامنة التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
+    debugPrint('🔧 المزامنة التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
+  }
+
+  Future<bool> isGoogleDriveDeltaSyncEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_googleDriveDeltaSyncEnabledKey) ?? false;
+  }
+
+  Future<void> setGoogleDriveDeltaSyncEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_googleDriveDeltaSyncEnabledKey, enabled);
+    debugPrint(
+      '🔧 مزامنة Google Drive التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}',
+    );
   }
 
   Future<bool> isAppwriteDeltaSyncEnabled() async {
@@ -500,7 +622,7 @@ class AutoBackupManager {
   Future<void> setAppwriteDeltaSyncEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_appwriteDeltaSyncEnabledKey, enabled);
-    AppLogger.debug('مزامنة Appwrite التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
+    debugPrint('🔧 مزامنة Appwrite التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
   }
 
   /// تعيين وضع النسخ الاحتياطي
@@ -509,7 +631,7 @@ class AutoBackupManager {
     _currentMode = mode;
     await prefs.setInt(_backupModeKey, _currentMode.index);
     await prefs.setBool(_deltaSyncEnabledKey, true);
-    AppLogger.debug('وضع النسخ الاحتياطي: ${_currentMode.name}');
+    debugPrint('🔧 وضع النسخ الاحتياطي: ${_currentMode.name}');
   }
 
   BackupMode get currentBackupMode => _currentMode;
@@ -518,9 +640,13 @@ class AutoBackupManager {
   Future<Map<String, dynamic>> getDeltaSyncStatus() async {
     return {
       'delta_sync_enabled': await isDeltaSyncEnabled(),
+      'google_drive_enabled': await isGoogleDriveDeltaSyncEnabled(),
       'appwrite_enabled': await isAppwriteDeltaSyncEnabled(),
       'is_syncing': _isDeltaSyncing,
       'backup_mode': _currentMode.name,
+      'google_drive_status': _googleDriveDeltaSync != null
+          ? await _googleDriveDeltaSync!.getStatus()
+          : null,
       'appwrite_status': _appwriteDeltaSync != null
           ? await _appwriteDeltaSync!.getStatus()
           : null,

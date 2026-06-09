@@ -6,7 +6,6 @@ import '../models/financial_models.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
-import '../utils/hotel_date_helper.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 
@@ -337,8 +336,8 @@ class EnhancedBookingCalculationService {
                     p.bookingUuidCache.equals(booking.localUuid)),
               )
               ..where((p) => p.deletedAt.isNull())
-              ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull())
-              ..where((p) => p.isPendingBalance.equals(false) | p.isPendingBalance.isNull())
+              ..where((p) => p.isVoided.equals(false))
+              ..where((p) => p.isPendingBalance.equals(false))
               ..where(
                 (p) =>
                     p.revenueType.equals('room') |
@@ -636,7 +635,7 @@ class EnhancedBookingCalculationService {
     final segments = <_NightSegment>[];
 
     // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
-    final int totalNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkout);
+    final int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: cutoffHour);
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
     DateTime startOfCheckinHotelDay = DateTime(

@@ -4,12 +4,11 @@ import 'dart:math';
 import 'package:drift/drift.dart' hide Column;
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 import 'package:uuid/uuid.dart';
 
-import '../utils/hotel_date_helper.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
+import '../utils/time.dart';
 import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
 import 'price_adjustment_service.dart';
@@ -300,10 +299,10 @@ class GeminiService {
       _chat = _model!.startChat();
       _isInitialized = true;
       _lastError = null;
-      AppLogger.info('تم تهيئة Gemini AI عبر Firebase AI Logic (ChatSession)');
+      debugPrint('✅ تم تهيئة Gemini AI عبر Firebase AI Logic (ChatSession)');
     } catch (e) {
-      AppLogger.warning('فشل تهيئة Gemini AI: $e');
-      AppLogger.info('تأكد من تفعيل AI Logic في Firebase Console');
+      debugPrint('⚠️ فشل تهيئة Gemini AI: $e');
+      debugPrint('ℹ️ تأكد من تفعيل AI Logic في Firebase Console');
       _initError = _describeInitError(e);
       _lastError = _initError;
     }
@@ -538,7 +537,7 @@ class GeminiService {
           final isFullyPaid = b.isFullyPaid;
           final isOverdue = b.isOverdue;
           final stayDays = checkin != 'غير محدد'
-              ? HotelDateHelper.calculateNights(checkIn: DateTime.parse(checkin), checkOut: now)
+              ? now.difference(DateTime.parse(checkin)).inDays
               : 0;
 
           s.writeln('  [${b.roomNumber}] ${b.guestName} | $nationality | ${b.guestPhone}');
@@ -659,7 +658,7 @@ class GeminiService {
       final todayPayments = await (db.select(db.payments)
             ..where((p) => p.paymentDate.like('$today%'))
             ..where((p) => p.deletedAt.isNull())
-            ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull()))
+            ..where((p) => p.isVoided.equals(false)))
           .get();
       final todayExpenses = await (db.select(db.expenses)
             ..where((e) => e.date.like('$today%'))
@@ -768,7 +767,7 @@ class GeminiService {
         final dayPayments = await (db.select(db.payments)
               ..where((p) => p.paymentDate.like('$pastDate%'))
               ..where((p) => p.deletedAt.isNull())
-              ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull()))
+              ..where((p) => p.isVoided.equals(false)))
             .get();
         final dayExpenses = await (db.select(db.expenses)
               ..where((e) => e.date.like('$pastDate%'))
@@ -928,7 +927,7 @@ class GeminiService {
         s.writeln('✗ فحص الغرف بدون دفعات: ${noPayments.length} غرفة محجوزة بدون أي دفعة:');
         for (final b in noPayments) {
           final stayDays = b.checkinDate.isNotEmpty
-              ? HotelDateHelper.calculateNights(checkIn: DateTime.parse(b.checkinDate), checkOut: now)
+              ? now.difference(DateTime.parse(b.checkinDate)).inDays
               : 0;
           s.writeln('  ✗ [${b.roomNumber}] ${b.guestName}: مستحق ${b.totalDueCached.toStringAsFixed(0)} ريال | مدفوع 0 | أقام $stayDays يوم ${stayDays >= 3 ? "⚠️ فترة طويلة بدون دفع!" : ""}');
         }
@@ -952,14 +951,14 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       s.writeln();
       s.writeln('═══ اليوم الفندقي (Hotel Day) ═══');
-      s.writeln('قاعدة الحسم: الساعة 14:00 (ظهراً)');
-      s.writeln('اليوم الفندقي يمتد من 14:00 حتى 14:00 من اليوم التالي');
+      s.writeln('قاعدة الحسم: الساعة 14:01 (ظهراً)');
+      s.writeln('اليوم الفندقي يمتد من 14:01 حتى 14:00 من اليوم التالي');
       s.writeln('التاريخ/الوقت الحالي: ${now.toIso8601String()}');
       final currentHotelDay = today; // مبسّط — التطبيق يحسب بال HotelTimeEngine
       s.writeln('اليوم الفندقي الحالي: $currentHotelDay');
 
       // الغرف التي يتغير يومها الفندقي قريباً (تنبيه)
-      final timeToNext = DateTime(now.year, now.month, now.day, 14);
+      final timeToNext = DateTime(now.year, now.month, now.day, 14, 1);
       final actualNext = now.isAfter(timeToNext)
           ? timeToNext.add(const Duration(days: 1))
           : timeToNext;
@@ -1247,7 +1246,7 @@ class GeminiService {
       }
 
     } catch (e) {
-      AppLogger.warning('خطأ في بناء سياق الفندق: $e');
+      debugPrint('⚠️ خطأ في بناء سياق الفندق: $e');
       s.writeln('(تعذر تحميل بعض البيانات: $e)');
     }
 
@@ -1305,11 +1304,11 @@ class GeminiService {
       try {
         responseText = response.text ?? '';
       } on FirebaseAIException catch (e) {
-        AppLogger.warning('response.text رمى استثناء: $e');
+        debugPrint('⚠️ response.text رمى استثناء: $e');
         // إذا كان الرد محظور بسبب السلامة — أعد المحاولة بدون سياق الفندق
         if (e.message.contains('SAFETY') ||
             e.message.contains('blocked')) {
-          AppLogger.warning('الرد محظور — إعادة المحاولة برسالة المستخدم فقط');
+          debugPrint('⚠️ الرد محظور — إعادة المحاولة برسالة المستخدم فقط');
           try {
             final retryResponse = await _sendWithRetry(
               () => _chat!.sendMessage(Content.text(userMessage)),
@@ -1344,12 +1343,12 @@ class GeminiService {
             command is! AiNoActionCommand,
       );
     } catch (e) {
-      AppLogger.error('خطأ في Gemini: $e');
+      debugPrint('❌ خطأ في Gemini: $e');
       _lastError = e.toString();
       // إعادة تعيين الجلسة عند خطأ في الأدوار
       final msg = e.toString();
       if (msg.contains('role') || msg.contains('alternat')) {
-        AppLogger.warning('إعادة تعيين الجلسة بسبب خطأ في الأدوار');
+        debugPrint('⚠️ إعادة تعيين الجلسة بسبب خطأ في الأدوار');
         _chat = _model!.startChat();
       }
       return GeminiResponse(
@@ -1419,7 +1418,7 @@ class GeminiService {
         final jitterMs = (_random.nextDouble() * delay.inMilliseconds * 0.3).round();
         final actualDelay = Duration(milliseconds: delay.inMilliseconds + jitterMs);
 
-        AppLogger.warning('خطأ مؤقت — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...');
+        debugPrint('⚠️ خطأ مؤقت — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...');
 
         await Future<void>.delayed(actualDelay);
 
@@ -1583,7 +1582,7 @@ class GeminiService {
             await BookingDerivedFieldsService(db)
                 .refreshForBookingId(booking.id, forceRebuild: true);
           } catch (e) {
-            AppLogger.warning('خطأ في إعادة حساب الحجز: $e');
+            debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
           }
 
           final typeLabel =
@@ -1742,7 +1741,7 @@ class GeminiService {
             await BookingDerivedFieldsService(db)
                 .refreshForBookingId(activeBooking.id, forceRebuild: true);
           } catch (e) {
-            AppLogger.warning('خطأ في إعادة حساب الحجز: $e');
+            debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
             result = 'فشل إعادة حساب الحجز $roomNumber: $e';
             break;
           }
@@ -1965,7 +1964,7 @@ class GeminiService {
 
       return '✅ $result';
     } catch (e) {
-      AppLogger.error('خطأ في تنفيذ الأمر: $e');
+      debugPrint('❌ خطأ في تنفيذ الأمر: $e');
       return '❌ فشل تنفيذ الأمر: $e';
     }
   }
@@ -2032,26 +2031,26 @@ class GeminiService {
 ═══ اليوم الفندقي — المفهوم الأساسي ═══
 هذا هو المفهوم الأهم في النظام. كل شيء يدور حوله:
 
-▸ التعريف: اليوم الفندقي يمتد من الساعة 14:00 إلى 14:00 من اليوم التالي
-  - مثال: اليوم الفندقي "2026-05-19" يبدأ 14:00 يوم 19 مايو وينتهي 13:59 يوم 20 مايو
+▸ التعريف: اليوم الفندقي يمتد من الساعة 14:01 إلى 14:00 من اليوم التالي
+  - مثال: اليوم الفندقي "2026-05-19" يبدأ 14:01 يوم 19 مايو وينتهي 14:00 يوم 20 مايو
 
-▸ قاعدة الحسم (14:00:00 بالضبط):
-  - الوقت < 14:00 → نحن في اليوم الفندقي السابق (التقويمي)
-  - الوقت = 14:00:00 بالضبط → نهاية اليوم الفندقي الحالي (لا يزال اليوم السابق)
-  - الوقت > 14:00:00 (ولو ثانية واحدة) → بداية يوم فندقي جديد
+▸ قاعدة الحسم (14:01:00 بالضبط):
+  - الوقت < 14:01 → نحن في اليوم الفندقي السابق (التقويمي)
+  - الوقت = 14:01:00 بالضبط → بداية يوم فندقي جديد
+  - الوقت > 14:01:00 → يوم فندقي جديد
 
 ▸ أمثلة عملية:
   - 10:00 صباح 19 مايو → اليوم الفندقي = "2026-05-18"
   - 14:00 ظهر 19 مايو → اليوم الفندقي = "2026-05-18" (نهاية اليوم الفندقي)
   - 14:01 ظهر 19 مايو → اليوم الفندقي = "2026-05-19" (بداية يوم جديد)
-  - 13:59 ظهر 20 مايو → اليوم الفندقي = "2026-05-19"
+  - 14:00 ظهر 20 مايو → اليوم الفندقي = "2026-05-19"
 
 ▸ مفتاح اليوم الفندقي (hotelDayKey):
   - صيغة YYYY-MM-DD (مثال: "2026-05-19")
   - يُخزّن في المدفوعات والمصروفات والحجوزات لضمان الفلترة الصحيحة
   - عند الفلترة: كل المدفوعات/المصروفات في "اليوم الحالي" تُفلتر بـ hotelDayKey وليس بالتاريخ التقويمي
 
-▸ الوقت الحالي الآن: $today | اليوم الفندقي الحالي: $todayHotelDay | متبقي حتى اليوم الفندقي التالي: $hoursLeftس $minsLeftد
+▸ الوقت الحالي الآن: $today | اليوم الفندقي الحالي: $todayHotelDay | متبقي حتى اليوم الفندقي التالي: ${hoursLeft}س ${minsLeft}د
 
 ═══ دورة حياة الحجز ═══
 ▸ الحالات بالترتيب:
@@ -2059,15 +2058,15 @@ class GeminiService {
   2. "محجوزة" أو "نشط" — حجز مؤكد والضيف في الغرفة
   3. "مكتمل" — تم تسجيل الخروج
 
-▸ التثبيت التلقائي: الحجوزات المؤقتة تتحول تلقائياً إلى "محجوزة" عند بلوغ ساعة cutoff (14:00)
+▸ التثبيت التلقائي: الحجوزات المؤقتة تتحول تلقائياً إلى "محجوزة" عند بلوغ ساعة cutoff (14:01)
 ▸ الكشف عن التأخير: الحجز النشط الذي تجاوز تاريخ الخروج المحدد يُعلّم كـ isOverdue=true
 ▸ مراجعة الخروج: الحجز يحتاج مراجعة (needsCheckoutReview) إذا كان متأخراً أو لديه رصيد متبقي
 
 ▸ حساب الليالي (المصدر الوحيد: HotelTimeEngine.calculateDays):
   - نفس اليوم = ليلة واحدة كحد أدنى
-  - checkout بعد 14:00:00 (ولو ثانية) = ليلة إضافية
-  - checkout عند 14:00:00 بالضبط = لا تُحتسب ليلة إضافية
-  - مثال: دخول 14:01 يوم 19 → خروج 13:59 يوم 21 = ليلتان | خروج 14:01 يوم 21 = 3 ليالٍ
+  - checkout عند أو بعد 14:01:00 = ليلة إضافية
+  - checkout قبل 14:01:00 = لا تُحتسب ليلة إضافية
+  - مثال: دخول 14:01 يوم 19 → خروج 14:00 يوم 21 = ليلتان | خروج 14:01 يوم 21 = 3 ليالٍ
 
 ═══ الحسابات المالية ═══
 ▸ الإجمالي المستحق = عدد الليالي × سعر الليلة - الخصم
@@ -2155,7 +2154,7 @@ class GeminiService {
 - تعديلات الأسعار: سجل التغييرات الأخيرة
 - إحصائيات عامة: متوسط مدة الإقامة، متوسط الفاتورة
 - التحقق من صحة الحسابات: 4 فحوصات تلقائية
-- اليوم الفندقي: قاعدة 14:00 وتوزيع الحجوزات حسب الأيام
+- اليوم الفندقي: قاعدة 14:01 وتوزيع الحجوزات حسب الأيام
 - الموظفين والرواتب: بيانات الموظفين ودورات الرواتب والمسحوبات
 - التسويات المالية: حركات الصندوق والمدفوعات المعلقة والملغاة
 - ترحيل البيانات: دفتر اليوم وAutoFix والمزامنة مع السيرفر وسجلات المزامنة والتعارضات
@@ -2469,7 +2468,7 @@ class GeminiService {
     final todayPayments = await (db.select(db.payments)
           ..where((p) => p.paymentDate.like('$today%'))
           ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull()))
+          ..where((p) => p.isVoided.equals(false)))
         .get();
     final totalIncome = todayPayments.fold<double>(0, (s, p) => s + p.amount);
 
@@ -2555,10 +2554,10 @@ class GeminiService {
         <String>['💰 تقرير الإيرادات: $dateFrom إلى $dateTo', ''];
 
     final payments = await (db.select(db.payments)
-          ..where((p) => p.paymentDate.isBiggerOrEqual(Variable(dateFrom)))
-          ..where((p) => p.paymentDate.isSmallerOrEqual(Variable(dateToEnd)))
+          ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
+          ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
           ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull()))
+          ..where((p) => p.isVoided.equals(false)))
         .get();
 
     final totalIncome =
@@ -2629,13 +2628,13 @@ class GeminiService {
     lines.add('');
 
     final salaryPayments = await (db.select(db.salaryPayments)
-          ..where((p) => p.paymentDateIso.isBiggerOrEqual(Variable(dateFrom)))
-          ..where((p) => p.paymentDateIso.isSmallerOrEqual(Variable(dateToEnd)))
+          ..where((p) => p.paymentDateIso.isBiggerOrEqualValue(dateFrom))
+          ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd))
           ..where((p) => p.deletedAt.isNull()))
         .get();
     final withdrawals = await (db.select(db.salaryWithdrawals)
-          ..where((w) => w.withdrawDate.isBiggerOrEqual(Variable(dateFrom)))
-          ..where((w) => w.withdrawDate.isSmallerOrEqual(Variable(dateToEnd)))
+          ..where((w) => w.withdrawDate.isBiggerOrEqualValue(dateFrom))
+          ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd))
           ..where((w) => w.deletedAt.isNull()))
         .get();
 
@@ -2740,26 +2739,26 @@ class GeminiService {
     ];
 
     final payments = await (db.select(db.payments)
-          ..where((p) => p.paymentDate.isBiggerOrEqual(Variable(dateFrom)))
-          ..where((p) => p.paymentDate.isSmallerOrEqual(Variable(dateToEnd)))
+          ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
+          ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
           ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull()))
+          ..where((p) => p.isVoided.equals(false)))
         .get();
 
     final expenses = await (db.select(db.expenses)
-          ..where((e) => e.date.isBiggerOrEqual(Variable(dateFrom)))
-          ..where((e) => e.date.isSmallerOrEqual(Variable(dateToEnd)))
+          ..where((e) => e.date.isBiggerOrEqualValue(dateFrom))
+          ..where((e) => e.date.isSmallerOrEqualValue(dateToEnd))
           ..where((e) => e.deletedAt.isNull()))
         .get();
 
     final salaryPayments = await (db.select(db.salaryPayments)
-          ..where((p) => p.paymentDateIso.isBiggerOrEqual(Variable(dateFrom)))
-          ..where((p) => p.paymentDateIso.isSmallerOrEqual(Variable(dateToEnd)))
+          ..where((p) => p.paymentDateIso.isBiggerOrEqualValue(dateFrom))
+          ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd))
           ..where((p) => p.deletedAt.isNull()))
         .get();
     final withdrawals = await (db.select(db.salaryWithdrawals)
-          ..where((w) => w.withdrawDate.isBiggerOrEqual(Variable(dateFrom)))
-          ..where((w) => w.withdrawDate.isSmallerOrEqual(Variable(dateToEnd)))
+          ..where((w) => w.withdrawDate.isBiggerOrEqualValue(dateFrom))
+          ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd))
           ..where((w) => w.deletedAt.isNull()))
         .get();
 
@@ -2924,8 +2923,8 @@ class GeminiService {
         <String>['📉 تقرير المصروفات: $dateFrom إلى $dateTo', ''];
 
     final expenses = await (db.select(db.expenses)
-          ..where((e) => e.date.isBiggerOrEqual(Variable(dateFrom)))
-          ..where((e) => e.date.isSmallerOrEqual(Variable(dateToEnd)))
+          ..where((e) => e.date.isBiggerOrEqualValue(dateFrom))
+          ..where((e) => e.date.isSmallerOrEqualValue(dateToEnd))
           ..where((e) => e.deletedAt.isNull()))
         .get();
 

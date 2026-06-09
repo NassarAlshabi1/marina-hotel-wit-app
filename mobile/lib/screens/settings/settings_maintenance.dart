@@ -13,7 +13,6 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/daos/outbox_dao.dart';
-import '../../services/restore_fix_service.dart';
 import '../../services/diagnostics/diagnostics_logger.dart';
 import '../../services/google_drive_auto_sync_engine.dart';
 import '../../services/local_db.dart';
@@ -21,7 +20,6 @@ import '../../services/sqlite_backup_restore.dart';
 import '../../services/sync_guardian.dart';
 import '../../services/sync_orchestrator.dart';
 import '../../services/unified_sync_orchestrator.dart';
-import '../../utils/currency_formatter.dart';
 import '../../utils/env.dart';
 
 // ═══════════════════════════════════════════════════════════════
@@ -73,7 +71,6 @@ class _SettingsMaintenanceScreenState
   _SystemInfo? _info;
   bool _isLoadingInfo = true;
   bool _isWorking = false;
-  ComprehensiveFixReport? _lastComprehensiveReport;
 
   @override
   void initState() {
@@ -239,34 +236,6 @@ class _SettingsMaintenanceScreenState
 
           const SizedBox(height: 20),
 
-          // ─── إصلاح الحجوزات ───
-          _buildSectionTitle('إصلاح الحجوزات', Colors.deepPurple),
-          const SizedBox(height: 8),
-
-          _buildMaintenanceCard(
-            title: 'إصلاح الحجوزات النشطة',
-            subtitle: 'يعيد حساب الليالي والمدفوعات للحجوزات المفتوحة فقط (آمن)',
-            icon: Icons.build,
-            color: Colors.blue,
-            onTap: () => _showAutoFixDialog(context),
-          ),
-
-          _buildMaintenanceCard(
-            title: 'الإصلاح الشامل لجميع الحجوزات',
-            subtitle: 'يعيد حساب كل الحجوزات (مغلقة + مفتوحة) بقاعدة 14:00 ويرفعها إلى Appwrite',
-            icon: Icons.auto_fix_high,
-            color: Colors.deepPurple,
-            onTap: () => _showComprehensiveFixDialog(context),
-          ),
-
-          // عرض نتيجة آخر إصلاح شامل
-          if (_lastComprehensiveReport != null) ...[
-            const SizedBox(height: 8),
-            _buildComprehensiveReportCard(_lastComprehensiveReport!),
-          ],
-
-          const SizedBox(height: 20),
-
           // ─── أدوات متقدمة ───
           _buildSectionTitle('أدوات متقدمة', Colors.red),
           const SizedBox(height: 8),
@@ -281,7 +250,7 @@ class _SettingsMaintenanceScreenState
 
           _buildMaintenanceCard(
             title: 'مسح Outbox المعطّل',
-            subtitle: 'مسح العمليات الفاشلة وإعادة تعيين قائمة الانتظار',
+            subtitle: 'إعادة تعيين العمليات المعلقة في قائمة الانتظار',
             icon: Icons.outbox,
             color: Colors.deepPurple,
             onTap: () => _showOutboxResetDialog(context, ref),
@@ -766,213 +735,6 @@ class _SettingsMaintenanceScreenState
     );
   }
 
-  // ─── إصلاح الحجوزات النشطة ──────────────────────────
-
-  void _showAutoFixDialog(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.build, color: Colors.blue),
-            SizedBox(width: 8),
-            Text('إصلاح الحجوزات النشطة'),
-          ],
-        ),
-        content: const Text(
-          'سيتم إعادة حساب الليالي والمدفوعات وحالات الغرف '
-          'للحجوزات المفتوحة فقط.\n\n'
-          'هذا الإصلاح آمن ولا يؤثر على المزامنة، ويُشغّل تلقائياً بعد كل مزامنة.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _showLoading('جاري إصلاح الحجوزات النشطة...');
-              try {
-                final fixService = RestoreFixService(DatabaseManager.instance);
-                final report = await fixService.runAutoFixAfterRestore(
-                  skipLedgerRebuild: true,
-                );
-                _hideLoading();
-                _showSnack(
-                  report.success
-                      ? 'اكتمل الإصلاح: ${report.bookingsFixed} حجز، ${report.roomsUpdated} غرفة'
-                      : 'فشل الإصلاح: ${report.error}',
-                  color: report.success ? Colors.green : Colors.red,
-                );
-                unawaited(_loadSystemInfo());
-              } catch (e) {
-                _hideLoading();
-                _showSnack('خطأ: $e', color: Colors.red);
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-            child: const Text('إصلاح'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── الإصلاح الشامل لجميع الحجوزات ───────────────────
-
-  void _showComprehensiveFixDialog(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.auto_fix_high, color: Colors.deepPurple),
-            SizedBox(width: 8),
-            Text('الإصلاح الشامل'),
-          ],
-        ),
-        content: const Text(
-          'سيتم إعادة حساب جميع الحجوزات (بما فيها المغلقة) وتصحيح:\n\n'
-          '  • عدد الليالي بقاعدة 14:00\n'
-          '  • المبالغ المالية (إجمالي، مدفوع، متبقي)\n'
-          '  • سجلات الديون\n'
-          '  • سجلات booking_nights\n\n'
-          'يُحدّث lastModified للسجلات المتغيّرة فقط حتى تُرفع إلى Appwrite عبر المزامنة الدورية.\n\n'
-          'هذا الإجراء لا يمكن التراجع عنه.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _showLoading('جاري الإصلاح الشامل لجميع الحجوزات...');
-              try {
-                final fixService = RestoreFixService(DatabaseManager.instance);
-                final report = await fixService.runComprehensiveFix();
-                _hideLoading();
-                if (mounted) {
-                  setState(() => _lastComprehensiveReport = report);
-                }
-                _showSnack(
-                  report.success
-                      ? 'اكتمل الإصلاح الشامل: ${report.bookingsFixed}/${report.totalBookings} حجز'
-                      : 'فشل الإصلاح الشامل: ${report.error}',
-                  color: report.success ? Colors.green : Colors.red,
-                );
-                unawaited(_loadSystemInfo());
-              } catch (e) {
-                _hideLoading();
-                _showSnack('خطأ: $e', color: Colors.red);
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
-            child: const Text('تشغيل الإصلاح الشامل'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// بطاقة عرض نتيجة الإصلاح الشامل
-  Widget _buildComprehensiveReportCard(ComprehensiveFixReport report) {
-    final statusColor = report.success ? Colors.green : Colors.red;
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  report.success ? Icons.check_circle : Icons.error,
-                  color: statusColor,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  report.success ? 'اكتمل الإصلاح الشامل بنجاح' : 'فشل: ${report.error}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
-                    fontSize: 14,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${(report.durationMs / 1000).toStringAsFixed(1)}s',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-            if (report.success) ...[
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  _buildReportStat('إجمالي', '${report.totalBookings}', Colors.blue),
-                  const SizedBox(width: 6),
-                  _buildReportStat('مُصلح', '${report.bookingsFixed}', Colors.deepPurple),
-                  const SizedBox(width: 6),
-                  _buildReportStat('ليالي', '${report.nightsCorrected}', Colors.orange),
-                  const SizedBox(width: 6),
-                  _buildReportStat('مالي', '${report.financialsCorrected}', Colors.green),
-                  const SizedBox(width: 6),
-                  _buildReportStat('ديون', '${report.debtsCorrected}', Colors.red),
-                ],
-              ),
-              if (report.changes.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: const EdgeInsets.only(top: 4),
-                  dense: true,
-                  title: Text(
-                    'التفاصيل (${report.changes.length})',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  children: report.changes.take(30).map((change) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 2, right: 4),
-                      child: Text(
-                        '\u2022 $change',
-                        style: const TextStyle(fontSize: 11, color: Colors.black87),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReportStat(String label, String value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            Text(label, style: const TextStyle(fontSize: 9, color: Colors.grey)),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ─── معالجة الرصيد التراكمي ──────────────────────────
 
   void _showProcessPendingBalanceDialog(BuildContext context, WidgetRef ref) {
@@ -1097,7 +859,7 @@ class _SettingsMaintenanceScreenState
                     ),
                     const Spacer(),
                     Text(
-                      '${CurrencyFormatter.formatAmount(totalAmount)} ر.ي',
+                      '${totalAmount.toStringAsFixed(0)} ر.ي',
                       style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal),
                     ),
                   ],
@@ -1126,7 +888,7 @@ class _SettingsMaintenanceScreenState
                         ),
                       ),
                       title: Text(
-                        '${CurrencyFormatter.formatAmount(r['amount'] as double)} ر.ي — ${r['paymentMethod']}',
+                        '${(r['amount'] as double).toStringAsFixed(0)} ر.ي — ${r['paymentMethod']}',
                         style: const TextStyle(fontSize: 12),
                       ),
                       subtitle: Text(

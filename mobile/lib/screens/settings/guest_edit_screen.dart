@@ -8,7 +8,6 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/repositories/payments_repository.dart';
-import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/status_utils.dart';
@@ -97,7 +96,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       _roomSelections[booking.id] = booking.roomNumber;
       _originalRooms[booking.id] = booking.roomNumber;
       _discountControllers[booking.id] = TextEditingController(
-        text: booking.discount > 0 ? CurrencyFormatter.formatAmount(booking.discount) : '',
+        text: booking.discount > 0 ? booking.discount.toStringAsFixed(0) : '',
       );
       _discountTypeSelections[booking.id] = booking.discountType;
       _discountStartDateControllers[booking.id] = TextEditingController(
@@ -644,7 +643,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        initialValue: _idType,
+                        value: _idTypes.contains(_idType) ? _idType : null,
                         items: _idTypes
                             .map(
                               (t) => DropdownMenuItem(value: t, child: Text(t)),
@@ -889,7 +888,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 return Column(
                   children: [
                     DropdownButtonFormField<String>(
-                      initialValue: currentValue,
+                      value: currentValue,
                       items: items,
                       onChanged: (value) {
                         setState(() {
@@ -1077,7 +1076,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              '$typeName: ${CurrencyFormatter.formatAmount(adj.amount)} ريال',
+                                              '$typeName: ${adj.amount} ريال',
                                               style: const TextStyle(fontWeight: FontWeight.w600),
                                             ),
                                             Text(
@@ -1141,7 +1140,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<AdjustmentType>(
-                            initialValue: _adjustmentTypeSelections[booking.id],
+                            value: _adjustmentTypeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'نوع التعديل',
                               prefixIcon: Icon(Icons.swap_vert),
@@ -1167,7 +1166,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<AdjustmentMode>(
-                            initialValue: _adjustmentModeSelections[booking.id],
+                            value: _adjustmentModeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'طريقة الحساب',
                               prefixIcon: Icon(Icons.calculate),

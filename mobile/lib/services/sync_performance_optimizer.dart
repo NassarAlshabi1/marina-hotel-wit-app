@@ -1,4 +1,3 @@
-import '../utils/app_logger.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -64,14 +63,14 @@ class SyncPerformanceOptimizer {
       _connectivitySubscription = connectivity.onConnectivityChanged.listen(
         _updateConnectivityStatus,
         onError: (Object error) {
-          AppLogger.error('خطأ في مراقبة الاتصال: $error');
+          debugPrint('❌ خطأ في مراقبة الاتصال: $error');
         },
       );
 
       _isInitialized = true;
-      AppLogger.info('تم تهيئة مُحسِّن أداء المزامنة بنجاح');
+      debugPrint('✅ تم تهيئة مُحسِّن أداء المزامنة بنجاح');
     } catch (e) {
-      AppLogger.error('خطأ في تهيئة مُحسِّن أداء المزامنة: $e');
+      debugPrint('❌ خطأ في تهيئة مُحسِّن أداء المزامنة: $e');
     }
   }
 
@@ -82,7 +81,7 @@ class SyncPerformanceOptimizer {
     // معالجة الحالات الاستثنائية (قائمة فارغة)
     if (results.isEmpty) {
       _isOnWiFi = false;
-      AppLogger.warning('قائمة نتائج الاتصال فارغة - افتراض عدم وجود اتصال');
+      debugPrint('⚠️ قائمة نتائج الاتصال فارغة - افتراض عدم وجود اتصال');
       return;
     }
 
@@ -110,7 +109,7 @@ class SyncPerformanceOptimizer {
     if (wasOnWiFi != _isOnWiFi) {
       final connectionType = _getConnectionTypeString(results);
       debugPrint('📡 تغيير نوع الاتصال: $connectionType');
-      AppLogger.debug('حالة WiFi: ${_isOnWiFi ? 'متصل' : 'غير متصل'}');
+      debugPrint('🔄 حالة WiFi: ${_isOnWiFi ? 'متصل' : 'غير متصل'}');
 
       // إعادة تعيين عداد المحاولات عند تغيير نوع الاتصال
       _syncAttempts = 0;
@@ -194,7 +193,7 @@ class SyncPerformanceOptimizer {
       const cooldownMinutes = 30;
       if (_lastSyncTime != null &&
           DateTime.now().difference(_lastSyncTime!).inMinutes >= cooldownMinutes) {
-        AppLogger.debug('انتهت فترة cooldown - إعادة تعيين المحاولات والمحاولة مجدداً');
+        debugPrint('🔄 انتهت فترة cooldown - إعادة تعيين المحاولات والمحاولة مجدداً');
         _syncAttempts = 0;
         return false;
       }
@@ -217,7 +216,7 @@ class SyncPerformanceOptimizer {
     } on TimeoutException catch (_) {
       return false;
     } catch (e) {
-      AppLogger.error('خطأ في فحص الاتصال: $e');
+      debugPrint('❌ خطأ في فحص الاتصال: $e');
       return false;
     }
   }
@@ -228,7 +227,7 @@ class SyncPerformanceOptimizer {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool('wifi_only_sync') ?? false;
     } catch (e) {
-      AppLogger.error('خطأ في قراءة إعدادات WiFi Only: $e');
+      debugPrint('❌ خطأ في قراءة إعدادات WiFi Only: $e');
       return false;
     }
   }
@@ -238,7 +237,7 @@ class SyncPerformanceOptimizer {
     if (success) {
       _lastSyncTime = DateTime.now();
       _syncAttempts = 0;
-      AppLogger.info('تم تسجيل مزامنة ناجحة');
+      debugPrint('✅ تم تسجيل مزامنة ناجحة');
     } else {
       _syncAttempts++;
       debugPrint(
@@ -265,16 +264,16 @@ class SyncPerformanceOptimizer {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('wifi_only_sync', enabled);
-      AppLogger.debug('تم تحديث إعدادات WiFi Only: ${enabled ? 'مفعل' : 'معطل'}');
+      debugPrint('⚙️ تم تحديث إعدادات WiFi Only: ${enabled ? 'مفعل' : 'معطل'}');
     } catch (e) {
-      AppLogger.error('خطأ في حفظ إعدادات WiFi Only: $e');
+      debugPrint('❌ خطأ في حفظ إعدادات WiFi Only: $e');
     }
   }
 
   /// إعادة تعيين عداد المحاولات
   void resetSyncAttempts() {
     _syncAttempts = 0;
-    AppLogger.debug('تم إعادة تعيين عداد المحاولات');
+    debugPrint('🔄 تم إعادة تعيين عداد المحاولات');
   }
 
   /// الحصول على إحصائيات الأداء
@@ -302,9 +301,9 @@ class SyncPerformanceOptimizer {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('adaptive_interval_enabled', value);
-      AppLogger.debug('تم تحديث الفترة التكيفية: ${value ? 'مفعل' : 'معطل'}');
+      debugPrint('⚙️ تم تحديث الفترة التكيفية: ${value ? 'مفعل' : 'معطل'}');
     } catch (e) {
-      AppLogger.error('خطأ في حفظ إعدادات الفترة التكيفية: $e');
+      debugPrint('❌ خطأ في حفظ إعدادات الفترة التكيفية: $e');
     }
   }
 
@@ -313,9 +312,9 @@ class SyncPerformanceOptimizer {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('battery_optimization_enabled', value);
-      AppLogger.debug('تم تحديث تحسين البطارية: ${value ? 'مفعل' : 'معطل'}');
+      debugPrint('⚙️ تم تحديث تحسين البطارية: ${value ? 'مفعل' : 'معطل'}');
     } catch (e) {
-      AppLogger.error('خطأ في حفظ إعدادات تحسين البطارية: $e');
+      debugPrint('❌ خطأ في حفظ إعدادات تحسين البطارية: $e');
     }
   }
 
@@ -330,7 +329,7 @@ class SyncPerformanceOptimizer {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool('adaptive_interval_enabled') ?? true;
     } catch (e) {
-      AppLogger.error('خطأ في قراءة إعدادات الفترة التكيفية: $e');
+      debugPrint('❌ خطأ في قراءة إعدادات الفترة التكيفية: $e');
       return true;
     }
   }
@@ -341,7 +340,7 @@ class SyncPerformanceOptimizer {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool('battery_optimization_enabled') ?? true;
     } catch (e) {
-      AppLogger.error('خطأ في قراءة إعدادات تحسين البطارية: $e');
+      debugPrint('❌ خطأ في قراءة إعدادات تحسين البطارية: $e');
       return true;
     }
   }
@@ -380,7 +379,7 @@ class SyncPerformanceOptimizer {
       );
       return optimizedInterval;
     } catch (e) {
-      AppLogger.error('خطأ في حساب الفترة المحسنة: $e');
+      debugPrint('❌ خطأ في حساب الفترة المحسنة: $e');
       return baseInterval;
     }
   }
@@ -388,13 +387,13 @@ class SyncPerformanceOptimizer {
   /// تسجيل نجاح المزامنة
   void recordSyncSuccess() {
     recordSyncAttempt(success: true);
-    AppLogger.info('تم تسجيل مزامنة ناجحة');
+    debugPrint('✅ تم تسجيل مزامنة ناجحة');
   }
 
   /// تسجيل فشل المزامنة
   void recordSyncFailure() {
     recordSyncAttempt(success: false);
-    AppLogger.error('تم تسجيل فشل في المزامنة');
+    debugPrint('❌ تم تسجيل فشل في المزامنة');
   }
 
   /// تنظيف الموارد
@@ -402,7 +401,7 @@ class SyncPerformanceOptimizer {
     _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
     _isInitialized = false;
-    AppLogger.debug('تم تنظيف موارد مُحسِّن أداء المزامنة');
+    debugPrint('🧹 تم تنظيف موارد مُحسِّن أداء المزامنة');
   }
 
   /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)

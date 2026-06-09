@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class PerformanceMetrics {
@@ -68,7 +67,7 @@ class PerformanceNotifier extends StateNotifier<PerformanceState> {
     );
     
     if (metric.duration.inMilliseconds > 1000) {
-      AppLogger.warning(' Slow: ${metric.operation} = ${metric.durationMs}');
+      debugPrint('⚠️  Slow: ${metric.operation} = ${metric.durationMs}');
     }
   }
   

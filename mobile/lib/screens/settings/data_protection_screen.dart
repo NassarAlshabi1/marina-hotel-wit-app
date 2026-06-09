@@ -5,10 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/appwrite_providers.dart' as ap;
 import '../../providers/auto_backup_provider.dart';
 import '../../providers/backup_provider.dart';
+import '../../providers/smart_sync_provider.dart';
 import '../../services/alarm_backup.dart';
 import '../../services/auto_backup_manager.dart';
+import '../../services/google_drive_unified_sync_coordinator.dart';
+import '../../services/smart_sync_manager.dart';
 import 'appwrite_settings_screen.dart';
-import 'google_drive_settings_screen.dart';
 
 class DataProtectionScreen extends ConsumerStatefulWidget {
   const DataProtectionScreen({super.key});
@@ -22,9 +24,19 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   late TextEditingController _maxBackupsController;
   late TextEditingController _retentionDaysController;
   bool _backupBusy = false;
+  bool _syncBusy = false;
   bool _appwriteBusy = false;
   bool _scheduledEnabled = false;
+  bool _googleDriveSyncEnabled = false;
+  bool _googleDriveSyncDisableOnStart = false;
+  bool _googleDrivePushEnabled = false;
   TimeOfDay _scheduledTime = const TimeOfDay(hour: 21, minute: 0);
+  final List<int> _intervalOptions = [1, 2, 5, 10, 15, 30, 60];
+  final Map<ConflictResolution, String> _conflictDescriptions = {
+    ConflictResolution.newerWins: 'الأحدث يفوز (موصى به)',
+    ConflictResolution.manualResolve: 'حل يدوي عند الكشف عن تضارب',
+    ConflictResolution.devicePriority: 'أولوية للجهاز الحالي',
+  };
 
   @override
   void initState() {
@@ -49,6 +61,12 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     final timeString = prefs.getString('auto_backup_time') ?? '21:0';
     final parts = timeString.split(':');
     final scheduled = prefs.getBool('scheduled_backup_enabled') ?? false;
+    final googleDriveSyncEnabled =
+        prefs.getBool('google_drive_sync_enabled') ?? false;
+    final googleDriveSyncDisableOnStart =
+        prefs.getBool('google_drive_sync_disable_on_start') ?? false;
+    final googleDrivePushEnabled =
+        prefs.getBool('gd_unified_push_enabled') ?? false;
     if (!mounted) {
       return;
     }
@@ -56,10 +74,13 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       _maxBackupsController.text = maxBackups.toString();
       _retentionDaysController.text = retentionDays.toString();
       _scheduledTime = TimeOfDay(
-        hour: int.parse(parts[0]),
-        minute: int.parse(parts[1]),
+        hour: int.tryParse(parts[0]) ?? 0,
+        minute: int.tryParse(parts[1]) ?? 0,
       );
       _scheduledEnabled = scheduled;
+      _googleDriveSyncEnabled = googleDriveSyncEnabled;
+      _googleDriveSyncDisableOnStart = googleDriveSyncDisableOnStart;
+      _googleDrivePushEnabled = googleDrivePushEnabled;
     });
   }
 
@@ -221,7 +242,238 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     }
   }
 
+  Future<void> _toggleGoogleDriveSyncEnabled(bool enabled) async {
+    setState(() => _syncBusy = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('google_drive_sync_enabled', enabled);
+      if (!enabled) {
+        await GoogleDriveUnifiedSyncCoordinator.instance.setPushEnabled(false);
+      }
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _googleDriveSyncEnabled = enabled;
+        if (!enabled) {
+          _googleDrivePushEnabled = false;
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled
+                ? 'تم تفعيل مزامنة Google Drive'
+                : 'تم إيقاف مزامنة Google Drive',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في تغيير حالة مزامنة Google Drive: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
+    }
+  }
 
+  Future<void> _toggleGoogleDriveSyncDisableOnStart(bool enabled) async {
+    setState(() => _syncBusy = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('google_drive_sync_disable_on_start', enabled);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _googleDriveSyncDisableOnStart = enabled);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled
+                ? 'سيتم تعطيل مزامنة Google Drive عند بدء التشغيل'
+                : 'تم إيقاف التعطيل التلقائي عند بدء التشغيل',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في تغيير إعداد بدء التشغيل: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
+    }
+  }
+
+  Future<void> _toggleGoogleDrivePushEnabled(bool enabled) async {
+    if (!_googleDriveSyncEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('فعّل مزامنة Google Drive أولاً'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    setState(() => _syncBusy = true);
+    try {
+      await GoogleDriveUnifiedSyncCoordinator.instance.setPushEnabled(enabled);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _googleDrivePushEnabled = enabled);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled ? 'تم تفعيل الرفع إلى Google Drive' : 'تم إيقاف الرفع',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في تغيير إعداد الرفع: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
+    }
+  }
+
+  Future<void> _toggleSmartSync(bool enabled) async {
+    setState(() => _syncBusy = true);
+    try {
+      await ref.read(smartSyncManagerProvider).setEnabled(enabled);
+      ref.invalidate(smartSyncStatusProvider);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(enabled ? 'تم تفعيل المزامنة' : 'تم إيقاف المزامنة'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في تغيير حالة المزامنة: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
+    }
+  }
+
+  Future<void> _changeSyncInterval(int minutes) async {
+    setState(() => _syncBusy = true);
+    try {
+      await ref.read(smartSyncManagerProvider).setSyncInterval(minutes);
+      ref.invalidate(smartSyncStatusProvider);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم ضبط الفحص على كل $minutes دقيقة')),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذر تعديل الفترة: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
+    }
+  }
+
+  Future<void> _changeConflictResolution(ConflictResolution strategy) async {
+    setState(() => _syncBusy = true);
+    try {
+      await ref.read(smartSyncManagerProvider).setConflictResolution(strategy);
+      ref.invalidate(smartSyncStatusProvider);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم تحديث استراتيجية حل التضارب')),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذر تحديث الاستراتيجية: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
+    }
+  }
+
+  Future<void> _manualSync() async {
+    setState(() => _syncBusy = true);
+    try {
+      await ref.read(smartSyncManagerProvider).forceSyncNow();
+      ref.invalidate(smartSyncStatusProvider);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تمت المزامنة اليدوية')));
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشلت المزامنة اليدوية: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _syncBusy = false);
+      }
+    }
+  }
 
   Future<void> _runComprehensiveBackup() async {
     setState(() => _backupBusy = true);
@@ -297,6 +549,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   @override
   Widget build(BuildContext context) {
     final autoBackupStatus = ref.watch(autoBackupStatusProvider);
+    final syncStatus = ref.watch(smartSyncStatusProvider);
     final backupState = ref.watch(backupStatusProvider);
     final appwriteConnection = ref.watch(ap.connectionStatusProvider);
     final appwriteStats = ref.watch(ap.syncStatsProvider);
@@ -309,6 +562,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           children: [
             _buildSummaryRow(
               autoBackupStatus,
+              syncStatus,
               backupState,
               appwriteConnection,
               appwriteStats,
@@ -318,9 +572,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             const SizedBox(height: 12),
             _buildAppwriteSection(appwriteConnection, appwriteStats),
             const SizedBox(height: 32),
-            _buildSectionTitle('Google Drive - نسخ احتياطي واستعادة', Icons.cloud_upload),
+            _buildSectionTitle('المزامنة الذكية', Icons.sync_alt),
             const SizedBox(height: 12),
-            _buildGoogleDriveBackupSection(backupState),
+            _buildSyncSection(syncStatus),
             const SizedBox(height: 32),
             _buildSectionTitle('النسخ الاحتياطي الذكي', Icons.backup),
             const SizedBox(height: 12),
@@ -333,6 +587,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
 
   Widget _buildSummaryRow(
     AsyncValue<Map<String, dynamic>> autoBackupStatus,
+    AsyncValue<Map<String, dynamic>> syncStatus,
     BackupState backupState,
     ap.ConnectionState appwriteConnection,
     AsyncValue<Map<String, dynamic>> appwriteStats,
@@ -342,6 +597,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         final width = constraints.maxWidth;
         double cardWidth;
         if (width >= 900) {
+          cardWidth = (width - 24) / 3;
+        } else if (width >= 600) {
           cardWidth = (width - 12) / 2;
         } else {
           cardWidth = width;
@@ -350,6 +607,15 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           spacing: 12,
           runSpacing: 12,
           children: [
+            SizedBox(
+              width: cardWidth,
+              child: _buildAsyncSummaryTile(
+                title: 'المزامنة بين الأجهزة',
+                color: Colors.teal,
+                status: syncStatus,
+                primaryTimeKey: 'last_sync_check',
+              ),
+            ),
             SizedBox(
               width: cardWidth,
               child: _buildAsyncSummaryTile(
@@ -654,94 +920,206 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     );
   }
 
-  Widget _buildGoogleDriveBackupSection(BackupState backupState) {
-    final isSignedIn = backupState.isSignedIn;
-    final lastBackupTime = backupState.lastBackupTime;
-    final availableBackups = backupState.availableBackups;
+  Widget _buildSyncSection(AsyncValue<Map<String, dynamic>> statusAsync) {
+    return statusAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => _buildErrorCard('تعذر تحميل إعدادات المزامنة'),
+      data: _buildSyncContent,
+    );
+  }
+
+  Widget _buildSyncContent(Map<String, dynamic> status) {
+    final isEnabled = status['enabled'] as bool;
+    final monitoringActive = status['monitoring_active'] as bool;
+    final isSyncing = status['is_syncing'] as bool;
+    final isSignedIn = status['signed_in'] as bool;
+    final lastSync = status['last_sync_check'] as String?;
+    final deviceId = status['device_id'] as String?;
+    final syncInterval = status['sync_interval_minutes'] as int;
+    final conflictKey = status['conflict_resolution'] as String;
+    final resolution = ConflictResolution.values.firstWhere(
+      (e) => e.name == conflictKey,
+      orElse: () => ConflictResolution.newerWins,
+    );
     return Column(
       children: [
-        // Info banner
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Google Drive مخصص للنسخ الاحتياطي والاستعادة فقط. المزامنة التلقائية معطلة.',
-                  style: TextStyle(color: Colors.blue.shade700, fontSize: 13),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
         _buildCard(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildStatusRow(
+                'الحالة',
+                isEnabled
+                    ? (monitoringActive ? 'مفعلة ونشطة' : 'مفعلة لكن متوقفة')
+                    : 'معطلة',
+              ),
+              _buildStatusRow(
                 'تسجيل الدخول',
                 isSignedIn ? 'متصل بـ Google Drive' : 'غير متصل',
               ),
-              _buildStatusRow(
-                'الوضع',
-                'نسخ احتياطي واستعادة فقط',
-              ),
-              _buildStatusRow(
-                'المزامنة التلقائية',
-                'معطلة',
-              ),
-              if (lastBackupTime != null)
+              if (isSyncing) _buildStatusRow('النشاط الحالي', 'جارٍ المزامنة'),
+              if (lastSync != null)
                 _buildStatusRow(
-                  'آخر نسخة احتياطية',
-                  _formatDateTime(lastBackupTime),
+                  'آخر فحص',
+                  _formatDateTime(DateTime.parse(lastSync)),
                 ),
-              _buildStatusRow(
-                'عدد النسخ المتاحة',
-                '${availableBackups.length}',
-              ),
+              if (deviceId != null)
+                _buildStatusRow(
+                  'معرف الجهاز',
+                  '${deviceId.substring(0, 8)}...',
+                ),
             ],
           ),
         ),
         const SizedBox(height: 12),
-        // Sync disabled notice
         _buildCard(
           SwitchListTile(
-            title: const Text('مزامنة Google Drive التلقائية'),
-            subtitle: const Text(
-              'معطلة - Google Drive للنسخ الاحتياطي والاستعادة فقط',
+            title: const Text('تفعيل مزامنة Google Drive'),
+            subtitle: Text(
+              _googleDriveSyncEnabled
+                  ? 'مفعلة - المزامنة تعمل عند الحاجة'
+                  : 'معطلة - لن يتم أي رفع أو سحب',
             ),
-            value: false,
-            onChanged: null, // Permanently disabled
+            value: _googleDriveSyncEnabled,
+            onChanged: _syncBusy ? null : _toggleGoogleDriveSyncEnabled,
           ),
         ),
         const SizedBox(height: 12),
-        // Navigate to Google Drive settings
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (context) => const GoogleDriveSettingsScreen(),
+        _buildCard(
+          SwitchListTile(
+            title: const Text('تفعيل الرفع إلى Google Drive'),
+            subtitle: Text(
+              _googleDrivePushEnabled
+                  ? 'سيرفع التغييرات والنسخ عند الحاجة'
+                  : 'الرفع معطل بشكل كامل',
+            ),
+            value: _googleDrivePushEnabled,
+            onChanged: (!_googleDriveSyncEnabled || _syncBusy)
+                ? null
+                : _toggleGoogleDrivePushEnabled,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildCard(
+          SwitchListTile(
+            title: const Text('تعطيل مزامنة Google Drive عند بدء التشغيل'),
+            subtitle: Text(
+              _googleDriveSyncDisableOnStart
+                  ? 'ستتعطل تلقائياً عند فتح التطبيق'
+                  : 'لن يتم التعطيل تلقائياً',
+            ),
+            value: _googleDriveSyncDisableOnStart,
+            onChanged: _syncBusy ? null : _toggleGoogleDriveSyncDisableOnStart,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildCard(
+          Column(
+            children: [
+              SwitchListTile(
+                title: const Text('تفعيل المزامنة التلقائية بين الأجهزة'),
+                subtitle: Text(
+                  isEnabled
+                      ? 'التحقق جارٍ بشكل دوري'
+                      : 'لن يتم فحص النسخ الجديدة',
                 ),
-              );
-            },
-            icon: const Icon(Icons.cloud_upload),
-            label: const Text('إدارة النسخ الاحتياطي على Google Drive'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
+                value: isEnabled,
+                onChanged: isSignedIn && !_syncBusy ? _toggleSmartSync : null,
+              ),
+              if (!isSignedIn)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'يتطلب تسجيل الدخول في Google Drive',
+                    style: TextStyle(color: Colors.orange, fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        if (isEnabled) ...[
+          const SizedBox(height: 12),
+          _buildCard(
+            DropdownButtonFormField<int>(
+              value: _intervalOptions.contains(syncInterval)
+                  ? syncInterval
+                  : _intervalOptions.first,
+              decoration: const InputDecoration(
+                labelText: 'فترة الفحص بالدقائق',
+                prefixIcon: Icon(Icons.timer),
+              ),
+              items: _intervalOptions
+                  .map(
+                    (minutes) => DropdownMenuItem(
+                      value: minutes,
+                      child: Text(_intervalLabel(minutes)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _syncBusy
+                  ? null
+                  : (value) {
+                      if (value != null) {
+                        _changeSyncInterval(value);
+                      }
+                    },
             ),
           ),
+          const SizedBox(height: 12),
+          _buildCard(
+            Column(
+              children: [
+                DropdownButtonFormField<ConflictResolution>(
+                  value: resolution,
+                  decoration: const InputDecoration(
+                    labelText: 'استراتيجية حل التضارب',
+                    prefixIcon: Icon(Icons.merge_type),
+                  ),
+                  items: _conflictDescriptions.entries
+                      .map(
+                        (entry) => DropdownMenuItem(
+                          value: entry.key,
+                          child: Text(entry.value),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _syncBusy
+                      ? null
+                      : (value) {
+                          if (value != null) {
+                            _changeConflictResolution(value);
+                          }
+                        },
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _conflictDescriptions[resolution] ?? '',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _syncBusy || !isSignedIn ? null : _manualSync,
+                icon: _syncBusy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync),
+                label: const Text('مزامنة الآن'),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -889,26 +1267,20 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                 title: const Text('النسخ الاحتياطي المجدول يومياً'),
                 subtitle: Text(
                   _scheduledEnabled
-                      ? 'الساعة ${_scheduledTime.format(context)}'
+                      ? 'وقت التنفيذ ${_scheduledTime.format(context)}'
                       : 'غير مفعل',
                 ),
                 value: _scheduledEnabled,
                 onChanged: _backupBusy ? null : _toggleScheduledBackup,
               ),
-              if (_scheduledEnabled)
-                ListTile(
-                  leading: const Icon(Icons.access_time),
-                  title: const Text('تعديل الوقت'),
-                  trailing: Text(
-                    _scheduledTime.format(context),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                  ),
-                  enabled: !_backupBusy,
-                  onTap: _backupBusy ? null : _selectTime,
-                ),
+              ListTile(
+                leading: const Icon(Icons.access_time),
+                title: const Text('وقت التنفيذ'),
+                subtitle: Text(_scheduledTime.format(context)),
+                trailing: const Icon(Icons.edit),
+                enabled: !_backupBusy,
+                onTap: _backupBusy ? null : _selectTime,
+              ),
             ],
           ),
         ),
@@ -1023,4 +1395,11 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     return '${dt.day}/${dt.month}/${dt.year} $h:$m';
   }
 
+  String _intervalLabel(int minutes) {
+    if (minutes < 60) {
+      return '$minutes دقيقة';
+    }
+    final hours = (minutes / 60).round();
+    return '$hours ساعة';
+  }
 }

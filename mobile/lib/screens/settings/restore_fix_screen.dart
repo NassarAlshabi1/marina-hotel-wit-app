@@ -28,12 +28,6 @@ final fixLogsProvider = FutureProvider.autoDispose<List<RestoreFixLogData>>((
 // مقدم لحالة التحميل
 final fixServiceLoadingProvider = StateProvider<bool>((ref) => false);
 
-// مقدم لتقرير الإصلاح الشامل
-final lastComprehensiveFixReportProvider = StateProvider<ComprehensiveFixReport?>((ref) => null);
-
-// مقدم لحالة تحميل الإصلاح الشامل
-final comprehensiveFixLoadingProvider = StateProvider<bool>((ref) => false);
-
 /// شاشة إعدادات الإصلاح التلقائي
 class RestoreFixScreen extends ConsumerWidget {
   const RestoreFixScreen({super.key});
@@ -56,10 +50,6 @@ class RestoreFixScreen extends ConsumerWidget {
           children: [
             // بطاقة التحكم الرئيسية
             _buildMainControlCard(context, ref, isLoading),
-            const SizedBox(height: 20),
-
-            // بطاقة الإصلاح الشامل
-            _buildComprehensiveFixCard(context, ref),
             const SizedBox(height: 20),
 
             // بطاقة التقرير الأخير
@@ -426,24 +416,30 @@ class RestoreFixScreen extends ConsumerWidget {
     ref.read(fixServiceLoadingProvider.notifier).state = true;
 
     try {
+      // إظهار رسالة بدء التشغيل
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('بدء عملية الإصلاح التلقائي...'),
+          content: Text('🔄 بدء عملية الإصلاح التلقائي...'),
           duration: Duration(seconds: 2),
         ),
       );
 
+      // تشغيل الإصلاح
       final report = await service.runAutoFixAfterRestore();
 
+      // حفظ التقرير
       ref.read(lastFixReportProvider.notifier).state = report;
+
+      // تحديث السجلات
       ref.invalidate(fixLogsProvider);
 
+      // إظهار النتيجة
       if (report.success) {
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'اكتمل الإصلاح بنجاح: ${report.bookingsFixed} حجز، ${report.roomsUpdated} غرفة',
+              '✅ اكتمل الإصلاح بنجاح: ${report.bookingsFixed} حجز، ${report.roomsUpdated} غرفة',
             ),
             backgroundColor: Colors.green,
           ),
@@ -452,7 +448,7 @@ class RestoreFixScreen extends ConsumerWidget {
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('فشل الإصلاح: ${report.error}'),
+            content: Text('❌ فشل الإصلاح: ${report.error}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -467,183 +463,6 @@ class RestoreFixScreen extends ConsumerWidget {
       );
     } finally {
       ref.read(fixServiceLoadingProvider.notifier).state = false;
-    }
-  }
-
-  /// بطاقة الإصلاح الشامل لجميع الحجوزات
-  Widget _buildComprehensiveFixCard(BuildContext context, WidgetRef ref) {
-    final isLoading = ref.watch(comprehensiveFixLoadingProvider);
-    final lastReport = ref.watch(lastComprehensiveFixReportProvider);
-
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Icon(Icons.precision_manufacturing, size: 48, color: Colors.deepPurple),
-            const SizedBox(height: 16),
-            const Text(
-              'الإصلاح الشامل للبيانات',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'يعيد حساب جميع الحجوزات (بما فيها المغلقة) بقاعدة 14:00 ويُصلح المبالغ والديون ثم يرفعها إلى Appwrite',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: isLoading ? null : () => _runComprehensiveFix(context, ref),
-              icon: isLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_fix_high),
-              label: Text(
-                isLoading ? 'جاري الإصلاح الشامل...' : 'تشغيل الإصلاح الشامل',
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                textStyle: const TextStyle(fontSize: 16),
-              ),
-            ),
-            if (lastReport != null) ...[
-              const Divider(height: 24),
-              _buildComprehensiveReportSummary(context, lastReport),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// ملخص تقرير الإصلاح الشامل
-  Widget _buildComprehensiveReportSummary(
-    BuildContext context,
-    ComprehensiveFixReport report,
-  ) {
-    final statusColor = report.success ? Colors.green : Colors.red;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          report.success ? 'اكتمل بنجاح' : 'فشل: ${report.error}',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: statusColor,
-          ),
-        ),
-        const SizedBox(height: 8),
-        _buildReportRow('إجمالي الحجوزات', '${report.totalBookings}'),
-        _buildReportRow('الحجوزات المُصلحة', '${report.bookingsFixed}'),
-        _buildReportRow('ليالي تم تصحيحها', '${report.nightsCorrected}'),
-        _buildReportRow('حسابات مالية تم تصحيحها', '${report.financialsCorrected}'),
-        _buildReportRow('ديون تم تصحيحها', '${report.debtsCorrected}'),
-        _buildReportRow('سجلات ليالي أُعيد بناؤها', '${report.nightsRebuilt}'),
-        _buildReportRow('المدة', '${report.durationMs} مللي ثانية'),
-        if (report.changes.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          ExpansionTile(
-            title: Text(
-              'التفاصيل (${report.changes.length})',
-              style: const TextStyle(fontSize: 14),
-            ),
-            children: report.changes.take(50).map((change) {
-              return ListTile(
-                dense: true,
-                leading: const Icon(Icons.check, size: 16, color: Colors.green),
-                title: Text(change, style: const TextStyle(fontSize: 12)),
-              );
-            }).toList(),
-          ),
-        ],
-      ],
-    );
-  }
-
-  /// تشغيل الإصلاح الشامل
-  Future<void> _runComprehensiveFix(BuildContext context, WidgetRef ref) async {
-    // تأكيد المستخدم
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('تأكيد الإصلاح الشامل'),
-        content: const Text(
-          'سيتم إعادة حساب جميع الحجوزات (بما فيها المغلقة) وتصحيح المبالغ والديون ورفعها إلى Appwrite.\n\n'
-          'هذه العملية لا يمكن التراجع عنها.\n\n'
-          'هل أنت متأكد؟',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white),
-            child: const Text('تأكيد'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    final service = ref.read(restoreFixServiceProvider);
-    ref.read(comprehensiveFixLoadingProvider.notifier).state = true;
-
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('بدء الإصلاح الشامل لجميع الحجوزات...'),
-          duration: Duration(seconds: 3),
-        ),
-      );
-
-      final report = await service.runComprehensiveFix();
-
-      ref.read(lastComprehensiveFixReportProvider.notifier).state = report;
-      ref.invalidate(fixLogsProvider);
-
-      if (report.success) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'اكتمل الإصلاح الشامل: ${report.bookingsFixed}/${report.totalBookings} حجز، ${report.nightsCorrected} ليالي، ${report.financialsCorrected} مالي',
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      } else {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('فشل الإصلاح الشامل: ${report.error}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ غير متوقع: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      ref.read(comprehensiveFixLoadingProvider.notifier).state = false;
     }
   }
 

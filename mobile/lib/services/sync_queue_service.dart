@@ -1,5 +1,5 @@
 import 'dart:async';
-import '../utils/app_logger.dart';
+import 'package:flutter/foundation.dart';
 
 /// [Deprecated] This service is being replaced by Unified Outbox Architecture.
 /// All methods are now No-ops.
@@ -13,14 +13,14 @@ class SyncQueueService {
   Stream<int> get queueCountStream => _queueController.stream;
 
   Future<void> initialize() async {
-    AppLogger.warning('[SyncQueue] Service deprecated - initializing as no-op');
+    debugPrint('⚠️ [SyncQueue] Service deprecated - initializing as no-op');
   }
 
   Future<void> addToQueue({
     required String screenId,
     required Map<String, dynamic> data,
   }) async {
-    AppLogger.warning('[SyncQueue] addToQueue ignored (using Outbox instead)');
+    debugPrint('⚠️ [SyncQueue] addToQueue ignored (using Outbox instead)');
   }
 
   Future<List<SyncQueueItem>> getQueueItems() async {

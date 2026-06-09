@@ -6,7 +6,7 @@ import 'package:printing/printing.dart';
 
 import '../services/local_db.dart';
 import '../utils/enhanced_pdf_utils.dart';
-import '../utils/hotel_date_helper.dart';
+import '../utils/time.dart';
 
 /// نموذج إيصال دفع احترافي محسّن
 class EnhancedPaymentReceipt {
@@ -510,7 +510,7 @@ class EnhancedInvoice {
   }
 
   pw.Widget _buildInvoiceInfo(ArabicPdfFonts fonts) {
-    final duration = HotelDateHelper.calculateNights(checkIn: checkIn, checkOut: checkOut);
+    final duration = Time.nightsWithCutoff(checkIn, checkout: checkOut);
 
     return EnhancedPdfUtils.buildInfoCard(
       title: '📋 بيانات الفاتورة',

@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart' as d;
-import '../utils/app_logger.dart';
+import 'package:flutter/foundation.dart';
 
 import 'local_db.dart';
 
@@ -84,7 +84,7 @@ class OptimisticLockManager {
 
       return result?.read<int?>('version');
     } catch (e) {
-      AppLogger.error('خطأ في قراءة الإصدار: $e');
+      debugPrint('❌ خطأ في قراءة الإصدار: $e');
       return null;
     }
   }
@@ -102,7 +102,7 @@ class OptimisticLockManager {
         ],
       );
     } catch (e) {
-      AppLogger.error('خطأ في تحديث الإصدار: $e');
+      debugPrint('❌ خطأ في تحديث الإصدار: $e');
       rethrow;
     }
   }
@@ -133,7 +133,7 @@ class OptimisticLockManager {
           ],
         );
       } catch (e) {
-        AppLogger.warning('Version rollback failed after optimistic lock conflict: $e');
+        debugPrint('⚠️ Version rollback failed after optimistic lock conflict: $e');
       }
       rethrow;
     }

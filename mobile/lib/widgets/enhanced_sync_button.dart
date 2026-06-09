@@ -105,8 +105,14 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         database: ref.read(databaseProvider),
       );
 
-      // ⚠️ Smart Sync (Google Drive) is DISABLED — only Appwrite sync
+      final smartSyncManager = ref.read(smartSyncManagerProvider);
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
+
+      final smartEnabled = await smartSyncManager.isEnabled();
+
+      if (smartEnabled) {
+        await smartSyncManager.forceSyncNow();
+      }
 
       await appwriteSyncManager.sync();
 
@@ -393,9 +399,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     unawaited(_animationController.repeat());
 
     try {
-      // ⚠️ Smart Sync (Google Drive) is DISABLED — only Appwrite push
+      final smartSyncManager = ref.read(smartSyncManagerProvider);
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
+      await smartSyncManager.pushLocalChanges();
       await appwriteSyncManager.pushLocalChanges();
 
       if (mounted) {
@@ -437,9 +444,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     unawaited(_animationController.repeat());
 
     try {
-      // ⚠️ Smart Sync (Google Drive) is DISABLED — only Appwrite pull
+      final smartSyncManager = ref.read(smartSyncManagerProvider);
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
+      await smartSyncManager.pullRemoteChanges();
       await appwriteSyncManager.sync(push: false);
 
       if (mounted) {

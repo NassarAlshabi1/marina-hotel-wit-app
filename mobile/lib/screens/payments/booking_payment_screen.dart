@@ -11,7 +11,6 @@ import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../services/central_sync_coordinator.dart';
 import '../../models/payment_models.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
@@ -44,7 +43,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   late TextEditingController _phoneController;
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
   double _remainingAmount = 0;
-  String _currentGuestPhone = '';  // ✅ إصلاح: تهيئة بسلسلة فارغة
+  late String _currentGuestPhone;
   bool _isSavingPayment = false;
   double _debtAmount = 0;
   StreamSubscription<void>? _hotelDayTickerSub;
@@ -144,13 +143,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     _phoneController = TextEditingController(text: widget.booking.guestPhone);
     _currentGuestPhone = widget.booking.guestPhone;
     _checkForDebts();
-    // ✅ إصلاح: حذف _refreshBookingNights() من initState
-    // كان يعيد حساب الليالي بـ DateTime.now() كل مرة تُفتح فيها الشاشة
-    // مما يغيّر المبلغ الإجمالي والمتبقي للحجوزات النشطة بدون سبب
-    // الآن cached values تتحدث فقط عند:
-    // 1. إضافة/إلغاء دفعة (repository يُسمي refreshForBookingId تلقائياً)
-    // 2. تغير اليوم الفندقي (HotelDayTicker)
-    // 3. سحب الشاشة للأسفل (RefreshIndicator)
+    _refreshBookingNights();
     _startHotelDayAutoRefresh();
   }
 
@@ -194,7 +187,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     DateTime? discountStartDate,
   ) {
     if (discountStartDate == null) {
-      return HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkout);
+      return Time.nightsWithCutoff(checkin, checkout: checkout);
     }
     final discountDayStart = DateTime(
       discountStartDate.year,
@@ -206,7 +199,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     if (!checkout.isAfter(effectiveStart)) {
       return 0;
     }
-    return HotelDateHelper.calculateNights(checkIn: effectiveStart, checkOut: checkout);
+    return Time.nightsWithCutoff(effectiveStart, checkout: checkout);
   }
 
   @override
@@ -412,16 +405,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 stream: paymentsRepo.paymentsByBooking(booking.id),
                 builder: (context, paySnap) {
                   final dbPayments = paySnap.data ?? const <db.Payment>[];
-                  // ✅ استبعاد المدفوعات الملغاة والمعلقة من حساب الإجمالي المدفوع
-                  final validPayments = dbPayments
-                      .where((p) => !p.isVoided && !p.isPendingBalance)
-                      .toList();
-                  final paidAmount = validPayments
+                  // ✅ استبعاد المدفوعات الملغاة من حساب الإجمالي المدفوع
+                  final paidAmount = dbPayments
+                      .where((p) => !p.isVoided)
                       .fold<double>(0, (s, p) => s + p.amount);
                   // حساب المدفوعات في اليوم الفندقي الحالي لهذا الحجز
                   final hotelDay = HotelTimeEngine.getHotelDayKey();
-                  final todayPaidAmount = validPayments
+                  final todayPaidAmount = dbPayments
                       .where((p) =>
+                          !p.isVoided &&
                           (p.hotelDayKey == hotelDay ||
                               (p.hotelDayKey == null &&
                                   p.paymentDate.startsWith(hotelDay))),)
@@ -1358,6 +1350,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final cardDigitsController = TextEditingController();
     final bankController = TextEditingController();
 
+    // ✅ إصلاح تسرب ذاكرة: استخدام then للتأكد من dispose بعد إغلاق الحوار
     showDialog<void>(
       context: context,
       builder: (context) => Directionality(
@@ -1470,7 +1463,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ],
         ),
       ),
-    );
+    ).then((_) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
+      amountController.dispose();
+      notesController.dispose();
+      referenceController.dispose();
+      cardDigitsController.dispose();
+      bankController.dispose();
+    });
   }
 
   Future<void> _sendPaymentConfirmation(
@@ -1518,7 +1518,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
     final now = DateTime.now();
-    final currentStay = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: now);
+    final currentStay = Time.nightsWithCutoff(checkin, checkout: now);
     final expectedNights = widget.booking.expectedNights;
 
     // عرض خيارات الليالي الإضافية إذا:
@@ -1538,7 +1538,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
     final now = DateTime.now();
-    final currentStay = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: now);
+    final currentStay = Time.nightsWithCutoff(checkin, checkout: now);
     final expectedNights = widget.booking.expectedNights;
     final extraNights = currentStay - expectedNights;
 
@@ -1628,12 +1628,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
       builder: (context, roomSnap) {
         final double roomRate = roomSnap.data?.price ?? 0;
-        // تطبيق خصم الحجز على سعر الغرفة
-        final double discount = widget.booking.discount;
-        final double effectiveRate = (discount > 0 && widget.booking.discountType == 'per_night')
-            ? (roomRate - discount).clamp(0.0, roomRate)
-            : roomRate;
-        final amount = nights * effectiveRate;
+        final amount = nights * roomRate;
 
         return ElevatedButton(
           onPressed: amount > 0
@@ -1722,7 +1717,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         ],
       ),
-    );
+    ).then((_) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكم بعد إغلاق الحوار
+      notesController.dispose();
+    });
   }
 
   /// معالجة دفع الليالي الإضافية
@@ -1756,14 +1754,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
     final now = DateTime.now();
-    final currentNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: now);
+    final currentNights = Time.nightsWithCutoff(checkin, checkout: now);
     final currentTotal = currentNights * roomRate;
     final allPayments = await paymentsRepo
         .paymentsByBooking(widget.booking.id)
         .first;
-    final totalPaid = allPayments
-        .where((p) => !p.isVoided && !p.isPendingBalance)
-        .fold<double>(0, (s, p) => s + p.amount);
+    final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
     double newRemaining = currentTotal - totalPaid;
     if (newRemaining < 0) {
       newRemaining = 0;
@@ -1860,9 +1856,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final actualCheckout = widget.booking.actualCheckout != null
         ? DateTime.tryParse(widget.booking.actualCheckout!)
         : null;
-    final actualNights = HotelDateHelper.calculateNights(
-      checkIn: checkin,
-      checkOut: actualCheckout ?? plannedCheckout,
+    final actualNights = Time.nightsWithCutoff(
+      checkin,
+      checkout: actualCheckout ?? plannedCheckout,
     );
 
     final nights =
@@ -1906,9 +1902,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final payments = await paymentsRepo
         .paymentsByBooking(widget.booking.id)
         .first;
-    final paidAmount = payments
-        .where((p) => !p.isVoided && !p.isPendingBalance)
-        .fold<double>(0, (s, p) => s + p.amount);
+    final paidAmount = payments.fold<double>(0, (s, p) => s + p.amount);
     double remainingAmount = totalAmount - paidAmount;
     if (remainingAmount < 0) {
       remainingAmount = 0;
@@ -2226,15 +2220,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     try {
-      // ✅ إصلاح: استخدام guestPhone من الحجز كـ fallback
-      final phoneToUse = _currentGuestPhone.isNotEmpty
-          ? _currentGuestPhone
-          : widget.booking.guestPhone;
       final receipt = Receipt(
         receiptNumber: 'REC${DateTime.now().millisecondsSinceEpoch}',
         payment: payment,
         guestName: widget.booking.guestName,
-        guestPhone: phoneToUse,
+        guestPhone: _currentGuestPhone,
         roomNumber: widget.booking.roomNumber,
         generatedAt: DateTime.now(),
       );
@@ -2254,10 +2244,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
     final messenger = ScaffoldMessenger.of(context);
     try {
-      // ✅ إصلاح: استخدام guestPhone من الحجز كـ fallback
-      final phoneToUse = _currentGuestPhone.isNotEmpty
-          ? _currentGuestPhone
-          : widget.booking.guestPhone;
       final checkin =
           DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
       final plannedCheckout = widget.booking.checkoutDate != null
@@ -2274,11 +2260,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         invoiceNumber: 'INV${DateTime.now().millisecondsSinceEpoch}',
         bookingId: widget.booking.localUuid,
         guestName: widget.booking.guestName,
-        guestPhone: phoneToUse,
+        guestPhone: _currentGuestPhone,
         roomNumber: widget.booking.roomNumber,
         checkinDate: checkin,
         checkoutDate: checkout,
-        nights: HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkout),
+        nights: Time.nightsWithCutoff(checkin, checkout: checkout),
         roomRate: room?.price ?? 0,
         totalAmount: summary.totalAmount,
         payments: summary.payments,
@@ -2400,8 +2386,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
 
     // حساب الليالي
-    final actualNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: now);
-    final plannedNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: plannedCheckout);
+    final actualNights = Time.nightsWithCutoff(checkin, checkout: now);
+    final plannedNights = Time.nightsWithCutoff(checkin, checkout: plannedCheckout);
     final unusedNights = plannedNights - actualNights;
 
     if (unusedNights <= 0) {
@@ -2692,29 +2678,19 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final checkin =
           DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
       final nowDate = DateTime.parse(nowIso);
-      final actualNights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: nowDate);
+      final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
       await bookingsRepo.update(
         widget.booking.id,
         status: 'مكتمل',
         actualCheckout: nowIso,
         calculatedNights: actualNights,
       );
-      // ✅ تحديث الحقول المشتقة بعد تسجيل المغادرة (hotelDayCheckout, cached totals)
-      final dbInstance = ref.read(databaseProvider);
-      final derivedService = BookingDerivedFieldsService(dbInstance);
-      await derivedService.refreshForBookingId(widget.booking.id);
       final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
       if (room != null) {
         await roomsRepo.update(room.id, status: 'شاغرة');
       }
       // ✅ تسجيل تغيير المزامنة بعد تحرير الغرفة
       markDataChanged();
-      // ✅ دفع فوري إلى Appwrite (بدون انتظار التايمر الدوري 15 دقيقة)
-      CentralSyncCoordinator.instance.syncNow(
-        push: true,
-        pull: false,
-        reason: 'checkout_complete',
-      );
       if (!mounted) {
         return;
       }
@@ -3414,11 +3390,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
         builder: (context, roomSnap) {
           final double roomRate = roomSnap.data?.price ?? 0;
-          // تطبيق خصم الحجز على سعر الغرفة
-          final double discount = widget.booking.discount;
-          final double effectiveRate = (discount > 0 && widget.booking.discountType == 'per_night')
-              ? (roomRate - discount).clamp(0.0, roomRate)
-              : roomRate;
 
           return AlertDialog(
             title: const Row(
@@ -3431,7 +3402,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             content: StatefulBuilder(
               builder: (context, setState) {
                 final nights = int.tryParse(nightsController.text) ?? 1;
-                final totalCost = nights * effectiveRate;
+                final totalCost = nights * roomRate;
 
                 return Column(
                   mainAxisSize: MainAxisSize.min,
@@ -3498,7 +3469,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           );
         },
       ),
-    );
+    ).then((_) {
+      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
+      nightsController.dispose();
+      notesController.dispose();
+    });
   }
 
   /// معالجة تمديد الإقامة

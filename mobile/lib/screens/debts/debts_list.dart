@@ -8,7 +8,6 @@ import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
-import '../../utils/hotel_date_helper.dart';
 import '../../utils/time.dart';
 import 'create_debt_from_booking.dart';
 
@@ -282,7 +281,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               : debt.checkoutDate;
           final debtDate = DateTime.tryParse(debtDateStr);
           if (debtDate != null) {
-            final daysPassed = HotelDateHelper.calculateNights(checkIn: debtDate, checkOut: DateTime.now());
+            final daysPassed = DateTime.now().difference(debtDate).inDays;
             matchesFilter =
                 daysPassed > 30 &&
                 debt.isSettled == 0 &&
@@ -364,7 +363,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate,
     );
     final daysPassed = debtDate != null
-        ? HotelDateHelper.calculateNights(checkIn: debtDate, checkOut: DateTime.now())
+        ? DateTime.now().difference(debtDate).inDays
         : 0;
     final isOverdue = daysPassed > 30 && !isSettled;
 
@@ -631,7 +630,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         : debt.checkoutDate;
     final debtDate = DateTime.tryParse(debtDateStr);
     final daysPassed = debtDate != null
-        ? HotelDateHelper.calculateNights(checkIn: debtDate, checkOut: DateTime.now())
+        ? DateTime.now().difference(debtDate).inDays
         : 0;
     final isOverdue = daysPassed > 30 && !isSettled && debt.remainingAmount > 0;
 
@@ -1046,7 +1045,36 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   child: const Text('إلغاء'),
                 ),
                 ElevatedButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
+                  // ✅ إصلاح: التحقق من صحة البيانات قبل إغلاق الحوار
+                  // سابقاً كان التحقق بعد الإغلاق مما يسبب فقدان البيانات المدخلة
+                  onPressed: () {
+                    final guestName = guestNameCtrl.text.trim();
+                    if (guestName.isEmpty) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(content: Text('يرجى إدخال اسم النزيل')),
+                      );
+                      return;
+                    }
+                    final totalAmount = CurrencyFormatter.parseAmount(totalCtrl.text) ?? 0;
+                    if (totalAmount <= 0) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(content: Text('يجب إدخال مبلغ الدين الكلي أكبر من صفر')),
+                      );
+                      return;
+                    }
+                    // ✅ إصلاح: التحقق من أن المدفوع لا يتجاوز الإجمالي
+                    final paidAmount = CurrencyFormatter.parseAmount(paidCtrl.text) ?? 0;
+                    if (paidAmount > totalAmount) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(
+                          content: Text('المبلغ المدفوع لا يمكن أن يتجاوز إجمالي الدين'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.pop(dialogContext, true);
+                  },
                   child: Text(existing == null ? 'إضافة الدين' : 'تحديث الدين'),
                 ),
               ],
@@ -1059,16 +1087,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         return;
       }
 
+      // ✅ التحقق من اسم النزيل والمبلغ أصبح داخل الحوار الآن
+      // لا حاجة لإعادة التحقق هنا
       final guestName = guestNameCtrl.text.trim();
-      if (guestName.isEmpty) {
-        if (mounted) {
-          // ignore: use_build_context_synchronously
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('يرجى إدخال اسم النزيل')),
-          );
-        }
-        return;
-      }
 
       final checkinDate = checkinCtrl.text.trim().isEmpty
           ? Time.nowDateString()

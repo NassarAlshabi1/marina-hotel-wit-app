@@ -155,7 +155,6 @@ class BookingComputedStreamService {
   }
 
   /// Watches all bookings for a specific room number.
-  /// ✅ محسّن: يستخدم خريطة محملة مسبقاً بدلاً من N+1 استعلام
   Stream<List<BookingWithPayments>> watchBookingsByRoom(String roomNumber) {
     final query = (db.select(db.bookings)
           ..where((b) => b.roomNumber.equals(roomNumber))
@@ -164,37 +163,12 @@ class BookingComputedStreamService {
         .watch();
 
     return query.asyncMap((bookings) async {
-      if (bookings.isEmpty) {
-        return const [];
+      final results = <BookingWithPayments>[];
+      for (final booking in bookings) {
+        final computed = await _buildBookingWithPayments(booking);
+        results.add(computed);
       }
-
-      // ✅ تحميل الغرفة مرة واحدة بدلاً من N مرة
-      final room = await (db.select(db.rooms)
-            ..where((r) => r.roomNumber.equals(roomNumber))
-            ..where((r) => r.deletedAt.isNull()))
-          .getSingleOrNull();
-      final roomMap = <String, Room>{};
-      if (room != null) {
-        roomMap[roomNumber] = room;
-      }
-
-      // ✅ تحميل جميع المدفوعات مرة واحدة بدلاً من N مرة
-      final bookingIds = bookings.map((b) => b.id).toList();
-      final bookingUuids = bookings.map((b) => b.localUuid).toList();
-      final allPayments = await _loadPaymentsForBookings(bookingIds, bookingUuids);
-      final paymentsMap = <int, List<Payment>>{};
-      for (final p in allPayments) {
-        final bid = p.bookingLocalId;
-        if (bid != null) {
-          paymentsMap.putIfAbsent(bid, () => []).add(p);
-        }
-      }
-
-      return bookings.map((booking) => _buildBookingWithPaymentsOptimized(
-        booking,
-        roomMap: roomMap,
-        paymentsMap: paymentsMap,
-      ),).toList();
+      return results;
     });
   }
 
@@ -251,17 +225,11 @@ class BookingComputedStreamService {
         .getSingleOrNull();
     final pricePerNight = (room?.price ?? 0).round();
 
-    // Calculate total due (days * price, minus discount)
+    // Calculate total due (days * price, minus total-type discount)
     int totalDue = days * pricePerNight;
     final discount = booking.discount.round();
-    if (discount > 0) {
-      if (booking.discountType == 'total') {
-        totalDue = (totalDue - discount).clamp(0, totalDue);
-      } else {
-        // per_night: خصم لكل ليلة
-        final effectivePrice = (pricePerNight - discount).clamp(0, pricePerNight);
-        totalDue = days * effectivePrice;
-      }
+    if (booking.discountType == 'total' && discount > 0) {
+      totalDue = (totalDue - discount).clamp(0, totalDue);
     }
 
     // Sum payments
@@ -290,8 +258,8 @@ class BookingComputedStreamService {
                 p.bookingUuidCache.equals(booking.localUuid)),
           )
           ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull())
-          ..where((p) => p.isPendingBalance.equals(false) | p.isPendingBalance.isNull())
+          ..where((p) => p.isVoided.equals(false))
+          ..where((p) => p.isPendingBalance.equals(false))
           ..where(
             (p) =>
                 p.revenueType.equals('room') |
@@ -313,8 +281,8 @@ class BookingComputedStreamService {
     }
     return (db.select(db.payments)
           ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false) | p.isVoided.isNull())
-          ..where((p) => p.isPendingBalance.equals(false) | p.isPendingBalance.isNull())
+          ..where((p) => p.isVoided.equals(false))
+          ..where((p) => p.isPendingBalance.equals(false))
           ..where(
             (p) =>
                 p.revenueType.equals('room') |
@@ -358,14 +326,8 @@ class BookingComputedStreamService {
 
     int totalDue = days * pricePerNight;
     final discount = booking.discount.round();
-    if (discount > 0) {
-      if (booking.discountType == 'total') {
-        totalDue = (totalDue - discount).clamp(0, totalDue);
-      } else {
-        // per_night: خصم لكل ليلة
-        final effectivePrice = (pricePerNight - discount).clamp(0, pricePerNight);
-        totalDue = days * effectivePrice;
-      }
+    if (booking.discountType == 'total' && discount > 0) {
+      totalDue = (totalDue - discount).clamp(0, totalDue);
     }
 
     final bookingPayments = paymentsMap[booking.id] ?? [];

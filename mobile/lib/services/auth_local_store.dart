@@ -1,49 +1,11 @@
 import 'dart:convert';
-import 'dart:math';
-import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
 import 'appwrite_service.dart';
 
 enum AuthType { local }
-
-/// خدمة تشفير كلمات المرور باستخدام SHA-256 مع salt
-class PasswordHasher {
-  /// إنشاء hash لكلمة المرور مع salt عشوائي
-  static String hashPassword(String password, [String? salt]) {
-    final effectiveSalt = salt ?? _generateSalt();
-    final bytes = utf8.encode(password + effectiveSalt);
-    final digest = sha256.convert(bytes);
-    return '$effectiveSalt:${digest.toString()}';
-  }
-
-  /// التحقق من كلمة المرور
-  static bool verifyPassword(String password, String storedHash) {
-    final parts = storedHash.split(':');
-    if (parts.length != 2) {
-      // Fallback للمقارنة المباشرة (للتوافق)
-      return password == storedHash;
-    }
-    final salt = parts[0];
-    final hash = parts[1];
-    final computed = sha256.convert(utf8.encode(password + salt)).toString();
-    return computed == hash;
-  }
-
-  /// توليد salt عشوائي آمن
-  static String _generateSalt() {
-    final random = Random.secure();
-    final bytes = Uint8List(16);
-    for (var i = 0; i < 16; i++) {
-      bytes[i] = random.nextInt(256);
-    }
-    final encoded = base64Encode(bytes);
-    return encoded.substring(0, 22).replaceAll(RegExp(r'[/+=]'), '_');
-  }
-}
 
 class AuthLocalStore {
   static const _kCurrentUser = 'current_user';
@@ -67,36 +29,31 @@ class AuthLocalStore {
     'settings',
   ];
 
-  /// الحسابات الثابتة (معرفات فقط - كلمات المرور مشفرة في _hashedPasswords)
   static const Map<String, Map<String, dynamic>> _fixedAccounts = {
     'admin': {
+      'password': 'admin',
       'user_type': 'admin',
       'full_name': 'مدير النظام',
       'id': 1,
     },
     'm': {
+      'password': '1',
       'user_type': 'supervisor',
       'full_name': 'محمد',
       'id': 2,
     },
     'ahmed': {
+      'password': '2222',
       'user_type': 'employee',
       'full_name': 'أحمد',
       'id': 3,
     },
     '1': {
+      'password': '1',
       'user_type': 'supervisor',
       'full_name': 'محمد',
       'id': 4,
     },
-  };
-
-  /// تخزين كلمات المرور المشفرة (SHA-256 + salt)
-  static final Map<String, String> _hashedPasswords = {
-    'admin': PasswordHasher.hashPassword('admin'),
-    'm': PasswordHasher.hashPassword('1'),
-    'ahmed': PasswordHasher.hashPassword('2222'),
-    '1': PasswordHasher.hashPassword('1'),
   };
 
   static const Map<String, List<String>> _fixedPermissions = {
@@ -110,7 +67,7 @@ class AuthLocalStore {
       'finance',
       'reports',
       'notes',
-      'information',
+          'information',
     ],
   };
 
@@ -233,13 +190,8 @@ class AuthLocalStore {
     final normalized = username.trim();
 
     // 1️⃣ البحث في الحسابات المحلية (hardcoded + custom)
-    final fixedAccountData = _fixedAccounts[normalized];
-    Map<String, dynamic>? account = fixedAccountData != null
-        ? Map<String, dynamic>.from(fixedAccountData)
-        : null;
-    if (account == null) {
-      account = await _getCustomAccount(normalized);
-    }
+    Map<String, dynamic>? account = _fixedAccounts[normalized];
+    account ??= await _getCustomAccount(normalized);
 
     // 2️⃣ البحث في Appwrite Cloud
     if (account == null) {
@@ -250,22 +202,8 @@ class AuthLocalStore {
     if (account == null) {
       return null;
     }
-
-    // التحقق من كلمة المرور باستخدام hashing
-    bool passwordValid = false;
-    if (account['is_cloud'] == true) {
-      // الحسابات السحابية - كلمة المرور مخزنة مشفرة في Appwrite
-      passwordValid = password == account['password'];
-    } else if (_hashedPasswords.containsKey(normalized)) {
-      // الحسابات الثابتة - استخدام كلمات المرور المشفرة
-      passwordValid = PasswordHasher.verifyPassword(password, _hashedPasswords[normalized]!);
-    } else {
-      // fallback للمقارنة المباشرة (للتوافق مع الحسابات القديمة)
-      final storedPassword = account['password']?.toString() ?? '';
-      passwordValid = storedPassword == password;
-    }
-
-    if (!passwordValid) {
+    final storedPassword = account['password']?.toString() ?? '';
+    if (storedPassword != password) {
       return null;
     }
 

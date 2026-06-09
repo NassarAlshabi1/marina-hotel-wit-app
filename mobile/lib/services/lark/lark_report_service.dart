@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/time.dart';
 import '../local_db.dart';
 import 'lark_api_client.dart';
 import 'lark_config.dart';
@@ -291,9 +291,9 @@ class LarkReportService {
       '|:---:|:---:|:---:|:---|',
     );
     buffer.writeln(
-      '| ${CurrencyFormatter.formatAmount(data.totalExpenses)} ريال | '
-      '${CurrencyFormatter.formatAmount(data.netRevenue)} ريال | '
-      '${CurrencyFormatter.formatAmount(data.totalIncome)} ريال | **المبالغ** |',
+      '| \$${data.totalExpenses.toStringAsFixed(2)} | '
+      '\$${data.netRevenue.toStringAsFixed(2)} | '
+      '\$${data.totalIncome.toStringAsFixed(2)} | **المبالغ** |',
     );
     buffer.writeln();
     buffer.writeln(
@@ -474,14 +474,14 @@ class LarkReportService {
           'is_short': true,
           'text': {
             'tag': 'lark_md',
-            'content': '💰 **الإيرادات**\n${CurrencyFormatter.formatAmount(data.totalIncome)} ريال',
+            'content': '💰 **الإيرادات**\n\$${data.totalIncome.toStringAsFixed(2)}',
           },
         },
         {
           'is_short': true,
           'text': {
             'tag': 'lark_md',
-            'content': '💸 **المصروفات**\n${CurrencyFormatter.formatAmount(data.totalExpenses)} ريال',
+            'content': '💸 **المصروفات**\n\$${data.totalExpenses.toStringAsFixed(2)}',
           },
         },
       ],
@@ -494,7 +494,7 @@ class LarkReportService {
           'is_short': true,
           'text': {
             'tag': 'lark_md',
-            'content': '📈 **صافي الربح**\n${CurrencyFormatter.formatAmount(data.netRevenue)} ريال',
+            'content': '📈 **صافي الربح**\n\$${data.netRevenue.toStringAsFixed(2)}',
           },
         },
         {

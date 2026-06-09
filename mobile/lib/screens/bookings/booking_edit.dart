@@ -13,7 +13,6 @@ import '../../services/central_sync_coordinator.dart';
 import '../../services/local_db.dart';
 import '../../services/screen_sync_controller.dart';
 import '../../utils/status_utils.dart';
-import '../../utils/hotel_date_helper.dart';
 import '../../utils/time.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
@@ -279,7 +278,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
-                          initialValue: _idType,
+                          value: _idTypes.contains(_idType) ? _idType : null,
                           items: _idTypes
                               .map(
                                 (t) =>
@@ -408,7 +407,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
-                          initialValue: _status,
+                          value: _status,
                           items: _statusOptions
                               .map(
                                 (s) =>
@@ -501,7 +500,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           ),
                           const SizedBox(height: 4),
                           DropdownButtonFormField<String>(
-                            initialValue: _paymentMethod,
+                            value: _paymentMethods.contains(_paymentMethod) ? _paymentMethod : null,
                             items: _paymentMethods
                                 .map(
                                   (method) => DropdownMenuItem(
@@ -593,9 +592,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           ? expectedNights
                           : (checkoutDt == null && widget.existing == null)
                               ? 1
-                              : HotelDateHelper.calculateNights(
-                                  checkIn: checkinDt,
-                                  checkOut: checkoutDt,
+                              : Time.nightsWithCutoff(
+                                  checkinDt,
+                                  checkout: checkoutDt,
                                 );
                       final notes = _optionalText(_notes.text);
                       // email removed - unused
@@ -679,6 +678,25 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           );
                         } else {
                           newBookingId = widget.existing!.id;
+
+                          // ✅ عند تغيير الحالة إلى "مكتمل"، نسجّل المغادرة الفعلية تلقائياً
+                          // ونُحرّر الغرفة — تماماً كما يفعل _completeCheckout في booking_checkout_screen
+                          final wasNotCompleted = widget.existing!.status != 'مكتمل';
+                          final isNowCompleted = _status == 'مكتمل';
+                          String? actualCheckoutValue;
+                          int? checkoutCalculatedNights;
+
+                          if (isNowCompleted && wasNotCompleted) {
+                            final nowIso = Time.nowIso();
+                            actualCheckoutValue = nowIso;
+                            final checkinDate = DateTime.tryParse(checkin) ?? DateTime.now();
+                            final nowDate = DateTime.parse(nowIso);
+                            checkoutCalculatedNights = Time.nightsWithCutoff(
+                              checkinDate,
+                              checkout: nowDate,
+                            );
+                          }
+
                           await repo.update(
                             widget.existing!.id,
                             roomNumber: roomNumber,
@@ -692,11 +710,17 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             guestAddress: address,
                             checkinDate: checkin,
                             checkoutDate: checkout,
+                            actualCheckout: actualCheckoutValue,
                             status: _status,
                             notes: notes,
                             expectedNights: expectedNights,
-                            calculatedNights: calculatedNights,
+                            calculatedNights: checkoutCalculatedNights ?? calculatedNights,
                           );
+
+                          // ✅ تحديث حالة الغرف بعد تسجيل المغادرة
+                          if (isNowCompleted && wasNotCompleted) {
+                            await _refreshRoomOccupancy(ref);
+                          }
                         }
 
                         // ✅ الحفظ نجح — نلغي حالة "تغييرات غير مزامنة"
@@ -887,7 +911,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     // لضمان تطبيق قاعدة الساعة 14:00 بشكل ديناميكي
     final effectiveCheckout = checkoutDt ?? DateTime.now();
 
-    final nights = HotelDateHelper.calculateNights(checkIn: checkinDt, checkOut: effectiveCheckout);
+    final nights = Time.nightsWithCutoff(checkinDt, checkout: effectiveCheckout);
 
     setState(() {
       _expectedNights.text = nights.toString();
@@ -974,7 +998,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         }
 
         return DropdownButtonFormField<String>(
-          initialValue: currentValue.isNotEmpty ? currentValue : null,
+          value: currentValue.isNotEmpty ? currentValue : null,
           items: items,
           style: roomTextStyle,
           onChanged: (value) {

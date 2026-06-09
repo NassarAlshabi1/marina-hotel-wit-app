@@ -403,7 +403,9 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
           ),
         ],
       ),
-    );
+    ).then((_) {
+      controller.dispose();
+    });
   }
 
   Future<bool?> _showDeleteConfirmDialog(BuildContext context, String name) {
@@ -582,7 +584,14 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
           ),
         ],
       ),
-    );
+    ).then((_) {
+      nameCtrl.dispose();
+      nationalityCtrl.dispose();
+      nationalIdCtrl.dispose();
+      phoneCtrl.dispose();
+      reasonCtrl.dispose();
+      notesCtrl.dispose();
+    });
   }
 }
 

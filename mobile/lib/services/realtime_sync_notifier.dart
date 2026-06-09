@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'smart_sync_manager.dart';
 
@@ -20,7 +19,7 @@ class RealtimeSyncNotifier {
   String? _lastProcessedSyncId;
 
   static const String _prefsLastSyncIdKey = 'realtime_last_sync_id';
-  static const Duration _pollingInterval = Duration(minutes: 2);
+  static const Duration _pollingInterval = Duration(seconds: 30);
 
   /// بدء الاستماع لإشعارات المزامنة
   Future<void> startListening() async {
@@ -33,7 +32,7 @@ class RealtimeSyncNotifier {
 
     _pollingTimer = Timer.periodic(_pollingInterval, (_) => _checkForNewSync());
 
-    AppLogger.info('بدء الاستماع لإشعارات المزامنة');
+    debugPrint('🔔 بدء الاستماع لإشعارات المزامنة');
   }
 
   /// إيقاف الاستماع
@@ -71,10 +70,10 @@ class RealtimeSyncNotifier {
 
         _syncTriggerController.add(trigger);
         await _saveLastProcessedSyncId(syncId);
-        AppLogger.info('تم اكتشاف تغييرات جديدة');
+        debugPrint('🔔 تم اكتشاف تغييرات جديدة');
       }
     } catch (e) {
-      AppLogger.error('خطأ في التحقق من المزامنة الجديدة: $e');
+      debugPrint('❌ خطأ في التحقق من المزامنة الجديدة: $e');
     }
   }
 
@@ -92,9 +91,9 @@ class RealtimeSyncNotifier {
         'timestamp': DateTime.now().toUtc().toIso8601String(),
       };
 
-      AppLogger.info('إرسال إشعار للأجهزة الأخرى: $syncId');
+      debugPrint('📤 إرسال إشعار للأجهزة الأخرى: $syncId');
     } catch (e) {
-      AppLogger.warning('فشل إرسال الإشعار: $e');
+      debugPrint('⚠️ فشل إرسال الإشعار: $e');
     }
   }
 

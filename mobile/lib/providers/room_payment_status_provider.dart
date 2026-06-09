@@ -7,6 +7,22 @@ import '../services/local_db.dart';
 import '../utils/status_utils.dart';
 import 'repository_providers.dart';
 
+/// ✅ مقارنة قائمتين من RoomWithPaymentStatus لمنع إعادة الإرسال غير الضرورية
+/// هذا يمنع وميض الشاشة (flickering) عند عدم تغيير البيانات فعلياً
+bool _listsEqual(List<RoomWithPaymentStatus> a, List<RoomWithPaymentStatus> b) {
+  if (identical(a, b)) return true;
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    final ra = a[i];
+    final rb = b[i];
+    if (ra.room.localUuid != rb.room.localUuid) return false;
+    if (ra.isPaymentOverdue != rb.isPaymentOverdue) return false;
+    if (ra.activeBooking?.localUuid != rb.activeBooking?.localUuid) return false;
+    if (ra.room.status != rb.room.status) return false;
+  }
+  return true;
+}
+
 /// نموذج بيانات يجمع بين الغرفة وحالة تأخر السداد
 class RoomWithPaymentStatus {
 
@@ -58,7 +74,6 @@ class RoomWithPaymentStatus {
 }
 
 /// بروفايدر يدمج الغرف مع حالة تأخر السداد — يتحدث تلقائياً مع تغييرات DB
-/// ✅ محسّن للأجهزة الضعيفة: debounce 150ms لمنع إعادة الحساب المتكررة
 final roomsWithPaymentStatusProvider =
     StreamProvider.autoDispose<List<RoomWithPaymentStatus>>((ref) {
   // استخدام الـ repositories مباشرة للحصول على Streams حقيقية
@@ -73,9 +88,8 @@ final roomsWithPaymentStatusProvider =
   List<Booking>? lastBookings;
   DateTime lastTime = DateTime.now();
 
-  // ✅ Debounce timer — تجميع التغييرات المتتالية خلال 150ms
-  // هذا يمنع إعادة الحساب عند تغييرات متتالية سريعة (مثل المزامنة)
-  Timer? debounceTimer;
+  // ✅ تخزين آخر نتيجة مُرسلة لمنع إعادة الإرسال عند عدم التغيير
+  List<RoomWithPaymentStatus>? lastEmitted;
 
   void computeAndEmit() {
     if (lastRooms == null || lastBookings == null) {
@@ -121,39 +135,35 @@ final roomsWithPaymentStatusProvider =
       );
     }).toList();
 
+    // ✅ إصلاح الوميض: لا نُرسل بيانات جديدة إذا كانت مطابقة للسابقة
+    // هذا يمنع إعادة بناء الـ Widgets وإعادة تشغيل الرسوم المتحركة بدون سبب
+    if (lastEmitted != null && _listsEqual(lastEmitted!, result)) {
+      return; // لا تغيير فعلي — لا حاجة للإرسال
+    }
+    lastEmitted = result;
+
     if (!controller.isClosed) {
       controller.add(result);
     }
   }
 
-  /// ✅ إصدار محسّن مع debounce — ينتظر 150ms قبل الحساب
-  /// يُلغي أي عملية حساب سابقة معلقة
-  void scheduleComputeAndEmit() {
-    debounceTimer?.cancel();
-    debounceTimer = Timer(const Duration(milliseconds: 150), () {
-      computeAndEmit();
-    });
-  }
-
   final roomsSub = roomsStream.listen((rooms) {
     lastRooms = rooms;
-    scheduleComputeAndEmit(); // ✅ debounce بدلاً من الاستدعاء المباشر
+    computeAndEmit();
   });
 
   final bookingsSub = bookingsStream.listen((bookings) {
     lastBookings = bookings;
-    scheduleComputeAndEmit(); // ✅ debounce بدلاً من الاستدعاء المباشر
+    computeAndEmit();
   });
 
-  // تحديث الوقت كل دقيقتين (بدلاً من كل دقيقة) — لا يحتاج دقة عالية
-  // لأن التأخر يُحسب بناءً على ساعة كاملة (23:00-05:00)
-  final timer = Timer.periodic(const Duration(minutes: 2), (_) {
+  // تحديث الوقت كل دقيقة لإعادة حساب حالة التأخر (23:00-06:00)
+  final timer = Timer.periodic(const Duration(minutes: 1), (_) {
     lastTime = DateTime.now();
-    scheduleComputeAndEmit(); // ✅ debounce هنا أيضاً
+    computeAndEmit();
   });
 
   ref.onDispose(() {
-    debounceTimer?.cancel(); // ✅ تنظيف debounce timer
     roomsSub.cancel();
     bookingsSub.cancel();
     timer.cancel();
