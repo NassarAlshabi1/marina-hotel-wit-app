@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../utils/type_constants.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/custom_list_providers.dart';
@@ -68,10 +69,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   String? _selectedFilterType;
   late Stream<List<Expense>> _expensesStream;
   int _streamVersion = 0;
-  static const String _salaryType = 'رواتب';
-  static const String _salaryWithdrawAction = 'سحب من الراتب';
-  static const String _salaryDeductionAction = 'خصم من الراتب';
-  static const String _salaryAdvanceAction = 'سلفة';
+  static const String _salaryType = SalaryExpenseTypes.salary;
+  static const String _salaryWithdrawAction = SalaryExpenseTypes.withdrawal;
+  static const String _salaryDeductionAction = SalaryExpenseTypes.deduction;
+  static const String _salaryAdvanceAction = SalaryExpenseTypes.advance;
   static const List<String> _salaryActions = [
     _salaryWithdrawAction,
     _salaryDeductionAction,

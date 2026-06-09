@@ -293,16 +293,16 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
 }
 
 /// Provider رئيسي لـ Telegram
-final telegramProvider = StateNotifierProvider<TelegramNotifier, TelegramState>(
+final telegramProvider = StateNotifierProvider.autoDispose<TelegramNotifier, TelegramState>(
   (ref) => TelegramNotifier(),
 );
 
 /// Provider للوصول إلى خدمة الإشعارات
-final telegramNotificationServiceProvider = Provider<TelegramNotificationService>(
+final telegramNotificationServiceProvider = Provider.autoDispose<TelegramNotificationService>(
   (ref) => TelegramNotificationService.instance,
 );
 
 /// Provider للوصول إلى خدمة التقارير
-final telegramReportServiceProvider = Provider<TelegramReportService>(
+final telegramReportServiceProvider = Provider.autoDispose<TelegramReportService>(
   (ref) => TelegramReportService.instance,
 );

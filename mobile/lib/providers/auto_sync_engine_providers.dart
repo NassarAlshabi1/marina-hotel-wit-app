@@ -4,12 +4,12 @@ import '../services/google_drive_auto_sync_engine.dart';
 import '../services/google_drive_conflict_resolver.dart';
 import '../services/google_drive_unified_sync_coordinator.dart';
 
-final autoSyncEngineProvider = Provider<AutoSyncEngine>((ref) {
+final autoSyncEngineProvider = Provider.autoDispose<AutoSyncEngine>((ref) {
   ref.keepAlive();
   return AutoSyncEngine.instance;
 });
 
-final autoSyncEngineStateProvider = StreamProvider<AutoSyncEngineState>((ref) {
+final autoSyncEngineStateProvider = StreamProvider.autoDispose<AutoSyncEngineState>((ref) {
   final engine = ref.watch(autoSyncEngineProvider);
   return engine.stateStream;
 });
@@ -20,31 +20,31 @@ final unifiedSyncCoordinatorProvider =
       return GoogleDriveUnifiedSyncCoordinator.instance;
     });
 
-final syncResultsStreamProvider = StreamProvider<SyncResult>((ref) {
+final syncResultsStreamProvider = StreamProvider.autoDispose<SyncResult>((ref) {
   final coordinator = ref.watch(unifiedSyncCoordinatorProvider);
   return coordinator.syncResults;
 });
 
-final conflictResolverProvider = Provider<GoogleDriveConflictResolver>((ref) {
+final conflictResolverProvider = Provider.autoDispose<GoogleDriveConflictResolver>((ref) {
   ref.keepAlive();
   return GoogleDriveConflictResolver.instance;
 });
 
-final autoSyncEngineStatusProvider = FutureProvider<Map<String, dynamic>>((
+final autoSyncEngineStatusProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
   ref,
 ) async {
   final engine = ref.watch(autoSyncEngineProvider);
   return engine.getEngineStatus();
 });
 
-final conflictStatisticsProvider = FutureProvider<Map<String, dynamic>>((
+final conflictStatisticsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
   ref,
 ) async {
   final resolver = ref.watch(conflictResolverProvider);
   return resolver.getConflictStatistics();
 });
 
-final conflictHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((
+final conflictHistoryProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((
   ref,
 ) async {
   final resolver = ref.watch(conflictResolverProvider);
@@ -112,12 +112,12 @@ final autoSyncEngineControllerProvider =
       return AutoSyncEngineController(engine);
     });
 
-final isSyncingProvider = Provider<bool>((ref) {
+final isSyncingProvider = Provider.autoDispose<bool>((ref) {
   final coordinatorState = ref.watch(unifiedSyncCoordinatorProvider);
   return coordinatorState.isSyncing;
 });
 
-final hasPendingChangesProvider = Provider<bool>((ref) {
+final hasPendingChangesProvider = Provider.autoDispose<bool>((ref) {
   final engineState = ref.watch(autoSyncEngineStateProvider);
   return engineState.when(
     data: (state) => state.pendingChangesCount > 0,
@@ -126,7 +126,7 @@ final hasPendingChangesProvider = Provider<bool>((ref) {
   );
 });
 
-final pendingChangesCountProvider = Provider<int>((ref) {
+final pendingChangesCountProvider = Provider.autoDispose<int>((ref) {
   final engineState = ref.watch(autoSyncEngineStateProvider);
   return engineState.when(
     data: (state) => state.pendingChangesCount,
@@ -135,7 +135,7 @@ final pendingChangesCountProvider = Provider<int>((ref) {
   );
 });
 
-final lastSyncTimeProvider = Provider<DateTime?>((ref) {
+final lastSyncTimeProvider = Provider.autoDispose<DateTime?>((ref) {
   final engineState = ref.watch(autoSyncEngineStateProvider);
   return engineState.when(
     data: (state) => state.lastSuccessfulSync,
@@ -146,7 +146,7 @@ final lastSyncTimeProvider = Provider<DateTime?>((ref) {
 
 /// ✅ إصلاح: إعادة تسمية من syncHealthProvider لتجنب التعارض مع
 /// StreamProvider<SyncHealthSnapshot> في repository_providers.dart
-final autoSyncHealthSummaryProvider = Provider<String>((ref) {
+final autoSyncHealthSummaryProvider = Provider.autoDispose<String>((ref) {
   final engineState = ref.watch(autoSyncEngineStateProvider);
   return engineState.when(
     data: (state) {

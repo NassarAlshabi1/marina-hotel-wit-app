@@ -108,7 +108,7 @@ class PerformanceNotifier extends StateNotifier<PerformanceState> {
   }
 }
 
-final performanceProvider = StateNotifierProvider<PerformanceNotifier, PerformanceState>((ref) {
+final performanceProvider = StateNotifierProvider.autoDispose<PerformanceNotifier, PerformanceState>((ref) {
   return PerformanceNotifier();
 });
 

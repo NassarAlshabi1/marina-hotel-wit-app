@@ -260,11 +260,11 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
 }
 
 /// Provider رئيسي للتقرير اليومي عبر واتساب
-final whatsappDailyReportProvider = StateNotifierProvider<WhatsAppDailyReportNotifier, WhatsAppDailyReportState>(
+final whatsappDailyReportProvider = StateNotifierProvider.autoDispose<WhatsAppDailyReportNotifier, WhatsAppDailyReportState>(
   (ref) => WhatsAppDailyReportNotifier(),
 );
 
 /// Provider للوصول إلى خدمة التقارير
-final whatsappDailyReportServiceProvider = Provider<TelegramReportService>(
+final whatsappDailyReportServiceProvider = Provider.autoDispose<TelegramReportService>(
   (ref) => TelegramReportService.instance,
 );

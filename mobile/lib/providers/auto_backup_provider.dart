@@ -5,7 +5,7 @@ import 'appwrite_providers.dart'; // AppwriteService + connectionStatus
 import 'repository_providers.dart'; // databaseProvider
 
 /// Provider لمدير النسخ التلقائي
-final autoBackupManagerProvider = Provider<AutoBackupManager>((ref) {
+final autoBackupManagerProvider = Provider.autoDispose<AutoBackupManager>((ref) {
   return AutoBackupManager.instance;
 });
 
@@ -17,7 +17,7 @@ final autoBackupStatusProvider =
     });
 
 /// Provider لتهيئة النسخ التلقائي (مع تهيئة DeltaSync دائماً)
-final autoBackupInitProvider = FutureProvider<void>((ref) async {
+final autoBackupInitProvider = FutureProvider.autoDispose<void>((ref) async {
   final manager = ref.watch(autoBackupManagerProvider);
   final backupService = ref.watch(
     googleDriveBackupServiceProvider,

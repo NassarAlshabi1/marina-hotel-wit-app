@@ -51,7 +51,7 @@ export 'repository_providers.dart' show diagnosticsLoggerProvider;
 // ============================================================================
 // خدمة التحليلات والتتبع عبر Firebase Analytics.
 // ملاحظة: يجب استدعاء initialize() قبل الاستخدام (يتم عادةً في main.dart).
-final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
+final analyticsServiceProvider = Provider.autoDispose<AnalyticsService>((ref) {
   return AnalyticsService();
 });
 
@@ -61,7 +61,7 @@ final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
 // مراقبة حالة الاتصال بالشبكة (WiFi/Mobile/Ethernet).
 // يتتبع تغييرات الاتصال عبر Stream ويوفر تنفيذ عند الاتصال.
 // ملاحظة: يجب استدعاء initialize() بعد إنشاء المزود.
-final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
+final connectivityServiceProvider = Provider.autoDispose<ConnectivityService>((ref) {
   final service = ConnectivityService.instance;
   ref.onDispose(service.dispose);
   return service;

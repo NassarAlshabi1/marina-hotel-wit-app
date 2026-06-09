@@ -32,49 +32,49 @@ export '../providers/backup_provider.dart';
 // إضافة Smart Sync Providers
 export '../providers/smart_sync_provider.dart';
 
-final syncGuardianProvider = Provider<SyncGuardian>(
+final syncGuardianProvider = Provider.autoDispose<SyncGuardian>(
   (ref) => SyncGuardian.instance,
 );
-final syncHealthProvider = StreamProvider<SyncHealthSnapshot>(
+final syncHealthProvider = StreamProvider.autoDispose<SyncHealthSnapshot>(
   (ref) => ref.watch(syncGuardianProvider).watchHealth(),
 );
 
-final diagnosticsLoggerProvider = ChangeNotifierProvider<DiagnosticsLogger>(
+final diagnosticsLoggerProvider = ChangeNotifierProvider.autoDispose<DiagnosticsLogger>(
   (ref) => DiagnosticsLogger.instance,
 );
 
-final databaseProvider = Provider<AppDatabase>(
+final databaseProvider = Provider.autoDispose<AppDatabase>(
   (ref) => DatabaseManager.instance,
 );
 
-final roomsRepoProvider = Provider<RoomsRepository>(
+final roomsRepoProvider = Provider.autoDispose<RoomsRepository>(
   (ref) => RoomsRepository(ref.read(databaseProvider)),
 );
-final bookingsRepoProvider = Provider<BookingsRepository>(
+final bookingsRepoProvider = Provider.autoDispose<BookingsRepository>(
   (ref) => BookingsRepository(ref.read(databaseProvider)),
 );
-final employeesRepoProvider = Provider<EmployeesRepository>(
+final employeesRepoProvider = Provider.autoDispose<EmployeesRepository>(
   (ref) => EmployeesRepository(ref.read(databaseProvider)),
 );
-final guestInfoRepoProvider = Provider<GuestInfosRepository>(
+final guestInfoRepoProvider = Provider.autoDispose<GuestInfosRepository>(
   (ref) => GuestInfosRepository(ref.read(databaseProvider)),
 );
-final expensesRepoProvider = Provider<ExpensesRepository>(
+final expensesRepoProvider = Provider.autoDispose<ExpensesRepository>(
   (ref) => ExpensesRepository(ref.read(databaseProvider)),
 );
-final cashRepoProvider = Provider<CashRepository>(
+final cashRepoProvider = Provider.autoDispose<CashRepository>(
   (ref) => CashRepository(ref.read(databaseProvider)),
 );
-final paymentsRepoProvider = Provider<PaymentsRepository>(
+final paymentsRepoProvider = Provider.autoDispose<PaymentsRepository>(
   (ref) => PaymentsRepository(ref.read(databaseProvider)),
 );
-final debtsRepoProvider = Provider<DebtsRepository>(
+final debtsRepoProvider = Provider.autoDispose<DebtsRepository>(
   (ref) => DebtsRepository(ref.read(databaseProvider)),
 );
-final notesRepoProvider = Provider<NotesRepository>(
+final notesRepoProvider = Provider.autoDispose<NotesRepository>(
   (ref) => NotesRepository(ref.read(databaseProvider)),
 );
-final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>(
+final salaryWithdrawalsRepoProvider = Provider.autoDispose<SalaryWithdrawalsRepository>(
   (ref) => SalaryWithdrawalsRepository(ref.read(databaseProvider)),
 );
 final salaryAdvanceInstallmentsServiceProvider =
@@ -85,16 +85,16 @@ final salaryAdvanceInstallmentsServiceProvider =
     ref.read(salaryWithdrawalsRepoProvider),
   ),
 );
-final simpleNotesRepoProvider = Provider<SimpleNotesRepository>(
+final simpleNotesRepoProvider = Provider.autoDispose<SimpleNotesRepository>(
   (ref) => SimpleNotesRepository(ref.read(databaseProvider)),
 );
-final shiftNotesRepoProvider = Provider<ShiftNotesRepository>(
+final shiftNotesRepoProvider = Provider.autoDispose<ShiftNotesRepository>(
   (ref) => ShiftNotesRepository(ref.read(databaseProvider)),
 );
-final blacklistRepoProvider = Provider<BlacklistRepository>(
+final blacklistRepoProvider = Provider.autoDispose<BlacklistRepository>(
   (ref) => BlacklistRepository(ref.read(databaseProvider)),
 );
-final whatsappSettingsProvider = FutureProvider<Map<String, String>>((ref) async {
+final whatsappSettingsProvider = FutureProvider.autoDispose<Map<String, String>>((ref) async {
   final prefs = await SharedPreferences.getInstance();
   return {
     'apiType': prefs.getString('wa_api_type') ?? 'custom',
@@ -114,7 +114,7 @@ WhatsAppApiType _parseApiType(String? type) {
   }
 }
 
-final whatsappServiceProvider = Provider<WhatsAppService>(
+final whatsappServiceProvider = Provider.autoDispose<WhatsAppService>(
   (ref) {
     final settingsAsync = ref.watch(whatsappSettingsProvider);
     final settings = settingsAsync.valueOrNull ?? const {

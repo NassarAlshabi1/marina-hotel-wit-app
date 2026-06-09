@@ -3,7 +3,7 @@ import '../services/smart_sync_manager.dart' show SmartSyncManager;
 import 'backup_provider.dart';
 
 /// Provider لمدير المزامنة الذكية
-final smartSyncManagerProvider = Provider<SmartSyncManager>((ref) {
+final smartSyncManagerProvider = Provider.autoDispose<SmartSyncManager>((ref) {
   return SmartSyncManager.instance;
 });
 
@@ -19,14 +19,14 @@ final smartSyncStatusProvider =
     });
 
 /// Provider لحالة تسجيل الدخول Google Drive (في smart_sync_provider)
-final smartSyncGoogleDriveSignInStatusProvider = Provider<bool>((ref) {
+final smartSyncGoogleDriveSignInStatusProvider = Provider.autoDispose<bool>((ref) {
   final backupState = ref.watch(backupStatusProvider);
   return backupState.signedInAccount != null;
 });
 
 /// Provider لتهيئة المزامنة الذكية مع فحص حالة تسجيل الدخول
 /// ✅ إصلاح: استبدال Future.delayed بالاستماع الصحيح لحالة تسجيل الدخول
-final smartSyncInitProvider = FutureProvider<void>((ref) async {
+final smartSyncInitProvider = FutureProvider.autoDispose<void>((ref) async {
   final manager = ref.watch(smartSyncManagerProvider);
   final backupService = ref.watch(googleDriveBackupServiceProvider);
 

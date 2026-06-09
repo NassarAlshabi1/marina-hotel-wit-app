@@ -238,7 +238,7 @@ void _invalidateAll(WidgetRef ref, String listKey) {
 // ── Provider قديم متوافق (أنواع المصروفات) ────────────────────
 
 /// Provides the list of expense type strings (backward compatible).
-final expenseTypesProvider = FutureProvider<List<String>>((ref) async {
+final expenseTypesProvider = FutureProvider.autoDispose<List<String>>((ref) async {
   try {
     return await ref.watch(customListNamesProvider(kListKeyExpenseType).future);
   } catch (_) {

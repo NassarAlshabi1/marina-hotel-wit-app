@@ -313,16 +313,16 @@ class LarkNotifier extends StateNotifier<LarkState> {
 }
 
 /// Provider رئيسي لـ Lark
-final larkProvider = StateNotifierProvider<LarkNotifier, LarkState>(
+final larkProvider = StateNotifierProvider.autoDispose<LarkNotifier, LarkState>(
   (ref) => LarkNotifier(),
 );
 
 /// Provider للوصول إلى خدمة الإشعارات
-final larkNotificationServiceProvider = Provider<LarkNotificationService>(
+final larkNotificationServiceProvider = Provider.autoDispose<LarkNotificationService>(
   (ref) => LarkNotificationService.instance,
 );
 
 /// Provider للوصول إلى خدمة التقارير
-final larkReportServiceProvider = Provider<LarkReportService>(
+final larkReportServiceProvider = Provider.autoDispose<LarkReportService>(
   (ref) => LarkReportService.instance,
 );

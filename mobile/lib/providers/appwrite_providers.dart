@@ -13,12 +13,12 @@ import '../services/unified_sync_orchestrator.dart';
 // ============ Service Providers ============
 
 /// مزود خدمة Appwrite
-final appwriteServiceProvider = Provider<AppwriteService>((ref) {
+final appwriteServiceProvider = Provider.autoDispose<AppwriteService>((ref) {
   return AppwriteService();
 });
 
 /// مزود مدير المزامنة
-final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
+final appwriteSyncManagerProvider = Provider.autoDispose<AppwriteSyncManager>((ref) {
   final service = ref.watch(appwriteServiceProvider);
   final database = ref.watch(databaseProvider);
   final manager = AppwriteSyncManager(
@@ -31,7 +31,7 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
   return manager;
 });
 
-final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
+final unifiedSyncOrchestratorProvider = Provider.autoDispose<UnifiedSyncOrchestrator>((
   ref,
 ) {
   final appwriteSync = ref.watch(appwriteSyncManagerProvider);
@@ -42,24 +42,24 @@ final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
   return orch;
 });
 
-final unifiedSyncStateProvider = StreamProvider<UnifiedSyncState>((ref) {
+final unifiedSyncStateProvider = StreamProvider.autoDispose<UnifiedSyncState>((ref) {
   final orch = ref.watch(unifiedSyncOrchestratorProvider);
   ref.onDispose(orch.dispose);
   return orch.stateStream;
 });
 
 /// مزود مدير الذاكرة المؤقتة
-final appwriteCacheManagerProvider = Provider<AppwriteCacheManager>((ref) {
+final appwriteCacheManagerProvider = Provider.autoDispose<AppwriteCacheManager>((ref) {
   return AppwriteCacheManager();
 });
 
 /// مزود المسجل
-final appwriteLoggerProvider = Provider<AppwriteLogger>((ref) {
+final appwriteLoggerProvider = Provider.autoDispose<AppwriteLogger>((ref) {
   return AppwriteLogger();
 });
 
 /// مزود معالج الأخطاء
-final appwriteErrorHandlerProvider = Provider<AppwriteErrorHandler>((ref) {
+final appwriteErrorHandlerProvider = Provider.autoDispose<AppwriteErrorHandler>((ref) {
   return AppwriteErrorHandler();
 });
 
@@ -129,12 +129,12 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
 // ============ Data Providers ============
 
 /// مزود إحصائيات المزامنة
-final syncStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+final syncStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final syncManager = ref.watch(appwriteSyncManagerProvider);
   return syncManager.getSyncStatistics();
 });
 
-final outboxCountProvider = StreamProvider<int>((ref) {
+final outboxCountProvider = StreamProvider.autoDispose<int>((ref) {
   final db = ref.watch(databaseProvider);
   final dao = OutboxDao(db);
   // ✅ فصل هندسي: نراقب فقط عناصر source='local' (تغييرات محلية)
@@ -142,19 +142,19 @@ final outboxCountProvider = StreamProvider<int>((ref) {
 });
 
 /// مزود إحصائيات الذاكرة المؤقتة
-final cacheStatsProvider = Provider<CacheStatistics>((ref) {
+final cacheStatsProvider = Provider.autoDispose<CacheStatistics>((ref) {
   final cacheManager = ref.watch(appwriteCacheManagerProvider);
   return cacheManager.getStatistics();
 });
 
 /// مزود إحصائيات السجلات
-final logStatsProvider = Provider<Map<String, int>>((ref) {
+final logStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
   final logger = ref.watch(appwriteLoggerProvider);
   return logger.getStatistics();
 });
 
 /// مزود معلومات المشروع
-final projectInfoProvider = Provider<Map<String, String>>((ref) {
+final projectInfoProvider = Provider.autoDispose<Map<String, String>>((ref) {
   final service = ref.watch(appwriteServiceProvider);
   return service.getProjectInfo();
 });

@@ -65,7 +65,7 @@ final bookingWithPaymentsProvider =
 /// final hotelDay = ref.watch(hotelDayTickerProvider);
 /// // emits '2022-01-05' then '2022-01-06' when clock passes 14:00
 /// ```
-final hotelDayTickerProvider = StreamProvider<String>((ref) {
+final hotelDayTickerProvider = StreamProvider.autoDispose<String>((ref) {
   final controller = StreamController<String>.broadcast();
 
   // Emit immediately

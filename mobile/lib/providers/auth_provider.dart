@@ -304,6 +304,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
+final authProvider = StateNotifierProvider.autoDispose<AuthNotifier, AuthState>(
   (ref) => AuthNotifier(),
 );

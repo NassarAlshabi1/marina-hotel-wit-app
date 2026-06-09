@@ -1495,18 +1495,18 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 }
 
 // Provider للخدمة مع الحفاظ على حالة واحدة (Singleton)
-final googleDriveBackupServiceProvider = Provider<GoogleDriveBackupService>((
+final googleDriveBackupServiceProvider = Provider.autoDispose<GoogleDriveBackupService>((
   ref,
 ) {
   ref.keepAlive(); // المحافظة على الخدمة في الذاكرة
   return GoogleDriveBackupService();
 });
 
-final localBackupServiceProvider = Provider<LocalBackupService>((ref) {
+final localBackupServiceProvider = Provider.autoDispose<LocalBackupService>((ref) {
   return LocalBackupService();
 });
 
-final fileManagementServiceProvider = Provider<FileManagementService>((ref) {
+final fileManagementServiceProvider = Provider.autoDispose<FileManagementService>((ref) {
   return FileManagementService();
 });
 
@@ -1528,71 +1528,71 @@ final backupStatusProvider =
     });
 
 // Provider للنسخ المتاحة (Google Drive)
-final availableBackupsProvider = Provider<List<DriveBackupFile>>((ref) {
+final availableBackupsProvider = Provider.autoDispose<List<DriveBackupFile>>((ref) {
   final state = ref.watch(backupStatusProvider);
   return state.availableBackups;
 });
 
 // Provider للنسخ المحلية
-final localBackupsProvider = Provider<List<LocalBackupFile>>((ref) {
+final localBackupsProvider = Provider.autoDispose<List<LocalBackupFile>>((ref) {
   final state = ref.watch(backupStatusProvider);
   return state.localBackups;
 });
 
 // Provider لحالة تسجيل الدخول
-final googleDriveSignInStatusProvider = Provider<bool>((ref) {
+final googleDriveSignInStatusProvider = Provider.autoDispose<bool>((ref) {
   final state = ref.watch(backupStatusProvider);
   return state.isSignedIn;
 });
 
 // Provider لحالة أذونات التخزين المحلي
-final storagePermissionProvider = Provider<bool>((ref) {
+final storagePermissionProvider = Provider.autoDispose<bool>((ref) {
   final state = ref.watch(backupStatusProvider);
   return state.hasStoragePermission;
 });
 
 // Provider لآخر وقت نسخ احتياطي (Google Drive)
-final lastBackupTimeProvider = Provider<DateTime?>((ref) {
+final lastBackupTimeProvider = Provider.autoDispose<DateTime?>((ref) {
   final state = ref.watch(backupStatusProvider);
   return state.lastBackupTime;
 });
 
 // Provider لآخر وقت نسخ احتياطي محلي
-final lastLocalBackupTimeProvider = Provider<DateTime?>((ref) {
+final lastLocalBackupTimeProvider = Provider.autoDispose<DateTime?>((ref) {
   final state = ref.watch(backupStatusProvider);
   return state.lastLocalBackupTime;
 });
 
 // Provider لحجم قاعدة البيانات
-final databaseSizeProvider = Provider<int?>((ref) {
+final databaseSizeProvider = Provider.autoDispose<int?>((ref) {
   final state = ref.watch(backupStatusProvider);
   return state.databaseSizeBytes;
 });
 
 // Provider لمعلومات مجلد النسخ المحلي
-final backupFolderInfoProvider = Provider<Map<String, dynamic>?>((ref) {
+final backupFolderInfoProvider = Provider.autoDispose<Map<String, dynamic>?>((ref) {
   final state = ref.watch(backupStatusProvider);
   return state.backupFolderInfo;
 });
 
 // Provider لإعدادات النسخ التلقائي
-final autoBackupSettingsProvider = Provider<AutoBackupSettings>((ref) {
+final autoBackupSettingsProvider = Provider.autoDispose<AutoBackupSettings>((ref) {
   final state = ref.watch(backupStatusProvider);
   return state.autoSettings;
 });
 
 // Providers جديدة للإحصائيات والتحليل
-final totalBackupsCountProvider = Provider<int>((ref) {
+final totalBackupsCountProvider = Provider.autoDispose<int>((ref) {
   final driveBackups = ref.watch(availableBackupsProvider);
   final localBackups = ref.watch(localBackupsProvider);
   return driveBackups.length + localBackups.length;
 });
 
-final hasAnyBackupsProvider = Provider<bool>((ref) {
+final hasAnyBackupsProvider = Provider.autoDispose<bool>((ref) {
   return ref.watch(totalBackupsCountProvider) > 0;
 });
 
-final backupStatusSummaryProvider = Provider<String>((ref) {
+final backupStatusSummaryProvider = Provider.autoDispose<String>((ref) {
   final state = ref.watch(backupStatusProvider);
   final driveCount = state.availableBackups.length;
   final localCount = state.localBackups.length;
@@ -1608,7 +1608,7 @@ final backupStatusSummaryProvider = Provider<String>((ref) {
   }
 });
 
-final googleDriveLoggerProvider = ChangeNotifierProvider<GoogleDriveLogger>((
+final googleDriveLoggerProvider = ChangeNotifierProvider.autoDispose<GoogleDriveLogger>((
   ref,
 ) {
   final logger = GoogleDriveLogger();
@@ -1616,12 +1616,12 @@ final googleDriveLoggerProvider = ChangeNotifierProvider<GoogleDriveLogger>((
   return logger;
 });
 
-final googleDriveLogStatsProvider = Provider<Map<String, int>>((ref) {
+final googleDriveLogStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
   final logger = ref.watch(googleDriveLoggerProvider);
   return logger.getStatistics();
 });
 
-final googleDriveLogsProvider = Provider<List<LogEntry>>((ref) {
+final googleDriveLogsProvider = Provider.autoDispose<List<LogEntry>>((ref) {
   final logger = ref.watch(googleDriveLoggerProvider);
   return logger.getLogs();
 });
