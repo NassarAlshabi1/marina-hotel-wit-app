@@ -420,28 +420,6 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 ),
               ],
             ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: isActive ? Colors.red : Colors.green,
-                        side: BorderSide(
-                          color: isActive ? Colors.red : Colors.green,
-                        ),
-                      ),
-                      child: Text(isActive ? 'إيقاف' : 'تفعيل'),
-                    ),
-                  ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () =>
-                      _deleteEmployee(context, ref, employee),
-                  icon: const Icon(Icons.delete_outline, size: 20),
-                  color: Colors.red,
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.red.withValues(alpha: 0.1),
-                  ),
-                  tooltip: 'حذف الموظف',
-                ),
-              ],
-            ),
           ],
         ),
       ),
