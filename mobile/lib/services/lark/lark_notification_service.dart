@@ -49,11 +49,9 @@ class LarkEvent {
 class LarkNotificationService {
 
   LarkNotificationService._();
-  static LarkNotificationService? _instance;
-  static LarkNotificationService get instance =>
-      _instance ??= LarkNotificationService._();
+  static final LarkNotificationService instance = LarkNotificationService._();
 
-  final LarkApiClient _api = LarkApiClient.instance;
+  final LarkApiClient _api = LarkApiClient.instance();
 
   /// إرسال إشعار عن حدث فندقي
   /// تُستدعى من Repositories بعد كل عملية إنشاء/تعديل

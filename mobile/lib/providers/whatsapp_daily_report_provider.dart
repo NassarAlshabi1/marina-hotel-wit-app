@@ -71,7 +71,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
     _initialize();
   }
 
-  final TelegramReportService _reports = TelegramReportService.instance;
+  final TelegramReportService _reports = TelegramReportService.instance();
   bool _mounted = true;
 
   /// تهيئة الحالة من SharedPreferences
@@ -266,5 +266,5 @@ final whatsappDailyReportProvider = StateNotifierProvider.autoDispose<WhatsAppDa
 
 /// Provider للوصول إلى خدمة التقارير
 final whatsappDailyReportServiceProvider = Provider.autoDispose<TelegramReportService>(
-  (ref) => TelegramReportService.instance,
+  (ref) => TelegramReportService.instance(),
 );

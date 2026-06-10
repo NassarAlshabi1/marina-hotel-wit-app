@@ -617,9 +617,7 @@ class GoogleDriveSyncService {
             )
             as drive.Media;
     final builder = BytesBuilder(copy: false);
-    await for (final chunk in media.stream) {
-      builder.add(chunk);
-    }
+    await media.stream.forEach(builder.add);
     return builder.toBytes();
   }
 

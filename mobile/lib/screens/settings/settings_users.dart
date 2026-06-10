@@ -254,7 +254,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: userType,
+                        initialValue: userType,
                         decoration: const InputDecoration(
                           labelText: 'نوع المستخدم',
                         ),
@@ -513,7 +513,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: selectedPerms.contains('all') ? 'admin' : userType,
+                        initialValue: selectedPerms.contains('all') ? 'admin' : userType,
                         decoration: const InputDecoration(
                           labelText: 'نوع المستخدم',
                           prefixIcon: Icon(Icons.badge),

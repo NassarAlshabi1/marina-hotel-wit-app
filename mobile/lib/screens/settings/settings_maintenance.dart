@@ -564,7 +564,7 @@ class _SettingsMaintenanceScreenState
               Navigator.pop(ctx);
               _showLoading('جاري فحص قاعدة البيانات...');
               try {
-                final checks = await SyncOrchestrator.instance.verifyDataIntegrity();
+                final checks = await SyncOrchestrator.instance().verifyDataIntegrity();
                 _hideLoading();
                 if (mounted) {
                   _showIntegrityResults(checks);

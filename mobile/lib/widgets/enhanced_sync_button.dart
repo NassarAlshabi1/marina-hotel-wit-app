@@ -48,7 +48,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   void _setupListeners() {
-    _stateSubscription = SyncOrchestrator.instance.stateStream.listen((state) {
+    _stateSubscription = SyncOrchestrator.instance().stateStream.listen((state) {
       if (mounted) {
         setState(() {
           _isSyncing = state == OrchestratorState.syncing;
@@ -63,7 +63,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       }
     });
 
-    _healthSubscription = SyncOrchestrator.instance.healthStream.listen((
+    _healthSubscription = SyncOrchestrator.instance().healthStream.listen((
       health,
     ) {
       if (mounted) {
@@ -99,7 +99,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     unawaited(_animationController.repeat());
 
     try {
-      await SyncErrorRecovery.instance.createRollbackPoint(
+      await SyncErrorRecovery.instance().createRollbackPoint(
         id: 'manual_sync_${DateTime.now().millisecondsSinceEpoch}',
         description: 'قبل المزامنة اليدوية',
         database: ref.read(databaseProvider),
@@ -132,12 +132,12 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         );
       }
     } catch (e) {
-      final error = SyncErrorRecovery.instance.createError(
+      final error = SyncErrorRecovery.instance().createError(
         operation: 'manual_sync',
         table: 'all',
         exception: e,
       );
-      SyncErrorRecovery.instance.logError(error);
+      SyncErrorRecovery.instance().logError(error);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -295,12 +295,12 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                   await _verifyIntegrity();
                 },
               ),
-              if (SyncErrorRecovery.instance.recentErrors.isNotEmpty)
+              if (SyncErrorRecovery.instance().recentErrors.isNotEmpty)
                 ListTile(
                   leading: const Icon(Icons.history, color: Colors.red),
                   title: const Text('سجل الأخطاء'),
                   subtitle: Text(
-                    '${SyncErrorRecovery.instance.recentErrors.length} خطأ',
+                    '${SyncErrorRecovery.instance().recentErrors.length} خطأ',
                   ),
                   onTap: () {
                     Navigator.pop(context);
@@ -500,7 +500,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     ),);
 
     try {
-      final checks = await SyncOrchestrator.instance.verifyDataIntegrity();
+      final checks = await SyncOrchestrator.instance().verifyDataIntegrity();
       // ignore: use_build_context_synchronously
       Navigator.pop(context);
 
@@ -556,7 +556,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   void _showErrorLog() {
-    final errors = SyncErrorRecovery.instance.recentErrors;
+    final errors = SyncErrorRecovery.instance().recentErrors;
 
     showDialog<void>(
       context: context,
@@ -606,7 +606,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         actions: [
           TextButton(
             onPressed: () {
-              SyncErrorRecovery.instance.clearErrors();
+              SyncErrorRecovery.instance().clearErrors();
               Navigator.pop(context);
             },
             child: const Text('مسح السجل'),

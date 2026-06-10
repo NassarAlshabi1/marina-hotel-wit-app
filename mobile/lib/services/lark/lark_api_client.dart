@@ -10,8 +10,8 @@ import 'lark_config.dart';
 class LarkApiClient {
 
   LarkApiClient._();
+  factory LarkApiClient.instance() => _instance ??= LarkApiClient._();
   static LarkApiClient? _instance;
-  static LarkApiClient get instance => _instance ??= LarkApiClient._();
 
   final http.Client _client = http.Client();
 

@@ -75,8 +75,8 @@ class RollbackPoint {
 class SyncErrorRecovery {
 
   SyncErrorRecovery._();
+  factory SyncErrorRecovery.instance() => _instance ??= SyncErrorRecovery._();
   static SyncErrorRecovery? _instance;
-  static SyncErrorRecovery get instance => _instance ??= SyncErrorRecovery._();
 
   final List<SyncError> _errorLog = [];
   final List<RollbackPoint> _rollbackPoints = [];

@@ -196,10 +196,10 @@ class EmployeesRepository {
     try {
     final result = await dao.updateById(
       id,
-      EmployeesCompanion(
-        status: const d.Value('active'),
-        terminationDate: const d.Value<String?>(null),
-        terminationReason: const d.Value<String?>(null),
+      const EmployeesCompanion(
+        status: d.Value('active'),
+        terminationDate: d.Value<String?>(null),
+        terminationReason: d.Value<String?>(null),
       ),
     );
     if (result > 0) {

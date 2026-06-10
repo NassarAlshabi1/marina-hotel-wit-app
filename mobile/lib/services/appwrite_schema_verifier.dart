@@ -562,10 +562,11 @@ class AppwriteSchemaVerifier {
       debugPrint('📋 التحقق من: $collectionId (${schema['name']})');
 
       try {
+        // ignore: deprecated_member_use
         final response = await databases.listDocuments(
           databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
-          queries: [],
+          queries: <String>[],
         );
 
         foundCollections++;

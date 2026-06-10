@@ -170,9 +170,7 @@ class SyncAlert {
 class SyncMonitoringSystem {
 
   SyncMonitoringSystem._();
-  static SyncMonitoringSystem? _instance;
-  static SyncMonitoringSystem get instance =>
-      _instance ??= SyncMonitoringSystem._();
+  static final SyncMonitoringSystem instance = SyncMonitoringSystem._();
 
   final List<SyncEvent> _events = [];
   final _statsController = StreamController<SyncPerformanceStats>.broadcast();

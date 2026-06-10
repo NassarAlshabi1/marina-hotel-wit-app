@@ -410,7 +410,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: _revenueTypes.contains(_selectedRevenueType) ? _selectedRevenueType : null,
+                    initialValue: _revenueTypes.contains(_selectedRevenueType) ? _selectedRevenueType : null,
                     style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                     decoration: const InputDecoration(
                       labelText: 'نوع الإيراد',
@@ -432,7 +432,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _paymentMethods.contains(_selectedPaymentMethod) ? _selectedPaymentMethod : null,
+                    initialValue: _paymentMethods.contains(_selectedPaymentMethod) ? _selectedPaymentMethod : null,
                     style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                     decoration: const InputDecoration(
                       labelText: 'طريقة الدفع',

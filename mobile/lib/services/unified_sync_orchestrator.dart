@@ -100,7 +100,7 @@ class UnifiedSyncOrchestrator {
     if (driveCoordinator != null) {
       _driveCoordinator = driveCoordinator;
     }
-    _smart = smart ?? _smart ?? SmartSyncManager.instance;
+    _smart = smart ?? _smart ?? SmartSyncManager.instance();
     if (database != null) {
       _database = database;
     }

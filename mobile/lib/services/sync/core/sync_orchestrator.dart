@@ -11,8 +11,8 @@ import '../strategies/retry_strategy.dart';
 class SyncOrchestrator {
 
   SyncOrchestrator._();
+  factory SyncOrchestrator.instance() => _instance ??= SyncOrchestrator._();
   static SyncOrchestrator? _instance;
-  static SyncOrchestrator get instance => _instance ??= SyncOrchestrator._();
 
   final List<SyncAdapter> _adapters = [];
   final StreamController<SyncState> _stateController = StreamController<SyncState>.broadcast();
@@ -161,9 +161,9 @@ class SyncOrchestrator {
 
 /// Provider Riverpod للمزامنة
 final syncOrchestratorProvider = Provider<SyncOrchestrator>((ref) {
-  return SyncOrchestrator.instance;
+  return SyncOrchestrator.instance();
 });
 
 final syncStateProvider = StreamProvider<SyncState>((ref) {
-  return SyncOrchestrator.instance.stateStream;
+  return SyncOrchestrator.instance().stateStream;
 });

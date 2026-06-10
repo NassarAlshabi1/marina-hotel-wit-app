@@ -252,6 +252,7 @@ class AppwriteFullPull {
     while (true) {
       try {
         // ✅ استعلام بسيط - بدون أي فلترة بالوقت
+        // ignore: deprecated_member_use
         final response = await _appwriteService!.databases.listDocuments(
           databaseId: AppwriteConfig.databaseId,
           collectionId: entity.collectionId!,

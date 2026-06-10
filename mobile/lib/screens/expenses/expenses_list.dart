@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
-import '../../utils/type_constants.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/custom_list_providers.dart';
@@ -14,6 +13,7 @@ import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/type_constants.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -378,7 +378,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: dropdownTextColor),
                 items: [
                   DropdownMenuItem<String?>(
-                    value: null,
                     child: Text(
                       'كل الأنواع',
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
@@ -789,7 +788,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: selectedType,
+                    initialValue: selectedType,
                     decoration: const InputDecoration(labelText: 'نوع المصروف'),
                     style: dropdownTextStyle,
                     items: _expenseTypes
@@ -823,7 +822,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       const Text('لا يوجد موظفين مسجلين حالياً.'),
                     if (availableEmployees.isNotEmpty) ...[
                       DropdownButtonFormField<int>(
-                        value: selectedEmployeeId,
+                        initialValue: selectedEmployeeId,
                         style: dropdownTextStyle,
                         decoration: const InputDecoration(
                           labelText: 'اسم الموظف',
@@ -841,7 +840,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: dialogSalaryAction,
+                        initialValue: dialogSalaryAction,
                         decoration: const InputDecoration(
                           labelText: 'نوع المعاملة',
                         ),
@@ -964,7 +963,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final isSalaryExpense = selectedType == _salaryType;
     final savedType = isSalaryExpense
         ? _deriveSalaryExpenseType(dialogSalaryAction)
-        : (selectedType ?? 'اخرى');
+        : selectedType;
 
     if (parsedAmount <= 0) {
       return;

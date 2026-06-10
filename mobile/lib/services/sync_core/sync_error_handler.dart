@@ -56,8 +56,7 @@ class SyncError {
 class SyncErrorHandler {
 
   SyncErrorHandler._();
-  static SyncErrorHandler? _instance;
-  static SyncErrorHandler get instance => _instance ??= SyncErrorHandler._();
+  static final SyncErrorHandler instance = SyncErrorHandler._();
 
   final _errorController = StreamController<SyncError>.broadcast();
   Stream<SyncError> get errorStream => _errorController.stream;

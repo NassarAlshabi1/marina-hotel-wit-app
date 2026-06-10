@@ -320,7 +320,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       // 1. التحكم في SmartSyncManager (يملك مؤقتات دورية مستقلة)
       try {
-        final smartSync = SmartSyncManager.instance;
+        final smartSync = SmartSyncManager.instance();
         await smartSync.setEnabled(enabled);
         debugPrint('🔧 SmartSyncManager: ${enabled ? 'مُفعّل' : 'معطّل'}');
       } catch (e) {
@@ -389,7 +389,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   Future<void> _notifySyncManagers(bool isSignedIn) async {
     // إشعار مدير المزامنة الذكية
     try {
-      final smartSync = SmartSyncManager.instance;
+      final smartSync = SmartSyncManager.instance();
       await smartSync.onGoogleDriveSignInChanged(isSignedIn);
     } catch (e) {
       debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');

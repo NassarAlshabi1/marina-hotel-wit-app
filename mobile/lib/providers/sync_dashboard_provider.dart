@@ -12,7 +12,7 @@ final syncDashboardProvider = FutureProvider.autoDispose<SyncDashboardData>((
   ref,
 ) async {
   final guardian = ref.watch(syncGuardianProvider);
-  final orchestrator = SyncOrchestrator.instance;
+  final orchestrator = SyncOrchestrator.instance();
   final queueService = SyncQueueService.instance;
   final healthMonitor = SyncHealthMonitor.instance;
   final db = DatabaseManager.instance;

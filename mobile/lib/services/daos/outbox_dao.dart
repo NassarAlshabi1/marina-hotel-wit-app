@@ -5,8 +5,8 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../adapters/adapter_registry.dart';
-import '../local_db.dart';
 import '../appwrite_delta_sync.dart';
+import '../local_db.dart';
 
 part 'outbox_dao.g.dart';
 

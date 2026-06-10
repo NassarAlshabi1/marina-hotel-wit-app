@@ -272,15 +272,12 @@ class _SalaryEntitlementsScreenState
       case 'سلفة':
         typeColor = Colors.indigo;
         typeIcon = Icons.account_balance_wallet;
-        break;
       case 'سحب':
         typeColor = Colors.orange;
         typeIcon = Icons.payments;
-        break;
       case 'خصم':
         typeColor = Colors.red;
         typeIcon = Icons.remove_circle_outline;
-        break;
       default:
         typeColor = Colors.grey;
         typeIcon = Icons.circle;

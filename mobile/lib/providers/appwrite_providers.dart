@@ -36,7 +36,7 @@ final unifiedSyncOrchestratorProvider = Provider.autoDispose<UnifiedSyncOrchestr
 ) {
   final appwriteSync = ref.watch(appwriteSyncManagerProvider);
   final db = ref.watch(databaseProvider);
-  final smart = SmartSyncManager.instance;
+  final smart = SmartSyncManager.instance();
   final orch = UnifiedSyncOrchestrator.instance;
   orch.initialize(appwrite: appwriteSync, smart: smart, database: db);
   return orch;

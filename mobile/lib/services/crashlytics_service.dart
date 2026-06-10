@@ -266,7 +266,7 @@ class CrashlyticsService {
       context: context,
     );
     // إرسال تنبيه WhatsApp فوري للأخطاء القاتلة
-    unawaited(WhatsAppNotificationService.instance.notifySyncError(
+    unawaited(WhatsAppNotificationService.instance().notifySyncError(
       operation: operation,
       error: error.toString().substring(0, error.toString().length > 200 ? 200 : error.toString().length),
     ),);

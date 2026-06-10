@@ -98,7 +98,7 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
                   _asString(json, 'expenseType', src) ?? '',
                 ) &&
                 refs.employeeRelatedId != null)
-          ? d.Value(refs.employeeRelatedId!)
+          ? d.Value(refs.employeeRelatedId)
           : _vInt(json, 'relatedId', src),
       description: _vStr(json, 'description', src, fallback: ''),
       amount: _vDouble(json, 'amount', src, fallback: 0),

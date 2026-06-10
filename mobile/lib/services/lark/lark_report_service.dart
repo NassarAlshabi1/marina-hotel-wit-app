@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 
 import '../../utils/hotel_time_engine.dart';
-import '../../utils/time.dart';
 import '../local_db.dart';
 import 'lark_api_client.dart';
 import 'lark_config.dart';
@@ -81,11 +80,9 @@ class DailyReportData {
 class LarkReportService {
 
   LarkReportService._();
-  static LarkReportService? _instance;
-  static LarkReportService get instance =>
-      _instance ??= LarkReportService._();
+  static final LarkReportService instance = LarkReportService._();
 
-  final LarkApiClient _api = LarkApiClient.instance;
+  final LarkApiClient _api = LarkApiClient.instance();
 
   /// تجميع بيانات التقرير اليومي من قاعدة البيانات
   Future<DailyReportData> collectReportData() async {

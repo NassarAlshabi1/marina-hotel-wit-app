@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/hotel_time_engine.dart';
-import '../../utils/time.dart';
 import '../auto_backup_manager.dart';
 import '../booking_derived_fields_service.dart';
 import '../crashlytics_service.dart';
@@ -152,7 +151,7 @@ class PaymentsRepository {
         paymentMethod: paymentMethod,
         remaining: booking.remainingBalanceCached,
       );
-      WhatsAppNotificationService.instance.notifyPayment(
+      WhatsAppNotificationService.instance().notifyPayment(
         roomNumber: roomNumber ?? booking.roomNumber,
         guestName: booking.guestName,
         amount: amount,

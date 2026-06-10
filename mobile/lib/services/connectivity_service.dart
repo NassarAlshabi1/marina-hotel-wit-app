@@ -60,9 +60,9 @@ class ConnectionStatus {
 class ConnectivityService {
 
   ConnectivityService._();
+  // ignore: prefer_constructors_over_static_methods
+  static ConnectivityService get instance => _instance ??= ConnectivityService._();
   static ConnectivityService? _instance;
-  static ConnectivityService get instance =>
-      _instance ??= ConnectivityService._();
 
   final Connectivity _connectivity = Connectivity();
   StreamSubscription<List<ConnectivityResult>>? _subscription;

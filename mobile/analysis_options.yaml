@@ -29,7 +29,6 @@ analyzer:
     # Pre-existing undefined methods in legacy repository files (AppwriteService API mismatch)
     undefined_method: ignore
     # Pre-existing type issues in legacy code
-    wrong_number_of_type_arguments_method: ignore
     type_argument_not_matching_bounds: ignore
     return_of_invalid_type_from_closure: ignore
 

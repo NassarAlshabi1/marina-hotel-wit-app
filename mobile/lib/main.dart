@@ -211,7 +211,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     debugPrint('✅ Conflict Resolver initialized (strategy: newerWins)');
 
     debugPrint('🧠 [7/8] Initializing SmartSyncManager...');
-    final smartSync = SmartSyncManager.instance;
+    final smartSync = SmartSyncManager.instance();
     await smartSync.initialize(backupService);
     await unifiedOrchestrator.initialize(
       smart: smartSync,

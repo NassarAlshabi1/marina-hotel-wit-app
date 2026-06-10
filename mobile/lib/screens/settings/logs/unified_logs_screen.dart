@@ -405,65 +405,37 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تصفية السجلات'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('الكل'),
-              leading: Radio<String>(
-                value: 'all',
-                groupValue: _selectedLevel,
-                onChanged: (value) {
-                  setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
-                },
+        content: RadioGroup<String>(
+          groupValue: _selectedLevel,
+          onChanged: (value) {
+            setState(() => _selectedLevel = value ?? _selectedLevel);
+            Navigator.pop(context);
+          },
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text('الكل'),
+                leading: Radio<String>(value: 'all'),
               ),
-            ),
-            ListTile(
-              title: const Text('معلومات'),
-              leading: Radio<String>(
-                value: 'info',
-                groupValue: _selectedLevel,
-                onChanged: (value) {
-                  setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
-                },
+              ListTile(
+                title: Text('معلومات'),
+                leading: Radio<String>(value: 'info'),
               ),
-            ),
-            ListTile(
-              title: const Text('نجاح'),
-              leading: Radio<String>(
-                value: 'success',
-                groupValue: _selectedLevel,
-                onChanged: (value) {
-                  setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
-                },
+              ListTile(
+                title: Text('نجاح'),
+                leading: Radio<String>(value: 'success'),
               ),
-            ),
-            ListTile(
-              title: const Text('تحذيرات'),
-              leading: Radio<String>(
-                value: 'warning',
-                groupValue: _selectedLevel,
-                onChanged: (value) {
-                  setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
-                },
+              ListTile(
+                title: Text('تحذيرات'),
+                leading: Radio<String>(value: 'warning'),
               ),
-            ),
-            ListTile(
-              title: const Text('أخطاء'),
-              leading: Radio<String>(
-                value: 'error',
-                groupValue: _selectedLevel,
-                onChanged: (value) {
-                  setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
-                },
+              ListTile(
+                title: Text('أخطاء'),
+                leading: Radio<String>(value: 'error'),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(

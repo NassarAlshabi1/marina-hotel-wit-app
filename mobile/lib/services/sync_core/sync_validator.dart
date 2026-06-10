@@ -20,8 +20,7 @@ class ValidationResult {
 class SyncValidator {
 
   SyncValidator._();
-  static SyncValidator? _instance;
-  static SyncValidator get instance => _instance ??= SyncValidator._();
+  static final SyncValidator instance = SyncValidator._();
 
   ValidationResult validateSyncData(Map<String, dynamic> data) {
     final warnings = <String>[];

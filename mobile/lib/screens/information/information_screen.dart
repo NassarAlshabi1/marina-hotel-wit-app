@@ -347,7 +347,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                       validator: _requiredValidator,
                     ),
                     DropdownButtonFormField<String>(
-                      value: _idTypes.contains(selectedIdType) ? selectedIdType : null,
+                      initialValue: _idTypes.contains(selectedIdType) ? selectedIdType : null,
                       decoration: const InputDecoration(
                         labelText: 'نوع الهوية',
                       ),

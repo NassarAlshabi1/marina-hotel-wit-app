@@ -4,7 +4,7 @@ import 'backup_provider.dart';
 
 /// Provider لمدير المزامنة الذكية
 final smartSyncManagerProvider = Provider.autoDispose<SmartSyncManager>((ref) {
-  return SmartSyncManager.instance;
+  return SmartSyncManager.instance();
 });
 
 /// Provider لحالة المزامنة الذكية

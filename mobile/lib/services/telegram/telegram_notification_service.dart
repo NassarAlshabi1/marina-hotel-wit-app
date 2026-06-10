@@ -45,11 +45,9 @@ class TelegramEvent {
 class TelegramNotificationService {
 
   TelegramNotificationService._();
-  static TelegramNotificationService? _instance;
-  static TelegramNotificationService get instance =>
-      _instance ??= TelegramNotificationService._();
+  static final TelegramNotificationService instance = TelegramNotificationService._();
 
-  final TelegramApiClient _api = TelegramApiClient.instance;
+  final TelegramApiClient _api = TelegramApiClient.instance();
 
   /// أيقونات لكل نوع حدث
   String _icon(TelegramEventType type) {

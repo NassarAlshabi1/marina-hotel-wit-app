@@ -15,7 +15,6 @@ import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
-import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
 
@@ -259,7 +258,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // ─── سحب سحوبات الرواتب من salary_withdrawals ───
     // ✅ إصلاح: جلب salary_withdrawals أيضاً عند اختيار نوع راتب
     // لعرض السحوبات اليتيمة المرتبطة بنوع الراتب المحدد
-    final shouldFetchSalaryWithdrawals = showAll || (selectedType != null && _isSalaryType(selectedType));
+    final shouldFetchSalaryWithdrawals = showAll || _isSalaryType(selectedType);
     List<SalaryWithdrawal> salaryWithdrawals = [];
     if (shouldFetchSalaryWithdrawals) {
       try {
@@ -332,7 +331,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         final placeholders = List.filled(swIds.length, '?').join(',');
         final rows = await db.customSelect(
           'SELECT id, expense_id FROM salary_withdrawals WHERE id IN ($placeholders)',
-          variables: swIds.map((id) => Variable.withInt(id)).toList(),
+          variables: swIds.map(Variable.withInt).toList(),
         ).get();
         for (final row in rows) {
           final swId = row.read<int>('id');
@@ -692,7 +691,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           SizedBox(
             width: 160,
             child: DropdownButtonFormField<String?>(
-              value: _selectedType,
+              initialValue: _selectedType,
               decoration: InputDecoration(
                 labelText: widget.typeLabel,
                 isDense: true,
@@ -701,7 +700,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
               items: [
                 DropdownMenuItem<String?>(
-                  value: null,
                   child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
                 ),
                 ..._availableTypes.map(

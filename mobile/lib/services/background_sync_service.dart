@@ -267,7 +267,7 @@ class BackgroundSyncService {
       }
 
       // تنفيذ المزامنة
-      final syncManager = SmartSyncManager.instance;
+      final syncManager = SmartSyncManager.instance();
       await syncManager.syncNow();
 
       stopwatch.stop();

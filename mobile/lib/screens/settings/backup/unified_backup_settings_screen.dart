@@ -488,13 +488,21 @@ class _UnifiedBackupSettingsScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تكرار النسخ الاحتياطي'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _frequencyOption('يومياً', 'daily', current.frequency, context),
-            _frequencyOption('أسبوعياً', 'weekly', current.frequency, context),
-            _frequencyOption('شهرياً', 'monthly', current.frequency, context),
-          ],
+        content: RadioGroup<String>(
+          groupValue: current.frequency,
+          onChanged: (value) {
+            Navigator.pop(context);
+            final settings = ref.read(backupStatusProvider).autoSettings;
+            _updateAutoSettings(settings.copyWith(frequency: value));
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _frequencyOption('يومياً', 'daily'),
+              _frequencyOption('أسبوعياً', 'weekly'),
+              _frequencyOption('شهرياً', 'monthly'),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -506,28 +514,10 @@ class _UnifiedBackupSettingsScreenState
     );
   }
 
-  Widget _frequencyOption(
-    String label,
-    String value,
-    String current,
-    BuildContext context,
-  ) {
+  Widget _frequencyOption(String label, String value) {
     return ListTile(
       title: Text(label),
-      leading: Radio(
-        value: value,
-        groupValue: current,
-        onChanged: (v) {
-          Navigator.pop(context);
-          final settings = ref.read(backupStatusProvider).autoSettings;
-          _updateAutoSettings(settings.copyWith(frequency: value));
-        },
-      ),
-      onTap: () {
-        Navigator.pop(context);
-        final settings = ref.read(backupStatusProvider).autoSettings;
-        _updateAutoSettings(settings.copyWith(frequency: value));
-      },
+      leading: Radio(value: value),
     );
   }
 

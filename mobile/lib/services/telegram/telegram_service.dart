@@ -8,9 +8,9 @@ import 'telegram_config.dart';
 /// عميل API للتواصل مع Telegram Bot API
 class TelegramApiClient {
 
+  factory TelegramApiClient.instance() => _instance ??= TelegramApiClient._();
   TelegramApiClient._();
   static TelegramApiClient? _instance;
-  static TelegramApiClient get instance => _instance ??= TelegramApiClient._();
 
   final http.Client _client = http.Client();
 

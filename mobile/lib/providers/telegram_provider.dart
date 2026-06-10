@@ -77,8 +77,8 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
     _initialize();
   }
 
-  final TelegramApiClient _api = TelegramApiClient.instance;
-  final TelegramReportService _reports = TelegramReportService.instance;
+  final TelegramApiClient _api = TelegramApiClient.instance();
+  final TelegramReportService _reports = TelegramReportService.instance();
   bool _mounted = true;
 
   /// تهيئة الحالة من SharedPreferences — القيم الافتراضية مُحمّلة مسبقاً
@@ -304,5 +304,5 @@ final telegramNotificationServiceProvider = Provider.autoDispose<TelegramNotific
 
 /// Provider للوصول إلى خدمة التقارير
 final telegramReportServiceProvider = Provider.autoDispose<TelegramReportService>(
-  (ref) => TelegramReportService.instance,
+  (ref) => TelegramReportService.instance(),
 );

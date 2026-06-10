@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/hotel_time_engine.dart';
-import '../utils/time.dart';
 import 'appwrite_delta_sync.dart';
 import 'appwrite_service.dart';
 import 'booking_derived_fields_service.dart';
@@ -34,8 +33,7 @@ class AutoBackupManager {
   static const String _googleDriveDeltaSyncEnabledKey =
       'google_drive_delta_sync_enabled';
 
-  static AutoBackupManager? _instance;
-  static AutoBackupManager get instance => _instance ??= AutoBackupManager._();
+  static final AutoBackupManager instance = AutoBackupManager._();
 
   GoogleDriveBackupService? _backupService;
   GoogleDriveDeltaSync? _googleDriveDeltaSync;
@@ -433,7 +431,7 @@ class AutoBackupManager {
   /// إشعار مدير المزامنة الذكية بوجود نسخة جديدة
   Future<void> _notifySmartSync() async {
     try {
-      final smartSync = SmartSyncManager.instance;
+      final smartSync = SmartSyncManager.instance();
       if (await smartSync.isEnabled()) {
         debugPrint('🔔 إشعار مدير المزامنة الذكية بالنسخة الجديدة...');
         await smartSync.onLocalBackupUploaded();

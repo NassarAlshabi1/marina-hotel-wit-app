@@ -106,7 +106,7 @@ class ScreenSyncController {
         return false;
       }
 
-      if (!SmartSyncManager.instance.isDriveSignedIn) {
+      if (!SmartSyncManager.instance().isDriveSignedIn) {
         debugPrint('🔒 [$screenId] المستخدم غير مسجل في Google Drive');
         return false;
       }
@@ -121,7 +121,7 @@ class ScreenSyncController {
         operation: () async {
           return _circuitBreaker.execute(() async {
             debugPrint('🌐 [$screenId] بدء المزامنة مع الحماية...');
-            return SmartSyncManager.instance.pushLocalChanges();
+            return SmartSyncManager.instance().pushLocalChanges();
           });
         },
         shouldRetry: (error) {

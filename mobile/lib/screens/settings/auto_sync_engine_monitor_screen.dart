@@ -882,39 +882,39 @@ class _AutoSyncEngineMonitorScreenState
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('ضبط Debouncing'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('فترة تجميع التغييرات قبل الرفع'),
-              const SizedBox(height: 16),
-              ...[2, 5, 10, 15].map(
-                (seconds) => RadioListTile<int>(
-                  title: Text('$seconds ثانية'),
-                  subtitle: Text(_getDebounceDescription(seconds)),
-                  value: seconds,
-                  groupValue: currentDebounce,
-                  onChanged: (value) async {
-                    if (value != null) {
-                      await AutoSyncEngine.instance.setDebounceSeconds(value);
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        Navigator.pop(context);
-                      }
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '✅ تم تعيين Debounce إلى $value ثانية',
-                            ),
-                          ),
-                        );
-                      }
-                    }
-                  },
+          content: RadioGroup<int>(
+            groupValue: currentDebounce,
+            onChanged: (value) async {
+              await AutoSyncEngine.instance.setDebounceSeconds(value!);
+              if (mounted) {
+                // ignore: use_build_context_synchronously
+                Navigator.pop(context);
+              }
+              if (mounted) {
+                // ignore: use_build_context_synchronously
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '✅ تم تعيين Debounce إلى $value ثانية',
+                    ),
+                  ),
+                );
+              }
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('فترة تجميع التغييرات قبل الرفع'),
+                const SizedBox(height: 16),
+                ...[2, 5, 10, 15].map(
+                  (seconds) => RadioListTile<int>(
+                    title: Text('$seconds ثانية'),
+                    subtitle: Text(_getDebounceDescription(seconds)),
+                    value: seconds,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),);
@@ -932,39 +932,39 @@ class _AutoSyncEngineMonitorScreenState
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('ضبط فترة Pull'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('فترة فحص التحديثات من الأجهزة الأخرى'),
-              const SizedBox(height: 16),
-              ...[1, 2, 5, 10, 15].map(
-                (minutes) => RadioListTile<int>(
-                  title: Text('$minutes دقيقة'),
-                  subtitle: Text(_getPullIntervalDescription(minutes)),
-                  value: minutes,
-                  groupValue: currentInterval,
-                  onChanged: (value) async {
-                    if (value != null) {
-                      await AutoSyncEngine.instance.setPullInterval(value);
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        Navigator.pop(context);
-                      }
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '✅ تم تعيين Pull Interval إلى $value دقيقة',
-                            ),
-                          ),
-                        );
-                      }
-                    }
-                  },
+          content: RadioGroup<int>(
+            groupValue: currentInterval,
+            onChanged: (value) async {
+              await AutoSyncEngine.instance.setPullInterval(value!);
+              if (mounted) {
+                // ignore: use_build_context_synchronously
+                Navigator.pop(context);
+              }
+              if (mounted) {
+                // ignore: use_build_context_synchronously
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '✅ تم تعيين Pull Interval إلى $value دقيقة',
+                    ),
+                  ),
+                );
+              }
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('فترة فحص التحديثات من الأجهزة الأخرى'),
+                const SizedBox(height: 16),
+                ...[1, 2, 5, 10, 15].map(
+                  (minutes) => RadioListTile<int>(
+                    title: Text('$minutes دقيقة'),
+                    subtitle: Text(_getPullIntervalDescription(minutes)),
+                    value: minutes,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),);
@@ -982,35 +982,35 @@ class _AutoSyncEngineMonitorScreenState
         builder: (context) => AlertDialog(
           title: const Text('استراتيجية حل التضارب'),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: ConflictResolutionStrategy.values.map((strategy) {
-                return RadioListTile<ConflictResolutionStrategy>(
-                  title: Text(_getStrategyName(strategy)),
-                  subtitle: Text(_getStrategyDescription(strategy)),
-                  value: strategy,
-                  groupValue: currentStrategy,
-                  onChanged: (value) async {
-                    if (value != null) {
-                      await AutoSyncEngine.instance.setConflictStrategy(value);
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        Navigator.pop(context);
-                      }
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '✅ تم تعيين الاستراتيجية: ${_getStrategyName(value)}',
-                            ),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                );
-              }).toList(),
+            child: RadioGroup<ConflictResolutionStrategy>(
+              groupValue: currentStrategy,
+              onChanged: (value) async {
+                await AutoSyncEngine.instance.setConflictStrategy(value!);
+                if (mounted) {
+                  // ignore: use_build_context_synchronously
+                  Navigator.pop(context);
+                }
+                if (mounted) {
+                  // ignore: use_build_context_synchronously
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '✅ تم تعيين الاستراتيجية: ${_getStrategyName(value)}',
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: ConflictResolutionStrategy.values.map((strategy) {
+                  return RadioListTile<ConflictResolutionStrategy>(
+                    title: Text(_getStrategyName(strategy)),
+                    subtitle: Text(_getStrategyDescription(strategy)),
+                    value: strategy,
+                  );
+                }).toList(),
+              ),
             ),
           ),
         ),

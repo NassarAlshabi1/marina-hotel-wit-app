@@ -473,23 +473,25 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('فترة المزامنة'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [5, 10, 15, 30, 60].map((interval) {
-            return RadioListTile<int>(
-              title: Text('$interval دقيقة'),
-              value: interval,
-              groupValue: _syncInterval,
-              onChanged: (value) {
-                setState(() => _syncInterval = value!);
-                _saveSettings();
-                Navigator.pop(context);
-                if (_syncEnabled) {
-                  _onSyncEnabledChanged(true);
-                }
-              },
-            );
-          }).toList(),
+        content: RadioGroup<int>(
+          groupValue: _syncInterval,
+          onChanged: (value) {
+            setState(() => _syncInterval = value ?? _syncInterval);
+            _saveSettings();
+            Navigator.pop(context);
+            if (_syncEnabled) {
+              _onSyncEnabledChanged(true);
+            }
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [5, 10, 15, 30, 60].map((interval) {
+              return RadioListTile<int>(
+                title: Text('$interval دقيقة'),
+                value: interval,
+              );
+            }).toList(),
+          ),
         ),
         actions: [
           TextButton(

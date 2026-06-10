@@ -643,7 +643,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        value: _idTypes.contains(_idType) ? _idType : null,
+                        initialValue: _idTypes.contains(_idType) ? _idType : null,
                         items: _idTypes
                             .map(
                               (t) => DropdownMenuItem(value: t, child: Text(t)),
@@ -888,7 +888,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 return Column(
                   children: [
                     DropdownButtonFormField<String>(
-                      value: currentValue,
+                      initialValue: currentValue,
                       items: items,
                       onChanged: (value) {
                         setState(() {
@@ -1140,7 +1140,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<AdjustmentType>(
-                            value: _adjustmentTypeSelections[booking.id],
+                            initialValue: _adjustmentTypeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'نوع التعديل',
                               prefixIcon: Icon(Icons.swap_vert),
@@ -1166,7 +1166,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<AdjustmentMode>(
-                            value: _adjustmentModeSelections[booking.id],
+                            initialValue: _adjustmentModeSelections[booking.id],
                             decoration: const InputDecoration(
                               labelText: 'طريقة الحساب',
                               prefixIcon: Icon(Icons.calculate),

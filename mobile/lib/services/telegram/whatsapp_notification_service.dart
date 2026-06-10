@@ -47,10 +47,9 @@ class WhatsAppEvent {
 /// خدمة إشعارات واتساب الفورية عبر CallMeBot
 class WhatsAppNotificationService {
 
+  factory WhatsAppNotificationService.instance() => _instance ??= WhatsAppNotificationService._();
   WhatsAppNotificationService._();
   static WhatsAppNotificationService? _instance;
-  static WhatsAppNotificationService get instance =>
-      _instance ??= WhatsAppNotificationService._();
 
   // CallMeBot WhatsApp API
   static const String _callMeBotUrl = 'https://api.callmebot.com/whatsapp.php';

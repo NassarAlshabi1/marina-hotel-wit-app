@@ -201,54 +201,50 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                 const SizedBox(height: 8),
                 StatefulBuilder(
                   builder: (context, setDialogState) {
-                    return Column(
-                      children: [
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(Icons.cancel, color: Colors.red, size: 20),
-                              SizedBox(width: 8),
-                              Text('فصل'),
-                            ],
+                    return RadioGroup<String>(
+                      groupValue: terminationType,
+                      onChanged: (v) =>
+                          setDialogState(() => terminationType = v ?? terminationType),
+                      child: const Column(
+                        children: [
+                          RadioListTile<String>(
+                            title: Row(
+                              children: [
+                                Icon(Icons.cancel, color: Colors.red, size: 20),
+                                SizedBox(width: 8),
+                                Text('فصل'),
+                              ],
+                            ),
+                            value: 'مفصول',
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          value: 'مفصول',
-                          groupValue: terminationType,
-                          onChanged: (v) =>
-                              setDialogState(() => terminationType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(Icons.logout, color: Colors.orange, size: 20),
-                              SizedBox(width: 8),
-                              Text('استقالة'),
-                            ],
+                          RadioListTile<String>(
+                            title: Row(
+                              children: [
+                                Icon(Icons.logout, color: Colors.orange, size: 20),
+                                SizedBox(width: 8),
+                                Text('استقالة'),
+                              ],
+                            ),
+                            value: 'استقالة',
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          value: 'استقالة',
-                          groupValue: terminationType,
-                          onChanged: (v) =>
-                              setDialogState(() => terminationType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(Icons.business_center, color: Colors.grey, size: 20),
-                              SizedBox(width: 8),
-                              Text('استغناء'),
-                            ],
+                          RadioListTile<String>(
+                            title: Row(
+                              children: [
+                                Icon(Icons.business_center, color: Colors.grey, size: 20),
+                                SizedBox(width: 8),
+                                Text('استغناء'),
+                              ],
+                            ),
+                            value: 'استغناء',
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          value: 'استغناء',
-                          groupValue: terminationType,
-                          onChanged: (v) =>
-                              setDialogState(() => terminationType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ],
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -452,7 +448,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
       final repo = ref.read(employeesRepoProvider);
       await repo.reactivate(id: employee.id);
       markDataChanged();
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('تم إعادة تفعيل الموظف بنجاح'),
@@ -462,7 +458,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل إعادة التفعيل: $e'),
@@ -743,7 +739,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                   StatefulBuilder(
                     builder: (context, setLocalState) =>
                         DropdownButtonFormField<String>(
-                          value: status,
+                          initialValue: status,
                           decoration: InputDecoration(
                             labelText: 'الحالة',
                             prefixIcon: const Icon(Icons.toggle_on),
@@ -1006,7 +1002,6 @@ class _EmployeeCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 4,
-                            vertical: 0,
                           ),
                           decoration: BoxDecoration(
                             color: statusColor.withValues(alpha: 0.1),

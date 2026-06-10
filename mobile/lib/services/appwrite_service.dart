@@ -113,6 +113,7 @@ class AppwriteService {
       );
 
       Future<List<models.Document>> performOperation() async {
+        // ignore: deprecated_member_use
         final documentList = await _databases.listDocuments(
           databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
@@ -173,7 +174,8 @@ class AppwriteService {
       var deleted = 0;
       for (final doc in documents) {
         try {
-          await _networkHelper.withRetryAndTimeout(
+          await _networkHelper.withRetryAndTimeout<void>(
+            // ignore: deprecated_member_use
             operation: () => _databases.deleteDocument(
               databaseId: AppwriteConfigManager.databaseId,
               collectionId: collectionId,
@@ -223,6 +225,7 @@ class AppwriteService {
 
     // نحاول التحديث أولاً (Optimistic) — 404 متوقع في Upsert
     try {
+      // ignore: deprecated_member_use
       return await _databases.updateDocument(
         databaseId: dbId,
         collectionId: collectionId,
@@ -233,6 +236,7 @@ class AppwriteService {
       // 404 Not Found -> Create (هذا السلوك الطبيعي لـ Upsert)
       if (e.code == 404 || e.toString().contains('document_not_found')) {
         return _networkHelper.withRetryAndTimeout(
+          // ignore: deprecated_member_use
           operation: () => _databases.createDocument(
             databaseId: dbId,
             collectionId: collectionId,
@@ -251,7 +255,8 @@ class AppwriteService {
     required String documentId,
   }) async {
     try {
-      await _networkHelper.withRetryAndTimeout(
+      await _networkHelper.withRetryAndTimeout<void>(
+        // ignore: deprecated_member_use
         operation: () => _databases.deleteDocument(
           databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
@@ -768,7 +773,7 @@ class AppwriteService {
   }
 
   // Generic methods for delta sync
-  Future<List<models.Document>> listRows({
+  Future<List<models.Document>> listDocuments({
     required String collectionId,
     List<String>? queries,
     bool useCache = true,
@@ -781,7 +786,7 @@ class AppwriteService {
     );
   }
 
-  Future<void> deleteRow({
+  Future<void> deleteDocument({
     required String collectionId,
     required String documentId,
   }) async {
@@ -810,8 +815,10 @@ class AppwriteService {
     try {
       await _ensureInitialized();
 
-      await _networkHelper.withTimeout(
-        operation: () => _databases.listDocuments(
+      await _networkHelper.withTimeout<models.DocumentList>(
+        operation: () =>
+            // ignore: deprecated_member_use
+            _databases.listDocuments(
           databaseId: AppwriteConfigManager.databaseId,
           collectionId: AppwriteConfig.roomsCollectionId,
         ),
@@ -843,8 +850,10 @@ class AppwriteService {
     try {
       // 1. اختبار الاتصال الأساسي (Ping) - listDocuments على rooms
       try {
-        await _networkHelper.withTimeout(
-          operation: () => _databases.listDocuments(
+        await _networkHelper.withTimeout<models.DocumentList>(
+          operation: () =>
+              // ignore: deprecated_member_use
+              _databases.listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: AppwriteConfig.roomsCollectionId,
             queries: [Query.limit(1)],
@@ -860,8 +869,10 @@ class AppwriteService {
 
       // 2. اختبار القراءة من bookings
       try {
-        await _networkHelper.withTimeout(
-          operation: () => _databases.listDocuments(
+        await _networkHelper.withTimeout<models.DocumentList>(
+          operation: () =>
+              // ignore: deprecated_member_use
+              _databases.listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: AppwriteConfig.bookingsCollectionId,
             queries: [Query.limit(1)],
@@ -877,8 +888,10 @@ class AppwriteService {
 
       // 3. اختبار القراءة من devices
       try {
-        await _networkHelper.withTimeout(
-          operation: () => _databases.listDocuments(
+        await _networkHelper.withTimeout<models.DocumentList>(
+          operation: () =>
+              // ignore: deprecated_member_use
+              _databases.listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: AppwriteConfig.devicesCollectionId,
             queries: [Query.limit(1)],
@@ -926,60 +939,63 @@ class AppwriteService {
   bool get isInitialized => _initialized;
 
   /// قراءة مستند واحد
-  Future<models.Document> getRow({
+  Future<models.Document> getDocument({
     required String collectionId,
     required String documentId,
   }) async {
     await _ensureInitialized();
     return _networkHelper.withTimeout(
+      // ignore: deprecated_member_use
       operation: () => _databases.getDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
         documentId: documentId,
       ),
-      operationName: 'getRow($collectionId/$documentId)',
+      operationName: 'getDocument($collectionId/$documentId)',
     );
   }
 
   /// إنشاء مستند جديد
-  Future<models.Document> createRow({
+  Future<models.Document> createDocument({
     required String collectionId,
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
     await _ensureInitialized();
     return _networkHelper.withTimeout(
+      // ignore: deprecated_member_use
       operation: () => _databases.createDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
         documentId: documentId,
         data: data,
       ),
-      operationName: 'createRow($collectionId/$documentId)',
+      operationName: 'createDocument($collectionId/$documentId)',
     );
   }
 
   /// تحديث مستند موجود
-  Future<models.Document> updateRow({
+  Future<models.Document> updateDocument({
     required String collectionId,
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
     await _ensureInitialized();
     return _networkHelper.withTimeout(
+      // ignore: deprecated_member_use
       operation: () => _databases.updateDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
         documentId: documentId,
         data: data,
       ),
-      operationName: 'updateRow($collectionId/$documentId)',
+      operationName: 'updateDocument($collectionId/$documentId)',
     );
   }
 
   /// إنشاء سجل مزامنة
   Future<models.Document> createSyncLog(Map<String, dynamic> data) async {
-    return createRow(
+    return createDocument(
       collectionId: AppwriteConfig.syncLogsCollectionId,
       documentId: (data['localUuid'] ?? 'ID.unique()') as String,
       data: data,
@@ -991,7 +1007,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    return listRows(
+    return listDocuments(
       collectionId: AppwriteConfig.syncLogsCollectionId,
       queries: queries,
       useCache: useCache,
@@ -1000,7 +1016,7 @@ class AppwriteService {
 
   /// إنشاء جهاز
   Future<models.Document> createDevice(Map<String, dynamic> data) async {
-    return createRow(
+    return createDocument(
       collectionId: AppwriteConfig.devicesCollectionId,
       documentId: (data['localUuid'] ?? 'ID.unique()') as String,
       data: data,
@@ -1012,76 +1028,10 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) async {
-    return listRows(
+    return listDocuments(
       collectionId: AppwriteConfig.devicesCollectionId,
       queries: queries,
       useCache: useCache,
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Convenience Aliases (used by sync managers, delta sync, auth_local_store)
-  // These delegate to the existing generic methods above.
-  // ---------------------------------------------------------------------------
-
-  /// Alias for [listRows] — used by callers expecting `listDocuments` name.
-  Future<List<models.Document>> listDocuments({
-    required String collectionId,
-    List<String>? queries,
-    bool useCache = true,
-  }) {
-    return listRows(
-      collectionId: collectionId,
-      queries: queries,
-      useCache: useCache,
-    );
-  }
-
-  /// Alias for [getRow] — used by callers expecting `getDocument` name.
-  Future<models.Document> getDocument({
-    required String collectionId,
-    required String documentId,
-  }) {
-    return getRow(
-      collectionId: collectionId,
-      documentId: documentId,
-    );
-  }
-
-  /// Alias for [updateRow] — used by callers expecting `updateDocument` name.
-  Future<models.Document> updateDocument({
-    required String collectionId,
-    required String documentId,
-    required Map<String, dynamic> data,
-  }) {
-    return updateRow(
-      collectionId: collectionId,
-      documentId: documentId,
-      data: data,
-    );
-  }
-
-  /// Alias for [createRow] — used by callers expecting `createDocument` name.
-  Future<models.Document> createDocument({
-    required String collectionId,
-    required String documentId,
-    required Map<String, dynamic> data,
-  }) {
-    return createRow(
-      collectionId: collectionId,
-      documentId: documentId,
-      data: data,
-    );
-  }
-
-  /// Alias for [deleteRow] — used by callers expecting `deleteDocument` name.
-  Future<void> deleteDocument({
-    required String collectionId,
-    required String documentId,
-  }) {
-    return deleteRow(
-      collectionId: collectionId,
-      documentId: documentId,
     );
   }
 

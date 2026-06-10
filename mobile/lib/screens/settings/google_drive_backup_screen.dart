@@ -697,13 +697,24 @@ class _GoogleDriveBackupContentState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تحديد التكرار'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildFrequencyOption('daily', 'يومياً', currentSettings),
-            _buildFrequencyOption('weekly', 'أسبوعياً', currentSettings),
-            _buildFrequencyOption('monthly', 'شهرياً', currentSettings),
-          ],
+        content: RadioGroup<String>(
+          groupValue: currentSettings.frequency,
+          onChanged: (selectedValue) {
+            Navigator.of(context).pop();
+            ref
+                .read(backupStatusProvider.notifier)
+                .updateAutoBackupSettings(
+                  currentSettings.copyWith(frequency: selectedValue),
+                );
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildFrequencyOption('daily', 'يومياً'),
+              _buildFrequencyOption('weekly', 'أسبوعياً'),
+              _buildFrequencyOption('monthly', 'شهرياً'),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -715,25 +726,10 @@ class _GoogleDriveBackupContentState
     );
   }
 
-  Widget _buildFrequencyOption(
-    String value,
-    String label,
-    AutoBackupSettings currentSettings,
-  ) {
+  Widget _buildFrequencyOption(String value, String label) {
     return RadioListTile<String>(
       title: Text(label),
       value: value,
-      groupValue: currentSettings.frequency,
-      onChanged: (selectedValue) {
-        if (selectedValue != null) {
-          Navigator.of(context).pop();
-          ref
-              .read(backupStatusProvider.notifier)
-              .updateAutoBackupSettings(
-                currentSettings.copyWith(frequency: selectedValue),
-              );
-        }
-      },
     );
   }
 

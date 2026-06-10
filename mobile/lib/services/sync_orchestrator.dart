@@ -232,8 +232,8 @@ class DataIntegrityCheck {
 class SyncOrchestrator {
 
   SyncOrchestrator._();
+  factory SyncOrchestrator.instance() => _instance ??= SyncOrchestrator._();
   static SyncOrchestrator? _instance;
-  static SyncOrchestrator get instance => _instance ??= SyncOrchestrator._();
 
   late AppDatabase _database;
   late OutboxDao _outboxDao;

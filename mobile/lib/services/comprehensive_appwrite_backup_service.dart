@@ -304,6 +304,7 @@ class ComprehensiveAppwriteBackupService {
 
             // محاولة إنشاء أو تحديث المستند
             try {
+              // ignore: deprecated_member_use
               await _appwriteService.databases.createDocument(
                 databaseId: AppwriteConfig.databaseId,
                 collectionId: collectionId,
@@ -313,6 +314,7 @@ class ComprehensiveAppwriteBackupService {
             } on AppwriteException catch (e) {
               // إذا كان موجوداً بالفعل، نقوم بالتحديث
               if (e.code == 409) {
+                // ignore: deprecated_member_use
                 await _appwriteService.databases.updateDocument(
                   databaseId: AppwriteConfig.databaseId,
                   collectionId: collectionId,

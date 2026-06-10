@@ -103,8 +103,7 @@ class SyncStats {
 class SyncMetrics {
 
   SyncMetrics._();
-  static SyncMetrics? _instance;
-  static SyncMetrics get instance => _instance ??= SyncMetrics._();
+  static final SyncMetrics instance = SyncMetrics._();
 
   SyncSession? _currentSession;
   final List<SyncSession> _history = [];

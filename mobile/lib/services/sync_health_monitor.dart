@@ -30,8 +30,7 @@ class SyncHealthMetrics {
 class SyncHealthMonitor {
 
   SyncHealthMonitor._();
-  static SyncHealthMonitor? _instance;
-  static SyncHealthMonitor get instance => _instance ??= SyncHealthMonitor._();
+  static final SyncHealthMonitor instance = SyncHealthMonitor._();
 
   final _metricsController = StreamController<SyncHealthMetrics>.broadcast();
   Stream<SyncHealthMetrics> get metricsStream => _metricsController.stream;

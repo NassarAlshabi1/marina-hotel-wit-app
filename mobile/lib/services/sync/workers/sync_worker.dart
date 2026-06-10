@@ -77,7 +77,7 @@ void callbackDispatcher() {
     developer.log('🔄 تنفيذ مهمة مزامنة في الخلفية: $task');
     
     try {
-      final orchestrator = SyncOrchestrator.instance;
+      final orchestrator = SyncOrchestrator.instance();
       final result = await orchestrator.syncNow();
       
       if (result.isSuccess) {

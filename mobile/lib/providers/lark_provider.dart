@@ -83,7 +83,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
     _initialize();
   }
 
-  final LarkApiClient _api = LarkApiClient.instance;
+  final LarkApiClient _api = LarkApiClient.instance();
   final LarkReportService _reports = LarkReportService.instance;
   bool _mounted = true;
 

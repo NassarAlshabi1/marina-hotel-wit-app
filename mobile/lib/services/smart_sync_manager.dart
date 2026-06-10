@@ -29,8 +29,8 @@ enum ConflictResolution {
 class SmartSyncManager {
 
   SmartSyncManager._();
+  factory SmartSyncManager.instance() => _instance ??= SmartSyncManager._();
   static SmartSyncManager? _instance;
-  static SmartSyncManager get instance => _instance ??= SmartSyncManager._();
 
   GoogleDriveBackupService? _backupService;
   Timer? _syncCheckTimer;

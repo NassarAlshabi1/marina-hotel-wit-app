@@ -6,8 +6,7 @@ import 'package:flutter/foundation.dart';
 class SyncQueueService {
 
   SyncQueueService._();
-  static SyncQueueService? _instance;
-  static SyncQueueService get instance => _instance ??= SyncQueueService._();
+  static final SyncQueueService instance = SyncQueueService._();
 
   final _queueController = StreamController<int>.broadcast();
   Stream<int> get queueCountStream => _queueController.stream;

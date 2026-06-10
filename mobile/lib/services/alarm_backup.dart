@@ -270,7 +270,7 @@ class AlarmBackup {
       if (tgEnabled && reportEnabled) {
         final configured = await TelegramConfig.isConfigured();
         if (configured) {
-          final reportService = TelegramReportService.instance;
+          final reportService = TelegramReportService.instance();
           await reportService.sendDailyReport();
           debugPrint('✅ Telegram daily report sent from alarm');
         } else {

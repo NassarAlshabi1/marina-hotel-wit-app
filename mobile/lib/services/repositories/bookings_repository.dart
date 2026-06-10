@@ -135,7 +135,7 @@ class BookingsRepository {
       checkoutDate: checkoutDate,
       nights: expectedNights,
     );
-    WhatsAppNotificationService.instance.notifyNewBooking(
+    WhatsAppNotificationService.instance().notifyNewBooking(
       roomNumber: roomNumber,
       guestName: guestName,
       guestPhone: guestPhone,
@@ -288,7 +288,7 @@ class BookingsRepository {
             guestPhone: booking.guestPhone,
             expectedNights: booking.expectedNights,
           );
-          WhatsAppNotificationService.instance.notifyCheckIn(
+          WhatsAppNotificationService.instance().notifyCheckIn(
             roomNumber: booking.roomNumber,
             guestName: booking.guestName,
             guestPhone: booking.guestPhone,
@@ -302,7 +302,7 @@ class BookingsRepository {
             totalPaid: booking.totalPaidCached,
             remaining: booking.remainingBalanceCached,
           );
-          WhatsAppNotificationService.instance.notifyCheckOut(
+          WhatsAppNotificationService.instance().notifyCheckOut(
             roomNumber: booking.roomNumber,
             guestName: booking.guestName,
             actualNights: booking.calculatedNights,

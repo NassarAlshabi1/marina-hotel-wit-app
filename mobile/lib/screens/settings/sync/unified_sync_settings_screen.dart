@@ -367,30 +367,34 @@ class _UnifiedSyncSettingsScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('فترة المزامنة'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('5 دقائق'),
-              leading: Radio(value: 5, groupValue: 15, onChanged: (v) {}),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: const Text('15 دقيقة'),
-              leading: Radio(value: 15, groupValue: 15, onChanged: (v) {}),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: const Text('30 دقيقة'),
-              leading: Radio(value: 30, groupValue: 15, onChanged: (v) {}),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: const Text('ساعة واحدة'),
-              leading: Radio(value: 60, groupValue: 15, onChanged: (v) {}),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
+        content: RadioGroup<int>(
+          groupValue: 15,
+          onChanged: (v) => Navigator.pop(context),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('5 دقائق'),
+                leading: const Radio(value: 5),
+                onTap: () => Navigator.pop(context),
+              ),
+              ListTile(
+                title: const Text('15 دقيقة'),
+                leading: const Radio(value: 15),
+                onTap: () => Navigator.pop(context),
+              ),
+              ListTile(
+                title: const Text('30 دقيقة'),
+                leading: const Radio(value: 30),
+                onTap: () => Navigator.pop(context),
+              ),
+              ListTile(
+                title: const Text('ساعة واحدة'),
+                leading: const Radio(value: 60),
+                onTap: () => Navigator.pop(context),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

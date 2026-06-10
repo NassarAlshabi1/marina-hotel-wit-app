@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf/pdf.dart' as pdf_pdf;
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
@@ -9,12 +12,9 @@ import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
-import '../../utils/enhanced_pdf_utils.dart';
-import 'package:printing/printing.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:pdf/pdf.dart' as pdf_pdf;
 import '../employees/salary_entitlements_screen.dart';
 
 class SettingsEmployeesScreen extends ConsumerWidget {
@@ -377,40 +377,40 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 TextButton.icon(
                   onPressed: () => _showEditEmployeeDialog(context, ref, employee),
                   icon: const Icon(Icons.edit, size: 14),
-                  label: const Text("تعديل", style: TextStyle(fontSize: 11)),
+                  label: const Text('تعديل', style: TextStyle(fontSize: 11)),
                 ),
                 TextButton.icon(
                   onPressed: () => _showEmployeeEntitlement(context, employee),
                   icon: const Icon(Icons.account_balance_wallet, size: 14),
-                  label: const Text("الاستحقاق", style: TextStyle(fontSize: 11)),
+                  label: const Text('الاستحقاق', style: TextStyle(fontSize: 11)),
                   style: TextButton.styleFrom(foregroundColor: Colors.green),
                 ),
                 if (isActive)
                   TextButton.icon(
                     onPressed: () => _showSalaryWithdrawalDialog(context, ref, employee),
                     icon: const Icon(Icons.money_off, size: 14),
-                    label: const Text("سحب", style: TextStyle(fontSize: 11)),
+                    label: const Text('سحب', style: TextStyle(fontSize: 11)),
                     style: TextButton.styleFrom(foregroundColor: Colors.orange),
                   ),
                 if (isActive)
                   TextButton.icon(
                     onPressed: () => _showTerminateDialog(context, ref, employee),
                     icon: const Icon(Icons.person_off, size: 14),
-                    label: const Text("إنهاء", style: TextStyle(fontSize: 11)),
+                    label: const Text('إنهاء', style: TextStyle(fontSize: 11)),
                     style: TextButton.styleFrom(foregroundColor: Colors.red),
                   )
                 else if (isTerminated)
                   TextButton.icon(
                     onPressed: () => _reactivateEmployee(context, ref, employee),
                     icon: const Icon(Icons.person, size: 14),
-                    label: const Text("إعادة", style: TextStyle(fontSize: 11)),
+                    label: const Text('إعادة', style: TextStyle(fontSize: 11)),
                     style: TextButton.styleFrom(foregroundColor: Colors.green),
                   ),
                 IconButton(
                   onPressed: () => _deleteEmployee(context, ref, employee),
                   icon: const Icon(Icons.delete_outline, size: 16),
                   color: Colors.red,
-                  tooltip: "حذف الموظف",
+                  tooltip: 'حذف الموظف',
                 ),
               ],
             ),
@@ -451,7 +451,6 @@ class SettingsEmployeesScreen extends ConsumerWidget {
   /// تصدير كشف رواتب PDF لجميع الموظفين
   static Future<void> _exportSalaryPdf(BuildContext context, WidgetRef ref) async {
     try {
-      final employees = await ref.read(employeesListProvider.future);
       final service = SalaryEntitlementService(DatabaseManager.instance);
       final entitlements = await service.calculateAllEntitlements();
 
@@ -476,9 +475,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     children: [
                       if (logo != null) pw.Image(logo, height: 40),
                       pw.SizedBox(width: 8),
-                      pw.Text("فندق مارينا بلازا", style: pw.TextStyle(font: fonts.bold, fontSize: 18, color: PdfColors.textWhite)),
+                      pw.Text('فندق مارينا بلازا', style: pw.TextStyle(font: fonts.bold, fontSize: 18, color: PdfColors.textWhite)),
                       pw.SizedBox(width: 8),
-                      pw.Text("|  كشف رواتب الموظفين", style: pw.TextStyle(font: fonts.regular, fontSize: 14, color: PdfColors.textWhite)),
+                      pw.Text('|  كشف رواتب الموظفين', style: pw.TextStyle(font: fonts.regular, fontSize: 14, color: PdfColors.textWhite)),
                     ],
                   ),
                 ),
@@ -487,7 +486,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 pw.Divider(),
                 pw.Container(
                   padding: const pw.EdgeInsets.all(8),
-                  decoration: pw.BoxDecoration(color: PdfColors.backgroundCard),
+                  decoration: const pw.BoxDecoration(color: PdfColors.backgroundCard),
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
@@ -643,7 +642,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: status,
+                  initialValue: status,
                   decoration: const InputDecoration(
                     labelText: 'الحالة',
                     border: OutlineInputBorder(),
@@ -796,54 +795,50 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 const SizedBox(height: 4),
                 StatefulBuilder(
                   builder: (context, setDialogState) {
-                    return Column(
-                      children: [
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(Icons.cancel, color: Colors.red, size: 20),
-                              SizedBox(width: 8),
-                              Text('فصل'),
-                            ],
+                    return RadioGroup<String>(
+                      groupValue: terminationType,
+                      onChanged: (v) =>
+                          setDialogState(() => terminationType = v ?? terminationType),
+                      child: const Column(
+                        children: [
+                          RadioListTile<String>(
+                            title: Row(
+                              children: [
+                                Icon(Icons.cancel, color: Colors.red, size: 20),
+                                SizedBox(width: 8),
+                                Text('فصل'),
+                              ],
+                            ),
+                            value: 'مفصول',
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          value: 'مفصول',
-                          groupValue: terminationType,
-                          onChanged: (v) =>
-                              setDialogState(() => terminationType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(Icons.logout, color: Colors.orange, size: 20),
-                              SizedBox(width: 8),
-                              Text('استقالة'),
-                            ],
+                          RadioListTile<String>(
+                            title: Row(
+                              children: [
+                                Icon(Icons.logout, color: Colors.orange, size: 20),
+                                SizedBox(width: 8),
+                                Text('استقالة'),
+                              ],
+                            ),
+                            value: 'استقالة',
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          value: 'استقالة',
-                          groupValue: terminationType,
-                          onChanged: (v) =>
-                              setDialogState(() => terminationType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(Icons.business_center, color: Colors.grey, size: 20),
-                              SizedBox(width: 8),
-                              Text('استغناء'),
-                            ],
+                          RadioListTile<String>(
+                            title: Row(
+                              children: [
+                                Icon(Icons.business_center, color: Colors.grey, size: 20),
+                                SizedBox(width: 8),
+                                Text('استغناء'),
+                              ],
+                            ),
+                            value: 'استغناء',
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          value: 'استغناء',
-                          groupValue: terminationType,
-                          onChanged: (v) =>
-                              setDialogState(() => terminationType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ],
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -1271,54 +1266,50 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 const SizedBox(height: 4),
                 StatefulBuilder(
                   builder: (context, setDialogState) {
-                    return Column(
-                      children: [
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(Icons.trending_up, color: Colors.orange, size: 20),
-                              SizedBox(width: 8),
-                              Text('سلفة'),
-                            ],
+                    return RadioGroup<String>(
+                      groupValue: withdrawalType,
+                      onChanged: (v) =>
+                          setDialogState(() => withdrawalType = v ?? withdrawalType),
+                      child: const Column(
+                        children: [
+                          RadioListTile<String>(
+                            title: Row(
+                              children: [
+                                Icon(Icons.trending_up, color: Colors.orange, size: 20),
+                                SizedBox(width: 8),
+                                Text('سلفة'),
+                              ],
+                            ),
+                            value: 'سلفة',
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          value: 'سلفة',
-                          groupValue: withdrawalType,
-                          onChanged: (v) =>
-                              setDialogState(() => withdrawalType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(Icons.account_balance_wallet, color: Colors.purple, size: 20),
-                              SizedBox(width: 8),
-                              Text('سحب راتب'),
-                            ],
+                          RadioListTile<String>(
+                            title: Row(
+                              children: [
+                                Icon(Icons.account_balance_wallet, color: Colors.purple, size: 20),
+                                SizedBox(width: 8),
+                                Text('سحب راتب'),
+                              ],
+                            ),
+                            value: 'سحب راتب',
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          value: 'سحب راتب',
-                          groupValue: withdrawalType,
-                          onChanged: (v) =>
-                              setDialogState(() => withdrawalType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(Icons.build, color: Colors.grey, size: 20),
-                              SizedBox(width: 8),
-                              Text('أخرى'),
-                            ],
+                          RadioListTile<String>(
+                            title: Row(
+                              children: [
+                                Icon(Icons.build, color: Colors.grey, size: 20),
+                                SizedBox(width: 8),
+                                Text('أخرى'),
+                              ],
+                            ),
+                            value: 'أخرى',
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          value: 'أخرى',
-                          groupValue: withdrawalType,
-                          onChanged: (v) =>
-                              setDialogState(() => withdrawalType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ],
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -1444,7 +1435,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'تم تسجيل سحب ${CurrencyFormatter.formatAmount(amount)} ${withdrawalType} بنجاح',
+                          'تم تسجيل سحب ${CurrencyFormatter.formatAmount(amount)} $withdrawalType بنجاح',
                         ),
                         backgroundColor: Colors.green,
                         behavior: SnackBarBehavior.floating,
@@ -1550,40 +1541,6 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           ),
         );
       }
-    }
-  }
-
-  Future<void> _toggleEmployeeStatus(
-    BuildContext context,
-    WidgetRef ref,
-    Employee employee,
-  ) async {
-    final newStatus =
-        StatusUtils.isEmployeeActive(employee.status) ? 'غير نشط' : 'نشط';
-
-    try {
-      final repo = ref.read(employeesRepoProvider);
-      await repo.updateByLocalUuid(
-        employee.localUuid,
-        name: employee.name,
-        position: employee.position,
-        salary: employee.salary,
-        phone: employee.phone,
-        hireDate: employee.hireDate,
-        status: newStatus,
-      );
-
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('تم ${newStatus == 'نشط' ? 'تفعيل' : 'إيقاف'} الموظف'),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        // ignore: use_build_context_synchronously
-        context,
-      ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
     }
   }
 }

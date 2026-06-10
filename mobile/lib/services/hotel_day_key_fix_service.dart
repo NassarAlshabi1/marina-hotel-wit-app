@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 
-import '../utils/expense_reason_matcher.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 import 'daos/outbox_dao.dart';
@@ -188,11 +187,11 @@ class HotelDayKeyFixService {
       int step1Fixed = 0;
       try {
         await db.customStatement(
-          "UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) "
-          "WHERE reason LIKE 'exp_%' "
-          "AND reason NOT LIKE 'exp_%\\_%' ESCAPE '\\' "
-          "AND expense_id IS NULL "
-          "AND deleted_at IS NULL",
+          'UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) '
+          'WHERE reason LIKE \'exp_%\' '
+          'AND reason NOT LIKE \'exp_%\\_%\' ESCAPE \'\\\' '
+          'AND expense_id IS NULL '
+          'AND deleted_at IS NULL',
         );
         // customStatement() يُرجع void — لا يمكننا معرفة عدد الصفوف المتأثرة
         // نعتبر العملية ناجحة إذا لم تُطلق استثناءً
@@ -381,19 +380,13 @@ class HotelDayKeyFixService {
         empUuidMap[emp.id] = emp.localUuid;
       }
 
-      // جلب سجلات salary_withdrawals النشطة
-      final rows = await (db.select(db.salaryWithdrawals)
-            ..where((t) => t.deletedAt.isNull()))
-          .get();
-
-      int fixed = 0;
-      for (final row in rows) {
-        // لا نحتاج إصلاح employeeUuid محلياً لأن SQLite لا يخزنه
-        // لكن نحتاج التأكد أن outbox سيرفعه مع employeeUuid
-        // هذا يتم تلقائياً في _processSalaryWithdrawalEntry
-        // الذي يضيف employeeUuid من جدول employees
-        // لذلك لا نحتاج أي إصلاح محلي هنا
-      }
+      const int fixed = 0;
+      // سجلات salary_withdrawals النشطة - لا نحتاج إصلاحاً محلياً
+      // لا نحتاج إصلاح employeeUuid محلياً لأن SQLite لا يخزنه
+      // لكن نحتاج التأكد أن outbox سيرفعه مع employeeUuid
+      // هذا يتم تلقائياً في _processSalaryWithdrawalEntry
+      // الذي يضيف employeeUuid من جدول employees
+      // لذلك لا نحتاج أي إصلاح محلي هنا
       return fixed;
     } catch (e) {
       debugPrint('  ⚠️ salary_withdrawals employeeUuid: خطأ $e');

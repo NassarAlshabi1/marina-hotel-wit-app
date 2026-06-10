@@ -8,7 +8,6 @@ import 'package:uuid/uuid.dart';
 
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
-import '../utils/time.dart';
 import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
 import 'price_adjustment_service.dart';
@@ -1518,11 +1517,11 @@ class GeminiService {
                 newPrice = oldPrice * (1 + value / 100);
               case 'percent_decrease':
                 newPrice = (oldPrice * (1 - value / 100))
-                    .clamp(0.0, double.infinity).toDouble();
+                    .clamp(0.0, double.infinity);
               case 'fixed_increase':
                 newPrice = oldPrice + value;
               case 'fixed_decrease':
-                newPrice = (oldPrice - value).clamp(0.0, double.infinity).toDouble();
+                newPrice = (oldPrice - value).clamp(0.0, double.infinity);
               default:
                 newPrice = oldPrice;
             }
@@ -2050,7 +2049,7 @@ class GeminiService {
   - يُخزّن في المدفوعات والمصروفات والحجوزات لضمان الفلترة الصحيحة
   - عند الفلترة: كل المدفوعات/المصروفات في "اليوم الحالي" تُفلتر بـ hotelDayKey وليس بالتاريخ التقويمي
 
-▸ الوقت الحالي الآن: $today | اليوم الفندقي الحالي: $todayHotelDay | متبقي حتى اليوم الفندقي التالي: ${hoursLeft}س ${minsLeft}د
+▸ الوقت الحالي الآن: $today | اليوم الفندقي الحالي: $todayHotelDay | متبقي حتى اليوم الفندقي التالي: $hoursLeftس $minsLeftد
 
 ═══ دورة حياة الحجز ═══
 ▸ الحالات بالترتيب:

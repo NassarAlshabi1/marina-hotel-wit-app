@@ -8,9 +8,7 @@ class SyncNotificationManager {
   SyncNotificationManager._() {
     _initLocalNotifications();
   }
-  static SyncNotificationManager? _instance;
-  static SyncNotificationManager get instance =>
-      _instance ??= SyncNotificationManager._();
+  static final SyncNotificationManager instance = SyncNotificationManager._();
 
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();

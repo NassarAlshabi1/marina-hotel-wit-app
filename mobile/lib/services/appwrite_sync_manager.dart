@@ -127,6 +127,7 @@ class AppwriteSyncManager {
       final info = appwriteService.getProjectInfo();
       final dbId = info['databaseId'] ?? AppwriteConfig.databaseId;
 
+      // ignore: deprecated_member_use
       final list = await appwriteService.databases.listDocuments(
         databaseId: dbId,
         collectionId: AppwriteConfig.roomsCollectionId,
@@ -1174,7 +1175,7 @@ class AppwriteSyncManager {
           'errorMessage': errorMessage ?? '',
         },
       );
-      await WhatsAppNotificationService.instance.notifySyncError(
+      await WhatsAppNotificationService.instance().notifySyncError(
         operation: 'sync',
         // ignore: dead_null_aware_expression
           error: errorMessage ?? e.toString(),
@@ -2096,6 +2097,7 @@ class AppwriteSyncManager {
     Booking expected,
   ) async {
     try {
+      // ignore: deprecated_member_use
       final doc = await appwriteService.databases.getDocument(
         databaseId: AppwriteConfig.databaseId,
         collectionId: AppwriteConfig.bookingsCollectionId,
@@ -2536,10 +2538,8 @@ class AppwriteSyncManager {
       src: Source.appwrite,
     );
     // ✅ إضافة employeeUuid لربط السلف بالموضف عبر الأجهزة
-    if (employee != null) {
-      payload['employeeUuid'] = employee.localUuid;
-      payload['employeeLocalUuid'] = employee.localUuid;
-    }
+    payload['employeeUuid'] = employee.localUuid;
+    payload['employeeLocalUuid'] = employee.localUuid;
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
       documentId: withdrawal.localUuid,
@@ -3989,7 +3989,7 @@ class AppwriteSyncManager {
         error: e,
         stackTrace: stackTrace,
       );
-      await WhatsAppNotificationService.instance.notifySyncError(
+      await WhatsAppNotificationService.instance().notifySyncError(
         operation: 'bulk_push',
         error: e.toString(),
       );

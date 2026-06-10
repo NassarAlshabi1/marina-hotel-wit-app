@@ -7,9 +7,7 @@ import 'smart_sync_manager.dart';
 class RealtimeSyncNotifier {
 
   RealtimeSyncNotifier._();
-  static RealtimeSyncNotifier? _instance;
-  static RealtimeSyncNotifier get instance =>
-      _instance ??= RealtimeSyncNotifier._();
+  static final RealtimeSyncNotifier instance = RealtimeSyncNotifier._();
 
   final _syncTriggerController = StreamController<SyncTrigger>.broadcast();
   Stream<SyncTrigger> get onSyncTrigger => _syncTriggerController.stream;
@@ -47,7 +45,7 @@ class RealtimeSyncNotifier {
   /// التحقق من وجود مزامنة جديدة
   Future<void> _checkForNewSync() async {
     try {
-      final smartSync = SmartSyncManager.instance;
+      final smartSync = SmartSyncManager.instance();
 
       if (!smartSync.isDriveSignedIn) {
         return;
@@ -86,7 +84,7 @@ class RealtimeSyncNotifier {
       // ignore: unused_local_variable
       final metadata = {
         'last_sync_id': syncId,
-        'source_device': SmartSyncManager.instance.deviceId,
+        'source_device': SmartSyncManager.instance().deviceId,
         'change_type': changeType,
         'timestamp': DateTime.now().toUtc().toIso8601String(),
       };

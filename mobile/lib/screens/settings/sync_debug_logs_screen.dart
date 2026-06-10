@@ -25,7 +25,7 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
   }
 
   Future<void> _loadStatus() async {
-    final status = await SmartSyncManager.instance.getStatus();
+    final status = await SmartSyncManager.instance().getStatus();
     if (mounted) {
       setState(() => _status = status);
     }
@@ -47,21 +47,21 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
 
   Future<void> _forceSync() async {
     await _withBusy(() async {
-      await SmartSyncManager.instance.forceSyncNow();
+      await SmartSyncManager.instance().forceSyncNow();
       await _loadStatus();
     });
   }
 
   Future<void> _pushLocal() async {
     await _withBusy(() async {
-      await SmartSyncManager.instance.pushLocalChanges();
+      await SmartSyncManager.instance().pushLocalChanges();
       await _loadStatus();
     });
   }
 
   Future<void> _pullRemote() async {
     await _withBusy(() async {
-      await SmartSyncManager.instance.pullRemoteChanges();
+      await SmartSyncManager.instance().pullRemoteChanges();
       await _loadStatus();
     });
   }
