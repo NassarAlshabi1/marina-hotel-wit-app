@@ -49,7 +49,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.0'
+          flutter-version: '3.44.1'
           channel: 'stable'
           cache: true
 
@@ -115,7 +115,7 @@ jobs:
           --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
           --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
         env:
-          GRADLE_OPTS: "-Xmx2g -XX:MaxMetaspaceSize=512m"
+          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
 
       # ─── عرض معلومات الـ APK المبني ─────────────────────
       - name: Inspect APK info
