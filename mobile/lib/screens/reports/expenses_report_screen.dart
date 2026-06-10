@@ -15,7 +15,6 @@ import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
-import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
 
@@ -259,7 +258,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // ─── سحب سحوبات الرواتب من salary_withdrawals ───
     // ✅ إصلاح: جلب salary_withdrawals أيضاً عند اختيار نوع راتب
     // لعرض السحوبات اليتيمة المرتبطة بنوع الراتب المحدد
-    final shouldFetchSalaryWithdrawals = showAll || (selectedType != null && _isSalaryType(selectedType));
+    final shouldFetchSalaryWithdrawals = showAll ||
+        (selectedType != null && _isSalaryType(selectedType)); // ignore: unnecessary_null_comparison
     List<SalaryWithdrawal> salaryWithdrawals = [];
     if (shouldFetchSalaryWithdrawals) {
       try {

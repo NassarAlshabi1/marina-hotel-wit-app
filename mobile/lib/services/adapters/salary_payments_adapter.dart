@@ -67,10 +67,22 @@ class SalaryPaymentsAdapter
 
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
+
+    // ✅ إصلاح حرج: إذا لم يتم العثور على دورة الراتب المرتبطة، نُعلم السجل للتخطي
+    // لأن cycleId حقل مطلوب (NOT NULL FK) في جدول salary_payments
+    final shouldSkip = resolvedCycleId == null && (src == Source.appwrite || src == Source.drive);
+    final skipReason = shouldSkip
+        ? 'salary_payment: لا يمكن العثور على دورة الراتب المرتبطة '
+            '(cycleUuid=$cycleUuid, remoteCycleId=$remoteCycleId) '
+            '— تم التخطي لتجنب InvalidDataException'
+        : null;
+
     return ResolveResult(
       salaryCycleLocalId: resolvedCycleId,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
+      shouldSkip: shouldSkip,
+      skipReason: skipReason,
     );
   }
 

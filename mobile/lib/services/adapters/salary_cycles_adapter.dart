@@ -45,10 +45,22 @@ class SalaryCyclesAdapter
 
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
+
+    // ✅ إصلاح حرج: إذا لم يتم العثور على الموظف المرتبط، نُعلم السجل للتخطي
+    // لأن employeeId حقل مطلوب (NOT NULL FK) في جدول salary_cycles
+    final shouldSkip = resolvedEmployeeId == null && (src == Source.appwrite || src == Source.drive);
+    final skipReason = shouldSkip
+        ? 'salary_cycle: لا يمكن العثور على الموظف المرتبط '
+            '(uuid=$remoteEmployeeUuid, serverId=$remoteServerId, localId=$remoteEmployeeId) '
+            '— تم التخطي لتجنب InvalidDataException'
+        : null;
+
     return ResolveResult(
       employeeLocalId: resolvedEmployeeId,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
+      shouldSkip: shouldSkip,
+      skipReason: skipReason,
     );
   }
 

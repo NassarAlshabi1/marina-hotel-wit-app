@@ -144,6 +144,7 @@ class EnhancedPdfHelper {
             discount: 0,
             discountType: 'per_night',
             vectorClock: '{}',
+            deviceId: '',
           );
         },
       );

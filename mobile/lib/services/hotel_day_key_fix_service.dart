@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 
-import '../utils/expense_reason_matcher.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 import 'daos/outbox_dao.dart';
@@ -387,7 +386,7 @@ class HotelDayKeyFixService {
           .get();
 
       int fixed = 0;
-      for (final row in rows) {
+      for (final _ in rows) {
         // لا نحتاج إصلاح employeeUuid محلياً لأن SQLite لا يخزنه
         // لكن نحتاج التأكد أن outbox سيرفعه مع employeeUuid
         // هذا يتم تلقائياً في _processSalaryWithdrawalEntry

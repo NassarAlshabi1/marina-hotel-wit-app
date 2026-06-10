@@ -304,6 +304,7 @@ extension RoomAppwriteExtension on Room {
       version: 1,
       origin: 'cloud',
       vectorClock: '{}',
+      deviceId: doc.data['deviceId'] as String? ?? doc.data['device_id'] as String? ?? '',
     );
   }
 

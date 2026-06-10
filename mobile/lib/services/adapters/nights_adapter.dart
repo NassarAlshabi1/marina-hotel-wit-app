@@ -44,11 +44,25 @@ class NightsAdapter
     );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
+
+    // ✅ إصلاح حرج: إذا لم يتم العثور على الحجز المرتبط، نُعلم السجل للتخطي
+    // بدلاً من وضع bookingLocalId = Value.absent() مما يسبب InvalidDataException
+    // لأن bookingLocalId حقل مطلوب (NOT NULL FK) في جدول booking_nights
+    // خدمة RestoreFixService ستعيد بناء الليالي من بيانات الحجز لاحقاً
+    final shouldSkip = resolvedId == null && (src == Source.appwrite || src == Source.drive);
+    final skipReason = shouldSkip
+        ? 'booking_night: لا يمكن العثور على الحجز المرتبط '
+            '(uuid=$bookingUuid, serverId=$serverBookingId, localId=$localId) '
+            '— تم التخطي لتجنب InvalidDataException'
+        : null;
+
     return ResolveResult(
       bookingLocalId: resolvedId,
       bookingUuidCache: bookingUuid,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
+      shouldSkip: shouldSkip,
+      skipReason: skipReason,
     );
   }
 

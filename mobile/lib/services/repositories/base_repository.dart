@@ -53,6 +53,18 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     }
 
     final refs = await adapter.resolveRefs(db, json, src: src);
+
+    // ✅ إصلاح حرج: تخطي السجل إذا تعذر حل مرجع خارجي مطلوب (FK)
+    // يحدث عند استعادة نسخة احتياطية من Google Drive حيث لا يوجد الحجز المرتبط
+    // بدلاً من إدراج سجل بقيمة Value.absent() في حقل NOT NULL مما يسبب InvalidDataException
+    if (refs.shouldSkip) {
+      developer.log(
+        'Skipping upsert for ${table.actualTableName}: ${refs.skipReason ?? "unresolved FK reference"}',
+        name: 'BaseRepository',
+      );
+      return -1; // إشارة إلى أن السجل تم تخطيه
+    }
+
     final comp = adapter.fromJson(json, src: src, refs: refs);
     final targets = await _resolveConflictTargets();
     Object? lastError;

@@ -7,6 +7,8 @@ class ResolveResult {
     this.salaryCycleLocalId,
     this.createdAtEpoch,
     this.lastModifiedEpoch,
+    this.shouldSkip = false,
+    this.skipReason,
   });
 
   final int? bookingLocalId;
@@ -25,6 +27,14 @@ class ResolveResult {
   final int? createdAtEpoch;
   final int? lastModifiedEpoch;
 
+  /// ✅ إصلاح: علامة لتخطي السجل عندما يفشل حل المرجع الخارجي (FK)
+  /// يُستخدم عندما لا يمكن العثور على السجل الأب (مثل حجز غير موجود لليالي)
+  /// بدلاً من إدراج سجل بقيمة Value.absent() في حقل مطلوب مما يسبب InvalidDataException
+  final bool shouldSkip;
+
+  /// سبب التخطي (للتسجيل في السجلات)
+  final String? skipReason;
+
   static const empty = ResolveResult();
 
   ResolveResult copyWith({
@@ -35,6 +45,8 @@ class ResolveResult {
     int? salaryCycleLocalId,
     int? createdAtEpoch,
     int? lastModifiedEpoch,
+    bool? shouldSkip,
+    String? skipReason,
   }) {
     return ResolveResult(
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
@@ -44,6 +56,8 @@ class ResolveResult {
       salaryCycleLocalId: salaryCycleLocalId ?? this.salaryCycleLocalId,
       createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
       lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+      shouldSkip: shouldSkip ?? this.shouldSkip,
+      skipReason: skipReason ?? this.skipReason,
     );
   }
 }

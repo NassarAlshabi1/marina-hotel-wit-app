@@ -229,7 +229,7 @@ double _getOverdueCost(Booking b) {
         }
         // ✅ السماح بتحديث UI كل 10 حجوزات لمنع تجميد الشاشة
         if (newCache.length % 10 == 0) {
-          await Future.delayed(Duration.zero);
+          await Future<void>.delayed(Duration.zero);
         }
       }
 
