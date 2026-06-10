@@ -29,6 +29,7 @@ mixin SyncFields on Table {
   IntColumn get version => integer().withDefault(const Constant(1))();
   TextColumn get origin => text().withDefault(const Constant('local'))();
   TextColumn get vectorClock => text().withDefault(const Constant('{}'))();
+  TextColumn get deviceId => text().nullable()();
 }
 
 class Rooms extends Table with SyncFields {
@@ -781,7 +782,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 40;
+  int get schemaVersion => 41;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1959,6 +1960,32 @@ class AppDatabase extends _$AppDatabase {
             'Migration 40: populate expense_id failed: $e',
             name: 'db.migration',
           );
+        }
+      }
+      if (from < 41) {
+        // إضافة عمود device_id إلى جميع جداول SyncFields
+        final tablesToMigrate = <String>[
+          'rooms', 'bookings', 'booking_notes', 'employees', 'expenses',
+          'cash_transactions', 'payments', 'debts', 'shift_notes',
+          'booking_nights', 'hotel_day_ledger', 'price_adjustments',
+          'booking_price_adjustments', 'payment_voids', 'guest_infos',
+          'salary_cycles', 'salary_payments', 'salary_withdrawals',
+        ];
+        for (final tableName in tablesToMigrate) {
+          try {
+            await m.database.customStatement(
+              'ALTER TABLE $tableName ADD COLUMN device_id TEXT',
+            );
+            developer.log(
+              'Migration 41: added device_id column to $tableName',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 41: add device_id to $tableName (may already exist): $e',
+              name: 'db.migration',
+            );
+          }
         }
       }
     },

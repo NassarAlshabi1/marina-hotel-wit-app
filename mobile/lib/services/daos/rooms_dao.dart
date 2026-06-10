@@ -69,6 +69,7 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
+        deviceId: data.deviceId.present ? data.deviceId : Value(IdGen.deviceIdSync),
       );
       await into(rooms).insert(comp);
       if (!originIsServer) {

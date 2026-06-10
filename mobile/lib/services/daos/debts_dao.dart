@@ -70,6 +70,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
         lastModified: Value(now),
         version: const Value(1),
         origin: Value(originIsServer ? 'server' : 'local'),
+        deviceId: data.deviceId.present ? data.deviceId : Value(IdGen.deviceIdSync),
       );
       final id = await into(debts).insert(companion);
       if (!originIsServer) {

@@ -567,6 +567,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
     );
 
     final existingByUuid =
@@ -663,6 +664,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
     );
 
     await db.into(db.bookings).insertOnConflictUpdate(companion);
@@ -709,6 +711,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       serverPaymentId: _nullableValue<int>(_asInt(data['serverPaymentId'])),
       bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
       serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
@@ -764,6 +767,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       expenseType: d.Value(expenseType),
       relatedId: _nullableValue<int>(_asInt(data['relatedId'])),
       description: d.Value(_asString(data['description']) ?? ''),
@@ -826,6 +830,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
     );
 
     await db.into(db.debts).insertOnConflictUpdate(companion);
@@ -854,6 +859,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       name: d.Value(name),
       basicSalary: d.Value(_asDouble(data['basicSalary'])),
       position: d.Value(_asString(data['position']) ?? ''),
@@ -885,6 +891,7 @@ class AppwriteDeltaSync {
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       targetType: d.Value(targetType),
       targetUuid: d.Value(targetUuid),
       adjustmentType: d.Value(_asString(data['adjustmentType']) ?? ''),
@@ -963,6 +970,7 @@ class AppwriteDeltaSync {
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       originalPaymentUuid: d.Value(originalPaymentUuid),
       originalPaymentId: d.Value(_asInt(data['originalPaymentId']) ?? 0),
       bookingUuid: d.Value(_asString(data['bookingUuid']) ?? ''),
@@ -1017,6 +1025,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
     );
 
     await db.into(db.guestInfos).insertOnConflictUpdate(companion);
@@ -1059,6 +1068,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
     );
 
     await db.into(db.salaryWithdrawals).insertOnConflictUpdate(companion);
@@ -1088,6 +1098,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
       updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
       deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
@@ -1134,6 +1145,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       bookingId: d.Value(resolvedBookingId),
       noteText: d.Value(_asString(data['noteText']) ?? ''),
       alertType: d.Value(_asString(data['alertType']) ?? ''),
@@ -1164,6 +1176,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       registerId: _nullableValue<int>(_asInt(data['registerId'])),
       transactionType: d.Value(_asString(data['transactionType']) ?? ''),
       amount: d.Value(_asDouble(data['amount'])),
@@ -1197,6 +1210,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       title: d.Value(_asString(data['title']) ?? ''),
       content: d.Value(_asString(data['content']) ?? ''),
       priority: d.Value(_asString(data['priority']) ?? 'medium'),
@@ -1238,6 +1252,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       employeeId: d.Value(resolvedEmployeeId),
       cycleKey: d.Value(_asString(data['cycleKey']) ?? ''),
       hotelDayStart: _nullableValue<String>(_asString(data['hotelDayStart'])),
@@ -1275,6 +1290,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       cycleId: d.Value(resolvedCycleId),
       amount: d.Value(_asInt(data['amount']) ?? 0),
       hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
@@ -1747,6 +1763,7 @@ class AppwriteDeltaSync {
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('appwrite_delta'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? _asString(data['vector_clock']) ?? '{}'),
+      deviceId: _nullableValue<String>(_asString(data['deviceId'])),
     );
 
     await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(companion);

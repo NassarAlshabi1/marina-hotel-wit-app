@@ -53,6 +53,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
         isRead: const Value(0),
         createdBy: const Value('user'),
         localUuid: Value(uuid),
+        deviceId: Value(IdGen.deviceIdSync),
       );
 
       final id = await into(shiftNotes).insert(companion);

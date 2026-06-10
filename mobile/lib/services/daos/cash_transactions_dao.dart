@@ -100,6 +100,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
+        deviceId: data.deviceId.present ? data.deviceId : Value(IdGen.deviceIdSync),
       );
       final id = await into(cashTransactions).insert(comp);
       if (!originIsServer) {

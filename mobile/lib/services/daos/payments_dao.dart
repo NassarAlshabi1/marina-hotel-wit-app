@@ -244,6 +244,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
+        deviceId: data.deviceId.present ? data.deviceId : Value(IdGen.deviceIdSync),
         serverId: data.serverPaymentId.present
             ? Value(data.serverPaymentId.value)
             : const Value.absent(),

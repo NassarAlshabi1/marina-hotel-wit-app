@@ -146,6 +146,7 @@ class SalaryCyclesAdapter
         altKey: 'vector_clock',
         fallback: '{}',
       ),
+      deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id'),
     );
   }
 
@@ -170,6 +171,7 @@ class SalaryCyclesAdapter
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      _k(src, 'deviceId', 'device_id'): model.deviceId,
     };
   }
 }

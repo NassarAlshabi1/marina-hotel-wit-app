@@ -96,6 +96,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
+        deviceId: data.deviceId.present ? data.deviceId : Value(IdGen.deviceIdSync),
       );
       final id = await into(bookings).insert(comp);
       if (!originIsServer) {
