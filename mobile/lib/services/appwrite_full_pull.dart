@@ -474,6 +474,71 @@ class AppwriteFullPull {
           break;
         }
 
+        // ✅ booking_price_adjustments: Bookings ← bookingLocalUuid (FK NOT NULL)
+        case 'booking_price_adjustments': {
+          final bookingUuid =
+              (data['bookingLocalUuid'] as String?) ??
+              (data['booking_local_uuid'] as String?) ??
+              (data['bookingUuidCache'] as String?) ??
+              (data['booking_uuid_cache'] as String?);
+          final remoteBookingId = _asIntSafe(data, 'bookingLocalId') ??
+              _asIntSafe(data, 'booking_local_id');
+
+          if (bookingUuid != null && bookingUuid.isNotEmpty) {
+            Booking? booking;
+
+            // الطريقة 1: البحث بالـ UUID
+            booking = await (db.select(db.bookings)
+                  ..where((b) => b.localUuid.equals(bookingUuid))
+                  ..limit(1))
+                .getSingleOrNull();
+
+            // الطريقة 2: البحث بالـ serverBookingId
+            if (booking == null && remoteBookingId != null) {
+              booking = await (db.select(db.bookings)
+                    ..where((b) => b.serverBookingId.equals(remoteBookingId))
+                    ..limit(1))
+                  .getSingleOrNull();
+            }
+
+            // الطريقة 3: محاولة جلب الحجز من السيرفر
+            if (booking == null) {
+              try {
+                final bookingDoc = await _appwriteService!.getDocument(
+                  collectionId: AppwriteConfig.bookingsCollectionId,
+                  documentId: bookingUuid,
+                );
+                if (bookingDoc != null) {
+                  final bookingData = Map<String, dynamic>.from(bookingDoc.data);
+                  bookingData['localUuid'] ??= bookingDoc.$id;
+                  _cleanDataFromAppwrite(bookingData, bookingDoc.$id);
+                  await _adapterRegistry!.bookings.upsertFromJson(
+                    bookingData,
+                    src: Source.appwrite,
+                  );
+                  booking = await (db.select(db.bookings)
+                        ..where((b) => b.localUuid.equals(bookingUuid))
+                        ..limit(1))
+                      .getSingleOrNull();
+                }
+              } catch (_) {
+                // فشل جلب الحجز من السيرفر — سجل يتيم حقيقي
+              }
+            }
+
+            if (booking == null) {
+              _logger.warning(
+                '⏭️ تخطي تعديل سعر يتيم: الحجز $bookingUuid غير موجود محلياً ولا على السيرفر',
+                tag: 'FULL_PULL',
+              );
+              return false;
+            }
+
+            data['bookingLocalId'] = booking.id;
+          }
+          break;
+        }
+
         // ✅ salary_payments: SalaryCycles ← SalaryPayments.cycleId (NOT NULL)
         case 'salary_payments':
           final remoteCycleId = _asIntSafe(data, 'cycleId') ??
