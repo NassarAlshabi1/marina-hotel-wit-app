@@ -12,13 +12,11 @@ import '../ai/ai_chat_screen.dart';
 import '../security/blacklist_screen.dart';
 import 'active_bookings_reminder_screen.dart';
 import 'appwrite_settings_screen.dart';
-import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
 import 'data_protection_screen.dart';
 import 'google_drive_backup_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
 import 'php_api_settings_screen.dart';
 import 'remote_config_settings_screen.dart';
-import 'settings_custom_lists.dart';
 import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_maintenance.dart';
@@ -107,17 +105,6 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             _SettingsItem(
-              title: 'القوائم المنسدلة',
-              subtitle: 'إدارة أنواع المصروفات والهوية والدفع',
-              icon: Icons.list_alt,
-              color: Colors.teal,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const SettingsCustomListsScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
               title: 'صيانة النظام',
               subtitle: 'أدوات الصيانة والفحص',
               icon: Icons.build,
@@ -176,17 +163,6 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push<void>(
                 context,
                 MaterialPageRoute<void>(builder: (context) => const PhpApiSettingsScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'النسخ الاحتياطي',
-              subtitle: 'محلي · Google Drive · Appwrite',
-              icon: Icons.backup,
-              color: Colors.deepOrange,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const backup_v2.ComprehensiveBackupScreen(),
                 ),
               ),
             ),
