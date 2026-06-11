@@ -1766,7 +1766,18 @@ class AppwriteDeltaSync {
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
     );
 
-    await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(companion);
+    try {
+      await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(companion);
+    } on d.SqliteException catch (e) {
+      if (e.resultCode == 787) {
+        _logger.warning(
+          '⏭️ تخطي تعديل سعر $localUuid: الحجز الأب غير موجود محلياً (سجل يتيم)',
+          tag: 'DELTA_SYNC',
+        );
+        return;
+      }
+      rethrow;
+    }
     final bookingId =
         _asInt(data['bookingLocalId']) ?? _asInt(data['booking_local_id']);
     if (bookingId != null) {

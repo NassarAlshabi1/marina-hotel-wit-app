@@ -5202,10 +5202,19 @@ class AppwriteSyncManager {
           
           processed++;
         } catch (e) {
-          _logger.warning(
-            'Failed to sync deferred booking price adjustment ${doc.$id} after retry: $e',
-            tag: 'SYNC',
-          );
+          final errStr = e.toString();
+          if (errStr.contains('FOREIGN KEY constraint failed') ||
+              errStr.contains('NOT NULL constraint failed')) {
+            _logger.warning(
+              '⏭️ تخطي تعديل سعر ${doc.$id}: الحجز الأب غير موجود محلياً (سجل يتيم)',
+              tag: 'SYNC',
+            );
+          } else {
+            _logger.warning(
+              'Failed to sync deferred booking price adjustment ${doc.$id} after retry: $e',
+              tag: 'SYNC',
+            );
+          }
         }
       }
     }
