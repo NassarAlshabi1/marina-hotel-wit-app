@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../utils/hotel_time_engine.dart';
 import '../local_db.dart';
@@ -57,8 +58,21 @@ class TelegramReportService {
   // الإرسال عبر CallMeBot WhatsApp
   static const String _callMeBotUrl = 'https://api.callmebot.com/whatsapp.php';
   // بيانات الاتصال من Firebase Remote Config (قابلة للتغيير من Firebase Console)
-  String get _phone => RemoteConfigService.instance.whatsappPhone;
-  String get _apiKey => RemoteConfigService.instance.whatsappApiKey;
+  // Fallback chain: Remote Config → SharedPreferences → Env
+  Future<String> _getPhone() async {
+    final rc = RemoteConfigService.instance.whatsappPhone;
+    if (rc.isNotEmpty) return rc;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('whatsapp_phone') ?? '';
+  }
+
+  Future<String> _getApiKey() async {
+    final rc = RemoteConfigService.instance.whatsappApiKey;
+    if (rc.isNotEmpty) return rc;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('whatsapp_api_key') ?? '';
+  }
+
   final http.Client _httpClient = http.Client();
 
   /// تحرير موارد HTTP client
@@ -97,7 +111,16 @@ class TelegramReportService {
 
       // إرسال عبر WhatsApp (CallMeBot)
       final message = _buildReportMessage(data);
-      final success = await _sendViaCallMeBot(message);
+      final phone = await _getPhone();
+      final apiKey = await _getApiKey();
+      var success = await _sendViaCallMeBot(message, phone: phone, apiKey: apiKey);
+
+      // Retry مرة واحدة
+      if (!success) {
+        debugPrint('🔄 WhatsApp: إعادة محاولة إرسال التقرير...');
+        await Future<void>.delayed(const Duration(seconds: 2));
+        success = await _sendViaCallMeBot(message, phone: phone, apiKey: apiKey);
+      }
 
       if (success) {
         await TelegramConfig.setLastReportSent(hotelDayKey);
@@ -125,7 +148,16 @@ class TelegramReportService {
 
       // إرسال عبر WhatsApp (CallMeBot)
       final message = _buildReportMessage(data);
-      final success = await _sendViaCallMeBot(message);
+      final phone = await _getPhone();
+      final apiKey = await _getApiKey();
+      var success = await _sendViaCallMeBot(message, phone: phone, apiKey: apiKey);
+
+      // Retry مرة واحدة
+      if (!success) {
+        debugPrint('🔄 WhatsApp: إعادة محاولة إرسال التقرير...');
+        await Future<void>.delayed(const Duration(seconds: 2));
+        success = await _sendViaCallMeBot(message, phone: phone, apiKey: apiKey);
+      }
 
       if (success) {
         final hotelDayKey = HotelTimeEngine.getHotelDayKey();
@@ -290,7 +322,11 @@ class TelegramReportService {
   }
 
   /// إرسال رسالة عبر CallMeBot WhatsApp API
-  Future<bool> _sendViaCallMeBot(String message) async {
+  Future<bool> _sendViaCallMeBot(String message, {required String phone, required String apiKey}) async {
+    if (phone.isEmpty || apiKey.isEmpty) {
+      debugPrint('❌ WhatsApp (CallMeBot): رقم الهاتف أو مفتاح API فارغ');
+      return false;
+    }
     try {
       // قص الرسالة إذا تجاوزت الحد الأقصى (CallMeBot ~1000 حرف)
       final maxLength = RemoteConfigService.instance.whatsappMessageMaxLength;
@@ -300,9 +336,9 @@ class TelegramReportService {
 
       final url = Uri.parse(
         '$_callMeBotUrl'
-        '?phone=$_phone'
+        '?phone=$phone'
         '&text=${Uri.encodeComponent(trimmedMessage)}'
-        '&apikey=$_apiKey',
+        '&apikey=$apiKey',
       );
 
       // timeout من Remote Config (افتراضي 15 ثانية)

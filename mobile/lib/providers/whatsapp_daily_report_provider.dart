@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/alarm_backup.dart';
+import '../services/remote_config_service.dart';
 import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_report_service.dart';
 import '../utils/env.dart';
@@ -91,6 +92,16 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
         dailyReportTime: reportTime,
         lastReportSent: lastReportSent,
       );
+
+      // حفظ رقم الهاتف ومفتاح API في SharedPreferences كاحتياطي
+      final phone = RemoteConfigService.instance.whatsappPhone;
+      final apiKey = RemoteConfigService.instance.whatsappApiKey;
+      if (phone.isNotEmpty) {
+        await prefs.setString('whatsapp_phone', phone);
+      }
+      if (apiKey.isNotEmpty) {
+        await prefs.setString('whatsapp_api_key', apiKey);
+      }
     } catch (e) {
       debugPrint('خطأ في تهيئة WhatsAppDailyReportNotifier: $e');
     }
