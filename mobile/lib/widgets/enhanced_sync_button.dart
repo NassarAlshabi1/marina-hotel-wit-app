@@ -25,9 +25,7 @@ class EnhancedSyncButton extends ConsumerStatefulWidget {
   ConsumerState<EnhancedSyncButton> createState() => _EnhancedSyncButtonState();
 }
 
-class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
+class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> {
   StreamSubscription<OrchestratorState>? _stateSubscription;
   StreamSubscription<SyncHealth>? _healthSubscription;
   StreamSubscription<ConnectionStatus>? _connectivitySubscription;
@@ -39,11 +37,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-
     _setupListeners();
   }
 
@@ -53,13 +46,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         setState(() {
           _isSyncing = state == OrchestratorState.syncing;
         });
-
-        if (_isSyncing) {
-          _animationController.repeat();
-        } else {
-          _animationController.stop();
-          _animationController.reset();
-        }
       }
     });
 
@@ -83,7 +69,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
 
   @override
   void dispose() {
-    _animationController.dispose();
     _stateSubscription?.cancel();
     _healthSubscription?.cancel();
     _connectivitySubscription?.cancel();
@@ -96,7 +81,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     }
 
     setState(() => _isSyncing = true);
-    unawaited(_animationController.repeat());
 
     try {
       await SyncErrorRecovery.instance().createRollbackPoint(
@@ -162,8 +146,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         );
       }
     } finally {
-      _animationController.stop();
-      _animationController.reset();
       if (mounted) {
         setState(() => _isSyncing = false);
       }
@@ -396,7 +378,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
 
   Future<void> _pushOnly() async {
     setState(() => _isSyncing = true);
-    unawaited(_animationController.repeat());
 
     try {
       final smartSyncManager = ref.read(smartSyncManagerProvider);
@@ -431,8 +412,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         );
       }
     } finally {
-      _animationController.stop();
-      _animationController.reset();
       if (mounted) {
         setState(() => _isSyncing = false);
       }
@@ -441,7 +420,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
 
   Future<void> _pullOnly() async {
     setState(() => _isSyncing = true);
-    unawaited(_animationController.repeat());
 
     try {
       final smartSyncManager = ref.read(smartSyncManagerProvider);
@@ -476,8 +454,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         );
       }
     } finally {
-      _animationController.stop();
-      _animationController.reset();
       if (mounted) {
         setState(() => _isSyncing = false);
       }
@@ -689,14 +665,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (_isSyncing) RotationTransition(
-                                turns: _animationController,
-                                child: Icon(
-                                  buttonIcon,
-                                  size: 20,
-                                  color: Colors.white,
-                                ),
-                              ) else Icon(buttonIcon, size: 20, color: Colors.white),
+                        Icon(buttonIcon, size: 20, color: Colors.white),
                         const SizedBox(width: 8),
                         Text(
                           buttonText,

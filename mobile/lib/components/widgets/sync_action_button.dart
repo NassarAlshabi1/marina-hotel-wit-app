@@ -43,21 +43,16 @@ class SyncActionButton extends ConsumerWidget {
               }
             },
       tooltip: tooltip,
-      icon: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: isSyncing
-            ? const SizedBox(
-                key: ValueKey('syncing'),
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Icon(
-                Icons.sync,
-                key: ValueKey(hasError ? 'error' : 'idle'),
-                color: hasError ? Colors.redAccent : null,
-              ),
-      ),
+      icon: isSyncing
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(
+              Icons.sync,
+              color: hasError ? Colors.redAccent : null,
+            ),
     );
   }
 }

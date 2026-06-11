@@ -20,33 +20,20 @@ class DashboardSyncButton extends ConsumerStatefulWidget {
       _DashboardSyncButtonState();
 }
 
-class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
-    with SingleTickerProviderStateMixin {
+class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
   bool _isPulling = false;
   bool _isPushing = false;
   bool _appwriteEnabled = true;
   Timer? _pendingChangesTimer;
-  late AnimationController _pullAnimationController;
-  late AnimationController _pushAnimationController;
   int _pendingChangesCount = 0;
   DateTime? _lastSyncTime;
 
   @override
   void initState() {
     super.initState();
-    _pullAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-    _pushAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-
     _loadPendingChangesCount();
     _loadAppwriteEnabled();
 
-    // مؤقت للتحديث الدوري
     _pendingChangesTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted && !_isPulling && !_isPushing) {
         _loadPendingChangesCount();
@@ -58,8 +45,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   @override
   void dispose() {
     _pendingChangesTimer?.cancel();
-    _pullAnimationController.dispose();
-    _pushAnimationController.dispose();
     super.dispose();
   }
 
@@ -131,7 +116,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       status: 'in_progress',
     );
 
-    unawaited(_pullAnimationController.repeat());
     if (mounted) {
       setState(() => _isPulling = true);
     } else {
@@ -304,8 +288,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
     } finally {
-      _pullAnimationController.stop();
-      _pullAnimationController.reset();
       if (mounted) {
         setState(() => _isPulling = false);
       }
@@ -359,7 +341,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       return;
     }
 
-    unawaited(_pushAnimationController.repeat());
     if (mounted) {
       setState(() => _isPushing = true);
     } else {
@@ -673,8 +654,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
     } finally {
-      _pushAnimationController.stop();
-      _pushAnimationController.reset();
       if (mounted) {
         setState(() => _isPushing = false);
       }
@@ -809,11 +788,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       message: hasRemoteChanges
           ? 'يوجد $pendingCount تحديث من السيرفر — اضغط للسحب'
           : 'اضغط لسحب التغييرات من السيرفر',
-      child: Stack(
+        child: Stack(
         clipBehavior: Clip.none,
         children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
+          Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [buttonColor.withValues(alpha: 0.85), buttonColor],
@@ -844,17 +822,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (_isPulling)
-                        RotationTransition(
-                          turns: _pullAnimationController,
-                          child: Icon(
-                            buttonIcon,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                        )
-                      else
-                        Icon(buttonIcon, size: 14, color: Colors.white),
+                      Icon(buttonIcon, size: 14, color: Colors.white),
                       const SizedBox(width: 6),
                       Text(
                         buttonText,
@@ -939,8 +907,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
+          Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [buttonColor.withValues(alpha: 0.85), buttonColor],
@@ -971,17 +938,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (_isPushing)
-                        RotationTransition(
-                          turns: _pushAnimationController,
-                          child: Icon(
-                            buttonIcon,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                        )
-                      else
-                        Icon(buttonIcon, size: 14, color: Colors.white),
+                      Icon(buttonIcon, size: 14, color: Colors.white),
                       const SizedBox(width: 6),
                       Text(
                         buttonText,

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -519,25 +518,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
 
     if (isOverdue) {
-      // ✅ إصلاح الوميض: استخدام target(uniqueKey) لمنع إعادة تشغيل
-      // الرسوم المتحركة عند إعادة بناء القائمة بدون تغيير حقيقي
-      return button
-          .animate(key: ValueKey('anim_${roomNumber}_overdue'))
-          .tint(color: const Color(0x40FF9800), duration: 800.ms)
-          .scale(
-            begin: const Offset(1.0, 1.0),
-            end: const Offset(1.03, 1.03),
-            duration: 800.ms,
-            curve: Curves.easeInOut,
-          )
-          .then()
-          .tint(color: const Color(0x00FF9800), duration: 800.ms)
-          .scale(
-            begin: const Offset(1.03, 1.03),
-            end: const Offset(1.0, 1.0),
-            duration: 800.ms,
-            curve: Curves.easeInOut,
-          );
+      return Container(
+        key: ValueKey('overdue_${roomNumber}'),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.orange.withValues(alpha: 0.6), width: 1.5),
+        ),
+        child: button,
+      );
     }
 
     return button;

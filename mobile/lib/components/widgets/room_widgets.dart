@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
@@ -104,18 +103,13 @@ class RoomCard extends StatelessWidget { // حالة تأخر السداد لل�
     );
 
     if (isPaymentOverdue) {
-      return cardContent
-          .animate(onPlay: (controller) => controller.repeat(reverse: true))
-          .tint(
-            color: Colors.red.withValues(alpha: 0.2),
-            duration: 800.ms,
-          )
-          .scale(
-            begin: const Offset(1.0, 1.0),
-            end: const Offset(1.03, 1.03),
-            duration: 800.ms,
-            curve: Curves.easeInOut,
-          );
+      return Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.5), width: 1.5),
+        ),
+        child: cardContent,
+      );
     }
 
     return cardContent;
@@ -354,50 +348,23 @@ class FloorSection extends StatefulWidget {
   State<FloorSection> createState() => _FloorSectionState();
 }
 
-class _FloorSectionState extends State<FloorSection>
-    with SingleTickerProviderStateMixin {
+class _FloorSectionState extends State<FloorSection> {
   late bool _isExpanded;
-  late AnimationController _animationController;
-  late Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
     _isExpanded = widget.initiallyExpanded;
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _animation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    );
-
-    if (_isExpanded) {
-      _animationController.forward();
-    }
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
   }
 
   void _toggle() {
     setState(() {
       _isExpanded = !_isExpanded;
-      if (_isExpanded) {
-        _animationController.forward();
-      } else {
-        _animationController.reverse();
-      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // حساب الإحصائيات
     final int total = widget.rooms.length;
     int occupied = 0;
     int available = 0;
@@ -427,16 +394,14 @@ class _FloorSectionState extends State<FloorSection>
           isExpanded: _isExpanded,
           onToggle: _toggle,
         ),
-        SizeTransition(
-          sizeFactor: _animation,
-          child: Padding(
+        if (_isExpanded)
+          Padding(
             padding: const EdgeInsets.all(8.0),
             child: RoomsGrid(
               rooms: widget.rooms,
               onRoomTap: widget.onRoomTap,
             ),
           ),
-        ),
         const SizedBox(height: 16),
       ],
     );

@@ -22,8 +22,7 @@ class NeuCard extends StatelessWidget {
     final shadowDark = isDark ? Colors.black54 : const Color(0xFFBEC8D1);
     final shadowLight = isDark ? const Color(0xFF3D3D3D) : Colors.white;
 
-    final card = AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
+    final card = Container(
       margin: margin,
       padding: padding ?? const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -183,8 +182,7 @@ class NeuQuickFilterChip extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: selected ? scheme.primary : scheme.surface,
