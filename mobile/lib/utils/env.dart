@@ -44,15 +44,11 @@ class Env {
   //  WhatsApp / CallMeBot Secrets
   // ═══════════════════════════════════════════════════════════════
 
-  /// رقم هاتف WhatsApp المستقبل (CallMeBot) — يجب تمريره عبر --dart-define
-  static const String whatsappPhoneNumber = String.fromEnvironment(
-    'WHATSAPP_PHONE_NUMBER',
-  );
+  /// رقم هاتف WhatsApp المستقبل (CallMeBot)
+  static const String whatsappPhoneNumber = '967773749389';
 
-  /// مفتاح API CallMeBot — يجب تمريره عبر --dart-define
-  static const String whatsappApiKey = String.fromEnvironment(
-    'WHATSAPP_API_KEY',
-  );
+  /// مفتاح API CallMeBot
+  static const String whatsappApiKey = '7379268';
 
   // ═══════════════════════════════════════════════════════════════
   //  WhatsApp GreenAPI Secrets
