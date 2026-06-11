@@ -1074,10 +1074,14 @@ class GoogleDriveBackupService {
           if (backupData.containsKey('salary_withdrawals')) {
             final withdrawalsList = backupData['salary_withdrawals'] as List<dynamic>;
             for (final wJson in withdrawalsList) {
-              await adapterRegistry.salaryWithdrawals.upsertFromJson(
-                Map<String, dynamic>.from(wJson as Map),
-                src: Source.drive,
-              );
+              try {
+                await adapterRegistry.salaryWithdrawals.upsertFromJson(
+                  Map<String, dynamic>.from(wJson as Map),
+                  src: Source.drive,
+                );
+              } catch (e) {
+                _log('⚠️ تخطي سجل سحب راتب يتيم (الموظف غير موجود): $e');
+              }
             }
           }
 
