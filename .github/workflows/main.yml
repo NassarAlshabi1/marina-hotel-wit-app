@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - marina
-      - main
+      - yy
     paths:
       - 'mobile/**'
       - '.github/workflows/main.yml'
