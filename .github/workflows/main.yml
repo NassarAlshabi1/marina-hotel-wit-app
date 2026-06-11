@@ -100,10 +100,11 @@ jobs:
       # ─── بناء الـ APK الشامل ────────────────────────────
       # minSdkVersion = 21 (Android 5.0 Lollipop)
       # targetSdk = 36 (Android 16)
-      # جميع المعماريات: arm64-v8a, armeabi-v7a, x86_64
+      # المعماريات: arm64-v8a, armeabi-v7a
       - name: Build universal release APK
         run: >
           flutter build apk --release
+          --target-platform android-arm64,android-arm
           --build-name ${{ steps.version.outputs.build_name }}
           --build-number ${{ steps.version.outputs.build_number }}
           --dart-define=BASE_API_URL=http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
@@ -142,7 +143,7 @@ jobs:
 
             - الحد الأدنى: Android 5.0 (API 21)
             - المستهدف: Android 16 (API 36)
-            - المعالجات المدعومة: arm64-v8a, armeabi-v7a, x86_64
+            - المعالجات المدعومة: arm64-v8a, armeabi-v7a
             - رقم البناء: ${{ steps.version.outputs.build_number }}
 
             ### طريقة التثبيت
