@@ -9,6 +9,7 @@ import '../crashlytics_service.dart';
 import '../daos/expenses_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
+import '../telegram/whatsapp_notification_service.dart';
 
 class ExpensesRepository {
   ExpensesRepository(this.db) {
@@ -80,6 +81,11 @@ class ExpensesRepository {
         'INSERT',
         recordData: {'amount': amount},
       ),);
+      unawaited(WhatsAppNotificationService.instance().notifyNewExpense(
+        category: expenseType,
+        amount: amount,
+        description: description,
+      ));
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
