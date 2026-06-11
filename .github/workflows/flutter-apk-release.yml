@@ -9,6 +9,7 @@ on:
     branches:
       - main
       - 'marina'
+      - 'yy'
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-apk-release.yml'
