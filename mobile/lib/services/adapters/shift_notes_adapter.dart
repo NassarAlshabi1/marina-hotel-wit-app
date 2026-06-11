@@ -246,9 +246,7 @@ String _k(Source src, String camel, String snake) =>
     src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
-  if (src == Source.drive) {
-    return camel;
-  }
+  // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive
   final buf = StringBuffer();
   for (var i = 0; i < camel.length; i++) {
     final c = camel[i];

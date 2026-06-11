@@ -326,9 +326,9 @@ String _k(Source src, String camel, String snake) =>
     src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
-  if (src == Source.drive) {
-    return camel;
-  }
+  // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive
+  // هذا يسمح لـ _raw بالعثور على المفاتيح بصيغتي camelCase و snake_case
+  // مثال: البحث عن 'employeeId' يجد أيضاً 'employee_id' في JSON
   final buf = StringBuffer();
   for (var i = 0; i < camel.length; i++) {
     final c = camel[i];

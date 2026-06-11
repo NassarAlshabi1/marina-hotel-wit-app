@@ -425,6 +425,13 @@ class GoogleDriveBackupService {
         whatsappSettings: whatsappSettings,
       );
 
+      // ✅ إصلاح حرج: إثراء بيانات النسخة الاحتياطية بمعرفات UUID للكيانات المرجعية
+      // عند الاستعادة على جهاز مختلف، تتغير معرفات Auto-increment المحلية
+      // لكن UUID يبقى ثابتاً، مما يسمح بحل المراجع الخارجية (FK) بشكل صحيح
+      // بدون هذا الإثراء، يفشل resolveEmployee / resolveSalaryCycle في العثور
+      // على الكيان المشار إليه → InvalidDataException أو تخطي السجل
+      _enrichBackupWithFKUuids(backupData, employeesData, salaryCyclesData);
+
       // حساب تجزئة SHA-256 للتحقق من سلامة البيانات
       final dataHash = _computeBackupChecksum(backupData);
       (backupData['metadata'] as Map<String, dynamic>)['data_hash'] = dataHash;
@@ -472,6 +479,68 @@ class GoogleDriveBackupService {
     }
 
     return allData;
+  }
+
+  /// ✅ إثراء بيانات النسخة الاحتياطية بمعرفات UUID للكيانات المرجعية (FK)
+  ///
+  /// المشكلة: عند التصدير، يحتوي JSON فقط على معرفات Auto-increment المحلية
+  /// (مثل employeeId=5). عند الاستعادة على جهاز مختلف، يتغير هذا المعرّف
+  /// لأن SQLite يعيّن معرّفات جديدة تلقائياً. لكن UUID يبقى ثابتاً عبر الأجهزة.
+  ///
+  /// الحل: نضيف حقول UUID إضافية (employee_uuid, cycle_local_uuid) إلى JSON
+  /// حتى يتمكن IdResolver من العثور على الكيان الصحيح باستخدام UUID أولاً.
+  void _enrichBackupWithFKUuids(
+    Map<String, dynamic> backupData,
+    List<dynamic> employeesData,
+    List<dynamic> salaryCyclesData,
+  ) {
+    // بناء خريطة: معرّف الموظف المحلي → UUID
+    final employeeUuidMap = <int, String>{};
+    for (final emp in employeesData) {
+      final empMap = (emp as dynamic).toJson() as Map<String, dynamic>;
+      final empId = empMap['id'] as int?;
+      final empUuid = empMap['localUuid'] as String?;
+      if (empId != null && empUuid != null) {
+        employeeUuidMap[empId] = empUuid;
+      }
+    }
+
+    // إثراء سحوبات الرواتب بـ UUID الموظف
+    final withdrawalsList = backupData['salary_withdrawals'] as List<dynamic>?;
+    if (withdrawalsList != null) {
+      for (int i = 0; i < withdrawalsList.length; i++) {
+        final wMap = withdrawalsList[i] as Map<String, dynamic>;
+        final empId = wMap['employeeId'] as int?;
+        if (empId != null && employeeUuidMap.containsKey(empId)) {
+          wMap['employee_uuid'] = employeeUuidMap[empId]!;
+        }
+      }
+    }
+
+    // بناء خريطة: معرّف دورة الراتب المحلي → UUID
+    final cycleUuidMap = <int, String>{};
+    for (final cycle in salaryCyclesData) {
+      final cycleMap = (cycle as dynamic).toJson() as Map<String, dynamic>;
+      final cycleId = cycleMap['id'] as int?;
+      final cycleUuid = cycleMap['localUuid'] as String?;
+      if (cycleId != null && cycleUuid != null) {
+        cycleUuidMap[cycleId] = cycleUuid;
+      }
+    }
+
+    // إثراء مدفوعات الرواتب بـ UUID دورة الراتب
+    final salaryPaymentsList = backupData['salary_payments'] as List<dynamic>?;
+    if (salaryPaymentsList != null) {
+      for (int i = 0; i < salaryPaymentsList.length; i++) {
+        final pMap = salaryPaymentsList[i] as Map<String, dynamic>;
+        final cycleId = pMap['cycleId'] as int?;
+        if (cycleId != null && cycleUuidMap.containsKey(cycleId)) {
+          pMap['cycle_local_uuid'] = cycleUuidMap[cycleId]!;
+        }
+      }
+    }
+
+    _log('🔗 تم إثراء النسخة الاحتياطية بـ ${employeeUuidMap.length} UUID موظف و ${cycleUuidMap.length} UUID دورة راتب');
   }
 
   static const fullBackupPrefix = 'marina_backup_full_';
@@ -907,31 +976,64 @@ class GoogleDriveBackupService {
 
           if (backupData.containsKey('bookings')) {
             final bookingsData = backupData['bookings'] as List<dynamic>;
+            int skippedBookings = 0;
             for (final bookingJson in bookingsData) {
-              await adapterRegistry.bookings.upsertFromJson(
-                Map<String, dynamic>.from(bookingJson as Map),
-                src: Source.drive,
-              );
+              try {
+                await adapterRegistry.bookings.upsertFromJson(
+                  Map<String, dynamic>.from(bookingJson as Map),
+                  src: Source.drive,
+                );
+              } on InvalidDataException catch (e) {
+                skippedBookings++;
+                _log('⚠️ تم تخطي حجز بسبب بيانات غير صالحة (FK مفقود): $e');
+              } catch (e) {
+                _log('⚠️ فشل استعادة حجز: $e');
+              }
+            }
+            if (skippedBookings > 0) {
+              _log('⚠️ تم تخطي $skippedBookings حجز بسبب مراجع FK مفقودة');
             }
           }
 
           if (backupData.containsKey('booking_notes')) {
             final notesData = backupData['booking_notes'] as List<dynamic>;
+            int skippedNotes = 0;
             for (final noteJson in notesData) {
-              await adapterRegistry.bookingNotes.upsertFromJson(
-                Map<String, dynamic>.from(noteJson as Map),
-                src: Source.drive,
-              );
+              try {
+                await adapterRegistry.bookingNotes.upsertFromJson(
+                  Map<String, dynamic>.from(noteJson as Map),
+                  src: Source.drive,
+                );
+              } on InvalidDataException catch (e) {
+                skippedNotes++;
+                _log('⚠️ تم تخطي ملاحظة حجز بسبب FK مفقود: $e');
+              } catch (e) {
+                _log('⚠️ فشل استعادة ملاحظة حجز: $e');
+              }
+            }
+            if (skippedNotes > 0) {
+              _log('⚠️ تم تخطي $skippedNotes ملاحظة حجز بسبب مراجع FK مفقودة');
             }
           }
 
           if (backupData.containsKey('booking_nights')) {
             final nightsData = backupData['booking_nights'] as List<dynamic>;
+            int skippedNights = 0;
             for (final nightJson in nightsData) {
-              await adapterRegistry.nights.upsertFromJson(
-                Map<String, dynamic>.from(nightJson as Map),
-                src: Source.drive,
-              );
+              try {
+                await adapterRegistry.nights.upsertFromJson(
+                  Map<String, dynamic>.from(nightJson as Map),
+                  src: Source.drive,
+                );
+              } on InvalidDataException catch (e) {
+                skippedNights++;
+                _log('⚠️ تم تخطي ليلة حجز بسبب FK مفقود: $e');
+              } catch (e) {
+                _log('⚠️ فشل استعادة ليلة حجز: $e');
+              }
+            }
+            if (skippedNights > 0) {
+              _log('⚠️ تم تخطي $skippedNights ليلة حجز بسبب مراجع FK مفقودة');
             }
           }
 
@@ -994,21 +1096,43 @@ class GoogleDriveBackupService {
 
           if (backupData.containsKey('payments')) {
             final paymentsData = backupData['payments'] as List<dynamic>;
+            int skippedPayments = 0;
             for (final paymentJson in paymentsData) {
-              await adapterRegistry.payments.upsertFromJson(
-                Map<String, dynamic>.from(paymentJson as Map),
-                src: Source.drive,
-              );
+              try {
+                await adapterRegistry.payments.upsertFromJson(
+                  Map<String, dynamic>.from(paymentJson as Map),
+                  src: Source.drive,
+                );
+              } on InvalidDataException catch (e) {
+                skippedPayments++;
+                _log('⚠️ تم تخطي دفعة بسبب FK مفقود: $e');
+              } catch (e) {
+                _log('⚠️ فشل استعادة دفعة: $e');
+              }
+            }
+            if (skippedPayments > 0) {
+              _log('⚠️ تم تخطي $skippedPayments دفعة بسبب مراجع FK مفقودة');
             }
           }
 
           if (backupData.containsKey('debts')) {
             final debtsList = backupData['debts'] as List<dynamic>;
+            int skippedDebts = 0;
             for (final debtJson in debtsList) {
-              await adapterRegistry.debts.upsertFromJson(
-                Map<String, dynamic>.from(debtJson as Map),
-                src: Source.drive,
-              );
+              try {
+                await adapterRegistry.debts.upsertFromJson(
+                  Map<String, dynamic>.from(debtJson as Map),
+                  src: Source.drive,
+                );
+              } on InvalidDataException catch (e) {
+                skippedDebts++;
+                _log('⚠️ تم تخطي دين بسبب FK مفقود: $e');
+              } catch (e) {
+                _log('⚠️ فشل استعادة دين: $e');
+              }
+            }
+            if (skippedDebts > 0) {
+              _log('⚠️ تم تخطي $skippedDebts دين بسبب مراجع FK مفقودة');
             }
           }
 
@@ -1063,21 +1187,43 @@ class GoogleDriveBackupService {
 
           if (backupData.containsKey('salary_payments')) {
             final salaryList = backupData['salary_payments'] as List<dynamic>;
+            int skippedPayments = 0;
             for (final salaryJson in salaryList) {
-              await adapterRegistry.salaryPayments.upsertFromJson(
-                Map<String, dynamic>.from(salaryJson as Map),
-                src: Source.drive,
-              );
+              try {
+                await adapterRegistry.salaryPayments.upsertFromJson(
+                  Map<String, dynamic>.from(salaryJson as Map),
+                  src: Source.drive,
+                );
+              } on InvalidDataException catch (e) {
+                skippedPayments++;
+                _log('⚠️ تم تخطي دفعة راتب بسبب بيانات غير صالحة (FK مفقود): $e');
+              } catch (e) {
+                _log('⚠️ فشل استعادة دفعة راتب: $e');
+              }
+            }
+            if (skippedPayments > 0) {
+              _log('⚠️ تم تخطي $skippedPayments دفعة راتب بسبب مراجع FK مفقودة');
             }
           }
 
           if (backupData.containsKey('salary_withdrawals')) {
             final withdrawalsList = backupData['salary_withdrawals'] as List<dynamic>;
+            int skippedWithdrawals = 0;
             for (final wJson in withdrawalsList) {
-              await adapterRegistry.salaryWithdrawals.upsertFromJson(
-                Map<String, dynamic>.from(wJson as Map),
-                src: Source.drive,
-              );
+              try {
+                await adapterRegistry.salaryWithdrawals.upsertFromJson(
+                  Map<String, dynamic>.from(wJson as Map),
+                  src: Source.drive,
+                );
+              } on InvalidDataException catch (e) {
+                skippedWithdrawals++;
+                _log('⚠️ تم تخطي سحب راتب بسبب بيانات غير صالحة (FK مفقود): $e');
+              } catch (e) {
+                _log('⚠️ فشل استعادة سحب راتب: $e');
+              }
+            }
+            if (skippedWithdrawals > 0) {
+              _log('⚠️ تم تخطي $skippedWithdrawals سحب راتب بسبب مراجع FK مفقودة');
             }
           }
 
