@@ -86,10 +86,10 @@ jobs:
         run: |
           BASE_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
           BUILD_NUMBER=${GITHUB_RUN_NUMBER}
-          BUILD_NAME="${BASE_VERSION}"
+          BUILD_NAME="${BASE_VERSION}+${BUILD_NUMBER}"
           echo "build_name=$BUILD_NAME" >> $GITHUB_OUTPUT
           echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
-          echo "Building: $BUILD_NAME ($BUILD_NUMBER)"
+          echo "Building: $BUILD_NAME"
 
       # ─── توليد الكود ────────────────────────────────────
       - name: Generate code (build_runner)
