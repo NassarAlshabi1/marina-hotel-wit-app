@@ -2,6 +2,7 @@ import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:drift/drift.dart' as d;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 import '../utils/id.dart';
 import '../utils/time.dart';
@@ -1768,7 +1769,7 @@ class AppwriteDeltaSync {
 
     try {
       await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(companion);
-    } on d.SqliteException catch (e) {
+    } on SqliteException catch (e) {
       if (e.resultCode == 787) {
         _logger.warning(
           '⏭️ تخطي تعديل سعر $localUuid: الحجز الأب غير موجود محلياً (سجل يتيم)',
