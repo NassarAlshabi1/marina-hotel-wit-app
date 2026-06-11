@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../remote_config_service.dart';
-import 'telegram_config.dart';
 
 /// أنواع أحداث الفندق
 enum WhatsAppEventType {
@@ -55,8 +55,21 @@ class WhatsAppNotificationService {
   static const String _callMeBotUrl = 'https://api.callmebot.com/whatsapp.php';
 
   // Remote Config — القيم تُحمّل من Firebase Console
-  String get _phone => RemoteConfigService.instance.whatsappPhone;
-  String get _apiKey => RemoteConfigService.instance.whatsappApiKey;
+  // Fallback chain: Remote Config → SharedPreferences → Env
+  Future<String> _getPhone() async {
+    final rc = RemoteConfigService.instance.whatsappPhone;
+    if (rc.isNotEmpty) return rc;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('whatsapp_phone') ?? '';
+  }
+
+  Future<String> _getApiKey() async {
+    final rc = RemoteConfigService.instance.whatsappApiKey;
+    if (rc.isNotEmpty) return rc;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('whatsapp_api_key') ?? '';
+  }
+
   final http.Client _httpClient = http.Client();
 
   /// تحرير موارد HTTP client
@@ -97,7 +110,11 @@ class WhatsAppNotificationService {
   }
 
   /// إرسال رسالة عبر CallMeBot WhatsApp API
-  Future<bool> _sendViaCallMeBot(String message) async {
+  Future<bool> _sendViaCallMeBot(String message, {required String phone, required String apiKey}) async {
+    if (phone.isEmpty || apiKey.isEmpty) {
+      debugPrint('❌ WhatsApp: رقم الهاتف أو مفتاح API فارغ — تأكد من إعدادات واتساب في Firebase Console');
+      return false;
+    }
     try {
       // قص الرسالة إذا تجاوزت الحد الأقصى (CallMeBot ~1000 حرف)
       final maxLength = RemoteConfigService.instance.whatsappMessageMaxLength;
@@ -107,9 +124,9 @@ class WhatsAppNotificationService {
 
       final url = Uri.parse(
         '$_callMeBotUrl'
-        '?phone=$_phone'
+        '?phone=$phone'
         '&text=${Uri.encodeComponent(trimmedMessage)}'
-        '&apikey=$_apiKey',
+        '&apikey=$apiKey',
       );
 
       // timeout من Remote Config (افتراضي 15 ثانية)
@@ -150,12 +167,6 @@ class WhatsAppNotificationService {
       if (!RemoteConfigService.instance.whatsappEnabled) {
         return false;
       }
-      if (!await TelegramConfig.isEnabled()) {
-        return false;
-      }
-      if (!await TelegramConfig.isNotificationsEnabled()) {
-        return false;
-      }
 
       final buffer = StringBuffer();
       buffer.writeln('${_icon(event.type)} *${event.type.label}*');
@@ -190,7 +201,26 @@ class WhatsAppNotificationService {
       buffer.writeln();
       buffer.writeln('Marina Hotel App 🏨');
 
-      final success = await _sendViaCallMeBot(buffer.toString().trimRight());
+      final phone = await _getPhone();
+      final apiKey = await _getApiKey();
+
+      // المحاولة الأولى
+      var success = await _sendViaCallMeBot(
+        buffer.toString().trimRight(),
+        phone: phone,
+        apiKey: apiKey,
+      );
+
+      // Retry مرة واحدة إذا فشلت المحاولة الأولى
+      if (!success) {
+        debugPrint('🔄 WhatsApp: إعادة محاولة الإرسال...');
+        await Future<void>.delayed(const Duration(seconds: 2));
+        success = await _sendViaCallMeBot(
+          buffer.toString().trimRight(),
+          phone: phone,
+          apiKey: apiKey,
+        );
+      }
 
       if (success) {
         debugPrint('✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
@@ -421,19 +451,20 @@ class WhatsAppNotificationService {
       buffer.writeln();
       buffer.writeln('Marina Hotel App — Crashlytics Alert');
 
-      final url = Uri.parse(
-        '$_callMeBotUrl'
-        '?phone=$_phone'
-        '&text=${Uri.encodeComponent(buffer.toString().trimRight())}'
-        '&apikey=$_apiKey',
-      );
+      final phone = await _getPhone();
+      final apiKey = await _getApiKey();
+      final msg = buffer.toString().trimRight();
 
-      final response = await _httpClient.get(url);
-      final success = response.statusCode == 200;
+      var success = await _sendViaCallMeBot(msg, phone: phone, apiKey: apiKey);
+      if (!success) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        success = await _sendViaCallMeBot(msg, phone: phone, apiKey: apiKey);
+      }
+
       if (success) {
         debugPrint('✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation');
       } else {
-        debugPrint('⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — ${response.statusCode}');
+        debugPrint('⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — $operation');
       }
       return success;
     } catch (e) {
@@ -460,15 +491,16 @@ class WhatsAppNotificationService {
       buffer.writeln();
       buffer.writeln('Marina Hotel App — Crashlytics Alert');
 
-      final url = Uri.parse(
-        '$_callMeBotUrl'
-        '?phone=$_phone'
-        '&text=${Uri.encodeComponent(buffer.toString().trimRight())}'
-        '&apikey=$_apiKey',
-      );
+      final phone = await _getPhone();
+      final apiKey = await _getApiKey();
+      final msg = buffer.toString().trimRight();
 
-      final response = await _httpClient.get(url);
-      return response.statusCode == 200;
+      var success = await _sendViaCallMeBot(msg, phone: phone, apiKey: apiKey);
+      if (!success) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        success = await _sendViaCallMeBot(msg, phone: phone, apiKey: apiKey);
+      }
+      return success;
     } catch (e) {
       debugPrint('❌ WhatsApp: فشل إرسال تنبيه Crash — $e');
       return false;
