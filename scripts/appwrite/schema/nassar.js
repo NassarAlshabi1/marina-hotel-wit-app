@@ -30,8 +30,8 @@ const { Client, Databases, Permission, Role } = require('node-appwrite');
 // ─── الإعدادات ─────────────────────────────────────────────────────────────────
 const CFG = {
   endpoint:    process.env.APPWRITE_ENDPOINT    || 'https://fra.cloud.appwrite.io/v1',
-  projectId:   process.env.APPWRITE_PROJECT     || '6a2b01d0000752ce97e7',
-  databaseId:  process.env.APPWRITE_DATABASE_ID || '6a2b030d000445596163',
+  projectId:   process.env.APPWRITE_PROJECT     || '690ff0da0025518570c1',
+  databaseId:  process.env.APPWRITE_DATABASE_ID || 'hotel_db',
   apiKey:      process.env.APPWRITE_API_KEY,
 };
 

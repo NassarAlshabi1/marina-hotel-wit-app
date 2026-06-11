@@ -11,8 +11,8 @@
 const { Client, Databases, Permission, Role } = require('node-appwrite');
 
 const ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
-const PROJECT_ID = process.env.APPWRITE_PROJECT || '6a2b01d0000752ce97e7';
-const DATABASE_ID = process.env.APPWRITE_DATABASE_ID || '6a2b030d000445596163';
+const PROJECT_ID = process.env.APPWRITE_PROJECT || '690ff0da0025518570c1';
+const DATABASE_ID = process.env.APPWRITE_DATABASE_ID || 'hotel_db';
 const API_KEY = process.env.APPWRITE_API_KEY;
 
 if (!API_KEY) { console.error('❌ APPWRITE_API_KEY required'); process.exit(1); }
