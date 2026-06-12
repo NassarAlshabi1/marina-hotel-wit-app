@@ -1397,15 +1397,44 @@ class AppwriteSyncManager {
     int? localLastModified, {
     int? localDeletedAt,
   }) {
-    // ✅ إصلاح: إذا حُذف السجل محلياً (soft delete) وكان الحذف أحدث
-    // من البيانات البعيدة، لا نكتب فوق الحذف المحلي — نحمي الحذف
+    final remoteDeletedAt = _asIntNullable(remoteData['deletedAt']) ??
+        _asIntNullable(remoteData['deleted_at']);
+
+    // Case 1: Local is soft-deleted
     if (localDeletedAt != null) {
-      final remoteDeletedAt = _asIntNullable(remoteData['deletedAt']) ??
-          _asIntNullable(remoteData['deleted_at']);
-      // إذا كانت البيانات البعيدة أيضاً محذوفة → نتابع (كلاهما محذوف)
       if (remoteDeletedAt != null) {
-        return true; // كلاهما محذوف — نسمح بالتحديث
+        // Both deleted: allow sync if remote deletion is newer
+        // (remote might have deletedAt from another device's deletion)
+        return remoteDeletedAt > localDeletedAt;
       }
+      // Local deleted, remote not deleted: protect local deletion
+      return false;
+    }
+
+    // Case 2: Remote is soft-deleted but local is not
+    if (remoteDeletedAt != null) {
+      // Remote wants to delete: allow if remote deletion is newer than local lastModified
+      return remoteDeletedAt > (localLastModified ?? 0);
+    }
+
+    // Case 3: Neither is deleted - compare lastModified
+    if (localLastModified == null) {
+      // No local record - remote is "newer" (new record)
+      return true;
+    }
+
+    final remoteLastModified = _asIntNullable(remoteData['lastModified']) ??
+        _asIntNullable(remoteData['last_modified']) ??
+        _asIntNullable(remoteData['lastModifiedEpoch']);
+
+    if (remoteLastModified == null) {
+      // Don't know remote age - update conservatively
+      return true;
+    }
+
+    // Remote is newer only if lastModified > local
+    return remoteLastModified > localLastModified;
+  }
       // البيانات البعيدة غير محذوفة لكن المحلي محذوف — نرفض الكتابة فوق الحذف
       // الحذف المحلي متعمد ويجب أن يكون له أولوية أعلى
       return false;
@@ -1909,7 +1938,9 @@ class AppwriteSyncManager {
   }
 
   Future<int> _pushAllEntities() async {
-    const batchSize = 200;
+    // الحصول على حجم الدفعة من مُحسِّن الأداء
+    final perfSettings = SyncPerformanceOptimizer.instance.getCurrentPerformanceSettings();
+    final batchSize = perfSettings['batchSize'] as int? ?? 50;
     int totalProcessed = 0;
 
     while (true) {

@@ -8,7 +8,7 @@ abstract class SyncConfig {
   static const int maxQueueSize = 100;
   static const int defaultSyncIntervalMinutes = 2;
   static const int periodicFullSyncHours = 24;
-  static const Duration syncMutexTimeout = Duration(seconds: 5);
+  static const Duration syncMutexTimeout = Duration(seconds: 30);
 
   static const String _prefsConflictThresholdKey =
       'sync_config_conflict_threshold_seconds';

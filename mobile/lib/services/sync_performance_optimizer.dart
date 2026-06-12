@@ -23,27 +23,26 @@ class SyncPerformanceOptimizer {
   bool _isOnWiFi = false;
   bool _isInitialized = false;
   DateTime? _lastSyncTime;
+  DateTime? _lastAttemptTime;
   int _syncAttempts = 0;
+  int _performanceLevel = 2; // 1=high, 2=medium, 3=low-end
 
-  // إعدادات الأداء حسب نوع الشبكة
-  static const Map<String, Map<String, dynamic>> _performanceSettings = {
-    'wifi': {
-      'batchSize': 100,
-      'timeout': 30,
-      'retryAttempts': 3,
-      'syncInterval': 60, // ثواني
+  // إعدادات الأداء حسب نوع الشبكة ومستوى الأداء
+  static const Map<int, Map<String, Map<String, dynamic>>> _performanceSettings = {
+    1: { // High performance
+      'wifi': {'batchSize': 100, 'timeout': 30, 'retryAttempts': 3, 'syncInterval': 60},
+      'mobile': {'batchSize': 50, 'timeout': 15, 'retryAttempts': 2, 'syncInterval': 120},
+      'none': {'batchSize': 0, 'timeout': 0, 'retryAttempts': 0, 'syncInterval': 0},
     },
-    'mobile': {
-      'batchSize': 50,
-      'timeout': 15,
-      'retryAttempts': 2,
-      'syncInterval': 120, // ثواني
+    2: { // Medium (default)
+      'wifi': {'batchSize': 75, 'timeout': 45, 'retryAttempts': 3, 'syncInterval': 90},
+      'mobile': {'batchSize': 35, 'timeout': 20, 'retryAttempts': 2, 'syncInterval': 180},
+      'none': {'batchSize': 0, 'timeout': 0, 'retryAttempts': 0, 'syncInterval': 0},
     },
-    'none': {
-      'batchSize': 0,
-      'timeout': 0,
-      'retryAttempts': 0,
-      'syncInterval': 0,
+    3: { // Low-end devices - reduced batch, longer intervals, fewer retries
+      'wifi': {'batchSize': 30, 'timeout': 60, 'retryAttempts': 2, 'syncInterval': 180},
+      'mobile': {'batchSize': 15, 'timeout': 30, 'retryAttempts': 1, 'syncInterval': 300},
+      'none': {'batchSize': 0, 'timeout': 0, 'retryAttempts': 0, 'syncInterval': 0},
     },
   };
 
@@ -54,6 +53,9 @@ class SyncPerformanceOptimizer {
     }
 
     try {
+      // تحميل مستوى الأداء المحفوظ
+      await _loadPerformanceLevel();
+
       // فحص حالة الاتصال الحالية
       final connectivity = Connectivity();
       final currentResults = await connectivity.checkConnectivity();
@@ -68,7 +70,7 @@ class SyncPerformanceOptimizer {
       );
 
       _isInitialized = true;
-      debugPrint('✅ تم تهيئة مُحسِّن أداء المزامنة بنجاح');
+      debugPrint('✅ تم تهيئة مُحسِّن أداء المزامنة بنجاح (مستوى: $_performanceLevel)');
     } catch (e) {
       debugPrint('❌ خطأ في تهيئة مُحسِّن أداء المزامنة: $e');
     }
@@ -154,7 +156,29 @@ class SyncPerformanceOptimizer {
   /// الحصول على إعدادات الأداء الحالية
   Map<String, dynamic> getCurrentPerformanceSettings() {
     final networkType = _isOnWiFi ? 'wifi' : 'mobile';
-    return Map.from(_performanceSettings[networkType]!);
+    final levelSettings = _performanceSettings[_performanceLevel] ?? _performanceSettings[2]!;
+    return Map.from(levelSettings[networkType]!);
+  }
+
+  /// تعيين مستوى الأداء (1=عالي، 2=متوسط، 3=أجهزة ضعيفة)
+  Future<void> setPerformanceLevel(int level) async {
+    _performanceLevel = level.clamp(1, 3);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('performance_level', _performanceLevel);
+    debugPrint('⚙️ تم تعيين مستوى الأداء: $_performanceLevel');
+  }
+
+  /// الحصول على مستوى الأداء الحالي
+  int get performanceLevel => _performanceLevel;
+
+  /// تحميل مستوى الأداء المحفوظ
+  Future<void> _loadPerformanceLevel() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _performanceLevel = prefs.getInt('performance_level') ?? 2;
+    } catch (e) {
+      _performanceLevel = 2;
+    }
   }
 
   /// التحقق من إمكانية بدء المزامنة
@@ -189,10 +213,10 @@ class SyncPerformanceOptimizer {
     // التحقق من عدد المحاولات الفاشلة
     final settings = getCurrentPerformanceSettings();
     if (_syncAttempts >= (settings['retryAttempts'] as num)) {
-      // ✅ إصلاح: بدلاً من التخطي الدائم، نتحقق من مرور فترة cooldown
+      // ✅ إصلاح: نتحقق من مرور فترة cooldown منذ آخر محاولة (وليس آخر نجاح)
       const cooldownMinutes = 30;
-      if (_lastSyncTime != null &&
-          DateTime.now().difference(_lastSyncTime!).inMinutes >= cooldownMinutes) {
+      if (_lastAttemptTime != null &&
+          DateTime.now().difference(_lastAttemptTime!).inMinutes >= cooldownMinutes) {
         debugPrint('🔄 انتهت فترة cooldown - إعادة تعيين المحاولات والمحاولة مجدداً');
         _syncAttempts = 0;
         return false;
@@ -234,6 +258,7 @@ class SyncPerformanceOptimizer {
 
   /// تسجيل محاولة مزامنة
   void recordSyncAttempt({required bool success}) {
+    _lastAttemptTime = DateTime.now();
     if (success) {
       _lastSyncTime = DateTime.now();
       _syncAttempts = 0;
@@ -282,6 +307,7 @@ class SyncPerformanceOptimizer {
       'isOnWiFi': _isOnWiFi,
       'syncAttempts': _syncAttempts,
       'lastSyncTime': _lastSyncTime?.toIso8601String(),
+      'lastAttemptTime': _lastAttemptTime?.toIso8601String(),
       'currentSettings': getCurrentPerformanceSettings(),
     };
   }
@@ -292,6 +318,7 @@ class SyncPerformanceOptimizer {
       'is_wifi_connected': _isOnWiFi,
       'sync_attempts': _syncAttempts,
       'last_sync_time': _lastSyncTime?.toIso8601String(),
+      'last_attempt_time': _lastAttemptTime?.toIso8601String(),
       'connection_type': _isOnWiFi ? 'WiFi' : 'Mobile',
     };
   }

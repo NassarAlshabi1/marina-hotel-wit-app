@@ -71,8 +71,17 @@ class DeltaSyncService {
     final snapshot = <String, Map<String, MirrorRow>>{};
     final fallbackTables = <String>{};
 
+    // Get performance settings for batch limits
+    final perfSettings = SyncPerformanceOptimizer.instance.getCurrentPerformanceSettings();
+    final maxRowsPerTable = perfSettings['batchSize'] as int? ?? 50;
+
     for (final config in configs) {
       final rows = await config.fetchAll();
+      // Limit rows processed per table for low-end devices
+      final limitedRows = rows.length > maxRowsPerTable ? rows.take(maxRowsPerTable).toList() : rows;
+      if (rows.length > maxRowsPerTable) {
+        debugPrint('⚠️ ${config.entity}: معالجة ${maxRowsPerTable} من ${rows.length} سطر (حد الأداء)');
+      }
       final existingMirror = previousMirror[config.entity] ?? {};
       final hasMirror = previousMirror.containsKey(config.entity);
       if (!hasMirror) {
@@ -84,7 +93,7 @@ class DeltaSyncService {
       final tableSnapshot = <String, MirrorRow>{};
       final seen = <String>{};
 
-      for (final row in rows) {
+      for (final row in limitedRows) {
         final localUuid = config.localUuid(row);
         if (localUuid.isEmpty) {
           continue;
@@ -286,6 +295,10 @@ class DeltaSyncService {
     final configs = _entityConfigs();
     final mirrorRows = await _loadMirror();
 
+    // Get performance settings for batch limits
+    final perfSettings = SyncPerformanceOptimizer.instance.getCurrentPerformanceSettings();
+    final maxRowsPerTable = perfSettings['batchSize'] as int? ?? 50;
+
     for (final config in configs) {
       try {
         final currentRows = await config.fetchAll();
@@ -297,8 +310,10 @@ class DeltaSyncService {
           );
         }
 
-        final int sampleSize = (currentRows.length * 0.1).ceil().clamp(1, 50);
-        final sample = (currentRows..shuffle()).take(sampleSize);
+        // Limit validation for low-end devices
+        final limitedRows = currentRows.length > maxRowsPerTable ? currentRows.take(maxRowsPerTable).toList() : currentRows;
+        final int sampleSize = (limitedRows.length * 0.1).ceil().clamp(1, 50);
+        final sample = (limitedRows..shuffle()).take(sampleSize);
 
         for (final row in sample) {
           final uuid = config.localUuid(row);
@@ -350,10 +365,19 @@ class DeltaSyncService {
     final configs = _entityConfigs();
     final nowTs = _normalizeTimestamp(Time.nowEpoch());
 
+    // Get performance settings for batch limits
+    final perfSettings = SyncPerformanceOptimizer.instance.getCurrentPerformanceSettings();
+    final maxRowsPerTable = perfSettings['batchSize'] as int? ?? 50;
+
     for (final config in configs) {
       try {
         final rows = await config.fetchAll();
-        for (final row in rows) {
+        // Limit rebuild for low-end devices
+        final limitedRows = rows.length > maxRowsPerTable ? rows.take(maxRowsPerTable).toList() : rows;
+        if (rows.length > maxRowsPerTable) {
+          debugPrint('⚠️ ${config.entity}: إعادة بناء ${maxRowsPerTable} من ${rows.length} سطر (حد الأداء)');
+        }
+        for (final row in limitedRows) {
           final uuid = config.localUuid(row);
           if (uuid.isEmpty) {
             continue;
@@ -369,7 +393,7 @@ class DeltaSyncService {
           );
         }
         debugPrint(
-          '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)',
+          '✅ Rebuilt mirror for ${config.entity} (${limitedRows.length} rows)',
         );
       } catch (e) {
         debugPrint('❌ Failed to rebuild mirror for ${config.entity}: $e');
@@ -586,7 +610,10 @@ int _normalizeTimestamp(int value) {
   if (value <= 0) {
     return value;
   }
-  return value < 1000000000000 ? value * 1000 : value;
+  // DB stores timestamps in milliseconds. Appwrite expects seconds.
+  // If value looks like milliseconds ( > 10^12 = year 2001 in ms), convert to seconds.
+  // If value looks like seconds ( < 10^12 ), keep as-is.
+  return value > 1000000000000 ? value ~/ 1000 : value;
 }
 
 /// حقول الطوابع الزمنية التي تحتاج تحويل من ثوانٍ إلى مللي ثانية

@@ -3,7 +3,7 @@ import 'dart:async';
 /// Simple mutex for synchronizing async operations in sync managers.
 /// Usage: mutex.runExclusive(() => yourAsyncOperation());
 class SyncMutex {
-  late Completer<void> _completer;
+  Completer<void>? _completer;
   bool _locked = false;
 
   Future<bool> acquire({Duration? timeout}) async {
@@ -14,15 +14,20 @@ class SyncMutex {
         return false;
       }
 
+      final completer = _completer;
+      if (completer == null) {
+        break;
+      }
+
       try {
         if (timeout != null) {
           final remaining = timeout - DateTime.now().difference(startTime);
           if (remaining.isNegative) {
             return false;
           }
-          await _completer.future.timeout(remaining);
+          await completer.future.timeout(remaining);
         } else {
-          await _completer.future;
+          await completer.future;
         }
       } on TimeoutException {
         return false;
@@ -37,7 +42,9 @@ class SyncMutex {
   void release() {
     if (_locked) {
       _locked = false;
-      _completer.complete();
+      final completer = _completer;
+      _completer = null;
+      completer?.complete();
     }
   }
 
