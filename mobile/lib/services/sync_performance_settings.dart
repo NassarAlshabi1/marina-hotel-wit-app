@@ -52,21 +52,18 @@ class SyncPerformanceSettings {
     }
   }
 
-  /// تطبيق ملف تعريف محدد
+  /// تطبيق ملف تعريف — دائماً "متوازن" بشكل دائم
   static Future<void> applyProfile(String profileKey) async {
+    // تفعيل متوازن بشكل دائم — نتجاهل profileKey المُمرر
+    const enforcedProfile = 'balanced';
     try {
-      // التحقق من وجود ملف التعريف
-      if (!predefinedProfiles.containsKey(profileKey)) {
-        throw ArgumentError('ملف التعريف "$profileKey" غير موجود');
-      }
-
-      final profile = predefinedProfiles[profileKey]!;
+      final profile = predefinedProfiles[enforcedProfile]!;
       final prefs = await SharedPreferences.getInstance();
 
-      // حفظ ملف التعريف المختار
-      await _setCurrentProfile(profileKey);
+      // حفظ ملف التعريف المتوازن دائماً
+      await _setCurrentProfile(enforcedProfile);
 
-      // تطبيق الإعدادات من ملف التعريف
+      // تطبيق الإعدادات من ملف التعريف المتوازن
       await prefs.setInt('sync_interval_minutes', profile['interval'] as int);
       await prefs.setBool('wifi_only_sync', profile['wifi_only'] as bool);
       await prefs.setBool(
@@ -78,10 +75,13 @@ class SyncPerformanceSettings {
         profile['daily_limit_mb'] as int,
       );
 
-      // تطبيق إعدادات إضافية حسب ملف التعريف
-      await _applyProfileSpecificSettings(profileKey, profile);
+      // تطبيق إعدادات متوازن
+      await _applyProfileSpecificSettings(enforcedProfile, profile);
 
-      debugPrint('✅ تم تطبيق ملف التعريف "$profileKey" بنجاح');
+      // تثبيت مستوى الأداء على متوازن (2)
+      await prefs.setInt('performance_level', 2);
+
+      debugPrint('✅ تم تفعيل ملف التعريف "متوازن" بشكل دائم');
     } catch (e) {
       debugPrint('❌ خطأ في تطبيق ملف التعريف "$profileKey": $e');
       rethrow;

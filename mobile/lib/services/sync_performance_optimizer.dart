@@ -4,6 +4,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'sync_performance_settings.dart';
+
 /// مُحسِّن أداء المزامنة
 /// يراقب حالة الاتصال ويحسن أداء المزامنة بناءً على نوع الشبكة
 class SyncPerformanceOptimizer {
@@ -46,15 +48,18 @@ class SyncPerformanceOptimizer {
     },
   };
 
-  /// تهيئة مراقب الاتصال
+  /// تهيئة مراقب الاتصال — تفعيل متوازن بشكل دائم
   Future<void> initialize() async {
     if (_isInitialized) {
       return;
     }
 
     try {
-      // تحميل مستوى الأداء المحفوظ
+      // تحميل مستوى الأداء — دائماً متوازن
       await _loadPerformanceLevel();
+
+      // تطبيق إعدادات "متوازن" من SyncPerformanceSettings
+      await SyncPerformanceSettings.applyProfile('balanced');
 
       // فحص حالة الاتصال الحالية
       final connectivity = Connectivity();
@@ -70,7 +75,7 @@ class SyncPerformanceOptimizer {
       );
 
       _isInitialized = true;
-      debugPrint('✅ تم تهيئة مُحسِّن أداء المزامنة بنجاح (مستوى: $_performanceLevel)');
+      debugPrint('✅ تم تهيئة مُحسِّن أداء المزامنة (مستوى: متوازن - مثبت دائماً)');
     } catch (e) {
       debugPrint('❌ خطأ في تهيئة مُحسِّن أداء المزامنة: $e');
     }
@@ -160,25 +165,26 @@ class SyncPerformanceOptimizer {
     return Map.from(levelSettings[networkType]!);
   }
 
-  /// تعيين مستوى الأداء (1=عالي، 2=متوسط، 3=أجهزة ضعيفة)
+  /// تعيين مستوى الأداء — دائماً "متوازن" (المستوى 2) بشكل دائم
   Future<void> setPerformanceLevel(int level) async {
-    _performanceLevel = level.clamp(1, 3);
+    _performanceLevel = 2; // دائماً متوازن
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('performance_level', _performanceLevel);
-    debugPrint('⚙️ تم تعيين مستوى الأداء: $_performanceLevel');
+    await prefs.setInt('performance_level', 2);
+    debugPrint('⚙️ مستوى الأداء مثبت على: متوازن (2)');
   }
 
   /// الحصول على مستوى الأداء الحالي
   int get performanceLevel => _performanceLevel;
 
-  /// تحميل مستوى الأداء المحفوظ
+  /// تحميل مستوى الأداء — دائماً "متوازن" (المستوى 2)
   Future<void> _loadPerformanceLevel() async {
+    // تفعيل متوازن بشكل دائم — لا نقرأ من SharedPreferences
+    _performanceLevel = 2;
+    // نحفظه أيضاً للتأكد من التطابق مع SyncPerformanceSettings
     try {
       final prefs = await SharedPreferences.getInstance();
-      _performanceLevel = prefs.getInt('performance_level') ?? 2;
-    } catch (e) {
-      _performanceLevel = 2;
-    }
+      await prefs.setInt('performance_level', 2);
+    } catch (_) {}
   }
 
   /// التحقق من إمكانية بدء المزامنة
