@@ -293,64 +293,14 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
       _k(src, 'deviceId', 'device_id'): model.deviceId,
+      // ✅ حقول SyncFields المفقودة — ضرورية لمسار الـ outbox
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
     };
   }
-}
-
-d.Value<int> _vInt(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  int? fallback,
-}) {
-  final v =
-      _asInt(json, key, src) ??
-      (altKey != null ? _asInt(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<String> _vStr(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  String? fallback,
-}) {
-  final v =
-      _asString(json, key, src) ??
-      (altKey != null ? _asString(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<double> _vDouble(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  double? fallback,
-}) {
-  final v =
-      _asDouble(json, key, src) ??
-      (altKey != null ? _asDouble(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
-}
-
-d.Value<bool> _vBool(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  bool? fallback,
-}) {
-  final v =
-      _asBool(json, key, src) ??
-      (altKey != null ? _asBool(json, altKey, src) : null) ??
-      fallback;
-  return v == null ? const d.Value.absent() : d.Value(v);
 }
 
 int? _epoch(Map<String, dynamic> json, String key, Source src) {

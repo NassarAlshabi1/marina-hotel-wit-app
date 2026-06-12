@@ -196,6 +196,12 @@ class NightsAdapter
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
       _k(src, 'deviceId', 'device_id'): model.deviceId,
+      // ✅ حقول SyncFields المفقودة — ضرورية لمسار الـ outbox
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
     };
   }
 }
