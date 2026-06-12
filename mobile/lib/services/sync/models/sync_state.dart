@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// حالات المزامنة الممكنة
 enum SyncStatus {
   idle,
@@ -27,15 +25,6 @@ class SyncState {
   final String? error;
 
   const SyncState({
-    required this.status,
-    this.progress = 0,
-    this.message,
-    this.lastSyncTime,
-    this.pendingChanges = 0,
-    this.error,
-  });
-
-  const SyncState._({
     required this.status,
     this.progress = 0,
     this.message,

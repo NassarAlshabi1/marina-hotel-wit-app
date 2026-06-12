@@ -508,19 +508,18 @@ class AppwriteFullPull {
                   collectionId: AppwriteConfig.bookingsCollectionId,
                   documentId: bookingUuid,
                 );
-                if (bookingDoc != null) {
-                  final bookingData = Map<String, dynamic>.from(bookingDoc.data);
-                  bookingData['localUuid'] ??= bookingDoc.$id;
-                  _cleanDataFromAppwrite(bookingData, bookingDoc.$id);
-                  await _adapterRegistry!.bookings.upsertFromJson(
-                    bookingData,
-                    src: Source.appwrite,
-                  );
-                  booking = await (db.select(db.bookings)
-                        ..where((b) => b.localUuid.equals(bookingUuid))
-                        ..limit(1))
-                      .getSingleOrNull();
-                }
+                // getDocument يرمي استثناء عند الفشل، لا يُرجع null
+                final bookingData = Map<String, dynamic>.from(bookingDoc.data);
+                bookingData['localUuid'] ??= bookingDoc.$id;
+                _cleanDataFromAppwrite(bookingData, bookingDoc.$id);
+                await _adapterRegistry!.bookings.upsertFromJson(
+                  bookingData,
+                  src: Source.appwrite,
+                );
+                booking = await (db.select(db.bookings)
+                      ..where((b) => b.localUuid.equals(bookingUuid))
+                      ..limit(1))
+                    .getSingleOrNull();
               } catch (_) {
                 // فشل جلب الحجز من السيرفر — سجل يتيم حقيقي
               }

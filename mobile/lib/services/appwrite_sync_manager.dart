@@ -2382,31 +2382,30 @@ class AppwriteSyncManager {
           collectionId: AppwriteConfig.employeesCollectionId,
           documentId: employeeUuid,
         );
-        if (empDoc != null) {
-          final empData = Map<String, dynamic>.from(empDoc.data);
-          empData['localUuid'] ??= empDoc.$id;
-          empData.remove('\$id');
-          empData.remove('\$createdAt');
-          empData.remove('\$updatedAt');
-          empData.remove('\$permissions');
-          empData.remove('\$collectionId');
-          empData.remove('\$databaseId');
-          empData.remove('id');
+        // getDocument يرمي استثناء عند الفشل، لا يُرجع null
+        final empData = Map<String, dynamic>.from(empDoc.data);
+        empData['localUuid'] ??= empDoc.$id;
+        empData.remove('\$id');
+        empData.remove('\$createdAt');
+        empData.remove('\$updatedAt');
+        empData.remove('\$permissions');
+        empData.remove('\$collectionId');
+        empData.remove('\$databaseId');
+        empData.remove('id');
 
-          await _adapterRegistry.employees.upsertFromJson(
-            empData,
-            src: Source.appwrite,
+        await _adapterRegistry.employees.upsertFromJson(
+          empData,
+          src: Source.appwrite,
+        );
+        employee = await (database.select(database.employees)
+              ..where((e) => e.localUuid.equals(employeeUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (employee != null) {
+          _logger.info(
+            '✅ تم جلب الموظف $employeeUuid من Appwrite وربطه مع سحب الراتب $docId',
+            tag: 'SYNC',
           );
-          employee = await (database.select(database.employees)
-                ..where((e) => e.localUuid.equals(employeeUuid))
-                ..limit(1))
-              .getSingleOrNull();
-          if (employee != null) {
-            _logger.info(
-              '✅ تم جلب الموظف $employeeUuid من Appwrite وربطه مع سحب الراتب $docId',
-              tag: 'SYNC',
-            );
-          }
         }
       } catch (e) {
         _logger.debug(
@@ -5229,31 +5228,30 @@ class AppwriteSyncManager {
           collectionId: AppwriteConfig.bookingsCollectionId,
           documentId: bookingUuid,
         );
-        if (bookingDoc != null) {
-          final bookingData = Map<String, dynamic>.from(bookingDoc.data);
-          bookingData['localUuid'] ??= bookingDoc.$id;
-          bookingData.remove('\$id');
-          bookingData.remove('\$createdAt');
-          bookingData.remove('\$updatedAt');
-          bookingData.remove('\$permissions');
-          bookingData.remove('\$collectionId');
-          bookingData.remove('\$databaseId');
-          bookingData.remove('id');
+        // getDocument يرمي استثناء عند الفشل، لا يُرجع null
+        final bookingData = Map<String, dynamic>.from(bookingDoc.data);
+        bookingData['localUuid'] ??= bookingDoc.$id;
+        bookingData.remove('\$id');
+        bookingData.remove('\$createdAt');
+        bookingData.remove('\$updatedAt');
+        bookingData.remove('\$permissions');
+        bookingData.remove('\$collectionId');
+        bookingData.remove('\$databaseId');
+        bookingData.remove('id');
 
-          await _adapterRegistry.bookings.upsertFromJson(
-            bookingData,
-            src: Source.appwrite,
+        await _adapterRegistry.bookings.upsertFromJson(
+          bookingData,
+          src: Source.appwrite,
+        );
+        booking = await (database.select(database.bookings)
+              ..where((b) => b.localUuid.equals(bookingUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        if (booking != null) {
+          _logger.info(
+            '✅ تم جلب الحجز $bookingUuid من Appwrite وربطه مع تعديل السعر $docId',
+            tag: 'SYNC',
           );
-          booking = await (database.select(database.bookings)
-                ..where((b) => b.localUuid.equals(bookingUuid))
-                ..limit(1))
-              .getSingleOrNull();
-          if (booking != null) {
-            _logger.info(
-              '✅ تم جلب الحجز $bookingUuid من Appwrite وربطه مع تعديل السعر $docId',
-              tag: 'SYNC',
-            );
-          }
         }
       } catch (e) {
         _logger.debug(
