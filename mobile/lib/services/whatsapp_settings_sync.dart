@@ -22,6 +22,7 @@ class WhatsAppSettingsSync {
       final prefs = await SharedPreferences.getInstance();
 
       final data = <String, dynamic>{
+        'key': 'whatsapp_settings', // حقل مطلوب في مجموعة app_settings
         'wa_api_type': prefs.getString('wa_api_type') ?? 'custom',
         'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
         'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',

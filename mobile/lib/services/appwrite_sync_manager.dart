@@ -2378,34 +2378,40 @@ class AppwriteSyncManager {
           '🔄 محاولة جلب الموظف $employeeUuid من Appwrite (لربط سحب الراتب $docId)',
           tag: 'SYNC',
         );
-        final empDoc = await appwriteService.getDocument(
+        final empDoc = await appwriteService.getDocumentSafe(
           collectionId: AppwriteConfig.employeesCollectionId,
           documentId: employeeUuid,
         );
-        // getDocument يرمي استثناء عند الفشل، لا يُرجع null
-        final empData = Map<String, dynamic>.from(empDoc.data);
-        empData['localUuid'] ??= empDoc.$id;
-        empData.remove('\$id');
-        empData.remove('\$createdAt');
-        empData.remove('\$updatedAt');
-        empData.remove('\$permissions');
-        empData.remove('\$collectionId');
-        empData.remove('\$databaseId');
-        empData.remove('id');
-
-        await _adapterRegistry.employees.upsertFromJson(
-          empData,
-          src: Source.appwrite,
-        );
-        employee = await (database.select(database.employees)
-              ..where((e) => e.localUuid.equals(employeeUuid))
-              ..limit(1))
-            .getSingleOrNull();
-        if (employee != null) {
-          _logger.info(
-            '✅ تم جلب الموظف $employeeUuid من Appwrite وربطه مع سحب الراتب $docId',
+        if (empDoc == null) {
+          _logger.debug(
+            '⏭️ الموظف $employeeUuid غير موجود على Appwrite (سجل يتيم حقيقي)',
             tag: 'SYNC',
           );
+        } else {
+          final empData = Map<String, dynamic>.from(empDoc.data);
+          empData['localUuid'] ??= empDoc.$id;
+          empData.remove('\$id');
+          empData.remove('\$createdAt');
+          empData.remove('\$updatedAt');
+          empData.remove('\$permissions');
+          empData.remove('\$collectionId');
+          empData.remove('\$databaseId');
+          empData.remove('id');
+
+          await _adapterRegistry.employees.upsertFromJson(
+            empData,
+            src: Source.appwrite,
+          );
+          employee = await (database.select(database.employees)
+                ..where((e) => e.localUuid.equals(employeeUuid))
+                ..limit(1))
+              .getSingleOrNull();
+          if (employee != null) {
+            _logger.info(
+              '✅ تم جلب الموظف $employeeUuid من Appwrite وربطه مع سحب الراتب $docId',
+              tag: 'SYNC',
+            );
+          }
         }
       } catch (e) {
         _logger.debug(
@@ -2736,6 +2742,7 @@ class AppwriteSyncManager {
   Map<String, dynamic> _paymentToRemote(Payment payment) {
 
     final data = <String, dynamic>{
+      'amount': payment.amount,
       'paymentDate': payment.paymentDate,
       'paymentMethod': payment.paymentMethod,
       'revenueType': payment.revenueType,
@@ -4074,6 +4081,7 @@ class AppwriteSyncManager {
       'name': employee.name,
       'position': employee.position,
       'phone': employee.phone,
+      'basicSalary': employee.basicSalary,
       'hireDate': employee.hireDate,
       'status': employee.status,
       'localUuid': employee.localUuid,
@@ -5224,34 +5232,40 @@ class AppwriteSyncManager {
           '🔄 محاولة جلب الحجز $bookingUuid من Appwrite (لربط تعديل السعر $docId)',
           tag: 'SYNC',
         );
-        final bookingDoc = await appwriteService.getDocument(
+        final bookingDoc = await appwriteService.getDocumentSafe(
           collectionId: AppwriteConfig.bookingsCollectionId,
           documentId: bookingUuid,
         );
-        // getDocument يرمي استثناء عند الفشل، لا يُرجع null
-        final bookingData = Map<String, dynamic>.from(bookingDoc.data);
-        bookingData['localUuid'] ??= bookingDoc.$id;
-        bookingData.remove('\$id');
-        bookingData.remove('\$createdAt');
-        bookingData.remove('\$updatedAt');
-        bookingData.remove('\$permissions');
-        bookingData.remove('\$collectionId');
-        bookingData.remove('\$databaseId');
-        bookingData.remove('id');
-
-        await _adapterRegistry.bookings.upsertFromJson(
-          bookingData,
-          src: Source.appwrite,
-        );
-        booking = await (database.select(database.bookings)
-              ..where((b) => b.localUuid.equals(bookingUuid))
-              ..limit(1))
-            .getSingleOrNull();
-        if (booking != null) {
-          _logger.info(
-            '✅ تم جلب الحجز $bookingUuid من Appwrite وربطه مع تعديل السعر $docId',
+        if (bookingDoc == null) {
+          _logger.debug(
+            '⏭️ الحجز $bookingUuid غير موجود على Appwrite (سجل يتيم حقيقي)',
             tag: 'SYNC',
           );
+        } else {
+          final bookingData = Map<String, dynamic>.from(bookingDoc.data);
+          bookingData['localUuid'] ??= bookingDoc.$id;
+          bookingData.remove('\$id');
+          bookingData.remove('\$createdAt');
+          bookingData.remove('\$updatedAt');
+          bookingData.remove('\$permissions');
+          bookingData.remove('\$collectionId');
+          bookingData.remove('\$databaseId');
+          bookingData.remove('id');
+
+          await _adapterRegistry.bookings.upsertFromJson(
+            bookingData,
+            src: Source.appwrite,
+          );
+          booking = await (database.select(database.bookings)
+                ..where((b) => b.localUuid.equals(bookingUuid))
+                ..limit(1))
+              .getSingleOrNull();
+          if (booking != null) {
+            _logger.info(
+              '✅ تم جلب الحجز $bookingUuid من Appwrite وربطه مع تعديل السعر $docId',
+              tag: 'SYNC',
+            );
+          }
         }
       } catch (e) {
         _logger.debug(

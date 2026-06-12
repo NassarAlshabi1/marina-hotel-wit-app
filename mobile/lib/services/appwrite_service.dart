@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 
@@ -953,6 +955,42 @@ class AppwriteService {
       ),
       operationName: 'getDocument($collectionId/$documentId)',
     );
+  }
+
+  /// قراءة مستند بأمان — يُرجع null بدلاً من رمي استثناء إذا لم يوجد
+  /// لا يُسجّل 404 كخطأ لأن البحث عن مستند مفقود أمر طبيعي في المزامنة
+  Future<models.Document?> getDocumentSafe({
+    required String collectionId,
+    required String documentId,
+  }) async {
+    await _ensureInitialized();
+    try {
+      return await _databases.getDocument(
+        databaseId: AppwriteConfigManager.databaseId,
+        collectionId: collectionId,
+        documentId: documentId,
+      ).timeout(AppwriteConfig.defaultTimeout);
+    } on AppwriteException catch (e) {
+      if (e.code == 404 || e.toString().contains('document_not_found')) {
+        _logger.debug(
+          'getDocumentSafe($collectionId/$documentId) - مستند غير موجود (طبيعي لسجلات يتيمة)',
+          tag: 'SYNC',
+        );
+        return null;
+      }
+      _logger.error(
+        'getDocumentSafe($collectionId/$documentId) - خطأ: $e',
+        error: e,
+        tag: 'SYNC',
+      );
+      rethrow;
+    } on TimeoutException {
+      _logger.warning(
+        'getDocumentSafe($collectionId/$documentId) - انتهت المهلة',
+        tag: 'SYNC',
+      );
+      return null;
+    }
   }
 
   /// إنشاء مستند جديد
