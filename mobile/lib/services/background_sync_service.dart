@@ -10,12 +10,15 @@ import 'package:workmanager/workmanager.dart';
 
 import 'analytics_service.dart';
 import 'battery_optimizer.dart';
+import 'database_sync_coordinator.dart';
+import 'local_db.dart';
 import 'smart_sync_manager.dart';
 
 /// معرف مهمة المزامنة في الخلفية
 const String backgroundSyncTask = 'marina-hotel-background-sync';
 const String periodicSyncTask = 'marina-hotel-periodic-sync';
 const String batteryAwareSyncTask = 'marina-hotel-battery-aware-sync';
+const String maintenanceTask = 'marina-hotel-maintenance';
 
 /// فئة المزامنة في الخلفية
 class BackgroundSyncService {
@@ -189,6 +192,155 @@ class BackgroundSyncService {
     }
   }
 
+  /// تسجيل مهمة صيانة دورية (تنظيف Outbox، ANALYZE، فحص سلامة)
+  Future<void> registerMaintenanceTask({
+    Duration interval = const Duration(hours: 6),
+    bool requireCharging = true,
+    bool requireUnmeteredNetwork = true,
+  }) async {
+    if (!_isInitialized) {
+      return;
+    }
+
+    try {
+      await Workmanager().cancelByUniqueName(maintenanceTask);
+
+      await Workmanager().registerPeriodicTask(
+        maintenanceTask,
+        maintenanceTask,
+        frequency: interval,
+        constraints: Constraints(
+          networkType: requireUnmeteredNetwork
+              ? NetworkType.unmetered
+              : NetworkType.connected,
+          requiresCharging: requireCharging,
+          requiresBatteryNotLow: true,
+          requiresStorageNotLow: true,
+        ),
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
+      );
+
+      developer.log(
+        '✅ Registered maintenance task: ${interval.inHours}h interval',
+        name: 'BackgroundSyncService',
+      );
+    } catch (e) {
+      developer.log(
+        '⚠️ Failed to register maintenance task: $e',
+        name: 'BackgroundSyncService',
+      );
+    }
+  }
+
+  /// تنفيذ مهام الصيانة الدورية
+  static Future<bool> executeMaintenance() async {
+    developer.log(
+      '🧹 Executing periodic maintenance',
+      name: 'BackgroundSyncService',
+    );
+
+    final stopwatch = Stopwatch()..start();
+
+    try {
+      // التحقق من الاتصال
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        developer.log(
+          '⚠️ No connectivity, skipping maintenance',
+          name: 'BackgroundSyncService',
+        );
+        return false;
+      }
+
+      // 1. تنظيف Outbox المكتمل (أقدم من 7 أيام)
+      final database = DatabaseManager.instance;
+      final outboxDao = OutboxDao(database);
+      
+      final completedCleaned = await outboxDao.cleanupCompleted(
+        olderThan: const Duration(days: 7),
+      );
+      developer.log(
+        '🧹 Cleaned $completedCleaned completed outbox entries',
+        name: 'Maintenance',
+      );
+
+      // 2. تنظيف Outbox العالق (معالجة منذ أكثر من 5 دقائق)
+      final stuckCleaned = await outboxDao.cleanupStuckEntries(
+        timeout: const Duration(minutes: 5),
+      );
+      developer.log(
+        '🧹 Cleaned $stuckCleaned stuck outbox entries',
+        name: 'Maintenance',
+      );
+
+      // 3. تنظيف العناصر اليتيمة (فشلت 10+ مرات، أقدم من 3 أيام)
+      final orphanedCleaned = await outboxDao.cleanupOrphanedEntries(
+        maxAttempts: 10,
+        olderThan: const Duration(days: 3),
+      );
+      developer.log(
+        '🧹 Cleaned $orphanedCleaned orphaned outbox entries',
+        name: 'Maintenance',
+      );
+
+      // 4. ANALYZE لتحديث إحصائيات الاستعلام
+      await database.customStatement('ANALYZE');
+      developer.log(
+        '📊 ANALYZE completed for query optimization',
+        name: 'Maintenance',
+      );
+
+      // 5. فحص سلامة المفاتيح الأجنبية
+      final fkViolations = await database.customSelect(
+        'PRAGMA foreign_key_check',
+        readsFrom: Set.unmodifiable({}),
+      ).get();
+      if (fkViolations.isNotEmpty) {
+        developer.log(
+          '⚠️ FK violations detected: ${fkViolations.length}',
+          name: 'Maintenance',
+        );
+      } else {
+        developer.log(
+          '✅ Foreign key integrity OK',
+          name: 'Maintenance',
+        );
+      }
+
+      // 6. VACUUM خفيف (فقط إذا قاعدة البيانات > 50MB)
+      final dbSize = await database.customSelect(
+        'SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()',
+        readsFrom: Set.unmodifiable({}),
+      ).get();
+      final sizeBytes = dbSize.first.read<int>('size') ?? 0;
+      if (sizeBytes > 50 * 1024 * 1024) {
+        await database.customStatement('VACUUM');
+        developer.log(
+          '💾 VACUUM completed (db size: ${(sizeBytes / 1024 / 1024).toStringAsFixed(1)}MB)',
+          name: 'Maintenance',
+        );
+      }
+
+      stopwatch.stop();
+
+      developer.log(
+        '✅ Maintenance completed in ${stopwatch.elapsedMilliseconds}ms',
+        name: 'BackgroundSyncService',
+      );
+
+      return true;
+    } catch (e, stackTrace) {
+      stopwatch.stop();
+      developer.log(
+        '❌ Maintenance failed: $e',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'BackgroundSyncService',
+      );
+      return false;
+    }
+  }
+
   /// إلغاء جميع مهام المزامنة
   Future<void> cancelAllSyncs() async {
     if (!_isInitialized) {
@@ -334,6 +486,8 @@ void _callbackDispatcher() {
       case backgroundSyncTask:
       case batteryAwareSyncTask:
         return BackgroundSyncService.executeBackgroundSync();
+      case maintenanceTask:
+        return BackgroundSyncService.executeMaintenance();
       default:
         developer.log(
           '⚠️ Unknown task: $task',

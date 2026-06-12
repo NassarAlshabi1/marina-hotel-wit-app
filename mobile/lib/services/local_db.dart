@@ -782,7 +782,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 41;
+  int get schemaVersion => 42;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1987,6 +1987,45 @@ class AppDatabase extends _$AppDatabase {
             );
           }
         }
+      }
+
+      // === Migration 42: فهارس أداء مفقودة للـ Outbox والجداول المالية ===
+      if (from < 42) {
+        const missingIndexes = [
+          // Outbox: فهارس مركبة للاستعلامات الشائعة
+          'CREATE INDEX IF NOT EXISTS idx_outbox_entity_status_source ON outbox (entity, processing_status, source)',
+          'CREATE INDEX IF NOT EXISTS idx_outbox_entity_localuuid_status ON outbox (entity, local_uuid, processing_status)',
+          // Payments: فهرس البحث بالحجز + يوم الفندق + الحالة
+          'CREATE INDEX IF NOT EXISTS idx_payments_booking_day_status ON payments (booking_local_id, hotel_day_key, is_voided)',
+          // Debts: فهرس البحث بالحجز + الحالة
+          'CREATE INDEX IF NOT EXISTS idx_debts_booking_status ON debts (booking_local_id, is_settled)',
+          // Expenses: فهرس البحث باليوم + النوع
+          'CREATE INDEX IF NOT EXISTS idx_expenses_day_type ON expenses (hotel_day_key, expense_type)',
+          // Bookings: فهرس البحث بالغرفة + الحالة + يوم الوصول
+          'CREATE INDEX IF NOT EXISTS idx_bookings_room_status_checkin ON bookings (room_number, status, hotel_day_checkin)',
+          // ShiftNotes: فهرس البحث بالمستخدم + غير مقروء
+          'CREATE INDEX IF NOT EXISTS idx_shift_notes_user_unread ON shift_notes (created_by, is_read)',
+          // CashTransactions: فهرس البحث بالوقت + النوع
+          'CREATE INDEX IF NOT EXISTS idx_cash_trans_time_type ON cash_transactions (transaction_time, transaction_type)',
+        ];
+        for (final sql in missingIndexes) {
+          try {
+            await m.database.customStatement(sql);
+            developer.log(
+              'Migration 42: created index: $sql',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 42: $sql failed: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        developer.log(
+          'Migration 42: missing performance indexes created successfully',
+          name: 'db.migration',
+        );
       }
     },
   );
