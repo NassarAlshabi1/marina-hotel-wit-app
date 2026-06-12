@@ -21,6 +21,7 @@ import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_maintenance.dart';
 import 'settings_users.dart';
+import 'sync_performance_settings_screen.dart';
 import 'whatsapp_daily_report_screen.dart';
 import 'whatsapp_settings_screen.dart';
 
@@ -174,6 +175,17 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push<void>(
                 context,
                 MaterialPageRoute<void>(builder: (context) => const DataProtectionScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'تحسين الأداء',
+              subtitle: 'إعدادات أداء المزامنة والبطارية',
+              icon: Icons.speed,
+              color: Colors.cyan,
+              onTap: () => Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(builder: (context) => const SyncPerformanceSettingsScreen(),
                 ),
               ),
             ),
