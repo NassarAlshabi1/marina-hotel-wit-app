@@ -4310,6 +4310,9 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'lastModifiedEpoch', note.lastModifiedEpoch);
     _putIfNotNull(data, 'serverId', note.serverId);
     _putIfNotNull(data, 'deletedAt', note.deletedAt);
+    // ✅ حقول SyncFields المفقودة المتبقية
+    data['version'] = note.version;
+    data['origin'] = note.origin;
     return data;
   }
 
@@ -4509,6 +4512,15 @@ class AppwriteSyncManager {
       'deviceId': _currentDeviceId ?? '',
       'syncTimestamp': now,
       if (row.serverId != null) 'serverId': row.serverId,
+      // ✅ حقول SyncFields المفقودة
+      'version': row.version,
+      'vectorClock': row.vectorClock,
+      if (row.deletedAt != null) 'deletedAt': row.deletedAt,
+      if (row.createdAtIso != null) 'createdAtIso': row.createdAtIso,
+      if (row.updatedAtIso != null) 'updatedAtIso': row.updatedAtIso,
+      if (row.deletedAtIso != null) 'deletedAtIso': row.deletedAtIso,
+      'createdAtEpoch': row.createdAtEpoch,
+      'lastModifiedEpoch': row.lastModifiedEpoch,
     };
   }
 
@@ -4549,6 +4561,12 @@ class AppwriteSyncManager {
       'deviceId': _currentDeviceId ?? '',
       'syncTimestamp': now,
       if (item.serverId != null) 'serverId': item.serverId,
+      // ✅ حقول SyncFields المفقودة
+      'version': item.version,
+      'vectorClock': item.vectorClock,
+      if (item.deletedAtIso != null) 'deletedAtIso': item.deletedAtIso,
+      'createdAtEpoch': item.createdAtEpoch,
+      'lastModifiedEpoch': item.lastModifiedEpoch,
     };
   }
 
