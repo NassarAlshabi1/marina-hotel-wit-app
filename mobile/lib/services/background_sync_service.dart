@@ -10,6 +10,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'analytics_service.dart';
 import 'battery_optimizer.dart';
+import 'daos/outbox_dao.dart';
 import 'database_sync_coordinator.dart';
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
