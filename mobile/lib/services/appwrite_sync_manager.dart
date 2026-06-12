@@ -4148,6 +4148,13 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'serverId', note.serverId);
     _putIfNotNull(data, 'deletedAt', note.deletedAt);
     _putIfStringNotEmpty(data, 'alertUntil', note.alertUntil);
+    // ✅ حقول SyncFields المفقودة
+    _putIfStringNotEmpty(data, 'vectorClock', note.vectorClock);
+    _putIfStringNotEmpty(data, 'createdAtIso', note.createdAtIso);
+    _putIfStringNotEmpty(data, 'updatedAtIso', note.updatedAtIso);
+    _putIfStringNotEmpty(data, 'deletedAtIso', note.deletedAtIso);
+    _putIfNotNull(data, 'createdAtEpoch', note.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', note.lastModifiedEpoch);
     return data;
   }
 
@@ -4176,6 +4183,12 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'deletedAt', night.deletedAt);
     _putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
     _putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
+    // ✅ حقول SyncFields المفقودة
+    _putIfStringNotEmpty(data, 'createdAtIso', night.createdAtIso);
+    _putIfStringNotEmpty(data, 'updatedAtIso', night.updatedAtIso);
+    _putIfStringNotEmpty(data, 'deletedAtIso', night.deletedAtIso);
+    _putIfNotNull(data, 'createdAtEpoch', night.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', night.lastModifiedEpoch);
     return data;
   }
 
@@ -4199,6 +4212,13 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'deletedAt', transaction.deletedAt);
     _putIfStringNotEmpty(data, 'referenceType', transaction.referenceType);
     _putIfStringNotEmpty(data, 'description', transaction.description);
+    // ✅ حقول SyncFields المفقودة
+    data['vectorClock'] = transaction.vectorClock;
+    _putIfStringNotEmpty(data, 'createdAtIso', transaction.createdAtIso);
+    _putIfStringNotEmpty(data, 'updatedAtIso', transaction.updatedAtIso);
+    _putIfStringNotEmpty(data, 'deletedAtIso', transaction.deletedAtIso);
+    _putIfNotNull(data, 'createdAtEpoch', transaction.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', transaction.lastModifiedEpoch);
     return data;
   }
 
@@ -4223,6 +4243,12 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'deletedAt', cycle.deletedAt);
     _putIfStringNotEmpty(data, 'hotelDayStart', cycle.hotelDayStart);
     _putIfStringNotEmpty(data, 'hotelDayEnd', cycle.hotelDayEnd);
+    // ✅ حقول SyncFields المفقودة
+    _putIfStringNotEmpty(data, 'createdAtIso', cycle.createdAtIso);
+    _putIfStringNotEmpty(data, 'updatedAtIso', cycle.updatedAtIso);
+    _putIfStringNotEmpty(data, 'deletedAtIso', cycle.deletedAtIso);
+    _putIfNotNull(data, 'createdAtEpoch', cycle.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', cycle.lastModifiedEpoch);
     return data;
   }
 
@@ -4244,6 +4270,13 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'deletedAt', payment.deletedAt);
     _putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
     _putIfStringNotEmpty(data, 'method', payment.method);
+    // ✅ حقول SyncFields المفقودة
+    data['vectorClock'] = payment.vectorClock;
+    _putIfStringNotEmpty(data, 'createdAtIso', payment.createdAtIso);
+    _putIfStringNotEmpty(data, 'updatedAtIso', payment.updatedAtIso);
+    _putIfStringNotEmpty(data, 'deletedAtIso', payment.deletedAtIso);
+    _putIfNotNull(data, 'createdAtEpoch', payment.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', payment.lastModifiedEpoch);
     return data;
   }
 
@@ -4268,6 +4301,15 @@ class AppwriteSyncManager {
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfStringNotEmpty(data, 'expiresAt', note.expiresAt);
+    // ✅ حقول SyncFields المفقودة
+    _putIfStringNotEmpty(data, 'vectorClock', note.vectorClock);
+    _putIfStringNotEmpty(data, 'createdAtIso', note.createdAtIso);
+    _putIfStringNotEmpty(data, 'updatedAtIso', note.updatedAtIso);
+    _putIfStringNotEmpty(data, 'deletedAtIso', note.deletedAtIso);
+    _putIfNotNull(data, 'createdAtEpoch', note.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', note.lastModifiedEpoch);
+    _putIfNotNull(data, 'serverId', note.serverId);
+    _putIfNotNull(data, 'deletedAt', note.deletedAt);
     return data;
   }
 
