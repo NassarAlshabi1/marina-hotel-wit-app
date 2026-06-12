@@ -2325,6 +2325,90 @@ class AppwriteSyncManager {
 
   // ─── SalaryWithdrawals ──────────────────────────────────────────────────
 
+  /// محاولة جلب الموظف من Appwrite إذا كان مفقوداً محلياً
+  /// @returns الموظف إذا وجد (محلياً أو بعد الجلب)، null إذا كان سجلاً يتيماً
+  Future<Employee?> _ensureEmployeeExists(Map<String, dynamic> data, String docId) async {
+    final remoteEmployeeId = _asIntSafe(data, 'employeeId') ??
+        _asIntSafe(data, 'employee_id');
+    final employeeUuid = (data['employeeUuid'] as String?) ??
+        (data['employee_uuid'] as String?) ??
+        (data['employeeLocalUuid'] as String?) ??
+        (data['employee_local_uuid'] as String?);
+
+    Employee? employee;
+
+    // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+    if (employeeUuid != null && employeeUuid.isNotEmpty) {
+      employee = await (database.select(database.employees)
+            ..where((e) => e.localUuid.equals(employeeUuid))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    // الطريقة 2: البحث بالـ id البعيد كـ id محلي
+    if (employee == null && remoteEmployeeId != null) {
+      employee = await (database.select(database.employees)
+            ..where((e) => e.id.equals(remoteEmployeeId))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    // الطريقة 3: البحث بالـ serverId
+    if (employee == null && remoteEmployeeId != null) {
+      employee = await (database.select(database.employees)
+            ..where((e) => e.serverId.equals(remoteEmployeeId))
+            ..limit(1))
+          .getSingleOrNull();
+    }
+
+    // الطريقة 4: جلب الموظف من Appwrite — إصلاح جذري للسجلات اليتيمة
+    if (employee == null && employeeUuid != null && employeeUuid.isNotEmpty) {
+      try {
+        _logger.info(
+          '🔄 محاولة جلب الموظف $employeeUuid من Appwrite (لربط سحب الراتب $docId)',
+          tag: 'SYNC',
+        );
+        final empDoc = await appwriteService.getDocument(
+          collectionId: AppwriteConfig.employeesCollectionId,
+          documentId: employeeUuid,
+        );
+        if (empDoc != null) {
+          final empData = Map<String, dynamic>.from(empDoc.data);
+          empData['localUuid'] ??= empDoc.$id;
+          empData.remove('\$id');
+          empData.remove('\$createdAt');
+          empData.remove('\$updatedAt');
+          empData.remove('\$permissions');
+          empData.remove('\$collectionId');
+          empData.remove('\$databaseId');
+          empData.remove('id');
+
+          await _adapterRegistry.employees.upsertFromJson(
+            empData,
+            src: Source.appwrite,
+          );
+          employee = await (database.select(database.employees)
+                ..where((e) => e.localUuid.equals(employeeUuid))
+                ..limit(1))
+              .getSingleOrNull();
+          if (employee != null) {
+            _logger.info(
+              '✅ تم جلب الموظف $employeeUuid من Appwrite وربطه مع سحب الراتب $docId',
+              tag: 'SYNC',
+            );
+          }
+        }
+      } catch (e) {
+        _logger.debug(
+          '⚠️ فشل جلب الموظف $employeeUuid من Appwrite: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+
+    return employee;
+  }
+
   Future<int> _syncSalaryWithdrawals(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
@@ -2345,45 +2429,15 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
-        final remoteEmployeeId = _asIntSafe(data, 'employeeId') ??
-            _asIntSafe(data, 'employee_id');
-        final employeeUuid = (data['employeeUuid'] as String?) ??
-            (data['employee_uuid'] as String?) ??
-            (data['employeeLocalUuid'] as String?) ??
-            (data['employee_local_uuid'] as String?);
-
-        Employee? employee;
-
-        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
-        if (employeeUuid != null && employeeUuid.isNotEmpty) {
-          employee = await (database.select(database.employees)
-                ..where((e) => e.localUuid.equals(employeeUuid))
-                ..limit(1))
-              .getSingleOrNull();
-        }
-
-        // الطريقة 2: البحث بالـ id البعيد كـ id محلي (يعمل إذا تطابقت المعرفات)
-        if (employee == null && remoteEmployeeId != null) {
-          employee = await (database.select(database.employees)
-                ..where((e) => e.id.equals(remoteEmployeeId))
-                ..limit(1))
-              .getSingleOrNull();
-        }
-
-        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
-        if (employee == null && remoteEmployeeId != null) {
-          employee = await (database.select(database.employees)
-                ..where((e) => e.serverId.equals(remoteEmployeeId))
-                ..limit(1))
-              .getSingleOrNull();
-        }
+        // ✅ إصلاح جذري: التأكد من وجود الموظف الأب قبل إدراج سحب الراتب
+        final employee = await _ensureEmployeeExists(data, doc.$id);
 
         if (employee == null) {
           _logger.warning(
-            '⏭️ تخطي salary_withdrawal ${doc.$id}: الموظف $remoteEmployeeId (uuid=$employeeUuid) غير موجود محلياً (سجل يتيم)',
+            '⏭️ تخطي salary_withdrawal ${doc.$id}: الموظف غير موجود محلياً ولا على Appwrite (سجل يتيم)',
             tag: 'SYNC',
           );
+          processed++;
           continue;
         }
 
@@ -2397,7 +2451,6 @@ class AppwriteSyncManager {
         );
 
         // ✅ كتابة expense_id في العمود الخام (Migration 40+)
-        // العمود ليس في الـ data class المُولّد لذلك نكتبه يدوياً
         final remoteExpenseId = _asIntSafe(data, 'expenseId');
         if (remoteExpenseId != null && remoteExpenseId > 0) {
           final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
@@ -2439,6 +2492,18 @@ class AppwriteSyncManager {
       );
       for (final data in deferred) {
         try {
+          // ✅ إصلاح جذري: التأكد من وجود الموظف الأب قبل إعادة المحاولة
+          final employee = await _ensureEmployeeExists(data, data['localUuid'] as String? ?? '');
+          if (employee == null) {
+            _logger.warning(
+              '⏭️ فشل نهائي لـ salary_withdrawal (يتيم): الموظف غير موجود محلياً ولا على Appwrite',
+              tag: 'SYNC',
+            );
+            processed++;
+            continue;
+          }
+          data['employeeId'] = employee.id;
+
           final deferredInsertedId = await _adapterRegistry.salaryWithdrawals.upsertFromJson(
             data,
             src: Source.appwrite,
@@ -2454,7 +2519,7 @@ class AppwriteSyncManager {
           processed++;
         } catch (e) {
           _logger.warning(
-            '⏭️ فشل نهائي لـ salary_withdrawal (يتيم): الموظف ${data['employeeId'] ?? data['employee_id']} غير موجود - $e',
+            '⏭️ فشل نهائي لـ salary_withdrawal (يتيم): ${data['employeeId'] ?? data['employee_id']} غير موجود - $e',
             tag: 'SYNC',
           );
         }
@@ -2462,9 +2527,7 @@ class AppwriteSyncManager {
     }
 
     return processed;
-  }
-
-  Future<bool> _processSalaryWithdrawalEntry(OutboxData entry) async {
+  }  Future<bool> _processSalaryWithdrawalEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
       await _deleteSilently(
         () => appwriteService.deleteSalaryWithdrawal(entry.localUuid),
@@ -5110,6 +5173,100 @@ class AppwriteSyncManager {
     return processed;
   }
 
+  /// محاولة جلب الحجز الأب من Appwrite إذا كان مفقوداً محلياً
+  /// @returns true إذا كان الحجز موجوداً (محلياً أو بعد الجلب)
+  Future<bool> _ensureParentBookingExists(Map<String, dynamic> data, String docId) async {
+    final bookingUuid =
+        (data['bookingLocalUuid'] as String?) ??
+        (data['booking_local_uuid'] as String?) ??
+        (data['bookingUuidCache'] as String?) ??
+        (data['booking_uuid_cache'] as String?);
+
+    if (bookingUuid == null || bookingUuid.isEmpty) {
+      _logger.warning(
+        '⏭️ تخطي تعديل سعر $docId: لا يوجد bookingLocalUuid في البيانات',
+        tag: 'SYNC',
+      );
+      return false;
+    }
+
+    // الطريقة 1: البحث محلياً بالـ UUID
+    var booking = await (database.select(database.bookings)
+          ..where((b) => b.localUuid.equals(bookingUuid))
+          ..limit(1))
+        .getSingleOrNull();
+
+    // الطريقة 2: البحث بالـ serverBookingId إذا كان موجوداً
+    if (booking == null) {
+      final remoteBookingId = _asIntSafe(data, 'bookingLocalId') ??
+          _asIntSafe(data, 'booking_local_id');
+      if (remoteBookingId != null) {
+        booking = await (database.select(database.bookings)
+              ..where((b) => b.serverBookingId.equals(remoteBookingId))
+              ..limit(1))
+            .getSingleOrNull();
+      }
+    }
+
+    // الطريقة 3: جلب الحجز من Appwrite — إصلاح جذري للسجلات اليتيمة
+    if (booking == null) {
+      try {
+        _logger.info(
+          '🔄 محاولة جلب الحجز $bookingUuid من Appwrite (لربط تعديل السعر $docId)',
+          tag: 'SYNC',
+        );
+        final bookingDoc = await appwriteService.getDocument(
+          collectionId: AppwriteConfig.bookingsCollectionId,
+          documentId: bookingUuid,
+        );
+        if (bookingDoc != null) {
+          final bookingData = Map<String, dynamic>.from(bookingDoc.data);
+          bookingData['localUuid'] ??= bookingDoc.$id;
+          bookingData.remove('\$id');
+          bookingData.remove('\$createdAt');
+          bookingData.remove('\$updatedAt');
+          bookingData.remove('\$permissions');
+          bookingData.remove('\$collectionId');
+          bookingData.remove('\$databaseId');
+          bookingData.remove('id');
+
+          await _adapterRegistry.bookings.upsertFromJson(
+            bookingData,
+            src: Source.appwrite,
+          );
+          booking = await (database.select(database.bookings)
+                ..where((b) => b.localUuid.equals(bookingUuid))
+                ..limit(1))
+              .getSingleOrNull();
+          if (booking != null) {
+            _logger.info(
+              '✅ تم جلب الحجز $bookingUuid من Appwrite وربطه مع تعديل السعر $docId',
+              tag: 'SYNC',
+            );
+          }
+        }
+      } catch (e) {
+        _logger.debug(
+          '⚠️ فشل جلب الحجز $bookingUuid من Appwrite: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+
+    if (booking == null) {
+      _logger.warning(
+        '⏭️ تخطي تعديل سعر $docId: الحجز $bookingUuid غير موجود محلياً ولا على Appwrite (سجل يتيم)',
+        tag: 'SYNC',
+      );
+      return false;
+    }
+
+    // ✅ تعيين bookingLocalId الصحيح لضمان عدم فشل FK constraint
+    data['bookingLocalId'] = booking.id;
+    data['bookingLocalUuid'] = booking.localUuid;
+    return true;
+  }
+
   Future<int> _syncBookingPriceAdjustments(
     List<models.Document> documents,
   ) async {
@@ -5122,10 +5279,8 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        // إزالة id عند السحب من Appwrite لتجنب تعارض autoIncrement
         data.remove('id');
 
-        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
         final existing = await (database.select(database.bookingPriceAdjustments)
               ..where((t) => t.localUuid.equals(localUuid))
@@ -5135,12 +5290,17 @@ class AppwriteSyncManager {
           continue;
         }
 
+        // ✅ إصلاح جذري: التأكد من وجود الحجز الأب قبل إدراج تعديل السعر
+        if (!await _ensureParentBookingExists(data, doc.$id)) {
+          processed++;
+          continue;
+        }
+
         final result = await _adapterRegistry.bookingPriceAdjustments.upsertFromJson(
           data,
           src: Source.appwrite,
         );
         
-        // Refresh calculations for the affected booking
         if (result > 0) {
            final adj = await (database.select(database.bookingPriceAdjustments)
             ..where((t) => t.id.equals(result)))
@@ -5153,8 +5313,6 @@ class AppwriteSyncManager {
         
         processed++;
       } catch (e) {
-        // ✅ تأجيل تعديل السعر فقط إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
-        // لا نشمل 'constraint failed' عام لأنه يطابق UNIQUE أيضاً
         final errStr = e.toString();
         if (errStr.contains('FOREIGN KEY constraint failed') ||
             errStr.contains('NOT NULL constraint failed')) {
@@ -5185,6 +5343,12 @@ class AppwriteSyncManager {
           data['localUuid'] ??= doc.$id;
           data.remove('id');
 
+          // ✅ إصلاح جذري: التأكد من وجود الحجز الأب قبل إدراج تعديل السعر
+          if (!await _ensureParentBookingExists(data, doc.$id)) {
+            processed++;
+            continue;
+          }
+
           final result = await _adapterRegistry.bookingPriceAdjustments.upsertFromJson(
             data,
             src: Source.appwrite,
@@ -5206,7 +5370,7 @@ class AppwriteSyncManager {
           if (errStr.contains('FOREIGN KEY constraint failed') ||
               errStr.contains('NOT NULL constraint failed')) {
             _logger.warning(
-              '⏭️ تخطي تعديل سعر ${doc.$id}: الحجز الأب غير موجود محلياً (سجل يتيم)',
+              '⏭️ تخطي تعديل سعر ${doc.$id}: الحجز الأب غير موجود محلياً ولا على Appwrite (سجل يتيم)',
               tag: 'SYNC',
             );
           } else {
@@ -5220,9 +5384,7 @@ class AppwriteSyncManager {
     }
 
     return processed;
-  }
-
-  // ─── PriceAdjustments ──────────────────────────────────────────────────
+  }  // ─── PriceAdjustments ──────────────────────────────────────────────────
 
   Future<int> _syncPriceAdjustments(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
