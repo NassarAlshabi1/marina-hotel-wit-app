@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../data/sync_models.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
+import 'sync_performance_optimizer.dart';
 
 class DeltaSyncChange {
   DeltaSyncChange({

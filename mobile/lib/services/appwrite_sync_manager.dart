@@ -17,6 +17,7 @@ import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'adapters/adapter_registry.dart';
+import 'sync_performance_optimizer.dart';
 import 'adapters/salary_withdrawals_adapter.dart';
 import 'adapters/source.dart';
 import 'appwrite_config.dart';
@@ -1433,28 +1434,6 @@ class AppwriteSyncManager {
     }
 
     // Remote is newer only if lastModified > local
-    return remoteLastModified > localLastModified;
-  }
-      // البيانات البعيدة غير محذوفة لكن المحلي محذوف — نرفض الكتابة فوق الحذف
-      // الحذف المحلي متعمد ويجب أن يكون له أولوية أعلى
-      return false;
-    }
-
-    if (localLastModified == null) {
-      // لا يوجد سجل محلي — البيانات البعيدة "أحدث" (جديدة)
-      return true;
-    }
-
-    final remoteLastModified = _asIntNullable(remoteData['lastModified']) ??
-        _asIntNullable(remoteData['last_modified']) ??
-        _asIntNullable(remoteData['lastModifiedEpoch']);
-
-    if (remoteLastModified == null) {
-      // لا نعرف عمر البيانات البعيدة — نتابع بالتحديث احتياطاً
-      return true;
-    }
-
-    // البيانات البعيدة أحدث فقط إذا كان lastModified أكبر من المحلي
     return remoteLastModified > localLastModified;
   }
 
