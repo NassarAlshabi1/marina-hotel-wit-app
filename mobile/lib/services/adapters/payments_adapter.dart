@@ -174,6 +174,12 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       isVoided: _vBool(json, 'isVoided', src, fallback: false),
       voidedAt: _vInt(json, 'voidedAt', src),
       voidedBy: _vStr(json, 'voidedBy', src),
+      // ✅ حقول SyncFields المفقودة — كانت تُرسل لكن لا تُستقبل
+      createdAtIso: _vStr(json, 'createdAtIso', src),
+      updatedAtIso: _vStr(json, 'updatedAtIso', src),
+      deletedAtIso: _vStr(json, 'deletedAtIso', src),
+      createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
+      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
     );
   }
 
