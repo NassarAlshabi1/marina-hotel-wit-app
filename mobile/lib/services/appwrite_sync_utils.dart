@@ -124,9 +124,18 @@ class AppwriteSyncUtils {
     return result;
   }
 
+  /// الحقول التي يجب أن تبقى snake_case في Appwrite (لا تُحوّل إلى camelCase)
+  /// ⚠️ هذه الحقول مطلوبة (required) في مخطط Appwrite بأسمائها snake_case
+  /// تحويلها إلى camelCase يسبب خطأ "Missing required attribute"
+  static const Set<String> _preserveSnakeCase = {
+    'sync_origin',   // حقل مزامنة مطلوب في جميع المجموعات
+  };
+
   /// تحويل أسماء الحقول من snake_case إلى camelCase (للتوافق مع Appwrite)
+  /// ⚠️ الحقول في _preserveSnakeCase لا تُحوّل لأن Appwrite يتطلبها snake_case
   static String toCamelCase(String input) {
     if (!input.contains('_')) return input;
+    if (_preserveSnakeCase.contains(input)) return input;
     final parts = input.split('_');
     final first = parts.first;
     final rest = parts
