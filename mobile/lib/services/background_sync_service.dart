@@ -256,28 +256,21 @@ class BackgroundSyncService {
       final database = DatabaseManager.instance;
       final outboxDao = OutboxDao(database);
       
-      final completedCleaned = await outboxDao.cleanupCompleted(
-        olderThan: const Duration(days: 7),
-      );
+      final completedCleaned = await outboxDao.cleanupCompleted();
       developer.log(
         '🧹 Cleaned $completedCleaned completed outbox entries',
         name: 'Maintenance',
       );
 
       // 2. تنظيف Outbox العالق (معالجة منذ أكثر من 5 دقائق)
-      final stuckCleaned = await outboxDao.cleanupStuckEntries(
-        timeout: const Duration(minutes: 5),
-      );
+      final stuckCleaned = await outboxDao.cleanupStuckEntries();
       developer.log(
         '🧹 Cleaned $stuckCleaned stuck outbox entries',
         name: 'Maintenance',
       );
 
       // 3. تنظيف العناصر اليتيمة (فشلت 10+ مرات، أقدم من 3 أيام)
-      final orphanedCleaned = await outboxDao.cleanupOrphanedEntries(
-        maxAttempts: 10,
-        olderThan: const Duration(days: 3),
-      );
+      final orphanedCleaned = await outboxDao.cleanupOrphanedEntries();
       developer.log(
         '🧹 Cleaned $orphanedCleaned orphaned outbox entries',
         name: 'Maintenance',

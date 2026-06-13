@@ -518,8 +518,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
 
     if (isOverdue) {
-      return Container(
-        key: ValueKey('overdue_${roomNumber}'),
+      return DecoratedBox(
+        key: ValueKey('overdue_$roomNumber'),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.orange.withValues(alpha: 0.6), width: 1.5),

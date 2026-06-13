@@ -965,6 +965,7 @@ class AppwriteService {
   }) async {
     await _ensureInitialized();
     try {
+      // ignore: deprecated_member_use
       return await _databases.getDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,

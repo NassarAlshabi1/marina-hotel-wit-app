@@ -791,7 +791,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
         child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Container(
+          DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [buttonColor.withValues(alpha: 0.85), buttonColor],
@@ -907,7 +907,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Container(
+          DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [buttonColor.withValues(alpha: 0.85), buttonColor],

@@ -103,7 +103,7 @@ class RoomCard extends StatelessWidget { // حالة تأخر السداد لل�
     );
 
     if (isPaymentOverdue) {
-      return Container(
+      return DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.red.withValues(alpha: 0.5), width: 1.5),

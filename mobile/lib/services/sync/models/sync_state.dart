@@ -17,13 +17,6 @@ enum SyncPriority {
 
 /// نموذج حالة المزامنة
 class SyncState {
-  final SyncStatus status;
-  final int progress;
-  final String? message;
-  final DateTime? lastSyncTime;
-  final int pendingChanges;
-  final String? error;
-
   const SyncState({
     required this.status,
     this.progress = 0,
@@ -53,6 +46,13 @@ class SyncState {
   factory SyncState.offline() => const SyncState(status: SyncStatus.offline);
 
   factory SyncState.disabled() => const SyncState(status: SyncStatus.disabled);
+
+  final SyncStatus status;
+  final int progress;
+  final String? message;
+  final DateTime? lastSyncTime;
+  final int pendingChanges;
+  final String? error;
 
   bool get isIdle => status == SyncStatus.idle;
   bool get isSyncing => status == SyncStatus.syncing;
@@ -105,12 +105,6 @@ class SyncState {
 
 /// إعدادات المزامنة
 class SyncSettings {
-  final bool autoSyncEnabled;
-  final int syncIntervalMinutes;
-  final bool syncOnWifiOnly;
-  final bool compressData;
-  final SyncPriority defaultPriority;
-
   const SyncSettings({
     this.autoSyncEnabled = true,
     this.syncIntervalMinutes = 5,
@@ -118,6 +112,25 @@ class SyncSettings {
     this.compressData = true,
     this.defaultPriority = SyncPriority.normal,
   });
+
+  factory SyncSettings.fromJson(Map<String, dynamic> json) {
+    return SyncSettings(
+      autoSyncEnabled: json['autoSyncEnabled'] as bool? ?? true,
+      syncIntervalMinutes: json['syncIntervalMinutes'] as int? ?? 5,
+      syncOnWifiOnly: json['syncOnWifiOnly'] as bool? ?? true,
+      compressData: json['compressData'] as bool? ?? true,
+      defaultPriority: SyncPriority.values.firstWhere(
+        (e) => e.name == json['defaultPriority'],
+        orElse: () => SyncPriority.normal,
+      ),
+    );
+  }
+
+  final bool autoSyncEnabled;
+  final int syncIntervalMinutes;
+  final bool syncOnWifiOnly;
+  final bool compressData;
+  final SyncPriority defaultPriority;
 
   SyncSettings copyWith({
     bool? autoSyncEnabled,
@@ -132,19 +145,6 @@ class SyncSettings {
       syncOnWifiOnly: syncOnWifiOnly ?? this.syncOnWifiOnly,
       compressData: compressData ?? this.compressData,
       defaultPriority: defaultPriority ?? this.defaultPriority,
-    );
-  }
-
-  factory SyncSettings.fromJson(Map<String, dynamic> json) {
-    return SyncSettings(
-      autoSyncEnabled: json['autoSyncEnabled'] as bool? ?? true,
-      syncIntervalMinutes: json['syncIntervalMinutes'] as int? ?? 5,
-      syncOnWifiOnly: json['syncOnWifiOnly'] as bool? ?? true,
-      compressData: json['compressData'] as bool? ?? true,
-      defaultPriority: SyncPriority.values.firstWhere(
-        (e) => e.name == json['defaultPriority'],
-        orElse: () => SyncPriority.normal,
-      ),
     );
   }
 

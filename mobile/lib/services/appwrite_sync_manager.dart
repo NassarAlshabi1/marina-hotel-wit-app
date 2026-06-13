@@ -17,7 +17,6 @@ import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'adapters/adapter_registry.dart';
-import 'sync_performance_optimizer.dart';
 import 'adapters/salary_withdrawals_adapter.dart';
 import 'adapters/source.dart';
 import 'appwrite_config.dart';
@@ -36,6 +35,7 @@ import 'sync_constants.dart';
 import 'sync_core/sync_metrics.dart';
 import 'sync_enums.dart';
 import 'sync_mutex.dart';
+import 'sync_performance_optimizer.dart';
 import 'telegram/whatsapp_notification_service.dart';
 
 /// حالة المزامنة

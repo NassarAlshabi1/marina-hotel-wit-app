@@ -81,7 +81,7 @@ class DeltaSyncService {
       // Limit rows processed per table for low-end devices
       final limitedRows = rows.length > maxRowsPerTable ? rows.take(maxRowsPerTable).toList() : rows;
       if (rows.length > maxRowsPerTable) {
-        debugPrint('⚠️ ${config.entity}: معالجة ${maxRowsPerTable} من ${rows.length} سطر (حد الأداء)');
+        debugPrint('⚠️ ${config.entity}: معالجة $maxRowsPerTable من ${rows.length} سطر (حد الأداء)');
       }
       final existingMirror = previousMirror[config.entity] ?? {};
       final hasMirror = previousMirror.containsKey(config.entity);
@@ -376,7 +376,7 @@ class DeltaSyncService {
         // Limit rebuild for low-end devices
         final limitedRows = rows.length > maxRowsPerTable ? rows.take(maxRowsPerTable).toList() : rows;
         if (rows.length > maxRowsPerTable) {
-          debugPrint('⚠️ ${config.entity}: إعادة بناء ${maxRowsPerTable} من ${rows.length} سطر (حد الأداء)');
+          debugPrint('⚠️ ${config.entity}: إعادة بناء $maxRowsPerTable من ${rows.length} سطر (حد الأداء)');
         }
         for (final row in limitedRows) {
           final uuid = config.localUuid(row);
