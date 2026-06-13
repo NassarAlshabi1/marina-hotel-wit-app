@@ -153,6 +153,9 @@ class SalaryPaymentsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'cycleId', 'cycle_id'): model.cycleId,
+      // ✅ إصلاح حرج: إرسال cycleLocalUuid لربط المدفوعات بدورة الراتب عبر الأجهزة
+      // بدون هذا الحقل، لا يمكن للجهاز الآخر ربط الدفعة بالدورة الصحيحة
+      _k(src, 'cycleLocalUuid', 'cycle_local_uuid'): model.cycleLocalUuid,
       // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
       // المحلي يستخدم IntColumn — النوع متطابق
       _k(src, 'amount', 'amount'): model.amount,

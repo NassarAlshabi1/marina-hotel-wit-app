@@ -566,7 +566,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
     );
@@ -626,7 +626,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
       roomNumber: d.Value(roomNumber),
       guestName: d.Value(_asString(data['guestName']) ?? ''),
@@ -697,6 +697,15 @@ class AppwriteDeltaSync {
     String localUuid,
     Map<String, dynamic> data,
   ) async {
+    // ✅ إصلاح حرج: حل FK للحجز عبر UUID بدلاً من bookingLocalId الخام
+    // معرّف الزيادة التلقائية يختلف بين الأجهزة — bookingLocalId=5 على جهاز A ≠ جهاز B
+    // إذا فشل resolveBooking، نترك bookingLocalId فارغاً و bookingUuidCache يُحفظ لإعادة الربط
+    final resolvedBookingId = await _resolveBookingId(db, data);
+    final bookingUuidCache = _asString(data['bookingUuidCache']) ??
+        _asString(data['booking_uuid_cache']) ??
+        _asString(data['bookingUuid']) ??
+        _asString(data['booking_uuid']);
+
     final companion = PaymentsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
@@ -710,11 +719,14 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       serverPaymentId: _nullableValue<int>(_asInt(data['serverPaymentId'])),
-      bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
+      // ✅ إصلاح: استخدام bookingLocalId المحلول عبر UUID بدل القيمة الخامة
+      bookingLocalId: resolvedBookingId != null
+          ? d.Value(resolvedBookingId)
+          : const d.Value.absent(),
       serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
       roomNumber: _nullableValue<String>(_asString(data['roomNumber'])),
       amount: d.Value(_asDouble(data['amount'])),
@@ -734,7 +746,10 @@ class AppwriteDeltaSync {
       hotelDayKey: _nullableValue<String>(_asString(data['hotelDayKey'])),
       isPendingBalance: d.Value(_asBool(data['isPendingBalance']) ?? false),
       linkedDebtUuid: _nullableValue<String>(_asString(data['linkedDebtUuid'])),
-      bookingUuidCache: _nullableValue<String>(_asString(data['bookingUuidCache'])),
+      // ✅ إصلاح: حفظ bookingUuidCache دائماً لإعادة الربط لاحقاً
+      bookingUuidCache: bookingUuidCache != null
+          ? d.Value(bookingUuidCache)
+          : _nullableValue<String>(_asString(data['bookingUuidCache'])),
       discountAmount: _nullableValue<double>(_asDoubleNull(data['discountAmount'])),
       discountStartDate: _nullableValue<String>(_asString(data['discountStartDate'])),
       isVoided: d.Value(_asBool(data['isVoided']) ?? false),
@@ -766,7 +781,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       expenseType: d.Value(expenseType),
@@ -793,6 +808,13 @@ class AppwriteDeltaSync {
         _asString(data['guestName']) ?? _asString(data['debtorName']);
     if (guestName == null || guestName.isEmpty) return;
 
+    // ✅ إصلاح حرج: حل FK للحجز عبر UUID بدلاً من bookingLocalId الخام
+    final resolvedBookingId = await _resolveBookingId(db, data);
+    final bookingUuidCache = _asString(data['bookingUuidCache']) ??
+        _asString(data['booking_uuid_cache']) ??
+        _asString(data['bookingUuid']) ??
+        _asString(data['booking_uuid']);
+
     final companion = DebtsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
@@ -800,7 +822,14 @@ class AppwriteDeltaSync {
       updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
-      bookingLocalId: _nullableValue<int>(_asInt(data['bookingLocalId'])),
+      // ✅ إصلاح: استخدام bookingLocalId المحلول عبر UUID بدل القيمة الخامة
+      bookingLocalId: resolvedBookingId != null
+          ? d.Value(resolvedBookingId)
+          : const d.Value.absent(),
+      // ✅ إصلاح: حفظ bookingUuidCache دائماً لإعادة الربط لاحقاً
+      bookingUuidCache: bookingUuidCache != null
+          ? d.Value(bookingUuidCache)
+          : _nullableValue<String>(_asString(data['bookingUuidCache'])),
       guestName: d.Value(guestName),
       checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
       checkoutDate: d.Value(_asString(data['checkoutDate']) ?? ''),
@@ -829,7 +858,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
     );
@@ -858,7 +887,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       name: d.Value(name),
@@ -891,7 +920,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       targetType: d.Value(targetType),
       targetUuid: d.Value(targetUuid),
@@ -970,7 +999,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       originalPaymentUuid: d.Value(originalPaymentUuid),
       originalPaymentId: d.Value(_asInt(data['originalPaymentId']) ?? 0),
@@ -1024,7 +1053,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
     );
@@ -1067,7 +1096,7 @@ class AppwriteDeltaSync {
         _asInt(data['lastModifiedEpoch']) ?? incomingLastModified,
       ),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
     );
@@ -1097,7 +1126,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(lastModified),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
@@ -1144,7 +1173,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       bookingId: d.Value(resolvedBookingId),
@@ -1175,7 +1204,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       registerId: _nullableValue<int>(_asInt(data['registerId'])),
@@ -1209,7 +1238,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       title: d.Value(_asString(data['title']) ?? ''),
@@ -1251,7 +1280,7 @@ class AppwriteDeltaSync {
         _asInt(data['lastModifiedEpoch']) ?? lastModified,
       ),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       employeeId: d.Value(resolvedEmployeeId),
@@ -1289,7 +1318,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
       cycleId: d.Value(resolvedCycleId),
@@ -1762,7 +1791,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? _asString(data['vector_clock']) ?? '{}'),
       deviceId: _nullableValue<String>(_asString(data['deviceId'])),
     );

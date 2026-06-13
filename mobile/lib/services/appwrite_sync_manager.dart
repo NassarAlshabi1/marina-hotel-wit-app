@@ -1988,6 +1988,12 @@ class AppwriteSyncManager {
           return await _processBlacklistEntry(entry);
         case 'price_adjustments':
           return await _processPriceAdjustmentEntry(entry);
+        // ✅ إصلاح حرج: إضافة معالجة audit_logs و payment_voids
+        // بدون هذه الحالات، تظل عناصر outbox معلقة للأبد وتعيق الدفع
+        case 'audit_logs':
+          return await _processAuditLogEntry(entry);
+        case 'payment_voids':
+          return await _processPaymentVoidEntry(entry);
         default:
           _logger.warning(
             'Unknown outbox entity: ${entry.entity}',
@@ -2315,9 +2321,12 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = _adapterRegistry.guestInfos.adapter.toJson(
-      info,
-      src: Source.appwrite,
+    final payload = AppwriteSyncUtils.sanitizePayload(
+      'guest_infos',
+      _adapterRegistry.guestInfos.adapter.toJson(
+        info,
+        src: Source.appwrite,
+      ),
     );
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.guestInfosCollectionId,
@@ -2570,9 +2579,12 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
       try {
-        final empPayload = _adapterRegistry.employees.adapter.toJson(
-          employee,
-          src: Source.appwrite,
+        final empPayload = AppwriteSyncUtils.sanitizePayload(
+          'employees',
+          _adapterRegistry.employees.adapter.toJson(
+            employee,
+            src: Source.appwrite,
+          ),
         );
         await appwriteService.upsertEmployee(
           employee.localUuid,
@@ -2611,9 +2623,12 @@ class AppwriteSyncManager {
       return true;
     }
 
-    final payload = _adapterRegistry.salaryWithdrawals.adapter.toJson(
-      withdrawal,
-      src: Source.appwrite,
+    final payload = AppwriteSyncUtils.sanitizePayload(
+      'salary_withdrawals',
+      _adapterRegistry.salaryWithdrawals.adapter.toJson(
+        withdrawal,
+        src: Source.appwrite,
+      ),
     );
     // ✅ إضافة employeeUuid لربط السلف بالموضف عبر الأجهزة
     payload['employeeUuid'] = employee.localUuid;
@@ -2652,7 +2667,10 @@ class AppwriteSyncManager {
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', room.serverId);
-    _putIfNotNull(data, 'deletedAt', room.deletedAt);
+    // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
+    // بدون هذا، إلغاء الحذف الناعم محلياً (deletedAt=null) لا يُنعكس على Appwrite
+    // لأن _putIfNotNull يمنع إرسال القيم null
+    data['deletedAt'] = room.deletedAt;
     _putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
     // ✅ حقول المزامنة المفقودة — ISO timestamps و vectorClock
     _putIfStringNotEmpty(data, 'createdAtIso', room.createdAtIso);
@@ -2686,7 +2704,8 @@ class AppwriteSyncManager {
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
     _putIfNotNull(data, 'serverId', booking.serverId);
-    _putIfNotNull(data, 'deletedAt', booking.deletedAt);
+    // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
+    data['deletedAt'] = booking.deletedAt;
     _putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
     _putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
     _putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
@@ -2742,7 +2761,8 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'relatedId', expense.relatedId);
     _putIfNotNull(data, 'cashTransactionId', expense.cashTransactionId);
     _putIfNotNull(data, 'serverId', expense.serverId);
-    _putIfNotNull(data, 'deletedAt', expense.deletedAt);
+    // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
+    data['deletedAt'] = expense.deletedAt;
     _putIfStringNotEmpty(data, 'hotelDayKey', expense.hotelDayKey);
     _putIfStringNotEmpty(data, 'categoryUuid', expense.categoryUuid);
     _putIfStringNotEmpty(data, 'cashFlowUuid', expense.cashFlowUuid);
@@ -2792,7 +2812,8 @@ class AppwriteSyncManager {
     );
     _putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
     _putIfNotNull(data, 'serverId', payment.serverId);
-    _putIfNotNull(data, 'deletedAt', payment.deletedAt);
+    // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
+    data['deletedAt'] = payment.deletedAt;
     _putIfStringNotEmpty(data, 'deletedAtIso', payment.deletedAtIso);
     _putIfStringNotEmpty(data, 'linkedDebtUuid', payment.linkedDebtUuid);
     _putIfNotNull(data, 'discountAmount', payment.discountAmount);
@@ -2818,6 +2839,10 @@ class AppwriteSyncManager {
       'guestName': debt.guestName,
       'checkinDate': debt.checkinDate,
       'totalAmount': debt.totalAmount,
+      // ✅ إصلاح حرج: إرسال 'amount' كاسم بديل لـ totalAmount
+      // Appwrite Cloud يتطلب حقل 'amount' (required) في مجموعة debts
+      // بينما المحلي يستخدم 'totalAmount' — نرسل كلا الاسمين للتوافق
+      'amount': debt.totalAmount,
       'paidAmount': debt.paidAmount,
       'remainingAmount': debt.remainingAmount.round(), // ✅ Appwrite: integer
       // ── Required sync fields ──
@@ -2825,6 +2850,8 @@ class AppwriteSyncManager {
       // — حقول مكررة وقديمة، يُرسل vectorClock/version/origin بأسمائهم الصحيحة
       // ── Business fields ──
       'bookingLocalId': debt.bookingLocalId,
+      // ✅ إصلاح حرج: إرسال bookingUuidCache لربط الديون بالحجز عبر الأجهزة
+      'bookingUuidCache': debt.bookingUuidCache,
       'checkoutDate': debt.checkoutDate,
       'paymentDate': debt.paymentDate,
       'isSettled': debt.isSettled,
@@ -2846,7 +2873,8 @@ class AppwriteSyncManager {
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', debt.serverId);
-    _putIfNotNull(data, 'deletedAt', debt.deletedAt);
+    // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
+    data['deletedAt'] = debt.deletedAt;
     _putIfStringNotEmpty(data, 'deletedAtIso', debt.deletedAtIso);
     // ✅ حقول ISO مفقودة
     _putIfStringNotEmpty(data, 'createdAtIso', debt.createdAtIso);
@@ -3996,9 +4024,12 @@ class AppwriteSyncManager {
       for (final adj in adjustments) {
         if (skipDeleted && adj.deletedAt != null) continue;
         try {
-          final payload = _adapterRegistry.bookingPriceAdjustments.adapter.toJson(
-            adj,
-            src: Source.appwrite,
+          final payload = AppwriteSyncUtils.sanitizePayload(
+            'booking_price_adjustments',
+            _adapterRegistry.bookingPriceAdjustments.adapter.toJson(
+              adj,
+              src: Source.appwrite,
+            ),
           );
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
@@ -4018,9 +4049,12 @@ class AppwriteSyncManager {
       for (final info in guestInfos) {
         if (skipDeleted && info.deletedAt != null) continue;
         try {
-          final payload = _adapterRegistry.guestInfos.adapter.toJson(
-            info,
-            src: Source.appwrite,
+          final payload = AppwriteSyncUtils.sanitizePayload(
+            'guest_infos',
+            _adapterRegistry.guestInfos.adapter.toJson(
+              info,
+              src: Source.appwrite,
+            ),
           );
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.guestInfosCollectionId,
@@ -4040,9 +4074,12 @@ class AppwriteSyncManager {
       for (final withdrawal in salaryWithdrawals) {
         if (skipDeleted && withdrawal.deletedAt != null) continue;
         try {
-          final payload = _adapterRegistry.salaryWithdrawals.adapter.toJson(
-            withdrawal,
-            src: Source.appwrite,
+          final payload = AppwriteSyncUtils.sanitizePayload(
+            'salary_withdrawals',
+            _adapterRegistry.salaryWithdrawals.adapter.toJson(
+              withdrawal,
+              src: Source.appwrite,
+            ),
           );
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
@@ -4117,7 +4154,8 @@ class AppwriteSyncManager {
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', employee.serverId);
-    _putIfNotNull(data, 'deletedAt', employee.deletedAt);
+    // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
+    data['deletedAt'] = employee.deletedAt;
     // ✅ حقول الأعمال المفقودة — بيانات إنهاء الخدمة
     _putIfStringNotEmpty(data, 'terminationDate', employee.terminationDate);
     _putIfStringNotEmpty(data, 'terminationReason', employee.terminationReason);
@@ -4146,7 +4184,8 @@ class AppwriteSyncManager {
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', note.serverId);
-    _putIfNotNull(data, 'deletedAt', note.deletedAt);
+    // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
+    data['deletedAt'] = note.deletedAt;
     _putIfStringNotEmpty(data, 'alertUntil', note.alertUntil);
     // ✅ حقول SyncFields المفقودة
     _putIfStringNotEmpty(data, 'vectorClock', note.vectorClock);
@@ -4180,7 +4219,8 @@ class AppwriteSyncManager {
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', night.serverId);
-    _putIfNotNull(data, 'deletedAt', night.deletedAt);
+    // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
+    data['deletedAt'] = night.deletedAt;
     _putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
     _putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
     // ✅ حقول SyncFields المفقودة
@@ -4209,7 +4249,8 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'referenceId', transaction.referenceId);
     _putIfNotNull(data, 'createdBy', transaction.createdBy);
     _putIfNotNull(data, 'serverId', transaction.serverId);
-    _putIfNotNull(data, 'deletedAt', transaction.deletedAt);
+    // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
+    data['deletedAt'] = transaction.deletedAt;
     _putIfStringNotEmpty(data, 'referenceType', transaction.referenceType);
     _putIfStringNotEmpty(data, 'description', transaction.description);
     // ✅ حقول SyncFields المفقودة
@@ -4240,7 +4281,8 @@ class AppwriteSyncManager {
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', cycle.serverId);
-    _putIfNotNull(data, 'deletedAt', cycle.deletedAt);
+    // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
+    data['deletedAt'] = cycle.deletedAt;
     _putIfStringNotEmpty(data, 'hotelDayStart', cycle.hotelDayStart);
     _putIfStringNotEmpty(data, 'hotelDayEnd', cycle.hotelDayEnd);
     // ✅ حقول SyncFields المفقودة
@@ -4267,7 +4309,8 @@ class AppwriteSyncManager {
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', payment.serverId);
-    _putIfNotNull(data, 'deletedAt', payment.deletedAt);
+    // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
+    data['deletedAt'] = payment.deletedAt;
     _putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
     _putIfStringNotEmpty(data, 'method', payment.method);
     // ✅ حقول SyncFields المفقودة
@@ -4309,7 +4352,8 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'createdAtEpoch', note.createdAtEpoch);
     _putIfNotNull(data, 'lastModifiedEpoch', note.lastModifiedEpoch);
     _putIfNotNull(data, 'serverId', note.serverId);
-    _putIfNotNull(data, 'deletedAt', note.deletedAt);
+    // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
+    data['deletedAt'] = note.deletedAt;
     // ✅ حقول SyncFields المفقودة المتبقية
     data['version'] = note.version;
     data['origin'] = note.origin;
@@ -4330,9 +4374,12 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.salaryPayments.adapter.toJson(
-      item,
-      src: Source.appwrite,
+    final payload = AppwriteSyncUtils.sanitizePayload(
+      'salary_payments',
+      outboxDao.adapters.salaryPayments.adapter.toJson(
+        item,
+        src: Source.appwrite,
+      ),
     );
     await appwriteService.upsertSalaryPayment(
       item.localUuid,
@@ -4363,9 +4410,12 @@ class AppwriteSyncManager {
       return true;
     }
 
-    final payload = outboxDao.adapters.cashTransactions.adapter.toJson(
-      item,
-      src: Source.appwrite,
+    final payload = AppwriteSyncUtils.sanitizePayload(
+      'cash_transactions',
+      outboxDao.adapters.cashTransactions.adapter.toJson(
+        item,
+        src: Source.appwrite,
+      ),
     );
 
     await appwriteService.upsertCashTransaction(
@@ -4397,9 +4447,12 @@ class AppwriteSyncManager {
       return true;
     }
 
-    final payload = outboxDao.adapters.shiftNotes.adapter.toJson(
-      item,
-      src: Source.appwrite,
+    final payload = AppwriteSyncUtils.sanitizePayload(
+      'shift_notes',
+      outboxDao.adapters.shiftNotes.adapter.toJson(
+        item,
+        src: Source.appwrite,
+      ),
     );
 
     await appwriteService.upsertShiftNote(
@@ -4519,6 +4572,143 @@ class AppwriteSyncManager {
       if (row.createdAtIso != null) 'createdAtIso': row.createdAtIso,
       if (row.updatedAtIso != null) 'updatedAtIso': row.updatedAtIso,
       if (row.deletedAtIso != null) 'deletedAtIso': row.deletedAtIso,
+      'createdAtEpoch': row.createdAtEpoch,
+      'lastModifiedEpoch': row.lastModifiedEpoch,
+    };
+  }
+
+  // ─── AuditLogs ───────────────────────────────────────────────────────
+
+  /// ✅ إصلاح حرج: معالجة عناصر outbox من نوع audit_logs
+  /// بدون هذه الدالة، تظل عناصر outbox معلقة للأبد وتعيق الدفع
+  Future<bool> _processAuditLogEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      // audit_logs لا تُحذف عادةً، لكن ندعمها للتكامل
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.auditLogsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+
+    final localRow = await (database.select(database.auditLogs)
+          ..where((t) => t.localUuid.equals(entry.localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (localRow == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.auditLogsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+
+    final payload = _auditLogToRemote(localRow);
+    await appwriteService.upsertDocument(
+      collectionId: AppwriteConfig.auditLogsCollectionId,
+      documentId: localRow.localUuid,
+      data: _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Map<String, dynamic> _auditLogToRemote(AuditLog row) {
+    final now = Time.nowEpoch();
+    return {
+      'localUuid': row.localUuid,
+      'operationType': row.operationType,
+      'entityType': row.entityType,
+      'entityUuid': row.entityUuid,
+      'performedBy': row.performedBy,
+      'deviceId': row.deviceId,
+      'hotelDayKey': row.hotelDayKey,
+      'timestamp': row.timestamp,
+      'isFinancial': row.isFinancial,
+      'createdAt': row.createdAt,
+      'updatedAt': now,
+      'lastModified': now,
+      'origin': 'mobile',
+      if (row.serverId != null) 'serverId': row.serverId,
+      if (row.entityId != null) 'entityId': row.entityId,
+      if (row.previousState != null) 'previousState': row.previousState,
+      if (row.newState != null) 'newState': row.newState,
+      if (row.changedFields != null) 'changedFields': row.changedFields,
+      if (row.ipAddress != null) 'ipAddress': row.ipAddress,
+      if (row.timestampIso != null) 'timestampIso': row.timestampIso,
+      if (row.amountImpact != null) 'amountImpact': row.amountImpact,
+      'version': row.version,
+      'vectorClock': '{}',
+    };
+  }
+
+  // ─── PaymentVoids ────────────────────────────────────────────────────
+
+  /// ✅ إصلاح حرج: معالجة عناصر outbox من نوع payment_voids
+  /// بدون هذه الدالة، تظل عناصر outbox معلقة للأبد وتعيق الدفع
+  Future<bool> _processPaymentVoidEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.paymentVoidsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+
+    final localRow = await (database.select(database.paymentVoids)
+          ..where((t) => t.localUuid.equals(entry.localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (localRow == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.paymentVoidsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+
+    final payload = _paymentVoidToRemote(localRow);
+    await appwriteService.upsertDocument(
+      collectionId: AppwriteConfig.paymentVoidsCollectionId,
+      documentId: localRow.localUuid,
+      data: _addIdempotencyKey(payload, entry),
+    );
+    return true;
+  }
+
+  Map<String, dynamic> _paymentVoidToRemote(PaymentVoid row) {
+    final now = Time.nowEpoch();
+    return {
+      'localUuid': row.localUuid,
+      'originalPaymentUuid': row.originalPaymentUuid,
+      'originalPaymentId': row.originalPaymentId,
+      'bookingUuid': row.bookingUuid,
+      'voidedAmount': row.voidedAmount,
+      'voidReason': row.voidReason,
+      'voidedBy': row.voidedBy,
+      'voidedAt': row.voidedAt,
+      'hotelDayKey': row.hotelDayKey,
+      'createdAt': row.createdAt,
+      'updatedAt': now,
+      'lastModified': now,
+      'origin': 'mobile',
+      'deviceId': _currentDeviceId ?? '',
+      if (row.serverId != null) 'serverId': row.serverId,
+      if (row.reversalPaymentUuid != null) 'reversalPaymentUuid': row.reversalPaymentUuid,
+      if (row.approvedBy != null) 'approvedBy': row.approvedBy,
+      if (row.deletedAt != null) 'deletedAt': row.deletedAt,
+      if (row.voidedAtIso != null) 'voidedAtIso': row.voidedAtIso,
+      'version': row.version,
+      'vectorClock': row.vectorClock,
       'createdAtEpoch': row.createdAtEpoch,
       'lastModifiedEpoch': row.lastModifiedEpoch,
     };
@@ -4695,9 +4885,12 @@ class AppwriteSyncManager {
       final item = await _getEmployeeByLocalUuid(entry.localUuid);
       if (item != null && item.deletedAt != null) {
         // ✅ حذف ناعم — إرسال deletedAt إلى Appwrite
-        final payload = outboxDao.adapters.employees.adapter.toJson(
-          item,
-          src: Source.appwrite,
+        final payload = AppwriteSyncUtils.sanitizePayload(
+          'employees',
+          outboxDao.adapters.employees.adapter.toJson(
+            item,
+            src: Source.appwrite,
+          ),
         );
         await appwriteService.upsertEmployee(
           item.localUuid,
@@ -4718,9 +4911,12 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.employees.adapter.toJson(
-      item,
-      src: Source.appwrite,
+    final payload = AppwriteSyncUtils.sanitizePayload(
+      'employees',
+      outboxDao.adapters.employees.adapter.toJson(
+        item,
+        src: Source.appwrite,
+      ),
     );
     await appwriteService.upsertEmployee(
       item.localUuid,
@@ -4750,9 +4946,12 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.bookingNotes.adapter.toJson(
-      item,
-      src: Source.appwrite,
+    final payload = AppwriteSyncUtils.sanitizePayload(
+      'booking_notes',
+      outboxDao.adapters.bookingNotes.adapter.toJson(
+        item,
+        src: Source.appwrite,
+      ),
     );
     // Note: booking notes often part of booking but if synced separately:
     await appwriteService.upsertBookingNote(
@@ -4783,9 +4982,12 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.nights.adapter.toJson(
-      item,
-      src: Source.appwrite,
+    final payload = AppwriteSyncUtils.sanitizePayload(
+      'booking_nights',
+      outboxDao.adapters.nights.adapter.toJson(
+        item,
+        src: Source.appwrite,
+      ),
     );
     await appwriteService.upsertBookingNight(
       item.localUuid,
@@ -4815,9 +5017,12 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.salaryCycles.adapter.toJson(
-      item,
-      src: Source.appwrite,
+    final payload = AppwriteSyncUtils.sanitizePayload(
+      'salary_cycles',
+      outboxDao.adapters.salaryCycles.adapter.toJson(
+        item,
+        src: Source.appwrite,
+      ),
     );
     // ✅ إضافة employeeUuid لربط دورة الراتب بالموظف عبر الأجهزة
     final employee = await (database.select(database.employees)
@@ -4862,9 +5067,12 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.bookingPriceAdjustments.adapter.toJson(
-      item,
-      src: Source.appwrite,
+    final payload = AppwriteSyncUtils.sanitizePayload(
+      'booking_price_adjustments',
+      outboxDao.adapters.bookingPriceAdjustments.adapter.toJson(
+        item,
+        src: Source.appwrite,
+      ),
     );
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
