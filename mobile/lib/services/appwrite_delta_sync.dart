@@ -209,12 +209,6 @@ class AppwriteDeltaSync {
     final payload = Map<String, dynamic>.from(change.data);
     payload['deviceId'] = _deviceId;
     payload['syncTimestamp'] = Time.nowEpoch();
-    // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقل 'sync_origin' (required attribute)
-    // _preparePayload يحوّل 'origin' إلى 'origin' (كلمة واحدة لا تتغير)
-    // لكن Appwrite يتطلب 'sync_origin' كحقل منفصل — نضيفه من قيمة origin
-    if (payload.containsKey('origin') && !payload.containsKey('sync_origin')) {
-      payload['sync_origin'] = payload['origin'];
-    }
 
     switch (change.operation) {
       case 'insert':
