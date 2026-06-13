@@ -5849,6 +5849,8 @@ class AppwriteSyncManager {
       final data = <String, dynamic>{
         // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقل 'key' (required) في مجموعة app_settings
         'key': 'whatsapp_settings',
+        // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقل 'value' (required) في مجموعة app_settings
+        'value': 'whatsapp_settings',
         // ── فندق ──
         'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
         'hotel_cutoff_hour': prefs.getInt('hotel_cutoff_hour') ?? 14,
