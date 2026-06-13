@@ -12,6 +12,7 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/backup_provider.dart';
+import '../../services/daos/outbox_dao.dart';
 import '../../services/diagnostics/diagnostics_logger.dart';
 import '../../services/google_drive_auto_sync_engine.dart';
 import '../../services/local_db.dart';
@@ -163,7 +164,9 @@ class _SettingsMaintenanceScreenState
           const SizedBox(height: 20),
           _buildSectionTitle('أدوات متقدمة', Colors.red),
           const SizedBox(height: 8),
-          _toolItem('مسح Outbox المعطّل', 'إعادة تعيين العمليات الفاشرة في قائمة الانتظار',
+          _toolItem('إعادة إرسال العمليات الفاشلة', 'إعادة محاولة إرسال البيانات الفاشلة للمزامنة',
+              Icons.sync, Colors.teal, _onRetryFailed),
+          _toolItem('مسح Outbox المعطّل', 'حذف جميع العمليات الفاشلة من قائمة الانتظار',
               Icons.outbox, Colors.deepPurple, _onResetOutbox),
           _toolItem('إعادة تشغيل الخدمات', 'إعادة تشغيل جميع خدمات التطبيق',
               Icons.restart_alt, Colors.red, _onRestartServices),
@@ -466,8 +469,27 @@ class _SettingsMaintenanceScreenState
         'سيتم إيقاف المزامنة الحالية ومسح ذاكرة التخزين المؤقت ثم بدء مزامنة جديدة.',
         Icons.sync_problem, Colors.orange, 'إعادة التعيين', () async {
       await ref.read(appwriteSyncManagerProvider).resetSyncState();
-      await DatabaseManager.instance.customSelect('DELETE FROM outbox WHERE status = "failed"').get();
+      // ✅ إصلاح: اسم العمود الصحيح هو processing_status وليس status
+      await DatabaseManager.instance.customSelect('DELETE FROM outbox WHERE processing_status = \'failed\'').get();
       _showSnack('تم إعادة تعيين المزامنة بنجاح', color: Colors.green);
+      unawaited(_loadSystemInfo());
+    });
+  }
+
+  Future<void> _onRetryFailed() async {
+    _confirm('إعادة إرسال العمليات الفاشلة',
+        'سيتم إعادة تعيين جميع العمليات الفاشلة إلى حالة "معلق" لمحاولة إرسالها مرة أخرى. هذا مفيد بعد إصلاح أخطاء الكود وبناء نسخة جديدة.',
+        Icons.sync, Colors.teal, 'إعادة الإرسال', () async {
+      final db = DatabaseManager.instance;
+      final dao = OutboxDao(db);
+      await dao.resetErrors();
+      // إعادة تشغيل المزامنة لمعالجة العناصر المُعاد تعيينها
+      try {
+        await ref.read(appwriteSyncManagerProvider).pushLocalChanges();
+      } catch (_) {
+        // إذا فشل الرفع الفوري، سيتم المحاولة تلقائياً لاحقاً
+      }
+      _showSnack('تم إعادة تعيين العمليات الفاشلة — سيتم إرسالها تلقائياً', color: Colors.green);
       unawaited(_loadSystemInfo());
     });
   }
@@ -476,9 +498,10 @@ class _SettingsMaintenanceScreenState
     _confirm('مسح Outbox المعطّل',
         'سيتم حذف جميع العمليات الفاشلة من قائمة الانتظار.',
         Icons.outbox, Colors.deepPurple, 'مسح', () async {
+      // ✅ إصلاح: اسم العمود الصحيح هو processing_status وليس status
       await DatabaseManager.instance
-          .customSelect('DELETE FROM outbox WHERE status = "failed"').get();
-      _showSnack('تم مسح Outbox', color: Colors.green);
+          .customSelect('DELETE FROM outbox WHERE processing_status = \'failed\'').get();
+      _showSnack('تم مسح Outbox المعطّل بنجاح', color: Colors.green);
       unawaited(_loadSystemInfo());
     });
   }
