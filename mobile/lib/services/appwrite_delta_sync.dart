@@ -210,18 +210,10 @@ class AppwriteDeltaSync {
     final payload = Map<String, dynamic>.from(change.data);
     payload['deviceId'] = _deviceId;
     payload['syncTimestamp'] = Time.nowEpoch();
-    // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقل 'sync_origin' (required attribute)
-    // _preparePayload يحوّل 'origin' إلى 'origin' (كلمة واحدة لا تتغير)
-    // لكن Appwrite يتطلب 'sync_origin' كحقل منفصل — نضيفه من قيمة origin
-    if (payload.containsKey('origin') && !payload.containsKey('sync_origin')) {
-      payload['sync_origin'] = payload['origin'];
-    }
-    // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقل 'sync_vector_clock' (required attribute)
-    // _preparePayload يحوّل 'vectorClock' إلى 'vector_clock'
-    // لكن Appwrite يتطلب 'sync_vector_clock' كحقل منفصل — نضيفه من قيمة vector_clock
-    if (payload.containsKey('vector_clock') && !payload.containsKey('sync_vector_clock')) {
-      payload['sync_vector_clock'] = payload['vector_clock'];
-    }
+    // ⚠️ لا نضيف sync_origin أو sync_vector_clock هنا —
+    // sanitizePayload + filterPayloadForCollection يتكفلان بالتصفية
+    // sync_origin موجود فقط في: booking_notes, sync_state, app_users
+    // sync_vector_clock غير موجود في أي مجموعة — لا يُرسل أبداً
 
     switch (change.operation) {
       case 'insert':

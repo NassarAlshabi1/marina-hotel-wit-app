@@ -2026,6 +2026,15 @@ class AppwriteSyncManager {
     };
   }
 
+  /// تصفية الحمولة قبل الإرسال — إبقاء فقط الحقول الموجودة في مخطط Appwrite الفعلي
+  /// ⚠️ هذا يمنع خطأ "Unknown attribute" نهائياً
+  Map<String, dynamic> _filterPayload(
+    String collectionId,
+    Map<String, dynamic> payload,
+  ) {
+    return AppwriteSyncUtils.filterPayloadForCollection(collectionId, payload);
+  }
+
   Future<bool> _processRoomEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
       await _deleteSilently(() => appwriteService.deleteRoom(entry.localUuid));
@@ -2039,7 +2048,7 @@ class AppwriteSyncManager {
     final payload = _roomToRemote(room);
     await appwriteService.upsertRoom(
       room.localUuid,
-      _addIdempotencyKey(payload, entry),
+      _filterPayload('rooms', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -2081,7 +2090,7 @@ class AppwriteSyncManager {
     try {
       await appwriteService.upsertBooking(
         booking.localUuid,
-        finalPayload,
+        _filterPayload('bookings', finalPayload),
       );
 
       // ✅ تحقق بعد الرفع: قراءة المستند من Appwrite والتأكد من حفظ الحقول الحرجة
@@ -2097,7 +2106,7 @@ class AppwriteSyncManager {
         );
         await appwriteService.upsertBooking(
           booking.localUuid,
-          payload, // بدون idempotencyKey
+          _filterPayload('bookings', payload), // بدون idempotencyKey
         );
       } else {
         rethrow;
@@ -2173,7 +2182,7 @@ class AppwriteSyncManager {
     }
     await appwriteService.upsertExpense(
       expense.localUuid,
-      _addIdempotencyKey(payload, entry),
+      _filterPayload('expenses', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -2195,7 +2204,7 @@ class AppwriteSyncManager {
     final payload = _paymentToRemote(payment);
     await appwriteService.upsertPayment(
       payment.localUuid,
-      _addIdempotencyKey(payload, entry),
+      _filterPayload('payments', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -2223,7 +2232,7 @@ class AppwriteSyncManager {
     }
     await appwriteService.upsertDebt(
       debt.localUuid,
-      _addIdempotencyKey(payload, entry),
+      _filterPayload('debts', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -2341,7 +2350,7 @@ class AppwriteSyncManager {
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.guestInfosCollectionId,
       documentId: info.localUuid,
-      data: _addIdempotencyKey(payload, entry),
+      data: _filterPayload('guest_infos', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -2598,7 +2607,7 @@ class AppwriteSyncManager {
         );
         await appwriteService.upsertEmployee(
           employee.localUuid,
-          _addIdempotencyKey(empPayload, entry),
+          _filterPayload('employees', _addIdempotencyKey(empPayload, entry)),
         );
         // تحديث serverId محلياً لمنع الرفع المكرر
         try {
@@ -2646,7 +2655,7 @@ class AppwriteSyncManager {
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
       documentId: withdrawal.localUuid,
-      data: _addIdempotencyKey(payload, entry),
+      data: _filterPayload('salary_withdrawals', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -2669,8 +2678,6 @@ class AppwriteSyncManager {
       'lastModified': room.lastModified,
       'version': room.version,
       'origin': room.origin,
-      'sync_origin': room.origin,
-      'sync_vector_clock': room.vectorClock,
       // حقول مطلوبة إضافية من Appwrite schema
       'roomType': room.type,
       'basePrice': room.price,
@@ -2712,8 +2719,6 @@ class AppwriteSyncManager {
       'lastModified': booking.lastModified,
       'version': booking.version,
       'origin': booking.origin,
-      'sync_origin': booking.origin,
-      'sync_vector_clock': booking.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
@@ -2769,8 +2774,6 @@ class AppwriteSyncManager {
       'lastModified': expense.lastModified,
       'version': expense.version,
       'origin': expense.origin,
-      'sync_origin': expense.origin,
-      'sync_vector_clock': expense.vectorClock,
       'vectorClock': expense.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
@@ -2804,10 +2807,6 @@ class AppwriteSyncManager {
       'lastModified': payment.lastModified,
       'version': payment.version,
       'origin': payment.origin,
-      'sync_origin': payment.origin,
-      'sync_vector_clock': payment.vectorClock,
-      // ✅ تم حذف sync_version و sync_vector_clock — حقول مكررة وقديمة
-      // version و vectorClock يُرسلان بأسمائهما الصحيحة
       'hotelDayKey': payment.hotelDayKey ?? '',
       'isPendingBalance': payment.isPendingBalance,
     };
@@ -2863,9 +2862,6 @@ class AppwriteSyncManager {
       'amount': debt.totalAmount,
       'paidAmount': debt.paidAmount,
       'remainingAmount': debt.remainingAmount.round(), // ✅ Appwrite: integer
-      // ── Required sync fields ──
-      // ✅ تم حذف vector_clock/sync_vector_clock/sync_version/sync_origin
-      // — حقول مكررة وقديمة، يُرسل vectorClock/version/origin بأسمائهم الصحيحة
       // ── Business fields ──
       'bookingLocalId': debt.bookingLocalId,
       'checkoutDate': debt.checkoutDate,
@@ -2886,10 +2882,6 @@ class AppwriteSyncManager {
       'lastModified': debt.lastModified,
       'version': debt.version,
       'origin': debt.origin,
-      // ✅ إصلاح حرج: Appwrite Cloud يتطلب sync_origin (required attribute)
-      // بينما المحلي يستخدم origin — نرسل كلا الاسمين للتوافق
-      'sync_origin': debt.origin,
-      'sync_vector_clock': debt.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', debt.serverId);
@@ -3819,7 +3811,7 @@ class AppwriteSyncManager {
         if (skipDeleted && room.deletedAt != null) continue;
         try {
           final payload = _roomToRemote(room);
-          await appwriteService.upsertRoom(room.localUuid, payload);
+          await appwriteService.upsertRoom(room.localUuid, _filterPayload('rooms', payload));
           stats['rooms'] = (stats['rooms'] ?? 0) + 1;
         } catch (e) {
           _logger.warning(
@@ -3844,7 +3836,7 @@ class AppwriteSyncManager {
         if (skipDeleted && employee.deletedAt != null) continue;
         try {
           final payload = _employeeToRemote(employee);
-          await appwriteService.upsertEmployee(employee.localUuid, payload);
+          await appwriteService.upsertEmployee(employee.localUuid, _filterPayload('employees', payload));
           stats['employees'] = (stats['employees'] ?? 0) + 1;
         } catch (e) {
           _logger.warning('خطأ في رفع موظف ${employee.name}: $e', tag: 'SYNC');
@@ -3866,7 +3858,7 @@ class AppwriteSyncManager {
         if (skipDeleted && booking.deletedAt != null) continue;
         try {
           final payload = _bookingToRemote(booking);
-          await appwriteService.upsertBooking(booking.localUuid, payload);
+          await appwriteService.upsertBooking(booking.localUuid, _filterPayload('bookings', payload));
           stats['bookings'] = (stats['bookings'] ?? 0) + 1;
         } catch (e) {
           _logger.warning(
@@ -3887,7 +3879,7 @@ class AppwriteSyncManager {
         if (skipDeleted && expense.deletedAt != null) continue;
         try {
           final payload = _expenseToRemote(expense);
-          await appwriteService.upsertExpense(expense.localUuid, payload);
+          await appwriteService.upsertExpense(expense.localUuid, _filterPayload('expenses', payload));
           stats['expenses'] = (stats['expenses'] ?? 0) + 1;
         } catch (e) {
           _logger.warning('خطأ في رفع مصروف: $e', tag: 'SYNC');
@@ -3906,7 +3898,7 @@ class AppwriteSyncManager {
         if (skipDeleted && payment.deletedAt != null) continue;
         try {
           final payload = _paymentToRemote(payment);
-          await appwriteService.upsertPayment(payment.localUuid, payload);
+          await appwriteService.upsertPayment(payment.localUuid, _filterPayload('payments', payload));
           stats['payments'] = (stats['payments'] ?? 0) + 1;
         } catch (e) {
           _logger.warning('خطأ في رفع دفعة: $e', tag: 'SYNC');
@@ -3924,7 +3916,7 @@ class AppwriteSyncManager {
         if (skipDeleted && debt.deletedAt != null) continue;
         try {
           final payload = _debtToRemote(debt);
-          await appwriteService.upsertDebt(debt.localUuid, payload);
+          await appwriteService.upsertDebt(debt.localUuid, _filterPayload('debts', payload));
           stats['debts'] = (stats['debts'] ?? 0) + 1;
         } catch (e) {
           _logger.warning('خطأ في رفع دين: $e', tag: 'SYNC');
@@ -3939,7 +3931,7 @@ class AppwriteSyncManager {
         if (skipDeleted && note.deletedAt != null) continue;
         try {
           final payload = _bookingNoteToRemote(note);
-          await appwriteService.upsertBookingNote(note.localUuid, payload);
+          await appwriteService.upsertBookingNote(note.localUuid, _filterPayload('booking_notes', payload));
           stats['booking_notes'] = (stats['booking_notes'] ?? 0) + 1;
         } catch (e) {
           _logger.warning('خطأ في رفع ملاحظة حجز: $e', tag: 'SYNC');
@@ -3957,7 +3949,7 @@ class AppwriteSyncManager {
         if (skipDeleted && night.deletedAt != null) continue;
         try {
           final payload = _bookingNightToRemote(night);
-          await appwriteService.upsertBookingNight(night.localUuid, payload);
+          await appwriteService.upsertBookingNight(night.localUuid, _filterPayload('booking_nights', payload));
           stats['booking_nights'] = (stats['booking_nights'] ?? 0) + 1;
         } catch (e) {
           _logger.warning('خطأ في رفع ليلة حجز: $e', tag: 'SYNC');
@@ -3976,7 +3968,7 @@ class AppwriteSyncManager {
           final payload = _cashTransactionToRemote(transaction);
           await appwriteService.upsertCashTransaction(
             transaction.localUuid,
-            payload,
+            _filterPayload('cash_transactions', payload),
           );
           stats['cash_transactions'] = (stats['cash_transactions'] ?? 0) + 1;
         } catch (e) {
@@ -3995,7 +3987,7 @@ class AppwriteSyncManager {
         if (skipDeleted && cycle.deletedAt != null) continue;
         try {
           final payload = _salaryCycleToRemote(cycle);
-          await appwriteService.upsertSalaryCycle(cycle.localUuid, payload);
+          await appwriteService.upsertSalaryCycle(cycle.localUuid, _filterPayload('salary_cycles', payload));
           stats['salary_cycles'] = (stats['salary_cycles'] ?? 0) + 1;
         } catch (e) {
           _logger.warning('خطأ في رفع دورة راتب: $e', tag: 'SYNC');
@@ -4012,7 +4004,7 @@ class AppwriteSyncManager {
         if (skipDeleted && payment.deletedAt != null) continue;
         try {
           final payload = _salaryPaymentToRemote(payment);
-          await appwriteService.upsertSalaryPayment(payment.localUuid, payload);
+          await appwriteService.upsertSalaryPayment(payment.localUuid, _filterPayload('salary_payments', payload));
           stats['salary_payments'] = (stats['salary_payments'] ?? 0) + 1;
         } catch (e) {
           _logger.warning('خطأ في رفع دفعة راتب: $e', tag: 'SYNC');
@@ -4030,7 +4022,7 @@ class AppwriteSyncManager {
         if (skipDeleted && item.deletedAt != null) continue;
         try {
           final payload = _shiftNoteToRemote(item);
-          await appwriteService.upsertShiftNote(item.localUuid, payload);
+          await appwriteService.upsertShiftNote(item.localUuid, _filterPayload('shift_notes', payload));
           stats['shift_notes'] = (stats['shift_notes'] ?? 0) + 1;
         } catch (e) {
           _logger.warning('خطأ في رفع ملاحظة شيفت: $e', tag: 'SYNC');
@@ -4054,7 +4046,7 @@ class AppwriteSyncManager {
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
             documentId: adj.localUuid,
-            data: payload,
+            data: _filterPayload('booking_price_adjustments', payload),
           );
           stats['booking_price_adjustments'] = (stats['booking_price_adjustments'] ?? 0) + 1;
         } catch (e) {
@@ -4079,7 +4071,7 @@ class AppwriteSyncManager {
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.guestInfosCollectionId,
             documentId: info.localUuid,
-            data: payload,
+            data: _filterPayload('guest_infos', payload),
           );
           stats['guest_infos'] = (stats['guest_infos'] ?? 0) + 1;
         } catch (e) {
@@ -4104,7 +4096,7 @@ class AppwriteSyncManager {
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
             documentId: withdrawal.localUuid,
-            data: payload,
+            data: _filterPayload('salary_withdrawals', payload),
           );
           stats['salary_withdrawals'] = (stats['salary_withdrawals'] ?? 0) + 1;
         } catch (e) {
@@ -4171,8 +4163,6 @@ class AppwriteSyncManager {
       'lastModified': employee.lastModified,
       'version': employee.version,
       'origin': employee.origin,
-      'sync_origin': employee.origin,
-      'sync_vector_clock': employee.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', employee.serverId);
@@ -4204,7 +4194,6 @@ class AppwriteSyncManager {
       'version': note.version,
       'origin': note.origin,
       'sync_origin': note.origin,
-      'sync_vector_clock': note.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', note.serverId);
@@ -4239,8 +4228,6 @@ class AppwriteSyncManager {
       'lastModified': night.lastModified,
       'version': night.version,
       'origin': night.origin,
-      'sync_origin': night.origin,
-      'sync_vector_clock': night.vectorClock,
       'vectorClock': night.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
@@ -4269,8 +4256,6 @@ class AppwriteSyncManager {
       'lastModified': transaction.lastModified,
       'version': transaction.version,
       'origin': transaction.origin,
-      'sync_origin': transaction.origin,
-      'sync_vector_clock': transaction.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'registerId', transaction.registerId);
@@ -4305,8 +4290,6 @@ class AppwriteSyncManager {
       'lastModified': cycle.lastModified,
       'version': cycle.version,
       'origin': cycle.origin,
-      'sync_origin': cycle.origin,
-      'sync_vector_clock': cycle.vectorClock,
       'vectorClock': cycle.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
@@ -4336,8 +4319,6 @@ class AppwriteSyncManager {
       'lastModified': payment.lastModified,
       'version': payment.version,
       'origin': payment.origin,
-      'sync_origin': payment.origin,
-      'sync_vector_clock': payment.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', payment.serverId);
@@ -4389,9 +4370,6 @@ class AppwriteSyncManager {
     // ✅ حقول SyncFields المفقودة المتبقية
     data['version'] = note.version;
     data['origin'] = note.origin;
-    // ✅ إصلاح حرج: Appwrite Cloud يتطلب sync_origin و sync_vector_clock (required)
-    data['sync_origin'] = note.origin;
-    data['sync_vector_clock'] = note.vectorClock;
     return data;
   }
 
@@ -4418,7 +4396,7 @@ class AppwriteSyncManager {
     );
     await appwriteService.upsertSalaryPayment(
       item.localUuid,
-      _addIdempotencyKey(payload, entry),
+      _filterPayload('salary_payments', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -4455,7 +4433,7 @@ class AppwriteSyncManager {
 
     await appwriteService.upsertCashTransaction(
       item.localUuid,
-      _addIdempotencyKey(payload, entry),
+      _filterPayload('cash_transactions', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -4492,7 +4470,7 @@ class AppwriteSyncManager {
 
     await appwriteService.upsertShiftNote(
       item.localUuid,
-      _addIdempotencyKey(payload, entry),
+      _filterPayload('shift_notes', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -4524,7 +4502,7 @@ class AppwriteSyncManager {
     final payload = _blacklistToRemote(item);
     await appwriteService.upsertBlacklist(
       item.localUuid,
-      _addIdempotencyKey(payload, entry),
+      _filterPayload('blacklist', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -4572,7 +4550,7 @@ class AppwriteSyncManager {
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
       documentId: localRow.localUuid,
-      data: _addIdempotencyKey(payload, entry),
+      data: _filterPayload('price_adjustments', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -4603,9 +4581,6 @@ class AppwriteSyncManager {
       // ✅ حقول SyncFields المفقودة
       'version': row.version,
       'vectorClock': row.vectorClock,
-      // ✅ إصلاح حرج: Appwrite Cloud يتطلب sync_origin و sync_vector_clock (required)
-      'sync_origin': row.origin ?? 'mobile',
-      'sync_vector_clock': row.vectorClock,
       if (row.deletedAt != null) 'deletedAt': row.deletedAt,
       if (row.createdAtIso != null) 'createdAtIso': row.createdAtIso,
       if (row.updatedAtIso != null) 'updatedAtIso': row.updatedAtIso,
@@ -4650,7 +4625,7 @@ class AppwriteSyncManager {
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.auditLogsCollectionId,
       documentId: localRow.localUuid,
-      data: _addIdempotencyKey(payload, entry),
+      data: _filterPayload('audit_logs', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -4679,9 +4654,6 @@ class AppwriteSyncManager {
       'timestampIso': row.timestampIso,
       if (row.amountImpact != null) 'amountImpact': row.amountImpact,
       'vectorClock': '{}',
-      // ✅ إصلاح حرج: Appwrite Cloud يتطلب sync_origin و sync_vector_clock (required)
-      'sync_origin': 'mobile',
-      'sync_vector_clock': '{}',
     };
   }
 
@@ -4719,7 +4691,7 @@ class AppwriteSyncManager {
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.paymentVoidsCollectionId,
       documentId: localRow.localUuid,
-      data: _addIdempotencyKey(payload, entry),
+      data: _filterPayload('payment_voids', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -4750,9 +4722,6 @@ class AppwriteSyncManager {
       'vectorClock': row.vectorClock,
       'createdAtEpoch': row.createdAtEpoch,
       'lastModifiedEpoch': row.lastModifiedEpoch,
-      // ✅ إصلاح حرج: Appwrite Cloud يتطلب sync_origin و sync_vector_clock (required)
-      'sync_origin': row.origin ?? 'mobile',
-      'sync_vector_clock': row.vectorClock,
     };
   }
 
@@ -4799,9 +4768,6 @@ class AppwriteSyncManager {
       if (item.deletedAtIso != null) 'deletedAtIso': item.deletedAtIso,
       'createdAtEpoch': item.createdAtEpoch,
       'lastModifiedEpoch': item.lastModifiedEpoch,
-      // ✅ إصلاح حرج: Appwrite Cloud يتطلب sync_origin و sync_vector_clock (required)
-      'sync_origin': item.origin,
-      'sync_vector_clock': item.vectorClock,
     };
   }
 
@@ -4939,7 +4905,7 @@ class AppwriteSyncManager {
         );
         await appwriteService.upsertEmployee(
           item.localUuid,
-          _addIdempotencyKey(payload, entry),
+          _filterPayload('employees', _addIdempotencyKey(payload, entry)),
         );
         return true;
       }
@@ -4965,7 +4931,7 @@ class AppwriteSyncManager {
     );
     await appwriteService.upsertEmployee(
       item.localUuid,
-      _addIdempotencyKey(payload, entry),
+      _filterPayload('employees', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -5001,7 +4967,7 @@ class AppwriteSyncManager {
     // Note: booking notes often part of booking but if synced separately:
     await appwriteService.upsertBookingNote(
       item.localUuid,
-      _addIdempotencyKey(payload, entry),
+      _filterPayload('booking_notes', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -5036,7 +5002,7 @@ class AppwriteSyncManager {
     );
     await appwriteService.upsertBookingNight(
       item.localUuid,
-      _addIdempotencyKey(payload, entry),
+      _filterPayload('booking_nights', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -5080,7 +5046,7 @@ class AppwriteSyncManager {
     }
     await appwriteService.upsertSalaryCycle(
       item.localUuid,
-      _addIdempotencyKey(payload, entry),
+      _filterPayload('salary_cycles', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -5122,7 +5088,7 @@ class AppwriteSyncManager {
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
       documentId: item.localUuid,
-      data: _addIdempotencyKey(payload, entry),
+      data: _filterPayload('booking_price_adjustments', _addIdempotencyKey(payload, entry)),
     );
     return true;
   }
@@ -5917,13 +5883,13 @@ class AppwriteSyncManager {
         await appwriteService.updateDocument(
           collectionId: collectionId,
           documentId: docId,
-          data: data,
+          data: _filterPayload('app_settings', data),
         );
       } catch (_) {
         await appwriteService.createDocument(
           collectionId: collectionId,
           documentId: docId,
-          data: data,
+          data: _filterPayload('app_settings', data),
         );
       }
 
