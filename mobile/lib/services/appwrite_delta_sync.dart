@@ -209,6 +209,10 @@ class AppwriteDeltaSync {
     final payload = Map<String, dynamic>.from(change.data);
     payload['deviceId'] = _deviceId;
     payload['syncTimestamp'] = Time.nowEpoch();
+    // ⚠️ لا نضيف sync_origin أو sync_vector_clock هنا —
+    // sanitizePayload + filterPayloadForCollection يتكفلان بالتصفية
+    // sync_origin موجود فقط في: booking_notes, sync_state, app_users
+    // sync_vector_clock غير موجود في أي مجموعة — لا يُرسل أبداً
 
     switch (change.operation) {
       case 'insert':
