@@ -1,16 +1,13 @@
 import 'dart:async';
 
 import 'package:appwrite/appwrite.dart';
-import 'package:appwrite/models.dart' as models;
 import 'package:flutter/foundation.dart';
 
 import 'appwrite_backup_endpoint.dart';
 import 'appwrite_backup_endpoints_manager.dart';
 import 'appwrite_config.dart';
-import '../local_db.dart';
-import 'adapters/source.dart';
+import 'local_db.dart';
 import 'appwrite_logger.dart';
-import 'appwrite_config_manager.dart';
 
 /// خدمة المزامنة الاحتياطية (Slave Push Only)
 ///
@@ -181,7 +178,6 @@ class AppwriteBackupSyncService {
             databaseId: dbId,
             collectionId: tableName,
             documentId: documentId,
-            data: data,
           );
         } catch (_) {
           // تجاهل خطأ الحذف إذا كان المستند غير موجود أصلاً

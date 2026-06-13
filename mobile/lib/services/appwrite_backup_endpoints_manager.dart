@@ -21,19 +21,22 @@ class BackupEndpointsManager {
   }
 
   /// تحميل قائمة الـ endpoints الاحتياطية
-  static Future<List<BackupEndpoint>> loadEndpoints() async {
+  /// [includeInactive] إذا true، يُرجع جميع النقاط بما فيها غير النشطة
+  static Future<List<BackupEndpoint>> loadEndpoints({bool includeInactive = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonStr = prefs.getString(_storageKey);
     if (jsonStr == null || jsonStr.isEmpty) return [];
     
     try {
       final jsonList = jsonDecode(jsonStr) as List<dynamic>;
-      final endpoints = jsonList
+      var endpoints = jsonList
           .map((e) => BackupEndpoint.fromJson(e as Map<String, dynamic>))
-          .where((e) => e.isActive)
           .toList();
+      if (!includeInactive) {
+        endpoints = endpoints.where((e) => e.isActive).toList();
+      }
       if (kDebugMode) {
-        debugPrint('📂 Loaded ${endpoints.length} active backup endpoint(s)');
+        debugPrint('📂 Loaded ${endpoints.length} backup endpoint(s)');
       }
       return endpoints;
     } catch (e) {
@@ -63,27 +66,6 @@ class BackupEndpointsManager {
     if (index != -1) {
       endpoints[index] = endpoint;
       await saveEndpoints(endpoints);
-    }
-  }
-
-  /// تحميل القائمة كاملة (بما فيها غير النشطة)
-  static Future<List<BackupEndpoint>> loadEndpoints({bool includeInactive = false}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonStr = prefs.getString(_storageKey);
-    if (jsonStr == null || jsonStr.isEmpty) return [];
-    
-    try {
-      final jsonList = jsonDecode(jsonStr) as List<dynamic>;
-      var endpoints = jsonList
-          .map((e) => BackupEndpoint.fromJson(e as Map<String, dynamic>))
-          .toList();
-      if (!includeInactive) {
-        endpoints = endpoints.where((e) => e.isActive).toList();
-      }
-      return endpoints;
-    } catch (e) {
-      debugPrint('❌ Failed to load backup endpoints: $e');
-      return [];
     }
   }
 }

@@ -4,7 +4,6 @@ import 'package:uuid/uuid.dart';
 import '../../services/appwrite_backup_endpoint.dart';
 import '../../services/appwrite_backup_endpoints_manager.dart';
 import '../../services/appwrite_backup_sync_service.dart';
-import '../../services/appwrite_logger.dart';
 import '../../services/local_db.dart';
 import '../../utils/app_logger.dart';
 
