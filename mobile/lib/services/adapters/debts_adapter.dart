@@ -203,9 +203,6 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'bookingLocalId', 'booking_local_id'): model.bookingLocalId,
-      // ✅ إصلاح حرج: إرسال bookingUuidCache لربط الديون بالحجز عبر الأجهزة
-      // بدون هذا الحقل، لا يمكن للجهاز الآخر ربط الدين بالحجز الصحيح
-      _k(src, 'bookingUuidCache', 'booking_uuid_cache'): model.bookingUuidCache,
       _k(src, 'guestName', 'guest_name'): model.guestName,
       _k(src, 'checkinDate', 'checkin_date'): model.checkinDate,
       _k(src, 'checkoutDate', 'checkout_date'): model.checkoutDate,

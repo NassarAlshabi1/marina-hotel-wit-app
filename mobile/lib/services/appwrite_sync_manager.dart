@@ -2211,6 +2211,16 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _debtToRemote(debt);
+    // ✅ حل bookingUuidCache ديناميكياً من FK — لا يُخزّن كعمود بل يُرسل للمزامنة
+    if (debt.bookingLocalId != null) {
+      final booking = await (database.select(database.bookings)
+            ..where((b) => b.id.equals(debt.bookingLocalId!))
+            ..limit(1))
+          .getSingleOrNull();
+      if (booking != null) {
+        payload['bookingUuidCache'] = booking.localUuid;
+      }
+    }
     await appwriteService.upsertDebt(
       debt.localUuid,
       _addIdempotencyKey(payload, entry),
@@ -2850,8 +2860,6 @@ class AppwriteSyncManager {
       // — حقول مكررة وقديمة، يُرسل vectorClock/version/origin بأسمائهم الصحيحة
       // ── Business fields ──
       'bookingLocalId': debt.bookingLocalId,
-      // ✅ إصلاح حرج: إرسال bookingUuidCache لربط الديون بالحجز عبر الأجهزة
-      'bookingUuidCache': debt.bookingUuidCache,
       'checkoutDate': debt.checkoutDate,
       'paymentDate': debt.paymentDate,
       'isSettled': debt.isSettled,
@@ -4633,15 +4641,13 @@ class AppwriteSyncManager {
       'updatedAt': now,
       'lastModified': now,
       'origin': 'mobile',
-      if (row.serverId != null) 'serverId': row.serverId,
       if (row.entityId != null) 'entityId': row.entityId,
       if (row.previousState != null) 'previousState': row.previousState,
       if (row.newState != null) 'newState': row.newState,
       if (row.changedFields != null) 'changedFields': row.changedFields,
       if (row.ipAddress != null) 'ipAddress': row.ipAddress,
-      if (row.timestampIso != null) 'timestampIso': row.timestampIso,
+      'timestampIso': row.timestampIso,
       if (row.amountImpact != null) 'amountImpact': row.amountImpact,
-      'version': row.version,
       'vectorClock': '{}',
     };
   }
@@ -4706,7 +4712,7 @@ class AppwriteSyncManager {
       if (row.reversalPaymentUuid != null) 'reversalPaymentUuid': row.reversalPaymentUuid,
       if (row.approvedBy != null) 'approvedBy': row.approvedBy,
       if (row.deletedAt != null) 'deletedAt': row.deletedAt,
-      if (row.voidedAtIso != null) 'voidedAtIso': row.voidedAtIso,
+      'voidedAtIso': row.voidedAtIso,
       'version': row.version,
       'vectorClock': row.vectorClock,
       'createdAtEpoch': row.createdAtEpoch,

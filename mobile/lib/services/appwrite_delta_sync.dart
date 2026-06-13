@@ -810,10 +810,6 @@ class AppwriteDeltaSync {
 
     // ✅ إصلاح حرج: حل FK للحجز عبر UUID بدلاً من bookingLocalId الخام
     final resolvedBookingId = await _resolveBookingId(db, data);
-    final bookingUuidCache = _asString(data['bookingUuidCache']) ??
-        _asString(data['booking_uuid_cache']) ??
-        _asString(data['bookingUuid']) ??
-        _asString(data['booking_uuid']);
 
     final companion = DebtsCompanion(
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
@@ -826,10 +822,6 @@ class AppwriteDeltaSync {
       bookingLocalId: resolvedBookingId != null
           ? d.Value(resolvedBookingId)
           : const d.Value.absent(),
-      // ✅ إصلاح: حفظ bookingUuidCache دائماً لإعادة الربط لاحقاً
-      bookingUuidCache: bookingUuidCache != null
-          ? d.Value(bookingUuidCache)
-          : _nullableValue<String>(_asString(data['bookingUuidCache'])),
       guestName: d.Value(guestName),
       checkinDate: d.Value(_asString(data['checkinDate']) ?? ''),
       checkoutDate: d.Value(_asString(data['checkoutDate']) ?? ''),
