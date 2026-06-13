@@ -128,7 +128,8 @@ class AppwriteSyncUtils {
   /// ⚠️ هذه الحقول مطلوبة (required) في مخطط Appwrite بأسمائها snake_case
   /// تحويلها إلى camelCase يسبب خطأ "Missing required attribute"
   static const Set<String> _preserveSnakeCase = {
-    'sync_origin',   // حقل مزامنة مطلوب في جميع المجموعات
+    'sync_origin',        // حقل مزامنة مطلوب في جميع المجموعات
+    'sync_vector_clock',  // حقل مزامنة مطلوب في جميع المجموعات
   };
 
   /// تحويل أسماء الحقول من snake_case إلى camelCase (للتوافق مع Appwrite)

@@ -2670,6 +2670,7 @@ class AppwriteSyncManager {
       'version': room.version,
       'origin': room.origin,
       'sync_origin': room.origin,
+      'sync_vector_clock': room.vectorClock,
       // حقول مطلوبة إضافية من Appwrite schema
       'roomType': room.type,
       'basePrice': room.price,
@@ -2712,6 +2713,7 @@ class AppwriteSyncManager {
       'version': booking.version,
       'origin': booking.origin,
       'sync_origin': booking.origin,
+      'sync_vector_clock': booking.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
@@ -2768,6 +2770,7 @@ class AppwriteSyncManager {
       'version': expense.version,
       'origin': expense.origin,
       'sync_origin': expense.origin,
+      'sync_vector_clock': expense.vectorClock,
       'vectorClock': expense.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
@@ -2802,6 +2805,7 @@ class AppwriteSyncManager {
       'version': payment.version,
       'origin': payment.origin,
       'sync_origin': payment.origin,
+      'sync_vector_clock': payment.vectorClock,
       // ✅ تم حذف sync_version و sync_vector_clock — حقول مكررة وقديمة
       // version و vectorClock يُرسلان بأسمائهما الصحيحة
       'hotelDayKey': payment.hotelDayKey ?? '',
@@ -2885,6 +2889,7 @@ class AppwriteSyncManager {
       // ✅ إصلاح حرج: Appwrite Cloud يتطلب sync_origin (required attribute)
       // بينما المحلي يستخدم origin — نرسل كلا الاسمين للتوافق
       'sync_origin': debt.origin,
+      'sync_vector_clock': debt.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', debt.serverId);
@@ -4167,6 +4172,7 @@ class AppwriteSyncManager {
       'version': employee.version,
       'origin': employee.origin,
       'sync_origin': employee.origin,
+      'sync_vector_clock': employee.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', employee.serverId);
@@ -4198,6 +4204,7 @@ class AppwriteSyncManager {
       'version': note.version,
       'origin': note.origin,
       'sync_origin': note.origin,
+      'sync_vector_clock': note.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', note.serverId);
@@ -4233,6 +4240,7 @@ class AppwriteSyncManager {
       'version': night.version,
       'origin': night.origin,
       'sync_origin': night.origin,
+      'sync_vector_clock': night.vectorClock,
       'vectorClock': night.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
@@ -4262,6 +4270,7 @@ class AppwriteSyncManager {
       'version': transaction.version,
       'origin': transaction.origin,
       'sync_origin': transaction.origin,
+      'sync_vector_clock': transaction.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'registerId', transaction.registerId);
@@ -4297,6 +4306,7 @@ class AppwriteSyncManager {
       'version': cycle.version,
       'origin': cycle.origin,
       'sync_origin': cycle.origin,
+      'sync_vector_clock': cycle.vectorClock,
       'vectorClock': cycle.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
@@ -4327,6 +4337,7 @@ class AppwriteSyncManager {
       'version': payment.version,
       'origin': payment.origin,
       'sync_origin': payment.origin,
+      'sync_vector_clock': payment.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', payment.serverId);
@@ -5846,23 +5857,14 @@ class AppwriteSyncManager {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      final now = DateTime.now().millisecondsSinceEpoch;
       final data = <String, dynamic>{
         // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقل 'key' (required) في مجموعة app_settings
         'key': 'whatsapp_settings',
         // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقل 'value' (required) في مجموعة app_settings
         'value': 'whatsapp_settings',
-        // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقول timestamps (required)
-        'createdAt': now,
-        'updatedAt': now,
-        'lastModified': now,
-        // ✅ إصلاح حرج: حقول مزامنة مطلوبة في Appwrite
-        'localUuid': 'whatsapp_settings',
-        'version': 1,
-        'origin': 'local',
-        'sync_origin': 'local',
-        'vectorClock': '{}',
-        'deviceId': _currentDeviceId ?? '',
+        // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقل 'createdAt' (required)
+        // ⚠️ فقط الحقول الموجودة فعلاً في مجموعة app_settings — لا نرسل حقولاً غير موجودة
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
         // ── فندق ──
         'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
         'hotel_cutoff_hour': prefs.getInt('hotel_cutoff_hour') ?? 14,

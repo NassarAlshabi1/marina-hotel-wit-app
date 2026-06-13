@@ -216,6 +216,12 @@ class AppwriteDeltaSync {
     if (payload.containsKey('origin') && !payload.containsKey('sync_origin')) {
       payload['sync_origin'] = payload['origin'];
     }
+    // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقل 'sync_vector_clock' (required attribute)
+    // _preparePayload يحوّل 'vectorClock' إلى 'vector_clock'
+    // لكن Appwrite يتطلب 'sync_vector_clock' كحقل منفصل — نضيفه من قيمة vector_clock
+    if (payload.containsKey('vector_clock') && !payload.containsKey('sync_vector_clock')) {
+      payload['sync_vector_clock'] = payload['vector_clock'];
+    }
 
     switch (change.operation) {
       case 'insert':
