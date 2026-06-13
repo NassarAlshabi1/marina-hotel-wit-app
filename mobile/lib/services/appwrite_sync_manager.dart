@@ -2669,6 +2669,7 @@ class AppwriteSyncManager {
       'lastModified': room.lastModified,
       'version': room.version,
       'origin': room.origin,
+      'sync_origin': room.origin,
       // حقول مطلوبة إضافية من Appwrite schema
       'roomType': room.type,
       'basePrice': room.price,
@@ -2710,6 +2711,7 @@ class AppwriteSyncManager {
       'lastModified': booking.lastModified,
       'version': booking.version,
       'origin': booking.origin,
+      'sync_origin': booking.origin,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
@@ -2765,6 +2767,7 @@ class AppwriteSyncManager {
       'lastModified': expense.lastModified,
       'version': expense.version,
       'origin': expense.origin,
+      'sync_origin': expense.origin,
       'vectorClock': expense.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
@@ -2798,6 +2801,7 @@ class AppwriteSyncManager {
       'lastModified': payment.lastModified,
       'version': payment.version,
       'origin': payment.origin,
+      'sync_origin': payment.origin,
       // ✅ تم حذف sync_version و sync_vector_clock — حقول مكررة وقديمة
       // version و vectorClock يُرسلان بأسمائهما الصحيحة
       'hotelDayKey': payment.hotelDayKey ?? '',
@@ -2878,6 +2882,9 @@ class AppwriteSyncManager {
       'lastModified': debt.lastModified,
       'version': debt.version,
       'origin': debt.origin,
+      // ✅ إصلاح حرج: Appwrite Cloud يتطلب sync_origin (required attribute)
+      // بينما المحلي يستخدم origin — نرسل كلا الاسمين للتوافق
+      'sync_origin': debt.origin,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', debt.serverId);
@@ -4159,6 +4166,7 @@ class AppwriteSyncManager {
       'lastModified': employee.lastModified,
       'version': employee.version,
       'origin': employee.origin,
+      'sync_origin': employee.origin,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', employee.serverId);
@@ -4189,6 +4197,7 @@ class AppwriteSyncManager {
       'lastModified': note.lastModified,
       'version': note.version,
       'origin': note.origin,
+      'sync_origin': note.origin,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', note.serverId);
@@ -4223,6 +4232,7 @@ class AppwriteSyncManager {
       'lastModified': night.lastModified,
       'version': night.version,
       'origin': night.origin,
+      'sync_origin': night.origin,
       'vectorClock': night.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
@@ -4251,6 +4261,7 @@ class AppwriteSyncManager {
       'lastModified': transaction.lastModified,
       'version': transaction.version,
       'origin': transaction.origin,
+      'sync_origin': transaction.origin,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'registerId', transaction.registerId);
@@ -4285,6 +4296,7 @@ class AppwriteSyncManager {
       'lastModified': cycle.lastModified,
       'version': cycle.version,
       'origin': cycle.origin,
+      'sync_origin': cycle.origin,
       'vectorClock': cycle.vectorClock,
     };
     data['deviceId'] = _currentDeviceId ?? '';
@@ -4314,6 +4326,7 @@ class AppwriteSyncManager {
       'lastModified': payment.lastModified,
       'version': payment.version,
       'origin': payment.origin,
+      'sync_origin': payment.origin,
     };
     data['deviceId'] = _currentDeviceId ?? '';
     _putIfNotNull(data, 'serverId', payment.serverId);
@@ -5834,6 +5847,8 @@ class AppwriteSyncManager {
       final prefs = await SharedPreferences.getInstance();
 
       final data = <String, dynamic>{
+        // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقل 'key' (required) في مجموعة app_settings
+        'key': 'whatsapp_settings',
         // ── فندق ──
         'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
         'hotel_cutoff_hour': prefs.getInt('hotel_cutoff_hour') ?? 14,

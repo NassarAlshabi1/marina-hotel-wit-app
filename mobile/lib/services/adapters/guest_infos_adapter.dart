@@ -170,6 +170,7 @@ class GuestInfosAdapter extends EntityAdapter<GuestInfo, GuestInfosCompanion> {
       _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
+      'sync_origin': model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
       _k(src, 'deviceId', 'device_id'): model.deviceId,
     };

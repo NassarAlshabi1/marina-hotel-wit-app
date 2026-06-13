@@ -116,6 +116,7 @@ class PriceAdjustmentsAdapter
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
+      'sync_origin': model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
       _k(src, 'deviceId', 'device_id'): model.deviceId,
     };
