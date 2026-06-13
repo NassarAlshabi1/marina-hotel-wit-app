@@ -5846,11 +5846,23 @@ class AppwriteSyncManager {
     try {
       final prefs = await SharedPreferences.getInstance();
 
+      final now = DateTime.now().millisecondsSinceEpoch;
       final data = <String, dynamic>{
         // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقل 'key' (required) في مجموعة app_settings
         'key': 'whatsapp_settings',
         // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقل 'value' (required) في مجموعة app_settings
         'value': 'whatsapp_settings',
+        // ✅ إصلاح حرج: Appwrite Cloud يتطلب حقول timestamps (required)
+        'createdAt': now,
+        'updatedAt': now,
+        'lastModified': now,
+        // ✅ إصلاح حرج: حقول مزامنة مطلوبة في Appwrite
+        'localUuid': 'whatsapp_settings',
+        'version': 1,
+        'origin': 'local',
+        'sync_origin': 'local',
+        'vectorClock': '{}',
+        'deviceId': _currentDeviceId ?? '',
         // ── فندق ──
         'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
         'hotel_cutoff_hour': prefs.getInt('hotel_cutoff_hour') ?? 14,
