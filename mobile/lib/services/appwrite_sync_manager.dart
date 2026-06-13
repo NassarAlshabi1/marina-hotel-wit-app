@@ -5343,6 +5343,9 @@ class AppwriteSyncManager {
     try {
       final prefs = await SharedPreferences.getInstance();
 
+      // ⚠️ حقول app_settings الفعلية في Appwrite Cloud (25 حقل فقط — الحد الأقصى)
+      // تم تدقيق كل حقل مقابل المخطط الفعلي في 2026-06-14
+      // ❌ لا ترسل حقولاً غير موجودة — يسبب "Unknown attribute" خطأ 400
       final data = <String, dynamic>{
         // ── فندق ──
         'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
@@ -5350,42 +5353,31 @@ class AppwriteSyncManager {
         // ── مظهر ──
         'dark_mode': prefs.getBool('dark_mode') ?? false,
         // ── WhatsApp ──
-        'wa_api_type': prefs.getString('wa_api_type') ?? 'custom',
+        'wa_api_type': prefs.getString('wa_api_type') ?? 'greenapi',
         'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
         'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',
         'wa_api_token': prefs.getString('wa_api_token') ?? '',
         'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
+        'wa_sendzen_api_key': prefs.getString('wa_sendzen_api_key') ?? '',
+        'wa_sendzen_from_number': prefs.getString('wa_sendzen_from_number') ?? '',
         'wa_template': prefs.getString('whatsapp_template') ?? '',
         // ── Telegram ──
         'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
-        'telegram_bot_token': prefs.getString('telegram_bot_token') ?? '7602573830:AAHkWt9k9nBMJ8NhlpkyTs9wAJn_zAL79Ac',
-        'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '5944227208',
+        'telegram_bot_token': prefs.getString('telegram_bot_token') ?? '',
+        'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '',
         'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
         'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
-        'telegram_daily_report_time': prefs.getString('telegram_daily_report_time') ?? '02:00',
+        'telegram_daily_report_time': prefs.getString('telegram_daily_report_time') ?? '',
         // ── Lark ──
         'lark_enabled': prefs.getBool('lark_enabled') ?? false,
         'lark_app_id': prefs.getString('lark_app_id') ?? '',
         'lark_app_secret': prefs.getString('lark_app_secret') ?? '',
         'lark_webhook_url': prefs.getString('lark_webhook_url') ?? '',
-        'lark_notifications_enabled': prefs.getBool('lark_notifications_enabled') ?? true,
         'lark_daily_report_enabled': prefs.getBool('lark_daily_report_enabled') ?? false,
         'lark_daily_report_time': prefs.getString('lark_daily_report_time') ?? '08:00',
         'lark_daily_report_chat_id': prefs.getString('lark_daily_report_chat_id') ?? '',
         // ── مزامنة ──
         'appwrite_sync_interval': prefs.getInt('appwrite_sync_interval') ?? 15,
-        'appwrite_auto_sync_on_connect': prefs.getBool('appwrite_auto_sync_on_connect') ?? true,
-        'conflict_strategy': prefs.getString('conflict_strategy') ?? 'newerWins',
-        'sync_performance_profile': prefs.getString('sync_performance_profile') ?? 'balanced',
-        'wifi_only_sync': prefs.getBool('wifi_only_sync') ?? false,
-        // ── نسخ احتياطي ──
-        'scheduled_backup_enabled': prefs.getBool('scheduled_backup_enabled') ?? true,
-        'auto_backup_time': prefs.getString('auto_backup_time') ?? '21:00',
-        'auto_backup_frequency': prefs.getString('auto_backup_frequency') ?? 'daily',
-        // ── سجل ──
-        'appwrite_log_level': prefs.getString('appwrite_log_level') ?? 'info',
-        'appwrite_log_console': prefs.getBool('appwrite_log_console') ?? true,
-        'appwrite_log_file': prefs.getBool('appwrite_log_file') ?? false,
       };
 
       const docId = 'whatsapp_settings';
