@@ -76,10 +76,11 @@ class NightsAdapter
       // ✅ إصلاح حرج: لا نستخدم bookingLocalId الخام من الجهاز البعيد
       // معرّف الزيادة التلقائية يختلف بين الأجهزة — bookingLocalId=5 على جهاز A ≠ جهاز B
       // إذا فشل resolveBooking، نترك الحقل فارغاً و bookingUuidCache يُحفظ لإعادة الربط لاحقاً
+      // ✅ إصلاح: العمود أصبح nullable — نُدرج null بدلاً من absent لمنع InvalidDataException
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId!)
           : (src == Source.appwrite || src == Source.drive)
-              ? const d.Value.absent()
+              ? d.Value(null)
               : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
       hotelDayKey: _vStr(
         json,

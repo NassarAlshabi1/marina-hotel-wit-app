@@ -804,13 +804,14 @@ class GoogleDriveBackupService {
   }
 
   Future<void> restoreFromBackup(Map<String, dynamic> backupData) async {
-    if (!DatabaseManager.isRestoring) {
-      // Self-guard to avoid accidental destructive calls while keeping safety
-      return DatabaseManager.runWithRestoreGuard(
-        () => _restoreFromBackupInternal(backupData),
-      );
+    // ✅ إصلاح: منع nesting guards — إذا كنا بالفعل في وضع الاستعادة، نستدعي المباشر
+    if (DatabaseManager.isRestoring) {
+      return _restoreFromBackupInternal(backupData);
     }
-    return _restoreFromBackupInternal(backupData);
+    // تشغيل داخل guard لحماية من الاستدعاءات المتزامنة
+    return DatabaseManager.runWithRestoreGuard(
+      () => _restoreFromBackupInternal(backupData),
+    );
   }
 
   Future<void> _restoreFromBackupInternal(
@@ -861,38 +862,71 @@ class GoogleDriveBackupService {
       _log('🔓 تم تعطيل FOREIGN KEYS قبل المعاملة');
 
       try {
+        // ✅ إصلاح: تسجيل الجداول الموجودة فعلياً في النسخة قبل الحذف
+        // حتى لا نفقد بيانات جداول غير موجودة في النسخة الاحتياطية
+        final tablesInBackup = <String>{
+          if (backupData.containsKey('booking_notes')) 'booking_notes',
+          if (backupData.containsKey('booking_nights')) 'booking_nights',
+          if (backupData.containsKey('booking_price_adjustments')) 'booking_price_adjustments',
+          if (backupData.containsKey('payment_voids')) 'payment_voids',
+          if (backupData.containsKey('payments')) 'payments',
+          if (backupData.containsKey('debts')) 'debts',
+          if (backupData.containsKey('salary_payments')) 'salary_payments',
+          if (backupData.containsKey('salary_withdrawals')) 'salary_withdrawals',
+          if (backupData.containsKey('expenses')) 'expenses',
+          if (backupData.containsKey('cash_transactions')) 'cash_transactions',
+          if (backupData.containsKey('audit_logs')) 'audit_logs',
+          if (backupData.containsKey('guest_infos')) 'guest_infos',
+          if (backupData.containsKey('bookings')) 'bookings',
+          if (backupData.containsKey('rooms')) 'rooms',
+          if (backupData.containsKey('employees')) 'employees',
+          if (backupData.containsKey('salary_cycles')) 'salary_cycles',
+          if (backupData.containsKey('hotel_day_ledger')) 'hotel_day_ledger',
+          if (backupData.containsKey('shift_notes')) 'shift_notes',
+          if (backupData.containsKey('integrity_violations')) 'integrity_violations',
+          if (backupData.containsKey('auto_fix_runs')) 'auto_fix_runs',
+          if (backupData.containsKey('sync_conflicts')) 'sync_conflicts',
+          if (backupData.containsKey('sync_logs')) 'sync_logs',
+          if (backupData.containsKey('sync_queue')) 'sync_queue',
+          if (backupData.containsKey('sync_state')) 'sync_state',
+          if (backupData.containsKey('restore_fix_log')) 'restore_fix_log',
+          if (backupData.containsKey('app_sessions')) 'app_sessions',
+        };
+        _log('📋 الجداول الموجودة في النسخة الاحتياطية: ${tablesInBackup.length}');
+        
         await db.transaction(() async {
-          // حذف جميع الجداول بالترتيب الصحيح (الأبناء قبل الآباء)
+          // حذف جميع الجداول الموجود في النسخة فقط — حماية للجداول غير المغطاة
+          // حذف بالترتيب الصحيح (الأبناء قبل الآباء)
           // Level 3 – أبناء بعيدة (تشير لأبناء أو آباء)
-          await db.delete(db.bookingNotes).go();
-          await db.delete(db.bookingNights).go();
-          await db.delete(db.bookingPriceAdjustments).go();
-          await db.delete(db.paymentVoids).go();
+          if (tablesInBackup.contains('booking_notes')) await db.delete(db.bookingNotes).go();
+          if (tablesInBackup.contains('booking_nights')) await db.delete(db.bookingNights).go();
+          if (tablesInBackup.contains('booking_price_adjustments')) await db.delete(db.bookingPriceAdjustments).go();
+          if (tablesInBackup.contains('payment_voids')) await db.delete(db.paymentVoids).go();
           // Level 2 – أبناء مباشرة تشير للآباء الرئيسية
-          await db.delete(db.payments).go();
-          await db.delete(db.debts).go();
-          await db.delete(db.salaryPayments).go();          // FK → employees, salaryCycles
-          await db.delete(db.salaryWithdrawals).go();      // FK → employees
-          await db.delete(db.expenses).go();
-          await db.delete(db.cashTransactions).go();
-          await db.delete(db.auditLogs).go();
-          await db.delete(db.guestInfos).go();
+          if (tablesInBackup.contains('payments')) await db.delete(db.payments).go();
+          if (tablesInBackup.contains('debts')) await db.delete(db.debts).go();
+          if (tablesInBackup.contains('salary_payments')) await db.delete(db.salaryPayments).go();          // FK → employees, salaryCycles
+          if (tablesInBackup.contains('salary_withdrawals')) await db.delete(db.salaryWithdrawals).go();      // FK → employees
+          if (tablesInBackup.contains('expenses')) await db.delete(db.expenses).go();
+          if (tablesInBackup.contains('cash_transactions')) await db.delete(db.cashTransactions).go();
+          if (tablesInBackup.contains('audit_logs')) await db.delete(db.auditLogs).go();
+          if (tablesInBackup.contains('guest_infos')) await db.delete(db.guestInfos).go();
           // Level 1 – آباء رئيسية (يُشار إليها من جداول أعلاه)
-          await db.delete(db.bookings).go();
-          await db.delete(db.rooms).go();
-          await db.delete(db.employees).go();
-          await db.delete(db.salaryCycles).go();
+          if (tablesInBackup.contains('bookings')) await db.delete(db.bookings).go();
+          if (tablesInBackup.contains('rooms')) await db.delete(db.rooms).go();
+          if (tablesInBackup.contains('employees')) await db.delete(db.employees).go();
+          if (tablesInBackup.contains('salary_cycles')) await db.delete(db.salaryCycles).go();
           // Level 0 – جداول مستقلة بدون FK صادرة
-          await db.delete(db.hotelDayLedger).go();
-          await db.delete(db.shiftNotes).go();
-          await db.delete(db.integrityViolations).go();
-          await db.delete(db.autoFixRuns).go();
-          await db.delete(db.syncConflicts).go();
-          await db.delete(db.syncLog).go();
-          await db.delete(db.syncQueue).go();
-          await db.delete(db.syncState).go();
-          await db.delete(db.restoreFixLog).go();
-          await db.delete(db.appSessions).go();
+          if (tablesInBackup.contains('hotel_day_ledger')) await db.delete(db.hotelDayLedger).go();
+          if (tablesInBackup.contains('shift_notes')) await db.delete(db.shiftNotes).go();
+          if (tablesInBackup.contains('integrity_violations')) await db.delete(db.integrityViolations).go();
+          if (tablesInBackup.contains('auto_fix_runs')) await db.delete(db.autoFixRuns).go();
+          if (tablesInBackup.contains('sync_conflicts')) await db.delete(db.syncConflicts).go();
+          if (tablesInBackup.contains('sync_logs')) await db.delete(db.syncLog).go();
+          if (tablesInBackup.contains('sync_queue')) await db.delete(db.syncQueue).go();
+          if (tablesInBackup.contains('sync_state')) await db.delete(db.syncState).go();
+          if (tablesInBackup.contains('restore_fix_log')) await db.delete(db.restoreFixLog).go();
+          if (tablesInBackup.contains('app_sessions')) await db.delete(db.appSessions).go();
 
           // استعادة البيانات بالترتيب الصحيح (الجداول الرئيسية أولاً)
           if (backupData.containsKey('rooms')) {
@@ -1304,9 +1338,39 @@ class GoogleDriveBackupService {
             'PRAGMA foreign_key_check',
           ).get();
           if (violations.isNotEmpty) {
-            _log('⚠️ تحذير: تم العثور على ${violations.length} انتهاك FK بعد الاستعادة');
+            _log('⚠️ تحذير: تم العثور على ${violations.length} انتهاك FK بعد الاستعادة. بدء الإصلاح التلقائي...');
             for (final v in violations) {
               _log('  ↳ FK violation: $v');
+            }
+            // إصلاح تلقائي: soft-delete للسجلات اليتيمة
+            try {
+              final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+              for (final v in violations) {
+                final table = v['table'] as String? ?? '';
+                final rowid = v['rowid'] as int?;
+                if (table.isEmpty || rowid == null) continue;
+                
+                if (table == 'payments') {
+                  await (db.update(db.payments)
+                        ..where((t) => t.id.equals(rowid)))
+                      .write(PaymentsCompanion(deletedAt: Value(nowEpoch)));
+                  _log('  ✅ تم إصلاح: soft-delete payments rowid=$rowid');
+                } else if (table == 'debts') {
+                  await (db.update(db.debts)
+                        ..where((t) => t.id.equals(rowid)))
+                      .write(DebtsCompanion(deletedAt: Value(nowEpoch)));
+                  _log('  ✅ تم إصلاح: soft-delete debts rowid=$rowid');
+                } else if (table == 'booking_nights') {
+                  await (db.update(db.bookingNights)
+                        ..where((t) => t.id.equals(rowid)))
+                      .write(BookingNightsCompanion(deletedAt: Value(nowEpoch)));
+                  _log('  ✅ تم إصلاح: soft-delete booking_nights rowid=$rowid');
+                } else {
+                  _log('  ⚠️ جدول غير معروف للإصلاح التلقائي: $table');
+                }
+              }
+            } catch (fixError) {
+              _log('⚠️ فشل الإصلاح التلقائي لـ FK: $fixError');
             }
           } else {
             _log('✅ التحقق من FK: لا توجد انتهاكات');

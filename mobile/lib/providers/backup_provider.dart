@@ -616,9 +616,17 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.5,
       );
 
-      await DatabaseManager.runWithRestoreGuard(
-        () => _backupService.restoreFromBackup(downloaded),
-      );
+      // ✅ إصلاح: إزالة nested guard — `restoreFromBackup` يدير الحماية داخلياً
+      try {
+        await _backupService.restoreFromBackup(downloaded);
+      } catch (restoreError) {
+        debugPrint('❌ فشل الاستعادة: $restoreError');
+        state = state.copyWith(
+          status: BackupStatus.error,
+          message: 'فشل استعادة البيانات: $restoreError',
+        );
+        return;
+      }
 
       // تشغيل الإصلاح التلقائي
       state = state.copyWith(
@@ -627,15 +635,20 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.8,
       );
 
-      final fixService = RestoreFixService(DatabaseManager.instance);
-      final fixReport = await fixService.runAutoFixAfterRestore();
-
-      if (!fixReport.success) {
-        debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
-      } else {
-        debugPrint(
-          '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
-        );
+      // ✅ إصلاح: معالجة أخطاء الإصلاح التلقائي لمنع تعليق العملية
+      try {
+        final fixService = RestoreFixService(DatabaseManager.instance);
+        final fixReport = await fixService.runAutoFixAfterRestore();
+        if (!fixReport.success) {
+          debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
+        } else {
+          debugPrint(
+            '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
+          );
+        }
+      } catch (fixError) {
+        debugPrint('❌ خطأ في الإصلاح التلقائي (غير حرج): $fixError');
+        // الإصلاح التلقائي فشل لكن الاستعادة نفسها نجحت — نكمل
       }
 
       state = state.copyWith(

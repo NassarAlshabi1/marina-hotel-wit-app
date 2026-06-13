@@ -9,6 +9,7 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:uuid/uuid.dart';
 
 import '../data/sync_models.dart' as sync_models;
+import 'sqlite_backup_restore.dart';
 
 part 'local_db.g.dart';
 
@@ -354,7 +355,7 @@ class ShiftNotes extends Table with SyncFields {
 @DataClassName('BookingNight')
 class BookingNights extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get bookingLocalId => integer().references(Bookings, #id)();
+  IntColumn get bookingLocalId => integer().references(Bookings, #id).nullable()();
   TextColumn get hotelDayKey => text()();
   TextColumn get nightStart => text()();
   TextColumn get nightEnd => text()();
@@ -2257,7 +2258,19 @@ class DatabaseManager {
     if (_isRestoring) {
       assert(_instance != null, 'Database is being restored; cannot access instance during restore');
     }
-    return _instance ??= AppDatabase();
+    if (_instance == null) {
+      _instance = AppDatabase();
+    }
+    return _instance!;
+  }
+
+  /// محاولة استرجاع تلقائي من .pre_restore عند بدء التشغيل
+  static void _recoverFromPreRestore() {
+    try {
+      SqliteBackupRestore.recoverFromPreviousRestore();
+    } catch (_) {
+      // تجاهل فشل الاسترجاع — سننشئ DB جديد
+    }
   }
 
   static bool get isInitialized => _instance != null;

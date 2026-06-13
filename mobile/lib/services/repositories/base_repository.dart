@@ -30,27 +30,26 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     // عند السحب، INSERT بـ id=505 يصطدم بالسجل المحلي المختلف
     // الحل: إزالة id من البيانات ليقوم SQLite بتعيين id تلقائي
     // للسجلات الجديدة، أو استخدام id المحلي الموجود للتحديث.
-    if (src == Source.appwrite || src == Source.drive) {
+    if (src == Source.appwrite) {
+      // ✅ عند المزامنة من السيرفر: إزالة id البعيد لمنع UNIQUE constraint
+      // id هو auto-increment محلي — id=5 على جهاز A ≠ id=5 على جهاز B
       final localUuid = json['localUuid'] as String? ??
           json['local_uuid'] as String?;
       if (localUuid != null) {
-        // تحقق هل يوجد سجل محلي بنفس local_uuid
         final existing = await _findByLocalUuid(localUuid);
         if (existing == null) {
-          // سجل جديد من السيرفر — إزالة id ليُعيّنه SQLite تلقائياً
           json.remove('id');
         } else {
-          // سجل موجود محلياً — استخدم id المحلي لضمان التحديث الصحيح
           json['id'] = existing;
         }
       } else {
-        // ✅ إصلاح حرج: إذا لم يكن localUuid موجوداً في بيانات السيرفر،
-        // يجب إزالة id البعيد لمنع تصادم UNIQUE constraint مع سجل محلي مختلف
-        // له نفس id — بدون هذه الإزالة سيحاول INSERT بـ id البعيد
-        // ويفشل لأن id المحلي التلقائي قد يكون مأخوذاً بالفعل
         json.remove('id');
       }
     }
+    // ❗ Source.drive: لا نزيل id لأن الاستعادة من نسخة احتياطية تحتاج الحفاظ
+    // على العلاقات المرجعية (FK). تم حذف الجدول قبل إعادة الإدراج،
+    // لذلك لا يوجد تعارض مع id موجود مسبقاً. إزالة id يؤدي إلى كسر
+    // bookingLocalId في booking_nights والجداول التابعة الأخرى.
 
     final refs = await adapter.resolveRefs(db, json, src: src);
     final comp = adapter.fromJson(json, src: src, refs: refs);

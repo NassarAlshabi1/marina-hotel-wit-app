@@ -115,6 +115,89 @@ class SqliteBackupRestore {
     }
   }
 
+  /// التحقق من وجود نسخة .pre_restore من استعادة فاشلة سابقة
+  /// إذا وُجدت، يتم استعادتها تلقائياً
+  static Future<bool> recoverFromPreviousRestore() async {
+    try {
+      final dstPath = await _resolveDefaultDbPath();
+      final preRestorePath = '$dstPath.pre_restore';
+      final preRestoreFile = File(preRestorePath);
+      
+      if (!preRestoreFile.existsSync()) {
+        return false; // لا توجد نسخة سابقة للاستعادة
+      }
+      
+      // التحقق مما إذا كان DB الفعلي تالفاً أو غير موجود
+      final dstFile = File(dstPath);
+      String? validationError;
+      if (dstFile.existsSync()) {
+        try {
+          await _validateSqliteFile(dstPath);
+        } catch (e) {
+          validationError = e.toString();
+        }
+      }
+      
+      if (!dstFile.existsSync() || validationError != null) {
+        debugPrint(
+          '🔄 استرجاع من pre_restore: DB الحالي غير صالح ($validationError)',
+        );
+        // حذف DB التالف إن وجد
+        if (dstFile.existsSync()) {
+          await dstFile.delete();
+        }
+        // استعادة من pre_restore
+        await preRestoreFile.rename(dstPath);
+        debugPrint('✅ تم استرجاع DB من النسخة الاحتياطية (pre_restore)');
+        return true;
+      }
+      
+      // DB الحالي سليم — نحذف pre_restore
+      await preRestoreFile.delete();
+      debugPrint('🧹 تم حذف pre_restore (DB الحالي سليم)');
+      return false;
+    } catch (e, st) {
+      debugPrint('❌ فشل استرجاع pre_restore: $e\n$st');
+      return false;
+    }
+  }
+
+  /// التحقق من صحة ملف SQLite
+  static Future<void> _validateSqliteFile(String dbPath) async {
+    // لا يمكن استخدام sqflite مباشرة لأنه قد لا يكون معرفاً في هذا السياق
+    // نستخدم check بسيط: الملف موجود وحجمه أكبر من 100 بايت
+    final file = File(dbPath);
+    if (!file.existsSync()) {
+      throw Exception('الملف غير موجود');
+    }
+    final size = await file.length();
+    if (size < 100) {
+      throw Exception('الملف صغير جداً (${size} بايت) — ليس قاعدة بيانات صالحة');
+    }
+    // نتحقق من توقيع SQLite (الأول 16 بايت)
+    final raf = await file.open(mode: FileMode.read);
+    try {
+      final header = await raf.read(16);
+      // SQLite magic bytes: "SQLite format 3\0"
+      final sqliteMagic = [0x53, 0x51, 0x4C, 0x69, 0x74, 0x65, 0x20, 0x66,
+                           0x6F, 0x72, 0x6D, 0x61, 0x74, 0x20, 0x33, 0x00];
+      bool isValid = header.length == sqliteMagic.length;
+      if (isValid) {
+        for (int i = 0; i < sqliteMagic.length; i++) {
+          if (header[i] != sqliteMagic[i]) {
+            isValid = false;
+            break;
+          }
+        }
+      }
+      if (!isValid) {
+        throw Exception('الملف ليس قاعدة بيانات SQLite صالحة (توقيع غير متطابق)');
+      }
+    } finally {
+      await raf.close();
+    }
+  }
+
   /// Restore the on-device database from a provided .db file path.
   ///
   /// - Ensures the file exists and has a .db extension.
@@ -147,7 +230,7 @@ class SqliteBackupRestore {
       // Close any open connections to avoid file locking
       await DatabaseManager.close();
 
-      // ✅ إصلاح: استبدال ذري باستخدام ملف مؤقت
+      // ✅ إصلاح: استبدال ذري باستخدام ملف مؤقت مع استرجاع آمن
       // نسخ الاحتياطي إلى ملف مؤقت أولاً، ثم إعادة تسميته إلى اسم DB الفعلي
       final tmpPath = '$dstPath.tmp';
       final tmpFile = File(tmpPath);
@@ -160,7 +243,16 @@ class SqliteBackupRestore {
       // نسخ الاحتياطي إلى الملف المؤقت
       await srcFile.copy(tmpPath);
       
-      // حذف ملف DB الحالي (بعد التأكد من وجود نسخة مؤقتة صالحة)
+      // ✅ التحقق من صحة ملف SQLite المؤقت قبل استبدال DB الفعلي
+      try {
+        await _validateSqliteFile(tmpPath);
+      } catch (e) {
+        // حذف الملف المؤقت غير الصالح قبل إعادة الرمي
+        await tmpFile.delete();
+        throw Exception('ملف النسخة الاحتياطية غير صالح: $e');
+      }
+      
+      // استبدال ذري مع استرجاع تلقائي في حال الفشل
       if (dstFile.existsSync()) {
         final backupPath = '$dstPath.pre_restore';
         final backupFile = File(backupPath);
@@ -171,8 +263,20 @@ class SqliteBackupRestore {
         await dstFile.rename(backupPath);
       }
       
-      // إعادة تسمية الملف المؤقت إلى اسم DB
-      await tmpFile.rename(dstPath);
+      // إعادة تسمية الملف المؤقت إلى اسم DB الفعلي
+      try {
+        await tmpFile.rename(dstPath);
+      } catch (e) {
+        // ❌ فشلت إعادة التسمية — نعيد نسخة الأمان
+        if (dstFile.existsSync()) {
+          final backupPath = '$dstPath.pre_restore';
+          final backupFile = File(backupPath);
+          if (backupFile.existsSync()) {
+            await backupFile.rename(dstPath);
+          }
+        }
+        rethrow;
+      }
 
       // Reopen the database so the app can continue working
       if (reopenCallback != null) {

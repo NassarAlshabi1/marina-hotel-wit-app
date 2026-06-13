@@ -277,8 +277,35 @@ Map<String, dynamic> buildBackupDataMap({
     'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
     'booking_notes': bookingNotesData.map((note) => note.toJson()).toList(),
     'booking_nights': bookingNightsData
-        .map((night) => night.toJson())
-        .toList(),
+        .map((night) {
+          final json = night.toJson() as Map<String, dynamic>;
+          // ✅ إصلاح جذري: إضافة UUID الحجز إلى كل ليلة لضمان حل FK عبر الأجهزة
+          // عند الاستعادة، يحتاج NightsAdapter.resolveRefs() إلى bookingUuidCache
+          // لربط الليلة بالحجز الصحيح. بدون هذا الحقل، قد تفشل عملية الربط
+          // إذا اختلفت auto-increment IDs بين الجهاز المصدر والجهاز الهدف.
+          if (!json.containsKey('booking_uuid_cache') || json['booking_uuid_cache'] == null) {
+            final booking = bookingsData.cast<dynamic>().firstWhere(
+              (b) {
+                final bJson = b is Map<String, dynamic> ? b : (b.toJson() as Map<String, dynamic>);
+                final nightLocalId = json['booking_local_id'];
+                return nightLocalId != null && bJson['id'] == nightLocalId;
+              },
+              orElse: () => null,
+            );
+            if (booking != null) {
+              final bJson = booking is Map<String, dynamic> ? booking : (booking.toJson() as Map<String, dynamic>);
+              final bookingUuid = bJson['local_uuid'] ?? bJson['localUuid'];
+              if (bookingUuid != null) {
+                json['booking_uuid_cache'] = bookingUuid;
+              }
+            }
+          }
+          // إضافة localUuid للحجز أيضاً تحت مفتاح booking_uuid كخيار بديل
+          if (!json.containsKey('booking_uuid') || json['booking_uuid'] == null) {
+            json['booking_uuid'] = json['booking_uuid_cache'];
+          }
+          return json;
+        }).toList(),
     'hotel_day_ledger': ledgerData.map((entry) => entry.toJson()).toList(),
     'shift_notes': shiftNotesData.map((note) => note.toJson()).toList(),
     'employees': employeesData.map((employee) => employee.toJson()).toList(),

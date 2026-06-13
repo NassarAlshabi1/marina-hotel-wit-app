@@ -26,6 +26,7 @@ import 'appwrite_models.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_utils.dart';
 import 'booking_derived_fields_service.dart';
+import 'appwrite_backup_sync_service.dart';
 import 'crashlytics_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
@@ -1921,6 +1922,7 @@ class AppwriteSyncManager {
     final perfSettings = SyncPerformanceOptimizer.instance.getCurrentPerformanceSettings();
     final batchSize = perfSettings['batchSize'] as int? ?? 50;
     int totalProcessed = 0;
+    final backupService = AppwriteBackupSyncService();
 
     while (true) {
       // ✅ فصل هندسي: نعالج فقط عناصر source='local' (تغييرات محلية)
@@ -1930,15 +1932,37 @@ class AppwriteSyncManager {
         break;
       }
 
+      final backupOps = <BackupOperation>[];
       int processedInBatch = 0;
       for (final entry in entries) {
         final success = await _processOutboxEntry(entry);
         if (success) {
           await outboxDao.removeById(entry.id);
           processedInBatch++;
+          // جمع العمليات الناجحة لإرسالها إلى نقاط النهاية الاحتياطية
+          try {
+            final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+            backupOps.add(BackupOperation(
+              tableName: entry.entity,
+              documentId: entry.localUuid,
+              data: payload,
+              operation: entry.op == 'delete' ? 'delete' : 'update',
+            ));
+          } catch (_) {
+            // تجاهل فشل تحليل الـ payload — النسخ الاحتياطي ليس حرجاً
+          }
         }
       }
       totalProcessed += processedInBatch;
+      
+      // إرسال العمليات الناجحة إلى جميع نقاط النهاية الاحتياطية
+      if (backupOps.isNotEmpty) {
+        try {
+          await backupService.pushBatchToBackups(operations: backupOps);
+        } catch (_) {
+          // فشل النسخ الاحتياطي لا يمنع إكمال المزامنة الرئيسية
+        }
+      }
 
       if (entries.length == batchSize && processedInBatch == 0) {
         _logger.warning(

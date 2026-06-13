@@ -207,10 +207,10 @@ class RestoreFixService {
     RestoreSnapshot? snapshot;
 
     try {
+      // ✅ إنشاء لقطة احتياطية للأمان قبل المعاملة — داخل المعاملة ستقرأ البيانات المعدلة
+      snapshot = await createLocalSnapshot('auto_fix', useTransaction: false);
       // تنفيذ الإصلاح داخل معاملة واحدة
       await db.transaction(() async {
-        // إنشاء لقطة احتياطية للأمان داخل نفس المعاملة
-        snapshot = await createLocalSnapshot('auto_fix', useTransaction: false);
         final now = DateTime.now();
         final fixId = IdGen.uuid();
 
@@ -353,11 +353,11 @@ class RestoreFixService {
 
     try {
       // تحليل تواريخ الدخول والخروج
-      final checkinDate = DateTime.parse(booking.checkinDate);
-      final checkoutDate = booking.actualCheckout != null
-          ? DateTime.parse(booking.actualCheckout!)
+      final checkinDate = DateTime.tryParse(booking.checkinDate) ?? now;
+      final checkoutDate = (booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty)
+          ? (DateTime.tryParse(booking.actualCheckout!) ?? now)
           : (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty
-                ? DateTime.parse(booking.checkoutDate!)
+                ? (DateTime.tryParse(booking.checkoutDate!) ?? now)
                 : now);
 
       // حساب الليالي باستخدام قاعدة الساعة 14:00

@@ -17,6 +17,7 @@ import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
+import 'appwrite_backup_endpoints_screen.dart';
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});
@@ -161,6 +162,27 @@ class _AppwriteSettingsScreenState
                 ),
               ],
             ),
+            // زر نقاط النهاية الاحتياطية (Master/Slave)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(builder: (context) => const AppwriteBackupEndpointsScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.dns),
+                label: const Text('نقاط النهاية الاحتياطية (Master/Slave)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueGrey.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+
             const Divider(height: 24),
 
             // مؤشر الحالة
