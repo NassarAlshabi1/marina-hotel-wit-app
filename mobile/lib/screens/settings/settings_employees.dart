@@ -130,15 +130,15 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         .fold<double>(0.0, (sum, e) => sum + e.salary);
 
     return Container(
-      margin: const EdgeInsets.all(8),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.blue.shade50, Colors.blue.shade100],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.blue.shade200),
       ),
       child: Column(
@@ -146,32 +146,32 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.analytics, color: Colors.blue, size: 24),
-              SizedBox(width: 8),
+              Icon(Icons.analytics, color: Colors.blue, size: 18),
+              SizedBox(width: 6),
               Text(
                 'إحصائيات الموظفين',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Row(
             children: [
               Expanded(
                 child: _buildStatChip('إجمالي', employees.length, Colors.blue),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Expanded(
                 child: _buildStatChip('نشط', activeEmployees, Colors.green),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Expanded(
                 child: _buildStatChip('منهية', terminatedEmployees, Colors.red),
               ),
             ],
           ),
           if (otherEmployees > 0) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Row(
               children: [
                 Expanded(
@@ -182,23 +182,23 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               ],
             ),
           ],
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(color: Colors.green.shade200),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.attach_money, color: Colors.green, size: 20),
-                const SizedBox(width: 4),
+                const Icon(Icons.attach_money, color: Colors.green, size: 16),
+                const SizedBox(width: 3),
                 Text(
                   'إجمالي الرواتب: ${CurrencyFormatter.formatAmount(totalSalaries)}',
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: Colors.green,
                   ),
@@ -213,10 +213,10 @@ class SettingsEmployeesScreen extends ConsumerWidget {
 
   Widget _buildStatChip(String label, int count, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -224,14 +224,14 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           Text(
             count.toString(),
             style: TextStyle(
-              fontSize: 15,
+              fontSize: 13,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: color.withValues(alpha: 0.8)),
+            style: TextStyle(fontSize: 9, color: color.withValues(alpha: 0.8)),
           ),
         ],
       ),
@@ -249,10 +249,10 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     final statusColor = Color(StatusUtils.employeeStatusColor(employee.status));
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 4),
+      elevation: 1,
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -261,13 +261,14 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   backgroundColor: statusColor,
+                  radius: 14,
                   child: Icon(
                     isTerminated ? Icons.person_off : Icons.person,
                     color: Colors.white,
-                    size: 20,
+                    size: 16,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,7 +276,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       Text(
                         employee.name,
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                           decoration: isTerminated ? TextDecoration.lineThrough : null,
                         ),
@@ -283,7 +284,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       Text(
                         employee.position,
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 10,
                           color: Colors.grey,
                         ),
                       ),
@@ -292,18 +293,18 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                    horizontal: 6,
+                    vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: statusColor),
                   ),
                   child: Text(
                     statusLabel,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: statusColor,
                     ),
@@ -312,7 +313,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               ],
             ),
 
-            const SizedBox(height: 6),
+            const SizedBox(height: 3),
 
             // تفاصيل إضافية
             Row(
@@ -330,7 +331,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               ],
             ),
 
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
 
             _buildDetailRow(
               'تاريخ التوظيف',
@@ -340,12 +341,12 @@ class SettingsEmployeesScreen extends ConsumerWidget {
 
             // عرض تاريخ وسبب إنهاء الخدمة إذا كان مفصولاً
             if (isTerminated) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: Colors.red.shade200),
                 ),
                 child: Column(
@@ -368,7 +369,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               ),
             ],
 
-            const SizedBox(height: 6),
+            const SizedBox(height: 3),
 
             // أزرار العمليات — صف واحد مدمج
             OverflowBar(
@@ -423,24 +424,25 @@ class SettingsEmployeesScreen extends ConsumerWidget {
   Widget _buildDetailRow(String label, String value, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: Colors.grey),
-        const SizedBox(width: 4),
+        Icon(icon, size: 13, color: Colors.grey),
+        const SizedBox(width: 3),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
               Text(
-                label,
-                style: const TextStyle(fontSize: 10, color: Colors.grey),
+                '$label: ',
+                style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
               ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
