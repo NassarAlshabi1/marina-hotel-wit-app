@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
@@ -64,7 +63,7 @@ class SalaryPaymentsAdapter
           resolvedCycleId = row.id;
         }
       } catch (_) {
-        debugPrint('⚠️ SalaryPaymentsAdapter: فشل حل cycleId');
+        print('⚠️ SalaryPaymentsAdapter: فشل حل cycleId');
       }
     }
 

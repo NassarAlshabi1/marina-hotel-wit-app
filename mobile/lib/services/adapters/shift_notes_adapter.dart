@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
@@ -236,7 +235,7 @@ int? _epoch(Map<String, dynamic> json, String key, Source src) {
   try {
     return DateTime.parse(normalized).millisecondsSinceEpoch ~/ 1000;
   } catch (_) {
-    debugPrint('⚠️ ShiftNotesAdapter: فشل تحويل التاريخ $s');
+    print('⚠️ ShiftNotesAdapter: فشل تحويل التاريخ $s');
     return null;
   }
 }

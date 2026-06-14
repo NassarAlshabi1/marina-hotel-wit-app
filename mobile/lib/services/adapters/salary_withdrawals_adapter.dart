@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
@@ -23,7 +22,7 @@ class SalaryWithdrawalsAdapter
         [expenseId, salaryWithdrawalId],
       );
     } catch (_) {
-      debugPrint('⚠️ SalaryWithdrawalsAdapter: العمود قد لا يكون موجوداً');
+      print('⚠️ SalaryWithdrawalsAdapter: العمود قد لا يكون موجوداً');
     }
   }
 
