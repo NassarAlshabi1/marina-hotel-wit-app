@@ -2848,7 +2848,7 @@ class AppwriteSyncManager {
     );
     _putIfNotNull(
       data,
-      'cashTransactionServerId',
+      'cashTransactionId',
       payment.cashTransactionServerId,
     );
     _putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
@@ -4746,6 +4746,10 @@ class AppwriteSyncManager {
       'vectorClock': row.vectorClock,
       'createdAtEpoch': row.createdAtEpoch,
       'lastModifiedEpoch': row.lastModifiedEpoch,
+      // ✅ إرسال حقول ISO للمزامنة الصحيحة
+      if (row.createdAtIso != null) 'createdAtIso': row.createdAtIso,
+      if (row.updatedAtIso != null) 'updatedAtIso': row.updatedAtIso,
+      if (row.deletedAtIso != null) 'deletedAtIso': row.deletedAtIso,
     };
   }
 
