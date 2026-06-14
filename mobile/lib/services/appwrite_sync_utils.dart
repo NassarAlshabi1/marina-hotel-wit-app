@@ -221,10 +221,12 @@ class AppwriteSyncUtils {
       'wa_api_type', 'wa_custom_url_template', 'wa_sendzen_api_key',
       'wa_sendzen_from_number', 'wa_template',
     },
+    // ⚠️ المجموعات التالية غير موجودة في Appwrite Cloud حالياً
+    // إذا أُنشئت مستقبلاً، يجب تحديث هذه القوائم بدقة
     'outbox': {
-      'createdAt', 'deletedAt', 'isRead', 'lastModified', 'localUuid',
-      'message', 'origin', 'recipient', 'sentAt', 'serverId', 'updatedAt',
-      'version',
+      'entity', 'op', 'localUuid', 'serverId', 'payload', 'clientTs',
+      'attempts', 'lastError', 'idempotencyKey', 'processingStatus',
+      'processingStartedAt', 'processingWorker', 'source',
     },
     'sync_state': {
       'createdAt', 'deletedAt', 'isSyncing', 'lastModified', 'lastSyncTime',

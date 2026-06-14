@@ -49,6 +49,7 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
             _asString(json, 'local_uuid', src) ??
             IdGen.uuid(),
       ),
+      serverId: _vInt(json, 'serverId', src, altKey: 'server_id'),
       operationType: _vStr(json, 'operationType', src, altKey: 'operation_type', fallback: ''),
       entityType: _vStr(json, 'entityType', src, altKey: 'entity_type', fallback: ''),
       entityUuid: _vStr(json, 'entityUuid', src, altKey: 'entity_uuid', fallback: ''),
@@ -57,7 +58,7 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
       newState: _vStr(json, 'newState', src, altKey: 'new_state'),
       changedFields: _vStr(json, 'changedFields', src, altKey: 'changed_fields'),
       performedBy: _vStr(json, 'performedBy', src, altKey: 'performed_by', fallback: ''),
-      deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
+      deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id'),
       ipAddress: _vStr(json, 'ipAddress', src, altKey: 'ip_address'),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key', fallback: ''),
       timestamp: d.Value(timestamp),
@@ -71,6 +72,18 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
       isFinancial: _vBool(json, 'isFinancial', src, altKey: 'is_financial', fallback: false),
       amountImpact: _vInt(json, 'amountImpact', src, altKey: 'amount_impact'),
       createdAt: d.Value(createdAt),
+      updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? now),
+      deletedAt: _vInt(json, 'deletedAt', src, altKey: 'deleted_at'),
+      lastModified: d.Value(_epoch(json, 'lastModified', src) ?? now),
+      createdAtIso: _vStr(json, 'createdAtIso', src, altKey: 'created_at_iso'),
+      updatedAtIso: _vStr(json, 'updatedAtIso', src, altKey: 'updated_at_iso'),
+      deletedAtIso: _vStr(json, 'deletedAtIso', src, altKey: 'deleted_at_iso'),
+      createdAtEpoch: d.Value(_epoch(json, 'createdAtEpoch', src) ?? 0),
+      lastModifiedEpoch: d.Value(_epoch(json, 'lastModifiedEpoch', src) ?? 0),
+      version: d.Value(_asInt(json, 'version', src) ?? 1),
+      origin: d.Value(_asString(json, 'origin', src) ?? 'local'),
+      vectorClock: d.Value(_asString(json, 'vectorClock', src) ?? _asString(json, 'vector_clock', src) ?? '{}'),
+      syncTimestamp: _vInt(json, 'syncTimestamp', src, altKey: 'sync_timestamp'),
     );
   }
 
@@ -79,6 +92,7 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
     return {
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
+      _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'operationType', 'operation_type'): model.operationType,
       _k(src, 'entityType', 'entity_type'): model.entityType,
       _k(src, 'entityUuid', 'entity_uuid'): model.entityUuid,
@@ -95,6 +109,18 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
       _k(src, 'isFinancial', 'is_financial'): model.isFinancial,
       _k(src, 'amountImpact', 'amount_impact'): model.amountImpact,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
+      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
+      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
+      _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
+      _k(src, 'version', 'version'): model.version,
+      _k(src, 'origin', 'origin'): model.origin,
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      _k(src, 'syncTimestamp', 'sync_timestamp'): model.syncTimestamp,
     };
   }
 }

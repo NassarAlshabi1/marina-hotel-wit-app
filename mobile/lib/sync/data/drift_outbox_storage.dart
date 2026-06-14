@@ -136,7 +136,7 @@ class DriftOutboxStorage implements OutboxStorage {
 
     await (_db.update(_db.outbox)..where((t) => t.id.equals(existing.id)))
         .write(const OutboxCompanion(
-      processingStatus: Value('synced'),
+      processingStatus: Value('completed'), // ✅ توحيد 2026-06-15: 'synced' → 'completed' لمطابقة OutboxDao
     ),);
   }
 
@@ -202,7 +202,7 @@ class DriftOutboxStorage implements OutboxStorage {
   Future<int> deleteSyncedBefore(DateTime cutoff) async {
     final epochCutoff = cutoff.millisecondsSinceEpoch ~/ 1000;
     final query = _db.delete(_db.outbox)
-      ..where((t) => t.processingStatus.equals('synced'))
+      ..where((t) => t.processingStatus.equals('completed')) // ✅ توحيد 2026-06-15
       ..where((t) => t.clientTs.isSmallerThanValue(epochCutoff));
 
     return query.go();
@@ -220,13 +220,14 @@ class DriftOutboxStorage implements OutboxStorage {
   Future<OutboxStats> getStats() async {
     final pending = await pendingCount();
 
-    final syncingResult = await (_db.select(_db.outbox)
-          ..where((t) => t.processingStatus.equals('retrying')))
+    // ✅ توحيد 2026-06-15: 'retrying' → 'processing' لمطابقة OutboxDao
+    final processingResult = await (_db.select(_db.outbox)
+          ..where((t) => t.processingStatus.equals('processing')))
         .get();
-    final syncing = syncingResult.length;
+    final syncing = processingResult.length;
 
     final syncedResult = await (_db.select(_db.outbox)
-          ..where((t) => t.processingStatus.equals('synced')))
+          ..where((t) => t.processingStatus.equals('completed')))
         .get();
     final synced = syncedResult.length;
 
