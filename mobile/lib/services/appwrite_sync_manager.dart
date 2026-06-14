@@ -2886,7 +2886,7 @@ class AppwriteSyncManager {
     );
     _putIfNotNull(
       data,
-      'cashTransactionServerId',
+      'cashTransactionId',
       payment.cashTransactionServerId,
     );
     _putIfNotNull(

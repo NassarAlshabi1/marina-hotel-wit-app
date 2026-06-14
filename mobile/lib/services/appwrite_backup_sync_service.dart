@@ -1,40 +1,33 @@
-import 'dart:convert';
-import 'dart:io';
+import 'dart:async';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
-import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-
 
 import 'appwrite_backup_endpoint.dart';
 import 'appwrite_backup_endpoints_manager.dart';
-import 'appwrite_backup_history_manager.dart';
-import 'appwrite_backup_operation_log.dart';
 import 'appwrite_config.dart';
-import 'appwrite_logger.dart';
 import 'local_db.dart';
+import 'appwrite_logger.dart';
 
-/// تقدم عملية الرفع/السحب
-class BackupProgress {
+/// عملية احتياطية — تستخدم لإرسال دفعة
+class BackupOperation {
   final String tableName;
-  final int current;
-  final int total;
-  final String endpointName;
-  final String operationType; // push / pull
+  final String documentId;
+  final Map<String, dynamic> data;
+  final String operation;
 
-  BackupProgress({
+  BackupOperation({
     required this.tableName,
-    required this.current,
-    required this.total,
-    required this.endpointName,
-    required this.operationType,
+    required this.documentId,
+    required this.data,
+    required this.operation,
   });
-
-  double get percentage => total > 0 ? current / total : 0.0;
 }
 
-/// خدمة المزامنة الاحتياطية (Slave Push/Pull)
+/// خدمة المزامنة الاحتياطية (Slave Push Only)
+///
+/// تقوم بدفع البيانات إلى نقاط النهاية الثانوية بعد نجاح المزامنة الرئيسية.
+/// هذه الخدمة لا تسحب بيانات (pull) — فقط إرسال (push).
 class AppwriteBackupSyncService {
   AppwriteBackupSyncService._internal();
   static final AppwriteBackupSyncService _instance =
@@ -44,55 +37,217 @@ class AppwriteBackupSyncService {
   final _logger = AppwriteLogger();
 
   bool _isPushing = false;
-  bool _isPulling = false;
 
+  /// هل هناك عملية دفع قيد التشغيل حالياً؟
   bool get isPushing => _isPushing;
-  bool get isPulling => _isPulling;
-  bool get isBusy => _isPushing || _isPulling;
 
-  static const List<String> _allCollectionIds = [
-    AppwriteConfig.roomsCollectionId,
-    AppwriteConfig.bookingsCollectionId,
-    AppwriteConfig.bookingNotesCollectionId,
-    AppwriteConfig.bookingNightsCollectionId,
-    AppwriteConfig.paymentsCollectionId,
-    AppwriteConfig.expensesCollectionId,
-    AppwriteConfig.cashTransactionsCollectionId,
-    AppwriteConfig.debtsCollectionId,
-    AppwriteConfig.employeesCollectionId,
-    AppwriteConfig.salaryCyclesCollectionId,
-    AppwriteConfig.salaryPaymentsCollectionId,
-    AppwriteConfig.shiftNotesCollectionId,
-    AppwriteConfig.priceAdjustmentsCollectionId,
-    AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-    AppwriteConfig.auditLogsCollectionId,
-    AppwriteConfig.paymentVoidsCollectionId,
-    AppwriteConfig.devicesCollectionId,
-    AppwriteConfig.syncLogsCollectionId,
-    AppwriteConfig.guestInfosCollectionId,
-    AppwriteConfig.salaryWithdrawalsCollectionId,
-    AppwriteConfig.blacklistCollectionId,
-    AppwriteConfig.appSettingsCollectionId,
-  ];
+  /// دفع البيانات إلى جميع نقاط النهاية الاحتياطية
+  ///
+  /// [tableName] اسم الجدول الذي تم إرساله للـ Master
+  /// [data] البيانات المرسلة (بالفعل تم إرسالها للـ Master)
+  /// [documentId] معرّف المستند في Appwrite
+  /// [operation] نوع العملية: create / update / delete
+  Future<void> pushToBackups({
+    required String tableName,
+    required String documentId,
+    required Map<String, dynamic> data,
+    required String operation,
+  }) async {
+    if (_isPushing) return;
 
-  // ─── Push: رفع البيانات المحلية إلى نقطة نهاية ─────────────────
+    final endpoints = await BackupEndpointsManager.loadEndpoints();
+    if (endpoints.isEmpty) return;
 
-  /// إنشاء عميل Appwrite من نقطة نهاية
-  Client _createClient(BackupEndpoint endpoint) {
+    _isPushing = true;
+    int successCount = 0;
+    int failCount = 0;
+
+    for (final endpoint in endpoints) {
+      try {
+        await _pushToEndpoint(
+          endpoint: endpoint,
+          tableName: tableName,
+          documentId: documentId,
+          data: data,
+          operation: operation,
+        );
+        successCount++;
+        _logger.info(
+          '✅ Backup push to ${endpoint.name} ($tableName/$documentId)',
+          tag: 'BACKUP_SYNC',
+        );
+      } catch (e) {
+        failCount++;
+        _logger.warning(
+          '⚠️ Backup push failed to ${endpoint.name}: $e',
+          tag: 'BACKUP_SYNC',
+        );
+      }
+    }
+
+    _isPushing = false;
+    if (failCount > 0) {
+      _logger.info(
+        '📊 Backup sync: $successCount succeeded, $failCount failed',
+        tag: 'BACKUP_SYNC',
+      );
+    }
+  }
+
+  /// دفع دفعة كاملة من البيانات إلى جميع نقاط النهاية الاحتياطية
+  ///
+  /// [operations] قائمة العمليات المنفذة (مع البيانات)
+  Future<void> pushBatchToBackups({
+    required List<BackupOperation> operations,
+  }) async {
+    if (_isPushing || operations.isEmpty) return;
+
+    final endpoints = await BackupEndpointsManager.loadEndpoints();
+    if (endpoints.isEmpty) return;
+
+    _isPushing = true;
+
+    for (final endpoint in endpoints) {
+      int successCount = 0;
+      int failCount = 0;
+
+      for (final op in operations) {
+        try {
+          await _pushToEndpoint(
+            endpoint: endpoint,
+            tableName: op.tableName,
+            documentId: op.documentId,
+            data: op.data,
+            operation: op.operation,
+          );
+          successCount++;
+        } catch (e) {
+          failCount++;
+          _logger.warning(
+            '⚠️ Batch backup push failed to ${endpoint.name} '
+            '(${op.tableName}/${op.documentId}): $e',
+            tag: 'BACKUP_SYNC',
+          );
+        }
+      }
+
+      _logger.info(
+        '📊 Backup batch to ${endpoint.name}: '
+        '$successCount succeeded, $failCount failed',
+        tag: 'BACKUP_SYNC',
+      );
+    }
+
+    _isPushing = false;
+  }
+
+  /// إرسال عملية واحدة إلى endpoint محدد
+  Future<void> _pushToEndpoint({
+    required BackupEndpoint endpoint,
+    required String tableName,
+    required String documentId,
+    required Map<String, dynamic> data,
+    required String operation,
+  }) async {
     final client = Client()
         .setEndpoint(endpoint.endpoint)
         .setProject(endpoint.projectId);
+
     if (endpoint.apiKey.isNotEmpty) {
       client.addHeader('X-Appwrite-Key', endpoint.apiKey);
     }
-    return client;
+
+    final databases = Databases(client);
+    final dbId = endpoint.databaseId;
+
+    switch (operation) {
+      case 'create':
+        await databases.createDocument(
+          databaseId: dbId,
+          collectionId: tableName,
+          documentId: documentId,
+          data: data,
+        );
+        break;
+      case 'update':
+        try {
+          await databases.updateDocument(
+            databaseId: dbId,
+            collectionId: tableName,
+            documentId: documentId,
+            data: data,
+          );
+        } catch (_) {
+          // إذا فشل التحديث (المستند غير موجود)، نقوم بإنشائه
+          await databases.createDocument(
+            databaseId: dbId,
+            collectionId: tableName,
+            documentId: documentId,
+            data: data,
+          );
+        }
+        break;
+      case 'delete':
+        try {
+          await databases.deleteDocument(
+            databaseId: dbId,
+            collectionId: tableName,
+            documentId: documentId,
+          );
+        } catch (_) {
+          // تجاهل خطأ الحذف إذا كان المستند غير موجود أصلاً
+        }
+        break;
+    }
   }
 
-  /// رفع جميع البيانات المحلية إلى نقطة نهاية محددة (Full Push)
+  /// رفع جميع البيانات المحلية إلى جميع نقاط النهاية الاحتياطية (Full Push All)
+  ///
+  /// هذه الدالة تنفذ fullPushAllToEndpoint لكل نقطة نهاية نشطة.
+  Future<Map<String, Map<String, int>>> fullPushAllToAllEndpoints({
+    required AppDatabase db,
+    void Function(String endpointName, String table, int current, int total)?
+        onProgress,
+  }) async {
+    final endpoints = await BackupEndpointsManager.loadEndpoints();
+    if (endpoints.isEmpty) return {};
+
+    final allStats = <String, Map<String, int>>{};
+
+    for (final endpoint in endpoints) {
+      _logger.info(
+        '🚀 بدء الرفع الشامل إلى ${endpoint.name}...',
+        tag: 'BACKUP_SYNC',
+      );
+      final stats = await fullPushAllToEndpoint(
+        db: db,
+        endpoint: endpoint,
+        onProgress: (table, current, total) {
+          onProgress?.call(endpoint.name, table, current, total);
+        },
+      );
+      allStats[endpoint.name] = stats;
+    }
+
+    return allStats;
+  }
+
+  /// رفع جميع البيانات المحلية إلى نقطة نهاية احتياطية (Full Push)
+  ///
+  /// هذه العملية تقرأ جميع السجلات من قاعدة البيانات المحلية
+  /// وترفعها إلى نقطة النهاية المحددة بالترتيب الصحيح (FK order).
+  /// تشمل 18 جدول شامل: rooms, employees, bookings, payments, expenses,
+  /// debts, booking_notes, booking_nights, shift_notes, cash_transactions,
+  /// guest_infos, salary_cycles, salary_payments, salary_withdrawals,
+  /// price_adjustments, booking_price_adjustments, audit_logs, payment_voids
+  ///
+  /// [db] قاعدة البيانات المحلية
+  /// [endpoint] نقطة النهاية الاحتياطية المستهدفة
+  /// [onProgress] callback للتقدم (اختياري)
   Future<Map<String, int>> fullPushAllToEndpoint({
     required AppDatabase db,
     required BackupEndpoint endpoint,
-    void Function(BackupProgress progress)? onProgress,
+    void Function(String table, int current, int total)? onProgress,
   }) async {
     final stats = <String, int>{
       'rooms': 0,
@@ -116,12 +271,17 @@ class AppwriteBackupSyncService {
       'errors': 0,
     };
 
-    final client = _createClient(endpoint);
+    final client = Client()
+        .setEndpoint(endpoint.endpoint)
+        .setProject(endpoint.projectId);
+    if (endpoint.apiKey.isNotEmpty) {
+      client.addHeader('X-Appwrite-Key', endpoint.apiKey);
+    }
     final databases = Databases(client);
     final dbId = endpoint.databaseId;
 
-    Future<bool> upsert(
-        String collection, String docId, Map<String, dynamic> data) async {
+    /// دالة مساعدة لرفع مستند (إنشاء أو تحديث)
+    Future<bool> upsert(String collection, String docId, Map<String, dynamic> data) async {
       try {
         await databases.createDocument(
           databaseId: dbId,
@@ -131,6 +291,7 @@ class AppwriteBackupSyncService {
         );
         return true;
       } catch (_) {
+        // إذا كان موجوداً مسبقاً → نحدّث
         try {
           await databases.updateDocument(
             databaseId: dbId,
@@ -140,28 +301,45 @@ class AppwriteBackupSyncService {
           );
           return true;
         } catch (e) {
-          _logger.warning('⚠️ فشل رفع $docId إلى $collection: $e',
-              tag: 'BACKUP_SYNC');
+          _logger.warning(
+            '⚠️ فشل رفع $docId إلى $collection: $e',
+            tag: 'BACKUP_SYNC',
+          );
           return false;
         }
       }
     }
 
-    _logger.info('🚀 بدء الرفع الشامل إلى ${endpoint.name}...',
-        tag: 'BACKUP_SYNC');
+    _logger.info('🚀 بدء الرفع الشامل إلى ${endpoint.name}...', tag: 'BACKUP_SYNC');
 
-    // ─── 1. rooms ───
+    // ─── 1. رفع الغرف ─────────────────────────────────────────
     final rooms = await db.select(db.rooms).get();
     for (var i = 0; i < rooms.length; i++) {
       final room = rooms[i];
       if (room.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'rooms',
-          current: i + 1,
-          total: rooms.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildRoomData(room);
+      onProgress?.call('rooms', i + 1, rooms.length);
+      final data = <String, dynamic>{
+        'roomNumber': room.roomNumber,
+        'type': room.type,
+        'price': room.price,
+        'status': room.status,
+        'localUuid': room.localUuid,
+        'createdAt': room.createdAt,
+        'updatedAt': room.updatedAt,
+        'lastModified': room.lastModified,
+        'version': room.version,
+        'origin': room.origin,
+        'vectorClock': room.vectorClock,
+        'cleaningStatus': room.cleaningStatus,
+        'requiresMaintenance': room.requiresMaintenance,
+      };
+      _putIfNotNull(data, 'serverId', room.serverId);
+      _putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
+      _putIfStringNotEmpty(data, 'lastCleanedHotelDay', room.lastCleanedHotelDay);
+      _putIfStringNotEmpty(data, 'lastOccupiedHotelDay', room.lastOccupiedHotelDay);
+      _putIfNotNull(data, 'createdAtEpoch', room.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', room.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', room.deviceId);
       if (await upsert('rooms', room.localUuid, data)) {
         stats['rooms'] = stats['rooms']! + 1;
       } else {
@@ -169,18 +347,32 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 2. employees ───
+    // ─── 2. رفع الموظفين ──────────────────────────────────────
     final employees = await db.select(db.employees).get();
     for (var i = 0; i < employees.length; i++) {
       final emp = employees[i];
       if (emp.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'employees',
-          current: i + 1,
-          total: employees.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildEmployeeData(emp);
+      onProgress?.call('employees', i + 1, employees.length);
+      final data = <String, dynamic>{
+        'name': emp.name,
+        'basicSalary': emp.basicSalary,
+        'position': emp.position,
+        'phone': emp.phone,
+        'status': emp.status,
+        'localUuid': emp.localUuid,
+        'createdAt': emp.createdAt,
+        'updatedAt': emp.updatedAt,
+        'lastModified': emp.lastModified,
+        'version': emp.version,
+        'origin': emp.origin,
+        'vectorClock': emp.vectorClock,
+      };
+      _putIfStringNotEmpty(data, 'hireDate', emp.hireDate);
+      _putIfStringNotEmpty(data, 'terminationDate', emp.terminationDate);
+      _putIfStringNotEmpty(data, 'terminationReason', emp.terminationReason);
+      _putIfNotNull(data, 'createdAtEpoch', emp.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', emp.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', emp.deviceId);
       if (await upsert('employees', emp.localUuid, data)) {
         stats['employees'] = stats['employees']! + 1;
       } else {
@@ -188,18 +380,54 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 3. bookings ───
+    // ─── 3. رفع الحجوزات ──────────────────────────────────────
     final bookings = await db.select(db.bookings).get();
     for (var i = 0; i < bookings.length; i++) {
       final b = bookings[i];
       if (b.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'bookings',
-          current: i + 1,
-          total: bookings.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildBookingData(b);
+      onProgress?.call('bookings', i + 1, bookings.length);
+      final data = <String, dynamic>{
+        'localUuid': b.localUuid,
+        'roomNumber': b.roomNumber,
+        'guestName': b.guestName,
+        'guestPhone': b.guestPhone,
+        'checkinDate': b.checkinDate,
+        'status': b.status,
+        'createdAt': b.createdAt,
+        'updatedAt': b.updatedAt,
+        'lastModified': b.lastModified,
+        'version': b.version,
+        'origin': b.origin,
+        'vectorClock': b.vectorClock,
+      };
+      _putIfStringNotEmpty(data, 'guestIdType', b.guestIdType);
+      _putIfStringNotEmpty(data, 'guestIdNumber', b.guestIdNumber);
+      _putIfStringNotEmpty(data, 'guestNationality', b.guestNationality);
+      _putIfStringNotEmpty(data, 'guestIdIssueDate', b.guestIdIssueDate);
+      _putIfStringNotEmpty(data, 'guestIdIssuePlace', b.guestIdIssuePlace);
+      _putIfStringNotEmpty(data, 'guestEmail', b.guestEmail);
+      _putIfStringNotEmpty(data, 'guestAddress', b.guestAddress);
+      _putIfStringNotEmpty(data, 'checkoutDate', b.checkoutDate);
+      _putIfStringNotEmpty(data, 'actualCheckout', b.actualCheckout);
+      _putIfStringNotEmpty(data, 'notes', b.notes);
+      _putIfStringNotEmpty(data, 'hotelDayCheckin', b.hotelDayCheckin);
+      _putIfStringNotEmpty(data, 'hotelDayCheckout', b.hotelDayCheckout);
+      _putIfNotNull(data, 'discount', b.discount);
+      _putIfStringNotEmpty(data, 'discountType', b.discountType);
+      _putIfNotNull(data, 'expectedNights', b.expectedNights);
+      _putIfNotNull(data, 'calculatedNights', b.calculatedNights);
+      _putIfNotNull(data, 'totalDueCached', b.totalDueCached);
+      _putIfNotNull(data, 'totalPaidCached', b.totalPaidCached);
+      _putIfNotNull(data, 'remainingBalanceCached', b.remainingBalanceCached);
+      _putIfNotNull(data, 'totalNightsCached', b.totalNightsCached);
+      _putIfNotNull(data, 'isFullyPaid', b.isFullyPaid);
+      _putIfNotNull(data, 'isOverdue', b.isOverdue);
+      _putIfNotNull(data, 'needsCheckoutReview', b.needsCheckoutReview);
+      _putIfStringNotEmpty(data, 'stayDurationIso', b.stayDurationIso);
+      _putIfNotNull(data, 'lastNightEpoch', b.lastNightEpoch);
+      _putIfNotNull(data, 'createdAtEpoch', b.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', b.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', b.deviceId);
       if (await upsert('bookings', b.localUuid, data)) {
         stats['bookings'] = stats['bookings']! + 1;
       } else {
@@ -207,18 +435,45 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 4. payments ───
+    // ─── 4. رفع المدفوعات (كاملة) ────────────────────────────
     final payments = await db.select(db.payments).get();
     for (var i = 0; i < payments.length; i++) {
       final p = payments[i];
       if (p.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'payments',
-          current: i + 1,
-          total: payments.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildPaymentData(p);
+      onProgress?.call('payments', i + 1, payments.length);
+      final data = <String, dynamic>{
+        'localUuid': p.localUuid,
+        'amount': p.amount,
+        'paymentDate': p.paymentDate,
+        'paymentMethod': p.paymentMethod,
+        'revenueType': p.revenueType,
+        'createdAt': p.createdAt,
+        'updatedAt': p.updatedAt,
+        'lastModified': p.lastModified,
+        'version': p.version,
+        'origin': p.origin,
+        'vectorClock': p.vectorClock,
+      };
+      _putIfStringNotEmpty(data, 'roomNumber', p.roomNumber);
+      _putIfStringNotEmpty(data, 'notes', p.notes);
+      _putIfStringNotEmpty(data, 'hotelDayKey', p.hotelDayKey);
+      _putIfNotNull(data, 'serverPaymentId', p.serverPaymentId);
+      _putIfNotNull(data, 'bookingLocalId', p.bookingLocalId);
+      _putIfNotNull(data, 'serverBookingId', p.serverBookingId);
+      _putIfNotNull(data, 'cashTransactionLocalId', p.cashTransactionLocalId);
+      _putIfNotNull(data, 'cashTransactionServerId', p.cashTransactionServerId);
+      _putIfStringNotEmpty(data, 'referenceNumber', p.referenceNumber);
+      _putIfNotNull(data, 'isPendingBalance', p.isPendingBalance);
+      _putIfStringNotEmpty(data, 'linkedDebtUuid', p.linkedDebtUuid);
+      _putIfStringNotEmpty(data, 'bookingUuidCache', p.bookingUuidCache);
+      _putIfNotNull(data, 'discountAmount', p.discountAmount);
+      _putIfStringNotEmpty(data, 'discountStartDate', p.discountStartDate);
+      _putIfNotNull(data, 'isVoided', p.isVoided);
+      _putIfNotNull(data, 'voidedAt', p.voidedAt);
+      _putIfStringNotEmpty(data, 'voidedBy', p.voidedBy);
+      _putIfNotNull(data, 'createdAtEpoch', p.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', p.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', p.deviceId);
       if (await upsert('payments', p.localUuid, data)) {
         stats['payments'] = stats['payments']! + 1;
       } else {
@@ -226,25 +481,34 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 5. expenses ───
+    // ─── 5. رفع المصروفات ────────────────────────────────────
     final expenses = await db.select(db.expenses).get();
-    final employeesById = {for (final e in employees) e.id: e};
     for (var i = 0; i < expenses.length; i++) {
       final e = expenses[i];
       if (e.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'expenses',
-          current: i + 1,
-          total: expenses.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildExpenseData(e);
-      if (e.relatedId != null) {
-        final emp = employeesById[e.relatedId];
-        if (emp != null) {
-          data['employeeUuid'] = emp.localUuid;
-        }
-      }
+      onProgress?.call('expenses', i + 1, expenses.length);
+      final data = <String, dynamic>{
+        'localUuid': e.localUuid,
+        'expenseType': e.expenseType,
+        'description': e.description,
+        'amount': e.amount,
+        'date': e.date,
+        'createdAt': e.createdAt,
+        'updatedAt': e.updatedAt,
+        'lastModified': e.lastModified,
+        'version': e.version,
+        'origin': e.origin,
+        'vectorClock': e.vectorClock,
+      };
+      _putIfNotNull(data, 'relatedId', e.relatedId);
+      _putIfNotNull(data, 'cashTransactionId', e.cashTransactionId);
+      _putIfStringNotEmpty(data, 'hotelDayKey', e.hotelDayKey);
+      _putIfStringNotEmpty(data, 'categoryUuid', e.categoryUuid);
+      _putIfStringNotEmpty(data, 'cashFlowUuid', e.cashFlowUuid);
+      _putIfNotNull(data, 'isAutoGenerated', e.isAutoGenerated);
+      _putIfNotNull(data, 'createdAtEpoch', e.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', e.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', e.deviceId);
       if (await upsert('expenses', e.localUuid, data)) {
         stats['expenses'] = stats['expenses']! + 1;
       } else {
@@ -252,18 +516,43 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 6. debts ───
+    // ─── 6. رفع الديون ───────────────────────────────────────
     final debts = await db.select(db.debts).get();
     for (var i = 0; i < debts.length; i++) {
       final d = debts[i];
       if (d.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'debts',
-          current: i + 1,
-          total: debts.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildDebtData(d);
+      onProgress?.call('debts', i + 1, debts.length);
+      final data = <String, dynamic>{
+        'localUuid': d.localUuid,
+        'guestName': d.guestName,
+        'checkinDate': d.checkinDate,
+        'checkoutDate': d.checkoutDate,
+        'totalAmount': d.totalAmount,
+        'paidAmount': d.paidAmount,
+        'remainingAmount': d.remainingAmount,
+        'paymentDate': d.paymentDate,
+        'createdAt': d.createdAt,
+        'updatedAt': d.updatedAt,
+        'lastModified': d.lastModified,
+        'version': d.version,
+        'origin': d.origin,
+        'vectorClock': d.vectorClock,
+      };
+      _putIfNotNull(data, 'bookingLocalId', d.bookingLocalId);
+      _putIfStringNotEmpty(data, 'dateRecorded', d.dateRecorded);
+      _putIfStringNotEmpty(data, 'debtReason', d.debtReason);
+      _putIfNotNull(data, 'isSettled', d.isSettled);
+      _putIfStringNotEmpty(data, 'pledge', d.pledge);
+      _putIfStringNotEmpty(data, 'pledgeType', d.pledgeType);
+      _putIfStringNotEmpty(data, 'note', d.note);
+      _putIfStringNotEmpty(data, 'debtUuid', d.debtUuid);
+      _putIfStringNotEmpty(data, 'hotelDayOpened', d.hotelDayOpened);
+      _putIfStringNotEmpty(data, 'hotelDayClosed', d.hotelDayClosed);
+      _putIfNotNull(data, 'isFromAutoFix', d.isFromAutoFix);
+      _putIfNotNull(data, 'settlementConfirmed', d.settlementConfirmed);
+      _putIfNotNull(data, 'createdAtEpoch', d.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', d.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', d.deviceId);
       if (await upsert('debts', d.localUuid, data)) {
         stats['debts'] = stats['debts']! + 1;
       } else {
@@ -271,18 +560,29 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 7. booking_notes ───
+    // ─── 7. رفع ملاحظات الحجوزات ──────────────────────────────
     final bookingNotes = await db.select(db.bookingNotes).get();
     for (var i = 0; i < bookingNotes.length; i++) {
       final bn = bookingNotes[i];
       if (bn.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'booking_notes',
-          current: i + 1,
-          total: bookingNotes.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildBookingNoteData(bn);
+      onProgress?.call('booking_notes', i + 1, bookingNotes.length);
+      final data = <String, dynamic>{
+        'localUuid': bn.localUuid,
+        'noteText': bn.noteText,
+        'alertType': bn.alertType,
+        'isActive': bn.isActive,
+        'bookingId': bn.bookingId,
+        'createdAt': bn.createdAt,
+        'updatedAt': bn.updatedAt,
+        'lastModified': bn.lastModified,
+        'version': bn.version,
+        'origin': bn.origin,
+        'vectorClock': bn.vectorClock,
+      };
+      _putIfStringNotEmpty(data, 'alertUntil', bn.alertUntil);
+      _putIfNotNull(data, 'createdAtEpoch', bn.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', bn.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', bn.deviceId);
       if (await upsert('booking_notes', bn.localUuid, data)) {
         stats['booking_notes'] = stats['booking_notes']! + 1;
       } else {
@@ -290,18 +590,36 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 8. booking_nights ───
+    // ─── 8. رفع ليالي الحجوزات ────────────────────────────────
     final bookingNights = await db.select(db.bookingNights).get();
     for (var i = 0; i < bookingNights.length; i++) {
       final bn = bookingNights[i];
       if (bn.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'booking_nights',
-          current: i + 1,
-          total: bookingNights.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildBookingNightData(bn);
+      onProgress?.call('booking_nights', i + 1, bookingNights.length);
+      final data = <String, dynamic>{
+        'localUuid': bn.localUuid,
+        'bookingLocalId': bn.bookingLocalId,
+        'hotelDayKey': bn.hotelDayKey,
+        'nightStart': bn.nightStart,
+        'nightEnd': bn.nightEnd,
+        'nightlyRate': bn.nightlyRate,
+        'sequence': bn.sequence,
+        'isProcessedByAutoFix': bn.isProcessedByAutoFix,
+        'baseRate': bn.baseRate,
+        'adjustment': bn.adjustment,
+        'finalRate': bn.finalRate,
+        'createdAt': bn.createdAt,
+        'updatedAt': bn.updatedAt,
+        'lastModified': bn.lastModified,
+        'version': bn.version,
+        'origin': bn.origin,
+        'vectorClock': bn.vectorClock,
+      };
+      _putIfStringNotEmpty(data, 'appliedAdjustmentUuid', bn.appliedAdjustmentUuid);
+      _putIfStringNotEmpty(data, 'appliedAdjustmentsJson', bn.appliedAdjustmentsJson);
+      _putIfNotNull(data, 'createdAtEpoch', bn.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', bn.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', bn.deviceId);
       if (await upsert('booking_nights', bn.localUuid, data)) {
         stats['booking_nights'] = stats['booking_nights']! + 1;
       } else {
@@ -309,18 +627,31 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 9. shift_notes ───
+    // ─── 9. رفع ملاحظات النوبة ────────────────────────────────
     final shiftNotes = await db.select(db.shiftNotes).get();
     for (var i = 0; i < shiftNotes.length; i++) {
       final sn = shiftNotes[i];
       if (sn.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'shift_notes',
-          current: i + 1,
-          total: shiftNotes.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildShiftNoteData(sn);
+      onProgress?.call('shift_notes', i + 1, shiftNotes.length);
+      final data = <String, dynamic>{
+        'localUuid': sn.localUuid,
+        'title': sn.title,
+        'content': sn.content,
+        'priority': sn.priority,
+        'shiftType': sn.shiftType,
+        'isRead': sn.isRead,
+        'createdBy': sn.createdBy,
+        'createdAt': sn.createdAt,
+        'updatedAt': sn.updatedAt,
+        'lastModified': sn.lastModified,
+        'version': sn.version,
+        'origin': sn.origin,
+        'vectorClock': sn.vectorClock,
+      };
+      _putIfStringNotEmpty(data, 'expiresAt', sn.expiresAt);
+      _putIfNotNull(data, 'createdAtEpoch', sn.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', sn.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', sn.deviceId);
       if (await upsert('shift_notes', sn.localUuid, data)) {
         stats['shift_notes'] = stats['shift_notes']! + 1;
       } else {
@@ -328,18 +659,32 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 10. cash_transactions ───
+    // ─── 10. رفع المعاملات النقدية ────────────────────────────
     final cashTransactions = await db.select(db.cashTransactions).get();
     for (var i = 0; i < cashTransactions.length; i++) {
       final ct = cashTransactions[i];
       if (ct.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'cash_transactions',
-          current: i + 1,
-          total: cashTransactions.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildCashTransactionData(ct);
+      onProgress?.call('cash_transactions', i + 1, cashTransactions.length);
+      final data = <String, dynamic>{
+        'localUuid': ct.localUuid,
+        'transactionType': ct.transactionType,
+        'amount': ct.amount,
+        'transactionTime': ct.transactionTime,
+        'createdAt': ct.createdAt,
+        'updatedAt': ct.updatedAt,
+        'lastModified': ct.lastModified,
+        'version': ct.version,
+        'origin': ct.origin,
+        'vectorClock': ct.vectorClock,
+      };
+      _putIfNotNull(data, 'registerId', ct.registerId);
+      _putIfStringNotEmpty(data, 'referenceType', ct.referenceType);
+      _putIfNotNull(data, 'referenceId', ct.referenceId);
+      _putIfStringNotEmpty(data, 'description', ct.description);
+      _putIfNotNull(data, 'createdBy', ct.createdBy);
+      _putIfNotNull(data, 'createdAtEpoch', ct.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', ct.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', ct.deviceId);
       if (await upsert('cash_transactions', ct.localUuid, data)) {
         stats['cash_transactions'] = stats['cash_transactions']! + 1;
       } else {
@@ -347,18 +692,33 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 11. guest_infos ───
+    // ─── 11. رفع معلومات النزلاء ──────────────────────────────
     final guestInfos = await db.select(db.guestInfos).get();
     for (var i = 0; i < guestInfos.length; i++) {
       final gi = guestInfos[i];
       if (gi.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'guest_infos',
-          current: i + 1,
-          total: guestInfos.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildGuestInfoData(gi);
+      onProgress?.call('guest_infos', i + 1, guestInfos.length);
+      final data = <String, dynamic>{
+        'localUuid': gi.localUuid,
+        'roomNumber': gi.roomNumber,
+        'guestName': gi.guestName,
+        'nationality': gi.nationality,
+        'idNumber': gi.idNumber,
+        'idType': gi.idType,
+        'createdAt': gi.createdAt,
+        'updatedAt': gi.updatedAt,
+        'lastModified': gi.lastModified,
+        'version': gi.version,
+        'origin': gi.origin,
+        'vectorClock': gi.vectorClock,
+      };
+      _putIfStringNotEmpty(data, 'issueDate', gi.issueDate);
+      _putIfStringNotEmpty(data, 'issuePlace', gi.issuePlace);
+      _putIfStringNotEmpty(data, 'governorate', gi.governorate);
+      _putIfStringNotEmpty(data, 'notes', gi.notes);
+      _putIfNotNull(data, 'createdAtEpoch', gi.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', gi.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', gi.deviceId);
       if (await upsert('guest_infos', gi.localUuid, data)) {
         stats['guest_infos'] = stats['guest_infos']! + 1;
       } else {
@@ -366,18 +726,32 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 12. salary_cycles ───
+    // ─── 12. رفع دورات الرواتب ────────────────────────────────
     final salaryCycles = await db.select(db.salaryCycles).get();
     for (var i = 0; i < salaryCycles.length; i++) {
       final sc = salaryCycles[i];
       if (sc.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'salary_cycles',
-          current: i + 1,
-          total: salaryCycles.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildSalaryCycleData(sc);
+      onProgress?.call('salary_cycles', i + 1, salaryCycles.length);
+      final data = <String, dynamic>{
+        'localUuid': sc.localUuid,
+        'employeeId': sc.employeeId,
+        'cycleKey': sc.cycleKey,
+        'expectedAmount': sc.expectedAmount,
+        'actualPaid': sc.actualPaid,
+        'remainingAmount': sc.remainingAmount,
+        'status': sc.status,
+        'createdAt': sc.createdAt,
+        'updatedAt': sc.updatedAt,
+        'lastModified': sc.lastModified,
+        'version': sc.version,
+        'origin': sc.origin,
+        'vectorClock': sc.vectorClock,
+      };
+      _putIfStringNotEmpty(data, 'hotelDayStart', sc.hotelDayStart);
+      _putIfStringNotEmpty(data, 'hotelDayEnd', sc.hotelDayEnd);
+      _putIfNotNull(data, 'createdAtEpoch', sc.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', sc.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', sc.deviceId);
       if (await upsert('salary_cycles', sc.localUuid, data)) {
         stats['salary_cycles'] = stats['salary_cycles']! + 1;
       } else {
@@ -385,18 +759,30 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 13. salary_payments ───
+    // ─── 13. رفع دفعات الرواتب ────────────────────────────────
     final salaryPayments = await db.select(db.salaryPayments).get();
     for (var i = 0; i < salaryPayments.length; i++) {
       final sp = salaryPayments[i];
       if (sp.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'salary_payments',
-          current: i + 1,
-          total: salaryPayments.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildSalaryPaymentData(sp);
+      onProgress?.call('salary_payments', i + 1, salaryPayments.length);
+      final data = <String, dynamic>{
+        'localUuid': sp.localUuid,
+        'cycleId': sp.cycleId,
+        'amount': sp.amount,
+        'paymentDateIso': sp.paymentDateIso,
+        'isAutoGenerated': sp.isAutoGenerated,
+        'createdAt': sp.createdAt,
+        'updatedAt': sp.updatedAt,
+        'lastModified': sp.lastModified,
+        'version': sp.version,
+        'origin': sp.origin,
+        'vectorClock': sp.vectorClock,
+      };
+      _putIfStringNotEmpty(data, 'hotelDayKey', sp.hotelDayKey);
+      _putIfStringNotEmpty(data, 'method', sp.method);
+      _putIfNotNull(data, 'createdAtEpoch', sp.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', sp.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', sp.deviceId);
       if (await upsert('salary_payments', sp.localUuid, data)) {
         stats['salary_payments'] = stats['salary_payments']! + 1;
       } else {
@@ -404,24 +790,31 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 14. salary_withdrawals ───
+    // ─── 14. رفع سحوبات الرواتب ───────────────────────────────
     final salaryWithdrawals = await db.select(db.salaryWithdrawals).get();
-    final empById = {for (final e in employees) e.id: e};
     for (var i = 0; i < salaryWithdrawals.length; i++) {
       final sw = salaryWithdrawals[i];
       if (sw.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'salary_withdrawals',
-          current: i + 1,
-          total: salaryWithdrawals.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildSalaryWithdrawalData(sw);
-      final employee = empById[sw.employeeId];
-      if (employee != null) {
-        data['employeeUuid'] = employee.localUuid;
-        data['name'] = employee.name;
-      }
+      onProgress?.call('salary_withdrawals', i + 1, salaryWithdrawals.length);
+      final data = <String, dynamic>{
+        'localUuid': sw.localUuid,
+        'employeeId': sw.employeeId,
+        'amount': sw.amount,
+        'withdrawDate': sw.withdrawDate,
+        'createdAt': sw.createdAt,
+        'updatedAt': sw.updatedAt,
+        'lastModified': sw.lastModified,
+        'version': sw.version,
+        'origin': sw.origin,
+        'vectorClock': sw.vectorClock,
+      };
+      _putIfStringNotEmpty(data, 'reason', sw.reason);
+      _putIfStringNotEmpty(data, 'hotelDayKey', sw.hotelDayKey);
+      _putIfStringNotEmpty(data, 'withdrawalType', sw.withdrawalType);
+      _putIfStringNotEmpty(data, 'description', sw.description);
+      _putIfNotNull(data, 'createdAtEpoch', sw.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', sw.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', sw.deviceId);
       if (await upsert('salary_withdrawals', sw.localUuid, data)) {
         stats['salary_withdrawals'] = stats['salary_withdrawals']! + 1;
       } else {
@@ -429,18 +822,36 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 15. price_adjustments ───
+    // ─── 15. رفع تعديلات الأسعار ──────────────────────────────
     final priceAdjustments = await db.select(db.priceAdjustments).get();
     for (var i = 0; i < priceAdjustments.length; i++) {
       final pa = priceAdjustments[i];
       if (pa.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'price_adjustments',
-          current: i + 1,
-          total: priceAdjustments.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildPriceAdjustmentData(pa);
+      onProgress?.call('price_adjustments', i + 1, priceAdjustments.length);
+      final data = <String, dynamic>{
+        'localUuid': pa.localUuid,
+        'targetType': pa.targetType,
+        'targetUuid': pa.targetUuid,
+        'adjustmentType': pa.adjustmentType,
+        'previousValue': pa.previousValue,
+        'newValue': pa.newValue,
+        'effectiveDate': pa.effectiveDate,
+        'appliedBy': pa.appliedBy,
+        'hotelDayKey': pa.hotelDayKey,
+        'isReversed': pa.isReversed,
+        'createdAt': pa.createdAt,
+        'updatedAt': pa.updatedAt,
+        'lastModified': pa.lastModified,
+        'version': pa.version,
+        'origin': pa.origin,
+        'vectorClock': pa.vectorClock,
+      };
+      _putIfStringNotEmpty(data, 'reason', pa.reason);
+      _putIfStringNotEmpty(data, 'reversedAt', pa.reversedAt);
+      _putIfStringNotEmpty(data, 'reversedBy', pa.reversedBy);
+      _putIfNotNull(data, 'createdAtEpoch', pa.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', pa.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', pa.deviceId);
       if (await upsert('price_adjustments', pa.localUuid, data)) {
         stats['price_adjustments'] = stats['price_adjustments']! + 1;
       } else {
@@ -448,37 +859,68 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 16. booking_price_adjustments ───
+    // ─── 16. رفع تعديلات أسعار الحجوزات ──────────────────────
     final bookingPriceAdj = await db.select(db.bookingPriceAdjustments).get();
     for (var i = 0; i < bookingPriceAdj.length; i++) {
       final bpa = bookingPriceAdj[i];
       if (bpa.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'booking_price_adjustments',
-          current: i + 1,
-          total: bookingPriceAdj.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildBookingPriceAdjustmentData(bpa);
+      onProgress?.call('booking_price_adjustments', i + 1, bookingPriceAdj.length);
+      final data = <String, dynamic>{
+        'localUuid': bpa.localUuid,
+        'bookingLocalUuid': bpa.bookingLocalUuid,
+        'adjustmentType': bpa.adjustmentType,
+        'adjustmentMode': bpa.adjustmentMode,
+        'amount': bpa.amount,
+        'effectiveHotelDay': bpa.effectiveHotelDay,
+        'isActive': bpa.isActive,
+        'createdAt': bpa.createdAt,
+        'updatedAt': bpa.updatedAt,
+        'lastModified': bpa.lastModified,
+        'version': bpa.version,
+        'origin': bpa.origin,
+        'vectorClock': bpa.vectorClock,
+      };
+      _putIfNotNull(data, 'bookingLocalId', bpa.bookingLocalId);
+      _putIfStringNotEmpty(data, 'roomNumber', bpa.roomNumber);
+      _putIfStringNotEmpty(data, 'endHotelDay', bpa.endHotelDay);
+      _putIfStringNotEmpty(data, 'reason', bpa.reason);
+      _putIfStringNotEmpty(data, 'appliedBy', bpa.appliedBy);
+      _putIfStringNotEmpty(data, 'cancelledAt', bpa.cancelledAt);
+      _putIfStringNotEmpty(data, 'cancelledBy', bpa.cancelledBy);
+      _putIfNotNull(data, 'createdAtEpoch', bpa.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', bpa.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', bpa.deviceId);
       if (await upsert('booking_price_adjustments', bpa.localUuid, data)) {
-        stats['booking_price_adjustments'] =
-            stats['booking_price_adjustments']! + 1;
+        stats['booking_price_adjustments'] = stats['booking_price_adjustments']! + 1;
       } else {
         stats['errors'] = stats['errors']! + 1;
       }
     }
 
-    // ─── 17. audit_logs ───
+    // ─── 17. رفع سجلات التدقيق ────────────────────────────────
     final auditLogs = await db.select(db.auditLogs).get();
     for (var i = 0; i < auditLogs.length; i++) {
       final al = auditLogs[i];
-      onProgress?.call(BackupProgress(
-          tableName: 'audit_logs',
-          current: i + 1,
-          total: auditLogs.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildAuditLogData(al);
+      onProgress?.call('audit_logs', i + 1, auditLogs.length);
+      final data = <String, dynamic>{
+        'localUuid': al.localUuid,
+        'operationType': al.operationType,
+        'entityType': al.entityType,
+        'entityUuid': al.entityUuid,
+        'performedBy': al.performedBy,
+        'deviceId': al.deviceId,
+        'hotelDayKey': al.hotelDayKey,
+        'timestamp': al.timestamp,
+        'timestampIso': al.timestampIso,
+        'isFinancial': al.isFinancial,
+        'createdAt': al.createdAt,
+      };
+      _putIfNotNull(data, 'entityId', al.entityId);
+      _putIfStringNotEmpty(data, 'previousState', al.previousState);
+      _putIfStringNotEmpty(data, 'newState', al.newState);
+      _putIfStringNotEmpty(data, 'changedFields', al.changedFields);
+      _putIfStringNotEmpty(data, 'ipAddress', al.ipAddress);
+      _putIfNotNull(data, 'amountImpact', al.amountImpact);
       if (await upsert('audit_logs', al.localUuid, data)) {
         stats['audit_logs'] = stats['audit_logs']! + 1;
       } else {
@@ -486,28 +928,35 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // ─── 18. payment_voids ───
+    // ─── 18. رفع إلغاءات الدفع ────────────────────────────────
     final paymentVoids = await db.select(db.paymentVoids).get();
-    final allPayments = await db.select(db.payments).get();
-    final paymentsByLocalUuid = {for (final p in allPayments) p.localUuid: p};
     for (var i = 0; i < paymentVoids.length; i++) {
       final pv = paymentVoids[i];
       if (pv.deletedAt != null) continue;
-      onProgress?.call(BackupProgress(
-          tableName: 'payment_voids',
-          current: i + 1,
-          total: paymentVoids.length,
-          endpointName: endpoint.name,
-          operationType: 'push'));
-      final data = _buildPaymentVoidData(pv);
-      data['note'] = pv.voidReason;
-      if (pv.originalPaymentUuid.isNotEmpty) {
-        final payment = paymentsByLocalUuid[pv.originalPaymentUuid];
-        if (payment != null) {
-          data['paymentUuid'] = payment.localUuid;
-          data['originalAmount'] = payment.amount.round();
-        }
-      }
+      onProgress?.call('payment_voids', i + 1, paymentVoids.length);
+      final data = <String, dynamic>{
+        'localUuid': pv.localUuid,
+        'originalPaymentUuid': pv.originalPaymentUuid,
+        'originalPaymentId': pv.originalPaymentId,
+        'bookingUuid': pv.bookingUuid,
+        'voidedAmount': pv.voidedAmount,
+        'voidReason': pv.voidReason,
+        'voidedBy': pv.voidedBy,
+        'voidedAt': pv.voidedAt,
+        'voidedAtIso': pv.voidedAtIso,
+        'hotelDayKey': pv.hotelDayKey,
+        'createdAt': pv.createdAt,
+        'updatedAt': pv.updatedAt,
+        'lastModified': pv.lastModified,
+        'version': pv.version,
+        'origin': pv.origin,
+        'vectorClock': pv.vectorClock,
+      };
+      _putIfStringNotEmpty(data, 'reversalPaymentUuid', pv.reversalPaymentUuid);
+      _putIfStringNotEmpty(data, 'approvedBy', pv.approvedBy);
+      _putIfNotNull(data, 'createdAtEpoch', pv.createdAtEpoch);
+      _putIfNotNull(data, 'lastModifiedEpoch', pv.lastModifiedEpoch);
+      _putIfStringNotEmpty(data, 'deviceId', pv.deviceId);
       if (await upsert('payment_voids', pv.localUuid, data)) {
         stats['payment_voids'] = stats['payment_voids']! + 1;
       } else {
@@ -515,334 +964,11 @@ class AppwriteBackupSyncService {
       }
     }
 
-    // حفظ سجل العملية
-    await BackupHistoryManager.addLog(BackupOperationLog(
-      id: BackupHistoryManager.generateId(),
-      endpointId: endpoint.id,
-      endpointName: endpoint.name,
-      operationType: 'push',
-      timestamp: DateTime.now(),
-      stats: Map.from(stats),
-      success: (stats['errors'] ?? 0) == 0,
-    ));
-
-    // تحديث آخر وقت رفع
-    final updated = endpoint.copyWith(lastPushAt: DateTime.now());
-    await BackupEndpointsManager.updateEndpoint(updated);
-
-    _logger.info(
-        '✅ اكتمل الرفع الشامل إلى ${endpoint.name}: $stats',
-        tag: 'BACKUP_SYNC');
+    _logger.info('✅ اكتمل الرفع الشامل إلى ${endpoint.name}', tag: 'BACKUP_SYNC');
     return stats;
   }
 
-  /// رفع جميع البيانات إلى جميع نقاط النهاية النشطة
-  Future<Map<String, Map<String, int>>> fullPushAllToAllEndpoints({
-    required AppDatabase db,
-    void Function(BackupProgress progress)? onProgress,
-  }) async {
-    final endpoints = await BackupEndpointsManager.loadEndpoints();
-    if (endpoints.isEmpty) return {};
-
-    final allStats = <String, Map<String, int>>{};
-
-    for (final endpoint in endpoints) {
-      if (!endpoint.pushEnabled) continue;
-      final stats = await fullPushAllToEndpoint(
-        db: db,
-        endpoint: endpoint,
-        onProgress: onProgress,
-      );
-      allStats[endpoint.name] = stats;
-    }
-
-    return allStats;
-  }
-
-  // ─── Pull: سحب البيانات من نقطة نهاية إلى ملف JSON ────────────
-
-  /// سحب جميع البيانات من نقطة نهاية محددة وحفظها في ملف JSON
-  Future<File?> pullAllFromEndpoint({
-    required BackupEndpoint endpoint,
-    void Function(BackupProgress progress)? onProgress,
-  }) async {
-    _isPulling = true;
-    try {
-      final client = _createClient(endpoint);
-      final databases = Databases(client);
-      final dbId = endpoint.databaseId;
-
-      final collections = <String, List<Map<String, dynamic>>>{};
-      final stats = <String, int>{};
-
-      var totalCollections = _allCollectionIds.length;
-      for (var ci = 0; ci < totalCollections; ci++) {
-        final collectionId = _allCollectionIds[ci];
-        onProgress?.call(BackupProgress(
-          tableName: collectionId,
-          current: 0,
-          total: 1,
-          endpointName: endpoint.name,
-          operationType: 'pull',
-        ));
-
-        final docs = <Map<String, dynamic>>[];
-        var offset = 0;
-        const limit = 100;
-        var hasMore = true;
-
-        while (hasMore) {
-          try {
-            final result = await databases.listDocuments(
-              databaseId: dbId,
-              collectionId: collectionId,
-              queries: [Query.limit(limit), Query.offset(offset)],
-            );
-
-            for (final doc in result.documents) {
-              docs.add({r'$id': doc.$id, ...doc.data});
-            }
-
-            if (result.documents.length < limit) {
-              hasMore = false;
-            }
-            offset += limit;
-
-            onProgress?.call(BackupProgress(
-              tableName: collectionId,
-              current: docs.length,
-              total: docs.length + 1,
-              endpointName: endpoint.name,
-              operationType: 'pull',
-            ));
-          } catch (e) {
-            _logger.warning(
-                '⚠️ فشل سحب $collectionId: $e', tag: 'BACKUP_SYNC');
-            hasMore = false;
-          }
-        }
-
-        collections[collectionId] = docs;
-        stats[collectionId] = docs.length;
-      }
-
-      final totalRecords = stats.values.fold<int>(0, (sum, v) => sum + v);
-
-      final payload = {
-        'metadata': {
-          'version': '1.0',
-          'timestamp': DateTime.now().toUtc().toIso8601String(),
-          'source': endpoint.name,
-          'endpoint': endpoint.endpoint,
-          'projectId': endpoint.projectId,
-          'databaseId': endpoint.databaseId,
-          'totalRecords': totalRecords,
-          'operation': 'pull_from_backup',
-        },
-        'collections': collections,
-      };
-
-      final dir = await getApplicationDocumentsDirectory();
-      final backupDir = Directory('${dir.path}/backup_pulls');
-      if (!backupDir.existsSync()) {
-        await backupDir.create(recursive: true);
-      }
-
-      final dateStr =
-          DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final safeName = endpoint.name.replaceAll(RegExp(r'[^\w]'), '_');
-      final fileName = '${safeName}_${dateStr}.json';
-      final file = File('${backupDir.path}/$fileName');
-      await file.writeAsString(jsonEncode(payload));
-
-      // حفظ سجل العملية
-      await BackupHistoryManager.addLog(BackupOperationLog(
-        id: BackupHistoryManager.generateId(),
-        endpointId: endpoint.id,
-        endpointName: endpoint.name,
-        operationType: 'pull',
-        timestamp: DateTime.now(),
-        stats: stats,
-        success: true,
-      ));
-
-      // تحديث آخر وقت سحب
-      final updated = endpoint.copyWith(lastPullAt: DateTime.now());
-      await BackupEndpointsManager.updateEndpoint(updated);
-
-      _logger.info(
-          '✅ اكتمل السحب من ${endpoint.name}: $totalRecords سجل',
-          tag: 'BACKUP_SYNC');
-
-      return file;
-    } catch (e, st) {
-      _logger.error('❌ فشل السحب من ${endpoint.name}',
-          error: e, stackTrace: st, tag: 'BACKUP_SYNC');
-
-      await BackupHistoryManager.addLog(BackupOperationLog(
-        id: BackupHistoryManager.generateId(),
-        endpointId: endpoint.id,
-        endpointName: endpoint.name,
-        operationType: 'pull',
-        timestamp: DateTime.now(),
-        stats: {'errors': 1},
-        success: false,
-        errorMessage: e.toString(),
-      ));
-
-      return null;
-    } finally {
-      _isPulling = false;
-    }
-  }
-
-  /// سحب البيانات من جميع نقاط النهاية التي لديها pull مفعّل
-  Future<Map<String, File?>> pullAllFromAllEndpoints({
-    void Function(BackupProgress progress)? onProgress,
-  }) async {
-    final endpoints = await BackupEndpointsManager.loadEndpoints();
-    if (endpoints.isEmpty) return {};
-
-    final results = <String, File?>{};
-
-    for (final endpoint in endpoints) {
-      if (!endpoint.pullEnabled) continue;
-      final file = await pullAllFromEndpoint(
-        endpoint: endpoint,
-        onProgress: onProgress,
-      );
-      results[endpoint.name] = file;
-    }
-
-    return results;
-  }
-
-  // ─── دفع عملية واحدة (للمزامنة التلقائية) ────────────────────
-
-  /// دفع عملية واحدة إلى جميع نقاط النهاية النشطة
-  Future<void> pushToBackups({
-    required String tableName,
-    required String documentId,
-    required Map<String, dynamic> data,
-    required String operation,
-  }) async {
-    if (_isPushing) return;
-
-    final endpoints = await BackupEndpointsManager.loadEndpoints();
-    if (endpoints.isEmpty) return;
-
-    _isPushing = true;
-    int successCount = 0;
-    int failCount = 0;
-
-    for (final endpoint in endpoints) {
-      if (!endpoint.pushEnabled) continue;
-      try {
-        await _pushToEndpoint(
-          endpoint: endpoint,
-          tableName: tableName,
-          documentId: documentId,
-          data: data,
-          operation: operation,
-        );
-        successCount++;
-      } catch (e) {
-        failCount++;
-        _logger.warning(
-            '⚠️ فشل دفع احتياطي إلى ${endpoint.name}: $e',
-            tag: 'BACKUP_SYNC');
-      }
-    }
-
-    _isPushing = false;
-  }
-
-  /// دفع دفعة عمليات إلى جميع نقاط النهاية
-  Future<void> pushBatchToBackups({
-    required List<BackupOperation> operations,
-  }) async {
-    if (_isPushing || operations.isEmpty) return;
-
-    final endpoints = await BackupEndpointsManager.loadEndpoints();
-    if (endpoints.isEmpty) return;
-
-    _isPushing = true;
-
-    for (final endpoint in endpoints) {
-      if (!endpoint.pushEnabled) continue;
-      int successCount = 0;
-      int failCount = 0;
-
-      for (final op in operations) {
-        try {
-          await _pushToEndpoint(
-            endpoint: endpoint,
-            tableName: op.tableName,
-            documentId: op.documentId,
-            data: op.data,
-            operation: op.operation,
-          );
-          successCount++;
-        } catch (e) {
-          failCount++;
-        }
-      }
-    }
-
-    _isPushing = false;
-  }
-
-  Future<void> _pushToEndpoint({
-    required BackupEndpoint endpoint,
-    required String tableName,
-    required String documentId,
-    required Map<String, dynamic> data,
-    required String operation,
-  }) async {
-    final client = _createClient(endpoint);
-    final databases = Databases(client);
-    final dbId = endpoint.databaseId;
-
-    switch (operation) {
-      case 'create':
-        await databases.createDocument(
-          databaseId: dbId,
-          collectionId: tableName,
-          documentId: documentId,
-          data: data,
-        );
-        break;
-      case 'update':
-        try {
-          await databases.updateDocument(
-            databaseId: dbId,
-            collectionId: tableName,
-            documentId: documentId,
-            data: data,
-          );
-        } catch (_) {
-          await databases.createDocument(
-            databaseId: dbId,
-            collectionId: tableName,
-            documentId: documentId,
-            data: data,
-          );
-        }
-        break;
-      case 'delete':
-        try {
-          await databases.deleteDocument(
-            databaseId: dbId,
-            collectionId: tableName,
-            documentId: documentId,
-          );
-        } catch (_) {}
-        break;
-    }
-  }
-
-  // ─── اختبار الاتصال ──────────────────────────────────────
-
+  /// اختبار الاتصال بنقطة نهاية احتياطية
   static Future<bool> testConnection(BackupEndpoint endpoint) async {
     try {
       final client = Client()
@@ -863,562 +989,18 @@ class AppwriteBackupSyncService {
       return false;
     }
   }
-
-  // ─── دوال بناء البيانات ──────────────────────────────────
-
-  Map<String, dynamic> _buildRoomData(dynamic room) => {
-        'id': room.id,
-        'localUuid': room.localUuid,
-        'serverId': room.serverId,
-        'roomNumber': room.roomNumber,
-        'type': room.type,
-        'price': room.price,
-        'status': room.status,
-        'imageUrl': room.imageUrl,
-        'cleaningStatus': room.cleaningStatus,
-        'lastCleanedHotelDay': room.lastCleanedHotelDay,
-        'lastOccupiedHotelDay': room.lastOccupiedHotelDay,
-        'requiresMaintenance': room.requiresMaintenance,
-        'createdAt': room.createdAt,
-        'updatedAt': room.updatedAt,
-        'deletedAt': room.deletedAt,
-        'lastModified': room.lastModified,
-        'createdAtIso': room.createdAtIso,
-        'updatedAtIso': room.updatedAtIso,
-        'deletedAtIso': room.deletedAtIso,
-        'createdAtEpoch': room.createdAtEpoch,
-        'lastModifiedEpoch': room.lastModifiedEpoch,
-        'version': room.version,
-        'origin': room.origin,
-        'vectorClock': room.vectorClock,
-        'deviceId': room.deviceId,
-      };
-
-  Map<String, dynamic> _buildEmployeeData(dynamic emp) => {
-        'id': emp.id,
-        'localUuid': emp.localUuid,
-        'serverId': emp.serverId,
-        'name': emp.name,
-        'basicSalary': emp.basicSalary,
-        'position': emp.position,
-        'phone': emp.phone,
-        'hireDate': emp.hireDate,
-        'status': emp.status,
-        'terminationDate': emp.terminationDate,
-        'terminationReason': emp.terminationReason,
-        'createdAt': emp.createdAt,
-        'updatedAt': emp.updatedAt,
-        'deletedAt': emp.deletedAt,
-        'lastModified': emp.lastModified,
-        'createdAtIso': emp.createdAtIso,
-        'updatedAtIso': emp.updatedAtIso,
-        'deletedAtIso': emp.deletedAtIso,
-        'createdAtEpoch': emp.createdAtEpoch,
-        'lastModifiedEpoch': emp.lastModifiedEpoch,
-        'version': emp.version,
-        'origin': emp.origin,
-        'vectorClock': emp.vectorClock,
-        'deviceId': emp.deviceId,
-      };
-
-  Map<String, dynamic> _buildBookingData(dynamic b) => {
-        'id': b.id,
-        'localUuid': b.localUuid,
-        'serverId': b.serverId,
-        'serverBookingId': b.serverBookingId,
-        'roomNumber': b.roomNumber,
-        'guestName': b.guestName,
-        'guestPhone': b.guestPhone,
-        'guestIdType': b.guestIdType,
-        'guestIdNumber': b.guestIdNumber,
-        'guestIdIssueDate': b.guestIdIssueDate,
-        'guestIdIssuePlace': b.guestIdIssuePlace,
-        'guestNationality': b.guestNationality,
-        'guestEmail': b.guestEmail,
-        'guestAddress': b.guestAddress,
-        'checkinDate': b.checkinDate,
-        'checkoutDate': b.checkoutDate,
-        'actualCheckout': b.actualCheckout,
-        'status': b.status,
-        'notes': b.notes,
-        'discount': b.discount,
-        'discountType': b.discountType,
-        'discountStartDate': b.discountStartDate,
-        'expectedNights': b.expectedNights,
-        'calculatedNights': b.calculatedNights,
-        'totalNightsCached': b.totalNightsCached,
-        'stayDurationIso': b.stayDurationIso,
-        'lastNightEpoch': b.lastNightEpoch,
-        'isOverdue': b.isOverdue,
-        'needsCheckoutReview': b.needsCheckoutReview,
-        'totalDueCached': b.totalDueCached,
-        'totalPaidCached': b.totalPaidCached,
-        'remainingBalanceCached': b.remainingBalanceCached,
-        'isFullyPaid': b.isFullyPaid,
-        'hotelDayCheckin': b.hotelDayCheckin,
-        'hotelDayCheckout': b.hotelDayCheckout,
-        'createdAt': b.createdAt,
-        'updatedAt': b.updatedAt,
-        'deletedAt': b.deletedAt,
-        'lastModified': b.lastModified,
-        'version': b.version,
-        'origin': b.origin,
-        'vectorClock': b.vectorClock,
-        'deviceId': b.deviceId,
-      };
-
-  Map<String, dynamic> _buildPaymentData(dynamic p) => {
-        'id': p.id,
-        'localUuid': p.localUuid,
-        'serverId': p.serverId,
-        'serverPaymentId': p.serverPaymentId,
-        'bookingLocalId': p.bookingLocalId,
-        'serverBookingId': p.serverBookingId,
-        'roomNumber': p.roomNumber,
-        'amount': p.amount,
-        'paymentDate': p.paymentDate,
-        'notes': p.notes,
-        'paymentMethod': p.paymentMethod,
-        'revenueType': p.revenueType,
-        'cashTransactionLocalId': p.cashTransactionLocalId,
-        'cashTransactionServerId': p.cashTransactionServerId,
-        'referenceNumber': p.referenceNumber,
-        'hotelDayKey': p.hotelDayKey,
-        'isPendingBalance': p.isPendingBalance,
-        'linkedDebtUuid': p.linkedDebtUuid,
-        'bookingUuidCache': p.bookingUuidCache,
-        'discountAmount': p.discountAmount,
-        'discountStartDate': p.discountStartDate,
-        'isVoided': p.isVoided,
-        'voidedAt': p.voidedAt,
-        'voidedBy': p.voidedBy,
-        'createdAt': p.createdAt,
-        'updatedAt': p.updatedAt,
-        'deletedAt': p.deletedAt,
-        'lastModified': p.lastModified,
-        'version': p.version,
-        'origin': p.origin,
-        'vectorClock': p.vectorClock,
-        'deviceId': p.deviceId,
-      };
-
-  Map<String, dynamic> _buildExpenseData(dynamic e) => {
-        'id': e.id,
-        'localUuid': e.localUuid,
-        'serverId': e.serverId,
-        'expenseType': e.expenseType,
-        'relatedId': e.relatedId,
-        'description': e.description,
-        'amount': e.amount,
-        'date': e.date,
-        'cashTransactionId': e.cashTransactionId,
-        'hotelDayKey': e.hotelDayKey,
-        'categoryUuid': e.categoryUuid,
-        'cashFlowUuid': e.cashFlowUuid,
-        'isAutoGenerated': e.isAutoGenerated,
-        'createdAt': e.createdAt,
-        'updatedAt': e.updatedAt,
-        'deletedAt': e.deletedAt,
-        'lastModified': e.lastModified,
-        'createdAtIso': e.createdAtIso,
-        'updatedAtIso': e.updatedAtIso,
-        'deletedAtIso': e.deletedAtIso,
-        'createdAtEpoch': e.createdAtEpoch,
-        'lastModifiedEpoch': e.lastModifiedEpoch,
-        'version': e.version,
-        'origin': e.origin,
-        'vectorClock': e.vectorClock,
-        'deviceId': e.deviceId,
-      };
-
-  Map<String, dynamic> _buildDebtData(dynamic d) => {
-        'id': d.id,
-        'localUuid': d.localUuid,
-        'serverId': d.serverId,
-        'bookingLocalId': d.bookingLocalId,
-        'guestName': d.guestName,
-        'checkinDate': d.checkinDate,
-        'checkoutDate': d.checkoutDate,
-        'dateRecorded': d.dateRecorded,
-        'debtReason': d.debtReason,
-        'totalAmount': d.totalAmount,
-        'paidAmount': d.paidAmount,
-        'remainingAmount': d.remainingAmount,
-        'paymentDate': d.paymentDate,
-        'isSettled': d.isSettled,
-        'pledge': d.pledge,
-        'pledgeType': d.pledgeType,
-        'note': d.note,
-        'debtUuid': d.debtUuid,
-        'hotelDayOpened': d.hotelDayOpened,
-        'hotelDayClosed': d.hotelDayClosed,
-        'isFromAutoFix': d.isFromAutoFix,
-        'settlementConfirmed': d.settlementConfirmed,
-        'createdAt': d.createdAt,
-        'updatedAt': d.updatedAt,
-        'deletedAt': d.deletedAt,
-        'lastModified': d.lastModified,
-        'version': d.version,
-        'origin': d.origin,
-        'vectorClock': d.vectorClock,
-        'deviceId': d.deviceId,
-      };
-
-  Map<String, dynamic> _buildBookingNoteData(dynamic bn) => {
-        'id': bn.id,
-        'localUuid': bn.localUuid,
-        'serverId': bn.serverId,
-        'bookingId': bn.bookingId,
-        'noteText': bn.noteText,
-        'alertType': bn.alertType,
-        'alertUntil': bn.alertUntil,
-        'isActive': bn.isActive,
-        'createdAt': bn.createdAt,
-        'updatedAt': bn.updatedAt,
-        'deletedAt': bn.deletedAt,
-        'lastModified': bn.lastModified,
-        'createdAtIso': bn.createdAtIso,
-        'updatedAtIso': bn.updatedAtIso,
-        'deletedAtIso': bn.deletedAtIso,
-        'createdAtEpoch': bn.createdAtEpoch,
-        'lastModifiedEpoch': bn.lastModifiedEpoch,
-        'version': bn.version,
-        'origin': bn.origin,
-        'vectorClock': bn.vectorClock,
-        'deviceId': bn.deviceId,
-      };
-
-  Map<String, dynamic> _buildBookingNightData(dynamic bn) => {
-        'id': bn.id,
-        'localUuid': bn.localUuid,
-        'serverId': bn.serverId,
-        'bookingLocalId': bn.bookingLocalId,
-        'hotelDayKey': bn.hotelDayKey,
-        'nightStart': bn.nightStart,
-        'nightEnd': bn.nightEnd,
-        'nightlyRate': bn.nightlyRate,
-        'sequence': bn.sequence,
-        'isProcessedByAutoFix': bn.isProcessedByAutoFix,
-        'baseRate': bn.baseRate,
-        'adjustment': bn.adjustment,
-        'finalRate': bn.finalRate,
-        'appliedAdjustmentUuid': bn.appliedAdjustmentUuid,
-        'createdAt': bn.createdAt,
-        'updatedAt': bn.updatedAt,
-        'deletedAt': bn.deletedAt,
-        'lastModified': bn.lastModified,
-        'createdAtIso': bn.createdAtIso,
-        'updatedAtIso': bn.updatedAtIso,
-        'deletedAtIso': bn.deletedAtIso,
-        'createdAtEpoch': bn.createdAtEpoch,
-        'lastModifiedEpoch': bn.lastModifiedEpoch,
-        'version': bn.version,
-        'origin': bn.origin,
-        'vectorClock': bn.vectorClock,
-        'deviceId': bn.deviceId,
-      };
-
-  Map<String, dynamic> _buildShiftNoteData(dynamic sn) {
-    final createdDate = DateTime.fromMillisecondsSinceEpoch(sn.createdAt * 1000);
-    final shiftDate = createdDate.toIso8601String().substring(0, 10);
-    return {
-        'id': sn.id,
-        'localUuid': sn.localUuid,
-        'serverId': sn.serverId,
-        'title': sn.title,
-        'content': sn.content,
-        'priority': sn.priority,
-        'shiftType': sn.shiftType,
-        'isRead': sn.isRead,
-        'createdBy': sn.createdBy,
-        'expiresAt': sn.expiresAt,
-        'createdAt': sn.createdAt,
-        'updatedAt': sn.updatedAt,
-        'deletedAt': sn.deletedAt,
-        'lastModified': sn.lastModified,
-        'createdAtIso': sn.createdAtIso,
-        'updatedAtIso': sn.updatedAtIso,
-        'deletedAtIso': sn.deletedAtIso,
-        'createdAtEpoch': sn.createdAtEpoch,
-        'lastModifiedEpoch': sn.lastModifiedEpoch,
-        'version': sn.version,
-        'origin': sn.origin,
-        'vectorClock': sn.vectorClock,
-        'deviceId': sn.deviceId,
-        'shiftDate': shiftDate,
-        'note': sn.content,
-      };
-  }
-
-  Map<String, dynamic> _buildCashTransactionData(dynamic ct) => {
-        'id': ct.id,
-        'localUuid': ct.localUuid,
-        'serverId': ct.serverId,
-        'registerId': ct.registerId,
-        'transactionType': ct.transactionType,
-        'amount': ct.amount,
-        'referenceType': ct.referenceType,
-        'referenceId': ct.referenceId,
-        'description': ct.description,
-        'transactionTime': ct.transactionTime,
-        'createdBy': ct.createdBy,
-        'createdAt': ct.createdAt,
-        'updatedAt': ct.updatedAt,
-        'deletedAt': ct.deletedAt,
-        'lastModified': ct.lastModified,
-        'createdAtIso': ct.createdAtIso,
-        'updatedAtIso': ct.updatedAtIso,
-        'deletedAtIso': ct.deletedAtIso,
-        'createdAtEpoch': ct.createdAtEpoch,
-        'lastModifiedEpoch': ct.lastModifiedEpoch,
-        'version': ct.version,
-        'origin': ct.origin,
-        'vectorClock': ct.vectorClock,
-        'deviceId': ct.deviceId,
-      };
-
-  Map<String, dynamic> _buildGuestInfoData(dynamic gi) => {
-        'id': gi.id,
-        'localUuid': gi.localUuid,
-        'serverId': gi.serverId,
-        'roomNumber': gi.roomNumber,
-        'guestName': gi.guestName,
-        'nationality': gi.nationality,
-        'idNumber': gi.idNumber,
-        'idType': gi.idType,
-        'issueDate': gi.issueDate,
-        'issuePlace': gi.issuePlace,
-        'governorate': gi.governorate,
-        'notes': gi.notes,
-        'createdAt': gi.createdAt,
-        'updatedAt': gi.updatedAt,
-        'deletedAt': gi.deletedAt,
-        'lastModified': gi.lastModified,
-        'createdAtIso': gi.createdAtIso,
-        'updatedAtIso': gi.updatedAtIso,
-        'deletedAtIso': gi.deletedAtIso,
-        'createdAtEpoch': gi.createdAtEpoch,
-        'lastModifiedEpoch': gi.lastModifiedEpoch,
-        'version': gi.version,
-        'origin': gi.origin,
-        'vectorClock': gi.vectorClock,
-        'deviceId': gi.deviceId,
-      };
-
-  Map<String, dynamic> _buildSalaryCycleData(dynamic sc) => {
-        'id': sc.id,
-        'localUuid': sc.localUuid,
-        'serverId': sc.serverId,
-        'employeeId': sc.employeeId,
-        'cycleKey': sc.cycleKey,
-        'hotelDayStart': sc.hotelDayStart,
-        'hotelDayEnd': sc.hotelDayEnd,
-        'expectedAmount': sc.expectedAmount,
-        'actualPaid': sc.actualPaid,
-        'remainingAmount': sc.remainingAmount,
-        'status': sc.status,
-        'createdAt': sc.createdAt,
-        'updatedAt': sc.updatedAt,
-        'deletedAt': sc.deletedAt,
-        'lastModified': sc.lastModified,
-        'createdAtIso': sc.createdAtIso,
-        'updatedAtIso': sc.updatedAtIso,
-        'deletedAtIso': sc.deletedAtIso,
-        'createdAtEpoch': sc.createdAtEpoch,
-        'lastModifiedEpoch': sc.lastModifiedEpoch,
-        'version': sc.version,
-        'origin': sc.origin,
-        'vectorClock': sc.vectorClock,
-        'deviceId': sc.deviceId,
-      };
-
-  Map<String, dynamic> _buildSalaryPaymentData(dynamic sp) => {
-        'id': sp.id,
-        'localUuid': sp.localUuid,
-        'serverId': sp.serverId,
-        'cycleId': sp.cycleId,
-        'amount': sp.amount,
-        'hotelDayKey': sp.hotelDayKey,
-        'paymentDateIso': sp.paymentDateIso,
-        'method': sp.method,
-        'isAutoGenerated': sp.isAutoGenerated,
-        'createdAt': sp.createdAt,
-        'updatedAt': sp.updatedAt,
-        'deletedAt': sp.deletedAt,
-        'lastModified': sp.lastModified,
-        'createdAtIso': sp.createdAtIso,
-        'updatedAtIso': sp.updatedAtIso,
-        'deletedAtIso': sp.deletedAtIso,
-        'createdAtEpoch': sp.createdAtEpoch,
-        'lastModifiedEpoch': sp.lastModifiedEpoch,
-        'version': sp.version,
-        'origin': sp.origin,
-        'vectorClock': sp.vectorClock,
-        'deviceId': sp.deviceId,
-      };
-
-  Map<String, dynamic> _buildSalaryWithdrawalData(dynamic sw) {
-    // استخراج expenseId من حقل reason (الصيغة: "exp_123")
-    int? expenseId;
-    if (sw.reason != null && sw.reason!.startsWith('exp_')) {
-      expenseId = int.tryParse(sw.reason!.substring(4));
-    }
-    return {
-        'id': sw.id,
-        'localUuid': sw.localUuid,
-        'serverId': sw.serverId,
-        'employeeId': sw.employeeId,
-        'amount': sw.amount,
-        'withdrawDate': sw.withdrawDate,
-        'reason': sw.reason,
-        'hotelDayKey': sw.hotelDayKey,
-        'withdrawalType': sw.withdrawalType,
-        'description': sw.description,
-        'date': sw.withdrawDate,
-        'action': sw.withdrawalType,
-        'note': sw.description,
-        'expenseId': expenseId,
-        'createdAt': sw.createdAt,
-        'updatedAt': sw.updatedAt,
-        'deletedAt': sw.deletedAt,
-        'lastModified': sw.lastModified,
-        'createdAtIso': sw.createdAtIso,
-        'updatedAtIso': sw.updatedAtIso,
-        'deletedAtIso': sw.deletedAtIso,
-        'createdAtEpoch': sw.createdAtEpoch,
-        'lastModifiedEpoch': sw.lastModifiedEpoch,
-        'version': sw.version,
-        'origin': sw.origin,
-        'vectorClock': sw.vectorClock,
-        'deviceId': sw.deviceId,
-      };
-
-  Map<String, dynamic> _buildPriceAdjustmentData(dynamic pa) => {
-        'id': pa.id,
-        'localUuid': pa.localUuid,
-        'serverId': pa.serverId,
-        'targetType': pa.targetType,
-        'targetUuid': pa.targetUuid,
-        'adjustmentType': pa.adjustmentType,
-        'previousValue': pa.previousValue,
-        'newValue': pa.newValue,
-        'reason': pa.reason,
-        'effectiveDate': pa.effectiveDate,
-        'appliedBy': pa.appliedBy,
-        'hotelDayKey': pa.hotelDayKey,
-        'isReversed': pa.isReversed,
-        'reversedAt': pa.reversedAt,
-        'reversedBy': pa.reversedBy,
-        'createdAt': pa.createdAt,
-        'updatedAt': pa.updatedAt,
-        'deletedAt': pa.deletedAt,
-        'lastModified': pa.lastModified,
-        'createdAtIso': pa.createdAtIso,
-        'updatedAtIso': pa.updatedAtIso,
-        'deletedAtIso': pa.deletedAtIso,
-        'createdAtEpoch': pa.createdAtEpoch,
-        'lastModifiedEpoch': pa.lastModifiedEpoch,
-        'version': pa.version,
-        'origin': pa.origin,
-        'vectorClock': pa.vectorClock,
-        'deviceId': pa.deviceId,
-      };
-
-  Map<String, dynamic> _buildBookingPriceAdjustmentData(dynamic bpa) => {
-        'id': bpa.id,
-        'localUuid': bpa.localUuid,
-        'serverId': bpa.serverId,
-        'bookingLocalUuid': bpa.bookingLocalUuid,
-        'bookingLocalId': bpa.bookingLocalId,
-        'roomNumber': bpa.roomNumber,
-        'adjustmentType': bpa.adjustmentType,
-        'adjustmentMode': bpa.adjustmentMode,
-        'amount': bpa.amount,
-        'effectiveHotelDay': bpa.effectiveHotelDay,
-        'endHotelDay': bpa.endHotelDay,
-        'isActive': bpa.isActive,
-        'reason': bpa.reason,
-        'appliedBy': bpa.appliedBy,
-        'cancelledAt': bpa.cancelledAt,
-        'cancelledBy': bpa.cancelledBy,
-        'createdAt': bpa.createdAt,
-        'updatedAt': bpa.updatedAt,
-        'deletedAt': bpa.deletedAt,
-        'lastModified': bpa.lastModified,
-        'createdAtIso': bpa.createdAtIso,
-        'updatedAtIso': bpa.updatedAtIso,
-        'deletedAtIso': bpa.deletedAtIso,
-        'createdAtEpoch': bpa.createdAtEpoch,
-        'lastModifiedEpoch': bpa.lastModifiedEpoch,
-        'version': bpa.version,
-        'origin': bpa.origin,
-        'vectorClock': bpa.vectorClock,
-        'deviceId': bpa.deviceId,
-      };
-
-  Map<String, dynamic> _buildAuditLogData(dynamic al) => {
-        'id': al.id,
-        'localUuid': al.localUuid,
-        'operationType': al.operationType,
-        'entityType': al.entityType,
-        'entityUuid': al.entityUuid,
-        'entityId': al.entityId,
-        'previousState': al.previousState,
-        'newState': al.newState,
-        'changedFields': al.changedFields,
-        'performedBy': al.performedBy,
-        'deviceId': al.deviceId,
-        'ipAddress': al.ipAddress,
-        'hotelDayKey': al.hotelDayKey,
-        'timestamp': al.timestamp,
-        'timestampIso': al.timestampIso,
-        'isFinancial': al.isFinancial,
-        'amountImpact': al.amountImpact,
-        'createdAt': al.createdAt,
-      };
-
-  Map<String, dynamic> _buildPaymentVoidData(dynamic pv) => {
-        'id': pv.id,
-        'localUuid': pv.localUuid,
-        'serverId': pv.serverId,
-        'originalPaymentUuid': pv.originalPaymentUuid,
-        'originalPaymentId': pv.originalPaymentId,
-        'bookingUuid': pv.bookingUuid,
-        'voidedAmount': pv.voidedAmount,
-        'voidReason': pv.voidReason,
-        'voidedBy': pv.voidedBy,
-        'voidedAt': pv.voidedAt,
-        'voidedAtIso': pv.voidedAtIso,
-        'hotelDayKey': pv.hotelDayKey,
-        'reversalPaymentUuid': pv.reversalPaymentUuid,
-        'approvedBy': pv.approvedBy,
-        'createdAt': pv.createdAt,
-        'updatedAt': pv.updatedAt,
-        'deletedAt': pv.deletedAt,
-        'lastModified': pv.lastModified,
-        'createdAtIso': pv.createdAtIso,
-        'updatedAtIso': pv.updatedAtIso,
-        'deletedAtIso': pv.deletedAtIso,
-        'createdAtEpoch': pv.createdAtEpoch,
-        'lastModifiedEpoch': pv.lastModifiedEpoch,
-        'version': pv.version,
-        'origin': pv.origin,
-        'vectorClock': pv.vectorClock,
-        'deviceId': pv.deviceId,
-      };
 }
 
-/// عملية احتياطية — تستخدم لإرسال دفعة
-class BackupOperation {
-  final String tableName;
-  final String documentId;
-  final Map<String, dynamic> data;
-  final String operation;
+// ─── دوال مساعدة ───────────────────────────────────────────
 
-  BackupOperation({
-    required this.tableName,
-    required this.documentId,
-    required this.data,
-    required this.operation,
-  });
+void _putIfNotNull(Map<String, dynamic> map, String key, dynamic value) {
+  if (value != null) {
+    map[key] = value;
+  }
+}
+
+void _putIfStringNotEmpty(Map<String, dynamic> map, String key, String? value) {
+  if (value != null && value.isNotEmpty) {
+    map[key] = value;
+  }
 }

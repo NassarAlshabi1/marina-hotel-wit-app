@@ -72,6 +72,17 @@ class AppwriteSyncUtils {
       'updatedAt', 'updatedAtIso', 'vectorClock', 'version', 'voidedAt',
       'voidedBy',
     },
+    'payments': {
+      'amount', 'bookingLocalId', 'bookingUuidCache', 'cashTransactionId',
+      'cashTransactionLocalId', 'createdAt', 'createdAtEpoch', 'createdAtIso',
+      'deletedAt', 'deletedAtIso', 'deviceId', 'discountAmount',
+      'discountStartDate', 'hotelDayKey', 'idempotencyKey', 'isPendingBalance',
+      'isVoided', 'lastModified', 'lastModifiedEpoch', 'linkedDebtUuid',
+      'localUuid', 'notes', 'origin', 'paymentDate', 'paymentMethod',
+      'referenceNumber', 'revenueType', 'roomNumber', 'serverBookingId',
+      'serverId', 'serverPaymentId', 'updatedAt', 'updatedAtIso', 'vectorClock',
+      'version', 'voidedAt', 'voidedBy',
+    },
     'debts': {
       'bookingLocalId', 'checkinDate', 'checkoutDate', 'createdAt',
       'dateRecorded', 'debtReason', 'debtUuid', 'deletedAt', 'deviceId',
