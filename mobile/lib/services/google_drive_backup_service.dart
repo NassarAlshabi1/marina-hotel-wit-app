@@ -1346,8 +1346,8 @@ class GoogleDriveBackupService {
             try {
               final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
               for (final v in violations) {
-                final table = v['table'] as String? ?? '';
-                final rowid = v['rowid'] as int?;
+                final table = v.read<String?>('table') ?? '';
+                final rowid = v.read<int?>('rowid');
                 if (table.isEmpty || rowid == null) continue;
                 
                 if (table == 'payments') {

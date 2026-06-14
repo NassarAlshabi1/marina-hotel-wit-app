@@ -7,7 +7,11 @@ class BackupEndpoint {
   final String databaseId;
   final String apiKey;
   final bool isActive;
+  final bool pushEnabled;
+  final bool pullEnabled;
   final DateTime createdAt;
+  final DateTime? lastPushAt;
+  final DateTime? lastPullAt;
 
   BackupEndpoint({
     required this.id,
@@ -17,7 +21,11 @@ class BackupEndpoint {
     required this.databaseId,
     required this.apiKey,
     this.isActive = true,
+    this.pushEnabled = true,
+    this.pullEnabled = false,
     DateTime? createdAt,
+    this.lastPushAt,
+    this.lastPullAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
@@ -28,7 +36,11 @@ class BackupEndpoint {
     'databaseId': databaseId,
     'apiKey': apiKey,
     'isActive': isActive,
+    'pushEnabled': pushEnabled,
+    'pullEnabled': pullEnabled,
     'createdAt': createdAt.toIso8601String(),
+    'lastPushAt': lastPushAt?.toIso8601String(),
+    'lastPullAt': lastPullAt?.toIso8601String(),
   };
 
   factory BackupEndpoint.fromJson(Map<String, dynamic> json) => BackupEndpoint(
@@ -39,8 +51,16 @@ class BackupEndpoint {
     databaseId: json['databaseId'] as String,
     apiKey: json['apiKey'] as String,
     isActive: json['isActive'] as bool? ?? true,
+    pushEnabled: json['pushEnabled'] as bool? ?? true,
+    pullEnabled: json['pullEnabled'] as bool? ?? false,
     createdAt: json['createdAt'] != null
         ? DateTime.tryParse(json['createdAt'] as String)
+        : null,
+    lastPushAt: json['lastPushAt'] != null
+        ? DateTime.tryParse(json['lastPushAt'] as String)
+        : null,
+    lastPullAt: json['lastPullAt'] != null
+        ? DateTime.tryParse(json['lastPullAt'] as String)
         : null,
   );
 
@@ -52,6 +72,12 @@ class BackupEndpoint {
     String? databaseId,
     String? apiKey,
     bool? isActive,
+    bool? pushEnabled,
+    bool? pullEnabled,
+    DateTime? lastPushAt,
+    DateTime? lastPullAt,
+    bool clearLastPushAt = false,
+    bool clearLastPullAt = false,
   }) => BackupEndpoint(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -60,6 +86,10 @@ class BackupEndpoint {
     databaseId: databaseId ?? this.databaseId,
     apiKey: apiKey ?? this.apiKey,
     isActive: isActive ?? this.isActive,
+    pushEnabled: pushEnabled ?? this.pushEnabled,
+    pullEnabled: pullEnabled ?? this.pullEnabled,
     createdAt: createdAt,
+    lastPushAt: clearLastPushAt ? null : (lastPushAt ?? this.lastPushAt),
+    lastPullAt: clearLastPullAt ? null : (lastPullAt ?? this.lastPullAt),
   );
 }

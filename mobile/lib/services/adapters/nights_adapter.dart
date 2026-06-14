@@ -80,7 +80,7 @@ class NightsAdapter
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId!)
           : (src == Source.appwrite || src == Source.drive)
-              ? d.Value(null)
+              ? const d.Value.absent()
               : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
       hotelDayKey: _vStr(
         json,

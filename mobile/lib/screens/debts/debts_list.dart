@@ -118,26 +118,27 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
   Widget _buildSearchAndFilters() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       color: Colors.grey.shade50,
       child: Column(
         children: [
           // شريط البحث
           TextField(
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
             decoration: InputDecoration(
               hintText: 'ابحث باسم النزيل أو رقم الغرفة...',
               hintStyle: TextStyle(
                 fontWeight: FontWeight.normal,
+                fontSize: 13,
                 color: Colors.grey[500],
               ),
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search, size: 20),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(25),
               ),
               contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+                horizontal: 12,
+                vertical: 8,
               ),
             ),
             onChanged: (value) {
@@ -148,17 +149,17 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             },
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
 
           // مرشحات الحالة
           Row(
             children: [
               Expanded(child: _buildFilterChip('الكل', 'all')),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Expanded(child: _buildFilterChip('معلق', 'pending')),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Expanded(child: _buildFilterChip('مسدد', 'settled')),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Expanded(child: _buildFilterChip('متأخر', 'overdue')),
             ],
           ),
@@ -170,11 +171,13 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   Widget _buildFilterChip(String label, String value) {
     final isSelected = _filterStatus == value;
     return FilterChip(
-      label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+      label: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
       selected: isSelected,
       onSelected: (selected) => setState(() => _filterStatus = value),
       selectedColor: Colors.blue.shade100,
       checkmarkColor: Colors.blue.shade700,
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 
@@ -195,7 +198,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             );
 
             return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Row(
                 children: [
                   Expanded(
@@ -205,7 +208,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                       Colors.blue,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: _buildStatCard(
                       'معلق',
@@ -213,7 +216,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                       Colors.orange,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: _buildStatCard(
                       'القيمة الإجمالية',
@@ -232,10 +235,10 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
   Widget _buildStatCard(String title, String value, Color color) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -243,15 +246,15 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           Text(
             value,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 13,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             title,
-            style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.8)),
+            style: TextStyle(fontSize: 9, color: color.withValues(alpha: 0.8)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -345,7 +348,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         ref.invalidate(debtsListProvider);
       },
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         itemCount: filteredDebts.length,
         itemBuilder: (context, index) {
           final debt = filteredDebts[index];
@@ -382,14 +385,14 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     }
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 6),
       color: cardColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         side: BorderSide(color: borderColor),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -400,7 +403,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   child: Text(
                     debt.guestName,
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -409,7 +412,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               ],
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
 
             // التواريخ والسبب
             Row(
@@ -432,11 +435,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             ),
 
             if (debt.debtReason.isNotEmpty) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               _buildInfoRow(Icons.info, 'السبب', debt.debtReason),
             ],
 
-            const Divider(height: 20),
+            const Divider(height: 12),
 
             // المبالغ
             Row(
@@ -449,13 +452,13 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                         'إجمالي المبلغ',
                         style: TextStyle(
                           color: Colors.grey.shade600,
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         CurrencyFormatter.formatAmount(debt.totalAmount),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -468,13 +471,14 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                         'المدفوع',
                         style: TextStyle(
                           color: Colors.grey.shade600,
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         CurrencyFormatter.formatAmount(debt.paidAmount),
                         style: TextStyle(
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: Colors.green.shade700,
                         ),
@@ -490,13 +494,14 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                         'المتبقي',
                         style: TextStyle(
                           color: Colors.grey.shade600,
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         CurrencyFormatter.formatAmount(debt.remainingAmount),
                         style: TextStyle(
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: Colors.red.shade700,
                         ),
@@ -509,22 +514,23 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
             // الرهن إذا كان موجود
             if (debt.pledge?.isNotEmpty ?? false) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: Colors.blue.shade200),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.security, size: 16, color: Colors.blue.shade700),
-                    const SizedBox(width: 8),
+                    Icon(Icons.security, size: 14, color: Colors.blue.shade700),
+                    const SizedBox(width: 4),
                     Text(
                       'رهن: ${debt.pledge}',
                       style: TextStyle(
+                        fontSize: 11,
                         color: Colors.blue.shade700,
                         fontWeight: FontWeight.bold,
                       ),
@@ -533,6 +539,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                       Text(
                         ' (${debt.pledgeType})',
                         style: TextStyle(
+                          fontSize: 11,
                           color: Colors.blue.shade600,
                           fontWeight: FontWeight.bold,
                         ),
@@ -544,26 +551,26 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
             // الملاحظة إذا كانت موجودة
             if (debt.note?.isNotEmpty ?? false) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
                 child: Text(
                   debt.note!,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
 
             // أزرار الإجراءات
             Row(
@@ -572,48 +579,62 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _markAsSettled(debt),
-                      icon: const Icon(Icons.check, size: 16),
-                      label: const Text('تم السداد'),
+                      icon: const Icon(Icons.check, size: 14),
+                      label: const Text('تم السداد', style: TextStyle(fontSize: 11)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                 ],
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _isSendingWhatsApp
                         ? null
                         : () => _sendDebtWhatsApp(debt),
-                    icon: const Icon(Icons.chat, size: 16, color: Colors.green),
+                    icon: const Icon(Icons.chat, size: 14, color: Colors.green),
                     label: const Text(
                       'واتساب',
-                      style: TextStyle(color: Colors.green),
+                      style: TextStyle(color: Colors.green, fontSize: 11),
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.green,
                       side: const BorderSide(color: Colors.green),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _openDebtForm(context, existing: debt),
-                    icon: const Icon(Icons.edit, size: 16),
-                    label: const Text('تعديل'),
+                    icon: const Icon(Icons.edit, size: 14),
+                    label: const Text('تعديل', style: TextStyle(fontSize: 11)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 OutlinedButton(
                   onPressed: () => _deleteDebt(context, debt),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Icon(Icons.delete, size: 16),
+                  child: const Icon(Icons.delete, size: 14),
                 ),
               ],
             ),
@@ -672,20 +693,20 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: Colors.grey.shade600),
-        const SizedBox(width: 4),
+        Icon(icon, size: 12, color: Colors.grey.shade600),
+        const SizedBox(width: 3),
         Text(
           '$label: ',
           style: TextStyle(
             color: Colors.grey.shade600,
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.bold,
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
           ),
         ),
       ],

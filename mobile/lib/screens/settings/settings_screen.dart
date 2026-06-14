@@ -12,6 +12,7 @@ import '../ai/ai_chat_screen.dart';
 import '../security/blacklist_screen.dart';
 import 'active_bookings_reminder_screen.dart';
 import 'appwrite_settings_screen.dart';
+import 'backup/unified_backup_settings_screen.dart';
 import 'data_protection_screen.dart';
 import 'google_drive_backup_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
@@ -186,6 +187,17 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push<void>(
                 context,
                 MaterialPageRoute<void>(builder: (context) => const SyncPerformanceSettingsScreen(),
+                ),
+              ),
+            ),
+            _SettingsItem(
+              title: 'النسخة الاحتياطية المحلية',
+              subtitle: 'إنشاء واستعادة وإدارة النسخ المحلية',
+              icon: Icons.phone_android,
+              color: Colors.green,
+              onTap: () => Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(builder: (context) => const UnifiedBackupSettingsScreen(),
                 ),
               ),
             ),
