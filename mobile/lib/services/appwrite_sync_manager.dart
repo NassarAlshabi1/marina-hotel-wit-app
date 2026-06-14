@@ -159,6 +159,7 @@ class AppwriteSyncManager {
       return isMillis;
     } catch (_) {
       _remoteEpochIsMillis = false;
+      _logger.warning('⚠️ Failed to parse remote epoch', tag: 'SYNC');
       return false;
     }
   }
@@ -300,7 +301,7 @@ class AppwriteSyncManager {
           },
         );
       } catch (e) {
-        debugPrint('⚠️ Failed to update FCM token: $e');
+        _logger.warning('⚠️ Failed to update FCM token: $e', tag: 'SYNC');
       }
     }
   }
@@ -492,7 +493,7 @@ class AppwriteSyncManager {
             debugPrint('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
           }
         } catch (e) {
-          debugPrint('⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e');
+          _logger.warning('⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e', tag: 'SYNC');
         }
       },
     );
@@ -1457,7 +1458,8 @@ class AppwriteSyncManager {
 
     final remoteLastModified = _asIntNullable(remoteData['lastModified']) ??
         _asIntNullable(remoteData['last_modified']) ??
-        _asIntNullable(remoteData['lastModifiedEpoch']);
+        _asIntNullable(remoteData['lastModifiedEpoch']) ??
+        _asIntNullable(remoteData['updatedAt']);
 
     if (remoteLastModified == null) {
       // Don't know remote age - update conservatively
@@ -1979,7 +1981,7 @@ class AppwriteSyncManager {
               operation: entry.op == 'delete' ? 'delete' : 'update',
             ));
           } catch (_) {
-            // تجاهل فشل تحليل الـ payload — النسخ الاحتياطي ليس حرجاً
+            _logger.warning('⚠️ فشل تحليل payload للنسخ الاحتياطي', tag: 'BACKUP');
           }
         }
       }
@@ -1990,7 +1992,7 @@ class AppwriteSyncManager {
         try {
           await backupService.pushBatchToBackups(operations: backupOps);
         } catch (_) {
-          // فشل النسخ الاحتياطي لا يمنع إكمال المزامنة الرئيسية
+          _logger.warning('⚠️ فشل النسخ الاحتياطي — لم يمنع المزامنة الرئيسية', tag: 'BACKUP');
         }
       }
 
@@ -2675,7 +2677,7 @@ class AppwriteSyncManager {
             serverId: drift.Value(remoteDoc.$id.hashCode),
           ));
         } catch (_) {
-          // فشل جلب المستند البعيد — نتجاوز، الأهم أن الموظف رُفع بنجاح
+          _logger.warning('⚠️ فشل جلب المستند البعيد للموظف — نتجاوز', tag: 'SYNC');
         }
       } catch (e) {
         _logger.warning(
@@ -2734,13 +2736,8 @@ class AppwriteSyncManager {
       'lastModified': room.lastModified,
       'version': room.version,
       'origin': room.origin,
-      // حقول مطلوبة إضافية من Appwrite schema
-      'roomType': room.type,
-      'basePrice': room.price,
-      'floor': 1,
-      'bedsCount': 1,
     };
-    data['deviceId'] = _currentDeviceId ?? '';
+    data['deviceId'] = room.deviceId ?? (_currentDeviceId ?? '');
     _putIfNotNull(data, 'serverId', room.serverId);
     // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
     data['deletedAt'] = room.deletedAt;
@@ -2778,7 +2775,7 @@ class AppwriteSyncManager {
       'version': booking.version,
       'origin': booking.origin,
     };
-    data['deviceId'] = _currentDeviceId ?? '';
+    data['deviceId'] = booking.deviceId ?? (_currentDeviceId ?? '');
     _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
     _putIfNotNull(data, 'serverId', booking.serverId);
     // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
@@ -2838,7 +2835,7 @@ class AppwriteSyncManager {
       'origin': expense.origin,
       'vectorClock': expense.vectorClock,
     };
-    data['deviceId'] = _currentDeviceId ?? '';
+    data['deviceId'] = expense.deviceId ?? (_currentDeviceId ?? '');
     _putIfNotNull(data, 'relatedId', expense.relatedId);
     _putIfNotNull(data, 'cashTransactionId', expense.cashTransactionId);
     _putIfNotNull(data, 'serverId', expense.serverId);
@@ -2872,7 +2869,7 @@ class AppwriteSyncManager {
       'hotelDayKey': payment.hotelDayKey ?? '',
       'isPendingBalance': payment.isPendingBalance,
     };
-    data['deviceId'] = _currentDeviceId ?? '';
+    data['deviceId'] = payment.deviceId ?? (_currentDeviceId ?? '');
     _putIfNotNull(data, 'serverPaymentId', payment.serverPaymentId);
     _putIfNotNull(data, 'bookingLocalId', payment.bookingLocalId);
     _putIfStringNotEmpty(data, 'bookingUuidCache', payment.bookingUuidCache);
@@ -2886,12 +2883,7 @@ class AppwriteSyncManager {
     );
     _putIfNotNull(
       data,
-      'cashTransactionId',
-      payment.cashTransactionServerId,
-    );
-    _putIfNotNull(
-      data,
-      'cashTransactionId',
+      'cashTransactionServerId',
       payment.cashTransactionServerId,
     );
     _putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
@@ -2950,7 +2942,7 @@ class AppwriteSyncManager {
       'version': debt.version,
       'origin': debt.origin,
     };
-    data['deviceId'] = _currentDeviceId ?? '';
+    data['deviceId'] = debt.deviceId ?? (_currentDeviceId ?? '');
     _putIfNotNull(data, 'serverId', debt.serverId);
     // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
     data['deletedAt'] = debt.deletedAt;
@@ -3200,6 +3192,7 @@ class AppwriteSyncManager {
           return null;
       }
     } catch (_) {
+      _logger.warning('⚠️ فشل جلب deletedAt المحلي', tag: 'SYNC');
       return null;
     }
   }
@@ -3824,7 +3817,9 @@ class AppwriteSyncManager {
         }
         // تشغيل فحص السلامة الشامل مع الإصلاح التلقائي
         await _performPostSyncIntegrityCheck();
-      } catch (_) {}
+      } catch (_) {
+        _logger.warning('⚠️ فشل فحص السلامة بعد المزامنة', tag: 'SYNC');
+      }
     }
   }
 
@@ -4231,7 +4226,7 @@ class AppwriteSyncManager {
       'version': employee.version,
       'origin': employee.origin,
     };
-    data['deviceId'] = _currentDeviceId ?? '';
+    data['deviceId'] = employee.deviceId ?? (_currentDeviceId ?? '');
     _putIfNotNull(data, 'serverId', employee.serverId);
     // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
     data['deletedAt'] = employee.deletedAt;
@@ -4262,7 +4257,7 @@ class AppwriteSyncManager {
       'origin': note.origin,
       'sync_origin': note.origin,
     };
-    data['deviceId'] = _currentDeviceId ?? '';
+    data['deviceId'] = note.deviceId ?? (_currentDeviceId ?? '');
     _putIfNotNull(data, 'serverId', note.serverId);
     // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
     data['deletedAt'] = note.deletedAt;
@@ -4297,7 +4292,7 @@ class AppwriteSyncManager {
       'origin': night.origin,
       'vectorClock': night.vectorClock,
     };
-    data['deviceId'] = _currentDeviceId ?? '';
+    data['deviceId'] = night.deviceId ?? (_currentDeviceId ?? '');
     _putIfNotNull(data, 'serverId', night.serverId);
     // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
     data['deletedAt'] = night.deletedAt;
@@ -4324,7 +4319,7 @@ class AppwriteSyncManager {
       'version': transaction.version,
       'origin': transaction.origin,
     };
-    data['deviceId'] = _currentDeviceId ?? '';
+    data['deviceId'] = transaction.deviceId ?? (_currentDeviceId ?? '');
     _putIfNotNull(data, 'registerId', transaction.registerId);
     _putIfNotNull(data, 'referenceId', transaction.referenceId);
     _putIfNotNull(data, 'createdBy', transaction.createdBy);
@@ -4359,7 +4354,7 @@ class AppwriteSyncManager {
       'origin': cycle.origin,
       'vectorClock': cycle.vectorClock,
     };
-    data['deviceId'] = _currentDeviceId ?? '';
+    data['deviceId'] = cycle.deviceId ?? (_currentDeviceId ?? '');
     _putIfNotNull(data, 'serverId', cycle.serverId);
     // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
     data['deletedAt'] = cycle.deletedAt;
@@ -4387,7 +4382,7 @@ class AppwriteSyncManager {
       'version': payment.version,
       'origin': payment.origin,
     };
-    data['deviceId'] = _currentDeviceId ?? '';
+    data['deviceId'] = payment.deviceId ?? (_currentDeviceId ?? '');
     _putIfNotNull(data, 'serverId', payment.serverId);
     // ✅ إصلاح حرج: إرسال deletedAt دائماً حتى لو null
     data['deletedAt'] = payment.deletedAt;
@@ -4422,7 +4417,7 @@ class AppwriteSyncManager {
       'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
       'note': note.content, // مطلوب — يوازي content للتوافق القديم
     };
-    data['deviceId'] = _currentDeviceId ?? '';
+    data['deviceId'] = note.deviceId ?? (_currentDeviceId ?? '');
     _putIfStringNotEmpty(data, 'expiresAt', note.expiresAt);
     // ✅ حقول SyncFields المفقودة
     _putIfStringNotEmpty(data, 'vectorClock', note.vectorClock);
@@ -4812,7 +4807,7 @@ class AppwriteSyncManager {
     Map<String, dynamic> extra = {};
     try {
       extra = jsonDecode(item.content) as Map<String, dynamic>;
-    } catch (e) { debugPrint('WARN: Failed to parse blacklist content for sync: $e'); }
+    } catch (e) { _logger.warning('⚠️ فشل تحليل محتوى القائمة السوداء للمزامنة: $e', tag: 'SYNC'); }
 
     final now = Time.nowEpoch();
     // Appwrite blacklist collection: createdAt/updatedAt/deletedAt are STRING (ISO)
@@ -4887,12 +4882,14 @@ class AppwriteSyncManager {
         try {
           createdAtEpoch = DateTime.parse(createdAtIso).millisecondsSinceEpoch ~/ 1000;
         } catch (_) {
+          _logger.warning('⚠️ فشل تحويل createdAtIso في القائمة السوداء', tag: 'SYNC');
           createdAtEpoch = Time.nowEpoch();
         }
         int? updatedAtEpoch;
         try {
           updatedAtEpoch = DateTime.parse(updatedAtIso).millisecondsSinceEpoch ~/ 1000;
         } catch (_) {
+          _logger.warning('⚠️ فشل تحويل updatedAtIso في القائمة السوداء', tag: 'SYNC');
           updatedAtEpoch = Time.nowEpoch();
         }
 
@@ -4908,6 +4905,7 @@ class AppwriteSyncManager {
             try {
               deletedAtEpoch = DateTime.parse(deletedAtStr).millisecondsSinceEpoch ~/ 1000;
             } catch (_) {
+              _logger.warning('⚠️ فشل تحويل deletedAtIso في القائمة السوداء', tag: 'SYNC');
               deletedAtEpoch = _asIntNullable(deletedAtVal);
             }
           } else {
@@ -5969,6 +5967,7 @@ class AppwriteSyncManager {
           data: _filterPayload('app_settings', data),
         );
       } catch (_) {
+        _logger.warning('⚠️ فشل تحديث إعدادات التطبيق — نحاول الإنشاء', tag: 'SYNC');
         await appwriteService.createDocument(
           collectionId: collectionId,
           documentId: docId,
