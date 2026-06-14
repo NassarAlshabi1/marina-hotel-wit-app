@@ -62,7 +62,9 @@ class SalaryPaymentsAdapter
         if (row != null) {
           resolvedCycleId = row.id;
         }
-      } catch (_) {}
+      } catch (_) {
+        debugPrint('⚠️ SalaryPaymentsAdapter: فشل حل cycleId');
+      }
     }
 
     final createdAt = _epoch(json, 'createdAt', src);

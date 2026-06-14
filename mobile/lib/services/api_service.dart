@@ -109,6 +109,7 @@ class ApiService {
       final res = await _dio.get<dynamic>('/auth/ping.php');
       return res.statusCode == 200 && res.data['success'] == true;
     } catch (_) {
+      AppLogger.warning('⚠️ فشل ping للتحقق من الاتصال');
       return false;
     }
   }

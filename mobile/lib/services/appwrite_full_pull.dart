@@ -104,10 +104,17 @@ class AppwriteFullPull {
                 '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
                 tag: 'FULL_PULL',
               );
-            } catch (_) {}
+            } catch (_) {
+              _logger.warning(
+                '⚠️ فشل حذف سجل يتيم من $table (rowid=$rowId)',
+                tag: 'FULL_PULL',
+              );
+            }
           }
         }
-      } catch (_) {}
+      } catch (_) {
+        _logger.warning('⚠️ فشل فحص FK بعد السحب الشامل', tag: 'FULL_PULL');
+      }
     }
 
     return result;
@@ -522,7 +529,10 @@ class AppwriteFullPull {
                       .getSingleOrNull();
                 }
               } catch (_) {
-                // فشل جلب الحجز من السيرفر — سجل يتيم حقيقي
+                _logger.warning(
+                  '⚠️ فشل جلب الحجز $bookingUuid من السيرفر - سجل يتيم',
+                  tag: 'FULL_PULL',
+                );
               }
             }
 

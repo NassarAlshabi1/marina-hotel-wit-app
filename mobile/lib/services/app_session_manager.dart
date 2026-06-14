@@ -116,6 +116,7 @@ class AppSessionManager {
       try {
         return await _deviceIdResolver!();
       } catch (_) {
+        debugPrint('⚠️ فشل حل deviceId');
         return null;
       }
     }

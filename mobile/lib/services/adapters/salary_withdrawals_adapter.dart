@@ -22,7 +22,7 @@ class SalaryWithdrawalsAdapter
         [expenseId, salaryWithdrawalId],
       );
     } catch (_) {
-      // العمود قد لا يكون موجوداً
+      debugPrint('⚠️ SalaryWithdrawalsAdapter: العمود قد لا يكون موجوداً');
     }
   }
 

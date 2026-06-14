@@ -178,6 +178,7 @@ class AppwriteBackupSyncService {
             data: data,
           );
         } catch (_) {
+          _logger.warning('⚠️ فشل تحديث وثيقة احتياطية — نحاول الإنشاء', tag: 'BACKUP');
           // إذا فشل التحديث (المستند غير موجود)، نقوم بإنشائه
           await databases.createDocument(
             databaseId: dbId,
@@ -195,7 +196,7 @@ class AppwriteBackupSyncService {
             documentId: documentId,
           );
         } catch (_) {
-          // تجاهل خطأ الحذف إذا كان المستند غير موجود أصلاً
+          _logger.warning('⚠️ فشل حذف وثيقة احتياطية (قد لا تكون موجودة)', tag: 'BACKUP');
         }
         break;
     }
@@ -291,6 +292,7 @@ class AppwriteBackupSyncService {
         );
         return true;
       } catch (_) {
+        _logger.warning('⚠️ فشل إنشاء وثيقة احتياطية — نحاول التحديث', tag: 'BACKUP');
         // إذا كان موجوداً مسبقاً → نحدّث
         try {
           await databases.updateDocument(
