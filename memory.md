@@ -938,3 +938,47 @@ if (kDebugMode) {
 | استدعاءات debugPrint في الكود | 1,080 | **1** (في app_logger.dart نفسه) |
 | استدعاءات AppLogger | 49 | **1,165** |
 | ملفات تستخدم AppLogger | 18 | **131** |
+
+---
+
+## 27. Google Drive Backup/Restore System
+
+النظام غير معدل — تحليل فقط. (15 يونيو 2026)
+
+### المكونات
+| الملف | الحجم | الوظيفة |
+|-------|-------|---------|
+| `google_drive_backup_service.dart` | 1,842 سطر | محرك النسخ والاستعادة الرئيسي |
+| `google_drive_unified_sync_coordinator.dart` | 940 سطر | تنسيق المزامنة |
+| `google_drive_auto_sync_engine.dart` | 837 سطر | مزامنة تلقائية مع Exponential Backoff |
+| `google_drive_delta_sync.dart` | 739 سطر | مزامنة تفاضلية |
+| `google_drive_conflict_resolver.dart` | 519 سطر | حل التعارضات |
+| `google_drive_sign_in_manager.dart` | 131 سطر | مدير تسجيل الدخول (Singleton) |
+| `google_drive_logger.dart` | 207 سطر | تسجيل العمليات |
+
+### آلية النسخ الاحتياطي
+```
+1. signIn() → Google OAuth 2.0 (serverClientId)
+2. getOrCreateBackupFolder() → "Marina Hotel Backup"
+3. exportDatabaseToJson() → 21 جدولاً بترتيب FK-safe
+4. uploadBackup() → رفع + تحقق (1% margin)
+5. cleanupOldBackups() → حذف القديم
+6. scheduleAutoBackup() → WorkManager + AlarmManager
+```
+
+### آلية الاستعادة
+```
+1. listBackups() → عرض النسخ
+2. downloadBackup() → تنزيل + فحص metadata
+3. PRAGMA foreign_keys = OFF (خارج المعاملة ✅)
+4. مسح الجداول بترتيب عكسي للعلاقات
+5. upsertFromJson() عبر AdapterRegistry
+6. RestoreFixService للإصلاحات البعدية
+```
+
+### نقاط القوة
+- حماية الجداول غير المغطاة (لا يمسح ما ليس في النسخة)
+- التحقق من حجم الملف بعد الرفع
+- ترتيب حذف دقيق (أبناء ← آباء)
+- Delta Sync للمزامنة اليومية
+- Silent Sign In للخلفية
