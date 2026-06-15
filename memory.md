@@ -273,3 +273,138 @@ if (!await _ensureParentBookingExists(data, doc.$id)) {
 ## روابط
 - **الفرع:** `https://github.com/NassarAlshabi1/marina-hotel-wit-app/tree/yy`
 - **الالتزام:** `b678214`
+
+---
+
+## 10. Adaptive Batch Size (حجم الدفعة التكيفي)
+
+**الملف:** `mobile/lib/services/appwrite_sync_manager.dart`
+**المتغير:** `_adaptiveBatchSize`
+**الدوال:** `_adjustBatchSize()`، `_pushAllEntities()`
+
+```dart
+if (كل السجلات نجحت) {
+  _adaptiveBatchSize = (_adaptiveBatchSize * 1.3).clamp(10, 200);
+} else if (فشل أو لم تكتمل) {
+  _adaptiveBatchSize = (_adaptiveBatchSize * 0.6).clamp(5, 100);
+}
+```
+
+**القيم الأولية:** 50 (جوال)، 100 (WiFi) من `SyncPerformanceOptimizer`
+**الحد الأقصى:** 200 | **الحد الأدنى:** 5
+
+---
+
+## 11. Timeout لكل عملية رفع
+
+**الملف:** `mobile/lib/services/appwrite_sync_manager.dart`
+**الدالة:** `_pushAllEntities()`
+
+```dart
+final success = await _processOutboxEntry(entry)
+    .timeout(Duration(seconds: timeoutSeconds));
+```
+
+**القيمة:** 30 ثانية (قابلة للتعديل من `SyncPerformanceOptimizer`)
+**عند timeout:** لا تتعطل الدفعة — يُحتسب فشلاً ويُعاد المحاولة لاحقاً
+
+---
+
+## 12. إيقاف المزامنة بعد 3 دفعات فاشلة
+
+**الملف:** `mobile/lib/services/appwrite_sync_manager.dart`
+**الدالة:** `_pushAllEntities()`
+
+```dart
+int consecutiveFailures = 0;
+
+if (batchSuccess) consecutiveFailures = 0;
+else consecutiveFailures++;
+
+if (consecutiveFailures >= 3) {
+  // إيقاف المزامنة — المشكلة في الشبكة أو السيرفر
+  break;
+}
+```
+
+---
+
+## 13. Vector Clock في حل التعارضات
+
+**الملف:** `mobile/lib/services/sync_conflict_resolver.dart`
+**الدالة:** `detectAndResolve()`
+
+**قبل:**
+```
+تعارض → مباشرة إلى الـ strategy (serverWins/localWins/manualReview)
+```
+
+**بعد:**
+```
+تعارض → فحص Vector Clock:
+  - remote أحدث في كل الأجهزة → remote wins
+  - local أحدث في كل الأجهزة → local wins
+  - متعارض → العودة لمقارنة lastModified + strategy
+```
+
+**الدالة المساعدة `_parseVectorClock()`:**
+```dart
+Map<String, int> _parseVectorClock(String raw) {
+  // تحويل '{"device1":3,"device2":5}' → {'device1': 3, 'device2': 5}
+}
+```
+
+---
+
+## 14. تنظيف Outbox تلقائي كل 24 ساعة
+
+**الملف:** `mobile/lib/services/appwrite_sync_manager.dart`
+**الدالة:** `_startFailedRetryTimer()` (أُضيف في نهايتها)
+
+```dart
+_cleanupTimer = Timer.periodic(const Duration(hours: 24), (_) async {
+  await outboxDao.cleanupCompleted();      // أقدم من 7 أيام
+  await outboxDao.cleanupOrphanedEntries(); // يتيمة + قديمة
+});
+```
+
+**في `dispose()`:**
+```dart
+_cleanupTimer?.cancel();
+```
+
+---
+
+## 15. شاشة حل التعارضات اليدوي
+
+**الملف الجديد:** `mobile/lib/screens/settings/sync_conflicts_screen.dart` (221 سطر)
+
+**الميزات:**
+- عرض جميع التعارضات المعلقة من جدول `sync_conflicts`
+- زرين لكل تعارض: `الاحتفاظ بالمحلي` / `استخدام البعيد`
+- عرض تفاصيل البيانات المحلية والبعيدة
+- تحديث (Refresh) بسحب الشاشة للأسفل
+- حالة عدم وجود تعارضات (Empty State)
+
+**طريقة الاستخدام:**
+```dart
+import '../../screens/settings/sync_conflicts_screen.dart';
+
+// التنقل إلى الشاشة
+Navigator.push(context, MaterialPageRoute(
+  builder: (_) => const SyncConflictsScreen(),
+));
+```
+
+---
+
+## الالتزامات في GitHub
+
+| الالتزام | الوصف | الملفات |
+|----------|-------|---------|
+| `b678214` | إصلاحات المزامنة الشاملة | 14 ملف |
+| `3cd570c` | `memory.md` مع كود الإصلاحات | 1 ملف |
+| `330aaca` | Adaptive Batch, Timeout, Vector Clock, شاشة التعارضات | 3 ملفات |
+
+## إجمالي التعديلات
+**17 ملفاً، +442 إضافة، -34 حذف**
