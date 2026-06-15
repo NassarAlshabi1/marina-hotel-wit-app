@@ -1,11 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
-import '../../services/conflict_manager.dart';
-import '../../services/local_db.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/sync_conflict_resolver.dart';
 
@@ -32,10 +32,9 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
     setState(() => _isLoading = true);
     try {
       final db = ref.read(databaseProvider);
-      final resolver = SyncConflictResolver(db);
       final rows = await db.customSelect(
         'SELECT * FROM sync_conflicts WHERE resolution = ? ORDER BY created_at DESC',
-        variables: [const Variable<String>('pending')],
+        variables: [const Variable('pending')],
       ).get();
       if (mounted) {
         setState(() {
@@ -68,7 +67,7 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        _loadConflicts();
+        unawaited(_loadConflicts());
       }
     } catch (e) {
       if (mounted) {

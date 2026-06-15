@@ -150,7 +150,7 @@ class SyncConflictResolver {
       
       _log(
         '⚠️ تعارض حقيقي مكتشف: $table/$localUuid '
-        '(محلي: v$localVersion@$localModified vs بعيد: v$remoteVersion@$remoteModified) '
+        '(محلي: v$localVersion@$localLastModified vs بعيد: v$remoteVersion@$remoteLastModified) '
         'VectorClock: local=$localVectorRaw remote=$remoteVectorRaw',
       );
 

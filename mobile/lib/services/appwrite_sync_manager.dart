@@ -482,10 +482,7 @@ class AppwriteSyncManager {
           if (failedCount == 0) return;
 
           // إعادة تعيين العناصر الفاشلة إلى pending (مع backoff للمحاولات الكثيرة)
-          final resetCount = await outboxDao.retryFailedWithBackoff(
-            maxAttempts: 5,
-            backoffMinutes: 30,
-          );
+          final resetCount = await outboxDao.retryFailedWithBackoff();
           if (resetCount == 0) return; // لا يوجد شيء لإعادة المحاولة
 
           debugPrint(
