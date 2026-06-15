@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/database_fixer.dart';
 import '../../services/local_db.dart';
 
-class DatabaseFixerScreen extends StatefulWidget {
+class DatabaseFixerScreen extends ConsumerStatefulWidget {
   const DatabaseFixerScreen({super.key});
 
   @override
   State<DatabaseFixerScreen> createState() => _DatabaseFixerScreenState();
 }
 
-class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
+class _DatabaseFixerScreenState extends ConsumerState<DatabaseFixerScreen> {
   ValidationReport? _validationReport;
   FixResult? _fixResult;
   bool _isLoading = false;

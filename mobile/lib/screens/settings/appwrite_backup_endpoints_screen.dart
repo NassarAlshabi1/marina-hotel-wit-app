@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../services/appwrite_backup_endpoint.dart';
@@ -8,7 +9,7 @@ import '../../services/local_db.dart';
 import '../../utils/app_logger.dart';
 
 /// شاشة إدارة نقاط النهاية الاحتياطية (Master/Slave)
-class AppwriteBackupEndpointsScreen extends StatefulWidget {
+class AppwriteBackupEndpointsScreen extends ConsumerStatefulWidget {
   const AppwriteBackupEndpointsScreen({super.key});
 
   @override
@@ -16,8 +17,7 @@ class AppwriteBackupEndpointsScreen extends StatefulWidget {
       _AppwriteBackupEndpointsScreenState();
 }
 
-class _AppwriteBackupEndpointsScreenState
-    extends State<AppwriteBackupEndpointsScreen> {
+class _AppwriteBackupEndpointsScreenState extends ConsumerState<AppwriteBackupEndpointsScreen> {
   List<BackupEndpoint> _endpoints = [];
   bool _loading = true;
   bool _isPushing = false;

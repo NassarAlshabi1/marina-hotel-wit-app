@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../services/gemini_service.dart';
@@ -61,14 +62,14 @@ class ChatMessage {
 }
 
 /// شاشة المساعد الذكي — Gemini AI
-class AiChatScreen extends StatefulWidget {
+class AiChatScreen extends ConsumerStatefulWidget {
   const AiChatScreen({super.key});
 
   @override
   State<AiChatScreen> createState() => _AiChatScreenState();
 }
 
-class _AiChatScreenState extends State<AiChatScreen>
+class _AiChatScreenState extends ConsumerState<AiChatScreen>
     with SingleTickerProviderStateMixin {
   final List<ChatMessage> _messages = [];
   final TextEditingController _controller = TextEditingController();
