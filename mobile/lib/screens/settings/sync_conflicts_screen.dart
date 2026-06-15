@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/conflict_manager.dart';
 import '../../services/local_db.dart';
-import 'package:provider/provider.dart';
+import '../../providers/repository_providers.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// شاشة مراقبة التعارضات — تعرض التعارضات المعلقة وتسمح بحلها
@@ -14,7 +15,7 @@ class SyncConflictsScreen extends ConsumerStatefulWidget {
 
 class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
   final _conflictManager = ConflictManager(
-    DatabaseProvider.get().database,
+    DatabaseManager.instance,
   );
 
   @override

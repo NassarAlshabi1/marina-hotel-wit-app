@@ -9,11 +9,7 @@ import '../services/sync_core/sync_error_service.dart';
 import '../services/sync_core/sync_push_service.dart';
 import '../services/sync_core/sync_pull_service.dart';
 import '../services/sync_mutex.dart';
-
-/// توفير قاعدة البيانات المحلية
-final databaseProvider = Provider<AppDatabase>((ref) {
-  return DatabaseProvider.get().database;
-});
+import 'repository_providers.dart';
 
 /// توفير خدمة Appwrite
 final appwriteServiceProvider = Provider<AppwriteService>((ref) {
