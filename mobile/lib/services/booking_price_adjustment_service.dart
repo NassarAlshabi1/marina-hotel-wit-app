@@ -375,6 +375,7 @@ class BookingPriceAdjustmentService {
       cancelledBy: Value(cancelledBy),
       updatedAt: Value(now),
       lastModified: Value(now),
+      version: Value(adjustment.version + 1),
     );
 
     await (db.update(db.bookingPriceAdjustments)

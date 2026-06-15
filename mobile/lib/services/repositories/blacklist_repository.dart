@@ -317,12 +317,13 @@ class BlacklistRepository {
           deletedAtIso: d.Value(nowIso),
           updatedAt: d.Value(now),
           lastModified: d.Value(now),
+          version: d.Value(row.version + 1),
         ),);
 
     if (updated > 0) {
       await _outboxDao.merge(
         entity: 'blacklist',
-        op: 'delete',
+        op: 'update',
         localUuid: row.localUuid,
         serverId: row.serverId,
         payload: {

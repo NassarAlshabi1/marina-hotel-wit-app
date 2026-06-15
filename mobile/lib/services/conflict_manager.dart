@@ -255,6 +255,24 @@ class ConflictManager {
     }
   }
 
+  /// حذف التعارضات التي تم حلها تلقائياً
+  /// [olderThan] — يحذف فقط التعارضات الأقدم من هذه المدة
+  Future<int> deleteResolvedConflicts({
+    Duration olderThan = const Duration(hours: 1),
+  }) async {
+    final cutoff = DateTime.now().subtract(olderThan);
+    final rows = await (database.delete(database.syncConflicts)
+          ..where((t) =>
+              t.createdAt.isSmallerOrEqualValue(cutoff) &
+              t.resolvedAt.isNotNull()))
+        .go();
+    if (rows > 0) {
+      _pendingConflicts.removeWhere((c) => c.timestamp.isBefore(cutoff));
+      _conflictsController.add(_pendingConflicts);
+    }
+    return rows;
+  }
+
   void dispose() {
     if (!_conflictsController.isClosed) {
       _conflictsController.close();

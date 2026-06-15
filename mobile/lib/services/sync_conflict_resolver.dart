@@ -62,6 +62,36 @@ class SyncConflictResolver {
   /// [lastPullTs] طابع زمني آخر سحب (يُقرأ من sync_state تلقائياً إذا لم يُمرر)
   ///
   /// returns: [ConflictCheckResult] يحتوي على نتيجة الكشف والحل
+  /// تحليل Vector Clock من JSON string
+  /// مثال: '{"device1":3,"device2":5}' → {'device1': 3, 'device2': 5}
+  Map<String, int> _parseVectorClock(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return decoded.map((k, v) => MapEntry(k.toString(), (v as num).toInt()));
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  /// مقارنة Vector Clocks — ترجع 'remote' إذا البعيد أحدث، 'local' إذا المحلي أحدث، null إذا متعارض
+  String? _compareVectorClocks(Map<String, int> local, Map<String, int> remote) {
+    bool remoteNewer = false;
+    bool localNewer = false;
+    
+    final allDevices = <String>{...local.keys, ...remote.keys};
+    for (final device in allDevices) {
+      final lv = local[device] ?? 0;
+      final rv = remote[device] ?? 0;
+      if (rv > lv) remoteNewer = true;
+      if (lv > rv) localNewer = true;
+    }
+    
+    if (remoteNewer && !localNewer) return 'remote';
+    if (localNewer && !remoteNewer) return 'local';
+    return null; // متعارض
+  }
+
   Future<ConflictCheckResult> detectAndResolve({
     required String table,
     required String localUuid,
@@ -120,46 +150,56 @@ class SyncConflictResolver {
         '(محلي: v$localVersion@$localLastModified vs بعيد: v$remoteVersion@$remoteLastModified)',
       );
 
-      // تطبيق الاستراتيجية
-      switch (strategy) {
-        case ConflictStrategy.serverWins:
-          _log('🔧 حل تعارض $table/$localUuid: السيرفر يفوز');
+      // ✅ Vector Clock: فحص التعديلات المنطقية قبل تطبيق الاستراتيجية
+      final localVectorClockStr = _extractStringField(localRow, 'vectorClock') ?? 
+          _extractStringField(localRow, 'vector_clock') ?? '';
+      final remoteVectorClockStr = (remoteData['vectorClock'] as String?) ?? 
+          (remoteData['vector_clock'] as String?) ?? '';
+      
+      if (localVectorClockStr.isNotEmpty && remoteVectorClockStr.isNotEmpty) {
+        final localVC = _parseVectorClock(localVectorClockStr);
+        final remoteVC = _parseVectorClock(remoteVectorClockStr);
+        final vcResult = _compareVectorClocks(localVC, remoteVC);
+        
+        if (vcResult == 'remote') {
+          _log('🔧 حل تعارض $table/$localUuid: Vector Clock ← البعيد أحدث');
           return const ConflictCheckResult(
             isConflict: true,
             resolved: true,
             usedRemote: true,
-            reason:
-                'تعارض حقيقي - تم اختيار بيانات السيرفر (serverWins strategy)',
+            reason: 'Vector Clock: البعيد أحدث في كل الأجهزة',
           );
-
-        case ConflictStrategy.localWins:
-          _log('🔧 حل تعارض $table/$localUuid: المحلي يفوز');
+        }
+        if (vcResult == 'local') {
+          _log('🔧 حل تعارض $table/$localUuid: Vector Clock ← المحلي أحدث');
           return const ConflictCheckResult(
             isConflict: true,
             resolved: true,
             usedLocal: true,
-            reason:
-                'تعارض حقيقي - تم الاحتفاظ بالبيانات المحلية (localWins strategy)',
+            reason: 'Vector Clock: المحلي أحدث في كل الأجهزة',
           );
+        }
+        // متعارض → استمرار لمقارنة lastModified
+        _log('⚠️ Vector Clock متعارض لـ $table/$localUuid — التحول إلى lastModified');
+      }
 
-        case ConflictStrategy.manualReview:
-          // تسجيل التعارض للمراجعة اليدوية
-          final conflictId = await logConflict(
-            table: table,
-            localUuid: localUuid,
-            localData: _rowToMap(localRow),
-            remoteData: remoteData,
-          );
-          _log(
-            '📝 تعارض $table/$localUuid: مُسجّل للمراجعة اليدوية (conflict#$conflictId)',
-          );
-          return ConflictCheckResult(
-            isConflict: true,
-            usedLocal: true,
-            reason:
-                'تعارض حقيقي - مُسجّل للمراجعة اليدوية (manualReview strategy)',
-            conflictId: conflictId,
-          );
+      // حل تلقائي بالكامل: مقارنة lastModified
+      if (remoteLastModified > localLastModified) {
+        _log('🔧 حل تعارض $table/$localUuid: البعيد أحدث ← remote wins');
+        return const ConflictCheckResult(
+          isConflict: true,
+          resolved: true,
+          usedRemote: true,
+          reason: 'تعارض - البعيد أحدث (lastModified)',
+        );
+      } else {
+        _log('🔧 حل تعارض $table/$localUuid: المحلي أحدث أو مساوٍ ← local wins');
+        return const ConflictCheckResult(
+          isConflict: true,
+          resolved: true,
+          usedLocal: true,
+          reason: 'تعارض - المحلي أحدث أو مساوٍ (lastModified)',
+        );
       }
     } catch (e, st) {
       _log('❌ خطأ في كشف التعارض $table/$localUuid: $e');

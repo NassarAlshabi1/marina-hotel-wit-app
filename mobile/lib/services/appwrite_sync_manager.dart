@@ -27,6 +27,9 @@ import 'appwrite_service.dart';
 import 'appwrite_sync_utils.dart';
 import 'booking_derived_fields_service.dart';
 import 'crashlytics_service.dart';
+import 'sync_core/sync_error_service.dart';
+import 'sync_core/sync_push_service.dart';
+import 'sync_core/sync_pull_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'repositories/bookings_repository.dart';
@@ -100,10 +103,15 @@ class AppwriteSyncManager {
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
+  final _err = SyncErrorService(tag: 'SYNC');
+  SyncPushService? _pushService;
+  SyncPullService? _pullService;
 
   Timer? _syncTimer;
   Timer? _debouncePushTimer;
   Timer? _failedRetryTimer;
+  Timer? _cleanupTimer;
+  double _adaptiveBatchSize = 50;
   StreamSubscription<void>? _outboxSubscription;
   Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
   SyncStatus _currentStatus = SyncStatus.idle;
@@ -477,11 +485,15 @@ class AppwriteSyncManager {
           final failedCount = await outboxDao.count();
           if (failedCount == 0) return;
 
-          // إعادة تعيين العناصر الفاشلة إلى pending
-          await outboxDao.retryFailed();
+          // إعادة تعيين العناصر الفاشلة إلى pending مع backoff
+          final resetCount = await outboxDao.retryFailedWithBackoff(
+            maxAttempts: 5,
+            backoffMinutes: 30,
+          );
+          if (resetCount == 0) return;
 
           debugPrint(
-            '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $failedCount)',
+            '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)',
           );
 
           // محاولة رفعها فوراً
@@ -495,6 +507,17 @@ class AppwriteSyncManager {
       },
     );
     debugPrint('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
+
+    // ✅ تنظيف outbox تلقائي كل 24 ساعة
+    _cleanupTimer?.cancel();
+    _cleanupTimer = Timer.periodic(const Duration(hours: 24), (_) async {
+      try {
+        await outboxDao.cleanupCompleted();
+        await outboxDao.cleanupOrphanedEntries();
+      } catch (e) {
+        _logger.warning('⚠️ فشل تنظيف outbox الدوري: $e', tag: 'SYNC');
+      }
+    });
   }
 
   /// تمكين الدفع المؤجل بعد تغييرات outbox
@@ -546,6 +569,7 @@ class AppwriteSyncManager {
     _syncTimer?.cancel();
     _debouncePushTimer?.cancel();
     _failedRetryTimer?.cancel();
+    _cleanupTimer?.cancel();
     _outboxSubscription?.cancel();
     stopAutoSync();
     _syncController.close();
@@ -1910,12 +1934,20 @@ class AppwriteSyncManager {
   }
 
   Future<int> _pushAllEntities() async {
-    const batchSize = 200;
+    // ✅ فحص الاتصال أولاً
+    try {
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        _logger.warning('⚠️ لا يوجد اتصال بالإنترنت - تم تأجيل الرفع', tag: 'SYNC');
+        return 0;
+      }
+    } catch (_) {}
+
     int totalProcessed = 0;
+    int consecutiveFailures = 0;
 
     while (true) {
-      // ✅ فصل هندسي: نعالج فقط عناصر source='local' (تغييرات محلية)
-      // عناصر 'restore' تُعالج بشكل منفصل عبر pushAllLocalData
+      final batchSize = _adaptiveBatchSize.round();
       final entries = await outboxDao.takeBatch(batchSize, sources: const ['local']);
       if (entries.isEmpty) {
         break;
@@ -1923,19 +1955,38 @@ class AppwriteSyncManager {
 
       int processedInBatch = 0;
       for (final entry in entries) {
-        final success = await _processOutboxEntry(entry);
-        if (success) {
-          await outboxDao.removeById(entry.id);
-          processedInBatch++;
+        try {
+          final timeoutSeconds = 30;
+          final success = await _processOutboxEntry(entry)
+              .timeout(Duration(seconds: timeoutSeconds));
+          if (success) {
+            await outboxDao.removeById(entry.id);
+            processedInBatch++;
+          }
+        } catch (e) {
+          if (e is TimeoutException) {
+            _logger.warning('⏱️ Timeout processing entry ${entry.id}', tag: 'SYNC');
+          }
         }
       }
+
+      // Adaptive batch size
+      if (processedInBatch == entries.length) {
+        _adaptiveBatchSize = (_adaptiveBatchSize * 1.3).clamp(10, 200);
+        consecutiveFailures = 0;
+      } else {
+        _adaptiveBatchSize = (_adaptiveBatchSize * 0.6).clamp(5, 100);
+        consecutiveFailures++;
+      }
+
       totalProcessed += processedInBatch;
 
-      if (entries.length == batchSize && processedInBatch == 0) {
-        _logger.warning(
-          'Push loop stuck on failing entries. Breaking.',
-          tag: 'SYNC',
-        );
+      if (consecutiveFailures >= 3) {
+        _logger.warning('⛔ 3 دفعات فاشلة متتالية - إيقاف المزامنة', tag: 'SYNC');
+        break;
+      }
+
+      if (entries.length < batchSize) {
         break;
       }
     }
@@ -5357,6 +5408,8 @@ class AppwriteSyncManager {
       // تم تدقيق كل حقل مقابل المخطط الفعلي في 2026-06-14
       // ❌ لا ترسل حقولاً غير موجودة — يسبب "Unknown attribute" خطأ 400
       final data = <String, dynamic>{
+        'key': 'whatsapp_settings',
+        'value': '',
         // ── فندق ──
         'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
         'hotel_cutoff_hour': prefs.getInt('hotel_cutoff_hour') ?? 14,
