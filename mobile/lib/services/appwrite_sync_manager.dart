@@ -2398,6 +2398,23 @@ class AppwriteSyncManager {
     }
   }
 
+  /// حذف سجل يتيم من Appwrite بعد التأكد من عدم وجود الأب
+  /// يمنع إعادة جلب السجل اليتيم في دورات المزامنة التالية
+  Future<void> _deleteOrphanFromCloud({
+    required String collectionId,
+    required String documentId,
+    String? logLabel,
+  }) async {
+    await _deleteSilently(() => appwriteService.deleteDocument(
+      collectionId: collectionId,
+      documentId: documentId,
+    ));
+    _logger.warning(
+      '🗑️ تم حذف سجل يتيم $documentId من Appwrite ($collectionId)',
+      tag: 'SYNC',
+    );
+  }
+
   Future<Room?> _getRoomByLocalUuid(String localUuid) {
     return (database.select(
       database.rooms,
@@ -2614,8 +2631,12 @@ class AppwriteSyncManager {
 
         if (employee == null) {
           _logger.warning(
-            '⏭️ تخطي salary_withdrawal ${doc.$id}: الموظف غير موجود محلياً ولا على Appwrite (سجل يتيم)',
+            '🗑️ حذف salary_withdrawal يتيم ${doc.$id}: الموظف غير موجود محلياً ولا على Appwrite',
             tag: 'SYNC',
+          );
+          _deleteOrphanFromCloud(
+            collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
+            documentId: doc.$id,
           );
           processed++;
           continue;
@@ -2676,8 +2697,12 @@ class AppwriteSyncManager {
           final employee = await _ensureEmployeeExists(data, data['localUuid'] as String? ?? '');
           if (employee == null) {
             _logger.warning(
-              '⏭️ فشل نهائي لـ salary_withdrawal (يتيم): الموظف غير موجود محلياً ولا على Appwrite',
+              '🗑️ حذف salary_withdrawal يتيم: الموظف غير موجود محلياً ولا على Appwrite (بعد إعادة المحاولة)',
               tag: 'SYNC',
+            );
+            _deleteOrphanFromCloud(
+              collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
+              documentId: data['localUuid'] as String? ?? 'unknown',
             );
             processed++;
             continue;
@@ -5842,11 +5867,15 @@ class AppwriteSyncManager {
 
           // ✅ إصلاح جذري: التأكد من وجود الحجز الأب قبل إدراج تعديل السعر
           if (!await _ensureParentBookingExists(data, doc.$id)) {
-            // حتى في المرحلة الثانية: لا نستطيع إدراج السجل
-            // الحجز الأب غير موجود — نسجل تحذيراً وننتظر الدورة القادمة
+            // الحجز الأب غير موجود — نحذف السجل اليتيم من Appwrite
+            // لمنع إعادة جلب السجل في دورات المزامنة التالية
             _logger.warning(
-              '⚠️ تعديل سعر ${doc.$id}: الحجز الأب غير موجود بعد محاولتين — تم التجاهل',
+              '🗑️ حذف تعديل سعر يتيم ${doc.$id}: الحجز الأب غير موجود بعد محاولتين',
               tag: 'SYNC',
+            );
+            _deleteOrphanFromCloud(
+              collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+              documentId: doc.$id,
             );
             continue;
           }
@@ -5872,8 +5901,12 @@ class AppwriteSyncManager {
           if (errStr.contains('FOREIGN KEY constraint failed') ||
               errStr.contains('NOT NULL constraint failed')) {
             _logger.warning(
-              '⏭️ تخطي تعديل سعر ${doc.$id}: الحجز الأب غير موجود محلياً ولا على Appwrite (سجل يتيم)',
+              '🗑️ حذف تعديل سعر يتيم ${doc.$id}: فشل FK/NotNull — الحجز الأب غير موجود',
               tag: 'SYNC',
+            );
+            _deleteOrphanFromCloud(
+              collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+              documentId: doc.$id,
             );
           } else {
             _logger.warning(
@@ -6043,6 +6076,9 @@ class AppwriteSyncManager {
         // ── مزامنة ──
         'appwrite_sync_interval': prefs.getInt('appwrite_sync_interval') ?? 15,
       };
+
+      // ── قيمة JSON مطلوبة من Appwrite Schema (required attribute)
+      data['value'] = jsonEncode(data);
 
       const docId = 'whatsapp_settings';
       const collectionId = 'app_settings';

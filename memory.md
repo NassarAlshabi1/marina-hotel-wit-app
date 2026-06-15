@@ -441,3 +441,91 @@ final data = <String, dynamic>{
 ```
 
 **الالتزام:** `e625ee9`
+
+---
+
+## 17. إصلاح خطأ app_settings (Missing required attribute "value")
+
+**الملفات:** `appwrite_sync_utils.dart` + `appwrite_sync_manager.dart`
+
+**الخطأ:**
+```
+AppwriteException: document_invalid_structure, Invalid document structure: Missing required attribute "value" (400)
+```
+
+**السبب:** Appwrite Cloud يتطلب حقل `value` من نوع string في مجموعة `app_settings`، لكن الكود لم يكن يرسله. الإصلاح السابق (`key`) كان ناقصاً.
+
+**الإصلاح 1 — `appwrite_sync_utils.dart` (السطر 212):**
+إضافة `'value'` إلى `validFieldsPerCollection['app_settings']` لمنع `_filterPayload` من إزالته:
+```dart
+'app_settings': {
+  'value',  // ✅ إضافة — مطلوب من Appwrite Schema
+  'appwrite_sync_interval', 'dark_mode', 'hotel_cutoff_hour',
+  'hotel_name', 'key', ...
+},
+```
+
+**الإصلاح 2 — `appwrite_sync_manager.dart` (دالة `_pushAppSettingsToCloud`):**
+إضافة `data['value'] = jsonEncode(data)` بعد بناء الـ data map وقبل الإرسال:
+```dart
+      'appwrite_sync_interval': prefs.getInt('appwrite_sync_interval') ?? 15,
+    };
+
+    // ✅ إضافة حقل value المطلوب من Appwrite Schema — JSON للكل
+    data['value'] = jsonEncode(data);
+```
+
+## 18. حذف السجلات اليتيمة من Appwrite تلقائياً
+
+**الملف:** `appwrite_sync_manager.dart`
+
+**المشكلة:** السجلات اليتيمة (orphaned records) تتراكم في Appwrite Cloud دون حذف:
+- `booking_price_adjustments` تشير إلى حجز غير موجود محلياً ولا على Appwrite
+- `salary_withdrawals` تشير إلى موظف غير موجود محلياً ولا على Appwrite
+
+كل دورة مزامنة تعيد جلب هذه السجلات، ثم تكتشف أنها يتيمة، فتتخطاها، وتتكرر العملية في الدورة التالية.
+
+**الإصلاح — دالة مساعدة جديدة `_deleteOrphanFromCloud`:**
+```dart
+Future<void> _deleteOrphanFromCloud({
+  required String collectionId,
+  required String documentId,
+}) async {
+  await _deleteSilently(() => appwriteService.deleteDocument(
+    collectionId: collectionId,
+    documentId: documentId,
+  ));
+  _logger.warning('🗑️ تم حذف سجل يتيم $documentId من Appwrite ($collectionId)', tag: 'SYNC');
+}
+```
+
+**الإصلاح — `_syncBookingPriceAdjustments` (مرحلة إعادة المحاولة):**
+- بعد `_ensureParentBookingExists` ترفع `false` في المحاولة الثانية → نحذف السجل اليتيم من Appwrite
+- بعد `FOREIGN KEY constraint failed` في المحاولة الثانية → نحذف السجل اليتيم من Appwrite
+
+```dart
+if (!await _ensureParentBookingExists(data, doc.$id)) {
+  _logger.warning('🗑️ حذف تعديل سعر يتيم ${doc.$id}: الحجز الأب غير موجود بعد محاولتين', tag: 'SYNC');
+  _deleteOrphanFromCloud(
+    collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+    documentId: doc.$id,
+  );
+  continue;
+}
+```
+
+**الإصلاح — `_syncSalaryWithdrawals` (المرحلتين الأولى وإعادة المحاولة):**
+- بعد `_ensureEmployeeExists` ترفع `null` في المرحلة الأولى → نحذف السجل اليتيم من Appwrite
+- بعد `_ensureEmployeeExists` ترفع `null` في مرحلة إعادة المحاولة → نحذف السجل اليتيم من Appwrite
+
+```dart
+if (employee == null) {
+  _logger.warning('🗑️ حذف salary_withdrawal يتيم ${doc.$id}: الموظف غير موجود', tag: 'SYNC');
+  _deleteOrphanFromCloud(
+    collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
+    documentId: doc.$id,
+  );
+  processed++;
+  continue;
+}
+```

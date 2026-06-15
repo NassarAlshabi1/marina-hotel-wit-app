@@ -210,6 +210,7 @@ class AppwriteSyncUtils {
       'timestamp', 'updatedAt', 'updatedAtIso', 'vectorClock', 'version',
     },
     'app_settings': {
+      'value',
       'appwrite_sync_interval', 'dark_mode', 'hotel_cutoff_hour',
       'hotel_name', 'key', 'lark_app_id', 'lark_app_secret',
       'lark_daily_report_chat_id', 'lark_daily_report_enabled',
