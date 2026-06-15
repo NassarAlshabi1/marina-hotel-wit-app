@@ -261,13 +261,13 @@ class ConflictManager {
     Duration olderThan = const Duration(hours: 1),
   }) async {
     final cutoff = DateTime.now().subtract(olderThan);
-    final rows = await (database.delete(database.syncConflicts)
+    final rows = await (db.delete(db.syncConflicts)
           ..where((t) =>
-              t.createdAt.isSmallerOrEqualValue(cutoff) &
-              t.resolvedAt.isNotNull()))
+              t.createdAt.isSmallerOrEqualValue(cutoff.toIso8601String()) &
+              t.resolution.isNotEqualTo('')))
         .go();
     if (rows > 0) {
-      _pendingConflicts.removeWhere((c) => c.timestamp.isBefore(cutoff));
+      _pendingConflicts.removeWhere((c) => c.detectedAt.isBefore(cutoff));
       _conflictsController.add(_pendingConflicts);
     }
     return rows;

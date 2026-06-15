@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../services/conflict_manager.dart';
-import '../../services/local_db.dart';
-import '../../providers/repository_providers.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../providers/repository_providers.dart';
+import '../../services/conflict_manager.dart';
 
 /// شاشة مراقبة التعارضات — تعرض التعارضات المعلقة وتسمح بحلها
 class SyncConflictsScreen extends ConsumerStatefulWidget {
@@ -14,13 +13,12 @@ class SyncConflictsScreen extends ConsumerStatefulWidget {
 }
 
 class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
-  final _conflictManager = ConflictManager(
-    DatabaseManager.instance,
-  );
+  late final ConflictManager _conflictManager;
 
   @override
   void initState() {
     super.initState();
+    _conflictManager = ConflictManager(ref.read(databaseProvider));
     _conflictManager.loadPendingConflicts();
   }
 
@@ -54,8 +52,8 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<List<ConflictRecord>>(
-        stream: _conflictManager.pendingConflictsStream,
+      body: StreamBuilder<List<PendingConflict>>(
+        stream: _conflictManager.conflictsStream,
         builder: (context, snapshot) {
           final conflicts = snapshot.data ?? [];
 
@@ -90,11 +88,11 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: ExpansionTile(
                     title: Text(
-                      '${conflict.targetTable} — ${conflict.uuid.substring(0, 8)}...',
+                      '${conflict.table} — ${conflict.uuid.substring(0, 8)}...',
                       style: const TextStyle(fontSize: 14),
                     ),
                     subtitle: Text(
-                      '${conflict.lastError} — ${_formatDate(conflict.timestamp)}',
+                      '${conflict.resolution != null ? "محلول" : "معلق"} — ${_formatDate(conflict.detectedAt)}',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     children: [
@@ -105,11 +103,11 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
                           children: [
                             const Text('البيانات المحلية:', style: TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
-                            Text(conflict.localPayload.toString(), style: const TextStyle(fontSize: 12)),
+                            Text(conflict.localData.toString(), style: const TextStyle(fontSize: 12)),
                             const Divider(),
                             const Text('البيانات البعيدة:', style: TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
-                            Text(conflict.remotePayload.toString(), style: const TextStyle(fontSize: 12)),
+                            Text(conflict.remoteData.toString(), style: const TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),

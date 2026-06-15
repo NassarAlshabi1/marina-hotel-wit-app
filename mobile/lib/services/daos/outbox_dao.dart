@@ -163,10 +163,20 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
     // ✅ تحديث ذري: حدّت الحالة مباشرة في استعلام واحد لمنع المعالجة المكررة
     // بدلاً من SELECT ثم UPDATE المنفصلين اللذين يسمحان بسباق البيانات
+    final priorityCase = "CASE WHEN entity = 'rooms' THEN 1 "
+        "WHEN entity = 'employees' THEN 2 "
+        "WHEN entity = 'bookings' THEN 3 "
+        "WHEN entity = 'payments' THEN 4 "
+        "WHEN entity = 'expenses' THEN 5 "
+        "WHEN entity = 'debts' THEN 6 "
+        "WHEN entity = 'booking_notes' THEN 7 "
+        "WHEN entity = 'shift_notes' THEN 8 "
+        "WHEN entity = 'cash_transactions' THEN 9 "
+        'ELSE 10 END';
     final claimed = await customSelect(
       'UPDATE outbox SET processing_status = ?, processing_started_at = ?, processing_worker = ? '
       'WHERE id IN ('
-      '  SELECT id FROM outbox WHERE processing_status = ?$sourceCondition ORDER BY CASE WHEN entity = 'rooms' THEN 1 WHEN entity = 'employees' THEN 2 WHEN entity = 'bookings' THEN 3 WHEN entity = 'payments' THEN 4 WHEN entity = 'expenses' THEN 5 WHEN entity = 'debts' THEN 6 WHEN entity = 'booking_notes' THEN 7 WHEN entity = 'shift_notes' THEN 8 WHEN entity = 'cash_transactions' THEN 9 ELSE 10 END ASC, client_ts ASC LIMIT ? '
+      '  SELECT id FROM outbox WHERE processing_status = ?$sourceCondition ORDER BY $priorityCase ASC, client_ts ASC LIMIT ? '
       ') RETURNING *',
       variables: [
         const Variable<String>('processing'),

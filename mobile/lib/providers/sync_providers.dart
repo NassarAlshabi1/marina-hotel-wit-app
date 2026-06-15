@@ -2,14 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/appwrite_service.dart';
 import '../services/appwrite_sync_manager.dart';
-import '../services/crashlytics_service.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/local_db.dart';
 import '../services/sync_core/sync_error_service.dart';
 import '../services/sync_core/sync_push_service.dart';
 import '../services/sync_core/sync_pull_service.dart';
 import '../services/sync_mutex.dart';
-import 'repository_providers.dart';
+import 'repository_providers.dart' show databaseProvider;
 
 /// توفير خدمة Appwrite
 final appwriteServiceProvider = Provider<AppwriteService>((ref) {

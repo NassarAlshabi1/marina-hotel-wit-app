@@ -1,28 +1,18 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
-import 'package:drift/drift.dart' as drift;
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
-import '../appwrite_logger.dart';
 import '../appwrite_service.dart';
-import '../appwrite_sync_utils.dart';
-import '../booking_derived_fields_service.dart';
-import '../conflict_manager.dart';
-import '../crashlytics_service.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../repositories/bookings_repository.dart';
 import '../repositories/rooms_repository.dart';
-import '../sync_constants.dart';
-import '../sync_enums.dart';
 import '../sync_mutex.dart';
+import '../../sync/models/sync_models.dart' show SyncStatus;
 import 'sync_error_service.dart';
 
 class SyncPullService {
@@ -34,7 +24,7 @@ class SyncPullService {
   late final RoomsRepository _roomsRepository;
   final SyncMutex _mutex;
   final SyncErrorService _err;
-  SyncStatus _currentStatus = SyncStatus.idle;
+  SyncStatus _currentStatus = SyncStatus.pending;
   final _syncController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
 

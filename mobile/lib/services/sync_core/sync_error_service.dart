@@ -50,13 +50,14 @@ class SyncErrorService {
         operation: tag,
         error: error ?? message,
         stackTrace: stackTrace,
+        context: context ?? const {},
       );
     } else {
       _crashlytics.recordSyncError(
         operation: tag,
         error: error?.toString() ?? message,
         stackTrace: stackTrace,
-        context: context,
+        context: context ?? const {},
       );
     }
   }
@@ -67,18 +68,21 @@ class SyncErrorService {
     String? context,
     StackTrace? stackTrace,
   }) {
-    final result = _errorHandler.handleError(
+    final appwriteError = _errorHandler.handleError(
       error,
       context: context ?? tag,
       stackTrace: stackTrace,
     );
     _logger.warning(
-      result.message,
+      appwriteError.message,
       error: error,
       stackTrace: stackTrace,
       tag: tag,
     );
-    return result;
+    return AppwriteErrorResult(
+      message: appwriteError.message,
+      isRetryable: appwriteError.isRecoverable,
+    );
   }
 
   /// إظهار SnackBar للمستخدم مع رسالة الخطأ
