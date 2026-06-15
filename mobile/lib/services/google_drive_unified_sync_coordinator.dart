@@ -4,6 +4,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../utils/debug_logs.dart';
 import 'data_usage_manager.dart';
@@ -181,7 +183,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     await _deltaSync!.initialize(backupService, database);
     await _loadSettings();
 
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     _lastPushTime = _parseTimestamp(prefs.getString(_prefsLastPushKey));
     _lastPullTime = _parseTimestamp(prefs.getString(_prefsLastPullKey));
     _lastFullBackupTime = _parseTimestamp(
@@ -189,7 +191,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     );
 
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-    final initPrefs = await SharedPreferences.getInstance();
+    final initPrefs = getSharedPrefs();
     final initSyncEnabled = initPrefs.getBool('google_drive_sync_enabled') ?? false;
     if (backupService.isSignedIn && initSyncEnabled) {
       await _startMonitoring();
@@ -202,7 +204,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
 
     if (!prefs.containsKey(_prefsPushEnabledKey)) {
       await prefs.setBool(_prefsPushEnabledKey, false);
@@ -240,7 +242,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     _log('🔐 Sign-in status changed: $isSignedIn');
 
     if (isSignedIn) {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
       if (!syncEnabled) {
         _log('⏸️ Google Drive sync disabled - skipping monitoring');
@@ -261,7 +263,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     if (!_isInitialized || !(_backupService?.isSignedIn ?? false)) {
       return;
     }
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
     if (!syncEnabled) {
       _log('⏸️ Google Drive sync disabled - monitoring skipped');
@@ -445,7 +447,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     SyncMode mode = SyncMode.smart,
   }) async {
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-    final gdPrefs = await SharedPreferences.getInstance();
+    final gdPrefs = getSharedPrefs();
     final gdSyncEnabled = gdPrefs.getBool('google_drive_sync_enabled') ?? false;
     if (!gdSyncEnabled) {
       _log('⏸️ Google Drive sync disabled - skipping performSync');
@@ -561,7 +563,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       if (effectiveMode == SyncMode.fullBackup) {
         pushed = await _performFullBackup();
         _lastFullBackupTime = DateTime.now();
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = getSharedPrefs();
         await prefs.setString(
           _prefsLastFullBackupKey,
           _lastFullBackupTime!.toIso8601String(),
@@ -686,7 +688,7 @@ class GoogleDriveUnifiedSyncCoordinator {
         _firstChangeTime = null;
         _lastPushTime = DateTime.now();
 
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = getSharedPrefs();
         await prefs.setString(
           _prefsLastPushKey,
           _lastPushTime!.toIso8601String(),
@@ -722,7 +724,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       if (result.success) {
         _lastPullTime = DateTime.now();
 
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = getSharedPrefs();
         await prefs.setString(
           _prefsLastPullKey,
           _lastPullTime!.toIso8601String(),
@@ -777,7 +779,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   Future<void> setPushEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_prefsPushEnabledKey, enabled);
     _pushEnabled = enabled;
 
@@ -805,7 +807,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   Future<void> setPullEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_prefsPullEnabledKey, enabled);
     _pullEnabled = enabled;
 
@@ -819,14 +821,14 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   Future<void> setDebounceSeconds(int seconds) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsDebounceSecondsKey, seconds);
     _debounceSeconds = seconds;
     _log('⏱️ Debounce set to $seconds seconds');
   }
 
   Future<void> setPullInterval(int minutes) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsPullIntervalKey, minutes);
     _pullIntervalMinutes = minutes;
 
@@ -838,7 +840,7 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   Future<void> setFullBackupInterval(int hours) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsFullBackupIntervalKey, hours);
     _fullBackupIntervalHours = hours;
 
@@ -875,7 +877,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
     try {
       return DateTime.parse(iso);
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       return null;
     }
   }

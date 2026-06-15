@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../services/alarm_backup.dart';
 import '../services/remote_config_service.dart';
@@ -78,7 +79,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
   /// تهيئة الحالة من SharedPreferences
   Future<void> _initialize() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final enabled = prefs.getBool('telegram_enabled') ?? true;
       final notificationsEnabled = prefs.getBool('telegram_notifications_enabled') ?? true;
       final dailyReportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? true;

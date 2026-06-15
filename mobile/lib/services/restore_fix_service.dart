@@ -188,7 +188,7 @@ class RestoreFixService {
   Future<Directory> _resolveCacheDirectory() async {
     try {
       return await getApplicationCacheDirectory();
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       return Directory.systemTemp.createTemp('marina_cache_');
     }
   }
@@ -1064,7 +1064,7 @@ class RestoreFixService {
     }
     try {
       return DateTime.parse(raw);
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       return null;
     }
   }

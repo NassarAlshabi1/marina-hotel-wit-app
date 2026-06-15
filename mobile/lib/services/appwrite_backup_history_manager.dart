@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:uuid/uuid.dart';
 
 import 'appwrite_backup_operation_log.dart';
@@ -12,7 +13,7 @@ class BackupHistoryManager {
   static const int _maxLogs = 100;
 
   static Future<List<BackupOperationLog>> loadLogs() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final jsonStr = prefs.getString(_storageKey);
     if (jsonStr == null || jsonStr.isEmpty) return [];
 
@@ -40,7 +41,7 @@ class BackupHistoryManager {
   }
 
   static Future<void> clearLogs() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.remove(_storageKey);
   }
 
@@ -51,7 +52,7 @@ class BackupHistoryManager {
   }
 
   static Future<void> _saveLogs(List<BackupOperationLog> logs) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final jsonList = logs.map((l) => l.toJson()).toList();
     await prefs.setString(_storageKey, jsonEncode(jsonList));
   }

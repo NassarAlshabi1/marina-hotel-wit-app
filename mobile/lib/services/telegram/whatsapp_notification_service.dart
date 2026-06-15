@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../remote_config_service.dart';
 
@@ -59,14 +61,14 @@ class WhatsAppNotificationService {
   Future<String> _getPhone() async {
     final rc = RemoteConfigService.instance.whatsappPhone;
     if (rc.isNotEmpty) return rc;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString('whatsapp_phone') ?? '';
   }
 
   Future<String> _getApiKey() async {
     final rc = RemoteConfigService.instance.whatsappApiKey;
     if (rc.isNotEmpty) return rc;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString('whatsapp_api_key') ?? '';
   }
 
@@ -142,7 +144,7 @@ class WhatsAppNotificationService {
           if (json['success'] == true || json['sent'] == true) {
             return true;
           }
-        } catch (_) {
+        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
           if (body.toLowerCase().contains('sent') ||
               body.toLowerCase().contains('ok') ||
               body.toLowerCase().contains('success')) {

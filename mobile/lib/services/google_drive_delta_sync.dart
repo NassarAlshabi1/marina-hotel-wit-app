@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../utils/id.dart';
 import '../utils/time.dart';
@@ -51,7 +52,7 @@ class GoogleDriveDeltaSync {
   }
 
   Future<void> _initializeDeviceId() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     _deviceId = prefs.getString(_prefsDeviceIdKey);
     if (_deviceId == null) {
       _deviceId = IdGen.uuid();
@@ -65,7 +66,7 @@ class GoogleDriveDeltaSync {
 
   Future<DeltaSyncResult> pushDeltaChanges() async {
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-    final pushPrefs = await SharedPreferences.getInstance();
+    final pushPrefs = getSharedPrefs();
     final pushSyncEnabled = pushPrefs.getBool('google_drive_sync_enabled') ?? false;
     if (!pushSyncEnabled) {
       return DeltaSyncResult(
@@ -148,7 +149,7 @@ class GoogleDriveDeltaSync {
 
   Future<DeltaSyncResult> pullDeltaChanges() async {
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-    final pullPrefs = await SharedPreferences.getInstance();
+    final pullPrefs = getSharedPrefs();
     final pullSyncEnabled = pullPrefs.getBool('google_drive_sync_enabled') ?? false;
     if (!pullSyncEnabled) {
       return DeltaSyncResult(
@@ -223,7 +224,7 @@ class GoogleDriveDeltaSync {
         }
       }
 
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setInt(_prefsLastPullTsKey, maxProcessedTsSec);
 
       // إعادة حساب حالات الغرف بناءً على الحجوزات الفعلية
@@ -633,7 +634,7 @@ class GoogleDriveDeltaSync {
   }
 
   Future<int> _getLastPushTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final cached = prefs.getInt(_prefsLastPushTsKey);
     if (cached != null) {
       return cached;
@@ -647,7 +648,7 @@ class GoogleDriveDeltaSync {
   }
 
   Future<int> _getLastPullTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final cached = prefs.getInt(_prefsLastPullTsKey);
     if (cached != null) {
       return cached;
@@ -661,13 +662,13 @@ class GoogleDriveDeltaSync {
   }
 
   Future<void> _updateLastPushTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsLastPushTsKey, Time.nowEpoch());
   }
 
   // ignore: unused_element
   Future<void> _updateLastPullTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsLastPullTsKey, Time.nowEpoch());
   }
 

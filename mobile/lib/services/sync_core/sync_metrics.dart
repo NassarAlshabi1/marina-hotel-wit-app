@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 /// معلومات دورة مزامنة واحدة
 class SyncSession {
@@ -223,7 +224,7 @@ class SyncMetrics {
   /// حفظ السجل
   Future<void> _saveHistory() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final jsonList = _history.map((s) => jsonEncode(s.toJson())).toList();
       await prefs.setStringList(_prefsKey, jsonList);
     } catch (e) {
@@ -234,7 +235,7 @@ class SyncMetrics {
   /// تحميل السجل
   Future<void> loadHistory() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final jsonList = prefs.getStringList(_prefsKey) ?? [];
 
       _history.clear();
@@ -253,7 +254,7 @@ class SyncMetrics {
   /// مسح السجل
   Future<void> clearHistory() async {
     _history.clear();
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.remove(_prefsKey);
     _updateStats();
     debugPrint('🗑️ SyncMetrics: تم مسح السجل');

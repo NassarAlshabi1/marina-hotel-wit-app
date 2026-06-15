@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../services/unified_sync_orchestrator.dart';
@@ -16,7 +17,7 @@ void appwriteAutoSyncCallbackDispatcher() {
     try {
       WidgetsFlutterBinding.ensureInitialized();
 
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final enabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!enabled) {
@@ -113,7 +114,7 @@ class AppwriteAutoSyncTask {
   }
 
   static Future<void> consumePendingAndSync({bool force = false}) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final pending = prefs.getBool(_kPendingFlagKey) ?? false;
     if (!pending && !force) {
       return;

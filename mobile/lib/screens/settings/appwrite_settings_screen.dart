@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
@@ -48,7 +49,7 @@ class _AppwriteSettingsScreenState
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     setState(() {
       _syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
       _syncInterval = prefs.getInt('appwrite_sync_interval') ?? 15;
@@ -64,7 +65,7 @@ class _AppwriteSettingsScreenState
   }
 
   Future<void> _saveSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool('appwrite_sync_enabled', _syncEnabled);
     await prefs.setInt('appwrite_sync_interval', _syncInterval);
     await prefs.setBool('appwrite_auto_sync_on_connect', _autoSyncOnConnect);

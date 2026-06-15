@@ -94,7 +94,7 @@ class HotelDayKeyFixService {
       return HotelTimeEngine.getHotelDayKey(
         dateTime: DateTime(year, month, day, 14, 1),
       );
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       return HotelTimeEngine.getHotelDayKey();
     }
   }
@@ -283,7 +283,7 @@ class HotelDayKeyFixService {
               'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
               [matched.id, sw.id],
             );
-          } catch (_) {
+          } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
             // العمود قد لا يكون موجوداً
           }
 

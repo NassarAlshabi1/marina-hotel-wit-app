@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 enum SyncHealthStatus { healthy, warning, critical, error }
 
@@ -194,7 +195,7 @@ class SyncHealthMonitor {
   }
 
   Future<void> _loadMetrics() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     _consecutiveFailures = prefs.getInt('sync_health_failures') ?? 0;
 
     final successStr = prefs.getString('sync_health_last_success');
@@ -209,7 +210,7 @@ class SyncHealthMonitor {
   }
 
   Future<void> _persistMetrics() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt('sync_health_failures', _consecutiveFailures);
 
     if (_lastSuccessAt != null) {

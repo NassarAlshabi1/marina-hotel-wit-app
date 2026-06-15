@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../tasks/auto_sync_task.dart';
 import '../utils/app_logger.dart';
@@ -159,13 +160,13 @@ class SyncGuardian {
 
   Future<void> setDevicePriority(int priority) async {
     _priorityOverridden = priority > 100;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt('sync_guardian_device_priority', priority);
     _emitHealth();
   }
 
   Future<void> _restoreDevicePriority() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final priority = prefs.getInt('sync_guardian_device_priority');
     if (priority != null) {
       _priorityOverridden = priority > 100;
@@ -175,7 +176,7 @@ class SyncGuardian {
   void _startPendingMonitor() {
     _pendingMonitor?.cancel();
     _pendingMonitor = Timer.periodic(const Duration(minutes: 5), (_) async {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final pending = prefs.getBool('auto_sync_pending') ?? false;
       _pendingEvents = pending;
       if (pending) {
@@ -208,7 +209,7 @@ class SyncGuardian {
   }
 
   Future<void> _refreshPendingFlag() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     _pendingEvents = prefs.getBool('auto_sync_pending') ?? false;
   }
 

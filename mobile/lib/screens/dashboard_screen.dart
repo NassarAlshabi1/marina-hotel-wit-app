@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
@@ -61,7 +62,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Future<void> _autoPullFromAppwrite() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!appwriteEnabled) {

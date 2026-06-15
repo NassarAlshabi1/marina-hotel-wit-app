@@ -72,7 +72,7 @@ class AppwriteBackupService {
           break;
         }
         offset += limit;
-      } catch (_) {
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         debugPrint('⚠️ AppwriteBackupService: فشل جلب المجموعات، استخدام fallback');
         usedFallback = true;
         break;
@@ -88,7 +88,7 @@ class AppwriteBackupService {
                 collectionId: id,
               );
           allCollections.add(collection);
-        } catch (_) {
+        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
           debugPrint('⚠️ AppwriteBackupService: فشل جلب المجموعة $id');
           allCollections.add({r'$id': id});
         }
@@ -105,7 +105,7 @@ class AppwriteBackupService {
     try {
       final map = (collection as dynamic).toMap();
       return Map<String, dynamic>.from(map as Map);
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       debugPrint('⚠️ AppwriteBackupService: فشل serialize collection via toMap');
       try {
         final dynamic c = collection;
@@ -116,7 +116,7 @@ class AppwriteBackupService {
           'documentSecurity': c.documentSecurity,
           'permissions': c.permissions,
         };
-      } catch (_) {
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         debugPrint('⚠️ AppwriteBackupService: فشل serialize collection تماماً');
         return {'raw': collection.toString()};
       }

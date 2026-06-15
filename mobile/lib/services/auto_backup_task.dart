@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'google_drive_backup_service.dart';
@@ -235,7 +236,7 @@ void callbackDispatcher() {
       debugPrint('🔄 بدء تنفيذ مهمة النسخ الخلفية: $task');
 
       // قراءة إعدادات النسخ التلقائي
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final enableGoogleDrive = prefs.getBool('auto_backup_enabled') ?? false;
       final enableLocal = prefs.getBool('auto_local_backup_enabled') ?? true;
 

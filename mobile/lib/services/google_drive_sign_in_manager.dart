@@ -1,6 +1,7 @@
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 const List<String> kGoogleDriveScopes = [
   drive.DriveApi.driveFileScope,
@@ -53,7 +54,7 @@ class GoogleDriveSignInManager {
   /// يُستدعى بعد نجاح تسجيل الدخول (صامت أو تفاعلي)
   /// وكذلك بعد تسجيل الخروج.
   Future<void> persistSignInState(GoogleSignInAccount? account) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     if (account != null) {
       await prefs.setBool(_prefsWasSignedInKey, true);
       await prefs.setString(_prefsSignedInEmailKey, account.email);
@@ -68,13 +69,13 @@ class GoogleDriveSignInManager {
   /// يُستخدم لمعرفة ما إذا كان يجب محاولة تسجيل الدخول الصامت
   /// حتى لو لم يكن هناك حساب حالي.
   Future<bool> wasPreviouslySignedIn() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_prefsWasSignedInKey) ?? false;
   }
 
   /// البريد الإلكتروني لآخر حساب مسجّل
   Future<String?> getLastSignedInEmail() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_prefsSignedInEmailKey);
   }
 

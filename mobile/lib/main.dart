@@ -64,12 +64,17 @@ import 'services/sync_service.dart';
 import 'services/unified_sync_orchestrator.dart';
 import 'utils/auto_sync_preferences.dart';
 import 'utils/env.dart';
+import 'utils/prefs_cache.dart';
+import 'services/foreground_sync_service.dart';
 import 'utils/hotel_day_ticker.dart';
 import 'utils/id.dart';
 import 'utils/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // --- تهيئة SharedPreferences ---
+  await PrefsCache.init();
 
   // ─── Firebase Core: تهيئة قبل كل خدمات Firebase ───
   try {
@@ -150,7 +155,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
   debugPrint('═══════════════════════════════════════════════════════');
 
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     if (!prefs.containsKey('google_drive_sync_enabled')) {
       await prefs.setBool('google_drive_sync_enabled', false);
     }
@@ -161,6 +166,16 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     debugPrint('📦 Initializing Appwrite Config Manager...');
     await AppwriteConfigManager.init();
     debugPrint('✅ Appwrite Config loaded');
+
+    // بدء خدمة الخلفية للمزامنة الموثوقة (ForegroundService)
+    // تستخدم Singletons لضمان عدم فتح اتصال DB جديد
+    // تعمل حتى عند إغلاق التطبيق على Android 12+
+    try {
+      await ForegroundSyncService.instance.start();
+      debugPrint('✅ ForegroundSyncService started');
+    } catch (e) {
+      debugPrint('⚠️ ForegroundSyncService failed: $e');
+    }
 
     debugPrint('📝 Initializing Google Drive Logger...');
     final driveLogger = GoogleDriveLogger();
@@ -299,7 +314,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   const engineRetryKey = 'auto_sync_engine_retry_enabled';
   const legacyRetryKey = 'auto_sync_retry_enabled';
 
-  final prefs = await SharedPreferences.getInstance();
+  final prefs = getSharedPrefs();
 
   final debounceSeconds = await migrateAutoSyncPreference<int>(
     prefs: prefs,
@@ -458,7 +473,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
         // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
         try {
-          final prefs = await SharedPreferences.getInstance();
+          final prefs = getSharedPrefs();
           final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
           bool shouldSync = true;
 
@@ -493,7 +508,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
         deviceId ??= syncManager.currentDeviceId;
         if (deviceId == null) {
-          final prefs = await SharedPreferences.getInstance();
+          final prefs = getSharedPrefs();
           deviceId = prefs.getString('appwrite_realtime_device_id');
           if (deviceId == null) {
             deviceId = IdGen.uuid();

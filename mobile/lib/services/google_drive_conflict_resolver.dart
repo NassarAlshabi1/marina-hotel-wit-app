@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../utils/debug_logs.dart';
 import 'google_drive_logger.dart';
@@ -126,13 +128,13 @@ class GoogleDriveConflictResolver {
   }
 
   Future<void> setStrategy(ConflictResolutionStrategy strategy) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_prefsStrategyKey, strategy.name);
     _log('🔧 Conflict strategy set to: ${strategy.name}');
   }
 
   Future<ConflictResolutionStrategy> getStrategy() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final strategyName =
         prefs.getString(_prefsStrategyKey) ??
         ConflictResolutionStrategy.newerWins.name;
@@ -144,24 +146,24 @@ class GoogleDriveConflictResolver {
   }
 
   Future<void> setDevicePriority(int priority) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsDevicePriorityKey, priority);
     _log('📱 Device priority set to: $priority');
   }
 
   Future<int> getDevicePriority() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getInt(_prefsDevicePriorityKey) ?? 100;
   }
 
   Future<void> setConflictThreshold(int seconds) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsThresholdSecondsKey, seconds);
     _log('⏱️ Conflict threshold set to: $seconds seconds');
   }
 
   Future<int> getConflictThreshold() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getInt(_prefsThresholdSecondsKey) ??
         _defaultConflictThresholdSeconds;
   }
@@ -380,7 +382,7 @@ class GoogleDriveConflictResolver {
     if (lastModified is int) {
       try {
         return DateTime.fromMillisecondsSinceEpoch(lastModified * 1000);
-      } catch (_) {
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         return null;
       }
     }
@@ -389,7 +391,7 @@ class GoogleDriveConflictResolver {
     if (updatedAt is int) {
       try {
         return DateTime.fromMillisecondsSinceEpoch(updatedAt * 1000);
-      } catch (_) {
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         return null;
       }
     }
@@ -443,7 +445,7 @@ class GoogleDriveConflictResolver {
       'time_diff_seconds': conflict.timeDifference.inSeconds,
     };
 
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final history = prefs.getStringList('conflict_history') ?? [];
     history.insert(0, jsonEncode(historyEntry));
 
@@ -459,7 +461,7 @@ class GoogleDriveConflictResolver {
   Future<List<Map<String, dynamic>>> getConflictHistory({
     int limit = 20,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final history = prefs.getStringList('conflict_history') ?? [];
 
     final decoded = <Map<String, dynamic>>[];

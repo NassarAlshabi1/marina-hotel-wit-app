@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../data/sync_models.dart' as models;
 import 'appwrite_service.dart';
@@ -223,7 +224,7 @@ class UnifiedSyncOrchestrator {
     }
 
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!appwriteEnabled) {
@@ -272,7 +273,7 @@ class UnifiedSyncOrchestrator {
     );
 
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
       final googleDriveEnabled =
           prefs.getBool('google_drive_sync_enabled') ?? false;

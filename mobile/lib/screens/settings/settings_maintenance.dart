@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import '../../components/app_scaffold.dart';
@@ -52,7 +53,7 @@ class _SettingsMaintenanceScreenState
     setState(() => _isLoadingInfo = true);
     try {
       final info = await PackageInfo.fromPlatform();
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final db = DatabaseManager.instance;
 
       final dbDir = await sqflite.getDatabasesPath();

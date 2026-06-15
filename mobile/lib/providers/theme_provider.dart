@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 class ThemeSettingsNotifier extends StateNotifier<bool> {
   ThemeSettingsNotifier() : super(false) {
@@ -9,12 +10,12 @@ class ThemeSettingsNotifier extends StateNotifier<bool> {
   static const _kDarkMode = 'dark_mode_enabled';
 
   Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     state = prefs.getBool(_kDarkMode) ?? false;
   }
 
   Future<void> setDarkMode(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_kDarkMode, enabled);
     state = enabled;
   }

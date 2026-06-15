@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import '../utils/env.dart';
 
 class ApiConfig {
@@ -88,7 +89,7 @@ class ApiConfigService {
   );
 
   Future<void> initialize() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final configJson = prefs.getString(_configKey);
     if (configJson != null) {
       try {
@@ -103,7 +104,7 @@ class ApiConfigService {
   }
 
   Future<void> _loadServerList() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final serverListJson = prefs.getString(_serverListKey);
     if (serverListJson != null) {
       try {
@@ -121,7 +122,7 @@ class ApiConfigService {
   Future<void> saveConfig(ApiConfig config) async {
     _currentConfig = config;
     configNotifier.value = config;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_configKey, jsonEncode(config.toJson()));
     debugPrint('✅ تم حفظ إعدادات API: ${config.baseUrl}');
   }
@@ -170,7 +171,7 @@ class ApiConfigService {
   }
 
   Future<void> _saveServerList() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final json = jsonEncode(_serverList.map((s) => s.toJson()).toList());
     await prefs.setString(_serverListKey, json);
   }

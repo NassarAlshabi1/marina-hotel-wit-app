@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import 'sync_performance_settings.dart';
 
@@ -168,7 +170,7 @@ class SyncPerformanceOptimizer {
   /// تعيين مستوى الأداء — دائماً "متوازن" (المستوى 2) بشكل دائم
   Future<void> setPerformanceLevel(int level) async {
     _performanceLevel = 2; // دائماً متوازن
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt('performance_level', 2);
     debugPrint('⚙️ مستوى الأداء مثبت على: متوازن (2)');
   }
@@ -182,9 +184,9 @@ class SyncPerformanceOptimizer {
     _performanceLevel = 2;
     // نحفظه أيضاً للتأكد من التطابق مع SyncPerformanceSettings
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setInt('performance_level', 2);
-    } catch (_) {}
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);}
   }
 
   /// التحقق من إمكانية بدء المزامنة
@@ -241,9 +243,9 @@ class SyncPerformanceOptimizer {
         'google.com',
       ).timeout(const Duration(seconds: 5));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } on SocketException catch (_) {
+    } on SocketException catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       return false;
-    } on TimeoutException catch (_) {
+    } on TimeoutException catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       return false;
     } catch (e) {
       debugPrint('❌ خطأ في فحص الاتصال: $e');
@@ -254,7 +256,7 @@ class SyncPerformanceOptimizer {
   /// التحقق من إعدادات WiFi Only
   Future<bool> _isWifiOnlyEnabled() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       return prefs.getBool('wifi_only_sync') ?? false;
     } catch (e) {
       debugPrint('❌ خطأ في قراءة إعدادات WiFi Only: $e');
@@ -293,7 +295,7 @@ class SyncPerformanceOptimizer {
   /// تحديث إعدادات WiFi Only
   Future<void> setWifiOnlyMode(bool enabled) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setBool('wifi_only_sync', enabled);
       debugPrint('⚙️ تم تحديث إعدادات WiFi Only: ${enabled ? 'مفعل' : 'معطل'}');
     } catch (e) {
@@ -332,7 +334,7 @@ class SyncPerformanceOptimizer {
   /// إعداد الفترة التكيفية
   Future<void> setAdaptiveInterval(bool value) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setBool('adaptive_interval_enabled', value);
       debugPrint('⚙️ تم تحديث الفترة التكيفية: ${value ? 'مفعل' : 'معطل'}');
     } catch (e) {
@@ -343,7 +345,7 @@ class SyncPerformanceOptimizer {
   /// إعداد تحسين البطارية
   Future<void> setBatteryOptimization(bool value) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setBool('battery_optimization_enabled', value);
       debugPrint('⚙️ تم تحديث تحسين البطارية: ${value ? 'مفعل' : 'معطل'}');
     } catch (e) {
@@ -359,7 +361,7 @@ class SyncPerformanceOptimizer {
   /// التحقق من تفعيل الفترة التكيفية
   Future<bool> isAdaptiveIntervalEnabled() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       return prefs.getBool('adaptive_interval_enabled') ?? true;
     } catch (e) {
       debugPrint('❌ خطأ في قراءة إعدادات الفترة التكيفية: $e');
@@ -370,7 +372,7 @@ class SyncPerformanceOptimizer {
   /// التحقق من تفعيل تحسين البطارية
   Future<bool> isBatteryOptimizationEnabled() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       return prefs.getBool('battery_optimization_enabled') ?? true;
     } catch (e) {
       debugPrint('❌ خطأ في قراءة إعدادات تحسين البطارية: $e');

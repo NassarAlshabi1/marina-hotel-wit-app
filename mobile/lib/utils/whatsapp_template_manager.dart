@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 /// معرّف نوع النموذج
 enum WhatsAppTemplateType {
@@ -58,7 +59,7 @@ class WhatsAppTemplate {
 
   /// هل هذا النوع من النماذج مفعّل؟ (يقرأ من SharedPreferences)
   static Future<bool> isEnabled(WhatsAppTemplateType type) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final key = 'wa_template_enabled_${type.id}';
     // إذا لم يُحفظ بعد → يكون مفعّل بالافتراضي
     return prefs.getBool(key) ?? true;
@@ -66,13 +67,13 @@ class WhatsAppTemplate {
 
   /// تعديل حالة النموذج
   static Future<void> setEnabled(WhatsAppTemplateType type, bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool('wa_template_enabled_${type.id}', enabled);
   }
 
   /// الحصول على محتوى النموذج (المخصص أو الافتراضي)
   static Future<String> getContent(WhatsAppTemplateType type) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final key = 'wa_template_content_${type.id}';
     final custom = prefs.getString(key);
     if (custom != null && custom.isNotEmpty) {
@@ -83,13 +84,13 @@ class WhatsAppTemplate {
 
   /// حفظ محتوى مخصص للنموذج
   static Future<void> setContent(WhatsAppTemplateType type, String content) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString('wa_template_content_${type.id}', content);
   }
 
   /// إعادة المحتوى إلى الافتراضي
   static Future<void> resetContent(WhatsAppTemplateType type) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.remove('wa_template_content_${type.id}');
     await prefs.setBool('wa_template_enabled_${type.id}', true);
   }
@@ -335,13 +336,13 @@ class WhatsAppTemplateManager {
 
   /// الحصول على رقم الفندق
   static Future<String> getHotelPhone() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_hotelPhoneKey) ?? _defaultHotelPhone;
   }
 
   /// تعديل رقم الفندق
   static Future<void> setHotelPhone(String phone) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_hotelPhoneKey, phone);
   }
 
@@ -418,7 +419,7 @@ class WhatsAppTemplateManager {
 
   /// الحصول على قائمة جميع النماذج مع حالاتها
   static Future<List<WhatsAppTemplate>> getAllTemplates() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final templates = <WhatsAppTemplate>[];
 
     for (final type in WhatsAppTemplateType.values) {
@@ -442,7 +443,7 @@ class WhatsAppTemplateManager {
   /// حفظ جميع النماذج دفعة واحدة
   static Future<void> saveAllTemplates(
       List<WhatsAppTemplate> templates,) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     for (final template in templates) {
       await prefs.setString(
           'wa_template_content_${template.id}', template.content,);

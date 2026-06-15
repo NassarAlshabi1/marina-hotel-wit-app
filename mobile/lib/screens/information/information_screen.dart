@@ -7,6 +7,7 @@ import 'package:pdf/pdf.dart' as pdf;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
@@ -546,7 +547,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     setState(() => _exportingPdf = true);
     try {
       final fonts = await PdfUtils.loadArabicFonts();
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
       final headers = [
         

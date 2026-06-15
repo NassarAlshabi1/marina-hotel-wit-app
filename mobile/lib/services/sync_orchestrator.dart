@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import 'connectivity_service.dart';
 import 'daos/outbox_dao.dart';
@@ -542,7 +543,7 @@ class SyncOrchestrator {
 
   Future<void> _loadPersistedMetrics() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final json = prefs.getString('sync_orchestrator_metrics');
       if (json != null) {
         final data = jsonDecode(json) as Map<String, dynamic>;
@@ -559,7 +560,7 @@ class SyncOrchestrator {
 
   Future<void> _persistMetrics() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setString(
         'sync_orchestrator_metrics',
         jsonEncode(_metrics.toJson()),

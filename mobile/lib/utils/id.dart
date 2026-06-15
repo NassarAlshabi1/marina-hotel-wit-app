@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:uuid/uuid.dart';
 
 class IdGen {
@@ -8,7 +9,7 @@ class IdGen {
   static String? _cachedDeviceId;
   static Future<String> deviceId() async {
     if (_cachedDeviceId != null) return _cachedDeviceId!;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     _cachedDeviceId = prefs.getString('device_id');
     if (_cachedDeviceId == null) {
       _cachedDeviceId = _uuid.v4();

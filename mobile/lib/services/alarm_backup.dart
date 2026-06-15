@@ -2,6 +2,7 @@ import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import 'google_drive_backup_service.dart';
 import 'lark/lark_report_service.dart';
@@ -29,7 +30,7 @@ class AlarmBackup {
     debugPrint('✅ Alarm system initialized');
 
     // تفعيل النسخ المجدول تلقائياً عند التثبيت لأول مرة
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     if (prefs.getBool('scheduled_backup_enabled') == null) {
       debugPrint('🚀 First run: Enable scheduled backup by default');
       await prefs.setBool('scheduled_backup_enabled', true);
@@ -90,7 +91,7 @@ class AlarmBackup {
     debugPrint('🔔 Alarm fired: performing backup');
 
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final enableGoogleDrive = prefs.getBool('auto_backup_enabled') ?? false;
       final enableLocal = prefs.getBool('auto_local_backup_enabled') ?? true;
 
@@ -127,7 +128,7 @@ class AlarmBackup {
       debugPrint('❌ Alarm backup general error: $e');
     } finally {
       // أعد جدولة الإنذار لليوم التالي في نفس الوقت
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final timeString = prefs.getString('auto_backup_time') ?? '21:00';
       final timeParts = timeString.split(':');
       final hour = int.tryParse(timeParts[0]) ?? 0;
@@ -263,7 +264,7 @@ class AlarmBackup {
     debugPrint('🔔 Telegram report alarm fired');
 
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final tgEnabled = prefs.getBool('telegram_enabled') ?? true;
       final reportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? true;
 
@@ -281,7 +282,7 @@ class AlarmBackup {
       debugPrint('❌ Telegram report alarm error: $e');
     } finally {
       // أعد جدولة لليوم التالي
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final timeString = prefs.getString('telegram_daily_report_time') ?? '02:00';
       final parts = timeString.split(':');
       final hour = int.tryParse(parts[0]) ?? 0;
@@ -297,7 +298,7 @@ class AlarmBackup {
     debugPrint('🔔 Lark report alarm fired');
 
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final larkEnabled = prefs.getBool('lark_enabled') ?? false;
       final reportEnabled = prefs.getBool('lark_daily_report_enabled') ?? false;
 
@@ -315,7 +316,7 @@ class AlarmBackup {
       debugPrint('❌ Lark report alarm error: $e');
     } finally {
       // أعد جدولة لليوم التالي
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final timeString = prefs.getString('lark_daily_report_time') ?? '08:00';
       final parts = timeString.split(':');
       final hour = int.tryParse(parts[0]) ?? 0;

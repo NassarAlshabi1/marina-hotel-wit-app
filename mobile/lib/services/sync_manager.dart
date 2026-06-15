@@ -11,6 +11,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../data/sync_models.dart';
 import 'conflict_resolver.dart';
@@ -226,7 +227,7 @@ class SyncManager {
   }
 
   Future<bool> _shouldPullByRemoteModifiedTime() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final lastEpoch = prefs.getInt(_prefsLastDriveSyncEpochKey);
     final remoteModified = await driveService.getLatestSnapshotModifiedTime();
     if (remoteModified == null) {
@@ -239,7 +240,7 @@ class SyncManager {
   }
 
   Future<void> _persistLastDriveSyncTime() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(
       _prefsLastDriveSyncEpochKey,
       DateTime.now().toUtc().millisecondsSinceEpoch,
@@ -485,7 +486,7 @@ class SyncManager {
   }
 
   Future<void> _persistSyncHistory(String syncId) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final prefix = await _historyPrefix();
     await prefs.setString('${prefix}_id', syncId);
     await prefs.setInt(
@@ -499,14 +500,14 @@ class SyncManager {
     if (remoteSyncId == null || remoteSyncId.isEmpty) {
       return;
     }
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final prefix = await _historyPrefix();
     await prefs.setString('${prefix}_remote', remoteSyncId);
     _lastRemoteSyncId = remoteSyncId;
   }
 
   Future<void> _loadSyncHistory() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final prefix = await _historyPrefix();
     _lastSyncId = prefs.getString('${prefix}_id');
     _lastRemoteSyncId = prefs.getString('${prefix}_remote');
@@ -944,7 +945,7 @@ class SyncManager {
   }
 
   Future<String> _resolveDeviceId() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final existing = prefs.getString('sync_device_id');
     if (existing != null && existing.isNotEmpty) {
       return existing;

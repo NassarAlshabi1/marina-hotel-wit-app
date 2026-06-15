@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:uuid/uuid.dart';
 
 /// نوع الحدث
@@ -445,7 +446,7 @@ class SyncMonitoringSystem {
   /// حفظ حدث في التخزين الدائم
   Future<void> _persistEvent(SyncEvent event) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final key =
           'sync_events_${DateTime.now().toIso8601String().split('T')[0]}';
       final existing = prefs.getStringList(key) ?? [];
@@ -464,7 +465,7 @@ class SyncMonitoringSystem {
   /// تحميل البيانات التاريخية
   Future<void> _loadHistoricalData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final today = DateTime.now().toIso8601String().split('T')[0];
       final key = 'sync_events_$today';
       final jsonList = prefs.getStringList(key) ?? [];
@@ -483,7 +484,7 @@ class SyncMonitoringSystem {
   /// تنظيف السجلات القديمة من التخزين الدائم
   Future<void> _cleanupOldStoredEvents({int keepDays = 7}) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final allKeys = prefs.getKeys();
       final eventKeys = allKeys.where((k) => k.startsWith('sync_events_'));
       final now = DateTime.now();

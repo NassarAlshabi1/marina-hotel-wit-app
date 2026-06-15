@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../services/auth_local_store.dart';
 import '../services/diagnostics/diagnostics_logger.dart';
@@ -94,7 +95,7 @@ final blacklistRepoProvider = Provider.autoDispose<BlacklistRepository>(
   (ref) => BlacklistRepository(ref.read(databaseProvider)),
 );
 final whatsappSettingsProvider = FutureProvider.autoDispose<Map<String, String>>((ref) async {
-  final prefs = await SharedPreferences.getInstance();
+  final prefs = getSharedPrefs();
   return {
     'apiType': prefs.getString('wa_api_type') ?? 'custom',
     'baseUrl': prefs.getString('wa_api_base_url') ?? 'https://7103.api.greenapi.com',

@@ -9,6 +9,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../utils/debug_logs.dart';
@@ -402,7 +403,7 @@ class GoogleDriveBackupService {
       );
 
       // إعدادات الواتساب من SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final whatsappSettings = <String, dynamic>{};
       const waKeys = [
         'wa_api_type',
@@ -594,7 +595,7 @@ class GoogleDriveBackupService {
           );
         }
 
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = getSharedPrefs();
         await prefs.setString(_prefsLastBackupKey, timestamp.toIso8601String());
 
         _log('✅ تم رفع $typeLabel بنجاح: ${uploadedFile.id}');
@@ -1171,7 +1172,7 @@ class GoogleDriveBackupService {
 
           // استعادة إعدادات الواتساب → SharedPreferences
           if (backupData.containsKey('whatsapp_settings')) {
-            final restorePrefs = await SharedPreferences.getInstance();
+            final restorePrefs = getSharedPrefs();
             final waSettings = Map<String, dynamic>.from(
               backupData['whatsapp_settings'] as Map,
             );
@@ -1259,7 +1260,7 @@ class GoogleDriveBackupService {
                 throw Exception('صيغة إعدادات النظام غير صالحة');
               }
               final settings = Map<String, dynamic>.from(rawSettings);
-              final prefs = await SharedPreferences.getInstance();
+              final prefs = getSharedPrefs();
 
               const keys = SystemSettingKeys.all;
 
@@ -1383,7 +1384,7 @@ class GoogleDriveBackupService {
       // مزامنة البيانات المستعادة مع Appwrite
       try {
         _log('🔄 بدء مزامنة البيانات مع Appwrite...');
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = getSharedPrefs();
         final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
         if (syncEnabled) {
@@ -1442,7 +1443,7 @@ class GoogleDriveBackupService {
   }
 
   Future<void> scheduleAutoBackup() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final isEnabled = prefs.getBool(_prefsAutoBackupKey) ?? false;
 
     if (!isEnabled) {
@@ -1535,13 +1536,13 @@ class GoogleDriveBackupService {
   }
 
   Future<DateTime?> getLastBackupTime() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final timeString = prefs.getString(_prefsLastBackupKey);
     return timeString != null ? DateTime.parse(timeString) : null;
   }
 
   Future<void> setAutoBackupEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_prefsAutoBackupKey, enabled);
 
     if (enabled) {
@@ -1552,7 +1553,7 @@ class GoogleDriveBackupService {
   }
 
   Future<bool> isAutoBackupEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     if (!prefs.containsKey(_prefsAutoBackupKey)) {
       await prefs.setBool(_prefsAutoBackupKey, true);
       await scheduleAutoBackup();
@@ -1562,7 +1563,7 @@ class GoogleDriveBackupService {
   }
 
   Future<void> setAutoBackupFrequency(String frequency) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_prefsAutoBackupFrequencyKey, frequency);
 
     final isEnabled = await isAutoBackupEnabled();
@@ -1572,12 +1573,12 @@ class GoogleDriveBackupService {
   }
 
   Future<String> getAutoBackupFrequency() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_prefsAutoBackupFrequencyKey) ?? 'daily';
   }
 
   Future<void> setAutoBackupTime(String time) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_prefsAutoBackupTimeKey, time);
 
     final isEnabled = await isAutoBackupEnabled();
@@ -1587,7 +1588,7 @@ class GoogleDriveBackupService {
   }
 
   Future<String> getAutoBackupTime() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_prefsAutoBackupTimeKey) ?? '02:00';
   }
 

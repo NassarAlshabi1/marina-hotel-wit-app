@@ -10,6 +10,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 import '../utils/app_logger.dart';
@@ -158,7 +159,7 @@ class AppwriteSyncManager {
       final isMillis = value != null && value > 10000000000;
       _remoteEpochIsMillis = isMillis;
       return isMillis;
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       _remoteEpochIsMillis = false;
       _logger.warning('⚠️ Failed to parse remote epoch', tag: 'SYNC');
       return false;
@@ -222,7 +223,7 @@ class AppwriteSyncManager {
   /// رفع جميع البيانات المحلية مرة واحدة عند أول تشغيل بعد التفعيل
   Future<void> _runInitialSeedIfNeeded() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final done = prefs.getBool('appwrite_initial_seed_done') ?? false;
       if (done) return;
 
@@ -269,7 +270,7 @@ class AppwriteSyncManager {
 
   /// تحميل الإعدادات
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     // قراءة الإعدادات المحفوظة (بدون تغييرها)
     _currentDeviceId = prefs.getString('appwrite_device_id');
 
@@ -287,7 +288,7 @@ class AppwriteSyncManager {
   /// تعيين توكن FCM (يُستدعى من FcmService بعد الحصول على التوكن)
   Future<void> setFcmToken(String token) async {
     _fcmToken = token;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString('fcm_token', token);
 
     // إذا كان الجهاز مسجلاً، نحدث التوكن على السيرفر
@@ -309,7 +310,7 @@ class AppwriteSyncManager {
 
   /// حفظ الإعدادات
   Future<void> _saveSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     if (_currentDeviceId != null) {
       await prefs.setString('appwrite_device_id', _currentDeviceId!);
     }
@@ -2000,7 +2001,7 @@ class AppwriteSyncManager {
         _logger.warning('⚠️ لا يوجد اتصال بالإنترنت - تم تأجيل الرفع', tag: 'SYNC');
         return 0;
       }
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       // تجاهل خطأ فحص الاتصال ونحاول الرفع
     }
 
@@ -2036,7 +2037,7 @@ class AppwriteSyncManager {
                 data: payload,
                 operation: entry.op == 'delete' ? 'delete' : 'update',
               ));
-            } catch (_) {
+            } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
               _logger.warning('⚠️ فشل تحليل payload للنسخ الاحتياطي', tag: 'BACKUP');
             }
           } else {
@@ -2064,7 +2065,7 @@ class AppwriteSyncManager {
       if (backupOps.isNotEmpty) {
         try {
           await backupService.pushBatchToBackups(operations: backupOps);
-        } catch (_) {
+        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
           _logger.warning('⚠️ فشل النسخ الاحتياطي — لم يمنع المزامنة الرئيسية', tag: 'BACKUP');
         }
       }
@@ -2834,7 +2835,7 @@ class AppwriteSyncManager {
               .write(EmployeesCompanion(
             serverId: drift.Value(remoteDoc.$id.hashCode),
           ));
-        } catch (_) {
+        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
           _logger.warning('⚠️ فشل جلب المستند البعيد للموظف — نتجاوز', tag: 'SYNC');
         }
       } catch (e) {
@@ -3146,7 +3147,7 @@ class AppwriteSyncManager {
 
   /// قراءة آخر timestamp خاص بـ booking_nights من SharedPreferences
   Future<int> _getBookingNightsPullTs() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final ts = prefs.getInt('sync_last_pull_booking_nights') ?? 0;
     if (ts > 10000000000) {
       return ts ~/ 1000;
@@ -3156,7 +3157,7 @@ class AppwriteSyncManager {
 
   /// تحديث آخر timestamp خاص بـ booking_nights
   Future<void> _updateBookingNightsPullTs(int ts) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt('sync_last_pull_booking_nights', ts);
   }
 
@@ -3349,7 +3350,7 @@ class AppwriteSyncManager {
         default:
           return null;
       }
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       _logger.warning('⚠️ فشل جلب deletedAt المحلي', tag: 'SYNC');
       return null;
     }
@@ -3621,7 +3622,7 @@ class AppwriteSyncManager {
         return ts ~/ 1000;
       }
       return ts;
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       _logger.warning('Failed to read lastPullTs, using 0', tag: 'SYNC');
       return 0;
     }
@@ -3975,7 +3976,7 @@ class AppwriteSyncManager {
         }
         // تشغيل فحص السلامة الشامل مع الإصلاح التلقائي
         await _performPostSyncIntegrityCheck();
-      } catch (_) {
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         _logger.warning('⚠️ فشل فحص السلامة بعد المزامنة', tag: 'SYNC');
       }
     }
@@ -5039,14 +5040,14 @@ class AppwriteSyncManager {
         int? createdAtEpoch;
         try {
           createdAtEpoch = DateTime.parse(createdAtIso).millisecondsSinceEpoch ~/ 1000;
-        } catch (_) {
+        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
           _logger.warning('⚠️ فشل تحويل createdAtIso في القائمة السوداء', tag: 'SYNC');
           createdAtEpoch = Time.nowEpoch();
         }
         int? updatedAtEpoch;
         try {
           updatedAtEpoch = DateTime.parse(updatedAtIso).millisecondsSinceEpoch ~/ 1000;
-        } catch (_) {
+        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
           _logger.warning('⚠️ فشل تحويل updatedAtIso في القائمة السوداء', tag: 'SYNC');
           updatedAtEpoch = Time.nowEpoch();
         }
@@ -5062,7 +5063,7 @@ class AppwriteSyncManager {
           if (deletedAtStr != null && deletedAtStr.isNotEmpty) {
             try {
               deletedAtEpoch = DateTime.parse(deletedAtStr).millisecondsSinceEpoch ~/ 1000;
-            } catch (_) {
+            } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
               _logger.warning('⚠️ فشل تحويل deletedAtIso في القائمة السوداء', tag: 'SYNC');
               deletedAtEpoch = _asIntNullable(deletedAtVal);
             }
@@ -5347,7 +5348,7 @@ class AppwriteSyncManager {
 
   /// إعادة تعيين حالة المزامنة
   Future<void> resetSyncState() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.remove('appwrite_last_sync_time');
     _lastSyncTime = null;
     _logger.info('Sync state reset', tag: 'SYNC');
@@ -5361,7 +5362,7 @@ class AppwriteSyncManager {
 
   /// ✅ معرف الجهاز المحلي من SharedPreferences (fallback إذا لم يُسجَّل في Appwrite)
   Future<String?> _getLocalDeviceId() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString('appwrite_delta_device_id');
   }
 
@@ -6141,7 +6142,7 @@ class AppwriteSyncManager {
   /// رفع كل الإعدادات المحلية من SharedPreferences → Appwrite
   Future<bool> _pushAppSettingsToCloud() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
 
       // ⚠️ حقول app_settings الفعلية في Appwrite Cloud (25 حقل فقط — الحد الأقصى)
       // تم تدقيق كل حقل مقابل المخطط الفعلي في 2026-06-14
@@ -6195,7 +6196,7 @@ class AppwriteSyncManager {
           documentId: docId,
           data: _filterPayload('app_settings', data),
         );
-      } catch (_) {
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         _logger.warning('⚠️ فشل تحديث إعدادات التطبيق — نحاول الإنشاء', tag: 'SYNC');
         await appwriteService.createDocument(
           collectionId: collectionId,
@@ -6215,7 +6216,7 @@ class AppwriteSyncManager {
   Future<int> _syncAppSettings(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
 
     for (final doc in documents) {
       try {

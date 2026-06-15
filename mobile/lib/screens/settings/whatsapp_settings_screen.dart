@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
@@ -62,7 +63,7 @@ class _WhatsAppSettingsScreenState
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     if (!mounted) {
       return;
     }
@@ -87,7 +88,7 @@ class _WhatsAppSettingsScreenState
 
   Future<void> _saveApiSettings() async {
     setState(() => _isSaving = true);
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(
       'wa_api_type',
       _selectedApiType == WhatsAppApiType.greenapi ? 'greenapi' : 'custom',
@@ -117,7 +118,7 @@ class _WhatsAppSettingsScreenState
 
   Future<void> _saveTemplate() async {
     setState(() => _isSaving = true);
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString('whatsapp_template', _templateController.text);
     if (!mounted) {
       return;
@@ -148,7 +149,7 @@ class _WhatsAppSettingsScreenState
   }
 
   Future<void> _resetAllToDefault() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.remove('wa_api_type');
     await prefs.remove('wa_api_base_url');
     await prefs.remove('wa_api_instance_id');

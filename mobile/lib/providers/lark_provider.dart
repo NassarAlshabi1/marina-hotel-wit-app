@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../services/lark/lark_api_client.dart';
 import '../services/lark/lark_config.dart';
@@ -90,7 +91,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
   /// تهيئة الحالة من SharedPreferences
   Future<void> _initialize() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final enabled = prefs.getBool('lark_enabled') ?? false;
       final webhookUrl = prefs.getString('lark_webhook_url') ?? '';
       final appId = prefs.getString('lark_app_id') ?? '';
@@ -305,7 +306,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
 
   /// مسح حالة آخر تقرير (لسماح بإعادة الإرسال)
   Future<void> resetLastReport() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.remove('lark_last_report_sent');
     state = state.copyWith();
     debugPrint('🔄 Lark: تم مسح حالة آخر تقرير');

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/backup_provider.dart';
@@ -148,7 +149,7 @@ class _GoogleDriveLoginScreenState
   Future<void> _pullAppwriteOnceAfterSkip() async {
     const key = 'appwrite_pull_after_drive_skip_done';
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final done = prefs.getBool(key) ?? false;
       if (done) {
         return;

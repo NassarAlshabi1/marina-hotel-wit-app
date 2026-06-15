@@ -178,7 +178,7 @@ class AppwriteBackupSyncService {
             documentId: documentId,
             data: data,
           );
-        } catch (_) {
+        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
           _logger.warning('⚠️ فشل تحديث وثيقة احتياطية — نحاول الإنشاء', tag: 'BACKUP');
           // إذا فشل التحديث (المستند غير موجود)، نقوم بإنشائه
           // ignore: deprecated_member_use
@@ -197,7 +197,7 @@ class AppwriteBackupSyncService {
             collectionId: tableName,
             documentId: documentId,
           );
-        } catch (_) {
+        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
           _logger.warning('⚠️ فشل حذف وثيقة احتياطية (قد لا تكون موجودة)', tag: 'BACKUP');
         }
     }

@@ -2,6 +2,8 @@ import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:drift/drift.dart' as d;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 import '../utils/id.dart';
@@ -73,7 +75,7 @@ class AppwriteDeltaSync {
   }
 
   Future<void> _initializeDeviceId() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     _deviceId = prefs.getString(_prefsDeviceIdKey);
     if (_deviceId == null) {
       _deviceId = IdGen.uuid();
@@ -87,12 +89,12 @@ class AppwriteDeltaSync {
   String? get deviceId => _deviceId;
 
   Future<bool> isEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_prefsDeltaSyncEnabledKey) ?? false;
   }
 
   Future<void> setEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_prefsDeltaSyncEnabledKey, enabled);
   }
 
@@ -236,7 +238,7 @@ class AppwriteDeltaSync {
           );
         } on AppwriteException catch (e) {
           if (e.code != 404) rethrow;
-        } catch (_) {
+        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
           rethrow;
         }
     }
@@ -1583,13 +1585,13 @@ class AppwriteDeltaSync {
 
   /// قراءة آخر timestamp خاص بـ booking_nights
   Future<int> _getBookingNightsPullTs() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getInt('delta_sync_last_pull_booking_nights') ?? 0;
   }
 
   /// تحديث آخر timestamp خاص بـ booking_nights
   Future<void> _updateBookingNightsPullTs(int ts) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt('delta_sync_last_pull_booking_nights', ts);
   }
 
@@ -1599,29 +1601,29 @@ class AppwriteDeltaSync {
 
   Future<int> _getLastDeltaSyncTimestamp() async {
     // للتوافق العكسي: يُرجع القيمة القديمة الموحدة
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
   }
 
   Future<int> _getLastPushSyncTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getInt(_prefsLastPushSyncKey) ??
         prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
   }
 
   Future<void> _updateLastPushSyncTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsLastPushSyncKey, Time.nowEpoch());
   }
 
   Future<int> _getLastPullSyncTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getInt(_prefsLastPullSyncKey) ??
         prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
   }
 
   Future<void> _updateLastPullSyncTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsLastPullSyncKey, Time.nowEpoch());
   }
 

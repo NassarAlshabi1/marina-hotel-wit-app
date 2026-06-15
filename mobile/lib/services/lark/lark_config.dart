@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 /// مفاتيح التخزين المحلي لإعدادات Lark
 class LarkConfig { // 5 دقائق قبل الانتهاء
@@ -24,134 +25,134 @@ class LarkConfig { // 5 دقائق قبل الانتهاء
 
   /// التحقق من تفعيل Lark بشكل عام
   static Future<bool> isEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_enabledKey) ?? false;
   }
 
   static Future<void> setEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_enabledKey, enabled);
   }
 
   /// App ID
   static Future<String> getAppId() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_appIdKey) ?? '';
   }
 
   static Future<void> setAppId(String value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_appIdKey, value);
   }
 
   /// App Secret
   static Future<String> getAppSecret() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_appSecretKey) ?? '';
   }
 
   static Future<void> setAppSecret(String value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_appSecretKey, value);
   }
 
   /// Webhook URL (للإشعارات السريعة بدون مصادقة)
   static Future<String> getWebhookUrl() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_webhookUrlKey) ?? '';
   }
 
   static Future<void> setWebhookUrl(String value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_webhookUrlKey, value);
   }
 
   /// تفعيل/تعطيل الإشعارات الفورية
   static Future<bool> isNotificationsEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_notificationsEnabledKey) ?? true;
   }
 
   static Future<void> setNotificationsEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_notificationsEnabledKey, enabled);
   }
 
   /// تفعيل/تعطيل التقرير اليومي
   static Future<bool> isDailyReportEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_dailyReportEnabledKey) ?? false;
   }
 
   static Future<void> setDailyReportEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_dailyReportEnabledKey, enabled);
   }
 
   /// وقت إرسال التقرير اليومي
   static Future<String> getDailyReportTime() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_dailyReportTimeKey) ?? defaultReportTime;
   }
 
   static Future<void> setDailyReportTime(String time) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_dailyReportTimeKey, time);
   }
 
   /// معرف مجموعة/محادثة Lark لإرسال التقرير
   static Future<String> getDailyReportChatId() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_dailyReportChatIdKey) ?? '';
   }
 
   static Future<void> setDailyReportChatId(String chatId) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_dailyReportChatIdKey, chatId);
   }
 
   /// آخر تقرير تم إرساله (لمنع التكرار)
   static Future<String?> getLastReportSent() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_lastReportSentKey);
   }
 
   static Future<void> setLastReportSent(String dateKey) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_lastReportSentKey, dateKey);
   }
 
   /// تخزين مؤقت لرمز المصادقة
   static Future<String?> getTokenCache() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_tokenCacheKey);
   }
 
   static Future<void> setTokenCache(String token, int expiryEpoch) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_tokenCacheKey, token);
     await prefs.setInt(_tokenExpiryKey, expiryEpoch);
   }
 
   static Future<int?> getTokenExpiry() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getInt(_tokenExpiryKey);
   }
 
   static Future<void> clearTokenCache() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.remove(_tokenCacheKey);
     await prefs.remove(_tokenExpiryKey);
   }
 
   /// Base URL (larksuite.com أو feishu.cn)
   static Future<String> getBaseUrl() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_baseUrlKey) ?? defaultBaseUrl;
   }
 
   static Future<void> setBaseUrl(String url) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_baseUrlKey, url);
   }
 

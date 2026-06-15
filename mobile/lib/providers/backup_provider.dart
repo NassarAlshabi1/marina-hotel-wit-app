@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../services/appwrite_sync_manager.dart';
 import '../services/auto_backup_task.dart';
@@ -196,7 +197,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
   Future<void> _initialize() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final skipPref = prefs.getBool(_driveLoginSkippedKey) ?? false;
       // جلب آخر وقت نسخ احتياطي (Google Drive)
       final lastBackup = await _backupService.getLastBackupTime();
@@ -307,7 +308,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   }
 
   Future<void> setSkippedDriveLogin(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_driveLoginSkippedKey, value);
     state = state.copyWith(driveLoginSkipped: value);
   }
@@ -315,7 +316,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   /// تفعيل/تعطيل مزامنة Google Drive
   Future<void> setGoogleDriveSyncEnabled(bool enabled) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setBool('google_drive_sync_enabled', enabled);
 
       // 1. التحكم في SmartSyncManager (يملك مؤقتات دورية مستقلة)
@@ -455,7 +456,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
         // إشعار مديري المزامنة بتغير حالة تسجيل الدخول (مع معالجة الأخطاء)
         // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-        final signInPrefs = await SharedPreferences.getInstance();
+        final signInPrefs = getSharedPrefs();
         final signInSyncEnabled = signInPrefs.getBool('google_drive_sync_enabled') ?? false;
         if (signInSyncEnabled) {
           try {
@@ -782,7 +783,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         debugPrint('⚠️ فشل استعادة الدخول الصامت: $e');
       }
 
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final skipPref = prefs.getBool(_driveLoginSkippedKey) ?? false;
       if (account != null && skipPref) {
         await prefs.setBool(_driveLoginSkippedKey, false);
@@ -975,7 +976,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
         try {
           // رفع إلى Appwrite مباشرة (بدون outbox) إذا كان مفعّلاً
-          final prefs = await SharedPreferences.getInstance();
+          final prefs = getSharedPrefs();
           final appwriteEnabled =
               prefs.getBool('appwrite_sync_enabled') ?? true;
           if (appwriteEnabled) {

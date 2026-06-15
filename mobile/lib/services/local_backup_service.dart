@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../providers/repository_providers.dart';
@@ -118,7 +119,7 @@ class LocalBackupService {
 
       _backupDirectory = selectedDir;
 
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setString(_prefsLocalBackupPathKey, _backupDirectory!.path);
 
       return _backupDirectory!;
@@ -222,7 +223,7 @@ class LocalBackupService {
           '${(compressedBytes.length / 1024).toStringAsFixed(1)} KB',
         );
 
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = getSharedPrefs();
         await prefs.setString(
           _prefsLastLocalBackupKey,
           timestamp.toIso8601String(),
@@ -268,7 +269,7 @@ class LocalBackupService {
         final metadataFile = File(_metadataFilePath(destinationPath));
         await metadataFile.writeAsString(jsonEncode(metadata.toJson()));
 
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = getSharedPrefs();
         await prefs.setString(
           _prefsLastLocalBackupKey,
           timestamp.toIso8601String(),
@@ -604,7 +605,7 @@ class LocalBackupService {
             name: 'SyncSafety',
           );
         }
-      } catch (_) {}
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);}
     }
   }
 
@@ -642,7 +643,7 @@ class LocalBackupService {
     await _deleteSidecarFiles(dbPath);
 
     if (metadata != null) {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setString(
         _prefsLastLocalBackupKey,
         metadata.backupTimestamp.toIso8601String(),
@@ -875,12 +876,12 @@ class LocalBackupService {
 
   /// إعدادات النسخ التلقائي المحلي
   Future<void> setAutoLocalBackupEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_prefsAutoLocalBackupKey, enabled);
   }
 
   Future<bool> isAutoLocalBackupEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     if (!prefs.containsKey(_prefsAutoLocalBackupKey)) {
       await prefs.setBool(_prefsAutoLocalBackupKey, true);
       return true;
@@ -889,12 +890,12 @@ class LocalBackupService {
   }
 
   Future<void> setPreferredBackupFormat(BackupFormat format) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_prefsBackupFormatKey, format.name);
   }
 
   Future<BackupFormat> getPreferredBackupFormat() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final raw = prefs.getString(_prefsBackupFormatKey);
     return BackupFormat.values.firstWhere(
       (format) => format.name == raw,
@@ -903,18 +904,18 @@ class LocalBackupService {
   }
 
   Future<void> setAutoLocalBackupFrequency(String frequency) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_prefsAutoLocalBackupFrequencyKey, frequency);
   }
 
   Future<String> getAutoLocalBackupFrequency() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_prefsAutoLocalBackupFrequencyKey) ?? 'daily';
   }
 
   /// الحصول على وقت آخر نسخة احتياطية محلية
   Future<DateTime?> getLastLocalBackupTime() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final timeString = prefs.getString(_prefsLastLocalBackupKey);
     return timeString != null ? DateTime.parse(timeString) : null;
   }

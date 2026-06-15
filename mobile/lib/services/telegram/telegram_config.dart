@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 /// مفاتيح التخزين المحلي لإعدادات Telegram
 class TelegramConfig {
@@ -20,78 +21,78 @@ class TelegramConfig {
 
   /// التحقق من تفعيل Telegram/WhatsApp — مفعّل افتراضياً
   static Future<bool> isEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_enabledKey) ?? true;
   }
 
   static Future<void> setEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_enabledKey, enabled);
   }
 
   /// Bot Token — يُحمّل القيمة الافتراضية تلقائياً
   static Future<String> getBotToken() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_botTokenKey) ?? defaultBotToken;
   }
 
   static Future<void> setBotToken(String value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_botTokenKey, value);
   }
 
   /// Chat ID — يُحمّل القيمة الافتراضية تلقائياً
   static Future<String> getChatId() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_chatIdKey) ?? defaultChatId;
   }
 
   static Future<void> setChatId(String value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_chatIdKey, value);
   }
 
   /// تفعيل/تعطيل الإشعارات الفورية — مفعّل افتراضياً
   static Future<bool> isNotificationsEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_notificationsEnabledKey) ?? true;
   }
 
   static Future<void> setNotificationsEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_notificationsEnabledKey, enabled);
   }
 
   /// تفعيل/تعطيل التقرير اليومي — مفعّل افتراضياً
   static Future<bool> isDailyReportEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_dailyReportEnabledKey) ?? true;
   }
 
   static Future<void> setDailyReportEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_dailyReportEnabledKey, enabled);
   }
 
   /// وقت إرسال التقرير اليومي
   static Future<String> getDailyReportTime() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_dailyReportTimeKey) ?? defaultReportTime;
   }
 
   static Future<void> setDailyReportTime(String time) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_dailyReportTimeKey, time);
   }
 
   /// آخر تقرير تم إرساله
   static Future<String?> getLastReportSent() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString(_lastReportSentKey);
   }
 
   static Future<void> setLastReportSent(String dateKey) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_lastReportSentKey, dateKey);
   }
 
@@ -104,7 +105,7 @@ class TelegramConfig {
 
   /// مسح حالة آخر تقرير
   static Future<void> clearLastReport() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.remove(_lastReportSentKey);
   }
 }

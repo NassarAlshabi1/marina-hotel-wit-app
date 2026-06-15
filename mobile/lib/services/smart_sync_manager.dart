@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../utils/app_logger.dart';
 import '../utils/debug_logs.dart';
@@ -79,7 +80,7 @@ class SmartSyncManager {
 
   /// توليد معرف فريد للجهاز تلقائياً
   Future<void> _initializeDeviceId() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     _deviceId = prefs.getString(_prefsDeviceIdKey);
 
     if (_deviceId == null) {
@@ -110,7 +111,7 @@ class SmartSyncManager {
 
   /// تحميل إعدادات المزامنة
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final stored = prefs.getBool(_prefsEnabledKey);
     if (stored == null) {
       _isEnabled = false;
@@ -207,7 +208,7 @@ class SmartSyncManager {
     _isLoggedIn = isSignedIn;
 
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final gdSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
     if (!gdSyncEnabled) {
       _log('⏸️ Google Drive sync disabled - skipping SmartSync monitoring');
@@ -597,7 +598,7 @@ class SmartSyncManager {
   /// الإعدادات والتحكم
 
   Future<void> setEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_prefsEnabledKey, enabled);
     _isEnabled = enabled;
 
@@ -611,7 +612,7 @@ class SmartSyncManager {
   }
 
   Future<bool> isEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     if (!prefs.containsKey(_prefsEnabledKey)) {
       await prefs.setBool(_prefsEnabledKey, false);
       return false;
@@ -636,7 +637,7 @@ class SmartSyncManager {
   }
 
   Future<void> setSyncInterval(int minutes) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsIntervalKey, minutes);
 
     // إعادة تشغيل المراقبة بالفترة الجديدة
@@ -649,18 +650,18 @@ class SmartSyncManager {
   }
 
   Future<int> getSyncInterval() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getInt(_prefsIntervalKey) ?? _defaultSyncIntervalMinutes;
   }
 
   Future<void> setConflictResolution(ConflictResolution resolution) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_prefsConflictResolutionKey, resolution.name);
     _log('🤝 استراتيجية حل التضارب: ${resolution.name}');
   }
 
   Future<ConflictResolution> getConflictResolution() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final value = prefs.getString(_prefsConflictResolutionKey) ?? 'newerWins';
     return ConflictResolution.values.firstWhere(
       (e) => e.name == value,
@@ -671,13 +672,13 @@ class SmartSyncManager {
   /// مساعدات للـ timestamps
 
   Future<DateTime?> _getLastRemoteTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final timestamp = prefs.getString(_prefsLastRemoteTimestampKey);
     return timestamp != null ? DateTime.parse(timestamp) : null;
   }
 
   Future<void> _setLastRemoteTimestamp(DateTime timestamp) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(
       _prefsLastRemoteTimestampKey,
       timestamp.toIso8601String(),
@@ -685,12 +686,12 @@ class SmartSyncManager {
   }
 
   Future<void> _updateLastSyncTime() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_prefsLastSyncKey, DateTime.now().toIso8601String());
   }
 
   Future<void> _updateLastPushTime() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(
       'smart_sync_last_push_ts',
       DateTime.now().millisecondsSinceEpoch,
@@ -698,7 +699,7 @@ class SmartSyncManager {
   }
 
   Future<DateTime?> getLastSyncTime() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final timestamp = prefs.getString(_prefsLastSyncKey);
     return timestamp != null ? DateTime.parse(timestamp) : null;
   }
@@ -768,7 +769,7 @@ class SmartSyncManager {
   /// رفع التغييرات المحلية إلى Google Drive فوراً
   Future<bool> pushLocalChanges() async {
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-    final pushPrefs = await SharedPreferences.getInstance();
+    final pushPrefs = getSharedPrefs();
     final pushSyncEnabled = pushPrefs.getBool('google_drive_sync_enabled') ?? false;
     if (!pushSyncEnabled) {
       _log('⏸️ Google Drive sync disabled - skipping push');
@@ -844,7 +845,7 @@ class SmartSyncManager {
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   Future<bool> pullRemoteChanges() async {
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-    final pullPrefs = await SharedPreferences.getInstance();
+    final pullPrefs = getSharedPrefs();
     final pullSyncEnabled = pullPrefs.getBool('google_drive_sync_enabled') ?? false;
     if (!pullSyncEnabled) {
       _log('⏸️ Google Drive sync disabled - skipping pull');

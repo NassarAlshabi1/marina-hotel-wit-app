@@ -104,7 +104,7 @@ class AppwriteFullPull {
                 '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
                 tag: 'FULL_PULL',
               );
-            } catch (_) {
+            } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
               _logger.warning(
                 '⚠️ فشل حذف سجل يتيم من $table (rowid=$rowId)',
                 tag: 'FULL_PULL',
@@ -112,7 +112,7 @@ class AppwriteFullPull {
             }
           }
         }
-      } catch (_) {
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         _logger.warning('⚠️ فشل فحص FK بعد السحب الشامل', tag: 'FULL_PULL');
       }
     }
@@ -528,7 +528,7 @@ class AppwriteFullPull {
                         ..limit(1))
                       .getSingleOrNull();
                 }
-              } catch (_) {
+              } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
                 _logger.warning(
                   '⚠️ فشل جلب الحجز $bookingUuid من السيرفر - سجل يتيم',
                   tag: 'FULL_PULL',

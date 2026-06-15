@@ -20,7 +20,7 @@ class SalaryWithdrawalsRepository {
         'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
         [expenseId, salaryWithdrawalId],
       );
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       // العمود قد لا يكون موجوداً في الإصدارات القديمة — نتخطى بصمت
     }
   }
@@ -124,7 +124,7 @@ class SalaryWithdrawalsRepository {
           matched = byId;
         }
       }
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       // العمود قد لا يكون موجوداً
     }
 
@@ -298,7 +298,7 @@ class SalaryWithdrawalsRepository {
               ..where((t) => t.id.isIn(ids)))
             .get();
       }
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       // العمود قد لا يكون موجوداً
     }
 
@@ -388,7 +388,7 @@ class SalaryWithdrawalsRepository {
       return HotelTimeEngine.getHotelDayKey(
         dateTime: DateTime(year, month, day, 14, 1),
       );
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       return HotelTimeEngine.getHotelDayKey();
     }
   }

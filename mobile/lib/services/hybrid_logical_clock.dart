@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 /// Hybrid Logical Clock (HLC) - يجمع بين Physical Time و Logical Counter
 /// يحل مشكلة اختلاف أوقات الأجهزة
@@ -23,7 +24,7 @@ class HybridLogicalClock {
       return _instance!;
     }
 
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final savedPhysical = prefs.getInt(_prefsKeyPhysical) ?? 0;
     final savedLogical = prefs.getInt(_prefsKeyLogical) ?? 0;
 
@@ -131,7 +132,7 @@ class HybridLogicalClock {
   }
 
   Future<void> _persist(int physical, int logical) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsKeyPhysical, physical);
     await prefs.setInt(_prefsKeyLogical, logical);
   }

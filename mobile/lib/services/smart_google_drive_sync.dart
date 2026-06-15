@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../utils/debug_logs.dart';
 import 'data_usage_manager.dart';
@@ -73,7 +74,7 @@ class SmartGoogleDriveSync {
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     _isEnabled = prefs.getBool(_prefsEnabledKey) ?? false;
   }
 
@@ -109,7 +110,7 @@ class SmartGoogleDriveSync {
   /// تفعيل/تعطيل المزامنة
   Future<void> setEnabled(bool enabled) async {
     _isEnabled = enabled;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_prefsEnabledKey, enabled);
 
     if (enabled) {
@@ -162,7 +163,7 @@ class SmartGoogleDriveSync {
         _hasPendingChanges = false;
         _pendingChangesCount = 0;
 
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = getSharedPrefs();
         await prefs.setInt(
           _prefsLastDeltaSyncKey,
           DateTime.now().millisecondsSinceEpoch,
@@ -274,7 +275,7 @@ class SmartGoogleDriveSync {
         backupData,
       );
 
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setInt(
         _prefsLastFullBackupKey,
         DateTime.now().millisecondsSinceEpoch,
@@ -313,7 +314,7 @@ class SmartGoogleDriveSync {
 
   /// جدولة النسخ الاحتياطي اليومي
   Future<void> _scheduleDailyFullBackup() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final lastBackup = prefs.getInt(_prefsLastFullBackupKey);
 
     Duration initialDelay;

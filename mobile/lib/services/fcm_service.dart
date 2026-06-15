@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../utils/app_logger.dart';
 import 'appwrite_sync_manager.dart';
@@ -41,7 +42,7 @@ class FcmService {
         debugPrint('✅ FCM token obtained: ${_currentToken!.substring(0, 20)}...');
 
         // 4. حفظ التوكن في SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = getSharedPrefs();
         await prefs.setString('fcm_token', _currentToken!);
       }
 
@@ -49,7 +50,7 @@ class FcmService {
       _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((newToken) async {
         debugPrint('🔄 FCM token refreshed');
         _currentToken = newToken;
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = getSharedPrefs();
         await prefs.setString('fcm_token', newToken);
 
         // تحديث التوكن في Appwrite عبر SyncManager (المُحقن)
@@ -189,7 +190,7 @@ class FcmService {
 
   /// الحصول على معرف الجهاز الحالي
   Future<String?> _getMyDeviceId() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString('appwrite_device_id') ??
         prefs.getString('appwrite_realtime_device_id');
   }
@@ -199,7 +200,7 @@ class FcmService {
     try {
       // يتم حقن الـ provider من main.dart عبر setInstance
       return _syncManagerInstance;
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       return null;
     }
   }
@@ -208,7 +209,7 @@ class FcmService {
   dynamic _getRealtimeSync() {
     try {
       return _realtimeInstance;
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       return null;
     }
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'appwrite_config.dart';
 
 class AppwriteConfigManager {
@@ -19,7 +20,7 @@ class AppwriteConfigManager {
   static String get apiKey => _apiKeyValue;
 
   static Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     _endpoint = prefs.getString(_endpointKey) ?? AppwriteConfig.endpoint;
     _projectId = prefs.getString(_projectIdKey) ?? AppwriteConfig.projectId;
     _databaseId = prefs.getString(_databaseIdKey) ?? AppwriteConfig.databaseId;
@@ -39,7 +40,7 @@ class AppwriteConfigManager {
     required String databaseId,
     required String apiKey,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
 
     await prefs.setString(_endpointKey, endpoint);
     await prefs.setString(_projectIdKey, projectId);
@@ -60,7 +61,7 @@ class AppwriteConfigManager {
   }
 
   static Future<void> resetToDefaults() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
 
     await prefs.remove(_endpointKey);
     await prefs.remove(_projectIdKey);

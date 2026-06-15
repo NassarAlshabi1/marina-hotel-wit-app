@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../../providers/auto_backup_provider.dart';
 import '../../providers/backup_provider.dart';
@@ -45,7 +46,7 @@ class _AutoBackupSettingsScreenState
     final retentionDays = await manager.getRetentionDays();
 
     // تحميل إعدادات النسخ المجدول
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final timeString = prefs.getString('auto_backup_time') ?? '21:00';
     final timeParts = timeString.split(':');
     final scheduledEnabled = prefs.getBool('scheduled_backup_enabled') ?? true;
@@ -505,7 +506,7 @@ class _AutoBackupSettingsScreenState
       final formatted = _formatTimeOfDay(picked);
       final driveService = ref.read(googleDriveBackupServiceProvider);
       // حفظ الوقت الجديد
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setString('auto_backup_time', formatted);
 
       // إعادة جدولة إذا كان مفعلاً
@@ -532,7 +533,7 @@ class _AutoBackupSettingsScreenState
     setState(() => _isLoading = true);
 
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setBool('scheduled_backup_enabled', enabled);
 
       final formatted = _formatTimeOfDay(_scheduledTime);

@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 abstract class SyncConfig {
   static const Duration conflictThreshold = Duration(seconds: 30);
@@ -17,7 +18,7 @@ abstract class SyncConfig {
   static const String _prefsDevicePriorityKey = 'sync_config_device_priority';
 
   static Future<Duration> getAdaptiveConflictThreshold() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final seconds = prefs.getInt(_prefsConflictThresholdKey);
     if (seconds != null && seconds > 0) {
       return Duration(seconds: seconds);
@@ -26,12 +27,12 @@ abstract class SyncConfig {
   }
 
   static Future<void> setConflictThreshold(Duration duration) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsConflictThresholdKey, duration.inSeconds);
   }
 
   static Future<Duration> getSnapshotInterval() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final minutes = prefs.getInt(_prefsSnapshotIntervalKey);
     if (minutes != null && minutes > 0) {
       return Duration(minutes: minutes);
@@ -40,17 +41,17 @@ abstract class SyncConfig {
   }
 
   static Future<void> setSnapshotInterval(Duration duration) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsSnapshotIntervalKey, duration.inMinutes);
   }
 
   static Future<int> getDevicePriority() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getInt(_prefsDevicePriorityKey) ?? defaultDevicePriority;
   }
 
   static Future<void> setDevicePriority(int priority) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsDevicePriorityKey, priority);
   }
 
@@ -68,7 +69,7 @@ abstract class SyncConfig {
   }
 
   static Future<void> resetToDefaults() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.remove(_prefsConflictThresholdKey);
     await prefs.remove(_prefsSnapshotIntervalKey);
     await prefs.remove(_prefsDevicePriorityKey);

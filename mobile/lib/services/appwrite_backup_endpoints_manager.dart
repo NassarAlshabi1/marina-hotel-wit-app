@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'appwrite_backup_endpoint.dart';
 
 /// مدير نقاط النهاية الاحتياطية (Master/Slave)
@@ -12,7 +13,7 @@ class BackupEndpointsManager {
 
   /// حفظ قائمة الـ endpoints الاحتياطية
   static Future<void> saveEndpoints(List<BackupEndpoint> endpoints) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final jsonList = endpoints.map((e) => e.toJson()).toList();
     await prefs.setString(_storageKey, jsonEncode(jsonList));
     if (kDebugMode) {
@@ -23,7 +24,7 @@ class BackupEndpointsManager {
   /// تحميل قائمة الـ endpoints الاحتياطية
   /// [includeInactive] إذا true، يُرجع جميع النقاط بما فيها غير النشطة
   static Future<List<BackupEndpoint>> loadEndpoints({bool includeInactive = false}) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final jsonStr = prefs.getString(_storageKey);
     if (jsonStr == null || jsonStr.isEmpty) return [];
     

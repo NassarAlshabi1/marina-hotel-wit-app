@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
@@ -65,7 +66,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
   }
 
   Future<bool> _isAppwriteSyncEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool('appwrite_sync_enabled') ?? true;
   }
 
@@ -730,7 +731,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
   /// الحصول على معرف الجهاز
   Future<String> _getDeviceId() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       var deviceId = prefs.getString('device_id');
       if (deviceId == null) {
         deviceId = 'device_${DateTime.now().millisecondsSinceEpoch}';

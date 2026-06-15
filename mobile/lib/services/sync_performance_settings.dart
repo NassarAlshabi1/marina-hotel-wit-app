@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 /// إعدادات أداء المزامنة - يحتوي على ملفات التعريف المحددة مسبقاً وإدارة الإعدادات
 class SyncPerformanceSettings {
@@ -34,7 +35,7 @@ class SyncPerformanceSettings {
   /// الحصول على ملف التعريف الحالي
   static Future<String> getCurrentProfile() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final currentProfile =
           prefs.getString('sync_performance_profile') ?? 'balanced';
 
@@ -58,7 +59,7 @@ class SyncPerformanceSettings {
     const enforcedProfile = 'balanced';
     try {
       final profile = predefinedProfiles[enforcedProfile]!;
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
 
       // حفظ ملف التعريف المتوازن دائماً
       await _setCurrentProfile(enforcedProfile);
@@ -90,7 +91,7 @@ class SyncPerformanceSettings {
 
   /// حفظ ملف التعريف الحالي
   static Future<void> _setCurrentProfile(String profileKey) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString('sync_performance_profile', profileKey);
   }
 
@@ -99,7 +100,7 @@ class SyncPerformanceSettings {
     String profileKey,
     Map<String, dynamic> profile,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
 
     switch (profileKey) {
       case 'performance':
@@ -146,7 +147,7 @@ class SyncPerformanceSettings {
   /// الحصول على جميع الإعدادات الحالية
   static Future<Map<String, dynamic>> getAllSettings() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final currentProfile = await getCurrentProfile();
 
       return {

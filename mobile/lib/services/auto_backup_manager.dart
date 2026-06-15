@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../utils/hotel_time_engine.dart';
 import 'appwrite_delta_sync.dart';
@@ -96,7 +97,7 @@ class AutoBackupManager {
   }
 
   Future<void> _loadBackupMode() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final savedIndex = prefs.getInt(_backupModeKey);
     if (savedIndex != null && savedIndex >= 0 && savedIndex < BackupMode.values.length) {
       _currentMode = BackupMode.values[savedIndex];
@@ -120,7 +121,7 @@ class AutoBackupManager {
 
   /// تهيئة معرف الجهاز للتمييز بين الأجهزة
   Future<void> _initializeDeviceId() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     _deviceId = prefs.getString('device_id');
 
     if (_deviceId == null) {
@@ -342,23 +343,23 @@ class AutoBackupManager {
   /// إعدادات النسخ التلقائي
 
   Future<bool> get _isEnabled async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_autoBackupEnabledKey) ?? true; // مفعل افتراضياً
   }
 
   Future<void> setEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_autoBackupEnabledKey, enabled);
     debugPrint('🔧 النسخ التلقائي: ${enabled ? 'مفعل' : 'معطل'}');
   }
 
   Future<int> _getMaxBackupCount() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getInt(_maxBackupCountKey) ?? _defaultMaxBackups;
   }
 
   Future<void> setMaxBackupCount(int count) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_maxBackupCountKey, count);
     debugPrint('🔧 عدد النسخ القصوى: $count');
   }
@@ -368,12 +369,12 @@ class AutoBackupManager {
   }
 
   Future<int> _getRetentionDays() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getInt(_backupRetentionDaysKey) ?? _defaultRetentionDays;
   }
 
   Future<void> setRetentionDays(int days) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_backupRetentionDaysKey, days);
     debugPrint('🔧 فترة الاحتفاظ: $days يوماً');
   }
@@ -383,13 +384,13 @@ class AutoBackupManager {
   }
 
   Future<DateTime?> _getLastAutoBackupTime() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final timeString = prefs.getString(_lastAutoBackupKey);
     return timeString != null ? DateTime.parse(timeString) : null;
   }
 
   Future<void> _setLastAutoBackupTime(DateTime time) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_lastAutoBackupKey, time.toIso8601String());
   }
 
@@ -443,14 +444,14 @@ class AutoBackupManager {
 
   /// تفعيل/تعطيل المزامنة الفورية
   Future<void> setInstantSyncEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_instantSyncEnabledKey, enabled);
     debugPrint('🔧 المزامنة الفورية: ${enabled ? 'مفعلة' : 'معطلة'}');
   }
 
   /// التحقق من تفعيل المزامنة الفورية
   Future<bool> isInstantSyncEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_instantSyncEnabledKey) ?? true;
   }
 
@@ -584,12 +585,12 @@ class AutoBackupManager {
 
   /// إعدادات المزامنة التفاضلية
   Future<bool> isDeltaSyncEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_deltaSyncEnabledKey) ?? true;
   }
 
   Future<void> setDeltaSyncEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_deltaSyncEnabledKey, enabled);
     if (enabled) {
       await _startDeltaSyncTimer();
@@ -600,12 +601,12 @@ class AutoBackupManager {
   }
 
   Future<bool> isGoogleDriveDeltaSyncEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_googleDriveDeltaSyncEnabledKey) ?? false;
   }
 
   Future<void> setGoogleDriveDeltaSyncEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_googleDriveDeltaSyncEnabledKey, enabled);
     debugPrint(
       '🔧 مزامنة Google Drive التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}',
@@ -613,19 +614,19 @@ class AutoBackupManager {
   }
 
   Future<bool> isAppwriteDeltaSyncEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_appwriteDeltaSyncEnabledKey) ?? true;
   }
 
   Future<void> setAppwriteDeltaSyncEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_appwriteDeltaSyncEnabledKey, enabled);
     debugPrint('🔧 مزامنة Appwrite التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
   }
 
   /// تعيين وضع النسخ الاحتياطي
   Future<void> setBackupMode(BackupMode mode) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     _currentMode = mode;
     await prefs.setInt(_backupModeKey, _currentMode.index);
     await prefs.setBool(_deltaSyncEnabledKey, true);

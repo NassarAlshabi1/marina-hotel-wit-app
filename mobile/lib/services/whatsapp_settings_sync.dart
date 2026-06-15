@@ -1,6 +1,8 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'appwrite_config_manager.dart';
 import 'appwrite_service.dart';
 
@@ -19,7 +21,7 @@ class WhatsAppSettingsSync {
   Future<({bool success, String? error})> uploadToCloud() async {
     try {
       await _appwrite.initialize();
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
 
       final data = <String, dynamic>{
         'key': 'whatsapp_settings', // حقل مطلوب في مجموعة app_settings
@@ -43,7 +45,7 @@ class WhatsAppSettingsSync {
           documentId: _docId,
           data: data,
         );
-      } catch (_) {
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         // إذا لم يكن موجوداً، إنشاء مستند جديد
         // ignore: deprecated_member_use
         await _appwrite.databases.createDocument(
@@ -79,7 +81,7 @@ class WhatsAppSettingsSync {
         documentId: _docId,
       );
 
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
 
       final fields = [
         'wa_api_type',
@@ -126,7 +128,7 @@ class WhatsAppSettingsSync {
         documentId: _docId,
       );
       return true;
-    } catch (_) {
+    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       return false;
     }
   }

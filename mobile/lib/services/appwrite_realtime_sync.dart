@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import 'appwrite_config.dart';
 import 'appwrite_service.dart';
@@ -67,7 +68,7 @@ class AppwriteRealtimeSync {
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
       return;
     }

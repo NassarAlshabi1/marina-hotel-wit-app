@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../../providers/appwrite_providers.dart' as ap;
 import '../../providers/auto_backup_provider.dart';
@@ -57,7 +58,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     final manager = AutoBackupManager.instance;
     final maxBackups = await manager.getMaxBackupCount();
     final retentionDays = await manager.getRetentionDays();
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final timeString = prefs.getString('auto_backup_time') ?? '21:0';
     final parts = timeString.split(':');
     final scheduled = prefs.getBool('scheduled_backup_enabled') ?? false;
@@ -175,7 +176,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   Future<void> _toggleScheduledBackup(bool enabled) async {
     setState(() => _backupBusy = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setBool('scheduled_backup_enabled', enabled);
       if (enabled) {
         await AlarmBackup.scheduleDailyAlarm(
@@ -224,7 +225,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       return;
     }
     setState(() => _scheduledTime = picked);
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(
       'auto_backup_time',
       '${picked.hour}:${picked.minute}',
@@ -245,7 +246,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   Future<void> _toggleGoogleDriveSyncEnabled(bool enabled) async {
     setState(() => _syncBusy = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setBool('google_drive_sync_enabled', enabled);
       if (!enabled) {
         await GoogleDriveUnifiedSyncCoordinator.instance.setPushEnabled(false);
@@ -288,7 +289,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   Future<void> _toggleGoogleDriveSyncDisableOnStart(bool enabled) async {
     setState(() => _syncBusy = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setBool('google_drive_sync_disable_on_start', enabled);
       if (!mounted) {
         return;

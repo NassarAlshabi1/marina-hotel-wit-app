@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../utils/app_logger.dart';
 import 'appwrite_service.dart';
@@ -72,7 +73,7 @@ class AuthLocalStore {
   };
 
   Future<Map<String, dynamic>> _loadCustomAccounts() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final raw = prefs.getString(_kCustomAccounts);
     if (raw == null || raw.isEmpty) {
       return {};
@@ -97,7 +98,7 @@ class AuthLocalStore {
   }
 
   Future<void> _saveCustomAccounts(Map<String, dynamic> accounts) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_kCustomAccounts, jsonEncode(accounts));
   }
 
@@ -415,12 +416,12 @@ class AuthLocalStore {
   static const _kCredVersion = 'credentials_version';
 
   Future<void> saveCredentialsVersion(int version) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_kCredVersion, version);
   }
 
   Future<int?> getCredentialsVersion() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getInt(_kCredVersion);
   }
 
@@ -428,7 +429,7 @@ class AuthLocalStore {
   /// يعيد true إذا الجلسة صالحة، false إذا تم تغيير البيانات من جهاز آخر
   Future<bool> checkSessionValidity() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final storedVersion = prefs.getInt(_kCredVersion);
       if (storedVersion == null) return true; // مستخدم محلي، لا تحقق
 
@@ -540,12 +541,12 @@ class AuthLocalStore {
   }
 
   Future<void> saveCurrentUser(Map<String, dynamic> userJson) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_kCurrentUser, jsonEncode(userJson));
   }
 
   Future<Map<String, dynamic>?> loadCurrentUser() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final raw = prefs.getString(_kCurrentUser);
     if (raw == null || raw.isEmpty) return null;
     try {
@@ -567,7 +568,7 @@ class AuthLocalStore {
   }
 
   Future<void> clearSession() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final rememberMe = await getRememberMe();
     await prefs.remove(_kCurrentUser);
     if (!rememberMe) {
@@ -577,22 +578,22 @@ class AuthLocalStore {
   }
 
   Future<void> setRememberMe(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_kRememberMe, value);
   }
 
   Future<bool> getRememberMe() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getBool(_kRememberMe) ?? false;
   }
 
   Future<void> setAuthType(AuthType type) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setString(_kAuthType, type.name);
   }
 
   Future<AuthType> getAuthType() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final typeStr = prefs.getString(_kAuthType);
     if (typeStr == null) return AuthType.local;
     return AuthType.values.firstWhere(
@@ -625,7 +626,7 @@ class AuthLocalStore {
     }
 
     // 2️⃣ fallback: الصلاحيات المحلية
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final raw = prefs.getString(_kPermissionsMap);
     if (raw == null) return _fixedPermissions[username] ?? <String>[];
     try {
@@ -649,7 +650,7 @@ class AuthLocalStore {
   }
 
   Future<void> setPermissions(String username, List<String> permissions) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final raw = prefs.getString(_kPermissionsMap);
     Map<String, dynamic> map = {};
     if (raw != null) {
@@ -709,7 +710,7 @@ class AuthLocalStore {
     final names = <String>{..._fixedAccounts.keys};
     final custom = await _loadCustomAccounts();
     names.addAll(custom.keys.map((e) => e));
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final raw = prefs.getString(_kPermissionsMap);
     if (raw != null) {
       try {

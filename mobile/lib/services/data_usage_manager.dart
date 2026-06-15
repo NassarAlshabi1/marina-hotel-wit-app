@@ -5,6 +5,7 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 /// مدير استخدام البيانات - يتتبع استهلاك البيانات ويوفر إحصائيات مفصلة
 class DataUsageManager {
@@ -42,7 +43,7 @@ class DataUsageManager {
 
   /// تحميل البيانات المحفوظة
   Future<void> _loadStoredData() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
 
     // تحميل الاستخدام اليومي
     _todayUsageMB = prefs.getDouble(_keyTodayUsage) ?? 0.0;
@@ -92,7 +93,7 @@ class DataUsageManager {
       _todayUsageMB = 0.0;
       _lastResetDate = DateTime.now();
 
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setDouble(_keyTodayUsage, _todayUsageMB);
       await prefs.setString(
         _keyLastResetDate,
@@ -110,7 +111,7 @@ class DataUsageManager {
     try {
       _todayUsageMB += megabytes;
 
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setDouble(_keyTodayUsage, _todayUsageMB);
 
       debugPrint(
@@ -126,7 +127,7 @@ class DataUsageManager {
     try {
       _consecutiveFailures++;
 
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setInt(_keyConsecutiveFailures, _consecutiveFailures);
 
       debugPrint('⚠️ تم تسجيل فشل متتالي: $_consecutiveFailures');
@@ -140,7 +141,7 @@ class DataUsageManager {
     try {
       _consecutiveFailures = 0;
 
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setInt(_keyConsecutiveFailures, _consecutiveFailures);
 
       debugPrint('✅ تم إعادة تعيين عداد الفشل المتتالي');
@@ -152,7 +153,7 @@ class DataUsageManager {
   /// الحصول على إحصائيات الاستخدام
   Future<Map<String, dynamic>> getUsageStats() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final dailyLimitMB = prefs.getInt(_keyDailyLimit) ?? 200;
 
       // حساب النسبة المئوية للاستخدام
@@ -243,7 +244,7 @@ class DataUsageManager {
   /// تعيين الحد اليومي للبيانات
   Future<void> setDailyLimit(int limitMB) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setInt(_keyDailyLimit, limitMB);
       debugPrint('⚙️ تم تعيين الحد اليومي للبيانات: $limitMB MB');
     } catch (e) {
@@ -254,7 +255,7 @@ class DataUsageManager {
   /// الحصول على الحد اليومي الحالي
   Future<int> getDailyLimit() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       return prefs.getInt(_keyDailyLimit) ?? 200;
     } catch (e) {
       debugPrint('❌ خطأ في قراءة الحد اليومي: $e');

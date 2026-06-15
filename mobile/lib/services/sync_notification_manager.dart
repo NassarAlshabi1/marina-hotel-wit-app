@@ -151,7 +151,7 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 5), () {
       try {
         overlayEntry.remove();
-      } catch (_) {}
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);}
     });
 
     // اهتزاز خفيف للإشعار
@@ -279,7 +279,7 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 7), () {
       try {
         overlayEntry.remove();
-      } catch (_) {}
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);}
     });
 
     // اهتزاز للتنبيه
@@ -452,7 +452,7 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 10), () {
       try {
         overlayEntry.remove();
-      } catch (_) {}
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);}
     });
 
     // اهتزاز للإشعار

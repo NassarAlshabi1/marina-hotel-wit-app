@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/lark_provider.dart';
@@ -46,7 +47,7 @@ class _LarkSettingsScreenState extends ConsumerState<LarkSettingsScreen> {
   }
 
   Future<String> _getAppSecret() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString('lark_app_secret') ?? '';
   }
 

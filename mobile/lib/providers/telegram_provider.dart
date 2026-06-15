@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../services/alarm_backup.dart';
 import '../services/telegram/telegram_config.dart';
@@ -84,7 +85,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   /// تهيئة الحالة من SharedPreferences — القيم الافتراضية مُحمّلة مسبقاً
   Future<void> _initialize() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final enabled = prefs.getBool('telegram_enabled') ?? false;
       final botToken = prefs.getString('telegram_bot_token') ?? TelegramConfig.defaultBotToken;
       final chatId = prefs.getString('telegram_chat_id') ?? TelegramConfig.defaultChatId;

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import 'database_fixer.dart';
 import 'database_health_monitor.dart';
@@ -16,7 +17,7 @@ class DatabaseHealthTriggers {
     debugPrint('🏥 [HealthTrigger] Running app launch scan...');
 
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final lastScan = prefs.getInt('health_last_scan') ?? 0;
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
@@ -66,7 +67,7 @@ class DatabaseHealthTriggers {
       if (report.totalIssues > 0) {
         debugPrint('⚠️ [HealthTrigger] ${report.totalIssues} issues found');
 
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = getSharedPrefs();
         final autoFix = prefs.getBool('health_auto_fix_before_sync') ?? false;
 
         if (autoFix) {
@@ -95,7 +96,7 @@ class DatabaseHealthTriggers {
           '⚠️ [HealthTrigger] ${report.totalIssues} issues after restore',
         );
 
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = getSharedPrefs();
         final autoFix = prefs.getBool('health_auto_fix_after_restore') ?? true;
 
         if (autoFix) {
@@ -123,7 +124,7 @@ class DatabaseHealthTriggers {
     try {
       final report = await monitor.deepScan();
 
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       await prefs.setString(
         'health_last_scheduled_scan',
         DateTime.now().toIso8601String(),

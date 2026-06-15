@@ -4,6 +4,8 @@ import 'dart:math';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../utils/id.dart';
@@ -115,7 +117,7 @@ class AppSessionManager {
     if (_deviceIdResolver != null) {
       try {
         return await _deviceIdResolver!();
-      } catch (_) {
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         debugPrint('⚠️ فشل حل deviceId');
         return null;
       }
@@ -128,7 +130,7 @@ class AppSessionManager {
   static Future<void> _triggerAppOpenAppwritePull() async {
     try {
       debugPrint('🔄 [AppOpen] Checking for automatic Appwrite pull...');
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!appwriteEnabled) {

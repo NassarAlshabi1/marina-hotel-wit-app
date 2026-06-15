@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../services/unified_sync_orchestrator.dart';
@@ -20,7 +21,7 @@ void autoSyncCallbackDispatcher() {
       WidgetsFlutterBinding.ensureInitialized();
       DartPluginRegistrant.ensureInitialized();
 
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final googleDriveEnabled =
           prefs.getBool('google_drive_sync_enabled') ?? false;
 
@@ -121,7 +122,7 @@ class AutoSyncTask {
 
   /// استهلاك العلامة المخزنة وتشغيل المزامنة الحقيقية داخل التطبيق الرئيسي
   static Future<void> consumePendingAndSync({bool force = false}) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final pending = prefs.getBool(_kPendingFlagKey) ?? false;
     if (!pending && !force) {
       return;

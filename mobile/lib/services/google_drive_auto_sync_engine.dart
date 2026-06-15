@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../utils/debug_logs.dart';
 import 'google_drive_backup_service.dart';
@@ -186,7 +187,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   Future<void> start() async {
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
     if (!syncEnabled) {
       _log('⏸️ Google Drive sync disabled - engine will not start');
@@ -399,7 +400,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     }
 
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
     if (!syncEnabled) {
       _log('⏸️ Google Drive sync disabled - skipping health check sync');
@@ -439,7 +440,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('🌐 Network restored handler triggered');
 
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
     if (!syncEnabled) {
       _log('⏸️ Google Drive sync disabled - skipping network restore sync');
@@ -505,7 +506,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('📱 App resumed - triggering foreground sync');
 
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
     if (!syncEnabled) {
       _log('⏸️ Google Drive sync disabled - skipping foreground sync');
@@ -653,7 +654,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
     if (isSignedIn) {
       // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = getSharedPrefs();
       final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
       if (!syncEnabled) {
         _log('⏸️ Google Drive sync disabled - skipping monitoring after sign-in');
@@ -682,7 +683,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
 
     if (!prefs.containsKey(_prefsEnabledKey)) {
       await prefs.setBool(_prefsEnabledKey, false);
@@ -710,14 +711,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> setDebounceSeconds(int seconds) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsDebounceSecondsKey, seconds);
     await _orchestrator.setDebounceSeconds(seconds);
     _log('⏱️ Debounce updated: ${seconds}s');
   }
 
   Future<void> setPullInterval(int minutes) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setInt(_prefsPullIntervalKey, minutes);
     await _orchestrator.setPullInterval(minutes);
     _log('⏰ Pull interval updated: ${minutes}min');
@@ -729,7 +730,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> setRetryEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     await prefs.setBool(_prefsRetryEnabledKey, enabled);
 
     if (!enabled) {
@@ -745,7 +746,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('🚀 Force sync triggered by user');
 
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
     if (!syncEnabled) {
       const message = 'مزامنة Google Drive معطّلة';

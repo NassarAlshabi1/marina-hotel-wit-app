@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../../utils/hotel_time_engine.dart';
 import '../local_db.dart';
@@ -62,14 +63,14 @@ class TelegramReportService {
   Future<String> _getPhone() async {
     final rc = RemoteConfigService.instance.whatsappPhone;
     if (rc.isNotEmpty) return rc;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString('whatsapp_phone') ?? '';
   }
 
   Future<String> _getApiKey() async {
     final rc = RemoteConfigService.instance.whatsappApiKey;
     if (rc.isNotEmpty) return rc;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = getSharedPrefs();
     return prefs.getString('whatsapp_api_key') ?? '';
   }
 

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../widgets/report_date_filter.dart';
 
 /// ويدجت مشتركة لبناء هيكل صفحات التقارير (AppScaffold + فلتر تاريخ + زر بحث PDF)
 /// لتجنب تكرار كود البنية المشتركة بين شاشات التقارير المختلفة
-class ReportPageScaffold extends StatelessWidget {
+class ReportPageScaffold extends ConsumerWidget {
   const ReportPageScaffold({
     super.key,
     required this.title,
@@ -32,7 +33,7 @@ class ReportPageScaffold extends StatelessWidget {
   final Widget contentWidget;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return AppScaffold(
       title: title,
       actions: [
