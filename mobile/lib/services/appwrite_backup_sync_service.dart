@@ -282,36 +282,23 @@ class AppwriteBackupSyncService {
     final databases = Databases(client);
     final dbId = endpoint.databaseId;
 
-    /// دالة مساعدة لرفع مستند (إنشاء أو تحديث)
+    /// دالة مساعدة لتحديث مستند موجود فقط (بدون إنشاء وثائق جديدة)
+    ///
+    /// في عمليات الرفع الشامل (fullPush)، نقوم بالتحديث فقط — لا ننشئ وثائق.
+    /// إذا لم تكن الوثيقة موجودة يتم تجاوزها بصمت.
     Future<bool> upsert(String collection, String docId, Map<String, dynamic> data) async {
       try {
         // ignore: deprecated_member_use
-        await databases.createDocument(
+        await databases.updateDocument(
           databaseId: dbId,
           collectionId: collection,
           documentId: docId,
           data: data,
         );
         return true;
-      } catch (_) {
-        _logger.warning('⚠️ فشل إنشاء وثيقة احتياطية — نحاول التحديث', tag: 'BACKUP');
-        // إذا كان موجوداً مسبقاً → نحدّث
-        try {
-          // ignore: deprecated_member_use
-          await databases.updateDocument(
-            databaseId: dbId,
-            collectionId: collection,
-            documentId: docId,
-            data: data,
-          );
-          return true;
-        } catch (e) {
-          _logger.warning(
-            '⚠️ فشل رفع $docId إلى $collection: $e',
-            tag: 'BACKUP_SYNC',
-          );
-          return false;
-        }
+      } catch (e) {
+        // الوثيقة غير موجودة — تجاوز بدون إنشاء
+        return false;
       }
     }
 
