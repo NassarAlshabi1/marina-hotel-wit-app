@@ -408,3 +408,36 @@ Navigator.push(context, MaterialPageRoute(
 
 ## إجمالي التعديلات
 **17 ملفاً، +442 إضافة، -34 حذف**
+
+---
+
+## 16. إصلاح خطأ app_settings (Missing required attribute "key")
+
+**الملفات:** `appwrite_sync_utils.dart` + `appwrite_sync_manager.dart`
+
+**الخطأ:**
+```
+AppwriteException: document_invalid_structure, Invalid document structure: Missing required attribute "key" (400)
+```
+
+**السبب:** Appwrite Cloud يتطلب حقل `key` في مجموعة `app_settings`، لكن الكود لم يكن يرسله.
+
+**الإصلاح 1 — `appwrite_sync_utils.dart`:**
+```dart
+'app_settings': {
+  'appwrite_sync_interval', 'dark_mode', 'hotel_cutoff_hour',
+  'hotel_name', 'key',  // ✅ إضافة
+  'lark_app_id', ...
+},
+```
+
+**الإصلاح 2 — `appwrite_sync_manager.dart` (دالة `_pushAppSettingsToCloud`):**
+```dart
+final data = <String, dynamic>{
+  'key': 'whatsapp_settings',  // ✅ إضافة — القيمة الثابتة
+  'hotel_name': ...,
+  ...
+};
+```
+
+**الالتزام:** `e625ee9`
