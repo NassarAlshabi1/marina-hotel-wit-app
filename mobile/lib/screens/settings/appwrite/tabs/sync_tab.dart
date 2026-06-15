@@ -479,7 +479,9 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             return RadioListTile<int>(
               title: Text('$interval دقيقة'),
               value: interval,
+              // ignore: deprecated_member_use
               groupValue: _syncInterval,
+              // ignore: deprecated_member_use
               onChanged: (value) {
                 setState(() => _syncInterval = value!);
                 _saveSettings();

@@ -1,38 +1,18 @@
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:appwrite/appwrite.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:drift/drift.dart' as drift;
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
-import '../adapters/source.dart';
-import '../appwrite_logger.dart';
 import '../appwrite_service.dart';
-import '../appwrite_sync_utils.dart';
-import '../booking_derived_fields_service.dart';
-import '../crashlytics_service.dart';
 import '../daos/outbox_dao.dart';
-import '../booking_price_adjustment_service.dart';
 import '../local_db.dart';
 import '../repositories/bookings_repository.dart';
 import '../repositories/rooms_repository.dart';
-import '../sync_constants.dart';
 import 'sync_error_service.dart';
 
 /// خدمة دفع التغييرات المحلية إلى Appwrite Cloud
 class SyncPushService {
-  final AppwriteService appwriteService;
-  final AppDatabase database;
-  final OutboxDao outboxDao;
-  late final AdapterRegistry _adapterRegistry;
-  late final BookingsRepository _bookingsRepository;
-  late final RoomsRepository _roomsRepository;
-  final SyncErrorService _err;
-  double _adaptiveBatchSize = 50;
 
   SyncPushService({
     required this.appwriteService,
@@ -46,6 +26,17 @@ class SyncPushService {
         _bookingsRepository = bookingsRepository ?? BookingsRepository(database),
         _roomsRepository = roomsRepository ?? RoomsRepository(database),
         _err = errorService ?? SyncErrorService(tag: 'PUSH');
+  final AppwriteService appwriteService;
+  final AppDatabase database;
+  final OutboxDao outboxDao;
+  // ignore: unused_field
+  late final AdapterRegistry _adapterRegistry;
+  // ignore: unused_field
+  late final BookingsRepository _bookingsRepository;
+  // ignore: unused_field
+  late final RoomsRepository _roomsRepository;
+  final SyncErrorService _err;
+  double _adaptiveBatchSize = 50;
 
   /// دفع جميع التغييرات المحلية من outbox إلى Appwrite
   Future<int> pushAllEntities() async {
@@ -70,7 +61,7 @@ class SyncPushService {
         try {
           const timeoutSeconds = 30;
           final success = await _processOutboxEntry(entry)
-              .timeout(Duration(seconds: timeoutSeconds));
+              .timeout(const Duration(seconds: timeoutSeconds));
           if (success) {
             await outboxDao.removeById(entry.id);
             processedInBatch++;

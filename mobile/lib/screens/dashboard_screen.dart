@@ -497,7 +497,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ? () => _showRoomOptionsDialog(context, rws.room)
             : null,
         child: Material(
-          key: ValueKey('room_${roomNumber}$keySuffix'),
+          key: ValueKey('room_$roomNumber$keySuffix'),
           color: bgColor,
           borderRadius: BorderRadius.circular(10),
           child: InkWell(

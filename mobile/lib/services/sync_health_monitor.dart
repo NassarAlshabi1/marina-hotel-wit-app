@@ -31,6 +31,7 @@ class SyncHealthMonitor {
 
   SyncHealthMonitor._();
   static SyncHealthMonitor? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static SyncHealthMonitor get instance => _instance ??= SyncHealthMonitor._();
 
   final _metricsController = StreamController<SyncHealthMetrics>.broadcast();

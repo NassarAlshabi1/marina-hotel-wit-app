@@ -7,6 +7,7 @@ class SyncQueueService {
 
   SyncQueueService._();
   static SyncQueueService? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static SyncQueueService get instance => _instance ??= SyncQueueService._();
 
   final _queueController = StreamController<int>.broadcast();

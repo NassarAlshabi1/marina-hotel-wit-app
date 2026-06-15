@@ -412,7 +412,9 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               title: const Text('الكل'),
               leading: Radio<String>(
                 value: 'all',
+                // ignore: deprecated_member_use
                 groupValue: _selectedLevel,
+                // ignore: deprecated_member_use
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
                   Navigator.pop(context);
@@ -423,7 +425,9 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               title: const Text('معلومات'),
               leading: Radio<String>(
                 value: 'info',
+                // ignore: deprecated_member_use
                 groupValue: _selectedLevel,
+                // ignore: deprecated_member_use
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
                   Navigator.pop(context);
@@ -434,7 +438,9 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               title: const Text('نجاح'),
               leading: Radio<String>(
                 value: 'success',
+                // ignore: deprecated_member_use
                 groupValue: _selectedLevel,
+                // ignore: deprecated_member_use
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
                   Navigator.pop(context);
@@ -445,7 +451,9 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               title: const Text('تحذيرات'),
               leading: Radio<String>(
                 value: 'warning',
+                // ignore: deprecated_member_use
                 groupValue: _selectedLevel,
+                // ignore: deprecated_member_use
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
                   Navigator.pop(context);
@@ -456,7 +464,9 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               title: const Text('أخطاء'),
               leading: Radio<String>(
                 value: 'error',
+                // ignore: deprecated_member_use
                 groupValue: _selectedLevel,
+                // ignore: deprecated_member_use
                 onChanged: (value) {
                   setState(() => _selectedLevel = value!);
                   Navigator.pop(context);

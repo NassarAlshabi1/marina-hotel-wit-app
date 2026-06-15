@@ -57,6 +57,7 @@ class SyncErrorHandler {
 
   SyncErrorHandler._();
   static SyncErrorHandler? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static SyncErrorHandler get instance => _instance ??= SyncErrorHandler._();
 
   final _errorController = StreamController<SyncError>.broadcast();

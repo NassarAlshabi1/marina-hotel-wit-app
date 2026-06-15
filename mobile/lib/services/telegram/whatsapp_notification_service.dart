@@ -49,6 +49,7 @@ class WhatsAppNotificationService {
 
   WhatsAppNotificationService._();
   static WhatsAppNotificationService? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static WhatsAppNotificationService get instance =>
       _instance ??= WhatsAppNotificationService._();
 

@@ -35,6 +35,7 @@ class WhatsAppSettingsSync {
 
       // محاولة تحديث المستند الموجود
       try {
+        // ignore: deprecated_member_use
         await _appwrite.databases.updateDocument(
           databaseId: dbId,
           collectionId: _collectionId,
@@ -43,6 +44,7 @@ class WhatsAppSettingsSync {
         );
       } catch (_) {
         // إذا لم يكن موجوداً، إنشاء مستند جديد
+        // ignore: deprecated_member_use
         await _appwrite.databases.createDocument(
           databaseId: dbId,
           collectionId: _collectionId,
@@ -69,6 +71,7 @@ class WhatsAppSettingsSync {
     try {
       await _appwrite.initialize();
 
+      // ignore: deprecated_member_use
       final doc = await _appwrite.databases.getDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: _collectionId,
@@ -115,6 +118,7 @@ class WhatsAppSettingsSync {
   Future<bool> existsInCloud() async {
     try {
       await _appwrite.initialize();
+      // ignore: deprecated_member_use
       await _appwrite.databases.getDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: _collectionId,

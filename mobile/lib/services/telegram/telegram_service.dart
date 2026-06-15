@@ -10,6 +10,7 @@ class TelegramApiClient {
 
   TelegramApiClient._();
   static TelegramApiClient? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static TelegramApiClient get instance => _instance ??= TelegramApiClient._();
 
   final http.Client _client = http.Client();

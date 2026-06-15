@@ -10,9 +10,9 @@ import '../../services/local_db.dart';
 import '../../services/stay_balance_calculator.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/enhanced_pdf_utils.dart' as epdf;
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../utils/status_utils.dart';
-import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 
 // ─────────────────────────────────────────────────────────────────
@@ -333,7 +333,7 @@ double _getOverdueCost(Booking b) {
                           children: [
                             const Icon(Icons.error_outline, size: 48, color: Colors.red),
                             const SizedBox(height: 12),
-                            Text('خطأ في تحميل البيانات', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                            const Text('خطأ في تحميل البيانات', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
                             const SizedBox(height: 8),
                             Text('$e', style: const TextStyle(fontSize: 12, color: Colors.grey), textAlign: TextAlign.center),
                             const SizedBox(height: 16),
@@ -422,7 +422,7 @@ double _getOverdueCost(Booking b) {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _sortBy,
+                  initialValue: _sortBy,
                   decoration: InputDecoration(
                     labelText: 'ترتيب حسب',
                     labelStyle: const TextStyle(fontSize: 12),

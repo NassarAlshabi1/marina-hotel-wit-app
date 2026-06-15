@@ -61,6 +61,7 @@ class ConnectivityService {
 
   ConnectivityService._();
   static ConnectivityService? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static ConnectivityService get instance =>
       _instance ??= ConnectivityService._();
 

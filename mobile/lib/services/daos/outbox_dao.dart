@@ -163,7 +163,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
     // ✅ تحديث ذري: حدّت الحالة مباشرة في استعلام واحد لمنع المعالجة المكررة
     // بدلاً من SELECT ثم UPDATE المنفصلين اللذين يسمحان بسباق البيانات
-    final priorityCase = "CASE WHEN entity = 'rooms' THEN 1 "
+    const priorityCase = "CASE WHEN entity = 'rooms' THEN 1 "
         "WHEN entity = 'employees' THEN 2 "
         "WHEN entity = 'bookings' THEN 3 "
         "WHEN entity = 'payments' THEN 4 "
@@ -278,10 +278,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     // عناصر قليلة المحاولات → retry فوراً
     final lowAttempts = await (update(outbox)
           ..where((t) =>
-              t.processingStatus.equals("failed") &
+              t.processingStatus.equals('failed') &
               t.attempts.isSmallerOrEqualValue(maxAttempts)))
         .write(const OutboxCompanion(
-      processingStatus: Value("pending"),
+      processingStatus: Value('pending'),
       processingStartedAt: Value(null),
       processingWorker: Value(null),
     ),);
@@ -289,11 +289,11 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     // عناصر كثيرة المحاولات → انتظر backoffMinutes قبل إعادة المحاولة
     final highAttempts = await (update(outbox)
           ..where((t) =>
-              t.processingStatus.equals("failed") &
+              t.processingStatus.equals('failed') &
               t.attempts.isBiggerThanValue(maxAttempts) &
               t.clientTs.isSmallerOrEqualValue(cutoff)))
         .write(const OutboxCompanion(
-      processingStatus: Value("pending"),
+      processingStatus: Value('pending'),
       processingStartedAt: Value(null),
       processingWorker: Value(null),
     ),);

@@ -11,6 +11,7 @@ class LarkApiClient {
 
   LarkApiClient._();
   static LarkApiClient? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static LarkApiClient get instance => _instance ??= LarkApiClient._();
 
   final http.Client _client = http.Client();

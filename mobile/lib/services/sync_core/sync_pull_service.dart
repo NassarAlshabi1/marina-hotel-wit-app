@@ -4,6 +4,7 @@ import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../sync/models/sync_models.dart' show SyncStatus;
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 import '../appwrite_service.dart';
@@ -12,21 +13,9 @@ import '../local_db.dart';
 import '../repositories/bookings_repository.dart';
 import '../repositories/rooms_repository.dart';
 import '../sync_mutex.dart';
-import '../../sync/models/sync_models.dart' show SyncStatus;
 import 'sync_error_service.dart';
 
 class SyncPullService {
-  final AppwriteService appwriteService;
-  final AppDatabase database;
-  final OutboxDao outboxDao;
-  late final AdapterRegistry _adapterRegistry;
-  late final BookingsRepository _bookingsRepository;
-  late final RoomsRepository _roomsRepository;
-  final SyncMutex _mutex;
-  final SyncErrorService _err;
-  SyncStatus _currentStatus = SyncStatus.pending;
-  final _syncController = StreamController<SyncStatus>.broadcast();
-  Stream<SyncStatus> get syncStatusStream => _syncController.stream;
 
   SyncPullService({
     required this.appwriteService,
@@ -42,6 +31,21 @@ class SyncPullService {
         _roomsRepository = roomsRepository ?? RoomsRepository(database),
         _mutex = mutex ?? SyncMutex(),
         _err = errorService ?? SyncErrorService(tag: 'PULL');
+  final AppwriteService appwriteService;
+  final AppDatabase database;
+  final OutboxDao outboxDao;
+  late final AdapterRegistry _adapterRegistry;
+  // ignore: unused_field
+  late final BookingsRepository _bookingsRepository;
+  // ignore: unused_field
+  late final RoomsRepository _roomsRepository;
+  // ignore: unused_field
+  final SyncMutex _mutex;
+  final SyncErrorService _err;
+  // ignore: unused_field
+  final SyncStatus _currentStatus = SyncStatus.pending;
+  final _syncController = StreamController<SyncStatus>.broadcast();
+  Stream<SyncStatus> get syncStatusStream => _syncController.stream;
 
   /// دلتا سحب
   Future<Map<String, int>> pullAllEntities({
@@ -71,6 +75,7 @@ class SyncPullService {
     return 0; // simplified
   }
 
+  // ignore: unused_element
   Future<bool> _isRemoteEpochMillis() async {
     try {
       final rooms = await appwriteService.listRooms(queries: [Query.limit(1)]);
@@ -90,6 +95,7 @@ class SyncPullService {
     return [];
   }
 
+  // ignore: unused_element
   List<String> _bookingNightsDeltaQueries(int lastPullTs, {required bool remoteEpochIsMillis}) {
     if (lastPullTs > 0) {
       final cutoff = lastPullTs - 5;
@@ -100,27 +106,32 @@ class SyncPullService {
     return [];
   }
 
+  // ignore: unused_element
   Future<int> _getLastPullTs() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt('sync_last_pull_ts') ?? 0;
   }
 
+  // ignore: unused_element
   Future<void> _updateLastPullTs(int ts) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('sync_last_pull_ts', ts);
   }
 
+  // ignore: unused_element
   Future<int> _getBookingNightsPullTs() async {
     final prefs = await SharedPreferences.getInstance();
     final ts = prefs.getInt('sync_last_pull_booking_nights') ?? 0;
     return ts > 10000000000 ? ts ~/ 1000 : ts;
   }
 
+  // ignore: unused_element
   Future<void> _updateBookingNightsPullTs(int ts) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('sync_last_pull_booking_nights', ts);
   }
 
+  // ignore: unused_element
   Future<int> _syncRooms(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
@@ -135,6 +146,7 @@ class SyncPullService {
     return processed;
   }
 
+  // ignore: unused_element
   Future<int> _syncBookings(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
@@ -156,6 +168,7 @@ class SyncPullService {
     return processed;
   }
 
+  // ignore: unused_element
   Future<int> _syncEmployees(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
@@ -170,6 +183,7 @@ class SyncPullService {
     return processed;
   }
 
+  // ignore: unused_element
   Future<int> _syncBookingNights(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;

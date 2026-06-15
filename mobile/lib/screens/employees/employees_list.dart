@@ -212,7 +212,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                             ],
                           ),
                           value: 'مفصول',
+                          // ignore: deprecated_member_use
                           groupValue: terminationType,
+                          // ignore: deprecated_member_use
                           onChanged: (v) =>
                               setDialogState(() => terminationType = v!),
                           dense: true,
@@ -227,7 +229,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                             ],
                           ),
                           value: 'استقالة',
+                          // ignore: deprecated_member_use
                           groupValue: terminationType,
+                          // ignore: deprecated_member_use
                           onChanged: (v) =>
                               setDialogState(() => terminationType = v!),
                           dense: true,
@@ -242,7 +246,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                             ],
                           ),
                           value: 'استغناء',
+                          // ignore: deprecated_member_use
                           groupValue: terminationType,
+                          // ignore: deprecated_member_use
                           onChanged: (v) =>
                               setDialogState(() => terminationType = v!),
                           dense: true,
@@ -453,6 +459,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
       await repo.reactivate(id: employee.id);
       markDataChanged();
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('تم إعادة تفعيل الموظف بنجاح'),
@@ -463,6 +470,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
       }
     } catch (e) {
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل إعادة التفعيل: $e'),
@@ -743,7 +751,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                   StatefulBuilder(
                     builder: (context, setLocalState) =>
                         DropdownButtonFormField<String>(
-                          value: status,
+                          initialValue: status,
                           decoration: InputDecoration(
                             labelText: 'الحالة',
                             prefixIcon: const Icon(Icons.toggle_on),
@@ -1006,7 +1014,6 @@ class _EmployeeCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 4,
-                            vertical: 0,
                           ),
                           decoration: BoxDecoration(
                             color: statusColor.withValues(alpha: 0.1),

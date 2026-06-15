@@ -9,6 +9,7 @@ class SyncNotificationManager {
     _initLocalNotifications();
   }
   static SyncNotificationManager? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static SyncNotificationManager get instance =>
       _instance ??= SyncNotificationManager._();
 

@@ -723,7 +723,9 @@ class _GoogleDriveBackupContentState
     return RadioListTile<String>(
       title: Text(label),
       value: value,
+      // ignore: deprecated_member_use
       groupValue: currentSettings.frequency,
+      // ignore: deprecated_member_use
       onChanged: (selectedValue) {
         if (selectedValue != null) {
           Navigator.of(context).pop();

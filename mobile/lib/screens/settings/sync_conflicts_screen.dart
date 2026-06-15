@@ -44,6 +44,7 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
             onPressed: () async {
               final deleted = await _conflictManager.deleteResolvedConflicts();
               if (mounted) {
+                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('تم حذف $deleted تعارضاً محلولاً')),
                 );

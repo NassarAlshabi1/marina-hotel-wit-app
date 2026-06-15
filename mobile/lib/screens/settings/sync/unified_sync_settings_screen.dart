@@ -372,21 +372,25 @@ class _UnifiedSyncSettingsScreenState
           children: [
             ListTile(
               title: const Text('5 دقائق'),
+              // ignore: deprecated_member_use
               leading: Radio(value: 5, groupValue: 15, onChanged: (v) {}),
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
               title: const Text('15 دقيقة'),
+              // ignore: deprecated_member_use
               leading: Radio(value: 15, groupValue: 15, onChanged: (v) {}),
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
               title: const Text('30 دقيقة'),
+              // ignore: deprecated_member_use
               leading: Radio(value: 30, groupValue: 15, onChanged: (v) {}),
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
               title: const Text('ساعة واحدة'),
+              // ignore: deprecated_member_use
               leading: Radio(value: 60, groupValue: 15, onChanged: (v) {}),
               onTap: () => Navigator.pop(context),
             ),

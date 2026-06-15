@@ -892,7 +892,9 @@ class _AutoSyncEngineMonitorScreenState
                   title: Text('$seconds ثانية'),
                   subtitle: Text(_getDebounceDescription(seconds)),
                   value: seconds,
+                  // ignore: deprecated_member_use
                   groupValue: currentDebounce,
+                  // ignore: deprecated_member_use
                   onChanged: (value) async {
                     if (value != null) {
                       await AutoSyncEngine.instance.setDebounceSeconds(value);
@@ -942,7 +944,9 @@ class _AutoSyncEngineMonitorScreenState
                   title: Text('$minutes دقيقة'),
                   subtitle: Text(_getPullIntervalDescription(minutes)),
                   value: minutes,
+                  // ignore: deprecated_member_use
                   groupValue: currentInterval,
+                  // ignore: deprecated_member_use
                   onChanged: (value) async {
                     if (value != null) {
                       await AutoSyncEngine.instance.setPullInterval(value);
@@ -989,7 +993,9 @@ class _AutoSyncEngineMonitorScreenState
                   title: Text(_getStrategyName(strategy)),
                   subtitle: Text(_getStrategyDescription(strategy)),
                   value: strategy,
+                  // ignore: deprecated_member_use
                   groupValue: currentStrategy,
+                  // ignore: deprecated_member_use
                   onChanged: (value) async {
                     if (value != null) {
                       await AutoSyncEngine.instance.setConflictStrategy(value);

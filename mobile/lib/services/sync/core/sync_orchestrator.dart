@@ -12,6 +12,7 @@ class SyncOrchestrator {
 
   SyncOrchestrator._();
   static SyncOrchestrator? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static SyncOrchestrator get instance => _instance ??= SyncOrchestrator._();
 
   final List<SyncAdapter> _adapters = [];

@@ -223,8 +223,8 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         fmt(debt.totalAmount),
         fmt(debt.paidAmount),
         fmt(debt.remainingAmount),
-        debt.debtReason.isNotEmpty ? debt.debtReason : '-',
-        debt.isSettled == 1 ? 'مسدد' : 'غير مسدد',
+        if (debt.debtReason.isNotEmpty) debt.debtReason else '-',
+        if (debt.isSettled == 1) 'مسدد' else 'غير مسدد',
       ]);
     }
     // صف الإجمالي

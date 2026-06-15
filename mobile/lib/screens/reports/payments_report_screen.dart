@@ -143,7 +143,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             dateTime: _fromDate!.add(const Duration(seconds: 1)))
         : null;
     final toHotelDay = _toDate != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate!)
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
         : null;
 
     final outboxDao = OutboxDao(db);
@@ -410,7 +410,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         SizedBox(
           width: 140,
           child: DropdownButtonFormField<String?>(
-            value: _selectedRoom,
+            initialValue: _selectedRoom,
             decoration: const InputDecoration(
               labelText: 'الغرفة',
               isDense: true,
@@ -419,7 +419,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color),
             items: [
               DropdownMenuItem<String?>(
-                value: null,
                 child: Text('الكل', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyMedium?.color)),
               ),
               ..._availableRooms.map(

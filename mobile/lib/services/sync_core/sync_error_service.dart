@@ -6,10 +6,6 @@ import '../crashlytics_service.dart';
 /// خدمة موحدة للتعامل مع الأخطاء في نظام المزامنة
 /// تجمع AppwriteLogger + CrashlyticsService + AppwriteErrorHandler تحت واجهة واحدة
 class SyncErrorService {
-  final AppwriteLogger _logger;
-  final AppwriteErrorHandler _errorHandler;
-  final CrashlyticsService _crashlytics;
-  final String tag;
 
   SyncErrorService({
     required this.tag,
@@ -19,6 +15,10 @@ class SyncErrorService {
   })  : _logger = logger ?? AppwriteLogger(),
         _errorHandler = errorHandler ?? AppwriteErrorHandler(),
         _crashlytics = crashlytics ?? CrashlyticsService.instance;
+  final AppwriteLogger _logger;
+  final AppwriteErrorHandler _errorHandler;
+  final CrashlyticsService _crashlytics;
+  final String tag;
 
   /// تسجيل معلومات
   void info(String message, {Map<String, dynamic>? context}) {
@@ -92,7 +92,6 @@ class SyncErrorService {
         SnackBar(
           content: Text(message),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -101,11 +100,11 @@ class SyncErrorService {
 
 /// نتيجة معالجة خطأ Appwrite
 class AppwriteErrorResult {
-  final String message;
-  final bool isRetryable;
 
   const AppwriteErrorResult({
     required this.message,
     this.isRetryable = false,
   });
+  final String message;
+  final bool isRetryable;
 }

@@ -512,7 +512,7 @@ class GoogleDriveBackupService {
         final wMap = withdrawalsList[i] as Map<String, dynamic>;
         final empId = wMap['employeeId'] as int?;
         if (empId != null && employeeUuidMap.containsKey(empId)) {
-          wMap['employee_uuid'] = employeeUuidMap[empId]!;
+          wMap['employee_uuid'] = employeeUuidMap[empId];
         }
       }
     }
@@ -535,7 +535,7 @@ class GoogleDriveBackupService {
         final pMap = salaryPaymentsList[i] as Map<String, dynamic>;
         final cycleId = pMap['cycleId'] as int?;
         if (cycleId != null && cycleUuidMap.containsKey(cycleId)) {
-          pMap['cycle_local_uuid'] = cycleUuidMap[cycleId]!;
+          pMap['cycle_local_uuid'] = cycleUuidMap[cycleId];
         }
       }
     }

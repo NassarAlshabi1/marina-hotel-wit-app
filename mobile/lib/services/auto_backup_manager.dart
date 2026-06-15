@@ -34,6 +34,7 @@ class AutoBackupManager {
       'google_drive_delta_sync_enabled';
 
   static AutoBackupManager? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static AutoBackupManager get instance => _instance ??= AutoBackupManager._();
 
   GoogleDriveBackupService? _backupService;

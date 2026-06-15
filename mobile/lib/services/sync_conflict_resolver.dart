@@ -1,3 +1,4 @@
+// ignore_for_file: comment_references
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
@@ -438,6 +439,7 @@ class SyncConflictResolver {
   }
 
   /// تحويل صف ناتج عن customSelect إلى Map<String, dynamic>
+  // ignore: unused_element
   Map<String, dynamic> _rowToMap(Map<String, dynamic> row) {
     return Map<String, dynamic>.from(row);
   }

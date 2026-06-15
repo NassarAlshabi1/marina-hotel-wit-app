@@ -171,6 +171,7 @@ class SyncMonitoringSystem {
 
   SyncMonitoringSystem._();
   static SyncMonitoringSystem? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static SyncMonitoringSystem get instance =>
       _instance ??= SyncMonitoringSystem._();
 

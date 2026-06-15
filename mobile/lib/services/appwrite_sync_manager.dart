@@ -27,15 +27,15 @@ import 'appwrite_service.dart';
 import 'appwrite_sync_utils.dart';
 import 'booking_derived_fields_service.dart';
 import 'crashlytics_service.dart';
-import 'sync_core/sync_error_service.dart';
-import 'sync_core/sync_push_service.dart';
-import 'sync_core/sync_pull_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
 import 'sync_constants.dart';
+import 'sync_core/sync_error_service.dart';
 import 'sync_core/sync_metrics.dart';
+import 'sync_core/sync_pull_service.dart';
+import 'sync_core/sync_push_service.dart';
 import 'sync_enums.dart';
 import 'sync_mutex.dart';
 import 'telegram/whatsapp_notification_service.dart';
@@ -103,8 +103,11 @@ class AppwriteSyncManager {
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
+  // ignore: unused_field
   final _err = SyncErrorService(tag: 'SYNC');
+  // ignore: unused_field, use_late_for_private_fields_and_variables
   SyncPushService? _pushService;
+  // ignore: unused_field, use_late_for_private_fields_and_variables
   SyncPullService? _pullService;
 
   Timer? _syncTimer;
@@ -135,6 +138,7 @@ class AppwriteSyncManager {
       final info = appwriteService.getProjectInfo();
       final dbId = info['databaseId'] ?? AppwriteConfig.databaseId;
 
+      // ignore: deprecated_member_use
       final list = await appwriteService.databases.listDocuments(
         databaseId: dbId,
         collectionId: AppwriteConfig.roomsCollectionId,
@@ -487,8 +491,7 @@ class AppwriteSyncManager {
 
           // إعادة تعيين العناصر الفاشلة إلى pending مع backoff
           final resetCount = await outboxDao.retryFailedWithBackoff(
-            maxAttempts: 5,
-            backoffMinutes: 30,
+            
           );
           if (resetCount == 0) return;
 
@@ -1956,9 +1959,9 @@ class AppwriteSyncManager {
       int processedInBatch = 0;
       for (final entry in entries) {
         try {
-          final timeoutSeconds = 30;
+          const timeoutSeconds = 30;
           final success = await _processOutboxEntry(entry)
-              .timeout(Duration(seconds: timeoutSeconds));
+              .timeout(const Duration(seconds: timeoutSeconds));
           if (success) {
             await outboxDao.removeById(entry.id);
             processedInBatch++;
@@ -2157,6 +2160,7 @@ class AppwriteSyncManager {
     Booking expected,
   ) async {
     try {
+      // ignore: deprecated_member_use
       final doc = await appwriteService.databases.getDocument(
         databaseId: AppwriteConfig.databaseId,
         collectionId: AppwriteConfig.bookingsCollectionId,

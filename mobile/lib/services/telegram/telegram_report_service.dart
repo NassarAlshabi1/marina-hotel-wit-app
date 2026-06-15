@@ -52,6 +52,7 @@ class TelegramReportService {
 
   TelegramReportService._();
   static TelegramReportService? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static TelegramReportService get instance =>
       _instance ??= TelegramReportService._();
 

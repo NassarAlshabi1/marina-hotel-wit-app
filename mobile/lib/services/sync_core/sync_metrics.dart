@@ -104,6 +104,7 @@ class SyncMetrics {
 
   SyncMetrics._();
   static SyncMetrics? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static SyncMetrics get instance => _instance ??= SyncMetrics._();
 
   SyncSession? _currentSession;

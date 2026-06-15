@@ -30,6 +30,7 @@ class SmartSyncManager {
 
   SmartSyncManager._();
   static SmartSyncManager? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static SmartSyncManager get instance => _instance ??= SmartSyncManager._();
 
   GoogleDriveBackupService? _backupService;

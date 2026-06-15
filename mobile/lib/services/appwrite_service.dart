@@ -113,6 +113,7 @@ class AppwriteService {
       );
 
       Future<List<models.Document>> performOperation() async {
+        // ignore: deprecated_member_use
         final documentList = await _databases.listDocuments(
           databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
@@ -174,6 +175,7 @@ class AppwriteService {
       for (final doc in documents) {
         try {
           await _networkHelper.withRetryAndTimeout(
+            // ignore: deprecated_member_use
             operation: () => _databases.deleteDocument(
               databaseId: AppwriteConfigManager.databaseId,
               collectionId: collectionId,
@@ -223,6 +225,7 @@ class AppwriteService {
 
     // نحاول التحديث أولاً (Optimistic) — 404 متوقع في Upsert
     try {
+      // ignore: deprecated_member_use
       return await _databases.updateDocument(
         databaseId: dbId,
         collectionId: collectionId,
@@ -233,6 +236,7 @@ class AppwriteService {
       // 404 Not Found -> Create (هذا السلوك الطبيعي لـ Upsert)
       if (e.code == 404 || e.toString().contains('document_not_found')) {
         return _networkHelper.withRetryAndTimeout(
+          // ignore: deprecated_member_use
           operation: () => _databases.createDocument(
             databaseId: dbId,
             collectionId: collectionId,
@@ -252,6 +256,7 @@ class AppwriteService {
   }) async {
     try {
       await _networkHelper.withRetryAndTimeout(
+        // ignore: deprecated_member_use
         operation: () => _databases.deleteDocument(
           databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
@@ -811,6 +816,7 @@ class AppwriteService {
       await _ensureInitialized();
 
       await _networkHelper.withTimeout(
+        // ignore: deprecated_member_use
         operation: () => _databases.listDocuments(
           databaseId: AppwriteConfigManager.databaseId,
           collectionId: AppwriteConfig.roomsCollectionId,
@@ -844,6 +850,7 @@ class AppwriteService {
       // 1. اختبار الاتصال الأساسي (Ping) - listDocuments على rooms
       try {
         await _networkHelper.withTimeout(
+          // ignore: deprecated_member_use
           operation: () => _databases.listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: AppwriteConfig.roomsCollectionId,
@@ -861,6 +868,7 @@ class AppwriteService {
       // 2. اختبار القراءة من bookings
       try {
         await _networkHelper.withTimeout(
+          // ignore: deprecated_member_use
           operation: () => _databases.listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: AppwriteConfig.bookingsCollectionId,
@@ -878,6 +886,7 @@ class AppwriteService {
       // 3. اختبار القراءة من devices
       try {
         await _networkHelper.withTimeout(
+          // ignore: deprecated_member_use
           operation: () => _databases.listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: AppwriteConfig.devicesCollectionId,
@@ -932,6 +941,7 @@ class AppwriteService {
   }) async {
     await _ensureInitialized();
     return _networkHelper.withTimeout(
+      // ignore: deprecated_member_use
       operation: () => _databases.getDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
@@ -949,6 +959,7 @@ class AppwriteService {
   }) async {
     await _ensureInitialized();
     return _networkHelper.withTimeout(
+      // ignore: deprecated_member_use
       operation: () => _databases.createDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
@@ -967,6 +978,7 @@ class AppwriteService {
   }) async {
     await _ensureInitialized();
     return _networkHelper.withTimeout(
+      // ignore: deprecated_member_use
       operation: () => _databases.updateDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,

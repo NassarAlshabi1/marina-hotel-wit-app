@@ -21,6 +21,7 @@ class SyncValidator {
 
   SyncValidator._();
   static SyncValidator? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static SyncValidator get instance => _instance ??= SyncValidator._();
 
   ValidationResult validateSyncData(Map<String, dynamic> data) {

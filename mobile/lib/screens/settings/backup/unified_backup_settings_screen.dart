@@ -516,7 +516,9 @@ class _UnifiedBackupSettingsScreenState
       title: Text(label),
       leading: Radio(
         value: value,
+        // ignore: deprecated_member_use
         groupValue: current,
+        // ignore: deprecated_member_use
         onChanged: (v) {
           Navigator.pop(context);
           final settings = ref.read(backupStatusProvider).autoSettings;

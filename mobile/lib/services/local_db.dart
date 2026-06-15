@@ -1947,7 +1947,7 @@ class AppDatabase extends _$AppDatabase {
         // تعبئة expense_id من حقل reason (exp_XX → XX)
         try {
           await m.database.customStatement(
-            "UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) "
+            'UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) '
             "WHERE reason LIKE 'exp_%' AND expense_id IS NULL",
           );
           developer.log(

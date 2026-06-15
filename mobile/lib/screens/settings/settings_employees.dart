@@ -607,7 +607,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: status,
+                  initialValue: status,
                   decoration: const InputDecoration(
                     labelText: 'الحالة',
                     border: OutlineInputBorder(),
@@ -771,7 +771,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                             ],
                           ),
                           value: 'مفصول',
+                          // ignore: deprecated_member_use
                           groupValue: terminationType,
+                          // ignore: deprecated_member_use
                           onChanged: (v) =>
                               setDialogState(() => terminationType = v!),
                           dense: true,
@@ -786,7 +788,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                             ],
                           ),
                           value: 'استقالة',
+                          // ignore: deprecated_member_use
                           groupValue: terminationType,
+                          // ignore: deprecated_member_use
                           onChanged: (v) =>
                               setDialogState(() => terminationType = v!),
                           dense: true,
@@ -801,7 +805,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                             ],
                           ),
                           value: 'استغناء',
+                          // ignore: deprecated_member_use
                           groupValue: terminationType,
+                          // ignore: deprecated_member_use
                           onChanged: (v) =>
                               setDialogState(() => terminationType = v!),
                           dense: true,
@@ -1246,7 +1252,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                             ],
                           ),
                           value: 'سلفة',
+                          // ignore: deprecated_member_use
                           groupValue: withdrawalType,
+                          // ignore: deprecated_member_use
                           onChanged: (v) =>
                               setDialogState(() => withdrawalType = v!),
                           dense: true,
@@ -1261,7 +1269,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                             ],
                           ),
                           value: 'سحب راتب',
+                          // ignore: deprecated_member_use
                           groupValue: withdrawalType,
+                          // ignore: deprecated_member_use
                           onChanged: (v) =>
                               setDialogState(() => withdrawalType = v!),
                           dense: true,
@@ -1276,7 +1286,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                             ],
                           ),
                           value: 'أخرى',
+                          // ignore: deprecated_member_use
                           groupValue: withdrawalType,
+                          // ignore: deprecated_member_use
                           onChanged: (v) =>
                               setDialogState(() => withdrawalType = v!),
                           dense: true,
@@ -1408,7 +1420,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'تم تسجيل سحب ${CurrencyFormatter.formatAmount(amount)} ${withdrawalType} بنجاح',
+                          'تم تسجيل سحب ${CurrencyFormatter.formatAmount(amount)} $withdrawalType بنجاح',
                         ),
                         backgroundColor: Colors.green,
                         behavior: SnackBarBehavior.floating,

@@ -76,6 +76,7 @@ class SyncErrorRecovery {
 
   SyncErrorRecovery._();
   static SyncErrorRecovery? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static SyncErrorRecovery get instance => _instance ??= SyncErrorRecovery._();
 
   final List<SyncError> _errorLog = [];

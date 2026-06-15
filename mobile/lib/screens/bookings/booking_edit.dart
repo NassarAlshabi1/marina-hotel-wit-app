@@ -278,7 +278,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
-                          value: _idTypes.contains(_idType) ? _idType : null,
+                          initialValue: _idTypes.contains(_idType) ? _idType : null,
                           items: _idTypes
                               .map(
                                 (t) =>
@@ -407,7 +407,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
-                          value: _status,
+                          initialValue: _status,
                           items: _statusOptions
                               .map(
                                 (s) =>
@@ -500,7 +500,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           ),
                           const SizedBox(height: 4),
                           DropdownButtonFormField<String>(
-                            value: _paymentMethods.contains(_paymentMethod) ? _paymentMethod : null,
+                            initialValue: _paymentMethods.contains(_paymentMethod) ? _paymentMethod : null,
                             items: _paymentMethods
                                 .map(
                                   (method) => DropdownMenuItem(
@@ -998,7 +998,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         }
 
         return DropdownButtonFormField<String>(
-          value: currentValue.isNotEmpty ? currentValue : null,
+          initialValue: currentValue.isNotEmpty ? currentValue : null,
           items: items,
           style: roomTextStyle,
           onChanged: (value) {

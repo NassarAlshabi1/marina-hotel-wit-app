@@ -187,11 +187,11 @@ class HotelDayKeyFixService {
       int step1Fixed = 0;
       try {
         await db.customStatement(
-          "UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) "
+          'UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) '
           "WHERE reason LIKE 'exp_%' "
           "AND reason NOT LIKE 'exp_%\\_%' ESCAPE '\\' "
-          "AND expense_id IS NULL "
-          "AND deleted_at IS NULL",
+          'AND expense_id IS NULL '
+          'AND deleted_at IS NULL',
         );
         // customStatement() يُرجع void — لا يمكننا معرفة عدد الصفوف المتأثرة
         // نعتبر العملية ناجحة إذا لم تُطلق استثناءً
@@ -385,7 +385,7 @@ class HotelDayKeyFixService {
             ..where((t) => t.deletedAt.isNull()))
           .get();
 
-      int fixed = 0;
+      const int fixed = 0;
       for (final _ in rows) {
         // لا نحتاج إصلاح employeeUuid محلياً لأن SQLite لا يخزنه
         // لكن نحتاج التأكد أن outbox سيرفعه مع employeeUuid

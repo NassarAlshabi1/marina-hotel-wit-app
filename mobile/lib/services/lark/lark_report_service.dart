@@ -81,6 +81,7 @@ class LarkReportService {
 
   LarkReportService._();
   static LarkReportService? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static LarkReportService get instance =>
       _instance ??= LarkReportService._();
 

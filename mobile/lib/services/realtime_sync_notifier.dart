@@ -8,6 +8,7 @@ class RealtimeSyncNotifier {
 
   RealtimeSyncNotifier._();
   static RealtimeSyncNotifier? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static RealtimeSyncNotifier get instance =>
       _instance ??= RealtimeSyncNotifier._();
 
