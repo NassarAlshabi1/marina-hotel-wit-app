@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../utils/app_logger.dart';

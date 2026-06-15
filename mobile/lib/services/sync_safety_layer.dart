@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
+import '../utils/app_logger.dart';
 import 'local_db.dart';
 import 'sync_constants.dart';
 
@@ -210,7 +211,7 @@ class SyncSafetyLayer {
                 name: 'SyncSafety',
               );
             }
-          } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);}
+          } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);}
         } catch (e) {
           debugPrint('⚠️ فشل إعادة تشغيل FOREIGN KEYS: $e');
         }
@@ -245,7 +246,7 @@ class SyncSafetyLayer {
     Directory dir;
     try {
       dir = await getApplicationSupportDirectory();
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       dir = await Directory.systemTemp.createTemp('sync_support_');
     }
     final target = Directory(p.join(dir.path, 'sync_safety'));
@@ -272,7 +273,7 @@ class SyncSafetyLayer {
         mode: FileMode.append,
         flush: true,
       );
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       // تجاهل أخطاء السجل حتى لا تؤثر على سير المزامنة
     }
   }

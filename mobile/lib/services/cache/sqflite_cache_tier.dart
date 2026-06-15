@@ -5,8 +5,8 @@
 /// Supports: larger data, TTL-based eviction, size limits, indexing
 /// No Drift code generation required - uses custom SQL
 /// ============================================================
+library;
 
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
@@ -19,7 +19,7 @@ class SqfliteCacheTier {
   final AppDatabase db;
 
   static const int _maxCacheSize = 50 * 1024 * 1024; // 50 MB max
-  static const Duration _defaultTtl = const Duration(hours: 24);
+  static const Duration _defaultTtl = Duration(hours: 24);
   static bool _tableCreated = false;
 
   /// تهيئة الجدول (يُستدعى مرة واحدة)
@@ -164,9 +164,9 @@ class SqfliteCacheTier {
       ).getSingle();
 
       return {
-        'totalEntries': totalCount.read<int>('cnt') ?? 0,
-        'totalSize': totalSize.read<int>('sz') ?? 0,
-        'expiredEntries': expiredCount.read<int>('cnt') ?? 0,
+        'totalEntries': totalCount.read<int>('cnt'),
+        'totalSize': totalSize.read<int>('sz'),
+        'expiredEntries': expiredCount.read<int>('cnt'),
       };
     } catch (e) {
       return {'error': e.toString()};
@@ -179,7 +179,7 @@ class SqfliteCacheTier {
       await ensureTable();
       final totalSize = (await db.customSelect(
         'SELECT COALESCE(SUM(size), 0) as sz FROM cache_store',
-      ).getSingle()).read<int>('sz') ?? 0;
+      ).getSingle()).read<int>('sz');
 
       if (totalSize <= _maxCacheSize) return;
 

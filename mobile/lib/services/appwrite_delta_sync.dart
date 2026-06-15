@@ -1,9 +1,8 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:drift/drift.dart' as d;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 import '../utils/id.dart';
@@ -238,7 +237,7 @@ class AppwriteDeltaSync {
           );
         } on AppwriteException catch (e) {
           if (e.code != 404) rethrow;
-        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
           rethrow;
         }
     }

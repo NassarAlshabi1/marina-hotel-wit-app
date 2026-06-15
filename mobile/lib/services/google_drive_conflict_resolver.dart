@@ -1,9 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../utils/debug_logs.dart';
 import 'google_drive_logger.dart';
@@ -382,7 +381,7 @@ class GoogleDriveConflictResolver {
     if (lastModified is int) {
       try {
         return DateTime.fromMillisecondsSinceEpoch(lastModified * 1000);
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
         return null;
       }
     }
@@ -391,7 +390,7 @@ class GoogleDriveConflictResolver {
     if (updatedAt is int) {
       try {
         return DateTime.fromMillisecondsSinceEpoch(updatedAt * 1000);
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
         return null;
       }
     }

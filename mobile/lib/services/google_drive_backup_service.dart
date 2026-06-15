@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:workmanager/workmanager.dart';
 

@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import 'sync_performance_settings.dart';
 
@@ -186,7 +186,7 @@ class SyncPerformanceOptimizer {
     try {
       final prefs = getSharedPrefs();
       await prefs.setInt('performance_level', 2);
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);}
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);}
   }
 
   /// التحقق من إمكانية بدء المزامنة
@@ -243,9 +243,9 @@ class SyncPerformanceOptimizer {
         'google.com',
       ).timeout(const Duration(seconds: 5));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } on SocketException catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } on SocketException catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       return false;
-    } on TimeoutException catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } on TimeoutException catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       return false;
     } catch (e) {
       debugPrint('❌ خطأ في فحص الاتصال: $e');

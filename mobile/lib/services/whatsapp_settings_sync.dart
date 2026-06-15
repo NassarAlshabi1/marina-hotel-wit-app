@@ -1,8 +1,8 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+
 import 'appwrite_config_manager.dart';
 import 'appwrite_service.dart';
 
@@ -45,7 +45,7 @@ class WhatsAppSettingsSync {
           documentId: _docId,
           data: data,
         );
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
         // إذا لم يكن موجوداً، إنشاء مستند جديد
         // ignore: deprecated_member_use
         await _appwrite.databases.createDocument(
@@ -128,7 +128,7 @@ class WhatsAppSettingsSync {
         documentId: _docId,
       );
       return true;
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       return false;
     }
   }

@@ -9,7 +9,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
@@ -159,7 +158,7 @@ class AppwriteSyncManager {
       final isMillis = value != null && value > 10000000000;
       _remoteEpochIsMillis = isMillis;
       return isMillis;
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       _remoteEpochIsMillis = false;
       _logger.warning('⚠️ Failed to parse remote epoch', tag: 'SYNC');
       return false;
@@ -2001,7 +2000,7 @@ class AppwriteSyncManager {
         _logger.warning('⚠️ لا يوجد اتصال بالإنترنت - تم تأجيل الرفع', tag: 'SYNC');
         return 0;
       }
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       // تجاهل خطأ فحص الاتصال ونحاول الرفع
     }
 
@@ -2037,7 +2036,7 @@ class AppwriteSyncManager {
                 data: payload,
                 operation: entry.op == 'delete' ? 'delete' : 'update',
               ));
-            } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+            } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
               _logger.warning('⚠️ فشل تحليل payload للنسخ الاحتياطي', tag: 'BACKUP');
             }
           } else {
@@ -2065,7 +2064,7 @@ class AppwriteSyncManager {
       if (backupOps.isNotEmpty) {
         try {
           await backupService.pushBatchToBackups(operations: backupOps);
-        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
           _logger.warning('⚠️ فشل النسخ الاحتياطي — لم يمنع المزامنة الرئيسية', tag: 'BACKUP');
         }
       }
@@ -2404,7 +2403,6 @@ class AppwriteSyncManager {
   Future<void> _deleteOrphanFromCloud({
     required String collectionId,
     required String documentId,
-    String? logLabel,
   }) async {
     await _deleteSilently(() => appwriteService.deleteDocument(
       collectionId: collectionId,
@@ -2687,10 +2685,10 @@ class AppwriteSyncManager {
             '🗑️ حذف salary_withdrawal يتيم ${doc.$id}: الموظف غير موجود محلياً ولا على Appwrite',
             tag: 'SYNC',
           );
-          _deleteOrphanFromCloud(
+          unawaited(_deleteOrphanFromCloud(
             collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
             documentId: doc.$id,
-          );
+          ));
           processed++;
           continue;
         }
@@ -2753,10 +2751,10 @@ class AppwriteSyncManager {
               '🗑️ حذف salary_withdrawal يتيم: الموظف غير موجود محلياً ولا على Appwrite (بعد إعادة المحاولة)',
               tag: 'SYNC',
             );
-            _deleteOrphanFromCloud(
+            unawaited(_deleteOrphanFromCloud(
               collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
               documentId: data['localUuid'] as String? ?? 'unknown',
-            );
+            ));
             processed++;
             continue;
           }
@@ -2835,7 +2833,7 @@ class AppwriteSyncManager {
               .write(EmployeesCompanion(
             serverId: drift.Value(remoteDoc.$id.hashCode),
           ));
-        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
           _logger.warning('⚠️ فشل جلب المستند البعيد للموظف — نتجاوز', tag: 'SYNC');
         }
       } catch (e) {
@@ -3350,7 +3348,7 @@ class AppwriteSyncManager {
         default:
           return null;
       }
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       _logger.warning('⚠️ فشل جلب deletedAt المحلي', tag: 'SYNC');
       return null;
     }
@@ -3622,7 +3620,7 @@ class AppwriteSyncManager {
         return ts ~/ 1000;
       }
       return ts;
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       _logger.warning('Failed to read lastPullTs, using 0', tag: 'SYNC');
       return 0;
     }
@@ -3976,7 +3974,7 @@ class AppwriteSyncManager {
         }
         // تشغيل فحص السلامة الشامل مع الإصلاح التلقائي
         await _performPostSyncIntegrityCheck();
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
         _logger.warning('⚠️ فشل فحص السلامة بعد المزامنة', tag: 'SYNC');
       }
     }
@@ -5040,14 +5038,14 @@ class AppwriteSyncManager {
         int? createdAtEpoch;
         try {
           createdAtEpoch = DateTime.parse(createdAtIso).millisecondsSinceEpoch ~/ 1000;
-        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
           _logger.warning('⚠️ فشل تحويل createdAtIso في القائمة السوداء', tag: 'SYNC');
           createdAtEpoch = Time.nowEpoch();
         }
         int? updatedAtEpoch;
         try {
           updatedAtEpoch = DateTime.parse(updatedAtIso).millisecondsSinceEpoch ~/ 1000;
-        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
           _logger.warning('⚠️ فشل تحويل updatedAtIso في القائمة السوداء', tag: 'SYNC');
           updatedAtEpoch = Time.nowEpoch();
         }
@@ -5063,7 +5061,7 @@ class AppwriteSyncManager {
           if (deletedAtStr != null && deletedAtStr.isNotEmpty) {
             try {
               deletedAtEpoch = DateTime.parse(deletedAtStr).millisecondsSinceEpoch ~/ 1000;
-            } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+            } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
               _logger.warning('⚠️ فشل تحويل deletedAtIso في القائمة السوداء', tag: 'SYNC');
               deletedAtEpoch = _asIntNullable(deletedAtVal);
             }
@@ -5979,10 +5977,10 @@ class AppwriteSyncManager {
               '🗑️ حذف تعديل سعر يتيم ${doc.$id}: الحجز الأب غير موجود بعد محاولتين',
               tag: 'SYNC',
             );
-            _deleteOrphanFromCloud(
+            unawaited(_deleteOrphanFromCloud(
               collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
               documentId: doc.$id,
-            );
+            ));
             continue;
           }
 
@@ -6010,10 +6008,10 @@ class AppwriteSyncManager {
               '🗑️ حذف تعديل سعر يتيم ${doc.$id}: فشل FK/NotNull — الحجز الأب غير موجود',
               tag: 'SYNC',
             );
-            _deleteOrphanFromCloud(
+            unawaited(_deleteOrphanFromCloud(
               collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
               documentId: doc.$id,
-            );
+            ));
           } else {
             _logger.warning(
               'Failed to sync deferred booking price adjustment ${doc.$id} after retry: $e',
@@ -6196,7 +6194,7 @@ class AppwriteSyncManager {
           documentId: docId,
           data: _filterPayload('app_settings', data),
         );
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
         _logger.warning('⚠️ فشل تحديث إعدادات التطبيق — نحاول الإنشاء', tag: 'SYNC');
         await appwriteService.createDocument(
           collectionId: collectionId,

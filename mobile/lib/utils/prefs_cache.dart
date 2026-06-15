@@ -4,6 +4,7 @@
 /// يمنع 326 استدعاء I/O بـ getInstance() باستخدام Singleton
 /// الفضل: مرة واحدة فقط لقراءة الملف، الباقي من الذاكرة
 /// ============================================================
+library;
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -78,8 +79,6 @@ class PrefsCache {
 /// استبدال مباشر لـ getSharedPrefs()
 /// دون تغيير بقية الكود
 Future<SharedPreferences> getSharedPrefs() async {
-  if (PrefsCache._prefs == null) {
-    PrefsCache._prefs = await SharedPreferences.getInstance();
-  }
+  PrefsCache._prefs ??= await SharedPreferences.getInstance();
   return PrefsCache._prefs!;
 }

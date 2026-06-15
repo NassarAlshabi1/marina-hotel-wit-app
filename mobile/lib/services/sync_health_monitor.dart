@@ -1,6 +1,6 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 enum SyncHealthStatus { healthy, warning, critical, error }

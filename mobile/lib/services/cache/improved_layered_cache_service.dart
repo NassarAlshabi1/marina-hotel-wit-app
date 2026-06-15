@@ -6,10 +6,10 @@
 ///   Tier 2: Disk  (sqflite - persistent, يدعم كميات كبيرة)
 ///   Tier 3: Network (backing store)
 /// ============================================================
+library;
 
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 
 import '../local_db.dart';
 import 'sqflite_cache_tier.dart';
@@ -105,7 +105,7 @@ class ImprovedLayeredCacheService {
 
   /// تنظيف الإدخالات منتهية الصلاحية
   Future<int> cleanExpired() async {
-    return await _diskCache.cleanExpired();
+    return _diskCache.cleanExpired();
   }
 
   /// الحصول على إحصائيات

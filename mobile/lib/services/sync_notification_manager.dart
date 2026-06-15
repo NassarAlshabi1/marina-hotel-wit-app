@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../utils/app_logger.dart';
+
 /// مدير الإشعارات للمزامنة التلقائية
 class SyncNotificationManager {
 
@@ -151,7 +153,7 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 5), () {
       try {
         overlayEntry.remove();
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);}
+      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);}
     });
 
     // اهتزاز خفيف للإشعار
@@ -279,7 +281,7 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 7), () {
       try {
         overlayEntry.remove();
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);}
+      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);}
     });
 
     // اهتزاز للتنبيه
@@ -452,7 +454,7 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 10), () {
       try {
         overlayEntry.remove();
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);}
+      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);}
     });
 
     // اهتزاز للإشعار

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'components/admin_layout.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
@@ -43,6 +42,7 @@ import 'services/crashlytics_service.dart';
 import 'services/database_sync_coordinator.dart';
 import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/fcm_service.dart';
+import 'services/foreground_sync_service.dart';
 import 'services/google_drive_auto_sync_engine.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/google_drive_conflict_resolver.dart';
@@ -64,10 +64,9 @@ import 'services/sync_service.dart';
 import 'services/unified_sync_orchestrator.dart';
 import 'utils/auto_sync_preferences.dart';
 import 'utils/env.dart';
-import 'utils/prefs_cache.dart';
-import 'services/foreground_sync_service.dart';
 import 'utils/hotel_day_ticker.dart';
 import 'utils/id.dart';
+import 'utils/prefs_cache.dart';
 import 'utils/theme.dart';
 
 Future<void> main() async {
@@ -314,7 +313,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   const engineRetryKey = 'auto_sync_engine_retry_enabled';
   const legacyRetryKey = 'auto_sync_retry_enabled';
 
-  final prefs = getSharedPrefs();
+  final prefs = await getSharedPrefs();
 
   final debounceSeconds = await migrateAutoSyncPreference<int>(
     prefs: prefs,

@@ -3,9 +3,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../utils/debug_logs.dart';
 import 'data_usage_manager.dart';
@@ -877,7 +876,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
     try {
       return DateTime.parse(iso);
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       return null;
     }
   }

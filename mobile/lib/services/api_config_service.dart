@@ -1,7 +1,8 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+
 import '../utils/env.dart';
 
 class ApiConfig {

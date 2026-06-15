@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
 
+import '../utils/app_logger.dart';
 import 'appwrite_backup_endpoint.dart';
 import 'appwrite_backup_endpoints_manager.dart';
 import 'appwrite_config.dart';
@@ -178,7 +179,7 @@ class AppwriteBackupSyncService {
             documentId: documentId,
             data: data,
           );
-        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
           _logger.warning('⚠️ فشل تحديث وثيقة احتياطية — نحاول الإنشاء', tag: 'BACKUP');
           // إذا فشل التحديث (المستند غير موجود)، نقوم بإنشائه
           // ignore: deprecated_member_use
@@ -197,7 +198,7 @@ class AppwriteBackupSyncService {
             collectionId: tableName,
             documentId: documentId,
           );
-        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
           _logger.warning('⚠️ فشل حذف وثيقة احتياطية (قد لا تكون موجودة)', tag: 'BACKUP');
         }
     }

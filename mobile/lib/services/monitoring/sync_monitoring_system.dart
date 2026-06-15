@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:uuid/uuid.dart';
 
@@ -484,9 +484,9 @@ class SyncMonitoringSystem {
   /// تنظيف السجلات القديمة من التخزين الدائم
   Future<void> _cleanupOldStoredEvents({int keepDays = 7}) async {
     try {
-      final prefs = getSharedPrefs();
+      final prefs = await getSharedPrefs();
       final allKeys = prefs.getKeys();
-      final eventKeys = allKeys.where((k) => k.startsWith('sync_events_'));
+      final eventKeys = allKeys.where((String k) => k.startsWith('sync_events_'));
       final now = DateTime.now();
       int removedCount = 0;
 

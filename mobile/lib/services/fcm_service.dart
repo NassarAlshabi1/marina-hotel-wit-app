@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../utils/app_logger.dart';
@@ -200,7 +199,7 @@ class FcmService {
     try {
       // يتم حقن الـ provider من main.dart عبر setInstance
       return _syncManagerInstance;
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       return null;
     }
   }
@@ -209,7 +208,7 @@ class FcmService {
   dynamic _getRealtimeSync() {
     try {
       return _realtimeInstance;
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       return null;
     }
   }

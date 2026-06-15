@@ -2,9 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../remote_config_service.dart';
 
@@ -144,7 +143,7 @@ class WhatsAppNotificationService {
           if (json['success'] == true || json['sent'] == true) {
             return true;
           }
-        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
           if (body.toLowerCase().contains('sent') ||
               body.toLowerCase().contains('ok') ||
               body.toLowerCase().contains('success')) {

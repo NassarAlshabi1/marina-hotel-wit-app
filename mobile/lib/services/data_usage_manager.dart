@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 /// مدير استخدام البيانات - يتتبع استهلاك البيانات ويوفر إحصائيات مفصلة

@@ -1,7 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+
 import 'smart_sync_manager.dart';
 
 /// مُعلِم المزامنة الفورية - يتلقى إشعارات من الأجهزة الأخرى

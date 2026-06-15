@@ -3,8 +3,8 @@ import 'dart:math';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_logs.dart';
 import 'google_drive_backup_service.dart';

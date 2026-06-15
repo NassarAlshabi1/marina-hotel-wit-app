@@ -25,6 +25,7 @@
 /// 
 /// الموجة 5 (يعتمد على salary_cycles):
 ///   salary_payments ← salary_cycles
+library;
 
 import 'dart:async';
 import 'dart:developer' as developer;
@@ -123,7 +124,7 @@ class ParallelPullEngine {
 
     final wave3 = await Future.wait([
       _syncCollection('booking_notes', () => appwriteService.listBookingNotes(queries: deltaQ, useCache: false)),
-      _syncCollection('booking_nights', () => _syncBookingNights()),
+      _syncCollection('booking_nights', _syncBookingNights),
       _syncCollection('payments', () => appwriteService.listPayments(queries: deltaQ, useCache: false)),
       _syncCollection('debts', () => appwriteService.listDebts(queries: deltaQ, useCache: false)),
       _syncCollection('booking_price_adjustments', () => appwriteService.listDocuments(

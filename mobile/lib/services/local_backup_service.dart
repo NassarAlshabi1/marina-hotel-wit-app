@@ -5,12 +5,11 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../providers/repository_providers.dart';
@@ -605,7 +604,7 @@ class LocalBackupService {
             name: 'SyncSafety',
           );
         }
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);}
+      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);}
     }
   }
 

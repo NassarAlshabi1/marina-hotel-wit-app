@@ -6,6 +6,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../utils/app_logger.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
@@ -188,7 +189,7 @@ class RestoreFixService {
   Future<Directory> _resolveCacheDirectory() async {
     try {
       return await getApplicationCacheDirectory();
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       return Directory.systemTemp.createTemp('marina_cache_');
     }
   }
@@ -1064,7 +1065,7 @@ class RestoreFixService {
     }
     try {
       return DateTime.parse(raw);
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       return null;
     }
   }

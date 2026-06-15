@@ -13,6 +13,7 @@
 ///     <service android:name="com.blloc.flutter_background_service.IsolateService"
 ///              android:foregroundServiceType="dataSync" />
 /// ============================================================
+library;
 
 import 'dart:async';
 import 'dart:developer' as developer;
@@ -51,7 +52,7 @@ class ForegroundSyncService {
     _isRunning = true;
 
     try {
-      final db = AppDatabase.instance; // Singleton — لا يفتح اتصالاً جديداً
+      final db = DatabaseManager.instance;
       final appwrite = AppwriteService(); // Singleton — factory
 
       _syncManager = AppwriteSyncManager(
@@ -120,7 +121,7 @@ class ForegroundSyncService {
       if (!syncEnabled) return;
 
       // تنفيذ المزامنة الكاملة (Push + Pull)
-      await _syncManager!.sync(push: true, pull: true);
+      await _syncManager!.sync();
 
       // تحديث إشعار الخدمة
       // _updateNotification(title: 'تمت المزامنة', message: 'البيانات محدثة');
@@ -140,8 +141,8 @@ class ForegroundSyncService {
   /// تنظيف الـ Outbox من السجلات القديمة
   Future<void> _cleanupOutbox() async {
     try {
-      final db = AppDatabase.instance;
-      if (!db.isInitialized) return;
+      final db = DatabaseManager.instance;
+      if (!DatabaseManager.isInitialized) return;
       await db.customUpdate(
         "DELETE FROM outbox WHERE processing_status = 'completed' AND client_ts < ?",
         variables: [

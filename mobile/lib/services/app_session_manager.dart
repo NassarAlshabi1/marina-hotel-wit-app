@@ -3,9 +3,8 @@ import 'dart:math';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../utils/id.dart';
@@ -117,7 +116,7 @@ class AppSessionManager {
     if (_deviceIdResolver != null) {
       try {
         return await _deviceIdResolver!();
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
         debugPrint('⚠️ فشل حل deviceId');
         return null;
       }

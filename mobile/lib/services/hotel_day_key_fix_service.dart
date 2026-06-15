@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 
+import '../utils/app_logger.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 import 'daos/outbox_dao.dart';
@@ -94,7 +95,7 @@ class HotelDayKeyFixService {
       return HotelTimeEngine.getHotelDayKey(
         dateTime: DateTime(year, month, day, 14, 1),
       );
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       return HotelTimeEngine.getHotelDayKey();
     }
   }
@@ -283,7 +284,7 @@ class HotelDayKeyFixService {
               'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
               [matched.id, sw.id],
             );
-          } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+          } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
             // العمود قد لا يكون موجوداً
           }
 

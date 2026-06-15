@@ -1,8 +1,8 @@
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'google_drive_backup_service.dart';
 import 'lark/lark_report_service.dart';
@@ -30,7 +30,7 @@ class AlarmBackup {
     debugPrint('✅ Alarm system initialized');
 
     // تفعيل النسخ المجدول تلقائياً عند التثبيت لأول مرة
-    final prefs = getSharedPrefs();
+    final prefs = await getSharedPrefs();
     if (prefs.getBool('scheduled_backup_enabled') == null) {
       debugPrint('🚀 First run: Enable scheduled backup by default');
       await prefs.setBool('scheduled_backup_enabled', true);

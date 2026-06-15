@@ -1,6 +1,7 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
+import '../utils/app_logger.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
 import 'appwrite_config.dart';
@@ -104,7 +105,7 @@ class AppwriteFullPull {
                 '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
                 tag: 'FULL_PULL',
               );
-            } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+            } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
               _logger.warning(
                 '⚠️ فشل حذف سجل يتيم من $table (rowid=$rowId)',
                 tag: 'FULL_PULL',
@@ -112,7 +113,7 @@ class AppwriteFullPull {
             }
           }
         }
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
         _logger.warning('⚠️ فشل فحص FK بعد السحب الشامل', tag: 'FULL_PULL');
       }
     }
@@ -528,7 +529,7 @@ class AppwriteFullPull {
                         ..limit(1))
                       .getSingleOrNull();
                 }
-              } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+              } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
                 _logger.warning(
                   '⚠️ فشل جلب الحجز $bookingUuid من السيرفر - سجل يتيم',
                   tag: 'FULL_PULL',
