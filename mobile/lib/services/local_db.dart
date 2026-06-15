@@ -803,7 +803,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 42;
+  int get schemaVersion => 43;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2045,6 +2045,61 @@ class AppDatabase extends _$AppDatabase {
         }
         developer.log(
           'Migration 42: missing performance indexes created successfully',
+          name: 'db.migration',
+        );
+      }
+
+      // === Migration 43: فهارس أداء إضافية للاستعلامات المحسنة ===
+      if (from < 43) {
+        const additionalIndexes = [
+          // Dashboard query: rooms + payments + expenses + bookings JOIN
+          'CREATE INDEX IF NOT EXISTS idx_bookings_room_status_checkin 
+            ON bookings (room_number, status, hotel_day_checkin)',
+          
+          // Payments by revenue_type + hotel_day_key (composite)
+          'CREATE INDEX IF NOT EXISTS idx_payments_revenue_day 
+            ON payments (revenue_type, hotel_day_key, payment_date)',
+          
+          // Expenses by category + hotel_day_key
+          'CREATE INDEX IF NOT EXISTS idx_expenses_category_day 
+            ON expenses (category_uuid, hotel_day_key)',
+          
+          // CashTransactions by type + time (for reports)
+          'CREATE INDEX IF NOT EXISTS idx_cash_trans_type_time_date 
+            ON cash_transactions (transaction_type, transaction_time)',
+          
+          // Outbox: entity + status + client_ts (for takeBatch ordering)
+          'CREATE INDEX IF NOT EXISTS idx_outbox_entity_status_ts 
+            ON outbox (entity, processing_status, client_ts)',
+          
+          // BookingPriceAdjustments by booking + localUuid
+          'CREATE INDEX IF NOT EXISTS idx_booking_price_adj_booking_uuid 
+            ON booking_price_adjustments (booking_local_id, local_uuid)',
+          
+          // SalaryWithdrawals by employee + date
+          'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_emp_date 
+            ON salary_withdrawals (employee_id, withdrawal_date)',
+          
+          // Debts by booking + settled status
+          'CREATE INDEX IF NOT EXISTS idx_debts_booking_settled 
+            ON debts (booking_local_id, is_settled)',
+        ];
+        for (final sql in additionalIndexes) {
+          try {
+            await m.database.customStatement(sql);
+            developer.log(
+              'Migration 43: created index: $sql',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 43: $sql failed: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        developer.log(
+          'Migration 43: additional performance indexes created successfully',
           name: 'db.migration',
         );
       }

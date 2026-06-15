@@ -6529,5 +6529,61 @@ class AppwriteSyncManager {
         tag: 'SYNC_INTEGRITY',
       );
     }
+  }  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // دوال عامة (Public API) للاستخدام الخارجي
+  // ═══════════════════════════════════════════════════════════════
+
+  /// مزامنة مجموعة محددة من Appwrite
+  /// [name] اسم المجموعة (مثل 'rooms', 'bookings', 'payments')
+  /// [docs] قائمة الوثائق المسحوبة من Appwrite
+  /// return: عدد السجلات التي تمت مزامنتها
+  Future<int> syncCollection(String name, List<models.Document> docs) async {
+    switch (name) {
+      case 'rooms':
+        return _syncRooms(docs);
+      case 'bookings':
+        return _syncBookings(docs);
+      case 'employees':
+        return _syncEmployees(docs);
+      case 'expenses':
+        return _syncExpenses(docs);
+      case 'payments':
+        return _syncPayments(docs);
+      case 'debts':
+        return _syncDebts(docs);
+      case 'booking_notes':
+        return _syncBookingNotes(docs);
+      case 'booking_nights':
+        return _syncBookingNights(docs);
+      case 'shift_notes':
+        return _syncShiftNotes(docs);
+      case 'cash_transactions':
+        return _syncCashTransactions(docs);
+      case 'salary_cycles':
+        return _syncSalaryCycles(docs);
+      case 'salary_payments':
+        return _syncSalaryPayments(docs);
+      case 'salary_withdrawals':
+        return _syncSalaryWithdrawals(docs);
+      case 'guest_infos':
+        return _syncGuestInfos(docs);
+      case 'booking_price_adjustments':
+        return _syncBookingPriceAdjustments(docs);
+      case 'blacklist':
+        return _syncBlacklist(docs);
+      case 'price_adjustments':
+        return _syncPriceAdjustments(docs);
+      case 'audit_logs':
+        return _syncAuditLogs(docs);
+      case 'payment_voids':
+        return _syncPaymentVoids(docs);
+      case 'app_settings':
+        return _syncAppSettings(docs);
+      default:
+        _logger.warning('⚠️ syncCollection: مجموعة غير معروفة: $name', tag: 'SYNC');
+        return 0;
+    }
   }
 }

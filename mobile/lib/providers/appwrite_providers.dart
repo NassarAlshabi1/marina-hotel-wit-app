@@ -19,6 +19,9 @@ final appwriteServiceProvider = Provider.autoDispose<AppwriteService>((ref) {
 
 /// مزود مدير المزامنة
 final appwriteSyncManagerProvider = Provider.autoDispose<AppwriteSyncManager>((ref) {
+  // 🔴 keepAlive: المزامنة تعمل في الخلفية مع timers
+  ref.keepAlive();
+  
   final service = ref.watch(appwriteServiceProvider);
   final database = ref.watch(databaseProvider);
   final manager = AppwriteSyncManager(
@@ -34,6 +37,9 @@ final appwriteSyncManagerProvider = Provider.autoDispose<AppwriteSyncManager>((r
 final unifiedSyncOrchestratorProvider = Provider.autoDispose<UnifiedSyncOrchestrator>((
   ref,
 ) {
+  // 🔴 keepAlive: المنسق يدير stateStream
+  ref.keepAlive();
+  
   final appwriteSync = ref.watch(appwriteSyncManagerProvider);
   final db = ref.watch(databaseProvider);
   final smart = SmartSyncManager.instance();
@@ -50,6 +56,8 @@ final unifiedSyncStateProvider = StreamProvider.autoDispose<UnifiedSyncState>((r
 
 /// مزود مدير الذاكرة المؤقتة
 final appwriteCacheManagerProvider = Provider.autoDispose<AppwriteCacheManager>((ref) {
+  // 🔴 keepAlive: cache manager لديه Timer للتنظيف الدوري
+  ref.keepAlive();
   return AppwriteCacheManager();
 });
 
