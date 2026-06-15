@@ -140,6 +140,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
           deletedAt: Value(now),
           updatedAt: Value(now),
           lastModified: Value(now),
+          version: Value(existing.version + 1),
         ),
       );
       if (rows > 0 && !originIsServer) {

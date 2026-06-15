@@ -180,6 +180,7 @@ class GuestInfosRepository {
           deletedAt: d.Value(now),
           updatedAt: d.Value(now),
           lastModified: d.Value(now),
+          version: d.Value(existing.version + 1),
           updatedAtIso: d.Value(nowIso),
           deletedAtIso: d.Value(nowIso),
         ),
@@ -187,7 +188,7 @@ class GuestInfosRepository {
 
       await _outboxDao.merge(
         entity: 'guest_infos',
-        op: 'delete',
+        op: 'update',
         localUuid: existing.localUuid,
         serverId: existing.serverId,
         payload: {'guestName': existing.guestName},

@@ -317,6 +317,7 @@ class BlacklistRepository {
           deletedAtIso: d.Value(nowIso),
           updatedAt: d.Value(now),
           lastModified: d.Value(now),
+          version: d.Value(existing.version + 1),
         ),);
 
     if (updated > 0) {

@@ -169,7 +169,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final claimed = await customSelect(
       'UPDATE outbox SET processing_status = ?, processing_started_at = ?, processing_worker = ? '
       'WHERE id IN ('
-      '  SELECT id FROM outbox WHERE processing_status = ?$sourceCondition ORDER BY client_ts ASC LIMIT ? '
+      '  SELECT id FROM outbox WHERE processing_status = ?$sourceCondition ORDER BY CASE WHEN entity = \'rooms\' THEN 1 WHEN entity = \'employees\' THEN 2 WHEN entity = \'bookings\' THEN 3 WHEN entity = \'payments\' THEN 4 WHEN entity = \'expenses\' THEN 5 WHEN entity = \'debts\' THEN 6 WHEN entity = \'booking_notes\' THEN 7 WHEN entity = \'shift_notes\' THEN 8 WHEN entity = \'cash_transactions\' THEN 9 ELSE 10 END ASC, client_ts ASC LIMIT ? '
       ') RETURNING *',
       variables: [
         const Variable<String>('processing'),
@@ -256,6 +256,45 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       processingStartedAt: Value(null),
       processingWorker: Value(null),
     ),);
+  }
+
+  
+
+  /// إعادة تعيين العناصر الفاشلة إلى pending مع مراعاة عدد المحاولات
+  /// [maxAttempts] - الحد الأقصى للمحاولات قبل التخلي مؤقتاً
+  /// [backoffMinutes] - الدقائق التي ننتظرها قبل إعادة المحاولة
+  /// إذا تجاوزت المحاولات الحد، نعيد التعيين فقط بعد مرور وقت كافٍ
+  Future<int> retryFailedWithBackoff({
+    int maxAttempts = 5,
+    int backoffMinutes = 30,
+  }) async {
+    final cutoff =
+        (DateTime.now().millisecondsSinceEpoch ~/ 1000) - (backoffMinutes * 60);
+    
+    // عناصر قليلة المحاولات → retry فوراً
+    final lowAttempts = await (update(outbox)
+          ..where((t) =>
+              t.processingStatus.equals('failed') &
+              t.attempts.isSmallerOrEqualValue(maxAttempts)))
+        .write(const OutboxCompanion(
+      processingStatus: Value('pending'),
+      processingStartedAt: Value(null),
+      processingWorker: Value(null),
+    ),);
+    
+    // عناصر كثيرة المحاولات → انتظر backoffMinutes قبل إعادة المحاولة
+    final highAttempts = await (update(outbox)
+          ..where((t) =>
+              t.processingStatus.equals('failed') &
+              t.attempts.isBiggerThanValue(maxAttempts) &
+              t.clientTs.isSmallerOrEqualValue(cutoff)))
+        .write(const OutboxCompanion(
+      processingStatus: Value('pending'),
+      processingStartedAt: Value(null),
+      processingWorker: Value(null),
+    ),);
+    
+    return lowAttempts + highAttempts;
   }
 
   Future<int> cleanupStuckEntries({

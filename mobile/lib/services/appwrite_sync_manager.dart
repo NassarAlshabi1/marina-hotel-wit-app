@@ -480,8 +480,12 @@ class AppwriteSyncManager {
           final failedCount = await outboxDao.count();
           if (failedCount == 0) return;
 
-          // إعادة تعيين العناصر الفاشلة إلى pending
-          await outboxDao.retryFailed();
+          // إعادة تعيين العناصر الفاشلة إلى pending (مع backoff للمحاولات الكثيرة)
+          final resetCount = await outboxDao.retryFailedWithBackoff(
+            maxAttempts: 5,
+            backoffMinutes: 30,
+          );
+          if (resetCount == 0) return; // لا يوجد شيء لإعادة المحاولة
 
           debugPrint(
             '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $failedCount)',
@@ -1950,6 +1954,17 @@ class AppwriteSyncManager {
   }
 
   Future<int> _pushAllEntities() async {
+    // ✅ فحص الاتصال أولاً: إذا لا يوجد إنترنت، نخرج فوراً بدون فقدان
+    try {
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        _logger.warning('⚠️ لا يوجد اتصال بالإنترنت - تم تأجيل الرفع', tag: 'SYNC');
+        return 0;
+      }
+    } catch (_) {
+      // تجاهل خطأ فحص الاتصال ونحاول الرفع
+    }
+
     // الحصول على حجم الدفعة من مُحسِّن الأداء
     final perfSettings = SyncPerformanceOptimizer.instance.getCurrentPerformanceSettings();
     final batchSize = perfSettings['batchSize'] as int? ?? 50;
@@ -5708,7 +5723,7 @@ class AppwriteSyncManager {
 
         // ✅ إصلاح جذري: التأكد من وجود الحجز الأب قبل إدراج تعديل السعر
         if (!await _ensureParentBookingExists(data, doc.$id)) {
-          processed++;
+          deferred.add(doc);
           continue;
         }
 
@@ -5761,7 +5776,12 @@ class AppwriteSyncManager {
 
           // ✅ إصلاح جذري: التأكد من وجود الحجز الأب قبل إدراج تعديل السعر
           if (!await _ensureParentBookingExists(data, doc.$id)) {
-            processed++;
+            // حتى في المرحلة الثانية: لا نستطيع إدراج السجل
+            // الحجز الأب غير موجود — نسجل تحذيراً وننتظر الدورة القادمة
+            _logger.warning(
+              '⚠️ تعديل سعر $docId: الحجز الأب غير موجود بعد محاولتين — تم التجاهل',
+              tag: 'SYNC',
+            );
             continue;
           }
 
