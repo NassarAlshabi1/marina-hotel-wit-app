@@ -148,57 +148,11 @@ class AppwriteSyncManager {
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
 
   Future<bool> _isRemoteEpochMillis() async {
-    final cached = _remoteEpochIsMillis;
-    if (cached != null) {
-      return cached;
-    }
-    try {
-      final info = appwriteService.getProjectInfo();
-      final dbId = info['databaseId'] ?? AppwriteConfig.databaseId;
-
-      // ignore: deprecated_member_use
-      final list = await appwriteService.databases.listDocuments(
-        databaseId: dbId,
-        collectionId: AppwriteConfig.roomsCollectionId,
-        queries: [Query.limit(1)],
-      );
-
-      if (list.documents.isEmpty) {
-        _remoteEpochIsMillis = false;
-        return false;
-      }
-
-      final data = list.documents.first.data;
-      final raw =
-          data['lastModified'] ?? data['last_modified'] ?? data['last_modified_epoch'];
-
-      final value = raw is int
-          ? raw
-          : raw is num
-          ? raw.toInt()
-          : raw is String
-          ? int.tryParse(raw)
-          : null;
-
-      final isMillis = value != null && value > 10000000000;
-      _remoteEpochIsMillis = isMillis;
-      return isMillis;
-    } catch (_) {
-      _remoteEpochIsMillis = false;
-      return false;
-    }
+    return _pullService?._isRemoteEpochMillis() ?? false;
   }
 
   Future<List<String>> _buildDeltaQueries(int lastPullTs) async {
-    if (lastPullTs <= 0) {
-      return [];
-    }
-    final cutoffSeconds = lastPullTs - 5;
-    final isMillis = await _isRemoteEpochMillis();
-    if (isMillis) {
-      return [Query.greaterThan('lastModified', cutoffSeconds * 1000)];
-    }
-    return [Query.greaterThan('lastModified', cutoffSeconds)];
+    return _pullService?._buildDeltaQueries(lastPullTs) ?? [];
   }
 
   /// تهيئة المزامنة
@@ -2868,18 +2822,12 @@ class AppwriteSyncManager {
 
   /// قراءة آخر timestamp خاص بـ booking_nights من SharedPreferences
   Future<int> _getBookingNightsPullTs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final ts = prefs.getInt('sync_last_pull_booking_nights') ?? 0;
-    if (ts > 10000000000) {
-      return ts ~/ 1000;
-    }
-    return ts;
+    return _pullService?._getBookingNightsPullTs() ?? 0;
   }
 
   /// تحديث آخر timestamp خاص بـ booking_nights
   Future<void> _updateBookingNightsPullTs(int ts) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('sync_last_pull_booking_nights', ts);
+    await _pullService?._updateBookingNightsPullTs(ts);
   }
 
   /// بناء delta queries خاصة بـ booking_nights
@@ -2887,14 +2835,10 @@ class AppwriteSyncManager {
     int lastPullTs, {
     required bool remoteEpochIsMillis,
   }) {
-    if (lastPullTs > 0) {
-      final cutoff = lastPullTs - 5;
-      if (remoteEpochIsMillis) {
-        return [Query.greaterThan('lastModified', cutoff * 1000)];
-      }
-      return [Query.greaterThan('lastModified', cutoff)];
-    }
-    return []; // full fetch
+    return _pullService?._bookingNightsDeltaQueries(
+      lastPullTs,
+      remoteEpochIsMillis: remoteEpochIsMillis,
+    ) ?? [];
   }
 
   /// تنظيف outbox بعد سحب البيانات من السحابة بنجاح.
@@ -3333,19 +3277,7 @@ class AppwriteSyncManager {
 
   /// قراءة آخر timestamp لسحب البيانات من جدول SyncState
   Future<int> _getLastPullTs() async {
-    try {
-      final state = await (database.select(database.syncState)
-            ..where((t) => t.id.equals(1)))
-          .getSingleOrNull();
-      final ts = state?.lastPullTs ?? 0;
-      if (ts > 10000000000) {
-        return ts ~/ 1000;
-      }
-      return ts;
-    } catch (_) {
-      _logger.warning('Failed to read lastPullTs, using 0', tag: 'SYNC');
-      return 0;
-    }
+    return _pullService?._getLastPullTs() ?? 0;
   }
 
   /// تحديث آخر timestamp لسحب البيانات في جدول SyncState
@@ -3354,16 +3286,7 @@ class AppwriteSyncManager {
   /// لا يؤثر على أي صف — وبالتالي lastPullTs يبقى 0 للأبد،
   /// وكل مزامنة تسحب كل البيانات بدلاً من التغييرات فقط (delta).
   Future<void> _updateLastPullTs(int ts) async {
-    try {
-      await database.into(database.syncState).insertOnConflictUpdate(
-            SyncStateCompanion(
-              id: const drift.Value(1),
-              lastPullTs: drift.Value(ts),
-            ),
-          );
-    } catch (e) {
-      _logger.warning('Failed to update lastPullTs: $e', tag: 'SYNC');
-    }
+    await _pullService?._updateLastPullTs(ts);
   }
 
 
