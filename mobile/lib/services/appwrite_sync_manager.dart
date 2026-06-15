@@ -2603,6 +2603,58 @@ class AppwriteSyncManager {
       }
     }
 
+    // الطريقة 5: البحث في Appwrite باستخدام listDocuments بالـ localUuid
+    // هذا يغطي الحالات التي يعيد فيها getDocumentSafe null بسبب timeout
+    if (employee == null && employeeUuid != null && employeeUuid.isNotEmpty) {
+      try {
+        _logger.info(
+          '🔍 طريقة 5: البحث عن الموظف $employeeUuid بواسطة listDocuments (query localUuid)',
+          tag: 'SYNC',
+        );
+        final docs = await appwriteService.listAllDocuments(
+          collectionId: AppwriteConfig.employeesCollectionId,
+          queries: [Query.equal('localUuid', employeeUuid)],
+          useCache: false,
+        );
+        if (docs.isNotEmpty) {
+          final empData = Map<String, dynamic>.from(docs.first.data);
+          empData['localUuid'] ??= docs.first.$id;
+          empData.remove('\$id');
+          empData.remove('\$createdAt');
+          empData.remove('\$updatedAt');
+          empData.remove('\$permissions');
+          empData.remove('\$collectionId');
+          empData.remove('\$databaseId');
+          empData.remove('id');
+
+          await _adapterRegistry.employees.upsertFromJson(
+            empData,
+            src: Source.appwrite,
+          );
+          employee = await (database.select(database.employees)
+                ..where((e) => e.localUuid.equals(employeeUuid))
+                ..limit(1))
+              .getSingleOrNull();
+          if (employee != null) {
+            _logger.info(
+              '✅ تم جلب الموظف $employeeUuid من Appwrite (طريقة 5) وربطه مع سحب الراتب $docId',
+              tag: 'SYNC',
+            );
+          }
+        } else {
+          _logger.debug(
+            '🔍 طريقة 5: الموظف $employeeUuid غير موجود على Appwrite (تأكيد — سجل يتيم حقيقي)',
+            tag: 'SYNC',
+          );
+        }
+      } catch (e) {
+        _logger.debug(
+          '⚠️ فشل طريقة 5 لجلب الموظف $employeeUuid من Appwrite: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+
     return employee;
   }
 
@@ -5738,7 +5790,7 @@ class AppwriteSyncManager {
         );
         if (bookingDoc == null) {
           _logger.debug(
-            '⏭️ الحجز $bookingUuid غير موجود على Appwrite (سجل يتيم حقيقي)',
+            '⏭️ الحجز $bookingUuid غير موجود على Appwrite (getDocumentSafe)',
             tag: 'SYNC',
           );
         } else {
@@ -5770,6 +5822,59 @@ class AppwriteSyncManager {
       } catch (e) {
         _logger.debug(
           '⚠️ فشل جلب الحجز $bookingUuid من Appwrite: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+
+    // الطريقة 4: البحث في Appwrite باستخدام listDocuments بالـ localUuid
+    // هذا يغطي الحالات التي يعيد فيها getDocumentSafe null بسبب timeout
+    // أو عندما يكون $id مختلفاً عن localUuid لسبب ما
+    if (booking == null) {
+      try {
+        _logger.info(
+          '🔍 طريقة 4: البحث عن الحجز $bookingUuid بواسطة listDocuments (query localUuid)',
+          tag: 'SYNC',
+        );
+        final docs = await appwriteService.listAllDocuments(
+          collectionId: AppwriteConfig.bookingsCollectionId,
+          queries: [Query.equal('localUuid', bookingUuid)],
+          useCache: false,
+        );
+        if (docs.isNotEmpty) {
+          final bookingData = Map<String, dynamic>.from(docs.first.data);
+          bookingData['localUuid'] ??= docs.first.$id;
+          bookingData.remove('\$id');
+          bookingData.remove('\$createdAt');
+          bookingData.remove('\$updatedAt');
+          bookingData.remove('\$permissions');
+          bookingData.remove('\$collectionId');
+          bookingData.remove('\$databaseId');
+          bookingData.remove('id');
+
+          await _adapterRegistry.bookings.upsertFromJson(
+            bookingData,
+            src: Source.appwrite,
+          );
+          booking = await (database.select(database.bookings)
+                ..where((b) => b.localUuid.equals(bookingUuid))
+                ..limit(1))
+              .getSingleOrNull();
+          if (booking != null) {
+            _logger.info(
+              '✅ تم جلب الحجز $bookingUuid من Appwrite (طريقة 4) وربطه مع تعديل السعر $docId',
+              tag: 'SYNC',
+            );
+          }
+        } else {
+          _logger.debug(
+            '🔍 طريقة 4: الحجز $bookingUuid غير موجود على Appwrite (تأكيد — سجل يتيم حقيقي)',
+            tag: 'SYNC',
+          );
+        }
+      } catch (e) {
+        _logger.debug(
+          '⚠️ فشل طريقة 4 لجلب الحجز $bookingUuid من Appwrite: $e',
           tag: 'SYNC',
         );
       }
