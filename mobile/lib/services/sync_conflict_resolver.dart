@@ -115,9 +115,43 @@ class SyncConflictResolver {
       }
 
       // حالة 3: كلاهما معدّل - تعارض حقيقي!
+      
+      // === فحص ساعة المتجه (Vector Clock) ===
+      final localVectorRaw = _extractStringField(localRow, 'vectorClock') ??
+          _extractStringField(localRow, 'vector_clock') ?? '{}';
+      final remoteVectorRaw = (remoteData['vectorClock'] as String?) ??
+          (remoteData['vector_clock'] as String?) ?? '{}';
+      final localVector = _parseVectorClock(localVectorRaw);
+      final remoteVector = _parseVectorClock(remoteVectorRaw);
+      
+      bool remoteIsNewer = true;
+      bool localIsNewer = true;
+      for (final deviceId in {...localVector.keys, ...remoteVector.keys}) {
+        final lv = localVector[deviceId] ?? 0;
+        final rv = remoteVector[deviceId] ?? 0;
+        if (rv < lv) remoteIsNewer = false;
+        if (lv < rv) localIsNewer = false;
+      }
+      
+      if (remoteIsNewer && !localIsNewer) {
+        return const ConflictCheckResult(
+          resolved: true,
+          usedRemote: true,
+          reason: 'Vector Clock: السيرفر أحدث في كل الأجهزة — تطبيق البعيد',
+        );
+      }
+      if (localIsNewer && !remoteIsNewer) {
+        return const ConflictCheckResult(
+          resolved: true,
+          usedLocal: true,
+          reason: 'Vector Clock: المحلي أحدث في كل الأجهزة — الاحتفاظ بالمحلي',
+        );
+      }
+      
       _log(
         '⚠️ تعارض حقيقي مكتشف: $table/$localUuid '
-        '(محلي: v$localVersion@$localLastModified vs بعيد: v$remoteVersion@$remoteLastModified)',
+        '(محلي: v$localVersion@$localModified vs بعيد: v$remoteVersion@$remoteModified) '
+        'VectorClock: local=$localVectorRaw remote=$remoteVectorRaw',
       );
 
       // تطبيق الاستراتيجية
@@ -400,6 +434,18 @@ class SyncConflictResolver {
   /// تحويل صف ناتج عن customSelect إلى Map<String, dynamic>
   Map<String, dynamic> _rowToMap(Map<String, dynamic> row) {
     return Map<String, dynamic>.from(row);
+  }
+
+  /// تحويل سلسلة Vector Clock JSON إلى Map<deviceId, counter>
+  /// مثال: '{"device1":3,"device2":5}' → {'device1': 3, 'device2': 5}
+  Map<String, int> _parseVectorClock(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return decoded.map((k, v) => MapEntry(k.toString(), (v as num).toInt()));
+      }
+    } catch (_) {}
+    return {};
   }
 
   void _log(String message) {

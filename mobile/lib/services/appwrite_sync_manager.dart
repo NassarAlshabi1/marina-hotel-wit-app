@@ -107,6 +107,7 @@ class AppwriteSyncManager {
   Timer? _syncTimer;
   Timer? _debouncePushTimer;
   Timer? _failedRetryTimer;
+  Timer? _cleanupTimer;
   StreamSubscription<void>? _outboxSubscription;
   Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
   SyncStatus _currentStatus = SyncStatus.idle;
@@ -502,6 +503,26 @@ class AppwriteSyncManager {
       },
     );
     debugPrint('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
+    
+    // ─── مؤقت التنظيف التلقائي للـ Outbox القديم (كل 24 ساعة) ───
+    _cleanupTimer?.cancel();
+    _cleanupTimer = Timer.periodic(
+      const Duration(hours: 24),
+      (_) async {
+        try {
+          final cleaned = await outboxDao.cleanupCompleted();
+          final orphaned = await outboxDao.cleanupOrphanedEntries();
+          if (cleaned > 0 || orphaned > 0) {
+            _logger.info(
+              '🧹 تنظيف Outbox: $cleaned مكتملة + $orphaned يتيمة',
+              tag: 'SYNC',
+            );
+          }
+        } catch (e) {
+          _logger.warning('⚠️ فشل تنظيف Outbox التلقائي: $e', tag: 'SYNC');
+        }
+      },
+    );
   }
 
   /// تمكين الدفع المؤجل بعد تغييرات outbox
@@ -579,6 +600,7 @@ class AppwriteSyncManager {
     _syncTimer?.cancel();
     _debouncePushTimer?.cancel();
     _failedRetryTimer?.cancel();
+    _cleanupTimer?.cancel();
     _outboxSubscription?.cancel();
     stopAutoSync();
     _syncController.close();
@@ -1953,6 +1975,26 @@ class AppwriteSyncManager {
     return _asIntNullable(value);
   }
 
+  int _adaptiveBatchSize = 0; // 0 = لم يُحدد بعد
+
+  /// تعديل حجم الدفعة تلقائياً حسب نجاح/فشل الرفع
+  void _adjustBatchSize(bool lastBatchSuccess, int processedCount, int totalCount) {
+    // القيمة الأولية من إعدادات الأداء
+    if (_adaptiveBatchSize == 0) {
+      final perfSettings = SyncPerformanceOptimizer.instance.getCurrentPerformanceSettings();
+      _adaptiveBatchSize = perfSettings['batchSize'] as int? ?? 50;
+    }
+
+    if (lastBatchSuccess && processedCount == totalCount) {
+      // كل السجلات نجحت → زد الحجم (بحد أقصى 200)
+      _adaptiveBatchSize = (_adaptiveBatchSize * 1.3).clamp(10, 200).toInt();
+    } else if (!lastBatchSuccess || processedCount < totalCount) {
+      // فشل أو لم تكتمل → نصف الحجم (بحد أدنى 5)
+      _adaptiveBatchSize = (_adaptiveBatchSize * 0.6).clamp(5, 100).toInt();
+      _logger.debug('📉 تقليل حجم الدفعة إلى $_adaptiveBatchSize (فشل)', tag: 'SYNC');
+    }
+  }
+
   Future<int> _pushAllEntities() async {
     // ✅ فحص الاتصال أولاً: إذا لا يوجد إنترنت، نخرج فوراً بدون فقدان
     try {
@@ -1965,44 +2007,63 @@ class AppwriteSyncManager {
       // تجاهل خطأ فحص الاتصال ونحاول الرفع
     }
 
-    // الحصول على حجم الدفعة من مُحسِّن الأداء
-    final perfSettings = SyncPerformanceOptimizer.instance.getCurrentPerformanceSettings();
-    final batchSize = perfSettings['batchSize'] as int? ?? 50;
+    // تهيئة حجم الدفعة التكيفي
+    _adjustBatchSize(true, 0, 0);
     int totalProcessed = 0;
+    int consecutiveFailures = 0;
     final backupService = AppwriteBackupSyncService();
 
     while (true) {
-      // ✅ فصل هندسي: نعالج فقط عناصر source='local' (تغييرات محلية)
-      // عناصر 'restore' تُعالج بشكل منفصل عبر pushAllLocalData
-      final entries = await outboxDao.takeBatch(batchSize, sources: const ['local']);
-      if (entries.isEmpty) {
-        break;
-      }
+      final entries = await outboxDao.takeBatch(_adaptiveBatchSize, sources: const ['local']);
+      if (entries.isEmpty) break;
+
+      final timeoutSeconds = SyncPerformanceOptimizer.instance
+          .getCurrentPerformanceSettings()['timeout'] as int? ?? 30;
 
       final backupOps = <BackupOperation>[];
       int processedInBatch = 0;
+      int failedInBatch = 0;
+
       for (final entry in entries) {
-        final success = await _processOutboxEntry(entry);
-        if (success) {
-          await outboxDao.removeById(entry.id);
-          processedInBatch++;
-          // جمع العمليات الناجحة لإرسالها إلى نقاط النهاية الاحتياطية
-          try {
-            final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
-            backupOps.add(BackupOperation(
-              tableName: entry.entity,
-              documentId: entry.localUuid,
-              data: payload,
-              operation: entry.op == 'delete' ? 'delete' : 'update',
-            ));
-          } catch (_) {
-            _logger.warning('⚠️ فشل تحليل payload للنسخ الاحتياطي', tag: 'BACKUP');
+        try {
+          final success = await _processOutboxEntry(entry)
+              .timeout(Duration(seconds: timeoutSeconds));
+          if (success) {
+            await outboxDao.removeById(entry.id);
+            processedInBatch++;
+            try {
+              final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+              backupOps.add(BackupOperation(
+                tableName: entry.entity,
+                documentId: entry.localUuid,
+                data: payload,
+                operation: entry.op == 'delete' ? 'delete' : 'update',
+              ));
+            } catch (_) {
+              _logger.warning('⚠️ فشل تحليل payload للنسخ الاحتياطي', tag: 'BACKUP');
+            }
+          } else {
+            failedInBatch++;
           }
+        } on TimeoutException {
+          failedInBatch++;
+          _logger.warning(
+            '⏱️ Timeout لتسجيل ${entry.localUuid.substring(0, 8)}... (${timeoutSeconds}s)',
+            tag: 'SYNC',
+          );
+        } catch (e) {
+          failedInBatch++;
         }
       }
+
       totalProcessed += processedInBatch;
-      
-      // إرسال العمليات الناجحة إلى جميع نقاط النهاية الاحتياطية
+
+      // ضبط الحجم التكيفي
+      final batchSuccess = failedInBatch == 0 && processedInBatch > 0;
+      _adjustBatchSize(batchSuccess, processedInBatch, entries.length);
+      consecutiveFailures = batchSuccess ? 0 : consecutiveFailures + 1;
+
+      // إرسال العمليات الناجحة إلى نقاط النهاية الاحتياطية
       if (backupOps.isNotEmpty) {
         try {
           await backupService.pushBatchToBackups(operations: backupOps);
@@ -2011,7 +2072,15 @@ class AppwriteSyncManager {
         }
       }
 
-      if (entries.length == batchSize && processedInBatch == 0) {
+      // كسر الحلقة إذا كل السجلات فشلت
+      if (entries.length == _adaptiveBatchSize && processedInBatch == 0) {
+        if (consecutiveFailures >= 3) {
+          _logger.warning(
+            '⚠️ 3 دفعات متتالية فاشلة — إيقاف المزامنة مؤقتاً',
+            tag: 'SYNC',
+          );
+          break;
+        }
         _logger.warning(
           'Push loop stuck on failing entries. Breaking.',
           tag: 'SYNC',
