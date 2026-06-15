@@ -5417,6 +5417,26 @@ class $ShiftNotesTable extends ShiftNotes
     requiredDuringInsert: false,
     defaultValue: const Constant('user'),
   );
+  static const VerificationMeta _shiftDateMeta = const VerificationMeta(
+    'shiftDate',
+  );
+  @override
+  late final GeneratedColumn<String> shiftDate = GeneratedColumn<String>(
+    'shift_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -5442,6 +5462,8 @@ class $ShiftNotesTable extends ShiftNotes
     isRead,
     expiresAt,
     createdBy,
+    shiftDate,
+    note,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -5623,6 +5645,18 @@ class $ShiftNotesTable extends ShiftNotes
         createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
       );
     }
+    if (data.containsKey('shift_date')) {
+      context.handle(
+        _shiftDateMeta,
+        shiftDate.isAcceptableOrUnknown(data['shift_date']!, _shiftDateMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
     return context;
   }
 
@@ -5724,6 +5758,14 @@ class $ShiftNotesTable extends ShiftNotes
         DriftSqlType.string,
         data['${effectivePrefix}created_by'],
       )!,
+      shiftDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}shift_date'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
     );
   }
 
@@ -5757,6 +5799,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
   final int isRead;
   final String? expiresAt;
   final String createdBy;
+  final String? shiftDate;
+  final String? note;
   const ShiftNote({
     required this.localUuid,
     this.serverId,
@@ -5781,6 +5825,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     required this.isRead,
     this.expiresAt,
     required this.createdBy,
+    this.shiftDate,
+    this.note,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -5822,6 +5868,12 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       map['expires_at'] = Variable<String>(expiresAt);
     }
     map['created_by'] = Variable<String>(createdBy);
+    if (!nullToAbsent || shiftDate != null) {
+      map['shift_date'] = Variable<String>(shiftDate);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
     return map;
   }
 
@@ -5864,6 +5916,10 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
           ? const Value.absent()
           : Value(expiresAt),
       createdBy: Value(createdBy),
+      shiftDate: shiftDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(shiftDate),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
     );
   }
 
@@ -5896,6 +5952,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       isRead: serializer.fromJson<int>(json['isRead']),
       expiresAt: serializer.fromJson<String?>(json['expiresAt']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
+      shiftDate: serializer.fromJson<String?>(json['shiftDate']),
+      note: serializer.fromJson<String?>(json['note']),
     );
   }
   @override
@@ -5925,6 +5983,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       'isRead': serializer.toJson<int>(isRead),
       'expiresAt': serializer.toJson<String?>(expiresAt),
       'createdBy': serializer.toJson<String>(createdBy),
+      'shiftDate': serializer.toJson<String?>(shiftDate),
+      'note': serializer.toJson<String?>(note),
     };
   }
 
@@ -5952,6 +6012,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     int? isRead,
     Value<String?> expiresAt = const Value.absent(),
     String? createdBy,
+    Value<String?> shiftDate = const Value.absent(),
+    Value<String?> note = const Value.absent(),
   }) => ShiftNote(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -5976,6 +6038,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     isRead: isRead ?? this.isRead,
     expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
     createdBy: createdBy ?? this.createdBy,
+    shiftDate: shiftDate.present ? shiftDate.value : this.shiftDate,
+    note: note.present ? note.value : this.note,
   );
   ShiftNote copyWithCompanion(ShiftNotesCompanion data) {
     return ShiftNote(
@@ -6016,6 +6080,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       isRead: data.isRead.present ? data.isRead.value : this.isRead,
       expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      shiftDate: data.shiftDate.present ? data.shiftDate.value : this.shiftDate,
+      note: data.note.present ? data.note.value : this.note,
     );
   }
 
@@ -6044,7 +6110,9 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
           ..write('shiftType: $shiftType, ')
           ..write('isRead: $isRead, ')
           ..write('expiresAt: $expiresAt, ')
-          ..write('createdBy: $createdBy')
+          ..write('createdBy: $createdBy, ')
+          ..write('shiftDate: $shiftDate, ')
+          ..write('note: $note')
           ..write(')'))
         .toString();
   }
@@ -6074,6 +6142,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     isRead,
     expiresAt,
     createdBy,
+    shiftDate,
+    note,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -6101,7 +6171,9 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
           other.shiftType == this.shiftType &&
           other.isRead == this.isRead &&
           other.expiresAt == this.expiresAt &&
-          other.createdBy == this.createdBy);
+          other.createdBy == this.createdBy &&
+          other.shiftDate == this.shiftDate &&
+          other.note == this.note);
 }
 
 class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
@@ -6128,6 +6200,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
   final Value<int> isRead;
   final Value<String?> expiresAt;
   final Value<String> createdBy;
+  final Value<String?> shiftDate;
+  final Value<String?> note;
   const ShiftNotesCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -6152,6 +6226,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     this.isRead = const Value.absent(),
     this.expiresAt = const Value.absent(),
     this.createdBy = const Value.absent(),
+    this.shiftDate = const Value.absent(),
+    this.note = const Value.absent(),
   });
   ShiftNotesCompanion.insert({
     required String localUuid,
@@ -6177,6 +6253,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     this.isRead = const Value.absent(),
     this.expiresAt = const Value.absent(),
     this.createdBy = const Value.absent(),
+    this.shiftDate = const Value.absent(),
+    this.note = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -6207,6 +6285,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     Expression<int>? isRead,
     Expression<String>? expiresAt,
     Expression<String>? createdBy,
+    Expression<String>? shiftDate,
+    Expression<String>? note,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -6232,6 +6312,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
       if (isRead != null) 'is_read': isRead,
       if (expiresAt != null) 'expires_at': expiresAt,
       if (createdBy != null) 'created_by': createdBy,
+      if (shiftDate != null) 'shift_date': shiftDate,
+      if (note != null) 'note': note,
     });
   }
 
@@ -6259,6 +6341,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     Value<int>? isRead,
     Value<String?>? expiresAt,
     Value<String>? createdBy,
+    Value<String?>? shiftDate,
+    Value<String?>? note,
   }) {
     return ShiftNotesCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -6284,6 +6368,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
       isRead: isRead ?? this.isRead,
       expiresAt: expiresAt ?? this.expiresAt,
       createdBy: createdBy ?? this.createdBy,
+      shiftDate: shiftDate ?? this.shiftDate,
+      note: note ?? this.note,
     );
   }
 
@@ -6359,6 +6445,12 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     if (createdBy.present) {
       map['created_by'] = Variable<String>(createdBy.value);
     }
+    if (shiftDate.present) {
+      map['shift_date'] = Variable<String>(shiftDate.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
     return map;
   }
 
@@ -6387,7 +6479,9 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
           ..write('shiftType: $shiftType, ')
           ..write('isRead: $isRead, ')
           ..write('expiresAt: $expiresAt, ')
-          ..write('createdBy: $createdBy')
+          ..write('createdBy: $createdBy, ')
+          ..write('shiftDate: $shiftDate, ')
+          ..write('note: $note')
           ..write(')'))
         .toString();
   }
@@ -8002,6 +8096,17 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _employeeUuidMeta = const VerificationMeta(
+    'employeeUuid',
+  );
+  @override
+  late final GeneratedColumn<String> employeeUuid = GeneratedColumn<String>(
+    'employee_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -8030,6 +8135,7 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     categoryUuid,
     cashFlowUuid,
     isAutoGenerated,
+    employeeUuid,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -8254,6 +8360,15 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         ),
       );
     }
+    if (data.containsKey('employee_uuid')) {
+      context.handle(
+        _employeeUuidMeta,
+        employeeUuid.isAcceptableOrUnknown(
+          data['employee_uuid']!,
+          _employeeUuidMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -8367,6 +8482,10 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_auto_generated'],
       )!,
+      employeeUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employee_uuid'],
+      ),
     );
   }
 
@@ -8403,6 +8522,7 @@ class Expense extends DataClass implements Insertable<Expense> {
   final String? categoryUuid;
   final String? cashFlowUuid;
   final bool isAutoGenerated;
+  final String? employeeUuid;
   const Expense({
     required this.localUuid,
     this.serverId,
@@ -8430,6 +8550,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     this.categoryUuid,
     this.cashFlowUuid,
     required this.isAutoGenerated,
+    this.employeeUuid,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -8482,6 +8603,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       map['cash_flow_uuid'] = Variable<String>(cashFlowUuid);
     }
     map['is_auto_generated'] = Variable<bool>(isAutoGenerated);
+    if (!nullToAbsent || employeeUuid != null) {
+      map['employee_uuid'] = Variable<String>(employeeUuid);
+    }
     return map;
   }
 
@@ -8535,6 +8659,9 @@ class Expense extends DataClass implements Insertable<Expense> {
           ? const Value.absent()
           : Value(cashFlowUuid),
       isAutoGenerated: Value(isAutoGenerated),
+      employeeUuid: employeeUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(employeeUuid),
     );
   }
 
@@ -8570,6 +8697,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       categoryUuid: serializer.fromJson<String?>(json['categoryUuid']),
       cashFlowUuid: serializer.fromJson<String?>(json['cashFlowUuid']),
       isAutoGenerated: serializer.fromJson<bool>(json['isAutoGenerated']),
+      employeeUuid: serializer.fromJson<String?>(json['employeeUuid']),
     );
   }
   @override
@@ -8602,6 +8730,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       'categoryUuid': serializer.toJson<String?>(categoryUuid),
       'cashFlowUuid': serializer.toJson<String?>(cashFlowUuid),
       'isAutoGenerated': serializer.toJson<bool>(isAutoGenerated),
+      'employeeUuid': serializer.toJson<String?>(employeeUuid),
     };
   }
 
@@ -8632,6 +8761,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     Value<String?> categoryUuid = const Value.absent(),
     Value<String?> cashFlowUuid = const Value.absent(),
     bool? isAutoGenerated,
+    Value<String?> employeeUuid = const Value.absent(),
   }) => Expense(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -8661,6 +8791,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     categoryUuid: categoryUuid.present ? categoryUuid.value : this.categoryUuid,
     cashFlowUuid: cashFlowUuid.present ? cashFlowUuid.value : this.cashFlowUuid,
     isAutoGenerated: isAutoGenerated ?? this.isAutoGenerated,
+    employeeUuid: employeeUuid.present ? employeeUuid.value : this.employeeUuid,
   );
   Expense copyWithCompanion(ExpensesCompanion data) {
     return Expense(
@@ -8718,6 +8849,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       isAutoGenerated: data.isAutoGenerated.present
           ? data.isAutoGenerated.value
           : this.isAutoGenerated,
+      employeeUuid: data.employeeUuid.present
+          ? data.employeeUuid.value
+          : this.employeeUuid,
     );
   }
 
@@ -8749,7 +8883,8 @@ class Expense extends DataClass implements Insertable<Expense> {
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('categoryUuid: $categoryUuid, ')
           ..write('cashFlowUuid: $cashFlowUuid, ')
-          ..write('isAutoGenerated: $isAutoGenerated')
+          ..write('isAutoGenerated: $isAutoGenerated, ')
+          ..write('employeeUuid: $employeeUuid')
           ..write(')'))
         .toString();
   }
@@ -8782,6 +8917,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     categoryUuid,
     cashFlowUuid,
     isAutoGenerated,
+    employeeUuid,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -8812,7 +8948,8 @@ class Expense extends DataClass implements Insertable<Expense> {
           other.hotelDayKey == this.hotelDayKey &&
           other.categoryUuid == this.categoryUuid &&
           other.cashFlowUuid == this.cashFlowUuid &&
-          other.isAutoGenerated == this.isAutoGenerated);
+          other.isAutoGenerated == this.isAutoGenerated &&
+          other.employeeUuid == this.employeeUuid);
 }
 
 class ExpensesCompanion extends UpdateCompanion<Expense> {
@@ -8842,6 +8979,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<String?> categoryUuid;
   final Value<String?> cashFlowUuid;
   final Value<bool> isAutoGenerated;
+  final Value<String?> employeeUuid;
   const ExpensesCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -8869,6 +9007,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.categoryUuid = const Value.absent(),
     this.cashFlowUuid = const Value.absent(),
     this.isAutoGenerated = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
   });
   ExpensesCompanion.insert({
     required String localUuid,
@@ -8897,6 +9036,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.categoryUuid = const Value.absent(),
     this.cashFlowUuid = const Value.absent(),
     this.isAutoGenerated = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -8932,6 +9072,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<String>? categoryUuid,
     Expression<String>? cashFlowUuid,
     Expression<bool>? isAutoGenerated,
+    Expression<String>? employeeUuid,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -8960,6 +9101,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       if (categoryUuid != null) 'category_uuid': categoryUuid,
       if (cashFlowUuid != null) 'cash_flow_uuid': cashFlowUuid,
       if (isAutoGenerated != null) 'is_auto_generated': isAutoGenerated,
+      if (employeeUuid != null) 'employee_uuid': employeeUuid,
     });
   }
 
@@ -8990,6 +9132,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Value<String?>? categoryUuid,
     Value<String?>? cashFlowUuid,
     Value<bool>? isAutoGenerated,
+    Value<String?>? employeeUuid,
   }) {
     return ExpensesCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -9018,6 +9161,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       categoryUuid: categoryUuid ?? this.categoryUuid,
       cashFlowUuid: cashFlowUuid ?? this.cashFlowUuid,
       isAutoGenerated: isAutoGenerated ?? this.isAutoGenerated,
+      employeeUuid: employeeUuid ?? this.employeeUuid,
     );
   }
 
@@ -9102,6 +9246,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     if (isAutoGenerated.present) {
       map['is_auto_generated'] = Variable<bool>(isAutoGenerated.value);
     }
+    if (employeeUuid.present) {
+      map['employee_uuid'] = Variable<String>(employeeUuid.value);
+    }
     return map;
   }
 
@@ -9133,7 +9280,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('categoryUuid: $categoryUuid, ')
           ..write('cashFlowUuid: $cashFlowUuid, ')
-          ..write('isAutoGenerated: $isAutoGenerated')
+          ..write('isAutoGenerated: $isAutoGenerated, ')
+          ..write('employeeUuid: $employeeUuid')
           ..write(')'))
         .toString();
   }
@@ -14619,9 +14767,9 @@ class $BookingNightsTable extends BookingNights
   late final GeneratedColumn<int> bookingLocalId = GeneratedColumn<int>(
     'booking_local_id',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'REFERENCES bookings (id)',
     ),
@@ -14755,6 +14903,28 @@ class $BookingNightsTable extends BookingNights
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _bookingUuidCacheMeta = const VerificationMeta(
+    'bookingUuidCache',
+  );
+  @override
+  late final GeneratedColumn<String> bookingUuidCache = GeneratedColumn<String>(
+    'booking_uuid_cache',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverBookingIdMeta = const VerificationMeta(
+    'serverBookingId',
+  );
+  @override
+  late final GeneratedColumn<int> serverBookingId = GeneratedColumn<int>(
+    'server_booking_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -14785,6 +14955,8 @@ class $BookingNightsTable extends BookingNights
     finalRate,
     appliedAdjustmentUuid,
     appliedAdjustmentsJson,
+    bookingUuidCache,
+    serverBookingId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -14928,8 +15100,6 @@ class $BookingNightsTable extends BookingNights
           _bookingLocalIdMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_bookingLocalIdMeta);
     }
     if (data.containsKey('hotel_day_key')) {
       context.handle(
@@ -15018,6 +15188,24 @@ class $BookingNightsTable extends BookingNights
         ),
       );
     }
+    if (data.containsKey('booking_uuid_cache')) {
+      context.handle(
+        _bookingUuidCacheMeta,
+        bookingUuidCache.isAcceptableOrUnknown(
+          data['booking_uuid_cache']!,
+          _bookingUuidCacheMeta,
+        ),
+      );
+    }
+    if (data.containsKey('server_booking_id')) {
+      context.handle(
+        _serverBookingIdMeta,
+        serverBookingId.isAcceptableOrUnknown(
+          data['server_booking_id']!,
+          _serverBookingIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -15098,7 +15286,7 @@ class $BookingNightsTable extends BookingNights
       bookingLocalId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}booking_local_id'],
-      )!,
+      ),
       hotelDayKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}hotel_day_key'],
@@ -15143,6 +15331,14 @@ class $BookingNightsTable extends BookingNights
         DriftSqlType.string,
         data['${effectivePrefix}applied_adjustments_json'],
       ),
+      bookingUuidCache: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}booking_uuid_cache'],
+      ),
+      serverBookingId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_booking_id'],
+      ),
     );
   }
 
@@ -15169,7 +15365,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
   final String vectorClock;
   final String? deviceId;
   final int id;
-  final int bookingLocalId;
+  final int? bookingLocalId;
   final String hotelDayKey;
   final String nightStart;
   final String nightEnd;
@@ -15181,6 +15377,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
   final double finalRate;
   final String? appliedAdjustmentUuid;
   final String? appliedAdjustmentsJson;
+  final String? bookingUuidCache;
+  final int? serverBookingId;
   const BookingNight({
     required this.localUuid,
     this.serverId,
@@ -15198,7 +15396,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     required this.vectorClock,
     this.deviceId,
     required this.id,
-    required this.bookingLocalId,
+    this.bookingLocalId,
     required this.hotelDayKey,
     required this.nightStart,
     required this.nightEnd,
@@ -15210,6 +15408,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     required this.finalRate,
     this.appliedAdjustmentUuid,
     this.appliedAdjustmentsJson,
+    this.bookingUuidCache,
+    this.serverBookingId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -15242,7 +15442,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       map['device_id'] = Variable<String>(deviceId);
     }
     map['id'] = Variable<int>(id);
-    map['booking_local_id'] = Variable<int>(bookingLocalId);
+    if (!nullToAbsent || bookingLocalId != null) {
+      map['booking_local_id'] = Variable<int>(bookingLocalId);
+    }
     map['hotel_day_key'] = Variable<String>(hotelDayKey);
     map['night_start'] = Variable<String>(nightStart);
     map['night_end'] = Variable<String>(nightEnd);
@@ -15259,6 +15461,12 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       map['applied_adjustments_json'] = Variable<String>(
         appliedAdjustmentsJson,
       );
+    }
+    if (!nullToAbsent || bookingUuidCache != null) {
+      map['booking_uuid_cache'] = Variable<String>(bookingUuidCache);
+    }
+    if (!nullToAbsent || serverBookingId != null) {
+      map['server_booking_id'] = Variable<int>(serverBookingId);
     }
     return map;
   }
@@ -15293,7 +15501,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           ? const Value.absent()
           : Value(deviceId),
       id: Value(id),
-      bookingLocalId: Value(bookingLocalId),
+      bookingLocalId: bookingLocalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bookingLocalId),
       hotelDayKey: Value(hotelDayKey),
       nightStart: Value(nightStart),
       nightEnd: Value(nightEnd),
@@ -15309,6 +15519,12 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       appliedAdjustmentsJson: appliedAdjustmentsJson == null && nullToAbsent
           ? const Value.absent()
           : Value(appliedAdjustmentsJson),
+      bookingUuidCache: bookingUuidCache == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bookingUuidCache),
+      serverBookingId: serverBookingId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverBookingId),
     );
   }
 
@@ -15334,7 +15550,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String?>(json['deviceId']),
       id: serializer.fromJson<int>(json['id']),
-      bookingLocalId: serializer.fromJson<int>(json['bookingLocalId']),
+      bookingLocalId: serializer.fromJson<int?>(json['bookingLocalId']),
       hotelDayKey: serializer.fromJson<String>(json['hotelDayKey']),
       nightStart: serializer.fromJson<String>(json['nightStart']),
       nightEnd: serializer.fromJson<String>(json['nightEnd']),
@@ -15352,6 +15568,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       appliedAdjustmentsJson: serializer.fromJson<String?>(
         json['appliedAdjustmentsJson'],
       ),
+      bookingUuidCache: serializer.fromJson<String?>(json['bookingUuidCache']),
+      serverBookingId: serializer.fromJson<int?>(json['serverBookingId']),
     );
   }
   @override
@@ -15374,7 +15592,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String?>(deviceId),
       'id': serializer.toJson<int>(id),
-      'bookingLocalId': serializer.toJson<int>(bookingLocalId),
+      'bookingLocalId': serializer.toJson<int?>(bookingLocalId),
       'hotelDayKey': serializer.toJson<String>(hotelDayKey),
       'nightStart': serializer.toJson<String>(nightStart),
       'nightEnd': serializer.toJson<String>(nightEnd),
@@ -15390,6 +15608,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       'appliedAdjustmentsJson': serializer.toJson<String?>(
         appliedAdjustmentsJson,
       ),
+      'bookingUuidCache': serializer.toJson<String?>(bookingUuidCache),
+      'serverBookingId': serializer.toJson<int?>(serverBookingId),
     };
   }
 
@@ -15410,7 +15630,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     String? vectorClock,
     Value<String?> deviceId = const Value.absent(),
     int? id,
-    int? bookingLocalId,
+    Value<int?> bookingLocalId = const Value.absent(),
     String? hotelDayKey,
     String? nightStart,
     String? nightEnd,
@@ -15422,6 +15642,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     double? finalRate,
     Value<String?> appliedAdjustmentUuid = const Value.absent(),
     Value<String?> appliedAdjustmentsJson = const Value.absent(),
+    Value<String?> bookingUuidCache = const Value.absent(),
+    Value<int?> serverBookingId = const Value.absent(),
   }) => BookingNight(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -15439,7 +15661,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId.present ? deviceId.value : this.deviceId,
     id: id ?? this.id,
-    bookingLocalId: bookingLocalId ?? this.bookingLocalId,
+    bookingLocalId: bookingLocalId.present
+        ? bookingLocalId.value
+        : this.bookingLocalId,
     hotelDayKey: hotelDayKey ?? this.hotelDayKey,
     nightStart: nightStart ?? this.nightStart,
     nightEnd: nightEnd ?? this.nightEnd,
@@ -15455,6 +15679,12 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     appliedAdjustmentsJson: appliedAdjustmentsJson.present
         ? appliedAdjustmentsJson.value
         : this.appliedAdjustmentsJson,
+    bookingUuidCache: bookingUuidCache.present
+        ? bookingUuidCache.value
+        : this.bookingUuidCache,
+    serverBookingId: serverBookingId.present
+        ? serverBookingId.value
+        : this.serverBookingId,
   );
   BookingNight copyWithCompanion(BookingNightsCompanion data) {
     return BookingNight(
@@ -15516,6 +15746,12 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       appliedAdjustmentsJson: data.appliedAdjustmentsJson.present
           ? data.appliedAdjustmentsJson.value
           : this.appliedAdjustmentsJson,
+      bookingUuidCache: data.bookingUuidCache.present
+          ? data.bookingUuidCache.value
+          : this.bookingUuidCache,
+      serverBookingId: data.serverBookingId.present
+          ? data.serverBookingId.value
+          : this.serverBookingId,
     );
   }
 
@@ -15549,7 +15785,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           ..write('adjustment: $adjustment, ')
           ..write('finalRate: $finalRate, ')
           ..write('appliedAdjustmentUuid: $appliedAdjustmentUuid, ')
-          ..write('appliedAdjustmentsJson: $appliedAdjustmentsJson')
+          ..write('appliedAdjustmentsJson: $appliedAdjustmentsJson, ')
+          ..write('bookingUuidCache: $bookingUuidCache, ')
+          ..write('serverBookingId: $serverBookingId')
           ..write(')'))
         .toString();
   }
@@ -15584,6 +15822,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     finalRate,
     appliedAdjustmentUuid,
     appliedAdjustmentsJson,
+    bookingUuidCache,
+    serverBookingId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -15616,7 +15856,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           other.adjustment == this.adjustment &&
           other.finalRate == this.finalRate &&
           other.appliedAdjustmentUuid == this.appliedAdjustmentUuid &&
-          other.appliedAdjustmentsJson == this.appliedAdjustmentsJson);
+          other.appliedAdjustmentsJson == this.appliedAdjustmentsJson &&
+          other.bookingUuidCache == this.bookingUuidCache &&
+          other.serverBookingId == this.serverBookingId);
 }
 
 class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
@@ -15636,7 +15878,7 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
   final Value<String> vectorClock;
   final Value<String?> deviceId;
   final Value<int> id;
-  final Value<int> bookingLocalId;
+  final Value<int?> bookingLocalId;
   final Value<String> hotelDayKey;
   final Value<String> nightStart;
   final Value<String> nightEnd;
@@ -15648,6 +15890,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
   final Value<double> finalRate;
   final Value<String?> appliedAdjustmentUuid;
   final Value<String?> appliedAdjustmentsJson;
+  final Value<String?> bookingUuidCache;
+  final Value<int?> serverBookingId;
   const BookingNightsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -15677,6 +15921,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.finalRate = const Value.absent(),
     this.appliedAdjustmentUuid = const Value.absent(),
     this.appliedAdjustmentsJson = const Value.absent(),
+    this.bookingUuidCache = const Value.absent(),
+    this.serverBookingId = const Value.absent(),
   });
   BookingNightsCompanion.insert({
     required String localUuid,
@@ -15695,7 +15941,7 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
     this.id = const Value.absent(),
-    required int bookingLocalId,
+    this.bookingLocalId = const Value.absent(),
     required String hotelDayKey,
     required String nightStart,
     required String nightEnd,
@@ -15707,11 +15953,12 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.finalRate = const Value.absent(),
     this.appliedAdjustmentUuid = const Value.absent(),
     this.appliedAdjustmentsJson = const Value.absent(),
+    this.bookingUuidCache = const Value.absent(),
+    this.serverBookingId = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
        lastModified = Value(lastModified),
-       bookingLocalId = Value(bookingLocalId),
        hotelDayKey = Value(hotelDayKey),
        nightStart = Value(nightStart),
        nightEnd = Value(nightEnd);
@@ -15744,6 +15991,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Expression<double>? finalRate,
     Expression<String>? appliedAdjustmentUuid,
     Expression<String>? appliedAdjustmentsJson,
+    Expression<String>? bookingUuidCache,
+    Expression<int>? serverBookingId,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -15777,6 +16026,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
         'applied_adjustment_uuid': appliedAdjustmentUuid,
       if (appliedAdjustmentsJson != null)
         'applied_adjustments_json': appliedAdjustmentsJson,
+      if (bookingUuidCache != null) 'booking_uuid_cache': bookingUuidCache,
+      if (serverBookingId != null) 'server_booking_id': serverBookingId,
     });
   }
 
@@ -15797,7 +16048,7 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Value<String>? vectorClock,
     Value<String?>? deviceId,
     Value<int>? id,
-    Value<int>? bookingLocalId,
+    Value<int?>? bookingLocalId,
     Value<String>? hotelDayKey,
     Value<String>? nightStart,
     Value<String>? nightEnd,
@@ -15809,6 +16060,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Value<double>? finalRate,
     Value<String?>? appliedAdjustmentUuid,
     Value<String?>? appliedAdjustmentsJson,
+    Value<String?>? bookingUuidCache,
+    Value<int?>? serverBookingId,
   }) {
     return BookingNightsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -15841,6 +16094,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
           appliedAdjustmentUuid ?? this.appliedAdjustmentUuid,
       appliedAdjustmentsJson:
           appliedAdjustmentsJson ?? this.appliedAdjustmentsJson,
+      bookingUuidCache: bookingUuidCache ?? this.bookingUuidCache,
+      serverBookingId: serverBookingId ?? this.serverBookingId,
     );
   }
 
@@ -15937,6 +16192,12 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
         appliedAdjustmentsJson.value,
       );
     }
+    if (bookingUuidCache.present) {
+      map['booking_uuid_cache'] = Variable<String>(bookingUuidCache.value);
+    }
+    if (serverBookingId.present) {
+      map['server_booking_id'] = Variable<int>(serverBookingId.value);
+    }
     return map;
   }
 
@@ -15970,7 +16231,9 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
           ..write('adjustment: $adjustment, ')
           ..write('finalRate: $finalRate, ')
           ..write('appliedAdjustmentUuid: $appliedAdjustmentUuid, ')
-          ..write('appliedAdjustmentsJson: $appliedAdjustmentsJson')
+          ..write('appliedAdjustmentsJson: $appliedAdjustmentsJson, ')
+          ..write('bookingUuidCache: $bookingUuidCache, ')
+          ..write('serverBookingId: $serverBookingId')
           ..write(')'))
         .toString();
   }
@@ -28355,6 +28618,175 @@ class $AuditLogsTable extends AuditLogs
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $AuditLogsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localUuidMeta = const VerificationMeta(
+    'localUuid',
+  );
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+    'local_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastModifiedMeta = const VerificationMeta(
+    'lastModified',
+  );
+  @override
+  late final GeneratedColumn<int> lastModified = GeneratedColumn<int>(
+    'last_modified',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtIsoMeta = const VerificationMeta(
+    'createdAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> createdAtIso = GeneratedColumn<String>(
+    'created_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtIsoMeta = const VerificationMeta(
+    'updatedAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAtIso = GeneratedColumn<String>(
+    'updated_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtIsoMeta = const VerificationMeta(
+    'deletedAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAtIso = GeneratedColumn<String>(
+    'deleted_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtEpochMeta = const VerificationMeta(
+    'createdAtEpoch',
+  );
+  @override
+  late final GeneratedColumn<int> createdAtEpoch = GeneratedColumn<int>(
+    'created_at_epoch',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastModifiedEpochMeta = const VerificationMeta(
+    'lastModifiedEpoch',
+  );
+  @override
+  late final GeneratedColumn<int> lastModifiedEpoch = GeneratedColumn<int>(
+    'last_modified_epoch',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+    'origin',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('local'),
+  );
+  static const VerificationMeta _vectorClockMeta = const VerificationMeta(
+    'vectorClock',
+  );
+  @override
+  late final GeneratedColumn<String> vectorClock = GeneratedColumn<String>(
+    'vector_clock',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -28367,18 +28799,6 @@ class $AuditLogsTable extends AuditLogs
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
     ),
-  );
-  static const VerificationMeta _localUuidMeta = const VerificationMeta(
-    'localUuid',
-  );
-  @override
-  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
-    'local_uuid',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
   );
   static const VerificationMeta _operationTypeMeta = const VerificationMeta(
     'operationType',
@@ -28468,17 +28888,6 @@ class $AuditLogsTable extends AuditLogs
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
-    'deviceId',
-  );
-  @override
-  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
-    'device_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
   static const VerificationMeta _ipAddressMeta = const VerificationMeta(
     'ipAddress',
   );
@@ -28549,21 +28958,35 @@ class $AuditLogsTable extends AuditLogs
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
   );
   @override
-  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
-    'created_at',
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
   );
   @override
   List<GeneratedColumn> get $columns => [
-    id,
     localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    vectorClock,
+    deviceId,
+    id,
     operationType,
     entityType,
     entityUuid,
@@ -28572,14 +28995,13 @@ class $AuditLogsTable extends AuditLogs
     newState,
     changedFields,
     performedBy,
-    deviceId,
     ipAddress,
     hotelDayKey,
     timestamp,
     timestampIso,
     isFinancial,
     amountImpact,
-    createdAt,
+    syncTimestamp,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -28593,9 +29015,6 @@ class $AuditLogsTable extends AuditLogs
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
     if (data.containsKey('local_uuid')) {
       context.handle(
         _localUuidMeta,
@@ -28603,6 +29022,120 @@ class $AuditLogsTable extends AuditLogs
       );
     } else if (isInserting) {
       context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+        _lastModifiedMeta,
+        lastModified.isAcceptableOrUnknown(
+          data['last_modified']!,
+          _lastModifiedMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastModifiedMeta);
+    }
+    if (data.containsKey('created_at_iso')) {
+      context.handle(
+        _createdAtIsoMeta,
+        createdAtIso.isAcceptableOrUnknown(
+          data['created_at_iso']!,
+          _createdAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at_iso')) {
+      context.handle(
+        _updatedAtIsoMeta,
+        updatedAtIso.isAcceptableOrUnknown(
+          data['updated_at_iso']!,
+          _updatedAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_at_iso')) {
+      context.handle(
+        _deletedAtIsoMeta,
+        deletedAtIso.isAcceptableOrUnknown(
+          data['deleted_at_iso']!,
+          _deletedAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at_epoch')) {
+      context.handle(
+        _createdAtEpochMeta,
+        createdAtEpoch.isAcceptableOrUnknown(
+          data['created_at_epoch']!,
+          _createdAtEpochMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_modified_epoch')) {
+      context.handle(
+        _lastModifiedEpochMeta,
+        lastModifiedEpoch.isAcceptableOrUnknown(
+          data['last_modified_epoch']!,
+          _lastModifiedEpochMeta,
+        ),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('origin')) {
+      context.handle(
+        _originMeta,
+        origin.isAcceptableOrUnknown(data['origin']!, _originMeta),
+      );
+    }
+    if (data.containsKey('vector_clock')) {
+      context.handle(
+        _vectorClockMeta,
+        vectorClock.isAcceptableOrUnknown(
+          data['vector_clock']!,
+          _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
     if (data.containsKey('operation_type')) {
       context.handle(
@@ -28672,14 +29205,6 @@ class $AuditLogsTable extends AuditLogs
     } else if (isInserting) {
       context.missing(_performedByMeta);
     }
-    if (data.containsKey('device_id')) {
-      context.handle(
-        _deviceIdMeta,
-        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_deviceIdMeta);
-    }
     if (data.containsKey('ip_address')) {
       context.handle(
         _ipAddressMeta,
@@ -28734,13 +29259,14 @@ class $AuditLogsTable extends AuditLogs
         ),
       );
     }
-    if (data.containsKey('created_at')) {
+    if (data.containsKey('sync_timestamp')) {
       context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
       );
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
     }
     return context;
   }
@@ -28751,13 +29277,69 @@ class $AuditLogsTable extends AuditLogs
   AuditLog map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return AuditLog(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
       localUuid: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}local_uuid'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      lastModified: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_modified'],
+      )!,
+      createdAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at_iso'],
+      ),
+      updatedAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at_iso'],
+      ),
+      deletedAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at_iso'],
+      ),
+      createdAtEpoch: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at_epoch'],
+      )!,
+      lastModifiedEpoch: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_modified_epoch'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      origin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin'],
+      )!,
+      vectorClock: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vector_clock'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      ),
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
       )!,
       operationType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -28791,10 +29373,6 @@ class $AuditLogsTable extends AuditLogs
         DriftSqlType.string,
         data['${effectivePrefix}performed_by'],
       )!,
-      deviceId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}device_id'],
-      )!,
       ipAddress: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}ip_address'],
@@ -28819,10 +29397,10 @@ class $AuditLogsTable extends AuditLogs
         DriftSqlType.int,
         data['${effectivePrefix}amount_impact'],
       ),
-      createdAt: attachedDatabase.typeMapping.read(
+      syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}created_at'],
-      )!,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
     );
   }
 
@@ -28833,8 +29411,22 @@ class $AuditLogsTable extends AuditLogs
 }
 
 class AuditLog extends DataClass implements Insertable<AuditLog> {
-  final int id;
   final String localUuid;
+  final int? serverId;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  final int lastModified;
+  final String? createdAtIso;
+  final String? updatedAtIso;
+  final String? deletedAtIso;
+  final int createdAtEpoch;
+  final int lastModifiedEpoch;
+  final int version;
+  final String origin;
+  final String vectorClock;
+  final String? deviceId;
+  final int id;
   final String operationType;
   final String entityType;
   final String entityUuid;
@@ -28843,17 +29435,30 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
   final String? newState;
   final String? changedFields;
   final String performedBy;
-  final String deviceId;
   final String? ipAddress;
   final String hotelDayKey;
   final int timestamp;
   final String timestampIso;
   final bool isFinancial;
   final int? amountImpact;
-  final int createdAt;
+  final int? syncTimestamp;
   const AuditLog({
-    required this.id,
     required this.localUuid,
+    this.serverId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.lastModified,
+    this.createdAtIso,
+    this.updatedAtIso,
+    this.deletedAtIso,
+    required this.createdAtEpoch,
+    required this.lastModifiedEpoch,
+    required this.version,
+    required this.origin,
+    required this.vectorClock,
+    this.deviceId,
+    required this.id,
     required this.operationType,
     required this.entityType,
     required this.entityUuid,
@@ -28862,20 +29467,45 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     this.newState,
     this.changedFields,
     required this.performedBy,
-    required this.deviceId,
     this.ipAddress,
     required this.hotelDayKey,
     required this.timestamp,
     required this.timestampIso,
     required this.isFinancial,
     this.amountImpact,
-    required this.createdAt,
+    this.syncTimestamp,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
     map['local_uuid'] = Variable<String>(localUuid);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    map['last_modified'] = Variable<int>(lastModified);
+    if (!nullToAbsent || createdAtIso != null) {
+      map['created_at_iso'] = Variable<String>(createdAtIso);
+    }
+    if (!nullToAbsent || updatedAtIso != null) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso);
+    }
+    if (!nullToAbsent || deletedAtIso != null) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso);
+    }
+    map['created_at_epoch'] = Variable<int>(createdAtEpoch);
+    map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch);
+    map['version'] = Variable<int>(version);
+    map['origin'] = Variable<String>(origin);
+    map['vector_clock'] = Variable<String>(vectorClock);
+    if (!nullToAbsent || deviceId != null) {
+      map['device_id'] = Variable<String>(deviceId);
+    }
+    map['id'] = Variable<int>(id);
     map['operation_type'] = Variable<String>(operationType);
     map['entity_type'] = Variable<String>(entityType);
     map['entity_uuid'] = Variable<String>(entityUuid);
@@ -28892,7 +29522,6 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       map['changed_fields'] = Variable<String>(changedFields);
     }
     map['performed_by'] = Variable<String>(performedBy);
-    map['device_id'] = Variable<String>(deviceId);
     if (!nullToAbsent || ipAddress != null) {
       map['ip_address'] = Variable<String>(ipAddress);
     }
@@ -28903,14 +29532,42 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     if (!nullToAbsent || amountImpact != null) {
       map['amount_impact'] = Variable<int>(amountImpact);
     }
-    map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     return map;
   }
 
   AuditLogsCompanion toCompanion(bool nullToAbsent) {
     return AuditLogsCompanion(
-      id: Value(id),
       localUuid: Value(localUuid),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModified: Value(lastModified),
+      createdAtIso: createdAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAtIso),
+      updatedAtIso: updatedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAtIso),
+      deletedAtIso: deletedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAtIso),
+      createdAtEpoch: Value(createdAtEpoch),
+      lastModifiedEpoch: Value(lastModifiedEpoch),
+      version: Value(version),
+      origin: Value(origin),
+      vectorClock: Value(vectorClock),
+      deviceId: deviceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deviceId),
+      id: Value(id),
       operationType: Value(operationType),
       entityType: Value(entityType),
       entityUuid: Value(entityUuid),
@@ -28927,7 +29584,6 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
           ? const Value.absent()
           : Value(changedFields),
       performedBy: Value(performedBy),
-      deviceId: Value(deviceId),
       ipAddress: ipAddress == null && nullToAbsent
           ? const Value.absent()
           : Value(ipAddress),
@@ -28938,7 +29594,9 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       amountImpact: amountImpact == null && nullToAbsent
           ? const Value.absent()
           : Value(amountImpact),
-      createdAt: Value(createdAt),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
     );
   }
 
@@ -28948,8 +29606,22 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AuditLog(
-      id: serializer.fromJson<int>(json['id']),
       localUuid: serializer.fromJson<String>(json['localUuid']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      lastModified: serializer.fromJson<int>(json['lastModified']),
+      createdAtIso: serializer.fromJson<String?>(json['createdAtIso']),
+      updatedAtIso: serializer.fromJson<String?>(json['updatedAtIso']),
+      deletedAtIso: serializer.fromJson<String?>(json['deletedAtIso']),
+      createdAtEpoch: serializer.fromJson<int>(json['createdAtEpoch']),
+      lastModifiedEpoch: serializer.fromJson<int>(json['lastModifiedEpoch']),
+      version: serializer.fromJson<int>(json['version']),
+      origin: serializer.fromJson<String>(json['origin']),
+      vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String?>(json['deviceId']),
+      id: serializer.fromJson<int>(json['id']),
       operationType: serializer.fromJson<String>(json['operationType']),
       entityType: serializer.fromJson<String>(json['entityType']),
       entityUuid: serializer.fromJson<String>(json['entityUuid']),
@@ -28958,22 +29630,35 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       newState: serializer.fromJson<String?>(json['newState']),
       changedFields: serializer.fromJson<String?>(json['changedFields']),
       performedBy: serializer.fromJson<String>(json['performedBy']),
-      deviceId: serializer.fromJson<String>(json['deviceId']),
       ipAddress: serializer.fromJson<String?>(json['ipAddress']),
       hotelDayKey: serializer.fromJson<String>(json['hotelDayKey']),
       timestamp: serializer.fromJson<int>(json['timestamp']),
       timestampIso: serializer.fromJson<String>(json['timestampIso']),
       isFinancial: serializer.fromJson<bool>(json['isFinancial']),
       amountImpact: serializer.fromJson<int?>(json['amountImpact']),
-      createdAt: serializer.fromJson<int>(json['createdAt']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
     );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'id': serializer.toJson<int>(id),
       'localUuid': serializer.toJson<String>(localUuid),
+      'serverId': serializer.toJson<int?>(serverId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+      'lastModified': serializer.toJson<int>(lastModified),
+      'createdAtIso': serializer.toJson<String?>(createdAtIso),
+      'updatedAtIso': serializer.toJson<String?>(updatedAtIso),
+      'deletedAtIso': serializer.toJson<String?>(deletedAtIso),
+      'createdAtEpoch': serializer.toJson<int>(createdAtEpoch),
+      'lastModifiedEpoch': serializer.toJson<int>(lastModifiedEpoch),
+      'version': serializer.toJson<int>(version),
+      'origin': serializer.toJson<String>(origin),
+      'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String?>(deviceId),
+      'id': serializer.toJson<int>(id),
       'operationType': serializer.toJson<String>(operationType),
       'entityType': serializer.toJson<String>(entityType),
       'entityUuid': serializer.toJson<String>(entityUuid),
@@ -28982,20 +29667,33 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       'newState': serializer.toJson<String?>(newState),
       'changedFields': serializer.toJson<String?>(changedFields),
       'performedBy': serializer.toJson<String>(performedBy),
-      'deviceId': serializer.toJson<String>(deviceId),
       'ipAddress': serializer.toJson<String?>(ipAddress),
       'hotelDayKey': serializer.toJson<String>(hotelDayKey),
       'timestamp': serializer.toJson<int>(timestamp),
       'timestampIso': serializer.toJson<String>(timestampIso),
       'isFinancial': serializer.toJson<bool>(isFinancial),
       'amountImpact': serializer.toJson<int?>(amountImpact),
-      'createdAt': serializer.toJson<int>(createdAt),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
     };
   }
 
   AuditLog copyWith({
-    int? id,
     String? localUuid,
+    Value<int?> serverId = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+    int? lastModified,
+    Value<String?> createdAtIso = const Value.absent(),
+    Value<String?> updatedAtIso = const Value.absent(),
+    Value<String?> deletedAtIso = const Value.absent(),
+    int? createdAtEpoch,
+    int? lastModifiedEpoch,
+    int? version,
+    String? origin,
+    String? vectorClock,
+    Value<String?> deviceId = const Value.absent(),
+    int? id,
     String? operationType,
     String? entityType,
     String? entityUuid,
@@ -29004,17 +29702,30 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     Value<String?> newState = const Value.absent(),
     Value<String?> changedFields = const Value.absent(),
     String? performedBy,
-    String? deviceId,
     Value<String?> ipAddress = const Value.absent(),
     String? hotelDayKey,
     int? timestamp,
     String? timestampIso,
     bool? isFinancial,
     Value<int?> amountImpact = const Value.absent(),
-    int? createdAt,
+    Value<int?> syncTimestamp = const Value.absent(),
   }) => AuditLog(
-    id: id ?? this.id,
     localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId.present ? deviceId.value : this.deviceId,
+    id: id ?? this.id,
     operationType: operationType ?? this.operationType,
     entityType: entityType ?? this.entityType,
     entityUuid: entityUuid ?? this.entityUuid,
@@ -29027,19 +29738,48 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
         ? changedFields.value
         : this.changedFields,
     performedBy: performedBy ?? this.performedBy,
-    deviceId: deviceId ?? this.deviceId,
     ipAddress: ipAddress.present ? ipAddress.value : this.ipAddress,
     hotelDayKey: hotelDayKey ?? this.hotelDayKey,
     timestamp: timestamp ?? this.timestamp,
     timestampIso: timestampIso ?? this.timestampIso,
     isFinancial: isFinancial ?? this.isFinancial,
     amountImpact: amountImpact.present ? amountImpact.value : this.amountImpact,
-    createdAt: createdAt ?? this.createdAt,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
   );
   AuditLog copyWithCompanion(AuditLogsCompanion data) {
     return AuditLog(
-      id: data.id.present ? data.id.value : this.id,
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+      createdAtIso: data.createdAtIso.present
+          ? data.createdAtIso.value
+          : this.createdAtIso,
+      updatedAtIso: data.updatedAtIso.present
+          ? data.updatedAtIso.value
+          : this.updatedAtIso,
+      deletedAtIso: data.deletedAtIso.present
+          ? data.deletedAtIso.value
+          : this.deletedAtIso,
+      createdAtEpoch: data.createdAtEpoch.present
+          ? data.createdAtEpoch.value
+          : this.createdAtEpoch,
+      lastModifiedEpoch: data.lastModifiedEpoch.present
+          ? data.lastModifiedEpoch.value
+          : this.lastModifiedEpoch,
+      version: data.version.present ? data.version.value : this.version,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      vectorClock: data.vectorClock.present
+          ? data.vectorClock.value
+          : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      id: data.id.present ? data.id.value : this.id,
       operationType: data.operationType.present
           ? data.operationType.value
           : this.operationType,
@@ -29060,7 +29800,6 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       performedBy: data.performedBy.present
           ? data.performedBy.value
           : this.performedBy,
-      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
       ipAddress: data.ipAddress.present ? data.ipAddress.value : this.ipAddress,
       hotelDayKey: data.hotelDayKey.present
           ? data.hotelDayKey.value
@@ -29075,15 +29814,31 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       amountImpact: data.amountImpact.present
           ? data.amountImpact.value
           : this.amountImpact,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
     );
   }
 
   @override
   String toString() {
     return (StringBuffer('AuditLog(')
-          ..write('id: $id, ')
           ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('id: $id, ')
           ..write('operationType: $operationType, ')
           ..write('entityType: $entityType, ')
           ..write('entityUuid: $entityUuid, ')
@@ -29092,22 +29847,35 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
           ..write('newState: $newState, ')
           ..write('changedFields: $changedFields, ')
           ..write('performedBy: $performedBy, ')
-          ..write('deviceId: $deviceId, ')
           ..write('ipAddress: $ipAddress, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('timestamp: $timestamp, ')
           ..write('timestampIso: $timestampIso, ')
           ..write('isFinancial: $isFinancial, ')
           ..write('amountImpact: $amountImpact, ')
-          ..write('createdAt: $createdAt')
+          ..write('syncTimestamp: $syncTimestamp')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-    id,
+  int get hashCode => Object.hashAll([
     localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    vectorClock,
+    deviceId,
+    id,
     operationType,
     entityType,
     entityUuid,
@@ -29116,21 +29884,34 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     newState,
     changedFields,
     performedBy,
-    deviceId,
     ipAddress,
     hotelDayKey,
     timestamp,
     timestampIso,
     isFinancial,
     amountImpact,
-    createdAt,
-  );
+    syncTimestamp,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AuditLog &&
-          other.id == this.id &&
           other.localUuid == this.localUuid &&
+          other.serverId == this.serverId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModified == this.lastModified &&
+          other.createdAtIso == this.createdAtIso &&
+          other.updatedAtIso == this.updatedAtIso &&
+          other.deletedAtIso == this.deletedAtIso &&
+          other.createdAtEpoch == this.createdAtEpoch &&
+          other.lastModifiedEpoch == this.lastModifiedEpoch &&
+          other.version == this.version &&
+          other.origin == this.origin &&
+          other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.id == this.id &&
           other.operationType == this.operationType &&
           other.entityType == this.entityType &&
           other.entityUuid == this.entityUuid &&
@@ -29139,19 +29920,32 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
           other.newState == this.newState &&
           other.changedFields == this.changedFields &&
           other.performedBy == this.performedBy &&
-          other.deviceId == this.deviceId &&
           other.ipAddress == this.ipAddress &&
           other.hotelDayKey == this.hotelDayKey &&
           other.timestamp == this.timestamp &&
           other.timestampIso == this.timestampIso &&
           other.isFinancial == this.isFinancial &&
           other.amountImpact == this.amountImpact &&
-          other.createdAt == this.createdAt);
+          other.syncTimestamp == this.syncTimestamp);
 }
 
 class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
-  final Value<int> id;
   final Value<String> localUuid;
+  final Value<int?> serverId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> lastModified;
+  final Value<String?> createdAtIso;
+  final Value<String?> updatedAtIso;
+  final Value<String?> deletedAtIso;
+  final Value<int> createdAtEpoch;
+  final Value<int> lastModifiedEpoch;
+  final Value<int> version;
+  final Value<String> origin;
+  final Value<String> vectorClock;
+  final Value<String?> deviceId;
+  final Value<int> id;
   final Value<String> operationType;
   final Value<String> entityType;
   final Value<String> entityUuid;
@@ -29160,17 +29954,30 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
   final Value<String?> newState;
   final Value<String?> changedFields;
   final Value<String> performedBy;
-  final Value<String> deviceId;
   final Value<String?> ipAddress;
   final Value<String> hotelDayKey;
   final Value<int> timestamp;
   final Value<String> timestampIso;
   final Value<bool> isFinancial;
   final Value<int?> amountImpact;
-  final Value<int> createdAt;
+  final Value<int?> syncTimestamp;
   const AuditLogsCompanion({
-    this.id = const Value.absent(),
     this.localUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.id = const Value.absent(),
     this.operationType = const Value.absent(),
     this.entityType = const Value.absent(),
     this.entityUuid = const Value.absent(),
@@ -29179,18 +29986,31 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     this.newState = const Value.absent(),
     this.changedFields = const Value.absent(),
     this.performedBy = const Value.absent(),
-    this.deviceId = const Value.absent(),
     this.ipAddress = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
     this.timestamp = const Value.absent(),
     this.timestampIso = const Value.absent(),
     this.isFinancial = const Value.absent(),
     this.amountImpact = const Value.absent(),
-    this.createdAt = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
   });
   AuditLogsCompanion.insert({
-    this.id = const Value.absent(),
     required String localUuid,
+    this.serverId = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    required int lastModified,
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.id = const Value.absent(),
     required String operationType,
     required String entityType,
     required String entityUuid,
@@ -29199,27 +30019,41 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     this.newState = const Value.absent(),
     this.changedFields = const Value.absent(),
     required String performedBy,
-    required String deviceId,
     this.ipAddress = const Value.absent(),
     required String hotelDayKey,
     required int timestamp,
     required String timestampIso,
     this.isFinancial = const Value.absent(),
     this.amountImpact = const Value.absent(),
-    required int createdAt,
+    this.syncTimestamp = const Value.absent(),
   }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
        operationType = Value(operationType),
        entityType = Value(entityType),
        entityUuid = Value(entityUuid),
        performedBy = Value(performedBy),
-       deviceId = Value(deviceId),
        hotelDayKey = Value(hotelDayKey),
        timestamp = Value(timestamp),
-       timestampIso = Value(timestampIso),
-       createdAt = Value(createdAt);
+       timestampIso = Value(timestampIso);
   static Insertable<AuditLog> custom({
-    Expression<int>? id,
     Expression<String>? localUuid,
+    Expression<int>? serverId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? lastModified,
+    Expression<String>? createdAtIso,
+    Expression<String>? updatedAtIso,
+    Expression<String>? deletedAtIso,
+    Expression<int>? createdAtEpoch,
+    Expression<int>? lastModifiedEpoch,
+    Expression<int>? version,
+    Expression<String>? origin,
+    Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<int>? id,
     Expression<String>? operationType,
     Expression<String>? entityType,
     Expression<String>? entityUuid,
@@ -29228,18 +30062,31 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     Expression<String>? newState,
     Expression<String>? changedFields,
     Expression<String>? performedBy,
-    Expression<String>? deviceId,
     Expression<String>? ipAddress,
     Expression<String>? hotelDayKey,
     Expression<int>? timestamp,
     Expression<String>? timestampIso,
     Expression<bool>? isFinancial,
     Expression<int>? amountImpact,
-    Expression<int>? createdAt,
+    Expression<int>? syncTimestamp,
   }) {
     return RawValuesInsertable({
-      if (id != null) 'id': id,
       if (localUuid != null) 'local_uuid': localUuid,
+      if (serverId != null) 'server_id': serverId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (createdAtIso != null) 'created_at_iso': createdAtIso,
+      if (updatedAtIso != null) 'updated_at_iso': updatedAtIso,
+      if (deletedAtIso != null) 'deleted_at_iso': deletedAtIso,
+      if (createdAtEpoch != null) 'created_at_epoch': createdAtEpoch,
+      if (lastModifiedEpoch != null) 'last_modified_epoch': lastModifiedEpoch,
+      if (version != null) 'version': version,
+      if (origin != null) 'origin': origin,
+      if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (id != null) 'id': id,
       if (operationType != null) 'operation_type': operationType,
       if (entityType != null) 'entity_type': entityType,
       if (entityUuid != null) 'entity_uuid': entityUuid,
@@ -29248,20 +30095,33 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
       if (newState != null) 'new_state': newState,
       if (changedFields != null) 'changed_fields': changedFields,
       if (performedBy != null) 'performed_by': performedBy,
-      if (deviceId != null) 'device_id': deviceId,
       if (ipAddress != null) 'ip_address': ipAddress,
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
       if (timestamp != null) 'timestamp': timestamp,
       if (timestampIso != null) 'timestamp_iso': timestampIso,
       if (isFinancial != null) 'is_financial': isFinancial,
       if (amountImpact != null) 'amount_impact': amountImpact,
-      if (createdAt != null) 'created_at': createdAt,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
     });
   }
 
   AuditLogsCompanion copyWith({
-    Value<int>? id,
     Value<String>? localUuid,
+    Value<int?>? serverId,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? lastModified,
+    Value<String?>? createdAtIso,
+    Value<String?>? updatedAtIso,
+    Value<String?>? deletedAtIso,
+    Value<int>? createdAtEpoch,
+    Value<int>? lastModifiedEpoch,
+    Value<int>? version,
+    Value<String>? origin,
+    Value<String>? vectorClock,
+    Value<String?>? deviceId,
+    Value<int>? id,
     Value<String>? operationType,
     Value<String>? entityType,
     Value<String>? entityUuid,
@@ -29270,18 +30130,31 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     Value<String?>? newState,
     Value<String?>? changedFields,
     Value<String>? performedBy,
-    Value<String>? deviceId,
     Value<String?>? ipAddress,
     Value<String>? hotelDayKey,
     Value<int>? timestamp,
     Value<String>? timestampIso,
     Value<bool>? isFinancial,
     Value<int?>? amountImpact,
-    Value<int>? createdAt,
+    Value<int?>? syncTimestamp,
   }) {
     return AuditLogsCompanion(
-      id: id ?? this.id,
       localUuid: localUuid ?? this.localUuid,
+      serverId: serverId ?? this.serverId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModified: lastModified ?? this.lastModified,
+      createdAtIso: createdAtIso ?? this.createdAtIso,
+      updatedAtIso: updatedAtIso ?? this.updatedAtIso,
+      deletedAtIso: deletedAtIso ?? this.deletedAtIso,
+      createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+      lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+      version: version ?? this.version,
+      origin: origin ?? this.origin,
+      vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      id: id ?? this.id,
       operationType: operationType ?? this.operationType,
       entityType: entityType ?? this.entityType,
       entityUuid: entityUuid ?? this.entityUuid,
@@ -29290,25 +30163,66 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
       newState: newState ?? this.newState,
       changedFields: changedFields ?? this.changedFields,
       performedBy: performedBy ?? this.performedBy,
-      deviceId: deviceId ?? this.deviceId,
       ipAddress: ipAddress ?? this.ipAddress,
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
       timestamp: timestamp ?? this.timestamp,
       timestampIso: timestampIso ?? this.timestampIso,
       isFinancial: isFinancial ?? this.isFinancial,
       amountImpact: amountImpact ?? this.amountImpact,
-      createdAt: createdAt ?? this.createdAt,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     );
   }
 
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<int>(id.value);
-    }
     if (localUuid.present) {
       map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<int>(lastModified.value);
+    }
+    if (createdAtIso.present) {
+      map['created_at_iso'] = Variable<String>(createdAtIso.value);
+    }
+    if (updatedAtIso.present) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso.value);
+    }
+    if (deletedAtIso.present) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso.value);
+    }
+    if (createdAtEpoch.present) {
+      map['created_at_epoch'] = Variable<int>(createdAtEpoch.value);
+    }
+    if (lastModifiedEpoch.present) {
+      map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (vectorClock.present) {
+      map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
     }
     if (operationType.present) {
       map['operation_type'] = Variable<String>(operationType.value);
@@ -29334,9 +30248,6 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     if (performedBy.present) {
       map['performed_by'] = Variable<String>(performedBy.value);
     }
-    if (deviceId.present) {
-      map['device_id'] = Variable<String>(deviceId.value);
-    }
     if (ipAddress.present) {
       map['ip_address'] = Variable<String>(ipAddress.value);
     }
@@ -29355,8 +30266,8 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     if (amountImpact.present) {
       map['amount_impact'] = Variable<int>(amountImpact.value);
     }
-    if (createdAt.present) {
-      map['created_at'] = Variable<int>(createdAt.value);
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
     }
     return map;
   }
@@ -29364,8 +30275,22 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
   @override
   String toString() {
     return (StringBuffer('AuditLogsCompanion(')
-          ..write('id: $id, ')
           ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('id: $id, ')
           ..write('operationType: $operationType, ')
           ..write('entityType: $entityType, ')
           ..write('entityUuid: $entityUuid, ')
@@ -29374,14 +30299,13 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
           ..write('newState: $newState, ')
           ..write('changedFields: $changedFields, ')
           ..write('performedBy: $performedBy, ')
-          ..write('deviceId: $deviceId, ')
           ..write('ipAddress: $ipAddress, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('timestamp: $timestamp, ')
           ..write('timestampIso: $timestampIso, ')
           ..write('isFinancial: $isFinancial, ')
           ..write('amountImpact: $amountImpact, ')
-          ..write('createdAt: $createdAt')
+          ..write('syncTimestamp: $syncTimestamp')
           ..write(')'))
         .toString();
   }
@@ -29697,6 +30621,37 @@ class $PaymentVoidsTable extends PaymentVoids
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originalAmountMeta = const VerificationMeta(
+    'originalAmount',
+  );
+  @override
+  late final GeneratedColumn<int> originalAmount = GeneratedColumn<int>(
+    'original_amount',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _paymentUuidMeta = const VerificationMeta(
+    'paymentUuid',
+  );
+  @override
+  late final GeneratedColumn<String> paymentUuid = GeneratedColumn<String>(
+    'payment_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -29726,6 +30681,9 @@ class $PaymentVoidsTable extends PaymentVoids
     hotelDayKey,
     reversalPaymentUuid,
     approvedBy,
+    note,
+    originalAmount,
+    paymentUuid,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -29966,6 +30924,30 @@ class $PaymentVoidsTable extends PaymentVoids
         approvedBy.isAcceptableOrUnknown(data['approved_by']!, _approvedByMeta),
       );
     }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('original_amount')) {
+      context.handle(
+        _originalAmountMeta,
+        originalAmount.isAcceptableOrUnknown(
+          data['original_amount']!,
+          _originalAmountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('payment_uuid')) {
+      context.handle(
+        _paymentUuidMeta,
+        paymentUuid.isAcceptableOrUnknown(
+          data['payment_uuid']!,
+          _paymentUuidMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -30083,6 +31065,18 @@ class $PaymentVoidsTable extends PaymentVoids
         DriftSqlType.string,
         data['${effectivePrefix}approved_by'],
       ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      originalAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}original_amount'],
+      ),
+      paymentUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payment_uuid'],
+      ),
     );
   }
 
@@ -30120,6 +31114,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
   final String hotelDayKey;
   final String? reversalPaymentUuid;
   final String? approvedBy;
+  final String? note;
+  final int? originalAmount;
+  final String? paymentUuid;
   const PaymentVoid({
     required this.localUuid,
     this.serverId,
@@ -30148,6 +31145,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     required this.hotelDayKey,
     this.reversalPaymentUuid,
     this.approvedBy,
+    this.note,
+    this.originalAmount,
+    this.paymentUuid,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -30194,6 +31194,15 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     }
     if (!nullToAbsent || approvedBy != null) {
       map['approved_by'] = Variable<String>(approvedBy);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || originalAmount != null) {
+      map['original_amount'] = Variable<int>(originalAmount);
+    }
+    if (!nullToAbsent || paymentUuid != null) {
+      map['payment_uuid'] = Variable<String>(paymentUuid);
     }
     return map;
   }
@@ -30243,6 +31252,13 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       approvedBy: approvedBy == null && nullToAbsent
           ? const Value.absent()
           : Value(approvedBy),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      originalAmount: originalAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalAmount),
+      paymentUuid: paymentUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paymentUuid),
     );
   }
 
@@ -30283,6 +31299,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
         json['reversalPaymentUuid'],
       ),
       approvedBy: serializer.fromJson<String?>(json['approvedBy']),
+      note: serializer.fromJson<String?>(json['note']),
+      originalAmount: serializer.fromJson<int?>(json['originalAmount']),
+      paymentUuid: serializer.fromJson<String?>(json['paymentUuid']),
     );
   }
   @override
@@ -30316,6 +31335,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       'hotelDayKey': serializer.toJson<String>(hotelDayKey),
       'reversalPaymentUuid': serializer.toJson<String?>(reversalPaymentUuid),
       'approvedBy': serializer.toJson<String?>(approvedBy),
+      'note': serializer.toJson<String?>(note),
+      'originalAmount': serializer.toJson<int?>(originalAmount),
+      'paymentUuid': serializer.toJson<String?>(paymentUuid),
     };
   }
 
@@ -30347,6 +31369,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     String? hotelDayKey,
     Value<String?> reversalPaymentUuid = const Value.absent(),
     Value<String?> approvedBy = const Value.absent(),
+    Value<String?> note = const Value.absent(),
+    Value<int?> originalAmount = const Value.absent(),
+    Value<String?> paymentUuid = const Value.absent(),
   }) => PaymentVoid(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -30377,6 +31402,11 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
         ? reversalPaymentUuid.value
         : this.reversalPaymentUuid,
     approvedBy: approvedBy.present ? approvedBy.value : this.approvedBy,
+    note: note.present ? note.value : this.note,
+    originalAmount: originalAmount.present
+        ? originalAmount.value
+        : this.originalAmount,
+    paymentUuid: paymentUuid.present ? paymentUuid.value : this.paymentUuid,
   );
   PaymentVoid copyWithCompanion(PaymentVoidsCompanion data) {
     return PaymentVoid(
@@ -30439,6 +31469,13 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       approvedBy: data.approvedBy.present
           ? data.approvedBy.value
           : this.approvedBy,
+      note: data.note.present ? data.note.value : this.note,
+      originalAmount: data.originalAmount.present
+          ? data.originalAmount.value
+          : this.originalAmount,
+      paymentUuid: data.paymentUuid.present
+          ? data.paymentUuid.value
+          : this.paymentUuid,
     );
   }
 
@@ -30471,7 +31508,10 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
           ..write('voidedAtIso: $voidedAtIso, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('reversalPaymentUuid: $reversalPaymentUuid, ')
-          ..write('approvedBy: $approvedBy')
+          ..write('approvedBy: $approvedBy, ')
+          ..write('note: $note, ')
+          ..write('originalAmount: $originalAmount, ')
+          ..write('paymentUuid: $paymentUuid')
           ..write(')'))
         .toString();
   }
@@ -30505,6 +31545,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     hotelDayKey,
     reversalPaymentUuid,
     approvedBy,
+    note,
+    originalAmount,
+    paymentUuid,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -30536,7 +31579,10 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
           other.voidedAtIso == this.voidedAtIso &&
           other.hotelDayKey == this.hotelDayKey &&
           other.reversalPaymentUuid == this.reversalPaymentUuid &&
-          other.approvedBy == this.approvedBy);
+          other.approvedBy == this.approvedBy &&
+          other.note == this.note &&
+          other.originalAmount == this.originalAmount &&
+          other.paymentUuid == this.paymentUuid);
 }
 
 class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
@@ -30567,6 +31613,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
   final Value<String> hotelDayKey;
   final Value<String?> reversalPaymentUuid;
   final Value<String?> approvedBy;
+  final Value<String?> note;
+  final Value<int?> originalAmount;
+  final Value<String?> paymentUuid;
   const PaymentVoidsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -30595,6 +31644,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     this.hotelDayKey = const Value.absent(),
     this.reversalPaymentUuid = const Value.absent(),
     this.approvedBy = const Value.absent(),
+    this.note = const Value.absent(),
+    this.originalAmount = const Value.absent(),
+    this.paymentUuid = const Value.absent(),
   });
   PaymentVoidsCompanion.insert({
     required String localUuid,
@@ -30624,6 +31676,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     required String hotelDayKey,
     this.reversalPaymentUuid = const Value.absent(),
     this.approvedBy = const Value.absent(),
+    this.note = const Value.absent(),
+    this.originalAmount = const Value.absent(),
+    this.paymentUuid = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -30665,6 +31720,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     Expression<String>? hotelDayKey,
     Expression<String>? reversalPaymentUuid,
     Expression<String>? approvedBy,
+    Expression<String>? note,
+    Expression<int>? originalAmount,
+    Expression<String>? paymentUuid,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -30696,6 +31754,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
       if (reversalPaymentUuid != null)
         'reversal_payment_uuid': reversalPaymentUuid,
       if (approvedBy != null) 'approved_by': approvedBy,
+      if (note != null) 'note': note,
+      if (originalAmount != null) 'original_amount': originalAmount,
+      if (paymentUuid != null) 'payment_uuid': paymentUuid,
     });
   }
 
@@ -30727,6 +31788,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     Value<String>? hotelDayKey,
     Value<String?>? reversalPaymentUuid,
     Value<String?>? approvedBy,
+    Value<String?>? note,
+    Value<int?>? originalAmount,
+    Value<String?>? paymentUuid,
   }) {
     return PaymentVoidsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -30756,6 +31820,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
       reversalPaymentUuid: reversalPaymentUuid ?? this.reversalPaymentUuid,
       approvedBy: approvedBy ?? this.approvedBy,
+      note: note ?? this.note,
+      originalAmount: originalAmount ?? this.originalAmount,
+      paymentUuid: paymentUuid ?? this.paymentUuid,
     );
   }
 
@@ -30847,6 +31914,15 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     if (approvedBy.present) {
       map['approved_by'] = Variable<String>(approvedBy.value);
     }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (originalAmount.present) {
+      map['original_amount'] = Variable<int>(originalAmount.value);
+    }
+    if (paymentUuid.present) {
+      map['payment_uuid'] = Variable<String>(paymentUuid.value);
+    }
     return map;
   }
 
@@ -30879,7 +31955,10 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
           ..write('voidedAtIso: $voidedAtIso, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('reversalPaymentUuid: $reversalPaymentUuid, ')
-          ..write('approvedBy: $approvedBy')
+          ..write('approvedBy: $approvedBy, ')
+          ..write('note: $note, ')
+          ..write('originalAmount: $originalAmount, ')
+          ..write('paymentUuid: $paymentUuid')
           ..write(')'))
         .toString();
   }
@@ -32509,6 +33588,64 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _actionMeta = const VerificationMeta('action');
+  @override
+  late final GeneratedColumn<String> action = GeneratedColumn<String>(
+    'action',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+    'date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _employeeUuidMeta = const VerificationMeta(
+    'employeeUuid',
+  );
+  @override
+  late final GeneratedColumn<String> employeeUuid = GeneratedColumn<String>(
+    'employee_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _expenseIdMeta = const VerificationMeta(
+    'expenseId',
+  );
+  @override
+  late final GeneratedColumn<int> expenseId = GeneratedColumn<int>(
+    'expense_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -32534,6 +33671,12 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     hotelDayKey,
     withdrawalType,
     description,
+    action,
+    date,
+    employeeUuid,
+    expenseId,
+    name,
+    note,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -32729,6 +33872,45 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         ),
       );
     }
+    if (data.containsKey('action')) {
+      context.handle(
+        _actionMeta,
+        action.isAcceptableOrUnknown(data['action']!, _actionMeta),
+      );
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    }
+    if (data.containsKey('employee_uuid')) {
+      context.handle(
+        _employeeUuidMeta,
+        employeeUuid.isAcceptableOrUnknown(
+          data['employee_uuid']!,
+          _employeeUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('expense_id')) {
+      context.handle(
+        _expenseIdMeta,
+        expenseId.isAcceptableOrUnknown(data['expense_id']!, _expenseIdMeta),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
     return context;
   }
 
@@ -32830,6 +34012,30 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         DriftSqlType.string,
         data['${effectivePrefix}description'],
       ),
+      action: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}action'],
+      ),
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date'],
+      ),
+      employeeUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employee_uuid'],
+      ),
+      expenseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}expense_id'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
     );
   }
 
@@ -32864,6 +34070,12 @@ class SalaryWithdrawal extends DataClass
   final String? hotelDayKey;
   final String? withdrawalType;
   final String? description;
+  final String? action;
+  final String? date;
+  final String? employeeUuid;
+  final int? expenseId;
+  final String? name;
+  final String? note;
   const SalaryWithdrawal({
     required this.localUuid,
     this.serverId,
@@ -32888,6 +34100,12 @@ class SalaryWithdrawal extends DataClass
     this.hotelDayKey,
     this.withdrawalType,
     this.description,
+    this.action,
+    this.date,
+    this.employeeUuid,
+    this.expenseId,
+    this.name,
+    this.note,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -32934,6 +34152,24 @@ class SalaryWithdrawal extends DataClass
     }
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
+    }
+    if (!nullToAbsent || action != null) {
+      map['action'] = Variable<String>(action);
+    }
+    if (!nullToAbsent || date != null) {
+      map['date'] = Variable<String>(date);
+    }
+    if (!nullToAbsent || employeeUuid != null) {
+      map['employee_uuid'] = Variable<String>(employeeUuid);
+    }
+    if (!nullToAbsent || expenseId != null) {
+      map['expense_id'] = Variable<int>(expenseId);
+    }
+    if (!nullToAbsent || name != null) {
+      map['name'] = Variable<String>(name);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
     }
     return map;
   }
@@ -32983,6 +34219,18 @@ class SalaryWithdrawal extends DataClass
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
+      action: action == null && nullToAbsent
+          ? const Value.absent()
+          : Value(action),
+      date: date == null && nullToAbsent ? const Value.absent() : Value(date),
+      employeeUuid: employeeUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(employeeUuid),
+      expenseId: expenseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expenseId),
+      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
     );
   }
 
@@ -33015,6 +34263,12 @@ class SalaryWithdrawal extends DataClass
       hotelDayKey: serializer.fromJson<String?>(json['hotelDayKey']),
       withdrawalType: serializer.fromJson<String?>(json['withdrawalType']),
       description: serializer.fromJson<String?>(json['description']),
+      action: serializer.fromJson<String?>(json['action']),
+      date: serializer.fromJson<String?>(json['date']),
+      employeeUuid: serializer.fromJson<String?>(json['employeeUuid']),
+      expenseId: serializer.fromJson<int?>(json['expenseId']),
+      name: serializer.fromJson<String?>(json['name']),
+      note: serializer.fromJson<String?>(json['note']),
     );
   }
   @override
@@ -33044,6 +34298,12 @@ class SalaryWithdrawal extends DataClass
       'hotelDayKey': serializer.toJson<String?>(hotelDayKey),
       'withdrawalType': serializer.toJson<String?>(withdrawalType),
       'description': serializer.toJson<String?>(description),
+      'action': serializer.toJson<String?>(action),
+      'date': serializer.toJson<String?>(date),
+      'employeeUuid': serializer.toJson<String?>(employeeUuid),
+      'expenseId': serializer.toJson<int?>(expenseId),
+      'name': serializer.toJson<String?>(name),
+      'note': serializer.toJson<String?>(note),
     };
   }
 
@@ -33071,6 +34331,12 @@ class SalaryWithdrawal extends DataClass
     Value<String?> hotelDayKey = const Value.absent(),
     Value<String?> withdrawalType = const Value.absent(),
     Value<String?> description = const Value.absent(),
+    Value<String?> action = const Value.absent(),
+    Value<String?> date = const Value.absent(),
+    Value<String?> employeeUuid = const Value.absent(),
+    Value<int?> expenseId = const Value.absent(),
+    Value<String?> name = const Value.absent(),
+    Value<String?> note = const Value.absent(),
   }) => SalaryWithdrawal(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -33097,6 +34363,12 @@ class SalaryWithdrawal extends DataClass
         ? withdrawalType.value
         : this.withdrawalType,
     description: description.present ? description.value : this.description,
+    action: action.present ? action.value : this.action,
+    date: date.present ? date.value : this.date,
+    employeeUuid: employeeUuid.present ? employeeUuid.value : this.employeeUuid,
+    expenseId: expenseId.present ? expenseId.value : this.expenseId,
+    name: name.present ? name.value : this.name,
+    note: note.present ? note.value : this.note,
   );
   SalaryWithdrawal copyWithCompanion(SalaryWithdrawalsCompanion data) {
     return SalaryWithdrawal(
@@ -33147,6 +34419,14 @@ class SalaryWithdrawal extends DataClass
       description: data.description.present
           ? data.description.value
           : this.description,
+      action: data.action.present ? data.action.value : this.action,
+      date: data.date.present ? data.date.value : this.date,
+      employeeUuid: data.employeeUuid.present
+          ? data.employeeUuid.value
+          : this.employeeUuid,
+      expenseId: data.expenseId.present ? data.expenseId.value : this.expenseId,
+      name: data.name.present ? data.name.value : this.name,
+      note: data.note.present ? data.note.value : this.note,
     );
   }
 
@@ -33175,7 +34455,13 @@ class SalaryWithdrawal extends DataClass
           ..write('reason: $reason, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('withdrawalType: $withdrawalType, ')
-          ..write('description: $description')
+          ..write('description: $description, ')
+          ..write('action: $action, ')
+          ..write('date: $date, ')
+          ..write('employeeUuid: $employeeUuid, ')
+          ..write('expenseId: $expenseId, ')
+          ..write('name: $name, ')
+          ..write('note: $note')
           ..write(')'))
         .toString();
   }
@@ -33205,6 +34491,12 @@ class SalaryWithdrawal extends DataClass
     hotelDayKey,
     withdrawalType,
     description,
+    action,
+    date,
+    employeeUuid,
+    expenseId,
+    name,
+    note,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -33232,7 +34524,13 @@ class SalaryWithdrawal extends DataClass
           other.reason == this.reason &&
           other.hotelDayKey == this.hotelDayKey &&
           other.withdrawalType == this.withdrawalType &&
-          other.description == this.description);
+          other.description == this.description &&
+          other.action == this.action &&
+          other.date == this.date &&
+          other.employeeUuid == this.employeeUuid &&
+          other.expenseId == this.expenseId &&
+          other.name == this.name &&
+          other.note == this.note);
 }
 
 class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
@@ -33259,6 +34557,12 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
   final Value<String?> hotelDayKey;
   final Value<String?> withdrawalType;
   final Value<String?> description;
+  final Value<String?> action;
+  final Value<String?> date;
+  final Value<String?> employeeUuid;
+  final Value<int?> expenseId;
+  final Value<String?> name;
+  final Value<String?> note;
   const SalaryWithdrawalsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -33283,6 +34587,12 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.hotelDayKey = const Value.absent(),
     this.withdrawalType = const Value.absent(),
     this.description = const Value.absent(),
+    this.action = const Value.absent(),
+    this.date = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
+    this.expenseId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.note = const Value.absent(),
   });
   SalaryWithdrawalsCompanion.insert({
     required String localUuid,
@@ -33308,6 +34618,12 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.hotelDayKey = const Value.absent(),
     this.withdrawalType = const Value.absent(),
     this.description = const Value.absent(),
+    this.action = const Value.absent(),
+    this.date = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
+    this.expenseId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.note = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -33339,6 +34655,12 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Expression<String>? hotelDayKey,
     Expression<String>? withdrawalType,
     Expression<String>? description,
+    Expression<String>? action,
+    Expression<String>? date,
+    Expression<String>? employeeUuid,
+    Expression<int>? expenseId,
+    Expression<String>? name,
+    Expression<String>? note,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -33364,6 +34686,12 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
       if (withdrawalType != null) 'withdrawal_type': withdrawalType,
       if (description != null) 'description': description,
+      if (action != null) 'action': action,
+      if (date != null) 'date': date,
+      if (employeeUuid != null) 'employee_uuid': employeeUuid,
+      if (expenseId != null) 'expense_id': expenseId,
+      if (name != null) 'name': name,
+      if (note != null) 'note': note,
     });
   }
 
@@ -33391,6 +34719,12 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Value<String?>? hotelDayKey,
     Value<String?>? withdrawalType,
     Value<String?>? description,
+    Value<String?>? action,
+    Value<String?>? date,
+    Value<String?>? employeeUuid,
+    Value<int?>? expenseId,
+    Value<String?>? name,
+    Value<String?>? note,
   }) {
     return SalaryWithdrawalsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -33416,6 +34750,12 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
       withdrawalType: withdrawalType ?? this.withdrawalType,
       description: description ?? this.description,
+      action: action ?? this.action,
+      date: date ?? this.date,
+      employeeUuid: employeeUuid ?? this.employeeUuid,
+      expenseId: expenseId ?? this.expenseId,
+      name: name ?? this.name,
+      note: note ?? this.note,
     );
   }
 
@@ -33491,6 +34831,24 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
+    if (action.present) {
+      map['action'] = Variable<String>(action.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (employeeUuid.present) {
+      map['employee_uuid'] = Variable<String>(employeeUuid.value);
+    }
+    if (expenseId.present) {
+      map['expense_id'] = Variable<int>(expenseId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
     return map;
   }
 
@@ -33519,7 +34877,13 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
           ..write('reason: $reason, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('withdrawalType: $withdrawalType, ')
-          ..write('description: $description')
+          ..write('description: $description, ')
+          ..write('action: $action, ')
+          ..write('date: $date, ')
+          ..write('employeeUuid: $employeeUuid, ')
+          ..write('expenseId: $expenseId, ')
+          ..write('name: $name, ')
+          ..write('note: $note')
           ..write(')'))
         .toString();
   }
@@ -36751,6 +38115,8 @@ typedef $$ShiftNotesTableCreateCompanionBuilder =
       Value<int> isRead,
       Value<String?> expiresAt,
       Value<String> createdBy,
+      Value<String?> shiftDate,
+      Value<String?> note,
     });
 typedef $$ShiftNotesTableUpdateCompanionBuilder =
     ShiftNotesCompanion Function({
@@ -36777,6 +38143,8 @@ typedef $$ShiftNotesTableUpdateCompanionBuilder =
       Value<int> isRead,
       Value<String?> expiresAt,
       Value<String> createdBy,
+      Value<String?> shiftDate,
+      Value<String?> note,
     });
 
 class $$ShiftNotesTableFilterComposer
@@ -36900,6 +38268,16 @@ class $$ShiftNotesTableFilterComposer
 
   ColumnFilters<String> get createdBy => $composableBuilder(
     column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shiftDate => $composableBuilder(
+    column: $table.shiftDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -37027,6 +38405,16 @@ class $$ShiftNotesTableOrderingComposer
     column: $table.createdBy,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get shiftDate => $composableBuilder(
+    column: $table.shiftDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ShiftNotesTableAnnotationComposer
@@ -37120,6 +38508,12 @@ class $$ShiftNotesTableAnnotationComposer
 
   GeneratedColumn<String> get createdBy =>
       $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<String> get shiftDate =>
+      $composableBuilder(column: $table.shiftDate, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
 }
 
 class $$ShiftNotesTableTableManager
@@ -37176,6 +38570,8 @@ class $$ShiftNotesTableTableManager
                 Value<int> isRead = const Value.absent(),
                 Value<String?> expiresAt = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
+                Value<String?> shiftDate = const Value.absent(),
+                Value<String?> note = const Value.absent(),
               }) => ShiftNotesCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -37200,6 +38596,8 @@ class $$ShiftNotesTableTableManager
                 isRead: isRead,
                 expiresAt: expiresAt,
                 createdBy: createdBy,
+                shiftDate: shiftDate,
+                note: note,
               ),
           createCompanionCallback:
               ({
@@ -37226,6 +38624,8 @@ class $$ShiftNotesTableTableManager
                 Value<int> isRead = const Value.absent(),
                 Value<String?> expiresAt = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
+                Value<String?> shiftDate = const Value.absent(),
+                Value<String?> note = const Value.absent(),
               }) => ShiftNotesCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -37250,6 +38650,8 @@ class $$ShiftNotesTableTableManager
                 isRead: isRead,
                 expiresAt: expiresAt,
                 createdBy: createdBy,
+                shiftDate: shiftDate,
+                note: note,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -38088,6 +39490,7 @@ typedef $$ExpensesTableCreateCompanionBuilder =
       Value<String?> categoryUuid,
       Value<String?> cashFlowUuid,
       Value<bool> isAutoGenerated,
+      Value<String?> employeeUuid,
     });
 typedef $$ExpensesTableUpdateCompanionBuilder =
     ExpensesCompanion Function({
@@ -38117,6 +39520,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder =
       Value<String?> categoryUuid,
       Value<String?> cashFlowUuid,
       Value<bool> isAutoGenerated,
+      Value<String?> employeeUuid,
     });
 
 class $$ExpensesTableFilterComposer
@@ -38255,6 +39659,11 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<bool> get isAutoGenerated => $composableBuilder(
     column: $table.isAutoGenerated,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -38397,6 +39806,11 @@ class $$ExpensesTableOrderingComposer
     column: $table.isAutoGenerated,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ExpensesTableAnnotationComposer
@@ -38513,6 +39927,11 @@ class $$ExpensesTableAnnotationComposer
     column: $table.isAutoGenerated,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
+    builder: (column) => column,
+  );
 }
 
 class $$ExpensesTableTableManager
@@ -38569,6 +39988,7 @@ class $$ExpensesTableTableManager
                 Value<String?> categoryUuid = const Value.absent(),
                 Value<String?> cashFlowUuid = const Value.absent(),
                 Value<bool> isAutoGenerated = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
               }) => ExpensesCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -38596,6 +40016,7 @@ class $$ExpensesTableTableManager
                 categoryUuid: categoryUuid,
                 cashFlowUuid: cashFlowUuid,
                 isAutoGenerated: isAutoGenerated,
+                employeeUuid: employeeUuid,
               ),
           createCompanionCallback:
               ({
@@ -38625,6 +40046,7 @@ class $$ExpensesTableTableManager
                 Value<String?> categoryUuid = const Value.absent(),
                 Value<String?> cashFlowUuid = const Value.absent(),
                 Value<bool> isAutoGenerated = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
               }) => ExpensesCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -38652,6 +40074,7 @@ class $$ExpensesTableTableManager
                 categoryUuid: categoryUuid,
                 cashFlowUuid: cashFlowUuid,
                 isAutoGenerated: isAutoGenerated,
+                employeeUuid: employeeUuid,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -41368,7 +42791,7 @@ typedef $$BookingNightsTableCreateCompanionBuilder =
       Value<String> vectorClock,
       Value<String?> deviceId,
       Value<int> id,
-      required int bookingLocalId,
+      Value<int?> bookingLocalId,
       required String hotelDayKey,
       required String nightStart,
       required String nightEnd,
@@ -41380,6 +42803,8 @@ typedef $$BookingNightsTableCreateCompanionBuilder =
       Value<double> finalRate,
       Value<String?> appliedAdjustmentUuid,
       Value<String?> appliedAdjustmentsJson,
+      Value<String?> bookingUuidCache,
+      Value<int?> serverBookingId,
     });
 typedef $$BookingNightsTableUpdateCompanionBuilder =
     BookingNightsCompanion Function({
@@ -41399,7 +42824,7 @@ typedef $$BookingNightsTableUpdateCompanionBuilder =
       Value<String> vectorClock,
       Value<String?> deviceId,
       Value<int> id,
-      Value<int> bookingLocalId,
+      Value<int?> bookingLocalId,
       Value<String> hotelDayKey,
       Value<String> nightStart,
       Value<String> nightEnd,
@@ -41411,6 +42836,8 @@ typedef $$BookingNightsTableUpdateCompanionBuilder =
       Value<double> finalRate,
       Value<String?> appliedAdjustmentUuid,
       Value<String?> appliedAdjustmentsJson,
+      Value<String?> bookingUuidCache,
+      Value<int?> serverBookingId,
     });
 
 final class $$BookingNightsTableReferences
@@ -41426,9 +42853,9 @@ final class $$BookingNightsTableReferences
         $_aliasNameGenerator(db.bookingNights.bookingLocalId, db.bookings.id),
       );
 
-  $$BookingsTableProcessedTableManager get bookingLocalId {
-    final $_column = $_itemColumn<int>('booking_local_id')!;
-
+  $$BookingsTableProcessedTableManager? get bookingLocalId {
+    final $_column = $_itemColumn<int>('booking_local_id');
+    if ($_column == null) return null;
     final manager = $$BookingsTableTableManager(
       $_db,
       $_db.bookings,
@@ -41582,6 +43009,16 @@ class $$BookingNightsTableFilterComposer
 
   ColumnFilters<String> get appliedAdjustmentsJson => $composableBuilder(
     column: $table.appliedAdjustmentsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bookingUuidCache => $composableBuilder(
+    column: $table.bookingUuidCache,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverBookingId => $composableBuilder(
+    column: $table.serverBookingId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -41753,6 +43190,16 @@ class $$BookingNightsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get bookingUuidCache => $composableBuilder(
+    column: $table.bookingUuidCache,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverBookingId => $composableBuilder(
+    column: $table.serverBookingId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -41895,6 +43342,16 @@ class $$BookingNightsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get bookingUuidCache => $composableBuilder(
+    column: $table.bookingUuidCache,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get serverBookingId => $composableBuilder(
+    column: $table.serverBookingId,
+    builder: (column) => column,
+  );
+
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -41963,7 +43420,7 @@ class $$BookingNightsTableTableManager
                 Value<String> vectorClock = const Value.absent(),
                 Value<String?> deviceId = const Value.absent(),
                 Value<int> id = const Value.absent(),
-                Value<int> bookingLocalId = const Value.absent(),
+                Value<int?> bookingLocalId = const Value.absent(),
                 Value<String> hotelDayKey = const Value.absent(),
                 Value<String> nightStart = const Value.absent(),
                 Value<String> nightEnd = const Value.absent(),
@@ -41975,6 +43432,8 @@ class $$BookingNightsTableTableManager
                 Value<double> finalRate = const Value.absent(),
                 Value<String?> appliedAdjustmentUuid = const Value.absent(),
                 Value<String?> appliedAdjustmentsJson = const Value.absent(),
+                Value<String?> bookingUuidCache = const Value.absent(),
+                Value<int?> serverBookingId = const Value.absent(),
               }) => BookingNightsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -42004,6 +43463,8 @@ class $$BookingNightsTableTableManager
                 finalRate: finalRate,
                 appliedAdjustmentUuid: appliedAdjustmentUuid,
                 appliedAdjustmentsJson: appliedAdjustmentsJson,
+                bookingUuidCache: bookingUuidCache,
+                serverBookingId: serverBookingId,
               ),
           createCompanionCallback:
               ({
@@ -42023,7 +43484,7 @@ class $$BookingNightsTableTableManager
                 Value<String> vectorClock = const Value.absent(),
                 Value<String?> deviceId = const Value.absent(),
                 Value<int> id = const Value.absent(),
-                required int bookingLocalId,
+                Value<int?> bookingLocalId = const Value.absent(),
                 required String hotelDayKey,
                 required String nightStart,
                 required String nightEnd,
@@ -42035,6 +43496,8 @@ class $$BookingNightsTableTableManager
                 Value<double> finalRate = const Value.absent(),
                 Value<String?> appliedAdjustmentUuid = const Value.absent(),
                 Value<String?> appliedAdjustmentsJson = const Value.absent(),
+                Value<String?> bookingUuidCache = const Value.absent(),
+                Value<int?> serverBookingId = const Value.absent(),
               }) => BookingNightsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -42064,6 +43527,8 @@ class $$BookingNightsTableTableManager
                 finalRate: finalRate,
                 appliedAdjustmentUuid: appliedAdjustmentUuid,
                 appliedAdjustmentsJson: appliedAdjustmentsJson,
+                bookingUuidCache: bookingUuidCache,
+                serverBookingId: serverBookingId,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -48863,8 +50328,22 @@ typedef $$BookingPriceAdjustmentsTableProcessedTableManager =
     >;
 typedef $$AuditLogsTableCreateCompanionBuilder =
     AuditLogsCompanion Function({
-      Value<int> id,
       required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<String> vectorClock,
+      Value<String?> deviceId,
+      Value<int> id,
       required String operationType,
       required String entityType,
       required String entityUuid,
@@ -48873,19 +50352,32 @@ typedef $$AuditLogsTableCreateCompanionBuilder =
       Value<String?> newState,
       Value<String?> changedFields,
       required String performedBy,
-      required String deviceId,
       Value<String?> ipAddress,
       required String hotelDayKey,
       required int timestamp,
       required String timestampIso,
       Value<bool> isFinancial,
       Value<int?> amountImpact,
-      required int createdAt,
+      Value<int?> syncTimestamp,
     });
 typedef $$AuditLogsTableUpdateCompanionBuilder =
     AuditLogsCompanion Function({
-      Value<int> id,
       Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<String> vectorClock,
+      Value<String?> deviceId,
+      Value<int> id,
       Value<String> operationType,
       Value<String> entityType,
       Value<String> entityUuid,
@@ -48894,14 +50386,13 @@ typedef $$AuditLogsTableUpdateCompanionBuilder =
       Value<String?> newState,
       Value<String?> changedFields,
       Value<String> performedBy,
-      Value<String> deviceId,
       Value<String?> ipAddress,
       Value<String> hotelDayKey,
       Value<int> timestamp,
       Value<String> timestampIso,
       Value<bool> isFinancial,
       Value<int?> amountImpact,
-      Value<int> createdAt,
+      Value<int?> syncTimestamp,
     });
 
 class $$AuditLogsTableFilterComposer
@@ -48913,13 +50404,83 @@ class $$AuditLogsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
+  ColumnFilters<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get localUuid => $composableBuilder(
-    column: $table.localUuid,
+  ColumnFilters<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -48963,11 +50524,6 @@ class $$AuditLogsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get deviceId => $composableBuilder(
-    column: $table.deviceId,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<String> get ipAddress => $composableBuilder(
     column: $table.ipAddress,
     builder: (column) => ColumnFilters(column),
@@ -48998,8 +50554,8 @@ class $$AuditLogsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get createdAt => $composableBuilder(
-    column: $table.createdAt,
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -49013,13 +50569,83 @@ class $$AuditLogsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
+  ColumnOrderings<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get localUuid => $composableBuilder(
-    column: $table.localUuid,
+  ColumnOrderings<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -49063,11 +50689,6 @@ class $$AuditLogsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get deviceId => $composableBuilder(
-    column: $table.deviceId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get ipAddress => $composableBuilder(
     column: $table.ipAddress,
     builder: (column) => ColumnOrderings(column),
@@ -49098,8 +50719,8 @@ class $$AuditLogsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get createdAt => $composableBuilder(
-    column: $table.createdAt,
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -49113,11 +50734,67 @@ class $$AuditLogsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
   GeneratedColumn<String> get localUuid =>
       $composableBuilder(column: $table.localUuid, builder: (column) => column);
+
+  GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get operationType => $composableBuilder(
     column: $table.operationType,
@@ -49155,9 +50832,6 @@ class $$AuditLogsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get deviceId =>
-      $composableBuilder(column: $table.deviceId, builder: (column) => column);
-
   GeneratedColumn<String> get ipAddress =>
       $composableBuilder(column: $table.ipAddress, builder: (column) => column);
 
@@ -49184,8 +50858,10 @@ class $$AuditLogsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
 }
 
 class $$AuditLogsTableTableManager
@@ -49216,8 +50892,22 @@ class $$AuditLogsTableTableManager
               $$AuditLogsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
                 Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String> vectorClock = const Value.absent(),
+                Value<String?> deviceId = const Value.absent(),
+                Value<int> id = const Value.absent(),
                 Value<String> operationType = const Value.absent(),
                 Value<String> entityType = const Value.absent(),
                 Value<String> entityUuid = const Value.absent(),
@@ -49226,17 +50916,30 @@ class $$AuditLogsTableTableManager
                 Value<String?> newState = const Value.absent(),
                 Value<String?> changedFields = const Value.absent(),
                 Value<String> performedBy = const Value.absent(),
-                Value<String> deviceId = const Value.absent(),
                 Value<String?> ipAddress = const Value.absent(),
                 Value<String> hotelDayKey = const Value.absent(),
                 Value<int> timestamp = const Value.absent(),
                 Value<String> timestampIso = const Value.absent(),
                 Value<bool> isFinancial = const Value.absent(),
                 Value<int?> amountImpact = const Value.absent(),
-                Value<int> createdAt = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
               }) => AuditLogsCompanion(
-                id: id,
                 localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                vectorClock: vectorClock,
+                deviceId: deviceId,
+                id: id,
                 operationType: operationType,
                 entityType: entityType,
                 entityUuid: entityUuid,
@@ -49245,19 +50948,32 @@ class $$AuditLogsTableTableManager
                 newState: newState,
                 changedFields: changedFields,
                 performedBy: performedBy,
-                deviceId: deviceId,
                 ipAddress: ipAddress,
                 hotelDayKey: hotelDayKey,
                 timestamp: timestamp,
                 timestampIso: timestampIso,
                 isFinancial: isFinancial,
                 amountImpact: amountImpact,
-                createdAt: createdAt,
+                syncTimestamp: syncTimestamp,
               ),
           createCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
                 required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String> vectorClock = const Value.absent(),
+                Value<String?> deviceId = const Value.absent(),
+                Value<int> id = const Value.absent(),
                 required String operationType,
                 required String entityType,
                 required String entityUuid,
@@ -49266,17 +50982,30 @@ class $$AuditLogsTableTableManager
                 Value<String?> newState = const Value.absent(),
                 Value<String?> changedFields = const Value.absent(),
                 required String performedBy,
-                required String deviceId,
                 Value<String?> ipAddress = const Value.absent(),
                 required String hotelDayKey,
                 required int timestamp,
                 required String timestampIso,
                 Value<bool> isFinancial = const Value.absent(),
                 Value<int?> amountImpact = const Value.absent(),
-                required int createdAt,
+                Value<int?> syncTimestamp = const Value.absent(),
               }) => AuditLogsCompanion.insert(
-                id: id,
                 localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                vectorClock: vectorClock,
+                deviceId: deviceId,
+                id: id,
                 operationType: operationType,
                 entityType: entityType,
                 entityUuid: entityUuid,
@@ -49285,14 +51014,13 @@ class $$AuditLogsTableTableManager
                 newState: newState,
                 changedFields: changedFields,
                 performedBy: performedBy,
-                deviceId: deviceId,
                 ipAddress: ipAddress,
                 hotelDayKey: hotelDayKey,
                 timestamp: timestamp,
                 timestampIso: timestampIso,
                 isFinancial: isFinancial,
                 amountImpact: amountImpact,
-                createdAt: createdAt,
+                syncTimestamp: syncTimestamp,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -49345,6 +51073,9 @@ typedef $$PaymentVoidsTableCreateCompanionBuilder =
       required String hotelDayKey,
       Value<String?> reversalPaymentUuid,
       Value<String?> approvedBy,
+      Value<String?> note,
+      Value<int?> originalAmount,
+      Value<String?> paymentUuid,
     });
 typedef $$PaymentVoidsTableUpdateCompanionBuilder =
     PaymentVoidsCompanion Function({
@@ -49375,6 +51106,9 @@ typedef $$PaymentVoidsTableUpdateCompanionBuilder =
       Value<String> hotelDayKey,
       Value<String?> reversalPaymentUuid,
       Value<String?> approvedBy,
+      Value<String?> note,
+      Value<int?> originalAmount,
+      Value<String?> paymentUuid,
     });
 
 class $$PaymentVoidsTableFilterComposer
@@ -49518,6 +51252,21 @@ class $$PaymentVoidsTableFilterComposer
 
   ColumnFilters<String> get approvedBy => $composableBuilder(
     column: $table.approvedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get paymentUuid => $composableBuilder(
+    column: $table.paymentUuid,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -49665,6 +51414,21 @@ class $$PaymentVoidsTableOrderingComposer
     column: $table.approvedBy,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get paymentUuid => $composableBuilder(
+    column: $table.paymentUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PaymentVoidsTableAnnotationComposer
@@ -49788,6 +51552,19 @@ class $$PaymentVoidsTableAnnotationComposer
     column: $table.approvedBy,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<int> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get paymentUuid => $composableBuilder(
+    column: $table.paymentUuid,
+    builder: (column) => column,
+  );
 }
 
 class $$PaymentVoidsTableTableManager
@@ -49848,6 +51625,9 @@ class $$PaymentVoidsTableTableManager
                 Value<String> hotelDayKey = const Value.absent(),
                 Value<String?> reversalPaymentUuid = const Value.absent(),
                 Value<String?> approvedBy = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<int?> originalAmount = const Value.absent(),
+                Value<String?> paymentUuid = const Value.absent(),
               }) => PaymentVoidsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -49876,6 +51656,9 @@ class $$PaymentVoidsTableTableManager
                 hotelDayKey: hotelDayKey,
                 reversalPaymentUuid: reversalPaymentUuid,
                 approvedBy: approvedBy,
+                note: note,
+                originalAmount: originalAmount,
+                paymentUuid: paymentUuid,
               ),
           createCompanionCallback:
               ({
@@ -49906,6 +51689,9 @@ class $$PaymentVoidsTableTableManager
                 required String hotelDayKey,
                 Value<String?> reversalPaymentUuid = const Value.absent(),
                 Value<String?> approvedBy = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<int?> originalAmount = const Value.absent(),
+                Value<String?> paymentUuid = const Value.absent(),
               }) => PaymentVoidsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -49934,6 +51720,9 @@ class $$PaymentVoidsTableTableManager
                 hotelDayKey: hotelDayKey,
                 reversalPaymentUuid: reversalPaymentUuid,
                 approvedBy: approvedBy,
+                note: note,
+                originalAmount: originalAmount,
+                paymentUuid: paymentUuid,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -50578,6 +52367,12 @@ typedef $$SalaryWithdrawalsTableCreateCompanionBuilder =
       Value<String?> hotelDayKey,
       Value<String?> withdrawalType,
       Value<String?> description,
+      Value<String?> action,
+      Value<String?> date,
+      Value<String?> employeeUuid,
+      Value<int?> expenseId,
+      Value<String?> name,
+      Value<String?> note,
     });
 typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
     SalaryWithdrawalsCompanion Function({
@@ -50604,6 +52399,12 @@ typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
       Value<String?> hotelDayKey,
       Value<String?> withdrawalType,
       Value<String?> description,
+      Value<String?> action,
+      Value<String?> date,
+      Value<String?> employeeUuid,
+      Value<int?> expenseId,
+      Value<String?> name,
+      Value<String?> note,
     });
 
 final class $$SalaryWithdrawalsTableReferences
@@ -50758,6 +52559,36 @@ class $$SalaryWithdrawalsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get expenseId => $composableBuilder(
+    column: $table.expenseId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$EmployeesTableFilterComposer get employeeId {
     final $$EmployeesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -50901,6 +52732,36 @@ class $$SalaryWithdrawalsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get expenseId => $composableBuilder(
+    column: $table.expenseId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$EmployeesTableOrderingComposer get employeeId {
     final $$EmployeesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -51022,6 +52883,26 @@ class $$SalaryWithdrawalsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get action =>
+      $composableBuilder(column: $table.action, builder: (column) => column);
+
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get expenseId =>
+      $composableBuilder(column: $table.expenseId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
   $$EmployeesTableAnnotationComposer get employeeId {
     final $$EmployeesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -51102,6 +52983,12 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String?> hotelDayKey = const Value.absent(),
                 Value<String?> withdrawalType = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<String?> action = const Value.absent(),
+                Value<String?> date = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
+                Value<int?> expenseId = const Value.absent(),
+                Value<String?> name = const Value.absent(),
+                Value<String?> note = const Value.absent(),
               }) => SalaryWithdrawalsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -51126,6 +53013,12 @@ class $$SalaryWithdrawalsTableTableManager
                 hotelDayKey: hotelDayKey,
                 withdrawalType: withdrawalType,
                 description: description,
+                action: action,
+                date: date,
+                employeeUuid: employeeUuid,
+                expenseId: expenseId,
+                name: name,
+                note: note,
               ),
           createCompanionCallback:
               ({
@@ -51152,6 +53045,12 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String?> hotelDayKey = const Value.absent(),
                 Value<String?> withdrawalType = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<String?> action = const Value.absent(),
+                Value<String?> date = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
+                Value<int?> expenseId = const Value.absent(),
+                Value<String?> name = const Value.absent(),
+                Value<String?> note = const Value.absent(),
               }) => SalaryWithdrawalsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -51176,6 +53075,12 @@ class $$SalaryWithdrawalsTableTableManager
                 hotelDayKey: hotelDayKey,
                 withdrawalType: withdrawalType,
                 description: description,
+                action: action,
+                date: date,
+                employeeUuid: employeeUuid,
+                expenseId: expenseId,
+                name: name,
+                note: note,
               ),
           withReferenceMapper: (p0) => p0
               .map(

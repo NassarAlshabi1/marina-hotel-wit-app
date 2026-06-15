@@ -9,7 +9,6 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:uuid/uuid.dart';
 
 import '../data/sync_models.dart' as sync_models;
-import 'sqlite_backup_restore.dart';
 
 part 'local_db.g.dart';
 
@@ -482,6 +481,7 @@ class AuditLogs extends Table with SyncFields {
   IntColumn get amountImpact => integer().nullable()();
   // ✅ حقول مفقودة أُضيفت 2026-06-15 — موجودة في Appwrite Cloud
   IntColumn get syncTimestamp => integer().nullable()();
+  @override
   TextColumn get updatedAtIso => text().nullable()();
 
   List<Index> get indexes => [
@@ -2278,19 +2278,8 @@ class DatabaseManager {
     if (_isRestoring) {
       assert(_instance != null, 'Database is being restored; cannot access instance during restore');
     }
-    if (_instance == null) {
-      _instance = AppDatabase();
-    }
+    _instance ??= AppDatabase();
     return _instance!;
-  }
-
-  /// محاولة استرجاع تلقائي من .pre_restore عند بدء التشغيل
-  static void _recoverFromPreRestore() {
-    try {
-      SqliteBackupRestore.recoverFromPreviousRestore();
-    } catch (_) {
-      // تجاهل فشل الاسترجاع — سننشئ DB جديد
-    }
   }
 
   static bool get isInitialized => _instance != null;

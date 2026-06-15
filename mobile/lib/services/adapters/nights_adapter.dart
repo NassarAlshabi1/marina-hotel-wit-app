@@ -78,7 +78,7 @@ class NightsAdapter
       // إذا فشل resolveBooking، نترك الحقل فارغاً و bookingUuidCache يُحفظ لإعادة الربط لاحقاً
       // ✅ إصلاح: العمود أصبح nullable — نُدرج null بدلاً من absent لمنع InvalidDataException
       bookingLocalId: refs.bookingLocalId != null
-          ? d.Value(refs.bookingLocalId!)
+          ? d.Value(refs.bookingLocalId)
           : (src == Source.appwrite || src == Source.drive)
               ? const d.Value.absent()
               : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),

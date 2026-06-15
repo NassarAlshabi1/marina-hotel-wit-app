@@ -6,22 +6,22 @@ import 'package:flutter/foundation.dart';
 import 'appwrite_backup_endpoint.dart';
 import 'appwrite_backup_endpoints_manager.dart';
 import 'appwrite_config.dart';
-import 'local_db.dart';
 import 'appwrite_logger.dart';
+import 'local_db.dart';
 
 /// عملية احتياطية — تستخدم لإرسال دفعة
 class BackupOperation {
-  final String tableName;
-  final String documentId;
-  final Map<String, dynamic> data;
-  final String operation;
-
   BackupOperation({
     required this.tableName,
     required this.documentId,
     required this.data,
     required this.operation,
   });
+
+  final String tableName;
+  final String documentId;
+  final Map<String, dynamic> data;
+  final String operation;
 }
 
 /// خدمة المزامنة الاحتياطية (Slave Push Only)
@@ -29,10 +29,10 @@ class BackupOperation {
 /// تقوم بدفع البيانات إلى نقاط النهاية الثانوية بعد نجاح المزامنة الرئيسية.
 /// هذه الخدمة لا تسحب بيانات (pull) — فقط إرسال (push).
 class AppwriteBackupSyncService {
+  factory AppwriteBackupSyncService() => _instance;
   AppwriteBackupSyncService._internal();
   static final AppwriteBackupSyncService _instance =
       AppwriteBackupSyncService._internal();
-  factory AppwriteBackupSyncService() => _instance;
 
   final _logger = AppwriteLogger();
 
@@ -162,15 +162,16 @@ class AppwriteBackupSyncService {
 
     switch (operation) {
       case 'create':
+        // ignore: deprecated_member_use
         await databases.createDocument(
           databaseId: dbId,
           collectionId: tableName,
           documentId: documentId,
           data: data,
         );
-        break;
       case 'update':
         try {
+          // ignore: deprecated_member_use
           await databases.updateDocument(
             databaseId: dbId,
             collectionId: tableName,
@@ -180,6 +181,7 @@ class AppwriteBackupSyncService {
         } catch (_) {
           _logger.warning('⚠️ فشل تحديث وثيقة احتياطية — نحاول الإنشاء', tag: 'BACKUP');
           // إذا فشل التحديث (المستند غير موجود)، نقوم بإنشائه
+          // ignore: deprecated_member_use
           await databases.createDocument(
             databaseId: dbId,
             collectionId: tableName,
@@ -187,9 +189,9 @@ class AppwriteBackupSyncService {
             data: data,
           );
         }
-        break;
       case 'delete':
         try {
+          // ignore: deprecated_member_use
           await databases.deleteDocument(
             databaseId: dbId,
             collectionId: tableName,
@@ -198,7 +200,6 @@ class AppwriteBackupSyncService {
         } catch (_) {
           _logger.warning('⚠️ فشل حذف وثيقة احتياطية (قد لا تكون موجودة)', tag: 'BACKUP');
         }
-        break;
     }
   }
 
@@ -284,6 +285,7 @@ class AppwriteBackupSyncService {
     /// دالة مساعدة لرفع مستند (إنشاء أو تحديث)
     Future<bool> upsert(String collection, String docId, Map<String, dynamic> data) async {
       try {
+        // ignore: deprecated_member_use
         await databases.createDocument(
           databaseId: dbId,
           collectionId: collection,
@@ -295,6 +297,7 @@ class AppwriteBackupSyncService {
         _logger.warning('⚠️ فشل إنشاء وثيقة احتياطية — نحاول التحديث', tag: 'BACKUP');
         // إذا كان موجوداً مسبقاً → نحدّث
         try {
+          // ignore: deprecated_member_use
           await databases.updateDocument(
             databaseId: dbId,
             collectionId: collection,
@@ -980,6 +983,7 @@ class AppwriteBackupSyncService {
         client.addHeader('X-Appwrite-Key', endpoint.apiKey);
       }
       final databases = Databases(client);
+      // ignore: deprecated_member_use
       await databases.listDocuments(
         databaseId: endpoint.databaseId,
         collectionId: AppwriteConfig.roomsCollectionId,

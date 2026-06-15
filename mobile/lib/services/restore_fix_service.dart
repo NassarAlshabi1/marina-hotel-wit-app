@@ -264,10 +264,7 @@ class RestoreFixService {
       });
 
       // حذف اللقطة الاحتياطية عند النجاح
-      final snapshotPath = snapshot?.filePath;
-      if (snapshotPath != null) {
-        await _deleteSnapshot(snapshotPath);
-      }
+      await _deleteSnapshot(snapshot.filePath);
 
       final duration = DateTime.now().difference(startTime).inMilliseconds;
 

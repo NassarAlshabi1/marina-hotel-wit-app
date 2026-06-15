@@ -64,7 +64,7 @@ class _AppwriteBackupEndpointsScreenState
         ],
       ),
     );
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       await BackupEndpointsManager.removeEndpoint(endpoint.id);
       await _loadEndpoints();
     }
@@ -370,7 +370,7 @@ class _AppwriteBackupEndpointsScreenState
                   );
                   return;
                 }
-                final uuid = const Uuid();
+                const uuid = Uuid();
                 final endpoint = BackupEndpoint(
                   id: existing?.id ?? uuid.v4(),
                   name: nameController.text.trim(),
@@ -417,7 +417,7 @@ class _AppwriteBackupEndpointsScreenState
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'إضافة نقطة نهاية',
-            onPressed: () => _showAddEditDialog(),
+            onPressed: _showAddEditDialog,
           ),
         ],
       ),
@@ -442,7 +442,7 @@ class _AppwriteBackupEndpointsScreenState
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
-                        onPressed: () => _showAddEditDialog(),
+                        onPressed: _showAddEditDialog,
                         icon: const Icon(Icons.add),
                         label: const Text('إضافة عنوان جديد'),
                         style: ElevatedButton.styleFrom(
@@ -557,19 +557,14 @@ class _AppwriteBackupEndpointsScreenState
                                   switch (value) {
                                     case 'toggle':
                                       await _toggleEndpoint(ep);
-                                      break;
                                     case 'edit':
                                       await _showAddEditDialog(existing: ep);
-                                      break;
                                     case 'test':
                                       await _testEndpoint(ep);
-                                      break;
                                     case 'fullpush':
                                       await _fullPushToEndpoint(ep);
-                                      break;
                                     case 'delete':
                                       await _deleteEndpoint(ep);
-                                      break;
                                   }
                                 },
                                 itemBuilder: (ctx) => [

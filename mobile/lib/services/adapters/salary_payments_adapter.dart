@@ -63,7 +63,7 @@ class SalaryPaymentsAdapter
           resolvedCycleId = row.id;
         }
       } catch (_) {
-        print('⚠️ SalaryPaymentsAdapter: فشل حل cycleId');
+        // فشل حل cycleId — سيتم تخطي السجل كيتيم
       }
     }
 

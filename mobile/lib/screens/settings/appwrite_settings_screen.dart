@@ -13,11 +13,11 @@ import '../../services/appwrite_cache_manager.dart';
 import '../../services/appwrite_models.dart';
 import '../../services/local_db.dart';
 import '../../services/restore_fix_service.dart';
+import 'appwrite_backup_endpoints_screen.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
-import 'appwrite_backup_endpoints_screen.dart';
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});

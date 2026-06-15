@@ -1,18 +1,5 @@
 /// نموذج نقطة نهاية Appwrite احتياطية (Slave)
 class BackupEndpoint {
-  final String id;
-  final String name;
-  final String endpoint;
-  final String projectId;
-  final String databaseId;
-  final String apiKey;
-  final bool isActive;
-  final bool pushEnabled;
-  final bool pullEnabled;
-  final DateTime createdAt;
-  final DateTime? lastPushAt;
-  final DateTime? lastPullAt;
-
   BackupEndpoint({
     required this.id,
     required this.name,
@@ -28,41 +15,25 @@ class BackupEndpoint {
     this.lastPullAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'endpoint': endpoint,
-    'projectId': projectId,
-    'databaseId': databaseId,
-    'apiKey': apiKey,
-    'isActive': isActive,
-    'pushEnabled': pushEnabled,
-    'pullEnabled': pullEnabled,
-    'createdAt': createdAt.toIso8601String(),
-    'lastPushAt': lastPushAt?.toIso8601String(),
-    'lastPullAt': lastPullAt?.toIso8601String(),
-  };
-
-  factory BackupEndpoint.fromJson(Map<String, dynamic> json) => BackupEndpoint(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    endpoint: json['endpoint'] as String,
-    projectId: json['projectId'] as String,
-    databaseId: json['databaseId'] as String,
-    apiKey: json['apiKey'] as String,
-    isActive: json['isActive'] as bool? ?? true,
-    pushEnabled: json['pushEnabled'] as bool? ?? true,
-    pullEnabled: json['pullEnabled'] as bool? ?? false,
-    createdAt: json['createdAt'] != null
-        ? DateTime.tryParse(json['createdAt'] as String)
-        : null,
-    lastPushAt: json['lastPushAt'] != null
-        ? DateTime.tryParse(json['lastPushAt'] as String)
-        : null,
-    lastPullAt: json['lastPullAt'] != null
-        ? DateTime.tryParse(json['lastPullAt'] as String)
-        : null,
-  );
+  BackupEndpoint.fromJson(Map<String, dynamic> json)
+      : id = json['id'] as String,
+        name = json['name'] as String,
+        endpoint = json['endpoint'] as String,
+        projectId = json['projectId'] as String,
+        databaseId = json['databaseId'] as String,
+        apiKey = json['apiKey'] as String,
+        isActive = json['isActive'] as bool? ?? true,
+        pushEnabled = json['pushEnabled'] as bool? ?? true,
+        pullEnabled = json['pullEnabled'] as bool? ?? false,
+        createdAt = json['createdAt'] != null
+            ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
+            : DateTime.now(),
+        lastPushAt = json['lastPushAt'] != null
+            ? DateTime.tryParse(json['lastPushAt'] as String)
+            : null,
+        lastPullAt = json['lastPullAt'] != null
+            ? DateTime.tryParse(json['lastPullAt'] as String)
+            : null;
 
   BackupEndpoint copyWith({
     String? id,
@@ -92,4 +63,32 @@ class BackupEndpoint {
     lastPushAt: clearLastPushAt ? null : (lastPushAt ?? this.lastPushAt),
     lastPullAt: clearLastPullAt ? null : (lastPullAt ?? this.lastPullAt),
   );
+
+  final String id;
+  final String name;
+  final String endpoint;
+  final String projectId;
+  final String databaseId;
+  final String apiKey;
+  final bool isActive;
+  final bool pushEnabled;
+  final bool pullEnabled;
+  final DateTime createdAt;
+  final DateTime? lastPushAt;
+  final DateTime? lastPullAt;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'endpoint': endpoint,
+    'projectId': projectId,
+    'databaseId': databaseId,
+    'apiKey': apiKey,
+    'isActive': isActive,
+    'pushEnabled': pushEnabled,
+    'pullEnabled': pullEnabled,
+    'createdAt': createdAt.toIso8601String(),
+    'lastPushAt': lastPushAt?.toIso8601String(),
+    'lastPullAt': lastPullAt?.toIso8601String(),
+  };
 }

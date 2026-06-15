@@ -172,10 +172,10 @@ class SqliteBackupRestore {
     }
     final size = await file.length();
     if (size < 100) {
-      throw Exception('الملف صغير جداً (${size} بايت) — ليس قاعدة بيانات صالحة');
+      throw Exception('الملف صغير جداً ($size بايت) — ليس قاعدة بيانات صالحة');
     }
     // نتحقق من توقيع SQLite (الأول 16 بايت)
-    final raf = await file.open(mode: FileMode.read);
+    final raf = await file.open();
     try {
       final header = await raf.read(16);
       // SQLite magic bytes: "SQLite format 3\0"

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:appwrite/appwrite.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'appwrite_config.dart';
@@ -72,7 +73,7 @@ class AppwriteBackupService {
         }
         offset += limit;
       } catch (_) {
-        print('⚠️ AppwriteBackupService: فشل جلب المجموعات، استخدام fallback');
+        debugPrint('⚠️ AppwriteBackupService: فشل جلب المجموعات، استخدام fallback');
         usedFallback = true;
         break;
       }
@@ -88,7 +89,7 @@ class AppwriteBackupService {
               );
           allCollections.add(collection);
         } catch (_) {
-          print('⚠️ AppwriteBackupService: فشل جلب المجموعة $id');
+          debugPrint('⚠️ AppwriteBackupService: فشل جلب المجموعة $id');
           allCollections.add({r'$id': id});
         }
       }
@@ -105,7 +106,7 @@ class AppwriteBackupService {
       final map = (collection as dynamic).toMap();
       return Map<String, dynamic>.from(map as Map);
     } catch (_) {
-      print('⚠️ AppwriteBackupService: فشل serialize collection via toMap');
+      debugPrint('⚠️ AppwriteBackupService: فشل serialize collection via toMap');
       try {
         final dynamic c = collection;
         return {
@@ -116,7 +117,7 @@ class AppwriteBackupService {
           'permissions': c.permissions,
         };
       } catch (_) {
-        print('⚠️ AppwriteBackupService: فشل serialize collection تماماً');
+        debugPrint('⚠️ AppwriteBackupService: فشل serialize collection تماماً');
         return {'raw': collection.toString()};
       }
     }

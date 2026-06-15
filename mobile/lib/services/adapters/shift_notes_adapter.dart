@@ -235,7 +235,6 @@ int? _epoch(Map<String, dynamic> json, String key, Source src) {
   try {
     return DateTime.parse(normalized).millisecondsSinceEpoch ~/ 1000;
   } catch (_) {
-    print('⚠️ ShiftNotesAdapter: فشل تحويل التاريخ $s');
     return null;
   }
 }
