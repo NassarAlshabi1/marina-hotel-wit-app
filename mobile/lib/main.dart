@@ -68,6 +68,7 @@ import 'utils/hotel_day_ticker.dart';
 import 'utils/id.dart';
 import 'utils/prefs_cache.dart';
 import 'utils/theme.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,10 +79,10 @@ Future<void> main() async {
   // ─── Firebase Core: تهيئة قبل كل خدمات Firebase ───
   try {
     await Firebase.initializeApp();
-    debugPrint('✅ Firebase Core initialized');
+    AppLogger.info('✅ Firebase Core initialized', tag: 'APP');
   } catch (e) {
-    debugPrint('⚠️ Firebase Core initialization failed: $e');
-    debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
+    AppLogger.warning('⚠️ Firebase Core initialization failed: $e', tag: 'APP');
+    AppLogger.info('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase', tag: 'APP');
   }
 
   // ─── Crashlytics: تهيئة قبل كل شيء ───
@@ -125,7 +126,7 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]),);
 
-  debugPrint('BASE_API_URL=${Env.baseApiUrl}');
+  AppLogger.info('BASE_API_URL=${Env.baseApiUrl}', tag: 'APP');
   runZonedGuarded(
     () => runApp(const ProviderScope(child: App())),
     (error, stack) async {
@@ -149,9 +150,9 @@ Future<void> main() async {
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
-  debugPrint('═══════════════════════════════════════════════════════');
-  debugPrint('🚀 Initializing Fully Automated Sync System');
-  debugPrint('═══════════════════════════════════════════════════════');
+  AppLogger.info('═══════════════════════════════════════════════════════', tag: 'APP');
+  AppLogger.info('🚀 Initializing Fully Automated Sync System', tag: 'APP');
+  AppLogger.info('═══════════════════════════════════════════════════════', tag: 'APP');
 
   try {
     final prefs = getSharedPrefs();
@@ -162,69 +163,69 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       await prefs.setBool('appwrite_sync_enabled', true);
     }
 
-    debugPrint('📦 Initializing Appwrite Config Manager...');
+    AppLogger.info('📦 Initializing Appwrite Config Manager...', tag: 'APP');
     await AppwriteConfigManager.init();
-    debugPrint('✅ Appwrite Config loaded');
+    AppLogger.info('✅ Appwrite Config loaded', tag: 'APP');
 
     // بدء خدمة الخلفية للمزامنة الموثوقة (ForegroundService)
     // تستخدم Singletons لضمان عدم فتح اتصال DB جديد
     // تعمل حتى عند إغلاق التطبيق على Android 12+
     try {
       await ForegroundSyncService.instance.start();
-      debugPrint('✅ ForegroundSyncService started');
+      AppLogger.info('✅ ForegroundSyncService started', tag: 'APP');
     } catch (e) {
-      debugPrint('⚠️ ForegroundSyncService failed: $e');
+      AppLogger.warning('⚠️ ForegroundSyncService failed: $e', tag: 'APP');
     }
 
-    debugPrint('📝 Initializing Google Drive Logger...');
+    AppLogger.info('📝 Initializing Google Drive Logger...', tag: 'APP');
     final driveLogger = GoogleDriveLogger();
     await driveLogger.initialize(
       minLevel: LogLevel.debug,
     );
-    debugPrint('✅ Logger initialized');
+    AppLogger.info('✅ Logger initialized', tag: 'APP');
 
-    debugPrint('🔐 Initializing Google Drive Backup Service...');
+    AppLogger.info('🔐 Initializing Google Drive Backup Service...', tag: 'APP');
     final backupService = GoogleDriveBackupService();
 
     try {
       // محاولة استعادة الجلسة بشكل صامت
       final account = await backupService.attemptSilentSignIn();
       if (account != null) {
-        debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
+        AppLogger.info('✅ تم استعادة جلسة Google Drive: ${account.email}', tag: 'APP');
       } else {
-        debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
+        AppLogger.info('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي', tag: 'APP');
       }
     } catch (e) {
-      debugPrint('⚠️ فشلت استعادة الجلسة: $e');
+      AppLogger.warning('⚠️ فشلت استعادة الجلسة: $e', tag: 'APP');
     }
 
-    debugPrint('🔧 [3/7] Initializing Database...');
+    AppLogger.info('🔧 [3/7] Initializing Database...', tag: 'APP');
     final database = DatabaseManager.instance;
-    debugPrint('✅ Database ready');
+    AppLogger.info('✅ Database ready', tag: 'APP');
 
-    debugPrint('🎯 [4/7] Initializing Unified Sync Orchestrator...');
+    AppLogger.info('🎯 [4/7] Initializing Unified Sync Orchestrator...', tag: 'APP');
     final unifiedOrchestrator = UnifiedSyncOrchestrator.instance;
     await unifiedOrchestrator.initialize(database: database);
-    debugPrint('✅ Unified Sync Orchestrator ready');
+    AppLogger.info('✅ Unified Sync Orchestrator ready', tag: 'APP');
 
-    debugPrint('🎯 [5/7] Initializing Unified Sync Coordinator...');
+    AppLogger.info('🎯 [5/7] Initializing Unified Sync Coordinator...', tag: 'APP');
     final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
     await coordinator.initialize(
       backupService: backupService,
       database: database,
       logger: driveLogger,
     );
-    debugPrint('✅ Coordinator initialized');
+    AppLogger.info('✅ Coordinator initialized', tag: 'APP');
 
-    debugPrint('🤝 [6/7] Initializing Conflict Resolver...');
+    AppLogger.info('🤝 [6/7] Initializing Conflict Resolver...', tag: 'APP');
     final conflictResolver = GoogleDriveConflictResolver.instance;
     conflictResolver.initialize(driveLogger);
 
     await conflictResolver.setStrategy(ConflictResolutionStrategy.newerWins);
     await conflictResolver.setConflictThreshold(30);
-    debugPrint('✅ Conflict Resolver initialized (strategy: newerWins)');
+    AppLogger.info('✅ Conflict Resolver initialized (strategy: newerWins)', tag: 'APP');
 
-    debugPrint('🧠 [7/8] Initializing SmartSyncManager...');
+    AppLogger.info('🧠 [7/8] Initializing SmartSyncManager...', tag: 'APP');
     final smartSync = SmartSyncManager.instance();
     await smartSync.initialize(backupService);
     await unifiedOrchestrator.initialize(
@@ -232,9 +233,9 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       driveCoordinator: coordinator,
       database: database,
     );
-    debugPrint('✅ SmartSyncManager initialized');
+    AppLogger.info('✅ SmartSyncManager initialized', tag: 'APP');
 
-    debugPrint('🤖 [8/8] Initializing & Starting Auto Sync Engine...');
+    AppLogger.info('🤖 [8/8] Initializing & Starting Auto Sync Engine...', tag: 'APP');
     final autoSyncEngine = AutoSyncEngine.instance;
 
     await autoSyncEngine.initialize(
@@ -248,22 +249,22 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     // تفعيل المزامنة التلقائية عند فتح التطبيق (فقط إذا كان المستخدم قد فعّلها)
     final driveSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
     if (backupService.isSignedIn && driveSyncEnabled) {
-      debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
+      AppLogger.info('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...', tag: 'APP');
       await autoSyncEngine.start();
       await autoSyncEngine.onSignInChanged(true);
       await smartSync.onGoogleDriveSignInChanged(true);
-      debugPrint('✅ تم إشعار جميع أنظمة المزامنة وبدء المراقبة');
+      AppLogger.info('✅ تم إشعار جميع أنظمة المزامنة وبدء المراقبة', tag: 'APP');
     } else {
-      debugPrint('ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية');
+      AppLogger.info('ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية', tag: 'APP');
     }
 
     await SyncQueueService.instance.initialize();
 
     _startEngineMonitoring(autoSyncEngine);
 
-    debugPrint('✅ Auto Sync Engine started');
+    AppLogger.info('✅ Auto Sync Engine started', tag: 'APP');
 
-    debugPrint('🔗 Registering Database Sync Callbacks...');
+    AppLogger.info('🔗 Registering Database Sync Callbacks...', tag: 'APP');
     DatabaseSyncCoordinator.initialize();
 
     // Register stop callbacks
@@ -282,29 +283,29 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       await SyncGuardian.instance.restart();
     });
 
-    debugPrint('✅ Sync callbacks registered');
+    AppLogger.info('✅ Sync callbacks registered', tag: 'APP');
 
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('✅ Fully Automated Sync System Ready!');
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('📡 Network monitoring: ACTIVE');
-    debugPrint('🔄 Lifecycle monitoring: ACTIVE');
-    debugPrint('💾 Data stream listening: ACTIVE');
-    debugPrint('❤️ Health checks: ACTIVE (every 5 minutes)');
-    debugPrint('🔁 Auto-retry: ACTIVE (exponential backoff)');
-    debugPrint('═══════════════════════════════════════════════════════');
+    AppLogger.info('═══════════════════════════════════════════════════════', tag: 'APP');
+    AppLogger.info('✅ Fully Automated Sync System Ready!', tag: 'APP');
+    AppLogger.info('═══════════════════════════════════════════════════════', tag: 'APP');
+    AppLogger.info('📡 Network monitoring: ACTIVE', tag: 'APP');
+    AppLogger.info('🔄 Lifecycle monitoring: ACTIVE', tag: 'APP');
+    AppLogger.info('💾 Data stream listening: ACTIVE', tag: 'APP');
+    AppLogger.info('❤️ Health checks: ACTIVE (every 5 minutes)', tag: 'APP');
+    AppLogger.info('🔁 Auto-retry: ACTIVE (exponential backoff)', tag: 'APP');
+    AppLogger.info('═══════════════════════════════════════════════════════', tag: 'APP');
   } catch (e, stackTrace) {
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('❌ CRITICAL ERROR in Sync System Initialization');
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('Error: $e');
-    debugPrint('Stack trace: $stackTrace');
-    debugPrint('═══════════════════════════════════════════════════════');
+    AppLogger.info('═══════════════════════════════════════════════════════', tag: 'APP');
+    AppLogger.error('❌ CRITICAL ERROR in Sync System Initialization', tag: 'APP');
+    AppLogger.info('═══════════════════════════════════════════════════════', tag: 'APP');
+    AppLogger.info('Error: $e', tag: 'APP');
+    AppLogger.info('Stack trace: $stackTrace', tag: 'APP');
+    AppLogger.info('═══════════════════════════════════════════════════════', tag: 'APP');
   }
 }
 
 Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
-  debugPrint('⚙️ Configuring Auto Sync Engine...');
+  AppLogger.info('⚙️ Configuring Auto Sync Engine...', tag: 'APP');
 
   const engineDebounceKey = 'auto_sync_engine_debounce';
   const legacyDebounceKey = 'auto_sync_debounce';
@@ -322,7 +323,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     defaultValue: 5,
     apply: (value) => engine.setDebounceSeconds(value),
   );
-  debugPrint('   ⏱️ Debounce: ${debounceSeconds}s');
+  AppLogger.info('   ⏱️ Debounce: ${debounceSeconds}s', tag: 'APP');
 
   final pullInterval = await migrateAutoSyncPreference<int>(
     prefs: prefs,
@@ -331,7 +332,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     defaultValue: 2,
     apply: (value) => engine.setPullInterval(value),
   );
-  debugPrint('   ⏰ Pull interval: ${pullInterval}min');
+  AppLogger.info('   ⏰ Pull interval: ${pullInterval}min', tag: 'APP');
 
   final retryEnabled = await migrateAutoSyncPreference<bool>(
     prefs: prefs,
@@ -340,7 +341,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     defaultValue: true,
     apply: (value) => engine.setRetryEnabled(value),
   );
-  debugPrint('   🔁 Auto-retry: $retryEnabled');
+  AppLogger.info('   🔁 Auto-retry: $retryEnabled', tag: 'APP');
 
   final conflictStrategy = prefs.getString('conflict_strategy') ?? 'newerWins';
   final strategy = ConflictResolutionStrategy.values.firstWhere(
@@ -348,9 +349,9 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     orElse: () => ConflictResolutionStrategy.newerWins,
   );
   await engine.setConflictStrategy(strategy);
-  debugPrint('   🤝 Conflict strategy: ${strategy.name}');
+  AppLogger.info('   🤝 Conflict strategy: ${strategy.name}', tag: 'APP');
 
-  debugPrint('✅ Configuration complete');
+  AppLogger.info('✅ Configuration complete', tag: 'APP');
 }
 
 /// يخزن اشتراك مراقبة المحرك لاستخدامه في Dispose
@@ -359,7 +360,7 @@ StreamSubscription<void>? _globalEngineMonitoringSub;
 void _startEngineMonitoring(AutoSyncEngine engine) {
   _globalEngineMonitoringSub?.cancel();
   _globalEngineMonitoringSub = engine.stateStream.listen((state) {
-    debugPrint('📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
+    AppLogger.info('📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
         'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
         'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
         'Pending: ${state.pendingChangesCount}');
@@ -455,14 +456,14 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         try {
           await syncManager.registerDevice();
         } catch (e) {
-          debugPrint('⚠️ Device registration error: $e');
+          AppLogger.warning('⚠️ Device registration error: $e', tag: 'APP');
         }
 
         // تهيئة FCM للإشعارات بين الأجهزة
         try {
           await _initializeFcm(syncManager);
         } catch (e) {
-          debugPrint('⚠️ FCM initialization error: $e');
+          AppLogger.warning('⚠️ FCM initialization error: $e', tag: 'APP');
         }
 
         // بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
@@ -481,16 +482,17 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             final elapsed = DateTime.now().difference(lastPull);
             if (elapsed < SyncConstants.appOpenSyncInterval) {
               final remaining = SyncConstants.appOpenSyncInterval - elapsed;
-              debugPrint(
-                '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
-                '(متبقي ${remaining.inMinutes} دقيقة)',
-              );
+              AppLogger.warning(
+  '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
+                '(متبقي ${remaining.inMinutes} دقيقة)',,
+  tag: 'APP',
+);
               shouldSync = false;
             }
           }
 
           if (shouldSync) {
-            debugPrint('📥 Pulling latest data from Appwrite on app start...');
+            AppLogger.info('📥 Pulling latest data from Appwrite on app start...', tag: 'APP');
             // push + pull معاً — لا نرفع بدون سحب
             await syncManager.sync();
             // تسجيل وقت هذا السحب
@@ -498,10 +500,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
               SyncConstants.lastAppOpenPullKey,
               DateTime.now().millisecondsSinceEpoch,
             );
-            debugPrint('✅ Initial sync on app start completed');
+            AppLogger.info('✅ Initial sync on app start completed', tag: 'APP');
           }
         } catch (e) {
-          debugPrint('⚠️ Initial sync on app start failed: $e');
+          AppLogger.warning('⚠️ Initial sync on app start failed: $e', tag: 'APP');
  }
 
         var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
@@ -519,9 +521,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           deviceId: deviceId,
         );
         await AppwriteRealtimeSync().start();
-        debugPrint('📡 Realtime sync + auto sync started');
+        AppLogger.info('📡 Realtime sync + auto sync started', tag: 'APP');
       } catch (e) {
-        debugPrint('❌ Realtime sync init error: $e');
+        AppLogger.error('❌ Realtime sync init error: $e', tag: 'APP');
       }
     });
   }
@@ -609,7 +611,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     try {
       await ref.read(syncServiceProvider).runSync();
     } catch (e) {
-      debugPrint('❌ Local auto sync error: $e');
+      AppLogger.error('❌ Local auto sync error: $e', tag: 'APP');
     } finally {
       _lastLocalAutoSync = DateTime.now();
       _localAutoSyncRunning = false;
@@ -634,7 +636,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       await syncManager.setFcmToken(fcm.currentToken!);
     }
 
-    debugPrint('✅ FCM ready — cross-device notifications enabled');
+    AppLogger.info('✅ FCM ready — cross-device notifications enabled', tag: 'APP');
   }
 
   /// رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة للتطبيق
@@ -644,9 +646,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // push: رفع أي تغييرات معلقة في الـ outbox
       // pull: سحب أي تغييرات جديدة من السيرفر
       await syncManager.sync();
-      debugPrint('✅ Sync on resume completed (push + pull)');
+      AppLogger.info('✅ Sync on resume completed (push + pull)', tag: 'APP');
     } catch (e) {
-      debugPrint('⚠️ Sync on resume error: $e');
+      AppLogger.warning('⚠️ Sync on resume error: $e', tag: 'APP');
     }
   }
 
@@ -661,10 +663,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       await syncManager.sync(pull: false).timeout(
         const Duration(seconds: 10),
       );
-      debugPrint('✅ Push on pause completed');
+      AppLogger.info('✅ Push on pause completed', tag: 'APP');
     } catch (e) {
       // البيانات محفوظة في outbox — لن تُفقد أبداً
-      debugPrint('⚠️ Push on pause error (data safe in outbox): $e');
+      AppLogger.warning('⚠️ Push on pause error (data safe in outbox): $e', tag: 'APP');
     }
   }
 
@@ -686,68 +688,68 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
   /// تنظيف جميع الخدمات Singleton عند إغلاق التطبيق
   static Future<void> _disposeSingletonServices() async {
-    debugPrint('🧹 Disposing singleton services...');
+    AppLogger.info('🧹 Disposing singleton services...', tag: 'APP');
     try {
       await FcmService.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing FcmService: $e');
+      AppLogger.warning('⚠️ Error disposing FcmService: $e', tag: 'APP');
     }
     try {
       await BatteryOptimizer.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing BatteryOptimizer: $e');
+      AppLogger.warning('⚠️ Error disposing BatteryOptimizer: $e', tag: 'APP');
     }
     try {
       await AppwriteRealtimeService.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing AppwriteRealtimeService: $e');
+      AppLogger.warning('⚠️ Error disposing AppwriteRealtimeService: $e', tag: 'APP');
     }
     try {
       await SyncPerformanceOptimizer.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing SyncPerformanceOptimizer: $e');
+      AppLogger.warning('⚠️ Error disposing SyncPerformanceOptimizer: $e', tag: 'APP');
     }
     try {
       await SmartSyncManager.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing SmartSyncManager: $e');
+      AppLogger.warning('⚠️ Error disposing SmartSyncManager: $e', tag: 'APP');
     }
     try {
       ConnectivityService.instance.dispose();
     } catch (e) {
-      debugPrint('⚠️ Error disposing ConnectivityService: $e');
+      AppLogger.warning('⚠️ Error disposing ConnectivityService: $e', tag: 'APP');
     }
     try {
       HotelDayTicker.instance.dispose();
     } catch (e) {
-      debugPrint('⚠️ Error disposing HotelDayTicker: $e');
+      AppLogger.warning('⚠️ Error disposing HotelDayTicker: $e', tag: 'APP');
     }
     try {
       await AutoSyncEngine.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing GoogleDriveAutoSyncEngine: $e');
+      AppLogger.warning('⚠️ Error disposing GoogleDriveAutoSyncEngine: $e', tag: 'APP');
     }
     try {
       await UnifiedSyncOrchestrator.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing UnifiedSyncOrchestrator: $e');
+      AppLogger.warning('⚠️ Error disposing UnifiedSyncOrchestrator: $e', tag: 'APP');
     }
     try {
       await GoogleDriveUnifiedSyncCoordinator.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
+      AppLogger.warning('⚠️ Error disposing GoogleDriveUnifiedSyncCoordinator: $e', tag: 'APP');
     }
     try {
       CentralSyncCoordinator.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing CentralSyncCoordinator: $e');
+      AppLogger.warning('⚠️ Error disposing CentralSyncCoordinator: $e', tag: 'APP');
     }
     try {
       BackgroundSyncService.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing BackgroundSyncService: $e');
+      AppLogger.warning('⚠️ Error disposing BackgroundSyncService: $e', tag: 'APP');
     }
-    debugPrint('✅ All singleton services disposed');
+    AppLogger.info('✅ All singleton services disposed', tag: 'APP');
   }
 
   @override
@@ -756,30 +758,30 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       return;
     }
     if (state == AppLifecycleState.resumed) {
-      debugPrint('📱 التطبيق عاد للواجهة...');
-      AppSessionManager.onAppOpen().catchError((Object e, StackTrace s) => debugPrint('Error in onAppOpen: $e\n$s'),
+      AppLogger.info('📱 التطبيق عاد للواجهة...', tag: 'APP');
+      AppSessionManager.onAppOpen().catchError((Object e, StackTrace s) => AppLogger.info('Error in onAppOpen: $e\n$s'),
       );
       ref
           .read(backupStatusProvider.notifier)
           .refreshSignInStatus()
-          .catchError((Object e, StackTrace s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
+          .catchError((Object e, StackTrace s) => AppLogger.info('Error in refreshSignInStatus: $e\n$s'),
           );
       // رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة
       unawaited(_syncOnResume());
-      UnifiedSyncOrchestrator.instance.onAppForeground().catchError((Object e, StackTrace s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
+      UnifiedSyncOrchestrator.instance.onAppForeground().catchError((Object e, StackTrace s) => AppLogger.info('Error in UnifiedSync onAppForeground: $e\n$s'),
       );
-      SyncGuardian.instance.onAppForeground().catchError((Object e, StackTrace s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
+      SyncGuardian.instance.onAppForeground().catchError((Object e, StackTrace s) => AppLogger.info('Error in SyncGuardian onAppForeground: $e\n$s'),
       );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
-      debugPrint('📱 التطبيق في الخلفية...');
+      AppLogger.info('📱 التطبيق في الخلفية...');
       // مزامنة فورية عند الخروج لضمان عدم ضياع البيانات
       unawaited(_pushPendingChangesOnPause());
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(
         AppSessionManager.onAppCloseOrBackground,
-      ).catchError((Object e, StackTrace s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'),
+      ).catchError((Object e, StackTrace s) => AppLogger.info('Error in onAppCloseOrBackground: $e\n$s'),
       );
     }
   }

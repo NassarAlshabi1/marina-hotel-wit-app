@@ -7,6 +7,7 @@ import '../data/sync_models.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 import 'sync_performance_optimizer.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class DeltaSyncChange {
   DeltaSyncChange({
@@ -81,15 +82,16 @@ class DeltaSyncService {
       // Limit rows processed per table for low-end devices
       final limitedRows = rows.length > maxRowsPerTable ? rows.take(maxRowsPerTable).toList() : rows;
       if (rows.length > maxRowsPerTable) {
-        debugPrint('⚠️ ${config.entity}: معالجة $maxRowsPerTable من ${rows.length} سطر (حد الأداء)');
+        AppLogger.warning('⚠️ ${config.entity}: معالجة $maxRowsPerTable من ${rows.length} سطر (حد الأداء)', tag: 'APP');
       }
       final existingMirror = previousMirror[config.entity] ?? {};
       final hasMirror = previousMirror.containsKey(config.entity);
       if (!hasMirror) {
         fallbackTables.add(config.entity);
-        debugPrint(
-          '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط',
-        );
+        AppLogger.warning(
+  '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط',,
+  tag: 'APP',
+);
       }
       final tableSnapshot = <String, MirrorRow>{};
       final seen = <String>{};
@@ -124,7 +126,7 @@ class DeltaSyncService {
               clientTimestamp: clientTs,
             ),
           );
-          debugPrint('إرسال كـ UPDATE (softDelete): ${config.entity}/$localUuid');
+          AppLogger.info('إرسال كـ UPDATE (softDelete): ${config.entity}/$localUuid', tag: 'APP');
         } else {
           final isFirstSyncForTable = !hasMirror;
           final isNewRecordInMirror = previous == null;
@@ -147,7 +149,7 @@ class DeltaSyncService {
                 clientTimestamp: clientTs,
               ),
             );
-            debugPrint('إرسال كـ INSERT: ${config.entity}/$localUuid');
+            AppLogger.info('إرسال كـ INSERT: ${config.entity}/$localUuid', tag: 'APP');
           } else if (previous != null &&
               lastModified != null &&
               lastModified > normalizedSince) {
@@ -161,7 +163,7 @@ class DeltaSyncService {
                 clientTimestamp: clientTs,
               ),
             );
-            debugPrint('إرسال كـ UPDATE: ${config.entity}/$localUuid');
+            AppLogger.info('إرسال كـ UPDATE: ${config.entity}/$localUuid', tag: 'APP');
           }
         }
 
@@ -200,7 +202,7 @@ class DeltaSyncService {
             clientTimestamp: deleteStamp,
           ),
         );
-        debugPrint('إرسال كـ UPDATE (missing→softDelete): ${config.entity}/$uuid');
+        AppLogger.info('إرسال كـ UPDATE (missing→softDelete): ${config.entity}/$uuid', tag: 'APP');
       }
 
       snapshot[config.entity] = tableSnapshot;
@@ -352,8 +354,11 @@ class DeltaSyncService {
   Future<void> repairMirrorIfNeeded() async {
     final validation = await validateMirror();
     if (!validation.isValid) {
-      debugPrint('⚠️ Mirror inconsistency detected, repairing...');
-      debugPrint('Issues: ${validation.issues.join(', ')}');
+      AppLogger.warning('⚠️ Mirror inconsistency detected, repairing...', tag: 'APP');
+      AppLogger.info(
+  'Issues: ${validation.issues.join(', ')}',
+  tag: 'APP',
+);
       await _rebuildMirror();
     }
   }
@@ -376,7 +381,7 @@ class DeltaSyncService {
         // Limit rebuild for low-end devices
         final limitedRows = rows.length > maxRowsPerTable ? rows.take(maxRowsPerTable).toList() : rows;
         if (rows.length > maxRowsPerTable) {
-          debugPrint('⚠️ ${config.entity}: إعادة بناء $maxRowsPerTable من ${rows.length} سطر (حد الأداء)');
+          AppLogger.warning('⚠️ ${config.entity}: إعادة بناء $maxRowsPerTable من ${rows.length} سطر (حد الأداء)', tag: 'APP');
         }
         for (final row in limitedRows) {
           final uuid = config.localUuid(row);
@@ -393,15 +398,16 @@ class DeltaSyncService {
             [config.entity, uuid, rowHash, jsonEncode(sanitized), nowTs],
           );
         }
-        debugPrint(
-          '✅ Rebuilt mirror for ${config.entity} (${limitedRows.length} rows)',
-        );
+        AppLogger.info(
+  '✅ Rebuilt mirror for ${config.entity} (${limitedRows.length} rows)',,
+  tag: 'APP',
+);
       } catch (e) {
-        debugPrint('❌ Failed to rebuild mirror for ${config.entity}: $e');
+        AppLogger.error('❌ Failed to rebuild mirror for ${config.entity}: $e', tag: 'APP');
       }
     }
 
-    debugPrint('✅ Mirror rebuild completed');
+    AppLogger.info('✅ Mirror rebuild completed', tag: 'APP');
   }
 
   List<_EntityConfig> _entityConfigs() {

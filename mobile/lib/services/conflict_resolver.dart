@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'vector_clock.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum ConflictStrategy {
   lastWriteWins,
@@ -125,7 +126,7 @@ class EnhancedConflictResolver {
           strategy: ConflictStrategy.lastWriteWins,
         );
       case 'concurrent':
-        debugPrint('⚠️ تعارض حقيقي: ${context.table}/${context.uuid}');
+        AppLogger.warning('⚠️ تعارض حقيقي: ${context.table}/${context.uuid}', tag: 'APP');
         return _handleConcurrentConflict(context);
     }
     return null;
@@ -137,13 +138,14 @@ class EnhancedConflictResolver {
         .abs();
 
     if (timeDiff.inSeconds < 30) {
-      debugPrint(
-        '🔀 تعارض متزامن (${timeDiff.inSeconds}s) - استخدام field-level merge',
-      );
+      AppLogger.info(
+  '🔀 تعارض متزامن (${timeDiff.inSeconds}s) - استخدام field-level merge',,
+  tag: 'APP',
+);
       return _fieldLevelMerge(context);
     }
 
-    debugPrint('🔀 تعارض متزامن - استخدام last-write-wins');
+    AppLogger.info('🔀 تعارض متزامن - استخدام last-write-wins', tag: 'APP');
     return _lastWriteWins(context);
   }
 

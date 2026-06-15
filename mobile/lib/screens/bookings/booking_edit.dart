@@ -14,6 +14,7 @@ import '../../services/local_db.dart';
 import '../../services/screen_sync_controller.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing, this.initialRoomNumber});
@@ -743,7 +744,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                 revenueType: 'deposit',
                               );
                             } catch (e) {
-                              debugPrint('⚠️ خطأ في حفظ الدفعة المقدمة: $e');
+                              AppLogger.warning('⚠️ خطأ في حفظ الدفعة المقدمة: $e', tag: 'APP');
                               if (mounted) {
                                 // ignore: use_build_context_synchronously
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -791,7 +792,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             ),
                           );
                         }
-                        debugPrint('❌ خطأ في حفظ الحجز: $e');
+                        AppLogger.warning('❌ خطأ في حفظ الحجز: $e', tag: 'APP');
                       } finally {
                         if (mounted) {
                           setState(() => _isSaving = false);
@@ -1030,7 +1031,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         operation: 'batch_update_status',
       );
     } catch (e) {
-      debugPrint('Error refreshing room occupancy: $e');
+      AppLogger.info('Error refreshing room occupancy: $e', tag: 'APP');
     }
   }
 

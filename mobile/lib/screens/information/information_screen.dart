@@ -15,6 +15,7 @@ import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/pdf_utils.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class InformationScreen extends ConsumerStatefulWidget {
   const InformationScreen({super.key});
@@ -748,7 +749,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       await syncManager.sync(pull: false);
     } catch (e) {
-      debugPrint('⚠️ فشلت المزامنة الفورية: $e');
+      AppLogger.warning('⚠️ فشلت المزامنة الفورية: $e', tag: 'APP');
     }
   }
 }

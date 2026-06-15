@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'unified_sync_orchestrator.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class CentralSyncCoordinator {
   factory CentralSyncCoordinator() => _instance;
@@ -20,7 +21,7 @@ class CentralSyncCoordinator {
   static const Duration syncCooldown = Duration(seconds: 10);
 
   void notifyLocalChange({required String table, required String operation}) {
-    debugPrint('🔔 CentralSyncCoordinator: تغيير في $table ($operation)');
+    AppLogger.info('🔔 CentralSyncCoordinator: تغيير في $table ($operation)', tag: 'APP');
 
     _debounceTimer?.cancel();
     _debounceTimer = Timer(unifiedDebounce, () async {
@@ -46,9 +47,10 @@ class CentralSyncCoordinator {
       final elapsed = DateTime.now().difference(_lastSyncTime!);
       if (elapsed < syncCooldown) {
         final remaining = syncCooldown - elapsed;
-        debugPrint(
-          '⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining',
-        );
+        AppLogger.info(
+  '⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining',,
+  tag: 'APP',
+);
 
         _debounceTimer?.cancel();
         _debounceTimer = Timer(remaining, () async {
@@ -64,15 +66,16 @@ class CentralSyncCoordinator {
     }
 
     if (_isSyncing) {
-      debugPrint('⏸️ Sync قيد التنفيذ بالفعل');
+      AppLogger.info('⏸️ Sync قيد التنفيذ بالفعل', tag: 'APP');
       return false;
     }
 
     _isSyncing = true;
     _syncCount++;
-    debugPrint(
-      '🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)',
-    );
+    AppLogger.info(
+  '🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)',,
+  tag: 'APP',
+);
 
     try {
       final success = await UnifiedSyncOrchestrator.instance.syncNow(
@@ -83,15 +86,15 @@ class CentralSyncCoordinator {
 
       if (success) {
         _lastSyncTime = DateTime.now();
-        debugPrint('✅ [$_syncCount] المزامنة نجحت: $reason');
+        AppLogger.info('✅ [$_syncCount] المزامنة نجحت: $reason', tag: 'APP');
       } else {
-        debugPrint('❌ [$_syncCount] المزامنة فشلت: $reason');
+        AppLogger.warning('❌ [$_syncCount] المزامنة فشلت: $reason', tag: 'APP');
       }
 
       return success;
     } catch (e, stackTrace) {
-      debugPrint('❌ [$_syncCount] خطأ في المزامنة: $e');
-      debugPrint('Stack trace: $stackTrace');
+      AppLogger.warning('❌ [$_syncCount] خطأ في المزامنة: $e', tag: 'APP');
+      AppLogger.info('Stack trace: $stackTrace', tag: 'APP');
       return false;
     } finally {
       _isSyncing = false;

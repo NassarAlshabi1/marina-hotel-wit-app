@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// معرّف نوع النموذج
 enum WhatsAppTemplateType {
@@ -472,7 +473,7 @@ class WhatsAppTemplateManager {
       }
       return count;
     } catch (e) {
-      debugPrint('خطأ في استيراد النماذج: $e');
+      AppLogger.warning('خطأ في استيراد النماذج: $e', tag: 'APP');
       return 0;
     }
   }

@@ -17,6 +17,7 @@ import 'daos/payments_dao.dart';
 import 'daos/rooms_dao.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// استثناء يُرمى عند فشل التحقق من صحة بيانات النسخة الاحتياطية
 class RestoreValidationException implements Exception {
@@ -128,9 +129,10 @@ class RestoreFixService {
     String prefix, {
     bool useTransaction = true,
   }) async {
-    debugPrint(
-      '📸 إنشاء لقطة احتياطية أمان: ${prefix}_restore_snapshot_${Time.nowEpoch()}.json',
-    );
+    AppLogger.info(
+  '📸 إنشاء لقطة احتياطية أمان: ${prefix}_restore_snapshot_${Time.nowEpoch()}.json',,
+  tag: 'APP',
+);
 
     Future<RestoreSnapshot> doCreate() async {
       final directory = await _resolveCacheDirectory();
@@ -175,7 +177,7 @@ class RestoreFixService {
           totalSizeBytes: await file.length(),
         );
       } catch (e) {
-        debugPrint('❌ خطأ في إنشاء اللقطة الاحتياطية: $e');
+        AppLogger.warning('❌ خطأ في إنشاء اللقطة الاحتياطية: $e', tag: 'APP');
         rethrow;
       }
     }
@@ -198,7 +200,7 @@ class RestoreFixService {
   Future<RestoreFixReport> runAutoFixAfterRestore({
     DateTime? backupTimestamp,
   }) async {
-    debugPrint('🔄 بدء عملية الإصلاح التلقائي للنسخة الاحتياطية...');
+    AppLogger.info('🔄 بدء عملية الإصلاح التلقائي للنسخة الاحتياطية...', tag: 'APP');
 
     final startTime = DateTime.now();
     int bookingsFixed = 0;
@@ -220,7 +222,7 @@ class RestoreFixService {
           backupTimestamp,
           now,
         );
-        debugPrint('🔍 العثور على ${bookingsToFix.length} حجز يحتاج إلى إصلاح');
+        AppLogger.info('🔍 العثور على ${bookingsToFix.length} حجز يحتاج إلى إصلاح', tag: 'APP');
 
         for (final booking in bookingsToFix) {
           final bookingChanges = await _fixBookingDatesAndNights(
@@ -269,12 +271,12 @@ class RestoreFixService {
 
       final duration = DateTime.now().difference(startTime).inMilliseconds;
 
-      debugPrint('✅ اكتمل الإصلاح التلقائي بنجاح');
-      debugPrint('📊 الإحصائيات:');
-      debugPrint('   - الحجوزات المصلحة: $bookingsFixed');
-      debugPrint('   - الغرف المحدثة: $roomsUpdated');
-      debugPrint('   - الدفعات المتحقق منها: $paymentsChecked');
-      debugPrint('   - المدة: ${(duration / 1000).toStringAsFixed(1)} ثانية');
+      AppLogger.info('✅ اكتمل الإصلاح التلقائي بنجاح', tag: 'APP');
+      AppLogger.info('📊 الإحصائيات:', tag: 'APP');
+      AppLogger.info('   - الحجوزات المصلحة: $bookingsFixed', tag: 'APP');
+      AppLogger.info('   - الغرف المحدثة: $roomsUpdated', tag: 'APP');
+      AppLogger.info('   - الدفعات المتحقق منها: $paymentsChecked', tag: 'APP');
+      AppLogger.info('   - المدة: ${(duration / 1000).toStringAsFixed(1)} ثانية', tag: 'APP');
 
       return RestoreFixReport(
         success: true,
@@ -286,17 +288,17 @@ class RestoreFixService {
         durationMs: duration,
       );
     } catch (e, stackTrace) {
-      debugPrint('❌ فشل الإصلاح التلقائي: $e');
-      debugPrint('Stack trace: $stackTrace');
+      AppLogger.warning('❌ فشل الإصلاح التلقائي: $e', tag: 'APP');
+      AppLogger.info('Stack trace: $stackTrace', tag: 'APP');
 
       // استعادة اللقطة الاحتياطية في حالة الفشل
       final snapshotPath = snapshot?.filePath;
       if (snapshotPath != null) {
         try {
           await _restoreFromSnapshot(snapshotPath);
-          debugPrint('✅ تم استعادة البيانات من اللقطة الاحتياطية');
+          AppLogger.info('✅ تم استعادة البيانات من اللقطة الاحتياطية', tag: 'APP');
         } catch (restoreError) {
-          debugPrint('❌ فشل في استعادة اللقطة الاحتياطية: $restoreError');
+          AppLogger.warning('❌ فشل في استعادة اللقطة الاحتياطية: $restoreError', tag: 'APP');
         }
       }
 
@@ -408,10 +410,10 @@ class RestoreFixService {
         final changeMsg =
             'إصلاح الحجز #${booking.id}: تحديث الليالي من ${booking.calculatedNights} إلى $calculatedNights';
         changes.add(changeMsg);
-        debugPrint('✏️ $changeMsg');
+        AppLogger.info('✏️ $changeMsg', tag: 'APP');
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في إصلاح الحجز #${booking.id}: $e');
+      AppLogger.warning('⚠️ خطأ في إصلاح الحجز #${booking.id}: $e', tag: 'APP');
     }
 
     return changes;
@@ -494,7 +496,7 @@ class RestoreFixService {
           changes.add(
             'تحديث المبالغ المخزنة للحجز #${booking.id}: الإجمالي=$expectedTotal, المدفوع=$totalPaid, المتبقي=$remainingBalance',
           );
-          debugPrint('💰 ${changes.last}');
+          AppLogger.info('💰 ${changes.last}', tag: 'APP');
         }
 
         if ((totalPaid - expectedTotal).abs() > 0 && totalPaid != expectedTotal) {
@@ -520,7 +522,7 @@ class RestoreFixService {
           final warningMsg =
               'تنبيه: الحجز #${booking.id} - إجمالي المدفوعات ($totalPaid) لا يتطابق مع المتوقع ($expectedTotal)';
           changes.add(warningMsg);
-          debugPrint('⚠️ $warningMsg');
+          AppLogger.warning('⚠️ $warningMsg', tag: 'APP');
         }
       }
 
@@ -578,7 +580,7 @@ class RestoreFixService {
         }
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في فحص المدفوعات للحجز #${booking.id}: $e');
+      AppLogger.warning('⚠️ خطأ في فحص المدفوعات للحجز #${booking.id}: $e', tag: 'APP');
     }
     return changes;
   }
@@ -629,7 +631,7 @@ class RestoreFixService {
           final changeMsg =
               'إصلاح الغرفة ${room.roomNumber}: تحديث الحالة من \'${room.status}\' إلى \'$newStatus\'';
           changes.add(changeMsg);
-          debugPrint('✏️ $changeMsg');
+          AppLogger.info('✏️ $changeMsg', tag: 'APP');
         }
       }
       if (updates.isNotEmpty) {
@@ -652,7 +654,7 @@ class RestoreFixService {
         });
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في تحديث حالات الغرف: $e');
+      AppLogger.warning('⚠️ خطأ في تحديث حالات الغرف: $e', tag: 'APP');
     }
     return changes;
   }
@@ -725,9 +727,10 @@ class RestoreFixService {
       final room = context.roomsByNumber[booking.roomNumber];
 
       if (room == null) {
-        debugPrint(
-          '⚠️ تحذير: الغرفة ${booking.roomNumber} غير موجودة للحجز #${booking.id}',
-        );
+        AppLogger.warning(
+  '⚠️ تحذير: الغرفة ${booking.roomNumber} غير موجودة للحجز #${booking.id}',,
+  tag: 'APP',
+);
         changes.add(
           'تحذير: حجز #${booking.id} مرتبط بغرفة غير موجودة (${booking.roomNumber})',
         );
@@ -1237,7 +1240,7 @@ class RestoreFixService {
         await _rebuildBookingStructures(DateTime.now());
       });
     } catch (e) {
-      debugPrint('❌ فشل في استعادة اللقطة الاحتياطية: $e');
+      AppLogger.warning('❌ فشل في استعادة اللقطة الاحتياطية: $e', tag: 'APP');
       rethrow;
     }
   }
@@ -1276,10 +1279,10 @@ class RestoreFixService {
       final file = File(filePath);
       if (file.existsSync()) {
         await file.delete();
-        debugPrint('🗑️ تم حذف اللقطة الاحتياطية: $filePath');
+        AppLogger.info('🗑️ تم حذف اللقطة الاحتياطية: $filePath', tag: 'APP');
       }
     } catch (e) {
-      debugPrint('⚠️ تحذير: لا يمكن حذف اللقطة الاحتياطية: $e');
+      AppLogger.warning('⚠️ تحذير: لا يمكن حذف اللقطة الاحتياطية: $e', tag: 'APP');
     }
   }
 

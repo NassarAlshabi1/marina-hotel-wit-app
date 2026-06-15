@@ -10,6 +10,7 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import '../utils/app_logger.dart';
 import 'local_db.dart';
 import 'sync_constants.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class SyncSafetySnapshot {
   SyncSafetySnapshot({
@@ -66,10 +67,10 @@ class SyncSafetyLayer {
         );
         await File(dbPath).copy(dbBackupPath);
         tables['sqliteBackupPath'] = dbBackupPath;
-        debugPrint('✅ تم نسخ ملف SQLite إلى: $dbBackupPath');
+        AppLogger.info('✅ تم نسخ ملف SQLite إلى: $dbBackupPath', tag: 'APP');
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في نسخ ملف SQLite: $e');
+      AppLogger.warning('⚠️ خطأ في نسخ ملف SQLite: $e', tag: 'APP');
     }
 
     final payload = <String, dynamic>{
@@ -146,7 +147,7 @@ class SyncSafetyLayer {
     final rollbackAt = DateTime.now().toUtc();
 
     if (!file.existsSync()) {
-      debugPrint('❌ ملف النسخة الاحتياطية غير موجود: ${snapshot.filePath}');
+      AppLogger.error('❌ ملف النسخة الاحتياطية غير موجود: ${snapshot.filePath}', tag: 'APP');
       _activeSnapshots.remove(snapshot.key);
       return false;
     }
@@ -177,11 +178,11 @@ class SyncSafetyLayer {
           'timestamp': rollbackAt.toIso8601String(),
         });
 
-        debugPrint('✅ تم استعادة قاعدة البيانات بنجاح من النسخة الاحتياطية');
+        AppLogger.info('✅ تم استعادة قاعدة البيانات بنجاح من النسخة الاحتياطية', tag: 'APP');
         _activeSnapshots.remove(snapshot.key);
         return true;
       } catch (rollbackError, stack) {
-        debugPrint('❌ CRITICAL: فشل التراجع — transaction تم التراجع عنها تلقائياً');
+        AppLogger.warning('❌ CRITICAL: فشل التراجع — transaction تم التراجع عنها تلقائياً', tag: 'APP');
         await _appendLog({
           'event': 'rollback-error',
           'syncId': snapshot.syncId,
@@ -197,7 +198,7 @@ class SyncSafetyLayer {
         // ✅ ضمان إعادة تشغيل FK في كل حالة
         try {
           await db.customStatement('PRAGMA foreign_keys = ON');
-          debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+          AppLogger.info('🔓 تم إعادة تشغيل FOREIGN KEYS', tag: 'APP');
 
           // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
           try {
@@ -213,11 +214,11 @@ class SyncSafetyLayer {
             }
           } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);}
         } catch (e) {
-          debugPrint('⚠️ فشل إعادة تشغيل FOREIGN KEYS: $e');
+          AppLogger.warning('⚠️ فشل إعادة تشغيل FOREIGN KEYS: $e', tag: 'APP');
         }
       }
     } catch (readError, stack) {
-      debugPrint('❌ فشل قراءة ملف النسخة الاحتياطية: $readError');
+      AppLogger.warning('❌ فشل قراءة ملف النسخة الاحتياطية: $readError', tag: 'APP');
       await _appendLog({
         'event': 'rollback-error',
         'syncId': snapshot.syncId,
@@ -306,7 +307,7 @@ class SyncSafetyLayer {
         await db.customStatement('DELETE FROM $table');
       } on Exception catch (e) {
         if (e.toString().contains('no such table')) {
-          debugPrint('ℹ️ الجدول غير موجود، تخطي الحذف: $table');
+          AppLogger.warning('ℹ️ الجدول غير موجود، تخطي الحذف: $table', tag: 'APP');
         } else {
           rethrow;
         }
@@ -343,9 +344,10 @@ class SyncSafetyLayer {
           normalized.entries.where((e) => existingColumns.contains(e.key)),
         );
         if (filtered.isEmpty) {
-          debugPrint(
-            '⚠️ تخطي استعادة صف فارغ لـ $tableName بسبب اختلاف الأعمدة',
-          );
+          AppLogger.warning(
+  '⚠️ تخطي استعادة صف فارغ لـ $tableName بسبب اختلاف الأعمدة',,
+  tag: 'APP',
+);
           continue;
         }
         final columns = filtered.keys.toList();
@@ -359,7 +361,7 @@ class SyncSafetyLayer {
         );
       }
     });
-    debugPrint('✅ تم استعادة ${rows.length} سجل من $tableName');
+    AppLogger.info('✅ تم استعادة ${rows.length} سجل من $tableName', tag: 'APP');
   }
 
   Future<Set<String>> _tableColumns(AppDatabase db, String tableName) async {
@@ -387,7 +389,7 @@ class SyncSafetyLayer {
         return dbPath;
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في الحصول على مسار قاعدة البيانات: $e');
+      AppLogger.warning('⚠️ خطأ في الحصول على مسار قاعدة البيانات: $e', tag: 'APP');
     }
     return null;
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// إعدادات Appwrite المركزية
 class AppwriteConfig {
@@ -68,29 +69,29 @@ class AppwriteConfig {
   /// طباعة الإعدادات (للتشخيص)
   static void printConfig() {
     if (kDebugMode) {
-      debugPrint('═══════════════════════════════════════');
-      debugPrint('🔧 Appwrite Configuration');
-      debugPrint('═══════════════════════════════════════');
-      debugPrint('Endpoint: $endpoint');
-      debugPrint('Project ID: $projectId');
-      debugPrint('Database ID: $databaseId');
-      debugPrint('Sync Interval: ${syncInterval.inMinutes} minutes');
-      debugPrint('Cache Expiry: ${cacheExpiry.inHours} hours');
-      debugPrint('Max Cache Size: $maxCacheSizeMB MB');
-      debugPrint('Default Page Size: $defaultPageSize');
-      debugPrint('Max Page Size: $maxPageSize');
-      debugPrint('Batch Size: $batchSize');
-      debugPrint('Max Retries: $maxRetries');
-      debugPrint('Default Timeout: ${defaultTimeout.inSeconds}s');
-      debugPrint('Long Timeout: ${longTimeout.inSeconds}s');
-      debugPrint('═══════════════════════════════════════');
+      AppLogger.info('═══════════════════════════════════════', tag: 'APP');
+      AppLogger.info('🔧 Appwrite Configuration', tag: 'APP');
+      AppLogger.info('═══════════════════════════════════════', tag: 'APP');
+      AppLogger.info('Endpoint: $endpoint', tag: 'APP');
+      AppLogger.info('Project ID: $projectId', tag: 'APP');
+      AppLogger.info('Database ID: $databaseId', tag: 'APP');
+      AppLogger.info('Sync Interval: ${syncInterval.inMinutes} minutes', tag: 'APP');
+      AppLogger.info('Cache Expiry: ${cacheExpiry.inHours} hours', tag: 'APP');
+      AppLogger.info('Max Cache Size: $maxCacheSizeMB MB', tag: 'APP');
+      AppLogger.info('Default Page Size: $defaultPageSize', tag: 'APP');
+      AppLogger.info('Max Page Size: $maxPageSize', tag: 'APP');
+      AppLogger.info('Batch Size: $batchSize', tag: 'APP');
+      AppLogger.info('Max Retries: $maxRetries', tag: 'APP');
+      AppLogger.info('Default Timeout: ${defaultTimeout.inSeconds}s', tag: 'APP');
+      AppLogger.info('Long Timeout: ${longTimeout.inSeconds}s', tag: 'APP');
+      AppLogger.info('═══════════════════════════════════════', tag: 'APP');
     }
   }
 
   /// التحقق من صحة الإعدادات
   static bool validateConfig() {
     if (projectId == 'YOUR_PROJECT_ID_HERE') {
-      debugPrint('❌ Error: Please set your Appwrite Project ID');
+      AppLogger.error('❌ Error: Please set your Appwrite Project ID', tag: 'APP');
       return false;
     }
     return true;

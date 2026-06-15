@@ -8,6 +8,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../local_db.dart';
 import '../remote_config_service.dart';
 import 'telegram_config.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// بيانات التقرير اليومي
 class TelegramDailyReportData {
@@ -100,7 +101,7 @@ class TelegramReportService {
       final hotelDayKey = HotelTimeEngine.getHotelDayKey();
       final lastSent = await TelegramConfig.getLastReportSent();
       if (lastSent == hotelDayKey) {
-        debugPrint('⏭️ WhatsApp: تم إرسال تقرير اليوم بالفعل');
+        AppLogger.info('⏭️ WhatsApp: تم إرسال تقرير اليوم بالفعل', tag: 'APP');
         return true;
       }
 
@@ -117,19 +118,19 @@ class TelegramReportService {
 
       // Retry مرة واحدة
       if (!success) {
-        debugPrint('🔄 WhatsApp: إعادة محاولة إرسال التقرير...');
+        AppLogger.info('🔄 WhatsApp: إعادة محاولة إرسال التقرير...', tag: 'APP');
         await Future<void>.delayed(const Duration(seconds: 2));
         success = await _sendViaCallMeBot(message, phone: phone, apiKey: apiKey);
       }
 
       if (success) {
         await TelegramConfig.setLastReportSent(hotelDayKey);
-        debugPrint('✅ WhatsApp: تم إرسال التقرير اليومي بنجاح');
+        AppLogger.info('✅ WhatsApp: تم إرسال التقرير اليومي بنجاح', tag: 'APP');
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في التقرير اليومي: $e');
+      AppLogger.warning('❌ WhatsApp: خطأ في التقرير اليومي: $e', tag: 'APP');
       return false;
     }
   }
@@ -154,7 +155,7 @@ class TelegramReportService {
 
       // Retry مرة واحدة
       if (!success) {
-        debugPrint('🔄 WhatsApp: إعادة محاولة إرسال التقرير...');
+        AppLogger.info('🔄 WhatsApp: إعادة محاولة إرسال التقرير...', tag: 'APP');
         await Future<void>.delayed(const Duration(seconds: 2));
         success = await _sendViaCallMeBot(message, phone: phone, apiKey: apiKey);
       }
@@ -166,7 +167,7 @@ class TelegramReportService {
 
       return success;
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في إرسال التقرير: $e');
+      AppLogger.warning('❌ WhatsApp: خطأ في إرسال التقرير: $e', tag: 'APP');
       return false;
     }
   }
@@ -316,7 +317,7 @@ class TelegramReportService {
         alerts: alerts,
       );
     } catch (e) {
-      debugPrint('❌ Telegram: خطأ في تجميع بيانات التقرير: $e');
+      AppLogger.warning('❌ Telegram: خطأ في تجميع بيانات التقرير: $e', tag: 'APP');
       return null;
     }
   }
@@ -324,7 +325,7 @@ class TelegramReportService {
   /// إرسال رسالة عبر CallMeBot WhatsApp API
   Future<bool> _sendViaCallMeBot(String message, {required String phone, required String apiKey}) async {
     if (phone.isEmpty || apiKey.isEmpty) {
-      debugPrint('❌ WhatsApp (CallMeBot): رقم الهاتف أو مفتاح API فارغ');
+      AppLogger.error('❌ WhatsApp (CallMeBot): رقم الهاتف أو مفتاح API فارغ', tag: 'APP');
       return false;
     }
     try {
@@ -352,7 +353,7 @@ class TelegramReportService {
         try {
           final json = jsonDecode(body) as Map<String, dynamic>;
           if (json['success'] == true || json['sent'] == true) {
-            debugPrint('✅ WhatsApp (CallMeBot): تم إرسال التقرير');
+            AppLogger.info('✅ WhatsApp (CallMeBot): تم إرسال التقرير', tag: 'APP');
             return true;
           }
         } catch (_) {
@@ -362,13 +363,13 @@ class TelegramReportService {
             return true;
           }
         }
-        debugPrint('⚠️ WhatsApp (CallMeBot): فشل الإرسال — $body');
+        AppLogger.warning('⚠️ WhatsApp (CallMeBot): فشل الإرسال — $body', tag: 'APP');
         return false;
       }
-      debugPrint('⚠️ WhatsApp (CallMeBot): HTTP ${response.statusCode} — $body');
+      AppLogger.warning('⚠️ WhatsApp (CallMeBot): HTTP ${response.statusCode} — $body', tag: 'APP');
       return false;
     } catch (e) {
-      debugPrint('❌ WhatsApp (CallMeBot): خطأ — $e');
+      AppLogger.warning('❌ WhatsApp (CallMeBot): خطأ — $e', tag: 'APP');
       return false;
     }
   }

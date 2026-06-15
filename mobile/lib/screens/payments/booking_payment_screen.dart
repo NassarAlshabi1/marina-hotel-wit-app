@@ -24,6 +24,7 @@ import '../../utils/hotel_day_ticker.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/time.dart';
 import 'payment_history_screen.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
 
@@ -2621,7 +2622,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      debugPrint('❌ خطأ في المغادرة المبكرة: $e');
+      AppLogger.warning('❌ خطأ في المغادرة المبكرة: $e', tag: 'APP');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2709,7 +2710,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
       Navigator.pop(context);
     } catch (e) {
-      debugPrint('❌ خطأ في تسجيل المغادرة: $e');
+      AppLogger.warning('❌ خطأ في تسجيل المغادرة: $e', tag: 'APP');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2915,7 +2916,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      debugPrint('❌ خطأ في إلغاء دفعات اليوم: $e');
+      AppLogger.warning('❌ خطأ في إلغاء دفعات اليوم: $e', tag: 'APP');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -3565,7 +3566,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تمديد الإقامة: $e');
+      AppLogger.warning('❌ خطأ في تمديد الإقامة: $e', tag: 'APP');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

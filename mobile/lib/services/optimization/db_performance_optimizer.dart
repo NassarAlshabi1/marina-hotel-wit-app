@@ -9,6 +9,7 @@ library;
 import 'package:flutter/foundation.dart';
 
 import '../local_db.dart' as local_db;
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class DatabaseOptimizer {
   DatabaseOptimizer(this.db);
@@ -75,7 +76,7 @@ class DatabaseOptimizer {
     ''');
 
     if (kDebugMode) {
-      debugPrint('✅ Created composite indexes');
+      AppLogger.info('✅ Created composite indexes', tag: 'APP');
     }
   }
 
@@ -100,7 +101,7 @@ class DatabaseOptimizer {
     ''');
 
     if (kDebugMode) {
-      debugPrint('✅ Created covering indexes');
+      AppLogger.info('✅ Created covering indexes', tag: 'APP');
     }
   }
 
@@ -131,7 +132,7 @@ class DatabaseOptimizer {
     ''');
 
     if (kDebugMode) {
-      debugPrint('✅ Analyzed and added missing indexes');
+      AppLogger.info('✅ Analyzed and added missing indexes', tag: 'APP');
     }
   }
 
@@ -147,7 +148,7 @@ class DatabaseOptimizer {
     await db.customStatement('ANALYZE');
 
     if (kDebugMode) {
-      debugPrint('✅ Database optimized (VACUUM + REINDEX)');
+      AppLogger.info('✅ Database optimized (VACUUM + REINDEX)', tag: 'APP');
     }
   }
 

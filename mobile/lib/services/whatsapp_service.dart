@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:characters/characters.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// أنواع واتساب API المدعومة
 enum WhatsAppApiType {
@@ -91,13 +92,14 @@ class WhatsAppService {
         }
       }
 
-      debugPrint(
-        'WhatsApp send failed: ${response.statusCode} ${response.body}',
-      );
+      AppLogger.info(
+  'WhatsApp send failed: ${response.statusCode} ${response.body}',,
+  tag: 'APP',
+);
       return (success: false, quotaMessage: null);
     } catch (error, stackTrace) {
-      debugPrint('WhatsApp send error: $error');
-      debugPrint('$stackTrace');
+      AppLogger.info('WhatsApp send error: $error', tag: 'APP');
+      AppLogger.info('$stackTrace', tag: 'APP');
       return (success: false, quotaMessage: null);
     }
   }
@@ -130,13 +132,14 @@ class WhatsAppService {
         return (success: true, quotaMessage: null);
       }
 
-      debugPrint(
-        'Custom WhatsApp API failed: ${response.statusCode} ${response.body}',
-      );
+      AppLogger.info(
+  'Custom WhatsApp API failed: ${response.statusCode} ${response.body}',,
+  tag: 'APP',
+);
       return (success: false, quotaMessage: null);
     } catch (error, stackTrace) {
-      debugPrint('Custom WhatsApp send error: $error');
-      debugPrint('$stackTrace');
+      AppLogger.info('Custom WhatsApp send error: $error', tag: 'APP');
+      AppLogger.info('$stackTrace', tag: 'APP');
       return (success: false, quotaMessage: null);
     }
   }
@@ -209,9 +212,10 @@ class WhatsAppService {
       return message;
     }
 
-    debugPrint(
-      'WhatsApp message trimmed: ${message.characters.length} → $maxMessageLength chars',
-    );
+    AppLogger.info(
+  'WhatsApp message trimmed: ${message.characters.length} → $maxMessageLength chars',,
+  tag: 'APP',
+);
 
     final lines = message.split('\n');
     String footer = '';

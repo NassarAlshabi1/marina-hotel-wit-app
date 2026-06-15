@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../utils/field_mapper.dart';
 import 'api_config_service.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum PhpApiStatus { disconnected, connecting, connected, error }
 
@@ -93,7 +94,7 @@ class PhpApiService {
         LogInterceptor(
           requestBody: true,
           responseBody: true,
-          logPrint: (o) => debugPrint('📡 PHP API: $o'),
+          logPrint: (o) => AppLogger.info('📡 PHP API: $o'),
         ),
       );
     }
@@ -101,7 +102,7 @@ class PhpApiService {
 
   void _onConfigChanged() {
     _initializeDio();
-    debugPrint('🔄 تم تحديث إعدادات Dio');
+    AppLogger.info('🔄 تم تحديث إعدادات Dio');
   }
 
   Future<void> _onRequest(
@@ -149,7 +150,7 @@ class PhpApiService {
       try {
         final response = await _retryRequest(e.requestOptions);
         return handler.resolve(response);
-      } catch (e) { debugPrint('API retry failed: $e'); }
+      } catch (e) { AppLogger.info('API retry failed: $e', tag: 'APP'); }
     }
 
     handler.next(e);

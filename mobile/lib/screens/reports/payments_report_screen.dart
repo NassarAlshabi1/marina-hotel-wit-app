@@ -17,6 +17,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class PaymentsReportScreen extends ConsumerStatefulWidget {
   const PaymentsReportScreen({super.key});
@@ -183,7 +184,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final paymentDate = _parseDateTime(payment.paymentDate);
       if (paymentDate == null) {
         // لا يمكن تحديد تاريخ الدفعة، نهملها مع إمكانية تسجيل خطأ
-        debugPrint('تجاهل دفعة ذات تاريخ غير صالح: ${payment.paymentDate}');
+        AppLogger.info('تجاهل دفعة ذات تاريخ غير صالح: ${payment.paymentDate}', tag: 'APP');
         continue;
       }
 
@@ -646,7 +647,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       return DateTime.parse(normalized);
     } catch (_) {
       // طباعة الخطأ (اختياري) وإرجاع null ليتجاهل المُستدعي السجل
-      debugPrint('_parseDateTime: فشل تحليل "$value"');
+      AppLogger.warning('_parseDateTime: فشل تحليل "$value"', tag: 'APP');
       return null;
     }
   }

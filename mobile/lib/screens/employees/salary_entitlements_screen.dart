@@ -5,6 +5,7 @@ import '../../components/app_scaffold.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class SalaryEntitlementsScreen extends ConsumerStatefulWidget {
   const SalaryEntitlementsScreen({super.key});
@@ -50,7 +51,7 @@ class _SalaryEntitlementsScreenState
       _summary = await _service.getSummary();
       _entitlements = _summary['entitlements'] as List<SalaryEntitlement>;
     } catch (e) {
-      debugPrint('Error: $e');
+      AppLogger.info('Error: $e', tag: 'APP');
       if (mounted) {
         ScaffoldMessenger.of(
           context,

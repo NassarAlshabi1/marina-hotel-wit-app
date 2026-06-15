@@ -14,6 +14,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../payments/booking_checkout_screen.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class FinanceScreen extends ConsumerStatefulWidget {
   const FinanceScreen({super.key});
@@ -947,10 +948,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         message: message.toString(),
       );
       if (result.quotaMessage != null) {
-        debugPrint('تجاوز حصة الواتساب: ${result.quotaMessage}');
+        AppLogger.info('تجاوز حصة الواتساب: ${result.quotaMessage}', tag: 'APP');
       }
     } catch (_) {
-      debugPrint('تعذّر إرسال إشعار واتساب للدفعة التراكمية');
+      AppLogger.info('تعذّر إرسال إشعار واتساب للدفعة التراكمية', tag: 'APP');
     }
   }
 }

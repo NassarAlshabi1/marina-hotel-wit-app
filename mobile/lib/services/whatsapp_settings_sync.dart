@@ -56,14 +56,14 @@ class WhatsAppSettingsSync {
         );
       }
 
-      debugPrint('WhatsApp settings uploaded to Appwrite successfully');
+      AppLogger.info('WhatsApp settings uploaded to Appwrite successfully', tag: 'APP');
       return (success: true, error: null);
     } on AppwriteException catch (e) {
       final msg = _parseAppwriteError(e);
-      debugPrint('WhatsApp settings upload failed: $msg');
+      AppLogger.info('WhatsApp settings upload failed: $msg', tag: 'APP');
       return (success: false, error: msg);
     } catch (e) {
-      debugPrint('WhatsApp settings upload error: $e');
+      AppLogger.info('WhatsApp settings upload error: $e', tag: 'APP');
       return (success: false, error: e.toString());
     }
   }
@@ -105,14 +105,14 @@ class WhatsAppSettingsSync {
         }
       }
 
-      debugPrint('WhatsApp settings downloaded from Appwrite successfully');
+      AppLogger.info('WhatsApp settings downloaded from Appwrite successfully', tag: 'APP');
       return (success: true, error: null, settings: saved);
     } on AppwriteException catch (e) {
       final msg = _parseAppwriteError(e);
-      debugPrint('WhatsApp settings download failed: $msg');
+      AppLogger.info('WhatsApp settings download failed: $msg', tag: 'APP');
       return (success: false, error: msg, settings: null);
     } catch (e) {
-      debugPrint('WhatsApp settings download error: $e');
+      AppLogger.info('WhatsApp settings download error: $e', tag: 'APP');
       return (success: false, error: e.toString(), settings: null);
     }
   }

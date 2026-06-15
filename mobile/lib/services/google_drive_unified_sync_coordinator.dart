@@ -160,7 +160,7 @@ class GoogleDriveUnifiedSyncCoordinator {
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('UnifiedSyncCoordinator', message);
-    debugPrint('[UnifiedSyncCoordinator] $message');
+    AppLogger.info('[UnifiedSyncCoordinator] $message', tag: 'APP');
     _logger?.log(message, level: level, tag: 'SYNC_COORD');
   }
 

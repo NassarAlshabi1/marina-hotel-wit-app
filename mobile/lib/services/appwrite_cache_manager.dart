@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'appwrite_config.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// نموذج عنصر الذاكرة المؤقتة
 class CacheEntry<T> {
@@ -207,7 +208,7 @@ class AppwriteCacheManager {
     _cleanupTimer = Timer.periodic(interval, (timer) {
       final removed = clearExpired();
       if (removed > 0 && kDebugMode) {
-        debugPrint('🧹 Cache cleanup: removed $removed expired entries');
+        AppLogger.info('🧹 Cache cleanup: removed $removed expired entries', tag: 'APP');
       }
     });
   }

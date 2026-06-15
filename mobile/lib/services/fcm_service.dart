@@ -38,7 +38,7 @@ class FcmService {
       // 3. الحصول على التوكن
       _currentToken = await _getToken();
       if (_currentToken != null) {
-        debugPrint('✅ FCM token obtained: ${_currentToken!.substring(0, 20)}...');
+        AppLogger.info('✅ FCM token obtained: ${_currentToken!.substring(0, 20)}...', tag: 'APP');
 
         // 4. حفظ التوكن في SharedPreferences
         final prefs = getSharedPrefs();
@@ -47,7 +47,7 @@ class FcmService {
 
       // 5. الاستماع لتغيير التوكن — حفظ الاشتراك لإلغائه عند التنظيف
       _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((newToken) async {
-        debugPrint('🔄 FCM token refreshed');
+        AppLogger.info('🔄 FCM token refreshed', tag: 'APP');
         _currentToken = newToken;
         final prefs = getSharedPrefs();
         await prefs.setString('fcm_token', newToken);
@@ -67,9 +67,9 @@ class FcmService {
       //    لتجنب تكرار الطلب
 
       _isInitialized = true;
-      debugPrint('✅ FCM Service initialized');
+      AppLogger.info('✅ FCM Service initialized', tag: 'APP');
     } catch (e) {
-      debugPrint('⚠️ FCM initialization error: $e');
+      AppLogger.warning('⚠️ FCM initialization error: $e', tag: 'APP');
       // لا نمنع التطبيق من العمل إذا فشل FCM
     }
   }
@@ -88,7 +88,7 @@ class FcmService {
     }
 
     final settings = await _messaging.getNotificationSettings();
-    debugPrint('📱 FCM notification settings: ${settings.authorizationStatus}');
+    AppLogger.info('📱 FCM notification settings: ${settings.authorizationStatus}', tag: 'APP');
   }
 
   /// الحصول على توكن FCM الحالي
@@ -106,7 +106,7 @@ class FcmService {
       }
       return token;
     } catch (e) {
-      debugPrint('⚠️ Failed to get FCM token: $e');
+      AppLogger.warning('⚠️ Failed to get FCM token: $e', tag: 'APP');
       return null;
     }
   }
@@ -115,20 +115,20 @@ class FcmService {
   void _setupMessageHandlers() {
     // --- رسالة في المقدمة (التطبيق مفتوح) ---
     _onMessageSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint('📩 FCM: foreground message received');
+      AppLogger.info('📩 FCM: foreground message received', tag: 'APP');
       _handleIncomingMessage(message);
     });
 
     // --- المستخدم ضغط على الإشعار ---
     _onMessageOpenedAppSubscription = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint('📩 FCM: notification tapped');
+      AppLogger.info('📩 FCM: notification tapped', tag: 'APP');
       _handleIncomingMessage(message);
     });
 
     // --- التطبيق فُتح من إشعار وهو كان مُغلق ---
     FirebaseMessaging.instance.getInitialMessage().then((message) {
       if (message != null) {
-        debugPrint('📩 FCM: opened from terminated state');
+        AppLogger.info('📩 FCM: opened from terminated state', tag: 'APP');
         _handleIncomingMessage(message);
       }
     });
@@ -141,7 +141,7 @@ class FcmService {
     // التحقق أن الرسالة من نظامنا
     final source = data['type'] ?? data['source'];
     if (source != 'marina_sync') {
-      debugPrint('📩 FCM: ignoring non-sync message ($source)');
+      AppLogger.info('📩 FCM: ignoring non-sync message ($source)', tag: 'APP');
       return;
     }
 
@@ -150,7 +150,7 @@ class FcmService {
     if (senderDeviceId != null) {
       _getMyDeviceId().then((myId) {
         if (myId == senderDeviceId) {
-          debugPrint('📩 FCM: ignoring message from same device');
+          AppLogger.info('📩 FCM: ignoring message from same device', tag: 'APP');
           return;
         }
         // تشغيل السحب من Appwrite
@@ -164,7 +164,7 @@ class FcmService {
 
   /// تشغيل سحب التغييرات من Appwrite
   Future<void> _triggerPull() async {
-    debugPrint('🔄 FCM: triggering pull from Appwrite...');
+    AppLogger.info('🔄 FCM: triggering pull from Appwrite...', tag: 'APP');
 
     // إشعار Realtime بانتظار تغييرات
     try {
@@ -180,10 +180,10 @@ class FcmService {
       final syncManager = _getSyncManager();
       if (syncManager != null) {
         await syncManager.sync(push: false);
-        debugPrint('✅ FCM: pull completed');
+        AppLogger.info('✅ FCM: pull completed', tag: 'APP');
       }
     } catch (e) {
-      debugPrint('⚠️ FCM: pull error: $e');
+      AppLogger.warning('⚠️ FCM: pull error: $e', tag: 'APP');
     }
   }
 
@@ -242,7 +242,7 @@ class FcmService {
     _onMessageOpenedAppSubscription = null;
     _currentToken = null;
     _isInitialized = false;
-    debugPrint('🛑 FCM Service disposed');
+    AppLogger.info('🛑 FCM Service disposed', tag: 'APP');
   }
 
   /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)

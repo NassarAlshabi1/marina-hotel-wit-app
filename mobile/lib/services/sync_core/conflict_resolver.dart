@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// استراتيجية حل التضارب
 enum ConflictStrategy { newerWins, devicePriority, manualResolve }
@@ -100,7 +101,7 @@ class ConflictResolver {
       }
     }
 
-    debugPrint('🔍 ConflictResolver: اكتشف ${conflicts.length} تضارب');
+    AppLogger.info('🔍 ConflictResolver: اكتشف ${conflicts.length} تضارب', tag: 'APP');
     return conflicts;
   }
 
@@ -133,9 +134,10 @@ class ConflictResolver {
       resolved[conflict.table]![conflict.uuid] = winner;
 
       final winnerType = winner == conflict.localData ? 'محلي' : 'بعيد';
-      debugPrint(
-        '✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType',
-      );
+      AppLogger.info(
+  '✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType',,
+  tag: 'APP',
+);
     }
 
     return resolved;
@@ -162,7 +164,7 @@ class ConflictResolver {
       case ConflictStrategy.manualResolve:
         // ✅ إصلاح: بدلاً من السقوط الصامت إلى newerWins، نُرجع البيانات المحلية
         // كإجراء آمن مع تسجيل الحاجة لمراجعة يدوية
-        debugPrint('⚠️ ConflictResolver: تعارض يحتاج مراجعة يدوية — تم الاحتفاظ بالبيانات المحلية كإجراء آمن: ${conflict.table}/${conflict.uuid}');
+        AppLogger.warning('⚠️ ConflictResolver: تعارض يحتاج مراجعة يدوية — تم الاحتفاظ بالبيانات المحلية كإجراء آمن: ${conflict.table}/${conflict.uuid}', tag: 'APP');
         return conflict.localData;
     }
   }
@@ -187,7 +189,7 @@ class ConflictResolver {
         return DateTime.fromMillisecondsSinceEpoch(timestamp);
       }
     } catch (e) {
-      debugPrint('⚠️ ConflictResolver: فشل تحليل timestamp: $e');
+      AppLogger.warning('⚠️ ConflictResolver: فشل تحليل timestamp: $e', tag: 'APP');
     }
 
     return null;

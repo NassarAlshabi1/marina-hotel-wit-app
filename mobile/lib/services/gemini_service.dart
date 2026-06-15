@@ -11,6 +11,7 @@ import '../utils/status_utils.dart';
 import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
 import 'price_adjustment_service.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 // ═══════════════════════════════════════════════════════════════
 //  أوامر AI
@@ -298,10 +299,10 @@ class GeminiService {
       _chat = _model!.startChat();
       _isInitialized = true;
       _lastError = null;
-      debugPrint('✅ تم تهيئة Gemini AI عبر Firebase AI Logic (ChatSession)');
+      AppLogger.info('✅ تم تهيئة Gemini AI عبر Firebase AI Logic (ChatSession)', tag: 'APP');
     } catch (e) {
-      debugPrint('⚠️ فشل تهيئة Gemini AI: $e');
-      debugPrint('ℹ️ تأكد من تفعيل AI Logic في Firebase Console');
+      AppLogger.warning('⚠️ فشل تهيئة Gemini AI: $e', tag: 'APP');
+      AppLogger.info('ℹ️ تأكد من تفعيل AI Logic في Firebase Console', tag: 'APP');
       _initError = _describeInitError(e);
       _lastError = _initError;
     }
@@ -1245,7 +1246,7 @@ class GeminiService {
       }
 
     } catch (e) {
-      debugPrint('⚠️ خطأ في بناء سياق الفندق: $e');
+      AppLogger.warning('⚠️ خطأ في بناء سياق الفندق: $e', tag: 'APP');
       s.writeln('(تعذر تحميل بعض البيانات: $e)');
     }
 
@@ -1275,7 +1276,7 @@ class GeminiService {
       final elapsed = DateTime.now().difference(_lastRequestTime!);
       if (elapsed < _minRequestInterval) {
         final waitTime = _minRequestInterval - elapsed;
-        debugPrint('⏳ انتظار ${waitTime.inSeconds + 1} ثانية قبل الطلب التالي...');
+        AppLogger.info('⏳ انتظار ${waitTime.inSeconds + 1} ثانية قبل الطلب التالي...', tag: 'APP');
         await Future<void>.delayed(waitTime);
       }
     }
@@ -1303,11 +1304,11 @@ class GeminiService {
       try {
         responseText = response.text ?? '';
       } on FirebaseAIException catch (e) {
-        debugPrint('⚠️ response.text رمى استثناء: $e');
+        AppLogger.warning('⚠️ response.text رمى استثناء: $e', tag: 'APP');
         // إذا كان الرد محظور بسبب السلامة — أعد المحاولة بدون سياق الفندق
         if (e.message.contains('SAFETY') ||
             e.message.contains('blocked')) {
-          debugPrint('⚠️ الرد محظور — إعادة المحاولة برسالة المستخدم فقط');
+          AppLogger.warning('⚠️ الرد محظور — إعادة المحاولة برسالة المستخدم فقط', tag: 'APP');
           try {
             final retryResponse = await _sendWithRetry(
               () => _chat!.sendMessage(Content.text(userMessage)),
@@ -1342,12 +1343,12 @@ class GeminiService {
             command is! AiNoActionCommand,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في Gemini: $e');
+      AppLogger.warning('❌ خطأ في Gemini: $e', tag: 'APP');
       _lastError = e.toString();
       // إعادة تعيين الجلسة عند خطأ في الأدوار
       final msg = e.toString();
       if (msg.contains('role') || msg.contains('alternat')) {
-        debugPrint('⚠️ إعادة تعيين الجلسة بسبب خطأ في الأدوار');
+        AppLogger.warning('⚠️ إعادة تعيين الجلسة بسبب خطأ في الأدوار', tag: 'APP');
         _chat = _model!.startChat();
       }
       return GeminiResponse(
@@ -1417,7 +1418,7 @@ class GeminiService {
         final jitterMs = (_random.nextDouble() * delay.inMilliseconds * 0.3).round();
         final actualDelay = Duration(milliseconds: delay.inMilliseconds + jitterMs);
 
-        debugPrint('⚠️ خطأ مؤقت — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...');
+        AppLogger.warning('⚠️ خطأ مؤقت — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...', tag: 'APP');
 
         await Future<void>.delayed(actualDelay);
 
@@ -1581,7 +1582,7 @@ class GeminiService {
             await BookingDerivedFieldsService(db)
                 .refreshForBookingId(booking.id, forceRebuild: true);
           } catch (e) {
-            debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
+            AppLogger.warning('⚠️ خطأ في إعادة حساب الحجز: $e', tag: 'APP');
           }
 
           final typeLabel =
@@ -1740,7 +1741,7 @@ class GeminiService {
             await BookingDerivedFieldsService(db)
                 .refreshForBookingId(activeBooking.id, forceRebuild: true);
           } catch (e) {
-            debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
+            AppLogger.warning('⚠️ خطأ في إعادة حساب الحجز: $e', tag: 'APP');
             result = 'فشل إعادة حساب الحجز $roomNumber: $e';
             break;
           }
@@ -1963,7 +1964,7 @@ class GeminiService {
 
       return '✅ $result';
     } catch (e) {
-      debugPrint('❌ خطأ في تنفيذ الأمر: $e');
+      AppLogger.warning('❌ خطأ في تنفيذ الأمر: $e', tag: 'APP');
       return '❌ فشل تنفيذ الأمر: $e';
     }
   }
@@ -2454,7 +2455,7 @@ class GeminiService {
           return 'نوع التقرير غير معروف: $reportType';
       }
     } catch (e) {
-      debugPrint('خطأ في توليد التقرير: $e');
+      AppLogger.warning('خطأ في توليد التقرير: $e', tag: 'APP');
       return 'فشل توليد التقرير: $e';
     }
   }

@@ -9,6 +9,7 @@ import '../../../../providers/appwrite_providers.dart' as ap;
 import '../../../../providers/repository_providers.dart';
 import '../../../../services/appwrite_cache_manager.dart';
 import '../../../../services/appwrite_config.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// Appwrite Sync Tab - إدارة المزامنة مع Appwrite
 class AppwriteSyncTab extends ConsumerStatefulWidget {
@@ -645,11 +646,11 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       final errors = stats['errors'] ?? 0;
 
       // طباعة النتائج في console
-      debugPrint('📊 نتيجة الرفع الشامل:');
-      debugPrint('   إجمالي السجلات: $totalRecords');
-      debugPrint('   الأخطاء: $errors');
+      AppLogger.info('📊 نتيجة الرفع الشامل:', tag: 'APP');
+      AppLogger.info('   إجمالي السجلات: $totalRecords', tag: 'APP');
+      AppLogger.info('   الأخطاء: $errors', tag: 'APP');
       for (final e in stats.entries) {
-        debugPrint('   ${e.key}: ${e.value}');
+        AppLogger.info('   ${e.key}: ${e.value}', tag: 'APP');
       }
 
       // إظهار النتائج
@@ -743,8 +744,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       Navigator.pop(context);
 
       // طباعة الخطأ في console
-      debugPrint('❌ خطأ في الرفع الشامل: $e');
-      debugPrint('Stack trace: $stackTrace');
+      AppLogger.warning('❌ خطأ في الرفع الشامل: $e', tag: 'APP');
+      AppLogger.info('Stack trace: $stackTrace', tag: 'APP');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -812,20 +813,26 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           .get()
           .then((l) => l.length);
 
-      debugPrint('📊 البيانات المحلية:');
-      debugPrint('   الغرف: $roomsCount');
-      debugPrint('   الحجوزات: $bookingsCount');
-      debugPrint('   المدفوعات: $paymentsCount');
+      AppLogger.info('📊 البيانات المحلية:', tag: 'APP');
+      AppLogger.info('   الغرف: $roomsCount', tag: 'APP');
+      AppLogger.info('   الحجوزات: $bookingsCount', tag: 'APP');
+      AppLogger.info('   المدفوعات: $paymentsCount', tag: 'APP');
 
       // فحص Appwrite
       await appwriteService.initialize();
       final isInitialized = appwriteService.isInitialized;
       final projectInfo = appwriteService.getProjectInfo();
 
-      debugPrint('🔌 حالة Appwrite:');
-      debugPrint('   مُهيأ: $isInitialized');
-      debugPrint('   Project ID: ${projectInfo['projectId']}');
-      debugPrint('   Database ID: ${projectInfo['databaseId']}');
+      AppLogger.info('🔌 حالة Appwrite:', tag: 'APP');
+      AppLogger.info('   مُهيأ: $isInitialized', tag: 'APP');
+      AppLogger.info(
+  '   Project ID: ${projectInfo['projectId']}',
+  tag: 'APP',
+);
+      AppLogger.info(
+  '   Database ID: ${projectInfo['databaseId']}',
+  tag: 'APP',
+);
 
       // اختبار رفع غرفة واحدة
       String? testResult;
@@ -856,16 +863,16 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             payload['deletedAt'] = room.deletedAt;
           }
 
-          debugPrint('📤 اختبار رفع غرفة ${room.roomNumber}...');
+          AppLogger.info('📤 اختبار رفع غرفة ${room.roomNumber}...', tag: 'APP');
 
           final doc = await appwriteService.upsertRoom(room.localUuid, payload);
           testResult =
               '✅ نجح رفع غرفة ${room.roomNumber}\nDocument ID: ${doc.$id}';
 
-          debugPrint('✅ نجح الاختبار!');
+          AppLogger.info('✅ نجح الاختبار!', tag: 'APP');
         } catch (e) {
           testResult = '❌ فشل رفع الغرفة:\n$e';
-          debugPrint('❌ خطأ في رفع الغرفة: $e');
+          AppLogger.warning('❌ خطأ في رفع الغرفة: $e', tag: 'APP');
         }
       }
 
@@ -929,8 +936,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       }
       Navigator.pop(context);
 
-      debugPrint('❌ خطأ في الاختبار التشخيصي: $e');
-      debugPrint('Stack trace: $stackTrace');
+      AppLogger.warning('❌ خطأ في الاختبار التشخيصي: $e', tag: 'APP');
+      AppLogger.info('Stack trace: $stackTrace', tag: 'APP');
 
       unawaited(showDialog<void>(
         context: context,

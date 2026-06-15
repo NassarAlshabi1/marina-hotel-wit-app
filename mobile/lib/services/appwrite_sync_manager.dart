@@ -39,6 +39,7 @@ import 'sync_enums.dart';
 import 'sync_mutex.dart';
 import 'sync_performance_optimizer.dart';
 import 'telegram/whatsapp_notification_service.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// حالة المزامنة
 enum SyncStatus { idle, syncing, success, failed, partial }
@@ -485,21 +486,22 @@ class AppwriteSyncManager {
           final resetCount = await outboxDao.retryFailedWithBackoff();
           if (resetCount == 0) return; // لا يوجد شيء لإعادة المحاولة
 
-          debugPrint(
-            '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $failedCount)',
-          );
+          AppLogger.info(
+  '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $failedCount)',,
+  tag: 'APP',
+);
 
           // محاولة رفعها فوراً
           final result = await sync(pull: false);
           if (result.status == SyncStatus.success) {
-            debugPrint('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
+            AppLogger.info('✅ نجحت إعادة محاولة رفع العناصر الفاشلة', tag: 'APP');
           }
         } catch (e) {
           _logger.warning('⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e', tag: 'SYNC');
         }
       },
     );
-    debugPrint('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
+    AppLogger.info('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)', tag: 'APP');
     
     // ─── مؤقت التنظيف التلقائي للـ Outbox القديم (كل 24 ساعة) ───
     _cleanupTimer?.cancel();

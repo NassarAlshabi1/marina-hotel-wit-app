@@ -6,6 +6,7 @@ import '../services/lark/lark_api_client.dart';
 import '../services/lark/lark_config.dart';
 import '../services/lark/lark_notification_service.dart';
 import '../services/lark/lark_report_service.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// حالة Lark في الواجهة
 enum LarkSetupStatus {
@@ -115,7 +116,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
         hasValidToken: hasToken,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تهيئة LarkNotifier: $e');
+      AppLogger.warning('❌ خطأ في تهيئة LarkNotifier: $e', tag: 'APP');
     }
   }
 
@@ -279,7 +280,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
     try {
       return await _reports.sendDailyReport();
     } catch (e) {
-      debugPrint('❌ خطأ في إرسال التقرير اليومي: $e');
+      AppLogger.warning('❌ خطأ في إرسال التقرير اليومي: $e', tag: 'APP');
       return false;
     }
   }
@@ -308,7 +309,7 @@ class LarkNotifier extends StateNotifier<LarkState> {
     final prefs = getSharedPrefs();
     await prefs.remove('lark_last_report_sent');
     state = state.copyWith();
-    debugPrint('🔄 Lark: تم مسح حالة آخر تقرير');
+    AppLogger.info('🔄 Lark: تم مسح حالة آخر تقرير', tag: 'APP');
   }
 }
 

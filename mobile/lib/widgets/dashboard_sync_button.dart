@@ -11,6 +11,7 @@ import '../services/appwrite_realtime_sync.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
 import '../services/sync_core/conflict_resolver.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
@@ -60,7 +61,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
         });
       }
     } catch (e) {
-      debugPrint('❌ خطأ في تحميل عدد التغييرات المعلقة: $e');
+      AppLogger.warning('❌ خطأ في تحميل عدد التغييرات المعلقة: $e', tag: 'APP');
     }
   }
 
@@ -78,7 +79,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
         _appwriteEnabled = enabled;
       }
     } catch (e) {
-      debugPrint('❌ خطأ في تحميل حالة Appwrite: $e');
+      AppLogger.warning('❌ خطأ في تحميل حالة Appwrite: $e', tag: 'APP');
       // في حالة الخطأ — نفترض مفعّل (احتياطي)
       if (mounted) {
         setState(() => _appwriteEnabled = true);
@@ -256,7 +257,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
         );
       }
     } catch (e) {
-      debugPrint('❌ خطأ في سحب التغييرات: $e');
+      AppLogger.warning('❌ خطأ في سحب التغييرات: $e', tag: 'APP');
 
       // ✅ تسجيل فشل العملية
       stopwatch.stop();
@@ -463,7 +464,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
             'pushed': 0,
             'error': e.toString(),
           };
-          debugPrint('❌ خطأ في رفع التغييرات إلى Appwrite: $e');
+          AppLogger.warning('❌ خطأ في رفع التغييرات إلى Appwrite: $e', tag: 'APP');
         }
       }
 
@@ -481,7 +482,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
             'pushed': 0,
             'error': e.toString(),
           };
-          debugPrint('❌ خطأ في رفع التغييرات إلى Google Drive: $e');
+          AppLogger.warning('❌ خطأ في رفع التغييرات إلى Google Drive: $e', tag: 'APP');
         }
       }
 
@@ -615,7 +616,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
 
       ref.invalidate(smartSyncStatusProvider);
     } catch (e) {
-      debugPrint('❌ فشل رفع التغييرات: $e');
+      AppLogger.warning('❌ فشل رفع التغييرات: $e', tag: 'APP');
 
       // ✅ تسجيل فشل العملية
       stopwatch.stop();
@@ -713,16 +714,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
           }
           return false;
         } catch (e) {
-          debugPrint('❌ خطأ في حل تعارض ${conflict.uuid}: $e');
+          AppLogger.warning('❌ خطأ في حل تعارض ${conflict.uuid}: $e', tag: 'APP');
           return false;
         }
       }),);
       resolvedCount = resolveResults.where((r) => r).length;
 
-      debugPrint('✅ تم حل $resolvedCount تعارض');
+      AppLogger.info('✅ تم حل $resolvedCount تعارض', tag: 'APP');
       return resolvedCount;
     } catch (e) {
-      debugPrint('❌ خطأ في حل التعارضات: $e');
+      AppLogger.warning('❌ خطأ في حل التعارضات: $e', tag: 'APP');
       return 0;
     }
   }

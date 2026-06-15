@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import 'smart_sync_manager.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// مُعلِم المزامنة الفورية - يتلقى إشعارات من الأجهزة الأخرى
 class RealtimeSyncNotifier {
@@ -32,7 +33,7 @@ class RealtimeSyncNotifier {
 
     _pollingTimer = Timer.periodic(_pollingInterval, (_) => _checkForNewSync());
 
-    debugPrint('🔔 بدء الاستماع لإشعارات المزامنة');
+    AppLogger.info('🔔 بدء الاستماع لإشعارات المزامنة', tag: 'APP');
   }
 
   /// إيقاف الاستماع
@@ -41,7 +42,7 @@ class RealtimeSyncNotifier {
     _pollingTimer = null;
     _isListening = false;
 
-    debugPrint('🔕 إيقاف الاستماع لإشعارات المزامنة');
+    AppLogger.info('🔕 إيقاف الاستماع لإشعارات المزامنة', tag: 'APP');
   }
 
   /// التحقق من وجود مزامنة جديدة
@@ -70,10 +71,10 @@ class RealtimeSyncNotifier {
 
         _syncTriggerController.add(trigger);
         await _saveLastProcessedSyncId(syncId);
-        debugPrint('🔔 تم اكتشاف تغييرات جديدة');
+        AppLogger.info('🔔 تم اكتشاف تغييرات جديدة', tag: 'APP');
       }
     } catch (e) {
-      debugPrint('❌ خطأ في التحقق من المزامنة الجديدة: $e');
+      AppLogger.warning('❌ خطأ في التحقق من المزامنة الجديدة: $e', tag: 'APP');
     }
   }
 
@@ -91,9 +92,9 @@ class RealtimeSyncNotifier {
         'timestamp': DateTime.now().toUtc().toIso8601String(),
       };
 
-      debugPrint('📤 إرسال إشعار للأجهزة الأخرى: $syncId');
+      AppLogger.info('📤 إرسال إشعار للأجهزة الأخرى: $syncId', tag: 'APP');
     } catch (e) {
-      debugPrint('⚠️ فشل إرسال الإشعار: $e');
+      AppLogger.warning('⚠️ فشل إرسال الإشعار: $e', tag: 'APP');
     }
   }
 

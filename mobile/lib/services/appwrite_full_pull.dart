@@ -1,3 +1,4 @@
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:appwrite/appwrite.dart';
 import 'package:sqlite3/sqlite3.dart' show SqliteException;
 

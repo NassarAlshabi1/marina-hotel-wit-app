@@ -16,6 +16,7 @@ import 'logging/log_models.dart';
 import 'sync_constants.dart';
 import 'sync_locks.dart';
 import 'unified_sync_orchestrator.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class RetryConfig {
 
@@ -137,7 +138,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('AutoSyncEngine', message);
-    debugPrint('[AutoSyncEngine] $message');
+    AppLogger.info('[AutoSyncEngine] $message', tag: 'APP');
     _logger?.log(message, level: level, tag: 'AUTO_SYNC');
   }
 

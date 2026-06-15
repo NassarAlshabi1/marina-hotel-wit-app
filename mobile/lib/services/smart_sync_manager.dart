@@ -17,6 +17,7 @@ import 'sync_constants.dart';
 import 'sync_locks.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// استراتيجيات حل التضارب
 enum ConflictResolution {
@@ -45,7 +46,10 @@ class SmartSyncManager {
 
   void _log(String message) {
     DebugLogs.add('SmartSync', message);
-    debugPrint(message);
+    AppLogger.info(
+  message,
+  tag: 'APP',
+);
   }
 
   static const String _prefsEnabledKey = 'smart_sync_enabled';

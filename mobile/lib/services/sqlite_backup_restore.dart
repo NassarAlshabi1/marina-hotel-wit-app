@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// File-based SQLite backup/restore utilities.
 ///
@@ -55,9 +56,10 @@ class SqliteBackupRestore {
           }
           return documentsTarget;
         } catch (e) {
-          debugPrint(
-            '⚠️ Failed to access default backup dir, falling back: $e',
-          );
+          AppLogger.warning(
+  '⚠️ Failed to access default backup dir, falling back: $e',,
+  tag: 'APP',
+);
         }
         final fallbackDirs = await getExternalStorageDirectories(
           type: StorageDirectory.documents,
@@ -79,7 +81,7 @@ class SqliteBackupRestore {
         dir = downloadsDir ?? await getApplicationDocumentsDirectory();
       }
     } catch (e) {
-      debugPrint('⚠️ Failed to resolve user dir, falling back to app docs: $e');
+      AppLogger.warning('⚠️ Failed to resolve user dir, falling back to app docs: $e', tag: 'APP');
     }
 
     dir ??= await getApplicationDocumentsDirectory();
@@ -107,10 +109,10 @@ class SqliteBackupRestore {
 
       await srcFile.copy(destPath);
 
-      debugPrint('✅ SQLite backup created at: $destPath');
+      AppLogger.info('✅ SQLite backup created at: $destPath', tag: 'APP');
       return destPath;
     } catch (e, st) {
-      debugPrint('❌ Failed to backup database: $e\n$st');
+      AppLogger.error('❌ Failed to backup database: $e\n$st', tag: 'APP');
       rethrow;
     }
   }
@@ -139,25 +141,26 @@ class SqliteBackupRestore {
       }
       
       if (!dstFile.existsSync() || validationError != null) {
-        debugPrint(
-          '🔄 استرجاع من pre_restore: DB الحالي غير صالح ($validationError)',
-        );
+        AppLogger.info(
+  '🔄 استرجاع من pre_restore: DB الحالي غير صالح ($validationError)',,
+  tag: 'APP',
+);
         // حذف DB التالف إن وجد
         if (dstFile.existsSync()) {
           await dstFile.delete();
         }
         // استعادة من pre_restore
         await preRestoreFile.rename(dstPath);
-        debugPrint('✅ تم استرجاع DB من النسخة الاحتياطية (pre_restore)');
+        AppLogger.info('✅ تم استرجاع DB من النسخة الاحتياطية (pre_restore)', tag: 'APP');
         return true;
       }
       
       // DB الحالي سليم — نحذف pre_restore
       await preRestoreFile.delete();
-      debugPrint('🧹 تم حذف pre_restore (DB الحالي سليم)');
+      AppLogger.info('🧹 تم حذف pre_restore (DB الحالي سليم)', tag: 'APP');
       return false;
     } catch (e, st) {
-      debugPrint('❌ فشل استرجاع pre_restore: $e\n$st');
+      AppLogger.warning('❌ فشل استرجاع pre_restore: $e\n$st', tag: 'APP');
       return false;
     }
   }
@@ -285,9 +288,9 @@ class SqliteBackupRestore {
         await DatabaseManager.reopen();
       }
 
-      debugPrint('✅ SQLite database restored from: $sourcePath');
+      AppLogger.info('✅ SQLite database restored from: $sourcePath', tag: 'APP');
     } catch (e, st) {
-      debugPrint('❌ Failed to restore database: $e\n$st');
+      AppLogger.error('❌ Failed to restore database: $e\n$st', tag: 'APP');
       rethrow;
     }
   }

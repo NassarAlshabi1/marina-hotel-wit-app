@@ -10,6 +10,7 @@ import 'dart:async';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// نتيجة معالجة PDF
 class PdfResult {
@@ -103,7 +104,7 @@ class IsolatePdfHelper {
         },
       );
     } catch (e, st) {
-      debugPrint('❌ IsolatePdfHelper.generateInIsolate failed: $e\n$st');
+      AppLogger.error('❌ IsolatePdfHelper.generateInIsolate failed: $e\n$st', tag: 'APP');
       return PdfResult(
         success: false,
         errorMessage: e.toString(),

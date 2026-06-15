@@ -3,6 +3,7 @@ import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import 'database_fixer.dart';
 import 'database_health_monitor.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// نظام التشغيل التلقائي لفحص صحة قاعدة البيانات
 class DatabaseHealthTriggers {
@@ -13,7 +14,7 @@ class DatabaseHealthTriggers {
 
   /// فحص عند إقلاع التطبيق
   Future<HealthReport?> onAppLaunch({bool quickScan = true}) async {
-    debugPrint('🏥 [HealthTrigger] Running app launch scan...');
+    AppLogger.info('🏥 [HealthTrigger] Running app launch scan...', tag: 'APP');
 
     try {
       final prefs = getSharedPrefs();
@@ -23,9 +24,10 @@ class DatabaseHealthTriggers {
       final hoursSinceLastScan = (now - lastScan) / 3600;
 
       if (hoursSinceLastScan < 6) {
-        debugPrint(
-          '🏥 [HealthTrigger] Skipped (scanned ${hoursSinceLastScan.toStringAsFixed(1)}h ago)',
-        );
+        AppLogger.info(
+  '🏥 [HealthTrigger] Skipped (scanned ${hoursSinceLastScan.toStringAsFixed(1)}h ago)',,
+  tag: 'APP',
+);
         return null;
       }
 
@@ -36,72 +38,73 @@ class DatabaseHealthTriggers {
       await prefs.setInt('health_last_scan', now);
 
       if (report.isCritical) {
-        debugPrint('❌ [HealthTrigger] CRITICAL health detected!');
+        AppLogger.error('❌ [HealthTrigger] CRITICAL health detected!', tag: 'APP');
         await _notifyCriticalHealth(report);
       } else if (!report.isHealthy) {
-        debugPrint('⚠️ [HealthTrigger] Health issues detected');
+        AppLogger.warning('⚠️ [HealthTrigger] Health issues detected', tag: 'APP');
       } else {
-        debugPrint('✅ [HealthTrigger] Database is healthy');
+        AppLogger.info('✅ [HealthTrigger] Database is healthy', tag: 'APP');
       }
 
       return report;
     } catch (e) {
-      debugPrint('❌ [HealthTrigger] Error: $e');
+      AppLogger.error('❌ [HealthTrigger] Error: $e', tag: 'APP');
       return null;
     }
   }
 
   /// فحص قبل المزامنة
   Future<bool> preSyncValidation() async {
-    debugPrint('🔄 [HealthTrigger] Pre-sync validation...');
+    AppLogger.info('🔄 [HealthTrigger] Pre-sync validation...', tag: 'APP');
 
     try {
       final report = await monitor.quickScan();
 
       if (report.isCritical) {
-        debugPrint('❌ [HealthTrigger] CRITICAL - sync blocked');
+        AppLogger.error('❌ [HealthTrigger] CRITICAL - sync blocked', tag: 'APP');
         return false;
       }
 
       if (report.totalIssues > 0) {
-        debugPrint('⚠️ [HealthTrigger] ${report.totalIssues} issues found');
+        AppLogger.warning('⚠️ [HealthTrigger] ${report.totalIssues} issues found', tag: 'APP');
 
         final prefs = getSharedPrefs();
         final autoFix = prefs.getBool('health_auto_fix_before_sync') ?? false;
 
         if (autoFix) {
-          debugPrint('🔧 [HealthTrigger] Auto-fixing...');
+          AppLogger.info('🔧 [HealthTrigger] Auto-fixing...', tag: 'APP');
           final fixResult = await fixer.fixAllIssues();
-          debugPrint('✅ [HealthTrigger] Fixed ${fixResult.totalFixed} issues');
+          AppLogger.info('✅ [HealthTrigger] Fixed ${fixResult.totalFixed} issues', tag: 'APP');
         }
       }
 
       return true;
     } catch (e) {
-      debugPrint('❌ [HealthTrigger] Validation failed: $e');
+      AppLogger.error('❌ [HealthTrigger] Validation failed: $e', tag: 'APP');
       return false;
     }
   }
 
   /// فحص بعد استعادة النسخة الاحتياطية
   Future<HealthReport> postRestoreScan() async {
-    debugPrint('📥 [HealthTrigger] Post-restore scan...');
+    AppLogger.info('📥 [HealthTrigger] Post-restore scan...', tag: 'APP');
 
     try {
       final report = await monitor.deepScan();
 
       if (report.hasIssues) {
-        debugPrint(
-          '⚠️ [HealthTrigger] ${report.totalIssues} issues after restore',
-        );
+        AppLogger.warning(
+  '⚠️ [HealthTrigger] ${report.totalIssues} issues after restore',,
+  tag: 'APP',
+);
 
         final prefs = getSharedPrefs();
         final autoFix = prefs.getBool('health_auto_fix_after_restore') ?? true;
 
         if (autoFix) {
-          debugPrint('🔧 [HealthTrigger] Auto-fixing after restore...');
+          AppLogger.info('🔧 [HealthTrigger] Auto-fixing after restore...', tag: 'APP');
           final fixResult = await fixer.fixAllIssues();
-          debugPrint('✅ [HealthTrigger] Fixed ${fixResult.totalFixed} issues');
+          AppLogger.info('✅ [HealthTrigger] Fixed ${fixResult.totalFixed} issues', tag: 'APP');
 
           return await monitor.quickScan();
         }
@@ -109,16 +112,17 @@ class DatabaseHealthTriggers {
 
       return report;
     } catch (e) {
-      debugPrint('❌ [HealthTrigger] Post-restore scan failed: $e');
+      AppLogger.error('❌ [HealthTrigger] Post-restore scan failed: $e', tag: 'APP');
       return HealthReport.error(e.toString());
     }
   }
 
   /// فحص مجدول (يومي)
   Future<void> scheduledDailyScan({required TimeOfDay time}) async {
-    debugPrint(
-      '⏰ [HealthTrigger] Scheduled scan at ${time.hour}:${time.minute}',
-    );
+    AppLogger.info(
+  '⏰ [HealthTrigger] Scheduled scan at ${time.hour}:${time.minute}',,
+  tag: 'APP',
+);
 
     try {
       final report = await monitor.deepScan();
@@ -133,27 +137,28 @@ class DatabaseHealthTriggers {
         final autoFix = prefs.getBool('health_auto_fix_scheduled') ?? false;
 
         if (autoFix && report.totalIssues <= 20) {
-          debugPrint('🔧 [HealthTrigger] Auto-fixing scheduled issues...');
+          AppLogger.info('🔧 [HealthTrigger] Auto-fixing scheduled issues...', tag: 'APP');
           await fixer.fixAllIssues();
         } else {
           await _notifyIssuesFound(report);
         }
       }
     } catch (e) {
-      debugPrint('❌ [HealthTrigger] Scheduled scan failed: $e');
+      AppLogger.error('❌ [HealthTrigger] Scheduled scan failed: $e', tag: 'APP');
     }
   }
 
   /// تنبيه صحة حرجة
   Future<void> _notifyCriticalHealth(HealthReport report) async {
-    debugPrint('🔔 [HealthTrigger] Sending critical notification');
+    AppLogger.info('🔔 [HealthTrigger] Sending critical notification', tag: 'APP');
   }
 
   /// تنبيه مشاكل مكتشفة
   Future<void> _notifyIssuesFound(HealthReport report) async {
-    debugPrint(
-      '🔔 [HealthTrigger] Sending issues notification: ${report.totalIssues} issues',
-    );
+    AppLogger.info(
+  '🔔 [HealthTrigger] Sending issues notification: ${report.totalIssues} issues',,
+  tag: 'APP',
+);
   }
 }
 

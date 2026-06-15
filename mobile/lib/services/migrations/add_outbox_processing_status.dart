@@ -1,35 +1,36 @@
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class AddOutboxProcessingStatusMigration {
   static Future<void> migrate(DatabaseConnectionUser db) async {
     try {
-      debugPrint('🔄 Running migration: add_outbox_processing_status');
+      AppLogger.info('🔄 Running migration: add_outbox_processing_status', tag: 'APP');
 
       await db.customStatement(
         'ALTER TABLE outbox ADD COLUMN processing_status TEXT DEFAULT "pending" NOT NULL',
       );
-      debugPrint('✅ Added processing_status column');
+      AppLogger.info('✅ Added processing_status column', tag: 'APP');
 
       await db.customStatement(
         'ALTER TABLE outbox ADD COLUMN processing_started_at INTEGER',
       );
-      debugPrint('✅ Added processing_started_at column');
+      AppLogger.info('✅ Added processing_started_at column', tag: 'APP');
 
       await db.customStatement(
         'ALTER TABLE outbox ADD COLUMN processing_worker TEXT',
       );
-      debugPrint('✅ Added processing_worker column');
+      AppLogger.info('✅ Added processing_worker column', tag: 'APP');
 
       await db.customStatement(
         'CREATE INDEX IF NOT EXISTS idx_outbox_processing_status ON outbox(processing_status)',
       );
-      debugPrint('✅ Created index on processing_status');
+      AppLogger.info('✅ Created index on processing_status', tag: 'APP');
 
-      debugPrint('✅ Migration completed successfully');
+      AppLogger.info('✅ Migration completed successfully', tag: 'APP');
     } catch (e, stackTrace) {
-      debugPrint('❌ Migration failed: $e');
-      debugPrint('Stack trace: $stackTrace');
+      AppLogger.error('❌ Migration failed: $e', tag: 'APP');
+      AppLogger.info('Stack trace: $stackTrace', tag: 'APP');
       rethrow;
     }
   }

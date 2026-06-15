@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum CircuitState { closed, open, halfOpen }
 
@@ -71,10 +72,10 @@ class CircuitBreaker {
     try {
       return await execute(operation);
     } on CircuitBreakerOpenException catch (e) {
-      debugPrint('⚠️ [CircuitBreaker] $e');
+      AppLogger.warning('⚠️ [CircuitBreaker] $e', tag: 'APP');
       return defaultValue;
     } catch (e) {
-      debugPrint('❌ [CircuitBreaker] خطأ: $e');
+      AppLogger.warning('❌ [CircuitBreaker] خطأ: $e', tag: 'APP');
       return defaultValue;
     }
   }
@@ -84,9 +85,10 @@ class CircuitBreaker {
 
     if (_state == CircuitState.halfOpen) {
       _successCount++;
-      debugPrint(
-        '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}',
-      );
+      AppLogger.info(
+  '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}',,
+  tag: 'APP',
+);
 
       if (_successCount >= config.successThreshold) {
         _transitionTo(CircuitState.closed);
@@ -100,9 +102,10 @@ class CircuitBreaker {
     _lastFailureTime = DateTime.now();
     _successCount = 0;
 
-    debugPrint(
-      '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}',
-    );
+    AppLogger.warning(
+  '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}',,
+  tag: 'APP',
+);
 
     if (_state == CircuitState.halfOpen) {
       _transitionTo(CircuitState.open);
@@ -128,7 +131,7 @@ class CircuitBreaker {
     final oldState = _state;
     _state = newState;
 
-    debugPrint('🔄 [CircuitBreaker] [$name] $oldState → $newState');
+    AppLogger.info('🔄 [CircuitBreaker] [$name] $oldState → $newState', tag: 'APP');
 
     _stateController.add(newState);
 
@@ -145,7 +148,7 @@ class CircuitBreaker {
     _cancelReset();
     _resetTimer = Timer(config.resetTimeout, () {
       if (_state == CircuitState.open) {
-        debugPrint('⏰ [CircuitBreaker] [$name] محاولة إعادة الفتح تلقائيًا');
+        AppLogger.info('⏰ [CircuitBreaker] [$name] محاولة إعادة الفتح تلقائيًا', tag: 'APP');
         _transitionTo(CircuitState.halfOpen);
       }
     });
@@ -157,7 +160,7 @@ class CircuitBreaker {
   }
 
   void reset() {
-    debugPrint('🔄 [CircuitBreaker] [$name] إعادة تعيين يدوية');
+    AppLogger.info('🔄 [CircuitBreaker] [$name] إعادة تعيين يدوية', tag: 'APP');
     _failureCount = 0;
     _successCount = 0;
     _lastFailureTime = null;

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import '../local_db.dart';
 import 'recalculate_booking_nights.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// Script لإعادة حساب عدد الليالي والحقول المشتقة لجميع الحجوزات
 /// بناءً على التواريخ الفعلية
@@ -19,17 +20,17 @@ import 'recalculate_booking_nights.dart';
 /// dart run lib/services/migrations/run_recalculate_nights.dart
 /// ```
 Future<void> main() async {
-  debugPrint('🚀 Starting Booking Nights Recalculation Migration');
-  debugPrint('=' * 80);
-  debugPrint('⚠️  WARNING: Ensure the main application is NOT running!');
-  debugPrint('=' * 80);
-  debugPrint('هذه العملية ستقوم بـ:');
-  debugPrint('1. قراءة جميع الحجوزات النشطة');
-  debugPrint('2. إعادة حساب عدد الليالي من تاريخ الدخول حتى الآن');
-  debugPrint('3. إعادة حساب المبالغ المستحقة والمدفوعة');
-  debugPrint('4. تحديث booking_nights لكل حجز');
-  debugPrint('=' * 80);
-  debugPrint('');
+  AppLogger.info('🚀 Starting Booking Nights Recalculation Migration', tag: 'APP');
+  AppLogger.info('=' * 80);
+  AppLogger.info('⚠️  WARNING: Ensure the main application is NOT running!');
+  AppLogger.info('=' * 80);
+  AppLogger.info('هذه العملية ستقوم بـ:');
+  AppLogger.info('1. قراءة جميع الحجوزات النشطة', tag: 'APP');
+  AppLogger.info('2. إعادة حساب عدد الليالي من تاريخ الدخول حتى الآن', tag: 'APP');
+  AppLogger.info('3. إعادة حساب المبالغ المستحقة والمدفوعة', tag: 'APP');
+  AppLogger.info('4. تحديث booking_nights لكل حجز', tag: 'APP');
+  AppLogger.info('=' * 80);
+  AppLogger.info('');
 
   // إنشاء database connection
   final db = DatabaseManager.instance;
@@ -40,7 +41,10 @@ Future<void> main() async {
     final report = await migration.executeWithReport();
 
     // طباعة التقرير
-    debugPrint(report.toString());
+    AppLogger.info(
+  report.toString(),
+  tag: 'APP',
+);
 
     // حفظ التقرير في ملف JSON
     final reportFile = File(
@@ -49,15 +53,21 @@ Future<void> main() async {
     await reportFile.writeAsString(
       const JsonEncoder.withIndent('  ').convert(report.toJson()),
     );
-    debugPrint('\n📄 Report saved to: ${reportFile.path}');
+    AppLogger.info('\n📄 Report saved to: ${reportFile.path}', tag: 'APP');
 
     // Exit code
     exit(report.success ? 0 : 1);
   } catch (e, stackTrace) {
-    debugPrint('\n❌ Migration failed with error:');
-    debugPrint(e.toString());
-    debugPrint('\nStack trace:');
-    debugPrint(stackTrace.toString());
+    AppLogger.error('\n❌ Migration failed with error:', tag: 'APP');
+    AppLogger.info(
+  e.toString(),
+  tag: 'APP',
+);
+    AppLogger.info('\nStack trace:', tag: 'APP');
+    AppLogger.info(
+  stackTrace.toString(),
+  tag: 'APP',
+);
     exit(1);
   } finally {
     // NOTE: We let the process exit clean up the database connection
@@ -68,6 +78,6 @@ Future<void> main() async {
     // await DatabaseManager.close(); // NOT closeForRestore
     //
     // However, for standalone scripts, process exit is sufficient.
-    debugPrint('✅ Migration script completed');
+    AppLogger.info('✅ Migration script completed', tag: 'APP');
   }
 }

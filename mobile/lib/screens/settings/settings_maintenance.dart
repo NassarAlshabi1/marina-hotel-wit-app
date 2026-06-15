@@ -18,6 +18,7 @@ import '../../services/google_drive_auto_sync_engine.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_guardian.dart';
 import '../../services/sync_orchestrator.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class SettingsMaintenanceScreen extends ConsumerStatefulWidget {
   const SettingsMaintenanceScreen({super.key});
@@ -130,7 +131,7 @@ class _SettingsMaintenanceScreenState
         });
       }
     } catch (e) {
-      debugPrint('⚠️ SettingsMaintenance: فشل تحميل معلومات النظام: $e');
+      AppLogger.warning('⚠️ SettingsMaintenance: فشل تحميل معلومات النظام: $e', tag: 'APP');
     } finally {
       if (mounted) {
         setState(() => _isLoadingInfo = false);

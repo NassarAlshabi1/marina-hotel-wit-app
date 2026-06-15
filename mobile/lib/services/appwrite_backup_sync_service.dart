@@ -9,6 +9,7 @@ import 'appwrite_backup_endpoints_manager.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// عملية احتياطية — تستخدم لإرسال دفعة
 class BackupOperation {
@@ -979,7 +980,7 @@ class AppwriteBackupSyncService {
       );
       return true;
     } catch (e) {
-      debugPrint('❌ Backup endpoint test failed: $e');
+      AppLogger.error('❌ Backup endpoint test failed: $e', tag: 'APP');
       return false;
     }
   }

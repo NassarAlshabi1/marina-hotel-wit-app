@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'logging/log_models.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 export 'logging/log_models.dart';
 
@@ -50,7 +51,7 @@ class AppwriteLogger {
           'appwrite_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
       _logFile = File('${logsDir.path}/$fileName');
     } catch (e) {
-      debugPrint('Error initializing log file: $e');
+      AppLogger.info('Error initializing log file: $e', tag: 'APP');
     }
   }
 
@@ -94,7 +95,7 @@ class AppwriteLogger {
   /// طباعة إلى Console
   void _printToConsole(LogEntry entry) {
     final emoji = _getEmojiForLevel(entry.level);
-    debugPrint('$emoji ${entry.toFormattedString()}');
+    AppLogger.info('$emoji ${entry.toFormattedString()}', tag: 'APP');
   }
 
   /// كتابة إلى الملف
@@ -105,7 +106,7 @@ class AppwriteLogger {
         mode: FileMode.append,
       );
     } catch (e) {
-      debugPrint('Error writing to log file: $e');
+      AppLogger.info('Error writing to log file: $e', tag: 'APP');
     }
   }
 

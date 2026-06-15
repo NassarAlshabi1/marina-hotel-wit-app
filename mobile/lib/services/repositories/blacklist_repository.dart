@@ -7,6 +7,7 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 String _normalizeArabic(String input) {
   var s = input.trim();
@@ -93,7 +94,7 @@ class BlacklistRepository {
     Map<String, dynamic> payload = const {};
     try {
       payload = jsonDecode(row.content) as Map<String, dynamic>;
-    } catch (e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
+    } catch (e) { AppLogger.info('WARN: Failed to parse blacklist JSON: $e', tag: 'APP'); }
     return BlacklistEntry(
       id: row.id,
       name: row.title,
@@ -203,7 +204,7 @@ class BlacklistRepository {
     Map<String, dynamic> payload = const {};
     try {
       payload = jsonDecode(row.content) as Map<String, dynamic>;
-    } catch (e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
+    } catch (e) { AppLogger.info('WARN: Failed to parse blacklist JSON: $e', tag: 'APP'); }
     payload['active'] = active;
     final now = Time.nowEpoch();
     final updated =

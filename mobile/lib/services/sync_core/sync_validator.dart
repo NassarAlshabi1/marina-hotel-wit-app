@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class ValidationResult {
 
@@ -133,14 +134,14 @@ class SyncValidator {
 
   void logValidationResult(String context, ValidationResult result) {
     if (result.isValid) {
-      debugPrint('✅ [Validation] $context: صالح');
+      AppLogger.info('✅ [Validation] $context: صالح', tag: 'APP');
       if (result.warnings.isNotEmpty) {
         for (final warning in result.warnings) {
-          debugPrint('⚠️ [Validation] تحذير: $warning');
+          AppLogger.warning('⚠️ [Validation] تحذير: $warning', tag: 'APP');
         }
       }
     } else {
-      debugPrint('❌ [Validation] $context: غير صالح - ${result.error}');
+      AppLogger.error('❌ [Validation] $context: غير صالح - ${result.error}', tag: 'APP');
     }
   }
 }

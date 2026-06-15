@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:uuid/uuid.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// نوع الحدث
 enum SyncEventType {
@@ -193,7 +194,7 @@ class SyncMonitoringSystem {
     await _loadHistoricalData();
     await _cleanupOldStoredEvents();
     _startHealthChecks();
-    debugPrint('📊 SyncMonitoringSystem: تم التهيئة');
+    AppLogger.info('📊 SyncMonitoringSystem: تم التهيئة', tag: 'APP');
   }
 
   /// تسجيل بداية المزامنة
@@ -458,7 +459,7 @@ class SyncMonitoringSystem {
 
       await prefs.setStringList(key, existing);
     } catch (e) {
-      debugPrint('⚠️ SyncMonitoringSystem: فشل حفظ الحدث: $e');
+      AppLogger.warning('⚠️ SyncMonitoringSystem: فشل حفظ الحدث: $e', tag: 'APP');
     }
   }
 
@@ -475,9 +476,9 @@ class SyncMonitoringSystem {
         _events.add(event);
       }
 
-      debugPrint('📊 SyncMonitoringSystem: تم تحميل ${_events.length} حدث');
+      AppLogger.info('📊 SyncMonitoringSystem: تم تحميل ${_events.length} حدث', tag: 'APP');
     } catch (e) {
-      debugPrint('⚠️ SyncMonitoringSystem: فشل تحميل البيانات: $e');
+      AppLogger.warning('⚠️ SyncMonitoringSystem: فشل تحميل البيانات: $e', tag: 'APP');
     }
   }
 
@@ -501,12 +502,13 @@ class SyncMonitoringSystem {
       }
 
       if (removedCount > 0) {
-        debugPrint(
-          '🗑️ SyncMonitoringSystem: تم حذف $removedCount سجل قديم (أقدم من $keepDays أيام)',
-        );
+        AppLogger.info(
+  '🗑️ SyncMonitoringSystem: تم حذف $removedCount سجل قديم (أقدم من $keepDays أيام)',,
+  tag: 'APP',
+);
       }
     } catch (e) {
-      debugPrint('⚠️ SyncMonitoringSystem: فشل تنظيف السجلات القديمة: $e');
+      AppLogger.warning('⚠️ SyncMonitoringSystem: فشل تنظيف السجلات القديمة: $e', tag: 'APP');
     }
   }
 
@@ -555,7 +557,7 @@ ${stats.recentErrors.isEmpty ? '  لا توجد أخطاء' : stats.recentErrors
     final cutoffDate = DateTime.now().subtract(olderThan);
     _events.removeWhere((e) => e.timestamp.isBefore(cutoffDate));
 
-    debugPrint('🗑️ SyncMonitoringSystem: تم مسح الأحداث الأقدم من $olderThan');
+    AppLogger.info('🗑️ SyncMonitoringSystem: تم مسح الأحداث الأقدم من $olderThan', tag: 'APP');
   }
 
   /// إيقاف النظام

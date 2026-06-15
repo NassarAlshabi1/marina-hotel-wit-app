@@ -1,6 +1,7 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
 import 'appwrite_config_manager.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// سكريبت للتحقق من مطابقة جداول Appwrite Cloud
 ///
@@ -531,7 +532,7 @@ class AppwriteSchemaVerifier {
 
   /// التحقق من جميع Collections والـ Attributes
   static Future<Map<String, dynamic>> verifySchema() async {
-    debugPrint('🔍 بدء التحقق من مطابقة جداول Appwrite Cloud...\n');
+    AppLogger.info('🔍 بدء التحقق من مطابقة جداول Appwrite Cloud...\n', tag: 'APP');
 
     final endpoint = AppwriteConfigManager.endpoint;
     final projectId = AppwriteConfigManager.projectId;
@@ -559,7 +560,10 @@ class AppwriteSchemaVerifier {
       final schema = entry.value;
       totalCollections++;
 
-      debugPrint('📋 التحقق من: $collectionId (${schema['name']})');
+      AppLogger.info(
+  '📋 التحقق من: $collectionId (${schema['name']})',
+  tag: 'APP',
+);
 
       try {
         // ignore: deprecated_member_use
@@ -570,7 +574,10 @@ class AppwriteSchemaVerifier {
         );
 
         foundCollections++;
-        debugPrint('   ✅ موجود: ${schema['name']}');
+        AppLogger.info(
+  '   ✅ موجود: ${schema['name']}',
+  tag: 'APP',
+);
 
         results['collections'][collectionId] = {
           'found': true,
@@ -578,10 +585,10 @@ class AppwriteSchemaVerifier {
           'total_documents': response.total,
         };
 
-        debugPrint('   📄 عدد المستندات: ${response.total}');
+        AppLogger.info('   📄 عدد المستندات: ${response.total}', tag: 'APP');
       } catch (e) {
         missingCollections++;
-        debugPrint('   ❌ غير موجود: $collectionId');
+        AppLogger.error('   ❌ غير موجود: $collectionId', tag: 'APP');
         results['missing'].add(collectionId);
         results['collections'][collectionId] = {
           'found': false,
@@ -589,7 +596,7 @@ class AppwriteSchemaVerifier {
         };
       }
 
-      debugPrint('');
+      AppLogger.info('', tag: 'APP');
     }
 
     results['summary'] = {
@@ -600,24 +607,27 @@ class AppwriteSchemaVerifier {
           .toStringAsFixed(1),
     };
 
-    debugPrint('═══════════════════════════════════════');
-    debugPrint('📊 ملخص التحقق');
-    debugPrint('═══════════════════════════════════════');
-    debugPrint('إجمالي الجداول المطلوبة: $totalCollections');
-    debugPrint('✅ موجود: $foundCollections');
-    debugPrint('❌ ناقص: $missingCollections');
-    debugPrint('📈 نسبة الاكتمال: ${results['summary']['percentage']}%');
-    debugPrint('═══════════════════════════════════════\n');
+    AppLogger.info('═══════════════════════════════════════', tag: 'APP');
+    AppLogger.info('📊 ملخص التحقق', tag: 'APP');
+    AppLogger.info('═══════════════════════════════════════', tag: 'APP');
+    AppLogger.info('إجمالي الجداول المطلوبة: $totalCollections', tag: 'APP');
+    AppLogger.info('✅ موجود: $foundCollections', tag: 'APP');
+    AppLogger.error('❌ ناقص: $missingCollections', tag: 'APP');
+    AppLogger.info(
+  '📈 نسبة الاكتمال: ${results['summary']['percentage']}%',
+  tag: 'APP',
+);
+    AppLogger.info('═══════════════════════════════════════\n', tag: 'APP');
 
     if (missingCollections > 0) {
-      debugPrint('⚠️  الجداول الناقصة:');
+      AppLogger.warning('⚠️  الجداول الناقصة:', tag: 'APP');
       for (final missing in (results['missing'] as List)) {
-        debugPrint('   - $missing');
+        AppLogger.info('   - $missing', tag: 'APP');
       }
-      debugPrint('\n💡 يرجى إنشاء الجداول الناقصة في Appwrite Console');
-      debugPrint('   راجع: mobile/APPWRITE_SCHEMA_VERIFICATION.md\n');
+      AppLogger.info('\n💡 يرجى إنشاء الجداول الناقصة في Appwrite Console', tag: 'APP');
+      AppLogger.info('   راجع: mobile/APPWRITE_SCHEMA_VERIFICATION.md\n', tag: 'APP');
     } else {
-      debugPrint('🎉 جميع الجداول موجودة! التطابق كامل.\n');
+      AppLogger.info('🎉 جميع الجداول موجودة! التطابق كامل.\n', tag: 'APP');
     }
 
     return results;
@@ -630,14 +640,17 @@ class AppwriteSchemaVerifier {
       return;
     }
 
-    debugPrint('# إنشاء Collection: $collectionId');
-    debugPrint('appwrite databases createCollection \\');
-    debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
-    debugPrint('  --collectionId $collectionId \\');
-    debugPrint('  --name "${schema['name']}"');
-    debugPrint('');
+    AppLogger.info('# إنشاء Collection: $collectionId', tag: 'APP');
+    AppLogger.info('appwrite databases createCollection \\', tag: 'APP');
+    AppLogger.info('  --databaseId ${AppwriteConfigManager.databaseId} \\', tag: 'APP');
+    AppLogger.info('  --collectionId $collectionId \\', tag: 'APP');
+    AppLogger.info(
+  '  --name "${schema['name']}"',
+  tag: 'APP',
+);
+    AppLogger.info('', tag: 'APP');
 
-    debugPrint('# إنشاء Attributes:');
+    AppLogger.info('# إنشاء Attributes:', tag: 'APP');
     final includeSyncFields = schema['includeSyncFields'] != false;
     final allAttributes = [
       ...(schema['attributes'] as List),
@@ -651,32 +664,32 @@ class AppwriteSchemaVerifier {
 
       if (type == 'string') {
         final size = attr['size'] ?? 255;
-        debugPrint('appwrite databases createStringAttribute \\');
-        debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
-        debugPrint('  --collectionId $collectionId \\');
-        debugPrint('  --key $key \\');
-        debugPrint('  --size $size \\');
-        debugPrint('  --required $required');
+        AppLogger.info('appwrite databases createStringAttribute \\', tag: 'APP');
+        AppLogger.info('  --databaseId ${AppwriteConfigManager.databaseId} \\', tag: 'APP');
+        AppLogger.info('  --collectionId $collectionId \\', tag: 'APP');
+        AppLogger.info('  --key $key \\', tag: 'APP');
+        AppLogger.info('  --size $size \\', tag: 'APP');
+        AppLogger.info('  --required $required', tag: 'APP');
       } else if (type == 'integer') {
-        debugPrint('appwrite databases createIntegerAttribute \\');
-        debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
-        debugPrint('  --collectionId $collectionId \\');
-        debugPrint('  --key $key \\');
-        debugPrint('  --required $required');
+        AppLogger.info('appwrite databases createIntegerAttribute \\', tag: 'APP');
+        AppLogger.info('  --databaseId ${AppwriteConfigManager.databaseId} \\', tag: 'APP');
+        AppLogger.info('  --collectionId $collectionId \\', tag: 'APP');
+        AppLogger.info('  --key $key \\', tag: 'APP');
+        AppLogger.info('  --required $required', tag: 'APP');
       } else if (type == 'double') {
-        debugPrint('appwrite databases createFloatAttribute \\');
-        debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
-        debugPrint('  --collectionId $collectionId \\');
-        debugPrint('  --key $key \\');
-        debugPrint('  --required $required');
+        AppLogger.info('appwrite databases createFloatAttribute \\', tag: 'APP');
+        AppLogger.info('  --databaseId ${AppwriteConfigManager.databaseId} \\', tag: 'APP');
+        AppLogger.info('  --collectionId $collectionId \\', tag: 'APP');
+        AppLogger.info('  --key $key \\', tag: 'APP');
+        AppLogger.info('  --required $required', tag: 'APP');
       } else if (type == 'boolean') {
-        debugPrint('appwrite databases createBooleanAttribute \\');
-        debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
-        debugPrint('  --collectionId $collectionId \\');
-        debugPrint('  --key $key \\');
-        debugPrint('  --required $required');
+        AppLogger.info('appwrite databases createBooleanAttribute \\', tag: 'APP');
+        AppLogger.info('  --databaseId ${AppwriteConfigManager.databaseId} \\', tag: 'APP');
+        AppLogger.info('  --collectionId $collectionId \\', tag: 'APP');
+        AppLogger.info('  --key $key \\', tag: 'APP');
+        AppLogger.info('  --required $required', tag: 'APP');
       }
-      debugPrint('');
+      AppLogger.info('', tag: 'APP');
     }
   }
 }

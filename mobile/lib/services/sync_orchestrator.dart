@@ -10,6 +10,7 @@ import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'sync_core/circuit_breaker.dart';
 import 'sync_mutex.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum SyncPriority { critical, high, normal, low, background }
 
@@ -312,7 +313,7 @@ class SyncOrchestrator {
     await _loadPersistedMetrics();
 
     _setState(OrchestratorState.idle);
-    debugPrint('✅ [Orchestrator] تم التهيئة بنجاح');
+    AppLogger.info('✅ [Orchestrator] تم التهيئة بنجاح', tag: 'APP');
   }
 
   CircuitBreaker getCircuitBreaker(String name) {
@@ -329,9 +330,10 @@ class SyncOrchestrator {
 
     _taskQueue.sort((a, b) => a.priority.index.compareTo(b.priority.index));
 
-    debugPrint(
-      '📋 [Orchestrator] مهمة مجدولة: ${task.name} (${task.priority.name})',
-    );
+    AppLogger.info(
+  '📋 [Orchestrator] مهمة مجدولة: ${task.name} (${task.priority.name})',,
+  tag: 'APP',
+);
 
     if (_state == OrchestratorState.idle) {
       unawaited(_processTasks());
@@ -378,12 +380,13 @@ class SyncOrchestrator {
           result.recordsProcessed,
           result.conflicts,
         );
-        debugPrint(
-          '✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms',
-        );
+        AppLogger.info(
+  '✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms',,
+  tag: 'APP',
+);
       } else {
         _metrics.recordFailure(duration);
-        debugPrint('❌ [Orchestrator] ${task.name}: ${result.error}');
+        AppLogger.error('❌ [Orchestrator] ${task.name}: ${result.error}', tag: 'APP');
       }
 
       _metricsController.add(_metrics);
@@ -434,9 +437,10 @@ class SyncOrchestrator {
           _taskQueue.add(task);
         } else {
           _taskQueue.removeAt(0);
-          debugPrint(
-            '🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}',
-          );
+          AppLogger.info(
+  '🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}',,
+  tag: 'APP',
+);
         }
       }
 
@@ -469,7 +473,7 @@ class SyncOrchestrator {
     _healthController.add(health);
 
     if (!health.isHealthy) {
-      debugPrint('⚠️ [Orchestrator] صحة النظام: غير صحي');
+      AppLogger.warning('⚠️ [Orchestrator] صحة النظام: غير صحي', tag: 'APP');
 
       if (_metrics.consecutiveFailures >= 5) {
         _setState(OrchestratorState.recovering);
@@ -479,7 +483,7 @@ class SyncOrchestrator {
   }
 
   Future<void> _attemptRecovery() async {
-    debugPrint('🔧 [Orchestrator] محاولة الاسترداد...');
+    AppLogger.info('🔧 [Orchestrator] محاولة الاسترداد...', tag: 'APP');
 
     for (final cb in _circuitBreakers.values) {
       if (cb.state == CircuitState.open) {
@@ -491,7 +495,7 @@ class SyncOrchestrator {
     _metrics.consecutiveFailures = 0;
 
     _setState(OrchestratorState.idle);
-    debugPrint('✅ [Orchestrator] تم الاسترداد');
+    AppLogger.info('✅ [Orchestrator] تم الاسترداد', tag: 'APP');
   }
 
   Future<List<DataIntegrityCheck>> verifyDataIntegrity() async {
@@ -533,7 +537,7 @@ class SyncOrchestrator {
           ),
         );
       } catch (e) {
-        debugPrint('⚠️ [Orchestrator] خطأ في فحص $table: $e');
+        AppLogger.warning('⚠️ [Orchestrator] خطأ في فحص $table: $e', tag: 'APP');
       }
     }
 
@@ -553,7 +557,7 @@ class SyncOrchestrator {
         _metrics.totalConflicts = (data['totalConflicts'] as num?)?.toInt() ?? 0;
       }
     } catch (e) {
-      debugPrint('⚠️ [Orchestrator] خطأ في تحميل المقاييس: $e');
+      AppLogger.warning('⚠️ [Orchestrator] خطأ في تحميل المقاييس: $e', tag: 'APP');
     }
   }
 
@@ -565,7 +569,7 @@ class SyncOrchestrator {
         jsonEncode(_metrics.toJson()),
       );
     } catch (e) {
-      debugPrint('⚠️ [Orchestrator] خطأ في حفظ المقاييس: $e');
+      AppLogger.warning('⚠️ [Orchestrator] خطأ في حفظ المقاييس: $e', tag: 'APP');
     }
   }
 
@@ -575,7 +579,7 @@ class SyncOrchestrator {
     }
     _state = newState;
     _stateController.add(newState);
-    debugPrint('🔄 [Orchestrator] الحالة: ${newState.name}');
+    AppLogger.info('🔄 [Orchestrator] الحالة: ${newState.name}', tag: 'APP');
   }
 
   void pause() {

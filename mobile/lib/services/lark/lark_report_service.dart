@@ -4,6 +4,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../local_db.dart';
 import 'lark_api_client.dart';
 import 'lark_config.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// نموذج بيانات التقرير اليومي
 class DailyReportData {
@@ -227,7 +228,7 @@ class LarkReportService {
         unsettledDebts: unsettledDebts,
       );
     } catch (e) {
-      debugPrint('❌ Lark Report: خطأ في تجميع بيانات التقرير: $e');
+      AppLogger.warning('❌ Lark Report: خطأ في تجميع بيانات التقرير: $e', tag: 'APP');
       rethrow;
     }
   }
@@ -536,11 +537,11 @@ class LarkReportService {
   Future<bool> sendDailyReport({DailyReportData? reportData}) async {
     try {
       if (!await LarkConfig.isEnabled()) {
-        debugPrint('⚠️ Lark Report: Lark غير مفعّل');
+        AppLogger.warning('⚠️ Lark Report: Lark غير مفعّل', tag: 'APP');
         return false;
       }
       if (!await LarkConfig.isDailyReportEnabled()) {
-        debugPrint('⚠️ Lark Report: التقارير اليومية غير مفعّلة');
+        AppLogger.warning('⚠️ Lark Report: التقارير اليومية غير مفعّلة', tag: 'APP');
         return false;
       }
 
@@ -548,13 +549,13 @@ class LarkReportService {
       final today = HotelTimeEngine.getHotelDayKey();
       final lastSent = await LarkConfig.getLastReportSent();
       if (lastSent == today) {
-        debugPrint('ℹ️ Lark Report: تم إرسال تقرير اليوم بالفعل');
+        AppLogger.info('ℹ️ Lark Report: تم إرسال تقرير اليوم بالفعل', tag: 'APP');
         return false;
       }
 
       final webhookUrl = await LarkConfig.getWebhookUrl();
       if (webhookUrl.isEmpty) {
-        debugPrint('⚠️ Lark Report: Webhook URL غير مضبوط');
+        AppLogger.warning('⚠️ Lark Report: Webhook URL غير مضبوط', tag: 'APP');
         return false;
       }
 
@@ -571,7 +572,7 @@ class LarkReportService {
       if (success) {
         // تسجيل آخر تقرير تم إرساله
         await LarkConfig.setLastReportSent(today);
-        debugPrint('✅ Lark Report: تم إرسال التقرير اليومي بنجاح (يوم فندقي: $today)');
+        AppLogger.info('✅ Lark Report: تم إرسال التقرير اليومي بنجاح (يوم فندقي: $today)', tag: 'APP');
 
         // محاولة إرسال نسخة عبر Bot API أيضاً إذا كان معرّف المحادثة مضبوطاً
         final chatId = await LarkConfig.getDailyReportChatId();
@@ -582,16 +583,16 @@ class LarkReportService {
               msgType: 'interactive',
               content: card['card'] as Map<String, dynamic>? ?? {},
             );
-            debugPrint('✅ Lark Report: تم إرسال نسخة للمجموعة $chatId');
+            AppLogger.info('✅ Lark Report: تم إرسال نسخة للمجموعة $chatId', tag: 'APP');
           } catch (e) {
-            debugPrint('⚠️ Lark Report: فشل إرسال نسخة المجموعة: $e');
+            AppLogger.warning('⚠️ Lark Report: فشل إرسال نسخة المجموعة: $e', tag: 'APP');
           }
         }
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ Lark Report: خطأ في إرسال التقرير اليومي: $e');
+      AppLogger.warning('❌ Lark Report: خطأ في إرسال التقرير اليومي: $e', tag: 'APP');
       return false;
     }
   }
@@ -612,7 +613,7 @@ class LarkReportService {
         message: card,
       );
     } catch (e) {
-      debugPrint('❌ Lark Report: خطأ في إرسال التقرير: $e');
+      AppLogger.warning('❌ Lark Report: خطأ في إرسال التقرير: $e', tag: 'APP');
       return false;
     }
   }

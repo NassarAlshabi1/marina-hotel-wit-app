@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum RecoveryAction { retry, skip, rollback, escalate, pause }
 
@@ -94,7 +95,7 @@ class SyncErrorRecovery {
       _errorLog.removeLast();
     }
     _errorController.add(error);
-    debugPrint('❌ [Recovery] ${error.severity.name}: ${error.message}');
+    AppLogger.error('❌ [Recovery] ${error.severity.name}: ${error.message}', tag: 'APP');
   }
 
   SyncError createError({
@@ -289,9 +290,9 @@ class SyncErrorRecovery {
         _rollbackPoints.removeLast();
       }
 
-      debugPrint('📍 [Recovery] نقطة استعادة: $description');
+      AppLogger.info('📍 [Recovery] نقطة استعادة: $description', tag: 'APP');
     } catch (e) {
-      debugPrint('⚠️ [Recovery] فشل إنشاء نقطة الاستعادة: $e');
+      AppLogger.warning('⚠️ [Recovery] فشل إنشاء نقطة الاستعادة: $e', tag: 'APP');
     }
   }
 
@@ -306,10 +307,10 @@ class SyncErrorRecovery {
 
     try {
       await database.applyMergedData(point.snapshot);
-      debugPrint('✅ [Recovery] تم الاستعادة من: ${point.description}');
+      AppLogger.info('✅ [Recovery] تم الاستعادة من: ${point.description}', tag: 'APP');
       return true;
     } catch (e) {
-      debugPrint('❌ [Recovery] فشل الاستعادة: $e');
+      AppLogger.warning('❌ [Recovery] فشل الاستعادة: $e', tag: 'APP');
       return false;
     }
   }

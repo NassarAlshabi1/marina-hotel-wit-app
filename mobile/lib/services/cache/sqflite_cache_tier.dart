@@ -11,6 +11,7 @@ library;
 import 'package:flutter/foundation.dart';
 
 import '../local_db.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// مدير ذاكرة التخزين المؤقت على القرص باستخدام sqflite
 class SqfliteCacheTier {
@@ -40,9 +41,9 @@ class SqfliteCacheTier {
         ON cache_store (expires_at)
       ''');
       _tableCreated = true;
-      debugPrint('✅ SqfliteCacheTier table initialized');
+      AppLogger.info('✅ SqfliteCacheTier table initialized', tag: 'APP');
     } catch (e) {
-      debugPrint('⚠️ SqfliteCacheTier.ensureTable failed: $e');
+      AppLogger.warning('⚠️ SqfliteCacheTier.ensureTable failed: $e', tag: 'APP');
     }
   }
 
@@ -71,7 +72,7 @@ class SqfliteCacheTier {
 
       return result.read<String>('value');
     } catch (e) {
-      debugPrint('⚠️ SqfliteCacheTier.get($key) failed: $e');
+      AppLogger.warning('⚠️ SqfliteCacheTier.get($key) failed: $e', tag: 'APP');
       return null;
     }
   }
@@ -105,7 +106,7 @@ class SqfliteCacheTier {
       // تنظيف إذا تجاوزنا الحد الأقصى
       await _enforceMaxSize();
     } catch (e) {
-      debugPrint('⚠️ SqfliteCacheTier.set($key) failed: $e');
+      AppLogger.warning('⚠️ SqfliteCacheTier.set($key) failed: $e', tag: 'APP');
     }
   }
 
@@ -118,7 +119,7 @@ class SqfliteCacheTier {
         variables: [Variable<String>(key)],
       );
     } catch (e) {
-      debugPrint('⚠️ SqfliteCacheTier.delete($key) failed: $e');
+      AppLogger.warning('⚠️ SqfliteCacheTier.delete($key) failed: $e', tag: 'APP');
     }
   }
 
@@ -133,7 +134,7 @@ class SqfliteCacheTier {
       );
       return result;
     } catch (e) {
-      debugPrint('⚠️ SqfliteCacheTier.cleanExpired failed: $e');
+      AppLogger.warning('⚠️ SqfliteCacheTier.cleanExpired failed: $e', tag: 'APP');
       return 0;
     }
   }
@@ -144,7 +145,7 @@ class SqfliteCacheTier {
       await ensureTable();
       await db.customUpdate('DELETE FROM cache_store');
     } catch (e) {
-      debugPrint('⚠️ SqfliteCacheTier.clearAll failed: $e');
+      AppLogger.warning('⚠️ SqfliteCacheTier.clearAll failed: $e', tag: 'APP');
     }
   }
 
@@ -192,7 +193,7 @@ class SqfliteCacheTier {
         )
       ''');
     } catch (e) {
-      debugPrint('⚠️ SqfliteCacheTier._enforceMaxSize failed: $e');
+      AppLogger.warning('⚠️ SqfliteCacheTier._enforceMaxSize failed: $e', tag: 'APP');
     }
   }
 }

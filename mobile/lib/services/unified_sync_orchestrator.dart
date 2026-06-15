@@ -12,6 +12,7 @@ import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
 import 'sync_integrity_checker.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class UnifiedSyncState {
 
@@ -227,24 +228,24 @@ class UnifiedSyncOrchestrator {
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!appwriteEnabled) {
-        debugPrint('ℹ️ Appwrite sync معطل - تخطي الرفع التلقائي');
+        AppLogger.warning('ℹ️ Appwrite sync معطل - تخطي الرفع التلقائي', tag: 'APP');
         return true;
       }
 
       _syncing = true;
-      debugPrint('🔄 رفع تلقائي إلى Appwrite: $reason');
+      AppLogger.info('🔄 رفع تلقائي إلى Appwrite: $reason', tag: 'APP');
 
       final success = await _syncAppwrite(push: true, pull: false);
 
       if (success) {
-        debugPrint('✅ تم الرفع التلقائي إلى Appwrite');
+        AppLogger.info('✅ تم الرفع التلقائي إلى Appwrite', tag: 'APP');
       } else {
-        debugPrint('❌ فشل الرفع التلقائي إلى Appwrite');
+        AppLogger.warning('❌ فشل الرفع التلقائي إلى Appwrite', tag: 'APP');
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ خطأ في الرفع التلقائي: $e');
+      AppLogger.warning('❌ خطأ في الرفع التلقائي: $e', tag: 'APP');
       return false;
     } finally {
       _syncing = false;

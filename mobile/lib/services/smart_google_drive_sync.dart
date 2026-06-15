@@ -10,6 +10,7 @@ import 'google_drive_delta_sync.dart';
 import 'local_db.dart';
 import 'sync_constants.dart';
 import 'sync_locks.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// مدير مزامنة Google Drive الذكي المبسط
 ///
@@ -51,7 +52,7 @@ class SmartGoogleDriveSync {
 
   void _log(String message) {
     DebugLogs.add('SmartGDSync', message);
-    debugPrint('[SmartGDSync] $message');
+    AppLogger.info('[SmartGDSync] $message', tag: 'APP');
   }
 
   /// تهيئة الخدمة

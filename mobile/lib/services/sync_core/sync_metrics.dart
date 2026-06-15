@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// معلومات دورة مزامنة واحدة
 class SyncSession {
@@ -119,7 +120,7 @@ class SyncMetrics {
   /// بدء دورة مزامنة جديدة
   void startSync() {
     _currentSession = SyncSession(startTime: DateTime.now());
-    debugPrint('📊 SyncMetrics: بدأت دورة مزامنة جديدة');
+    AppLogger.info('📊 SyncMetrics: بدأت دورة مزامنة جديدة', tag: 'APP');
   }
 
   /// تسجيل نجاح المزامنة
@@ -139,10 +140,11 @@ class SyncMetrics {
     _addToHistory(session);
     _updateStats();
 
-    debugPrint(
-      '✅ SyncMetrics: مزامنة ناجحة - ${session.duration.inSeconds}ث، '
-      'السجلات: $recordsSynced، التضارب: $conflictsResolved',
-    );
+    AppLogger.info(
+  '✅ SyncMetrics: مزامنة ناجحة - ${session.duration.inSeconds}ث، '
+      'السجلات: $recordsSynced، التضارب: $conflictsResolved',,
+  tag: 'APP',
+);
   }
 
   /// تسجيل فشل المزامنة
@@ -160,9 +162,10 @@ class SyncMetrics {
     _addToHistory(session);
     _updateStats();
 
-    debugPrint(
-      '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error',
-    );
+    AppLogger.error(
+  '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error',,
+  tag: 'APP',
+);
   }
 
   /// إضافة إلى السجل
@@ -228,7 +231,7 @@ class SyncMetrics {
       final jsonList = _history.map((s) => jsonEncode(s.toJson())).toList();
       await prefs.setStringList(_prefsKey, jsonList);
     } catch (e) {
-      debugPrint('⚠️ SyncMetrics: فشل حفظ السجل: $e');
+      AppLogger.warning('⚠️ SyncMetrics: فشل حفظ السجل: $e', tag: 'APP');
     }
   }
 
@@ -244,10 +247,10 @@ class SyncMetrics {
         _history.add(session);
       }
 
-      debugPrint('📊 SyncMetrics: تم تحميل ${_history.length} سجل');
+      AppLogger.info('📊 SyncMetrics: تم تحميل ${_history.length} سجل', tag: 'APP');
       _updateStats();
     } catch (e) {
-      debugPrint('⚠️ SyncMetrics: فشل تحميل السجل: $e');
+      AppLogger.warning('⚠️ SyncMetrics: فشل تحميل السجل: $e', tag: 'APP');
     }
   }
 
@@ -257,7 +260,7 @@ class SyncMetrics {
     final prefs = getSharedPrefs();
     await prefs.remove(_prefsKey);
     _updateStats();
-    debugPrint('🗑️ SyncMetrics: تم مسح السجل');
+    AppLogger.info('🗑️ SyncMetrics: تم مسح السجل', tag: 'APP');
   }
 
   /// تنظيف الموارد

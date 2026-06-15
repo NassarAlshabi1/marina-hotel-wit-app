@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import 'appwrite_backup_endpoint.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// مدير نقاط النهاية الاحتياطية (Master/Slave)
 /// 
@@ -18,7 +19,7 @@ class BackupEndpointsManager {
     final jsonList = endpoints.map((e) => e.toJson()).toList();
     await prefs.setString(_storageKey, jsonEncode(jsonList));
     if (kDebugMode) {
-      debugPrint('💾 Saved ${endpoints.length} backup endpoint(s)');
+      AppLogger.info('💾 Saved ${endpoints.length} backup endpoint(s)', tag: 'APP');
     }
   }
 
@@ -38,11 +39,11 @@ class BackupEndpointsManager {
         endpoints = endpoints.where((e) => e.isActive).toList();
       }
       if (kDebugMode) {
-        debugPrint('📂 Loaded ${endpoints.length} backup endpoint(s)');
+        AppLogger.info('📂 Loaded ${endpoints.length} backup endpoint(s)', tag: 'APP');
       }
       return endpoints;
     } catch (e) {
-      debugPrint('❌ Failed to load backup endpoints: $e');
+      AppLogger.error('❌ Failed to load backup endpoints: $e', tag: 'APP');
       return [];
     }
   }

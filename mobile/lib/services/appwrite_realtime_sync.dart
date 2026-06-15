@@ -7,6 +7,7 @@ import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'appwrite_config.dart';
 import 'appwrite_service.dart';
 import 'crashlytics_service.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class AppwriteRealtimeSync {
   factory AppwriteRealtimeSync() => _instance;
@@ -59,7 +60,7 @@ class AppwriteRealtimeSync {
   }) async {
     _currentDeviceId = deviceId;
     _realtime = Realtime(AppwriteService().client);
-    debugPrint('📡 AppwriteRealtimeSync initialized');
+    AppLogger.info('📡 AppwriteRealtimeSync initialized', tag: 'APP');
   }
 
   Future<void> start() async {
@@ -82,12 +83,12 @@ class AppwriteRealtimeSync {
     _subscription = _realtime!.subscribe(channels);
     _isListening = true;
 
-    debugPrint('📡 Realtime: listening...');
+    AppLogger.info('📡 Realtime: listening...', tag: 'APP');
 
     _subscription!.stream.listen(
       _onEvent,
       onError: (Object e) {
-        debugPrint('❌ Realtime error: $e');
+        AppLogger.error('❌ Realtime error: $e', tag: 'APP');
         CrashlyticsService.instance.recordSyncError(
           operation: 'realtime_listen',
           error: e.toString(),
@@ -121,7 +122,7 @@ class AppwriteRealtimeSync {
         e.endsWith('.delete'),);
 
     if (!isDataChange) {
-      debugPrint('📡 Realtime: ignoring non-data event: $eventTypes');
+      AppLogger.info('📡 Realtime: ignoring non-data event: $eventTypes', tag: 'APP');
       return;
     }
 
@@ -134,7 +135,7 @@ class AppwriteRealtimeSync {
           _lastServerUpdate = serverTime;
         }
       } catch (e) {
-        debugPrint('⚠️ Realtime: could not parse update timestamp');
+        AppLogger.warning('⚠️ Realtime: could not parse update timestamp', tag: 'APP');
       }
     }
 
@@ -145,12 +146,12 @@ class AppwriteRealtimeSync {
       if (!_hasPendingChanges) {
         hasRemoteChanges.value = true;
         _hasPendingChanges = true;
-        debugPrint('📡 Realtime: detected remote changes - UI activated');
+        AppLogger.info('📡 Realtime: detected remote changes - UI activated', tag: 'APP');
       }
 
       // ✅ تحسين: زيادة عداد التغييرات
       pendingRemoteChangesCount.value++;
-      debugPrint('📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}');
+      AppLogger.info('📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}', tag: 'APP');
     });
   }
 
@@ -161,7 +162,7 @@ class AppwriteRealtimeSync {
   void updateLastServerTimestamp(DateTime timestamp) {
     if (_lastServerUpdate == null || timestamp.isAfter(_lastServerUpdate!)) {
       _lastServerUpdate = timestamp;
-      debugPrint('📡 Realtime: updated last server timestamp to $timestamp');
+      AppLogger.info('📡 Realtime: updated last server timestamp to $timestamp', tag: 'APP');
     }
   }
 
@@ -171,7 +172,7 @@ class AppwriteRealtimeSync {
     hasRemoteChanges.value = false;
     _hasPendingChanges = false;
     pendingRemoteChangesCount.value = 0;
-    debugPrint('📡 Realtime: remote changes flag reset - count cleared');
+    AppLogger.info('📡 Realtime: remote changes flag reset - count cleared', tag: 'APP');
   }
 
     void _reconnect() {

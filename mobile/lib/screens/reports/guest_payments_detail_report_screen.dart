@@ -14,6 +14,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 // ─────────────────────────────────────────────────────────────────
 // يستخدم StayBalanceCalculator المحرك الموحد لحساب الرصيد والتواريخ
@@ -148,7 +149,7 @@ double _getConsumedCost(Booking b) {
       _coverageCache[b.id] = result;
       return result;
     } catch (e) {
-      debugPrint('⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
+      AppLogger.warning('⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e', tag: 'APP');
       final fallback = _safeFallback(b);
       _coverageCache[b.id] = fallback;
       return fallback;
@@ -224,7 +225,7 @@ double _getOverdueCost(Booking b) {
           final filtered = StayBalanceCalculator.filterActiveAdjustments(b, adjustments ?? []);
           newCache[b.id] = StayBalanceCalculator.calculate(b, priceAdjustments: filtered);
         } catch (e) {
-          debugPrint('⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
+          AppLogger.warning('⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e', tag: 'APP');
           newCache[b.id] = _safeFallback(b);
         }
         // ✅ السماح بتحديث UI كل 10 حجوزات لمنع تجميد الشاشة
@@ -240,7 +241,7 @@ double _getOverdueCost(Booking b) {
         });
       }
     } catch (e) {
-      debugPrint('Error refreshing data: $e');
+      AppLogger.info('Error refreshing data: $e', tag: 'APP');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -473,7 +474,7 @@ double _getOverdueCost(Booking b) {
     try {
       return _buildReport(allBookings);
     } catch (e) {
-      debugPrint('⚠️ خطأ في بناء تقرير المدفوعات: $e');
+      AppLogger.warning('⚠️ خطأ في بناء تقرير المدفوعات: $e', tag: 'APP');
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

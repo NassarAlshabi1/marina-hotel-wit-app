@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import 'database_fixer.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// نظام مراقبة صحة قاعدة البيانات المستمر
 class DatabaseHealthMonitor {
@@ -95,7 +96,7 @@ class DatabaseHealthMonitor {
         orphanExpenses: results[2],
       );
     } catch (e) {
-      debugPrint('Error collecting metrics: $e');
+      AppLogger.info('Error collecting metrics: $e', tag: 'APP');
       return HealthMetrics(
         invalidServerIds: 0,
         orphanPayments: 0,
@@ -117,7 +118,7 @@ class DatabaseHealthMonitor {
 
       return result.data['total'] as int? ?? 0;
     } catch (e) {
-      debugPrint('Error counting invalid serverIds: $e');
+      AppLogger.info('Error counting invalid serverIds: $e', tag: 'APP');
       return 0;
     }
   }
@@ -136,7 +137,7 @@ class DatabaseHealthMonitor {
 
       return result.data['count'] as int? ?? 0;
     } catch (e) {
-      debugPrint('Error counting orphan payments: $e');
+      AppLogger.info('Error counting orphan payments: $e', tag: 'APP');
       return 0;
     }
   }
@@ -153,7 +154,7 @@ class DatabaseHealthMonitor {
 
       return result.data['count'] as int? ?? 0;
     } catch (e) {
-      debugPrint('Error counting orphan expenses: $e');
+      AppLogger.info('Error counting orphan expenses: $e', tag: 'APP');
       return 0;
     }
   }
@@ -218,7 +219,7 @@ class DatabaseHealthMonitor {
 
       await _cleanOldHistory();
     } catch (e) {
-      debugPrint('Error saving health history: $e');
+      AppLogger.info('Error saving health history: $e', tag: 'APP');
     }
   }
 
@@ -231,7 +232,7 @@ class DatabaseHealthMonitor {
         variables: [Variable.withInt(cutoff.millisecondsSinceEpoch ~/ 1000)],
       );
     } catch (e) {
-      debugPrint('Error cleaning old history: $e');
+      AppLogger.info('Error cleaning old history: $e', tag: 'APP');
     }
   }
 
@@ -265,7 +266,7 @@ class DatabaseHealthMonitor {
         );
       }).toList();
     } catch (e) {
-      debugPrint('Error getting history: $e');
+      AppLogger.info('Error getting history: $e', tag: 'APP');
       return [];
     }
   }

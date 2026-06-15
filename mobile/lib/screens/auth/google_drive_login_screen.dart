@@ -8,6 +8,7 @@ import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/backup_provider.dart';
 import '../../services/auto_backup_manager.dart';
 import '../../utils/theme.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
   const GoogleDriveLoginScreen({super.key});
@@ -64,9 +65,9 @@ class _GoogleDriveLoginScreenState
         try {
           final autoBackupManager = AutoBackupManager.instance;
           await autoBackupManager.setEnabled(true);
-          debugPrint('✅ تم تفعيل المزامنة التلقائية');
+          AppLogger.info('✅ تم تفعيل المزامنة التلقائية', tag: 'APP');
         } catch (e) {
-          debugPrint('⚠️ خطأ في تفعيل المزامنة التلقائية: $e');
+          AppLogger.warning('⚠️ خطأ في تفعيل المزامنة التلقائية: $e', tag: 'APP');
         }
         if (mounted) {
           setState(() {
@@ -160,7 +161,7 @@ class _GoogleDriveLoginScreenState
       // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل السحب
       await manager.pullAllDataWithDisabledFK();
     } catch (e) {
-      debugPrint('❌ Appwrite auto pull after skip error: $e');
+      AppLogger.error('❌ Appwrite auto pull after skip error: $e', tag: 'APP');
     }
   }
 

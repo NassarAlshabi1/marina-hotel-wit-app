@@ -9,6 +9,7 @@ import 'lark/lark_report_service.dart';
 import 'local_backup_service.dart';
 import 'telegram/telegram_config.dart';
 import 'telegram/telegram_report_service.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class AlarmBackup {
   static const int alarmId = 0;
@@ -27,12 +28,12 @@ class AlarmBackup {
     );
     const initSettings = InitializationSettings(android: androidSettings);
     await _notif.initialize(initSettings);
-    debugPrint('✅ Alarm system initialized');
+    AppLogger.info('✅ Alarm system initialized', tag: 'APP');
 
     // تفعيل النسخ المجدول تلقائياً عند التثبيت لأول مرة
     final prefs = await getSharedPrefs();
     if (prefs.getBool('scheduled_backup_enabled') == null) {
-      debugPrint('🚀 First run: Enable scheduled backup by default');
+      AppLogger.info('🚀 First run: Enable scheduled backup by default', tag: 'APP');
       await prefs.setBool('scheduled_backup_enabled', true);
       // وقت افتراضي 9:00 مساءً
       await prefs.setString('auto_backup_time', '21:00');
@@ -42,7 +43,7 @@ class AlarmBackup {
     // تهيئة أولية لإعدادات تقرير WhatsApp/Telegram اليومي
     // مثل إنذار النسخ الاحتياطي — يُفعّل تلقائياً عند التثبيت لأول مرة
     if (prefs.getBool('telegram_enabled') == null) {
-      debugPrint('🚀 First run: Enable WhatsApp/Telegram report by default');
+      AppLogger.info('🚀 First run: Enable WhatsApp/Telegram report by default', tag: 'APP');
       await prefs.setBool('telegram_enabled', true);
       await prefs.setBool('telegram_notifications_enabled', true);
       await prefs.setBool('telegram_daily_report_enabled', true);
@@ -73,7 +74,7 @@ class AlarmBackup {
       allowWhileIdle: true,
     );
 
-    debugPrint('✅ Alarm scheduled at $scheduled');
+    AppLogger.info('✅ Alarm scheduled at $scheduled', tag: 'APP');
   }
 
   /// لإلغاء وإعادة جدولة — استخدمها عند تغيير الوقت
@@ -81,14 +82,14 @@ class AlarmBackup {
     await AndroidAlarmManager.cancel(alarmId);
     await Future<void>.delayed(const Duration(milliseconds: 300));
     await scheduleDailyAlarm(hour, minute);
-    debugPrint('♻️ Alarm rescheduled to $hour:$minute');
+    AppLogger.info('♻️ Alarm rescheduled to $hour:$minute', tag: 'APP');
   }
 
   /// الكولباك الذي ينفذ وقت الإنذار — يجب أن يكون top-level أو static annotated
   @pragma('vm:entry-point')
   static Future<void> _alarmCallback() async {
     WidgetsFlutterBinding.ensureInitialized();
-    debugPrint('🔔 Alarm fired: performing backup');
+    AppLogger.info('🔔 Alarm fired: performing backup', tag: 'APP');
 
     try {
       final prefs = getSharedPrefs();
@@ -101,9 +102,9 @@ class AlarmBackup {
       if (enableLocal) {
         try {
           await localService.createLocalBackup(format: format);
-          debugPrint('✅ Local backup done from alarm');
+          AppLogger.info('✅ Local backup done from alarm', tag: 'APP');
         } catch (e) {
-          debugPrint('❌ Local backup error: $e');
+          AppLogger.error('❌ Local backup error: $e', tag: 'APP');
         }
       }
 
@@ -115,17 +116,17 @@ class AlarmBackup {
           final signed = await drive.signInSilentlyIfNeeded();
           if (signed) {
             await drive.performAutoBackup();
-            debugPrint('✅ Drive backup done from alarm');
+            AppLogger.info('✅ Drive backup done from alarm', tag: 'APP');
           } else {
-            debugPrint('⚠️ Drive not signed in (alarm). Notifying user...');
+            AppLogger.warning('⚠️ Drive not signed in (alarm). Notifying user...', tag: 'APP');
             await _showOpenAppNotification();
           }
         } catch (e) {
-          debugPrint('❌ Drive backup error: $e');
+          AppLogger.error('❌ Drive backup error: $e', tag: 'APP');
         }
       }
     } catch (e) {
-      debugPrint('❌ Alarm backup general error: $e');
+      AppLogger.error('❌ Alarm backup general error: $e', tag: 'APP');
     } finally {
       // أعد جدولة الإنذار لليوم التالي في نفس الوقت
       final prefs = getSharedPrefs();
@@ -157,7 +158,7 @@ class AlarmBackup {
   /// إلغاء الإنذار
   static Future<void> cancelAlarm() async {
     await AndroidAlarmManager.cancel(alarmId);
-    debugPrint('🚫 Alarm cancelled');
+    AppLogger.info('🚫 Alarm cancelled', tag: 'APP');
   }
 
   /// جدولة تقرير Lark اليومي إذا كان مفعّلاً
@@ -194,7 +195,7 @@ class AlarmBackup {
       allowWhileIdle: true,
     );
 
-    debugPrint('✅ Lark report alarm scheduled at $scheduled');
+    AppLogger.info('✅ Lark report alarm scheduled at $scheduled', tag: 'APP');
   }
 
   /// إعادة جدولة تقرير Lark
@@ -202,7 +203,7 @@ class AlarmBackup {
     await AndroidAlarmManager.cancel(larkReportAlarmId);
     await Future<void>.delayed(const Duration(milliseconds: 300));
     await scheduleLarkReportAlarm(hour, minute);
-    debugPrint('♻️ Lark report alarm rescheduled to $hour:$minute');
+    AppLogger.info('♻️ Lark report alarm rescheduled to $hour:$minute', tag: 'APP');
   }
 
   /// جدولة تقرير Telegram/WhatsApp اليومي إذا كان مفعّلاً
@@ -240,7 +241,7 @@ class AlarmBackup {
       allowWhileIdle: true,
     );
 
-    debugPrint('✅ Telegram report alarm scheduled at $scheduled');
+    AppLogger.info('✅ Telegram report alarm scheduled at $scheduled', tag: 'APP');
   }
 
   /// إعادة جدولة تقرير Telegram
@@ -248,20 +249,20 @@ class AlarmBackup {
     await AndroidAlarmManager.cancel(telegramReportAlarmId);
     await Future<void>.delayed(const Duration(milliseconds: 300));
     await scheduleTelegramReportAlarm(hour, minute);
-    debugPrint('♻️ Telegram report alarm rescheduled to $hour:$minute');
+    AppLogger.info('♻️ Telegram report alarm rescheduled to $hour:$minute', tag: 'APP');
   }
 
   /// إلغاء إنذار تقرير Telegram
   static Future<void> cancelTelegramReportAlarm() async {
     await AndroidAlarmManager.cancel(telegramReportAlarmId);
-    debugPrint('🚫 Telegram report alarm cancelled');
+    AppLogger.info('🚫 Telegram report alarm cancelled', tag: 'APP');
   }
 
   /// Callback لإرسال تقرير Telegram اليومي
   @pragma('vm:entry-point')
   static Future<void> _telegramReportCallback() async {
     WidgetsFlutterBinding.ensureInitialized();
-    debugPrint('🔔 Telegram report alarm fired');
+    AppLogger.info('🔔 Telegram report alarm fired', tag: 'APP');
 
     try {
       final prefs = getSharedPrefs();
@@ -273,13 +274,13 @@ class AlarmBackup {
         if (configured) {
           final reportService = TelegramReportService.instance();
           await reportService.sendDailyReport();
-          debugPrint('✅ Telegram daily report sent from alarm');
+          AppLogger.info('✅ Telegram daily report sent from alarm', tag: 'APP');
         } else {
-          debugPrint('⚠️ Telegram report skipped: bot token or chat ID not configured');
+          AppLogger.warning('⚠️ Telegram report skipped: bot token or chat ID not configured', tag: 'APP');
         }
       }
     } catch (e) {
-      debugPrint('❌ Telegram report alarm error: $e');
+      AppLogger.error('❌ Telegram report alarm error: $e', tag: 'APP');
     } finally {
       // أعد جدولة لليوم التالي
       final prefs = getSharedPrefs();
@@ -295,7 +296,7 @@ class AlarmBackup {
   @pragma('vm:entry-point')
   static Future<void> _larkReportCallback() async {
     WidgetsFlutterBinding.ensureInitialized();
-    debugPrint('🔔 Lark report alarm fired');
+    AppLogger.info('🔔 Lark report alarm fired', tag: 'APP');
 
     try {
       final prefs = getSharedPrefs();
@@ -307,13 +308,13 @@ class AlarmBackup {
         if (webhookUrl.isNotEmpty) {
           final reportService = LarkReportService.instance;
           await reportService.sendDailyReport();
-          debugPrint('✅ Lark daily report sent from alarm');
+          AppLogger.info('✅ Lark daily report sent from alarm', tag: 'APP');
         } else {
-          debugPrint('⚠️ Lark report skipped: no webhook URL configured');
+          AppLogger.warning('⚠️ Lark report skipped: no webhook URL configured', tag: 'APP');
         }
       }
     } catch (e) {
-      debugPrint('❌ Lark report alarm error: $e');
+      AppLogger.error('❌ Lark report alarm error: $e', tag: 'APP');
     } finally {
       // أعد جدولة لليوم التالي
       final prefs = getSharedPrefs();

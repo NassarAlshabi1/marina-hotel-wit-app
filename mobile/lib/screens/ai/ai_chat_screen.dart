@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../services/gemini_service.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// مزود AI النشط
 enum AiProvider {
@@ -179,7 +180,7 @@ class _AiChatScreenState extends State<AiChatScreen>
         _scrollToBottom();
       }
     } catch (e) {
-      debugPrint('❌ Chat Error: $e');
+      AppLogger.error('❌ Chat Error: $e', tag: 'APP');
       if (mounted) {
         String errorMsg = 'عذراً، حدث خطأ أثناء الاتصال.';
         if (e.toString().contains('API_KEY') || e.toString().contains('401')) {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum RetryBackoffType { linear, exponential, fibonacci }
 
@@ -107,26 +108,27 @@ class RetryStrategy {
       attempt++;
 
       try {
-        debugPrint('🔄 [Retry] محاولة $attempt من ${config.maxAttempts}');
+        AppLogger.info('🔄 [Retry] محاولة $attempt من ${config.maxAttempts}', tag: 'APP');
         return await operation();
       } catch (error) {
         lastError = error;
-        debugPrint('⚠️ [Retry] فشلت المحاولة $attempt: $error');
+        AppLogger.warning('⚠️ [Retry] فشلت المحاولة $attempt: $error', tag: 'APP');
 
         if (!shouldRetry(error)) {
-          debugPrint('❌ [Retry] الخطأ غير قابل لإعادة المحاولة');
+          AppLogger.warning('❌ [Retry] الخطأ غير قابل لإعادة المحاولة', tag: 'APP');
           rethrow;
         }
 
         if (attempt >= config.maxAttempts) {
-          debugPrint('❌ [Retry] تم تجاوز الحد الأقصى للمحاولات');
+          AppLogger.error('❌ [Retry] تم تجاوز الحد الأقصى للمحاولات', tag: 'APP');
           rethrow;
         }
 
         final delay = calculateDelay(attempt);
-        debugPrint(
-          '⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية',
-        );
+        AppLogger.info(
+  '⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية',,
+  tag: 'APP',
+);
 
         if (onRetry != null) {
           onRetry(attempt, error);
@@ -152,7 +154,7 @@ class RetryStrategy {
         onRetry: onRetry,
       );
     } catch (e) {
-      debugPrint('🔄 [Retry] استخدام القيمة الاحتياطية بعد فشل جميع المحاولات');
+      AppLogger.warning('🔄 [Retry] استخدام القيمة الاحتياطية بعد فشل جميع المحاولات', tag: 'APP');
       return fallback();
     }
   }

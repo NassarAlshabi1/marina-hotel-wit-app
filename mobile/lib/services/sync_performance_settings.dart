@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// إعدادات أداء المزامنة - يحتوي على ملفات التعريف المحددة مسبقاً وإدارة الإعدادات
 class SyncPerformanceSettings {
@@ -47,7 +48,7 @@ class SyncPerformanceSettings {
         return 'balanced';
       }
     } catch (e) {
-      debugPrint('❌ خطأ في قراءة ملف التعريف الحالي: $e');
+      AppLogger.warning('❌ خطأ في قراءة ملف التعريف الحالي: $e', tag: 'APP');
       return 'balanced'; // القيمة الافتراضية
     }
   }
@@ -81,9 +82,9 @@ class SyncPerformanceSettings {
       // تثبيت مستوى الأداء على متوازن (2)
       await prefs.setInt('performance_level', 2);
 
-      debugPrint('✅ تم تفعيل ملف التعريف "متوازن" بشكل دائم');
+      AppLogger.info('✅ تم تفعيل ملف التعريف "متوازن" بشكل دائم', tag: 'APP');
     } catch (e) {
-      debugPrint('❌ خطأ في تطبيق ملف التعريف "$profileKey": $e');
+      AppLogger.warning('❌ خطأ في تطبيق ملف التعريف "$profileKey": $e', tag: 'APP');
       rethrow;
     }
   }
@@ -168,7 +169,7 @@ class SyncPerformanceSettings {
         'max_retry_attempts': prefs.getInt('max_retry_attempts') ?? 3,
       };
     } catch (e) {
-      debugPrint('❌ خطأ في قراءة جميع الإعدادات: $e');
+      AppLogger.warning('❌ خطأ في قراءة جميع الإعدادات: $e', tag: 'APP');
       return {};
     }
   }
@@ -177,9 +178,9 @@ class SyncPerformanceSettings {
   static Future<void> resetToDefaults() async {
     try {
       await applyProfile('balanced'); // تطبيق ملف التعريف المتوازن كافتراضي
-      debugPrint('🔄 تم إعادة تعيين الإعدادات إلى القيم الافتراضية');
+      AppLogger.info('🔄 تم إعادة تعيين الإعدادات إلى القيم الافتراضية', tag: 'APP');
     } catch (e) {
-      debugPrint('❌ خطأ في إعادة تعيين الإعدادات: $e');
+      AppLogger.warning('❌ خطأ في إعادة تعيين الإعدادات: $e', tag: 'APP');
       rethrow;
     }
   }

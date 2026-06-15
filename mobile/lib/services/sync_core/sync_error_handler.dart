@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum SyncErrorType {
   network,
@@ -195,12 +196,12 @@ class SyncErrorHandler {
   }
 
   void _logError(SyncError error) {
-    debugPrint('❌ [SyncError] ${error.type.name}: ${error.message}');
+    AppLogger.error('❌ [SyncError] ${error.type.name}: ${error.message}', tag: 'APP');
     if (error.context != null) {
-      debugPrint('   Context: ${error.context}');
+      AppLogger.info('   Context: ${error.context}', tag: 'APP');
     }
     if (error.stackTrace != null && kDebugMode) {
-      debugPrint('   Stack: ${error.stackTrace}');
+      AppLogger.info('   Stack: ${error.stackTrace}', tag: 'APP');
     }
   }
 

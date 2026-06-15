@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../services/diagnostics/diagnostics_logger.dart';
 import '../services/logging/log_models.dart';
 
+
 /// مسجل منظم يوفر مستويات تسجيل مختلفة بدلاً من debugPrint
 /// الاستخدام: AppLogger.info('تم تسجيل الدخول', tag: 'AUTH');
 class AppLogger {

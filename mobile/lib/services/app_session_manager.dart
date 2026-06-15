@@ -116,8 +116,13 @@ class AppSessionManager {
     if (_deviceIdResolver != null) {
       try {
         return await _deviceIdResolver!();
+<<<<<<< HEAD
       } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
         debugPrint('⚠️ فشل حل deviceId');
+=======
+      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+        AppLogger.warning('⚠️ فشل حل deviceId', tag: 'APP');
+>>>>>>> 3dd20f1 (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
         return null;
       }
     }
@@ -128,14 +133,15 @@ class AppSessionManager {
   /// تم تحسينها لتكون "ذكية": يتم السحب مرة واحدة فقط كل ساعة كحد أقصى عند الفتح.
   static Future<void> _triggerAppOpenAppwritePull() async {
     try {
-      debugPrint('🔄 [AppOpen] Checking for automatic Appwrite pull...');
+      AppLogger.info('🔄 [AppOpen] Checking for automatic Appwrite pull...', tag: 'APP');
       final prefs = getSharedPrefs();
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!appwriteEnabled) {
-        debugPrint(
-          'ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.',
-        );
+        AppLogger.info(
+  'ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.',,
+  tag: 'APP',
+);
         return;
       }
 
@@ -157,9 +163,10 @@ class AppSessionManager {
         // التحقق مما إذا كان الفارق أقل من 60 دقيقة
         if (difference.inMinutes < 60) {
           final remainingMinutes = 60 - difference.inMinutes;
-          debugPrint(
-            'ℹ️ [AppOpen] Smart Sync: Skipping pull. Last pull was ${difference.inMinutes} mins ago. Next pull available in $remainingMinutes mins.',
-          );
+          AppLogger.info(
+  'ℹ️ [AppOpen] Smart Sync: Skipping pull. Last pull was ${difference.inMinutes} mins ago. Next pull available in $remainingMinutes mins.',,
+  tag: 'APP',
+);
           return;
         }
       }
@@ -168,12 +175,12 @@ class AppSessionManager {
       // الانتظار قليلاً للتأكد من استقرار الشبكة والأنظمة
       await Future<void>.delayed(const Duration(seconds: 3));
 
-      debugPrint('📥 [AppOpen] Starting smart automatic Appwrite pull...');
+      AppLogger.info('📥 [AppOpen] Starting smart automatic Appwrite pull...', tag: 'APP');
 
       // استخدام SyncManager المشترك لتجنب مزامنة مزدوجة ومصادمات mutex
       final syncManager = _sharedSyncManager;
       if (syncManager == null) {
-        debugPrint('ℹ️ [AppOpen] No shared SyncManager — skipping pull.');
+        AppLogger.info('ℹ️ [AppOpen] No shared SyncManager — skipping pull.', tag: 'APP');
         return;
       }
 
@@ -183,11 +190,12 @@ class AppSessionManager {
       // تحديث وقت آخر سحب ناجح
       await prefs.setInt(lastPullKey, nowMs);
 
-      debugPrint(
-        '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',
-      );
+      AppLogger.info(
+  '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',,
+  tag: 'APP',
+);
     } catch (e) {
-      debugPrint('❌ [AppOpen] Error during automatic Appwrite pull: $e');
+      AppLogger.error('❌ [AppOpen] Error during automatic Appwrite pull: $e', tag: 'APP');
     }
   }
 }

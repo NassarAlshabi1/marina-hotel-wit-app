@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'telegram_config.dart';
 import 'telegram_service.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// أنواع أحداث الفندق
 enum TelegramEventType {
@@ -121,12 +122,12 @@ class TelegramNotificationService {
       final success = await _api.sendToDefaultChat(text: buffer.toString().trimRight());
 
       if (success) {
-        debugPrint('✅ Telegram: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
+        AppLogger.info('✅ Telegram: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}', tag: 'APP');
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ Telegram: خطأ في إرسال الإشعار: $e');
+      AppLogger.warning('❌ Telegram: خطأ في إرسال الإشعار: $e', tag: 'APP');
       return false;
     }
   }

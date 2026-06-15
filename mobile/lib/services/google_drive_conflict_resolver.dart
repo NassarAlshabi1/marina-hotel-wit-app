@@ -117,7 +117,7 @@ class GoogleDriveConflictResolver {
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('ConflictResolver', message);
-    debugPrint('[ConflictResolver] $message');
+    AppLogger.info('[ConflictResolver] $message', tag: 'APP');
     _logger?.log(message, level: level, tag: 'CONFLICT');
   }
 
@@ -467,7 +467,7 @@ class GoogleDriveConflictResolver {
     for (final entry in history.take(limit)) {
       try {
         decoded.add(jsonDecode(entry) as Map<String, dynamic>);
-      } catch (e) { debugPrint('WARN: Failed to parse conflict history: $e'); }
+      } catch (e) { AppLogger.info('WARN: Failed to parse conflict history: $e', tag: 'APP'); }
     }
 
     return decoded;

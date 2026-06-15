@@ -197,7 +197,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _startSessionCheck();
       }
     } catch (e) {
-      debugPrint('Error loading cloud accounts: \$e');
+      AppLogger.info('Error loading cloud accounts: \$e', tag: 'APP');
     }
   }
 
@@ -235,7 +235,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _startSessionCheck();
       }
     } catch (e) {
-      debugPrint('Error loading cloud accounts: \$e');
+      AppLogger.info('Error loading cloud accounts: \$e', tag: 'APP');
     }
   }
 

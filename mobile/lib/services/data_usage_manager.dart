@@ -5,6 +5,7 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// مدير استخدام البيانات - يتتبع استهلاك البيانات ويوفر إحصائيات مفصلة
 class DataUsageManager {
@@ -34,9 +35,9 @@ class DataUsageManager {
     try {
       await _loadStoredData();
       _setupDailyReset();
-      debugPrint('✅ تم تهيئة مدير استخدام البيانات بنجاح');
+      AppLogger.info('✅ تم تهيئة مدير استخدام البيانات بنجاح', tag: 'APP');
     } catch (e) {
-      debugPrint('❌ خطأ في تهيئة مدير استخدام البيانات: $e');
+      AppLogger.warning('❌ خطأ في تهيئة مدير استخدام البيانات: $e', tag: 'APP');
     }
   }
 
@@ -99,9 +100,9 @@ class DataUsageManager {
         _lastResetDate!.toIso8601String(),
       );
 
-      debugPrint('🔄 تم إعادة تعيين الاستخدام اليومي للبيانات');
+      AppLogger.info('🔄 تم إعادة تعيين الاستخدام اليومي للبيانات', tag: 'APP');
     } catch (e) {
-      debugPrint('❌ خطأ في إعادة التعيين اليومي: $e');
+      AppLogger.warning('❌ خطأ في إعادة التعيين اليومي: $e', tag: 'APP');
     }
   }
 
@@ -113,11 +114,12 @@ class DataUsageManager {
       final prefs = getSharedPrefs();
       await prefs.setDouble(_keyTodayUsage, _todayUsageMB);
 
-      debugPrint(
-        '📊 تم إضافة ${megabytes.toStringAsFixed(2)} MB للاستخدام اليومي',
-      );
+      AppLogger.info(
+  '📊 تم إضافة ${megabytes.toStringAsFixed(2)} MB للاستخدام اليومي',,
+  tag: 'APP',
+);
     } catch (e) {
-      debugPrint('❌ خطأ في إضافة استخدام البيانات: $e');
+      AppLogger.warning('❌ خطأ في إضافة استخدام البيانات: $e', tag: 'APP');
     }
   }
 
@@ -129,9 +131,9 @@ class DataUsageManager {
       final prefs = getSharedPrefs();
       await prefs.setInt(_keyConsecutiveFailures, _consecutiveFailures);
 
-      debugPrint('⚠️ تم تسجيل فشل متتالي: $_consecutiveFailures');
+      AppLogger.warning('⚠️ تم تسجيل فشل متتالي: $_consecutiveFailures', tag: 'APP');
     } catch (e) {
-      debugPrint('❌ خطأ في تسجيل الفشل: $e');
+      AppLogger.warning('❌ خطأ في تسجيل الفشل: $e', tag: 'APP');
     }
   }
 
@@ -143,9 +145,9 @@ class DataUsageManager {
       final prefs = getSharedPrefs();
       await prefs.setInt(_keyConsecutiveFailures, _consecutiveFailures);
 
-      debugPrint('✅ تم إعادة تعيين عداد الفشل المتتالي');
+      AppLogger.warning('✅ تم إعادة تعيين عداد الفشل المتتالي', tag: 'APP');
     } catch (e) {
-      debugPrint('❌ خطأ في إعادة تعيين عداد الفشل: $e');
+      AppLogger.warning('❌ خطأ في إعادة تعيين عداد الفشل: $e', tag: 'APP');
     }
   }
 
@@ -179,7 +181,7 @@ class DataUsageManager {
         'consecutive_failures': _consecutiveFailures,
       };
     } catch (e) {
-      debugPrint('❌ خطأ في الحصول على إحصائيات الاستخدام: $e');
+      AppLogger.warning('❌ خطأ في الحصول على إحصائيات الاستخدام: $e', tag: 'APP');
 
       // إرجاع قيم افتراضية في حالة الخطأ
       return {
@@ -221,7 +223,7 @@ class DataUsageManager {
         return 'No Connection';
       }
     } catch (e) {
-      debugPrint('❌ خطأ في الحصول على نوع الاتصال: $e');
+      AppLogger.warning('❌ خطأ في الحصول على نوع الاتصال: $e', tag: 'APP');
       return 'Unknown';
     }
   }
@@ -235,7 +237,7 @@ class DataUsageManager {
       // نعتبر البطارية منخفضة إذا كانت أقل من 20%
       return batteryLevel < 20;
     } catch (e) {
-      debugPrint('❌ خطأ في فحص مستوى البطارية: $e');
+      AppLogger.warning('❌ خطأ في فحص مستوى البطارية: $e', tag: 'APP');
       return false; // افتراض أن البطارية عادية في حالة الخطأ
     }
   }
@@ -245,9 +247,9 @@ class DataUsageManager {
     try {
       final prefs = getSharedPrefs();
       await prefs.setInt(_keyDailyLimit, limitMB);
-      debugPrint('⚙️ تم تعيين الحد اليومي للبيانات: $limitMB MB');
+      AppLogger.info('⚙️ تم تعيين الحد اليومي للبيانات: $limitMB MB', tag: 'APP');
     } catch (e) {
-      debugPrint('❌ خطأ في تعيين الحد اليومي: $e');
+      AppLogger.warning('❌ خطأ في تعيين الحد اليومي: $e', tag: 'APP');
     }
   }
 
@@ -257,7 +259,7 @@ class DataUsageManager {
       final prefs = getSharedPrefs();
       return prefs.getInt(_keyDailyLimit) ?? 200;
     } catch (e) {
-      debugPrint('❌ خطأ في قراءة الحد اليومي: $e');
+      AppLogger.warning('❌ خطأ في قراءة الحد اليومي: $e', tag: 'APP');
       return 200; // القيمة الافتراضية
     }
   }
@@ -273,9 +275,10 @@ class DataUsageManager {
   /// تسجيل استخدام البيانات بالميجابايت (مطلوب لـ SmartSyncManager)
   Future<void> recordDataUsage(double megabytes) async {
     await addUsage(megabytes);
-    debugPrint(
-      '📊 تم تسجيل استخدام البيانات: ${megabytes.toStringAsFixed(2)} MB',
-    );
+    AppLogger.info(
+  '📊 تم تسجيل استخدام البيانات: ${megabytes.toStringAsFixed(2)} MB',,
+  tag: 'APP',
+);
   }
 
   /// التحقق من تجاوز حد البيانات اليومي (مطلوب لـ SmartSyncManager)
@@ -287,6 +290,6 @@ class DataUsageManager {
   void dispose() {
     _resetTimer?.cancel();
     _resetTimer = null;
-    debugPrint('🧹 تم تنظيف موارد مدير استخدام البيانات');
+    AppLogger.info('🧹 تم تنظيف موارد مدير استخدام البيانات', tag: 'APP');
   }
 }

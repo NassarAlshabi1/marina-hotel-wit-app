@@ -21,6 +21,7 @@ import 'repositories/rooms_repository.dart';
 import 'sync_config.dart';
 import 'sync_mutex.dart';
 import 'sync_performance_optimizer.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
 
@@ -54,7 +55,7 @@ class SyncService {
   /// تهيئة محسن الأداء
   Future<void> initializePerformanceOptimizer() async {
     await _performanceOptimizer.initialize();
-    debugPrint('🔧 تم تهيئة محسن أداء المزامنة');
+    AppLogger.info('🔧 تم تهيئة محسن أداء المزامنة', tag: 'APP');
   }
 
   /// الحصول على إحصائيات الأداء
@@ -76,13 +77,13 @@ class SyncService {
   /// تشغيل المزامنة مع تحسين الأداء وحماية من التشغيل المتزامن
   Future<void> runSync() async {
     if (!await _syncMutex.acquire(timeout: SyncConfig.syncMutexTimeout)) {
-      debugPrint('⏸️ المزامنة جارية بالفعل، تخطي المحاولة الجديدة');
+      AppLogger.warning('⏸️ المزامنة جارية بالفعل، تخطي المحاولة الجديدة', tag: 'APP');
       return;
     }
 
     try {
       if (await _performanceOptimizer.shouldSkipSync()) {
-        debugPrint('⏭️ تم تخطي المزامنة حسب إعدادات محسن الأداء');
+        AppLogger.warning('⏭️ تم تخطي المزامنة حسب إعدادات محسن الأداء', tag: 'APP');
         return;
       }
 
@@ -94,11 +95,11 @@ class SyncService {
       _performanceOptimizer.recordSyncAttempt(success: true);
       _status.add(SyncStatus.idle);
 
-      debugPrint('✅ تم إنجاز المزامنة بنجاح');
+      AppLogger.info('✅ تم إنجاز المزامنة بنجاح', tag: 'APP');
     } catch (e) {
       _performanceOptimizer.recordSyncAttempt(success: false);
       _status.add(SyncStatus.error);
-      debugPrint('❌ فشل في المزامنة: $e');
+      AppLogger.warning('❌ فشل في المزامنة: $e', tag: 'APP');
       rethrow;
     } finally {
       _syncMutex.release();
@@ -129,9 +130,10 @@ class SyncService {
           if (index >= results.length) {
             allSucceeded = false;
             final missingChange = computation.changes[index];
-            debugPrint(
-              '❌ Missing push result for ${missingChange.entity}/${missingChange.localUuid}',
-            );
+            AppLogger.error(
+  '❌ Missing push result for ${missingChange.entity}/${missingChange.localUuid}',,
+  tag: 'APP',
+);
             break;
           }
 
@@ -145,9 +147,10 @@ class SyncService {
             );
           } else {
             allSucceeded = false;
-            debugPrint(
-              '❌ فشل إرسال ${change.entity}/${change.localUuid}: ${result['error']}',
-            );
+            AppLogger.warning(
+  '❌ فشل إرسال ${change.entity}/${change.localUuid}: ${result['error']}',,
+  tag: 'APP',
+);
           }
         }
 
@@ -175,7 +178,7 @@ class SyncService {
         );
       });
     } catch (e) {
-      debugPrint('❌ فشل في إرسال بيانات المزامنة: $e');
+      AppLogger.warning('❌ فشل في إرسال بيانات المزامنة: $e', tag: 'APP');
       rethrow;
     }
   }
@@ -244,9 +247,10 @@ class SyncService {
         try {
           await _applyIncoming(entity, op, serverId, serverTs, item);
         } catch (e) {
-          debugPrint(
-            '❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.',
-          );
+          AppLogger.error(
+  '❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.',,
+  tag: 'APP',
+);
         }
       }
 
@@ -932,7 +936,7 @@ class SyncService {
         hotelDayKey == null ||
         nightStart == null ||
         nightEnd == null) {
-      debugPrint('⚠️ تخطي booking_nights/$localUuid لعدم اكتمال البيانات');
+      AppLogger.warning('⚠️ تخطي booking_nights/$localUuid لعدم اكتمال البيانات', tag: 'APP');
       return;
     }
 
@@ -1052,7 +1056,7 @@ class SyncService {
 
     final hotelDayKey = _asString(data['hotel_day_key']);
     if (hotelDayKey == null || hotelDayKey.isEmpty) {
-      debugPrint('⚠️ تخطي hotel_day_ledger/$localUuid لعدم اكتمال البيانات');
+      AppLogger.warning('⚠️ تخطي hotel_day_ledger/$localUuid لعدم اكتمال البيانات', tag: 'APP');
       return;
     }
 

@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import '../../services/local_db.dart';
 import '../models/sync_models.dart';
 import '../processors/outbox_processor.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// تطبيق OutboxStorage باستخدام Drift
 class DriftOutboxStorage implements OutboxStorage {
@@ -25,7 +26,7 @@ class DriftOutboxStorage implements OutboxStorage {
       if (decoded is Map<String, dynamic>) {
         payloadMap = decoded;
       }
-    } catch (e) { debugPrint('WARN: Failed to parse outbox payload: $e'); }
+    } catch (e) { AppLogger.info('WARN: Failed to parse outbox payload: $e', tag: 'APP'); }
 
     return DeltaChange(
       id: record.idempotencyKey ?? record.id.toString(),

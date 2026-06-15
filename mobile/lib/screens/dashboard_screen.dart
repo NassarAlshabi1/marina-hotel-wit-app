@@ -18,6 +18,7 @@ import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
 import 'payments/booking_payment_screen.dart';
 import 'reports/expenses_report_screen.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101',
@@ -160,10 +161,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       } else if (mounted) {
         // إشعار صامت بأن البيانات محدثة
-        debugPrint('✅ البيانات محدثة — لا توجد سجلات جديدة');
+        AppLogger.info('✅ البيانات محدثة — لا توجد سجلات جديدة', tag: 'APP');
       }
     } catch (e) {
-      debugPrint('❌ فشل السحب التلقائي عند الفتح: $e');
+      AppLogger.warning('❌ فشل السحب التلقائي عند الفتح: $e', tag: 'APP');
     }
   }
 

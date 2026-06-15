@@ -113,7 +113,7 @@ class WhatsAppNotificationService {
   /// إرسال رسالة عبر CallMeBot WhatsApp API
   Future<bool> _sendViaCallMeBot(String message, {required String phone, required String apiKey}) async {
     if (phone.isEmpty || apiKey.isEmpty) {
-      debugPrint('❌ WhatsApp: رقم الهاتف أو مفتاح API فارغ — تأكد من إعدادات واتساب في Firebase Console');
+      AppLogger.error('❌ WhatsApp: رقم الهاتف أو مفتاح API فارغ — تأكد من إعدادات واتساب في Firebase Console', tag: 'APP');
       return false;
     }
     try {
@@ -150,13 +150,13 @@ class WhatsAppNotificationService {
             return true;
           }
         }
-        debugPrint('⚠️ WhatsApp: فشل الإرسال — $body');
+        AppLogger.warning('⚠️ WhatsApp: فشل الإرسال — $body', tag: 'APP');
         return false;
       }
-      debugPrint('⚠️ WhatsApp: HTTP ${response.statusCode} — $body');
+      AppLogger.warning('⚠️ WhatsApp: HTTP ${response.statusCode} — $body', tag: 'APP');
       return false;
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في الإرسال — $e');
+      AppLogger.warning('❌ WhatsApp: خطأ في الإرسال — $e', tag: 'APP');
       return false;
     }
   }
@@ -214,7 +214,7 @@ class WhatsAppNotificationService {
 
       // Retry مرة واحدة إذا فشلت المحاولة الأولى
       if (!success) {
-        debugPrint('🔄 WhatsApp: إعادة محاولة الإرسال...');
+        AppLogger.info('🔄 WhatsApp: إعادة محاولة الإرسال...', tag: 'APP');
         await Future<void>.delayed(const Duration(seconds: 2));
         success = await _sendViaCallMeBot(
           buffer.toString().trimRight(),
@@ -224,12 +224,12 @@ class WhatsAppNotificationService {
       }
 
       if (success) {
-        debugPrint('✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
+        AppLogger.info('✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}', tag: 'APP');
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في إرسال الإشعار: $e');
+      AppLogger.warning('❌ WhatsApp: خطأ في إرسال الإشعار: $e', tag: 'APP');
       return false;
     }
   }
@@ -463,13 +463,13 @@ class WhatsAppNotificationService {
       }
 
       if (success) {
-        debugPrint('✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation');
+        AppLogger.warning('✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation', tag: 'APP');
       } else {
-        debugPrint('⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — $operation');
+        AppLogger.warning('⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — $operation', tag: 'APP');
       }
       return success;
     } catch (e) {
-      debugPrint('❌ WhatsApp: فشل إرسال تنبيه المزامنة — $e');
+      AppLogger.warning('❌ WhatsApp: فشل إرسال تنبيه المزامنة — $e', tag: 'APP');
       return false;
     }
   }
@@ -503,7 +503,7 @@ class WhatsAppNotificationService {
       }
       return success;
     } catch (e) {
-      debugPrint('❌ WhatsApp: فشل إرسال تنبيه Crash — $e');
+      AppLogger.warning('❌ WhatsApp: فشل إرسال تنبيه Crash — $e', tag: 'APP');
       return false;
     }
   }

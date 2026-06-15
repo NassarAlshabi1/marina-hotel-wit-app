@@ -24,6 +24,7 @@ import 'google_drive_logger.dart';
 import 'google_drive_sign_in_manager.dart';
 import 'local_db.dart';
 import 'restore_fix_service.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum BackupFormat { json, sqlite }
 
@@ -480,7 +481,10 @@ class GoogleDriveBackupService {
 
   void _log(String message) {
     DebugLogs.add('DriveBackup', message);
-    debugPrint(message);
+    AppLogger.info(
+  message,
+  tag: 'APP',
+);
   }
 
   /// حساب تجزئة SHA-256 لبيانات النسخة الاحتياطية (باستثناء حقل data_hash نفسه)
@@ -1433,7 +1437,7 @@ class GoogleDriveBackupService {
           'فشلت مزامنة Appwrite بعد الاستعادة: $e',
           tag: 'RESTORE',
         );
-        debugPrint('Stack trace: $st');
+        AppLogger.info('Stack trace: $st', tag: 'APP');
       }
     } catch (e) {
       _log('❌ خطأ في استعادة البيانات: $e');

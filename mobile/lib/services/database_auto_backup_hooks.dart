@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'auto_backup_manager.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// مدد لتتبع التغييرات في قاعدة البيانات للنسخ التلقائي
 typedef TablePredicate<TTable extends Table> =
@@ -13,7 +14,7 @@ typedef TablePredicate<TTable extends Table> =
 extension DatabaseAutoBackupExtension on AppDatabase {
   /// تهيئة تتبع التغييرات للنسخ التلقائي
   void initializeAutoBackup() {
-    debugPrint('🔗 تهيئة تتبع التغييرات للنسخ التلقائي...');
+    AppLogger.info('🔗 تهيئة تتبع التغييرات للنسخ التلقائي...', tag: 'APP');
 
     // لا حاجة لتعديل طرق Drift، سنقوم بإنشاء طرق wrapper
     // سيتم استدعاؤها من providers أو UI layers
@@ -101,9 +102,10 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للحجوزات
   static Future<int> insertBooking(BookingsCompanion booking) async {
     final result = await _db.insertWithBackupTrigger(_db.bookings, booking);
-    debugPrint(
-      '📝 تم إضافة حجز جديد (${booking.guestName.value}) - سيتم النسخ التلقائي',
-    );
+    AppLogger.info(
+  '📝 تم إضافة حجز جديد (${booking.guestName.value}) - سيتم النسخ التلقائي',,
+  tag: 'APP',
+);
     return result;
   }
 
@@ -114,7 +116,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث حجز ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('✏️ تم تحديث حجز ($id) - سيتم النسخ التلقائي', tag: 'APP');
     }
     return result;
   }
@@ -126,7 +128,7 @@ class AutoBackupDatabaseHelper {
       recordData: {'id': id, 'guest_name': guestName},
     );
     if (result > 0) {
-      debugPrint('🗑️ تم حذف حجز ($id - $guestName) - سيتم النسخ التلقائي');
+      AppLogger.info('🗑️ تم حذف حجز ($id - $guestName) - سيتم النسخ التلقائي', tag: 'APP');
     }
     return result;
   }
@@ -134,9 +136,10 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للغرف
   static Future<int> insertRoom(RoomsCompanion room) async {
     final result = await _db.insertWithBackupTrigger(_db.rooms, room);
-    debugPrint(
-      '🏠 تم إضافة غرفة جديدة (${room.roomNumber.value}) - سيتم النسخ التلقائي',
-    );
+    AppLogger.info(
+  '🏠 تم إضافة غرفة جديدة (${room.roomNumber.value}) - سيتم النسخ التلقائي',,
+  tag: 'APP',
+);
     return result;
   }
 
@@ -147,7 +150,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث غرفة ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('✏️ تم تحديث غرفة ($id) - سيتم النسخ التلقائي', tag: 'APP');
     }
     return result;
   }
@@ -155,9 +158,10 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للمدفوعات
   static Future<int> insertPayment(PaymentsCompanion payment) async {
     final result = await _db.insertWithBackupTrigger(_db.payments, payment);
-    debugPrint(
-      '💰 تم إضافة دفعة جديدة (${payment.amount.value}) - سيتم النسخ التلقائي',
-    );
+    AppLogger.info(
+  '💰 تم إضافة دفعة جديدة (${payment.amount.value}) - سيتم النسخ التلقائي',,
+  tag: 'APP',
+);
     return result;
   }
 
@@ -168,7 +172,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث دفعة ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('✏️ تم تحديث دفعة ($id) - سيتم النسخ التلقائي', tag: 'APP');
     }
     return result;
   }
@@ -176,9 +180,10 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للمصروفات
   static Future<int> insertExpense(ExpensesCompanion expense) async {
     final result = await _db.insertWithBackupTrigger(_db.expenses, expense);
-    debugPrint(
-      '🧾 تم إضافة مصروف جديد (${expense.amount.value}) - سيتم النسخ التلقائي',
-    );
+    AppLogger.info(
+  '🧾 تم إضافة مصروف جديد (${expense.amount.value}) - سيتم النسخ التلقائي',,
+  tag: 'APP',
+);
     return result;
   }
 
@@ -189,7 +194,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث مصروف ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('✏️ تم تحديث مصروف ($id) - سيتم النسخ التلقائي', tag: 'APP');
     }
     return result;
   }
@@ -202,18 +207,20 @@ class AutoBackupDatabaseHelper {
       _db.cashTransactions,
       transaction,
     );
-    debugPrint(
-      '💳 تم إضافة معاملة نقدية (${transaction.amount.value}) - سيتم النسخ التلقائي',
-    );
+    AppLogger.info(
+  '💳 تم إضافة معاملة نقدية (${transaction.amount.value}) - سيتم النسخ التلقائي',,
+  tag: 'APP',
+);
     return result;
   }
 
   // طرق مساعدة للموظفين
   static Future<int> insertEmployee(EmployeesCompanion employee) async {
     final result = await _db.insertWithBackupTrigger(_db.employees, employee);
-    debugPrint(
-      '👤 تم إضافة موظف جديد (${employee.name.value}) - سيتم النسخ التلقائي',
-    );
+    AppLogger.info(
+  '👤 تم إضافة موظف جديد (${employee.name.value}) - سيتم النسخ التلقائي',,
+  tag: 'APP',
+);
     return result;
   }
 
@@ -227,7 +234,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث موظف ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('✏️ تم تحديث موظف ($id) - سيتم النسخ التلقائي', tag: 'APP');
     }
     return result;
   }
@@ -235,7 +242,7 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة لملاحظات الحجز
   static Future<int> insertBookingNote(BookingNotesCompanion note) async {
     final result = await _db.insertWithBackupTrigger(_db.bookingNotes, note);
-    debugPrint('📝 تم إضافة ملاحظة حجز - سيتم النسخ التلقائي');
+    AppLogger.info('📝 تم إضافة ملاحظة حجز - سيتم النسخ التلقائي', tag: 'APP');
     return result;
   }
 
@@ -249,7 +256,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث ملاحظة حجز ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('✏️ تم تحديث ملاحظة حجز ($id) - سيتم النسخ التلقائي', tag: 'APP');
     }
     return result;
   }
@@ -257,9 +264,10 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للديون
   static Future<int> insertDebt(DebtsCompanion debt) async {
     final result = await _db.insertWithBackupTrigger(_db.debts, debt);
-    debugPrint(
-      '💳 تم إضافة دين جديد (${debt.totalAmount.value}) - سيتم النسخ التلقائي',
-    );
+    AppLogger.info(
+  '💳 تم إضافة دين جديد (${debt.totalAmount.value}) - سيتم النسخ التلقائي',,
+  tag: 'APP',
+);
     return result;
   }
 
@@ -270,7 +278,7 @@ class AutoBackupDatabaseHelper {
       where: (t) => t.id.equals(id),
     );
     if (result) {
-      debugPrint('✏️ تم تحديث دين ($id) - سيتم النسخ التلقائي');
+      AppLogger.info('✏️ تم تحديث دين ($id) - سيتم النسخ التلقائي', tag: 'APP');
     }
     return result;
   }

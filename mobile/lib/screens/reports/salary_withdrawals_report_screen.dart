@@ -14,6 +14,7 @@ import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// بيانات معاملة واحدة من جدول salary_withdrawals
 class _SalaryTxRow {
@@ -803,7 +804,7 @@ class _SalaryWithdrawalsReportScreenState
     try {
       return DateTime.parse(normalized);
     } catch (e) {
-      debugPrint('⚠️ تعذر تحليل تاريخ سحب الراتب "$value": $e');
+      AppLogger.warning('⚠️ تعذر تحليل تاريخ سحب الراتب "$value": $e', tag: 'APP');
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
   }
