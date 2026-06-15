@@ -885,3 +885,56 @@ try {
 ### أولوية منخفضة
 4. **تحديث pubspec.yaml** — إضافة الـ dependencies الجديدة
 5. **اختبارات المزامنة** — اختبار Outbox مع 50+ سجل
+
+---
+
+## 26. debugPrint → AppLogger (1071 استدعاء في 117 ملف)
+
+**الالتزام:** `4f6987e`
+**التاريخ:** 15 يونيو 2026
+
+### المشكلة
+- 1,080 استدعاء `debugPrint()` في 123 ملفاً
+- في وضع الإصدار (release)، `debugPrint` يكتب على stderr ← يستهلك بطارية ويبطئ الأداء
+- لا يوجد فلترة حسب المستوى (info/warning/error)
+- لا يوجد تخزين منظم للقراءة لاحقاً
+
+### الحل — تحويل شامل إلى AppLogger
+```dart
+// قبل
+debugPrint('✅ تم تحميل البيانات');
+
+// بعد
+AppLogger.info('✅ تم تحميل البيانات', tag: 'APP');
+```
+
+### التصنيف التلقائي حسب المحتوى
+| الرمز | مستوى AppLogger |
+|-------|----------------|
+| `✅`، `تم `، `نجاح` | `AppLogger.info()` |
+| `⚠️`، `فشل`، `خطأ`، `تخطي` | `AppLogger.warning()` |
+| `❌`، `Exception` | `AppLogger.error()` |
+| `🚀`، `🔧`، `ℹ️` | `AppLogger.info()` |
+
+### آلية العمل في الإنتاج
+```dart
+// lib/utils/app_logger.dart
+if (kDebugMode) {
+  debugPrint(output);   // ← فقط في وضع التطوير
+} else {
+  developer.log(output); // ← في الإنتاج: يكتب للنظام بصمت
+}
+```
+
+تلقائياً في وضع release:
+- `AppLogger.debug()` ← لا يطبع أي شيء
+- `AppLogger.info()` ← لا يطبع أي شيء (أقل من `_releaseMinLevel=2`)
+- `AppLogger.warning()` ← يطبع
+- `AppLogger.error()` ← يطبع + يسجل في Crashlytics
+
+### النتيجة
+| البيان | قبل | بعد |
+|--------|-----|-----|
+| استدعاءات debugPrint في الكود | 1,080 | **1** (في app_logger.dart نفسه) |
+| استدعاءات AppLogger | 49 | **1,165** |
+| ملفات تستخدم AppLogger | 18 | **131** |
