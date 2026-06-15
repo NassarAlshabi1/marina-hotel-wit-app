@@ -90,6 +90,24 @@ class AppwriteSyncManager {
     _adapterRegistry = AdapterRegistry(database);
     _bookingsRepository = BookingsRepository(database);
     _roomsRepository = RoomsRepository(database);
+    _pushService = SyncPushService(
+      appwriteService: appwriteService,
+      database: database,
+      outboxDao: outboxDao,
+      adapterRegistry: _adapterRegistry,
+      bookingsRepository: _bookingsRepository,
+      roomsRepository: _roomsRepository,
+      errorService: _err,
+    );
+    _pullService = SyncPullService(
+      appwriteService: appwriteService,
+      database: database,
+      outboxDao: outboxDao,
+      adapterRegistry: _adapterRegistry,
+      bookingsRepository: _bookingsRepository,
+      roomsRepository: _roomsRepository,
+      errorService: _err,
+    );
   }
   static AppwriteSyncManager? _instance;
 
