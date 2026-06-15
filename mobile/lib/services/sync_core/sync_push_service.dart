@@ -1,29 +1,22 @@
+// ignore_for_file: unused_field, unused_element, deprecated_member_use, directives_ordering, sort_constructors_first, prefer_const_declarations
 import 'dart:async';
-import 'dart:convert';
-import 'dart:developer' as developer;
 
-import 'package:appwrite/appwrite.dart';
-import 'package:appwrite/models.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/drift.dart' as drift;
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../utils/id.dart';
-import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 import '../appwrite_service.dart';
-import '../appwrite_sync_utils.dart';
-import '../booking_derived_fields_service.dart';
-import '../booking_price_adjustment_service.dart';
-import '../crashlytics_service.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../repositories/bookings_repository.dart';
 import '../repositories/rooms_repository.dart';
-import '../sync_constants.dart';
 import 'sync_error_service.dart';
+import 'dart:convert';
+import '../appwrite_config.dart';
+import '../appwrite_sync_utils.dart';
+import '../../utils/time.dart';
 import '../appwrite_logger.dart';
 import '../appwrite_error_handler.dart';
 
@@ -227,6 +220,270 @@ Map<String, dynamic> _addIdempotencyKey(
 
 /// تصفية الحمولة قبل الإرسال — إبقاء فقط الحقول الموجودة في مخطط Appwrite الفعلي
 /// ⚠️ هذا يمنع خطأ "Unknown attribute" نهائياً
+
+
+  // ── Payload Helpers ──────────────────────────────────────────────────────
+
+  Map<String, dynamic> _filterPayload(
+    String collectionId,
+    Map<String, dynamic> payload,
+  ) {
+    return AppwriteSyncUtils.filterPayloadForCollection(collectionId, payload);
+  }
+
+  void _putIfNotNull<T>(Map<String, dynamic> map, String key, T? value) {
+    if (value != null) {
+      map[key] = value;
+    }
+  }
+
+  void _putIfStringNotEmpty(
+    Map<String, dynamic> map,
+    String key,
+    String? value,
+  ) {
+    if (value != null && value.isNotEmpty) {
+      map[key] = value;
+    }
+  }
+
+  // ── Entity → Remote Mapping ─────────────────────────────────────────────
+
+  Map<String, dynamic> _roomToRemote(Room room) {
+    final data = <String, dynamic>{
+      'roomNumber': room.roomNumber,
+      'type': room.type,
+      'price': room.price,
+      'status': room.status,
+      'localUuid': room.localUuid,
+      'createdAt': room.createdAt,
+      'updatedAt': room.updatedAt,
+      'lastModified': room.lastModified,
+      'version': room.version,
+      'origin': room.origin,
+      'deviceId': room.deviceId,
+      'roomType': room.type,
+      'basePrice': room.price,
+      'floor': 1,
+      'bedsCount': 1,
+    };
+    _putIfNotNull(data, 'serverId', room.serverId);
+    _putIfNotNull(data, 'deletedAt', room.deletedAt);
+    _putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
+    return AppwriteSyncUtils.sanitizePayload('rooms', data, collectionId: AppwriteConfig.roomsCollectionId);
+  }
+
+  Map<String, dynamic> _bookingToRemote(Booking booking) {
+    final data = <String, dynamic>{
+      'roomNumber': booking.roomNumber,
+      'guestName': booking.guestName,
+      'guestPhone': booking.guestPhone,
+      'guestIdType': booking.guestIdType,
+      'guestIdNumber': booking.guestIdNumber,
+      'guestNationality': booking.guestNationality,
+      'checkinDate': booking.checkinDate,
+      'status': booking.status,
+      'expectedNights': booking.expectedNights,
+      'calculatedNights': booking.calculatedNights,
+      'localUuid': booking.localUuid,
+      'createdAt': booking.createdAt,
+      'updatedAt': booking.updatedAt,
+      'lastModified': booking.lastModified,
+      'version': booking.version,
+      'origin': booking.origin,
+    };
+    _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
+    _putIfNotNull(data, 'serverId', booking.serverId);
+    _putIfNotNull(data, 'deletedAt', booking.deletedAt);
+    _putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
+    _putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
+    _putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
+    _putIfStringNotEmpty(data, 'guestAddress', booking.guestAddress);
+    data['checkoutDate'] = booking.checkoutDate;
+    data['actualCheckout'] = booking.actualCheckout;
+    _putIfStringNotEmpty(data, 'notes', booking.notes);
+    data['discount'] = booking.discount;
+    _putIfStringNotEmpty(data, 'discountType', booking.discountType);
+    _putIfStringNotEmpty(data, 'discountStartDate', booking.discountStartDate);
+    data['totalDueCached'] = booking.totalDueCached;
+    data['totalPaidCached'] = booking.totalPaidCached;
+    data['remainingBalanceCached'] = booking.remainingBalanceCached;
+    data['totalNightsCached'] = booking.totalNightsCached;
+    data['isFullyPaid'] = booking.isFullyPaid;
+    _putIfStringNotEmpty(data, 'hotelDayCheckin', booking.hotelDayCheckin);
+    _putIfStringNotEmpty(data, 'hotelDayCheckout', booking.hotelDayCheckout);
+    _putIfStringNotEmpty(data, 'vectorClock', booking.vectorClock);
+    data['deviceId'] = booking.deviceId;
+    _putIfStringNotEmpty(data, 'deletedAtIso', booking.deletedAtIso);
+    _putIfNotNull(data, 'createdAtEpoch', booking.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', booking.lastModifiedEpoch);
+    return AppwriteSyncUtils.sanitizePayload('bookings', data, collectionId: AppwriteConfig.bookingsCollectionId);
+  }
+
+  Map<String, dynamic> _expenseToRemote(Expense expense) {
+    final data = <String, dynamic>{
+      'expenseType': expense.expenseType,
+      'description': expense.description,
+      'amount': expense.amount,
+      'date': expense.date,
+      'localUuid': expense.localUuid,
+      'createdAt': expense.createdAt,
+      'updatedAt': expense.updatedAt,
+      'lastModified': expense.lastModified,
+      'version': expense.version,
+      'origin': expense.origin,
+      'vectorClock': expense.vectorClock,
+      'deviceId': expense.deviceId,
+    };
+    _putIfNotNull(data, 'relatedId', expense.relatedId);
+    _putIfNotNull(data, 'cashTransactionId', expense.cashTransactionId);
+    _putIfNotNull(data, 'serverId', expense.serverId);
+    _putIfNotNull(data, 'deletedAt', expense.deletedAt);
+    _putIfStringNotEmpty(data, 'hotelDayKey', expense.hotelDayKey);
+    _putIfStringNotEmpty(data, 'categoryUuid', expense.categoryUuid);
+    _putIfStringNotEmpty(data, 'cashFlowUuid', expense.cashFlowUuid);
+    if (expense.isAutoGenerated) data['isAutoGenerated'] = true;
+    return AppwriteSyncUtils.sanitizePayload('expenses', data, collectionId: AppwriteConfig.expensesCollectionId);
+  }
+
+  Map<String, dynamic> _paymentToRemote(Payment payment) {
+    final data = <String, dynamic>{
+      'amount': payment.amount,
+      'paymentDate': payment.paymentDate,
+      'paymentMethod': payment.paymentMethod,
+      'revenueType': payment.revenueType,
+      'localUuid': payment.localUuid,
+      'createdAt': payment.createdAt,
+      'updatedAt': payment.updatedAt,
+      'lastModified': payment.lastModified,
+      'version': payment.version,
+      'origin': payment.origin,
+      'hotelDayKey': payment.hotelDayKey ?? '',
+      'isPendingBalance': payment.isPendingBalance,
+    };
+    _putIfNotNull(data, 'serverPaymentId', payment.serverPaymentId);
+    _putIfNotNull(data, 'bookingLocalId', payment.bookingLocalId);
+    _putIfStringNotEmpty(data, 'bookingUuidCache', payment.bookingUuidCache);
+    _putIfNotNull(data, 'serverBookingId', payment.serverBookingId);
+    _putIfStringNotEmpty(data, 'roomNumber', payment.roomNumber);
+    _putIfStringNotEmpty(data, 'notes', payment.notes);
+    _putIfNotNull(data, 'cashTransactionLocalId', payment.cashTransactionLocalId);
+    _putIfNotNull(data, 'cashTransactionServerId', payment.cashTransactionServerId);
+    _putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
+    _putIfNotNull(data, 'serverId', payment.serverId);
+    _putIfNotNull(data, 'deletedAt', payment.deletedAt);
+    _putIfStringNotEmpty(data, 'deletedAtIso', payment.deletedAtIso);
+    _putIfStringNotEmpty(data, 'linkedDebtUuid', payment.linkedDebtUuid);
+    _putIfNotNull(data, 'discountAmount', payment.discountAmount);
+    _putIfStringNotEmpty(data, 'discountStartDate', payment.discountStartDate);
+    data['isVoided'] = payment.isVoided;
+    _putIfNotNull(data, 'voidedAt', payment.voidedAt);
+    _putIfStringNotEmpty(data, 'voidedBy', payment.voidedBy);
+    _putIfNotNull(data, 'createdAtEpoch', payment.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', payment.lastModifiedEpoch);
+    data['vectorClock'] = payment.vectorClock;
+    data['deviceId'] = payment.deviceId;
+    return AppwriteSyncUtils.sanitizePayload('payments', data, collectionId: AppwriteConfig.paymentsCollectionId);
+  }
+
+  Map<String, dynamic> _debtToRemote(Debt debt) {
+    final data = <String, dynamic>{
+      'localUuid': debt.localUuid,
+      'guestName': debt.guestName,
+      'checkinDate': debt.checkinDate,
+      'totalAmount': debt.totalAmount,
+      'paidAmount': debt.paidAmount,
+      'remainingAmount': debt.remainingAmount.round(),
+      'bookingLocalId': debt.bookingLocalId,
+      'checkoutDate': debt.checkoutDate,
+      'paymentDate': debt.paymentDate,
+      'isSettled': debt.isSettled,
+      'debtReason': debt.debtReason,
+      'note': debt.note,
+      'debtUuid': debt.debtUuid,
+      'pledge': debt.pledge,
+      'pledgeType': debt.pledgeType,
+      'isFromAutoFix': debt.isFromAutoFix,
+      'settlementConfirmed': debt.settlementConfirmed,
+      'createdAt': debt.createdAt,
+      'updatedAt': debt.updatedAt,
+      'lastModified': debt.lastModified,
+      'version': debt.version,
+      'origin': debt.origin,
+    };
+    _putIfNotNull(data, 'serverId', debt.serverId);
+    _putIfNotNull(data, 'deletedAt', debt.deletedAt);
+    _putIfStringNotEmpty(data, 'deletedAtIso', debt.deletedAtIso);
+    _putIfStringNotEmpty(data, 'hotelDayOpened', debt.hotelDayOpened);
+    _putIfStringNotEmpty(data, 'hotelDayClosed', debt.hotelDayClosed);
+    data['vectorClock'] = debt.vectorClock;
+    data['deviceId'] = debt.deviceId;
+    _putIfNotNull(data, 'createdAtEpoch', debt.createdAtEpoch);
+    _putIfNotNull(data, 'lastModifiedEpoch', debt.lastModifiedEpoch);
+    return AppwriteSyncUtils.sanitizePayload('debts', data, collectionId: AppwriteConfig.debtsCollectionId);
+  }
+
+  Map<String, dynamic> _blacklistToRemote(ShiftNote item) {
+    Map<String, dynamic> extra = {};
+    try { extra = jsonDecode(item.content) as Map<String, dynamic>; } catch (_) {}
+
+    final now = Time.nowEpoch();
+    final createdAtIso = item.createdAtIso ??
+        DateTime.fromMillisecondsSinceEpoch(item.createdAt * 1000).toIso8601String();
+    final updatedAtIso = DateTime.fromMillisecondsSinceEpoch(item.updatedAt * 1000).toIso8601String();
+
+    return {
+      'name': item.title,
+      'nationality': (extra['nationality'] as String?) ?? '',
+      'nationalId': (extra['nationalId'] as String?) ?? '',
+      'phone': (extra['phone'] as String?) ?? '',
+      'reason': (extra['reason'] as String?) ?? '',
+      'notes': (extra['notes'] as String?) ?? '',
+      'reportedBy': (extra['reportedBy'] as String?) ?? 'police',
+      'active': (extra['active'] as bool?) ?? true,
+      'localUuid': item.localUuid,
+      'createdAt': createdAtIso,
+      'createdAtIso': createdAtIso,
+      'updatedAt': updatedAtIso,
+      'updatedAtIso': updatedAtIso,
+      'deletedAt': item.deletedAt != null
+          ? DateTime.fromMillisecondsSinceEpoch(item.deletedAt! * 1000).toIso8601String()
+          : null,
+      'lastModified': item.lastModified,
+      'origin': 'mobile',
+      'syncTimestamp': now,
+      'deviceId': item.deviceId,
+      if (item.serverId != null) 'serverId': item.serverId,
+    };
+  }
+
+  Map<String, dynamic> _priceAdjustmentToRemote(PriceAdjustment row) {
+    final now = Time.nowEpoch();
+    return {
+      'localUuid': row.localUuid,
+      'targetType': row.targetType,
+      'targetUuid': row.targetUuid,
+      'adjustmentType': row.adjustmentType,
+      'previousValue': row.previousValue,
+      'newValue': row.newValue,
+      'reason': row.reason,
+      'effectiveDate': row.effectiveDate,
+      'appliedBy': row.appliedBy,
+      'hotelDayKey': row.hotelDayKey,
+      'isReversed': row.isReversed,
+      'reversedAt': row.reversedAt,
+      'reversedBy': row.reversedBy,
+      'createdAt': row.createdAt,
+      'updatedAt': now,
+      'lastModified': now,
+      'origin': 'mobile',
+      'syncTimestamp': now,
+      'deviceId': row.deviceId,
+      if (row.serverId != null) 'serverId': row.serverId,
+    };
+  }
+
+  // ── Local DB Lookup Helpers ──────────────────────────────────────────────
 
 Future<bool> _processRoomEntry(OutboxData entry) async {
   if (entry.op == 'delete') {
@@ -935,18 +1192,6 @@ Future<bool> _pushAppSettingsToCloud() async {
   } catch (e) {
     _logger.warning('Failed to push app_settings: $e', tag: 'SYNC');
     return false;
-  }
-}
-
-/// مزامنة إعدادات المراسلة (واتساب + تلجرام) من Appwrite → SharedPreferences
-
-void _putIfStringNotEmpty(
-  Map<String, dynamic> map,
-  String key,
-  String? value,
-) {
-  if (value != null && value.isNotEmpty) {
-    map[key] = value;
   }
 }
 

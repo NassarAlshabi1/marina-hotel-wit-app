@@ -1,33 +1,31 @@
+// ignore_for_file: unused_field, unused_element, deprecated_member_use, directives_ordering, prefer_final_fields, close_sinks, sort_constructors_first
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/drift.dart' as drift;
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 import '../appwrite_logger.dart';
 import '../appwrite_error_handler.dart';
 import '../appwrite_service.dart';
-import '../appwrite_sync_utils.dart';
 import '../booking_derived_fields_service.dart';
-import '../conflict_manager.dart';
 import '../crashlytics_service.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../repositories/bookings_repository.dart';
 import '../repositories/rooms_repository.dart';
-import '../sync_constants.dart';
 import '../sync_enums.dart';
-import '../sync_mutex.dart';
 import 'sync_error_service.dart';
+import 'package:sqlite3/sqlite3.dart' show SqliteException;
+import '../appwrite_config.dart';
+import '../appwrite_models.dart';
+import '../../utils/status_utils.dart';
+import '../adapters/salary_withdrawals_adapter.dart';
 
 /// خدمة سحب التغييرات من Appwrite Cloud إلى القاعدة المحلية
 class SyncPullService {
@@ -43,6 +41,7 @@ class SyncPullService {
   final SyncErrorService _err;
   SyncStatus _currentStatus = SyncStatus.idle;
   final _syncController = StreamController<SyncStatus>.broadcast();
+  bool? _remoteEpochIsMillis;
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
 
   SyncPullService({
@@ -62,7 +61,33 @@ class SyncPullService {
         _logger = logger ?? AppwriteLogger(),
         _errorHandler = errorHandler ?? AppwriteErrorHandler();
 
-Future<bool> _isRemoteEpochMillis() async {
+  // ── Helper Methods ─────────────────────────────────────────────────────
+
+  int _asInt(dynamic value, {int fallback = 0}) {
+    final result = _asIntNullable(value);
+    return result ?? fallback;
+  }
+
+  int? _asIntNullable(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String && value.isNotEmpty) {
+      final parsedInt = int.tryParse(value);
+      if (parsedInt != null) return parsedInt;
+      final parsedDouble = double.tryParse(value);
+      if (parsedDouble != null) return parsedDouble.toInt();
+    }
+    return null;
+  }
+
+  int? _asIntSafe(Map<String, dynamic> data, String key) {
+    final value = data[key];
+    return _asIntNullable(value);
+  }
+
+
+Future<bool> isRemoteEpochMillis() async {
   final cached = _remoteEpochIsMillis;
   if (cached != null) {
     return cached;
@@ -103,7 +128,7 @@ Future<bool> _isRemoteEpochMillis() async {
   }
 }
 
-Future<List<String>> _buildDeltaQueries(int lastPullTs) async {
+Future<List<String>> buildDeltaQueries(int lastPullTs) async {
   if (lastPullTs <= 0) {
     return [];
   }
@@ -117,7 +142,7 @@ Future<List<String>> _buildDeltaQueries(int lastPullTs) async {
 
 /// تهيئة المزامنة
 
-List<String> _bookingNightsDeltaQueries(
+List<String> bookingNightsDeltaQueries(
   int lastPullTs, {
   required bool remoteEpochIsMillis,
 }) {
@@ -806,7 +831,7 @@ Future<int> _syncSalaryWithdrawals(List<models.Document> documents) async {
 }
 
 
-Future<int> _getBookingNightsPullTs() async {
+Future<int> getBookingNightsPullTs() async {
   final prefs = await SharedPreferences.getInstance();
   final ts = prefs.getInt('sync_last_pull_booking_nights') ?? 0;
   if (ts > 10000000000) {
@@ -817,7 +842,7 @@ Future<int> _getBookingNightsPullTs() async {
 
 /// تحديث آخر timestamp خاص بـ booking_nights
 
-Future<void> _updateBookingNightsPullTs(int ts) async {
+Future<void> updateBookingNightsPullTs(int ts) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setInt('sync_last_pull_booking_nights', ts);
 }
@@ -965,7 +990,7 @@ Future<int> _cleanupOutboxForDeletedEntities() async {
 /// جلب deletedAt لكيان محلي بناءً على entity و localUuid
 /// يُعيد null إذا الكيان غير موجود، أو 0 إذا موجود وغير محذوف
 
-Future<int> _getLastPullTs() async {
+Future<int> getLastPullTs() async {
   try {
     final state = await (database.select(database.syncState)
           ..where((t) => t.id.equals(1)))
@@ -987,7 +1012,7 @@ Future<int> _getLastPullTs() async {
 /// لا يؤثر على أي صف — وبالتالي lastPullTs يبقى 0 للأبد،
 /// وكل مزامنة تسحب كل البيانات بدلاً من التغييرات فقط (delta).
 
-Future<void> _updateLastPullTs(int ts) async {
+Future<void> updateLastPullTs(int ts) async {
   try {
     await database.into(database.syncState).insertOnConflictUpdate(
           SyncStateCompanion(
@@ -2055,7 +2080,6 @@ Future<void> _performPostSyncIntegrityCheck() async {
       tag: 'SYNC_INTEGRITY',
     );
   }
-}
 }
 
 

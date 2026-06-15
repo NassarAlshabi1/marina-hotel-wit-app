@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field, use_late_for_private_fields_and_variables, duplicate_ignore
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
@@ -40,8 +42,8 @@ import 'sync_enums.dart';
 import 'sync_mutex.dart';
 import 'telegram/whatsapp_notification_service.dart';
 
-/// حالة المزامنة
-enum SyncStatus { idle, syncing, success, failed, partial }
+// SyncStatus is now defined in sync_enums.dart
+export 'sync_enums.dart' show SyncStatus;
 
 /// نتيجة المزامنة
 class SyncResult {
@@ -121,11 +123,8 @@ class AppwriteSyncManager {
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
-  // ignore: unused_field
   final _err = SyncErrorService(tag: 'SYNC');
-  // ignore: unused_field, use_late_for_private_fields_and_variables
   SyncPushService? _pushService;
-  // ignore: unused_field, use_late_for_private_fields_and_variables
   SyncPullService? _pullService;
 
   Timer? _syncTimer;
@@ -148,11 +147,11 @@ class AppwriteSyncManager {
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
 
   Future<bool> _isRemoteEpochMillis() async {
-    return _pullService?._isRemoteEpochMillis() ?? false;
+    return _pullService?.isRemoteEpochMillis() ?? false;
   }
 
   Future<List<String>> _buildDeltaQueries(int lastPullTs) async {
-    return _pullService?._buildDeltaQueries(lastPullTs) ?? [];
+    return _pullService?.buildDeltaQueries(lastPullTs) ?? [];
   }
 
   /// تهيئة المزامنة
@@ -2822,12 +2821,12 @@ class AppwriteSyncManager {
 
   /// قراءة آخر timestamp خاص بـ booking_nights من SharedPreferences
   Future<int> _getBookingNightsPullTs() async {
-    return _pullService?._getBookingNightsPullTs() ?? 0;
+    return _pullService?.getBookingNightsPullTs() ?? 0;
   }
 
   /// تحديث آخر timestamp خاص بـ booking_nights
   Future<void> _updateBookingNightsPullTs(int ts) async {
-    await _pullService?._updateBookingNightsPullTs(ts);
+    await _pullService?.updateBookingNightsPullTs(ts);
   }
 
   /// بناء delta queries خاصة بـ booking_nights
@@ -2835,7 +2834,7 @@ class AppwriteSyncManager {
     int lastPullTs, {
     required bool remoteEpochIsMillis,
   }) {
-    return _pullService?._bookingNightsDeltaQueries(
+    return _pullService?.bookingNightsDeltaQueries(
       lastPullTs,
       remoteEpochIsMillis: remoteEpochIsMillis,
     ) ?? [];
@@ -3277,7 +3276,7 @@ class AppwriteSyncManager {
 
   /// قراءة آخر timestamp لسحب البيانات من جدول SyncState
   Future<int> _getLastPullTs() async {
-    return _pullService?._getLastPullTs() ?? 0;
+    return _pullService?.getLastPullTs() ?? 0;
   }
 
   /// تحديث آخر timestamp لسحب البيانات في جدول SyncState
@@ -3286,7 +3285,7 @@ class AppwriteSyncManager {
   /// لا يؤثر على أي صف — وبالتالي lastPullTs يبقى 0 للأبد،
   /// وكل مزامنة تسحب كل البيانات بدلاً من التغييرات فقط (delta).
   Future<void> _updateLastPullTs(int ts) async {
-    await _pullService?._updateLastPullTs(ts);
+    await _pullService?.updateLastPullTs(ts);
   }
 
 

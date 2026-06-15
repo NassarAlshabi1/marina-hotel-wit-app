@@ -1,3 +1,6 @@
+/// حالة المزامنة
+enum SyncStatus { idle, syncing, success, failed, partial }
+
 enum SyncQueueStatus {
   pending('pending'),
   synced('synced'),

@@ -19,7 +19,7 @@ import 'google_drive_sync_service.dart';
 import 'local_db.dart';
 import 'sync_config.dart';
 import 'sync_conflict_event_bus.dart';
-import 'sync_enums.dart';
+import 'sync_enums.dart' hide SyncStatus;
 import 'sync_mutex.dart';
 import 'sync_safety_layer.dart';
 import 'vector_clock.dart';
