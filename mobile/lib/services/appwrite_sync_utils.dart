@@ -211,7 +211,7 @@ class AppwriteSyncUtils {
     },
     'app_settings': {
       'appwrite_sync_interval', 'dark_mode', 'hotel_cutoff_hour',
-      'hotel_name', 'lark_app_id', 'lark_app_secret',
+      'hotel_name', 'key', 'lark_app_id', 'lark_app_secret',
       'lark_daily_report_chat_id', 'lark_daily_report_enabled',
       'lark_daily_report_time', 'lark_enabled', 'lark_webhook_url',
       'telegram_bot_token', 'telegram_chat_id',

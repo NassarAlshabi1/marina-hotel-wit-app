@@ -6012,6 +6012,8 @@ class AppwriteSyncManager {
       // تم تدقيق كل حقل مقابل المخطط الفعلي في 2026-06-14
       // ❌ لا ترسل حقولاً غير موجودة — يسبب "Unknown attribute" خطأ 400
       final data = <String, dynamic>{
+        // ── مفتاح المستند — مطلوب من Appwrite Schema (required attribute)
+        'key': 'whatsapp_settings',
         // ── فندق ──
         'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
         'hotel_cutoff_hour': prefs.getInt('hotel_cutoff_hour') ?? 14,
