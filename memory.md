@@ -587,3 +587,92 @@ if (employee == null && employeeUuid != null && employeeUuid.isNotEmpty) {
 - لا يمكن الخلط بين "غير موجود" و "فشل الشبكة"
 - يبحث بقاعدة بيانات Appwrite بالحقل `localUuid` وليس فقط بـ `$id`
 - يغطي الحالات النادرة التي يختلف فيها `$id` عن `localUuid`
+
+---
+
+## 20. آلية رفع الـ Outbox للدفعات (Batch Processing)
+
+**الملفات:**
+- `lib/services/daos/outbox_dao.dart` — `merge()` + `takeBatch()`
+- `lib/services/appwrite_sync_manager.dart` — `_pushAllEntities()`
+
+### كيف يعمل رفع 50 سجل؟
+
+#### 1. التسجيل (Merge) — ذري
+عند كل عملية محلية (حجز، دفعة، تعديل)، يُستدعى `outboxDao.merge()`:
+- يبحث عن سجل موجود بنفس `entity` + `localUuid` في حالة `pending`/`processing`
+- إذا وُجد → يُحدّث الـ payload **دون مضاعفة السجل**
+- إذا لم يُوجد → يُدرج سجل جديد
+
+```dart
+Future<int> merge({entity, op, localUuid, payload, clientTs, ...}) async {
+  return transaction(() async {
+    final existing = await (select(outbox)
+      ..where((t) => t.entity.equals(entity) &
+                    t.localUuid.equals(localUuid) &
+                    t.processingStatus.isIn(['pending', 'processing']))
+      ..limit(1)).getSingleOrNull();
+    if (existing != null) {
+      return (update(outbox)..where((t) => t.id.equals(existing.id)))
+        .write(OutboxCompanion(op: Value(op), payload: Value(payloadJson), ...));
+    }
+    return into(outbox).insert(OutboxCompanion.insert(...));
+  });
+}
+```
+
+#### 2. السحب (TakeBatch) — دفعة + Atomic Lock
+```sql
+UPDATE outbox SET processing_status = 'processing', ...
+WHERE id IN (
+  SELECT id FROM outbox WHERE processing_status = 'pending'
+  ORDER BY 
+    CASE entity 
+      WHEN 'rooms' THEN 1 WHEN 'employees' THEN 2 
+      WHEN 'bookings' THEN 3 WHEN 'payments' THEN 4
+      WHEN 'expenses' THEN 5 WHEN 'debts' THEN 6
+      WHEN 'booking_notes' THEN 7 WHEN 'shift_notes' THEN 8
+      WHEN 'cash_transactions' THEN 9 ELSE 10 
+    END ASC, client_ts ASC
+  LIMIT ?
+)
+RETURNING *
+```
+**الترتيب:** حسب علاقات FK (rooms → employees → bookings → ...) ثم حسب timestamp.
+
+#### 3. المعالجة (Push) — حلقة داخل الدفعة
+```dart
+for (final entry in entries) {
+  final success = await _processOutboxEntry(entry).timeout(30s);
+  if (success) await outboxDao.removeById(entry.id);
+  else failedInBatch++;
+}
+```
+
+#### 4. Adaptive Batch Size
+```
+Batch 1: 10 سجلات → نجحت كلها → 10 * 1.3 = 13
+Batch 2: 13 سجل → نجحت كلها → 13 * 1.3 = 16
+Batch 3: 16 سجل → نجحت كلها → 16 * 1.3 = 20
+Batch 4: 11 سجل (المتبقي من 50) → اكتمل ✅
+```
+
+#### 5. عند الفشل
+- **Timeout**: يُوسم السجل كـ `failed` مع زيادة `attempts`
+- **3 دفعات متتالية فاشلة**: إيقاف المزامنة
+- **مؤقت 5 دقائق**: إعادة محاولة السجلات الفاشلة (`retryFailedWithBackoff`)
+- **الفشل لا يفقد البيانات**: السجل يبقى في Outbox حتى يُرفع بنجاح
+
+#### 6. Adaptive Batch Size (التفاصيل)
+```dart
+void _adjustBatchSize(bool success, int processed, int total) {
+  if (success && processed == total) {
+    _adaptiveBatchSize = (_adaptiveBatchSize * 1.3).round().clamp(1, 50);
+  } else if (total > 0 && processed == 0) {
+    _adaptiveBatchSize = (_adaptiveBatchSize / 0.6).round().clamp(1, 50);
+  }
+}
+```
+- نجاح الدفعة بالكامل → ×1.3 (حد أقصى 50)
+- فشل الدفعة بالكامل → ÷0.6 (حد أدنى 1)
+- يتكيف مع سرعة الإنترنت تلقائياً
