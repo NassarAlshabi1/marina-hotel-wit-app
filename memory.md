@@ -529,3 +529,61 @@ if (employee == null) {
   continue;
 }
 ```
+
+---
+
+## 19. إضافة طرق بحث إضافية قبل حذف اليتامى (منع فقدان البيانات)
+
+**الملف:** `appwrite_sync_manager.dart`
+
+**المشكلة:** دالة `getDocumentSafe` تعيد `null` في حالتين:
+1. **المستند غير موجود (404)** — صحيح، السجل يتيم
+2. **انتهت المهلة (Timeout)** — خطأ! قد يكون السجل موجوداً لكن الشبكة بطيئة
+
+في الحالة الثانية، كنا نظن السجل يتيماً ونحذفه من Appwrite — وهذا يؤدي لفقدان بيانات.
+
+**الإصلاح — `_ensureParentBookingExists` (طريقة 4 جديدة):**
+```dart
+// الطريقة 4: البحث في Appwrite باستخدام listDocuments بالـ localUuid
+// هذا يغطي الحالات التي يعيد فيها getDocumentSafe null بسبب timeout
+if (booking == null) {
+  final docs = await appwriteService.listAllDocuments(
+    collectionId: AppwriteConfig.bookingsCollectionId,
+    queries: [Query.equal('localUuid', bookingUuid)],
+    useCache: false,
+  );
+  if (docs.isNotEmpty) {
+    // وجدنا الحجز بواسطة query — نُدخله محلياً
+    bookingData['localUuid'] ??= docs.first.$id;
+    await _adapterRegistry.bookings.upsertFromJson(bookingData, src: Source.appwrite);
+    booking = await ...getSingleOrNull();
+  }
+}
+```
+
+**الإصلاح — `_ensureEmployeeExists` (طريقة 5 جديدة):**
+```dart
+// الطريقة 5: البحث في Appwrite باستخدام listDocuments بالـ localUuid
+if (employee == null && employeeUuid != null && employeeUuid.isNotEmpty) {
+  final docs = await appwriteService.listAllDocuments(
+    collectionId: AppwriteConfig.employeesCollectionId,
+    queries: [Query.equal('localUuid', employeeUuid)],
+    useCache: false,
+  );
+  if (docs.isNotEmpty) {
+    // وجدنا الموظف — نُدخله محلياً
+  }
+}
+```
+
+**الفرق بين `getDocumentSafe` و `listDocuments`:**
+| الخاصية | `getDocumentSafe` | `listDocuments` |
+|---------|------------------|-----------------|
+| آلية البحث | بـ `$id` (document ID) | بـ query filter (`localUuid` field) |
+| فشل الشبكة | يعيد `null` | يرمي استثناء |
+| timeout | يعيد `null` (خطير!) | يرمي `TimeoutException` |
+
+**لماذا `listDocuments` أكثر أماناً:**
+- لا يمكن الخلط بين "غير موجود" و "فشل الشبكة"
+- يبحث بقاعدة بيانات Appwrite بالحقل `localUuid` وليس فقط بـ `$id`
+- يغطي الحالات النادرة التي يختلف فيها `$id` عن `localUuid`
