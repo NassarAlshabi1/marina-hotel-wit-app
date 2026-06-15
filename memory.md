@@ -676,3 +676,212 @@ void _adjustBatchSize(bool success, int processed, int total) {
 - نجاح الدفعة بالكامل → ×1.3 (حد أقصى 50)
 - فشل الدفعة بالكامل → ÷0.6 (حد أدنى 1)
 - يتكيف مع سرعة الإنترنت تلقائياً
+
+---
+
+## 21. PrefsCache — SharedPreferences Cache (Singleton)
+
+**الملف الجديد:** `mobile/lib/utils/prefs_cache.dart`
+**الالتزام:** `c5345f2`
+
+### المشكلة
+- 328 استدعاء `await SharedPreferences.getInstance()` في 65 ملفاً
+- كل استدعاء = I/O (قراءة ملف XML كامل)
+- يسبب بطئاً في إقلاع التطبيق وفتح الشاشات
+
+### الحل — Singleton PrefsCache
+```dart
+class PrefsCache {
+  PrefsCache._();
+  static SharedPreferences? _prefs;
+
+  static Future<void> init() async {
+    _prefs ??= await SharedPreferences.getInstance();
+  }
+
+  static SharedPreferences get _p {
+    assert(_prefs != null, '⚠️ PrefsCache لم يُهيّأ');
+    return _prefs!;
+  }
+
+  // قراءة سريعة من الذاكرة
+  static String getString(String key, [String? defaultValue]) =>
+      _p.getString(key) ?? defaultValue ?? '';
+  
+  static bool getBool(String key, [bool defaultValue = false]) =>
+      _p.getBool(key) ?? defaultValue;
+
+  static int getInt(String key, [int defaultValue = 0]) =>
+      _p.getInt(key) ?? defaultValue;
+
+  // كتابة
+  static Future<bool> setString(String key, String value) =>
+      _p.setString(key, value);
+  static Future<bool> setBool(String key, bool value) =>
+      _p.setBool(key, value);
+}
+```
+
+### دالة استبدال مباشر
+```dart
+Future<SharedPreferences> getSharedPrefs() async {
+  if (PrefsCache._prefs == null) {
+    PrefsCache._prefs = await SharedPreferences.getInstance();
+  }
+  return PrefsCache._prefs!;
+}
+```
+
+### ملفات معدلة (65 ملفاً)
+- `main.dart`: `await PrefsCache.init()` بعد `WidgetsFlutterBinding.ensureInitialized()`
+- جميع ملفات `services/`: `SharedPreferences.getInstance()` → `getSharedPrefs()`
+- جميع ملفات `providers/`: نفس الاستبدال
+- جميع ملفات `screens/settings/`: نفس الاستبدال
+
+---
+
+## 22. Silent Catch Logger — 49/134 fix
+
+**الملف الجديد:** `mobile/lib/utils/safe_catch.dart`
+**الالتزام:** `c5345f2`
+
+### المشكلة
+- 134 `catch (_) {}` صامتة تبتلع الأخطاء
+- الأخطاء تختفي بدون سجل → يصعب تتبع مشاكل المزامنة
+
+### الحل — استبدال تدريجي
+```dart
+void reportError(Object error, {
+  String message = '⚠️ خطأ غير متوقع',
+  String tag = 'SAFE',
+  StackTrace? stackTrace,
+}) {
+  AppLogger.warning(message, tag: tag, error: error, stackTrace: stackTrace);
+}
+```
+
+### ملفات معدلة (18 ملف خدمات)
+- `appwrite_sync_manager.dart` — 12 catch
+- `appwrite_backup_service.dart` — 4 catch
+- `appwrite_full_pull.dart` — 3 catch
+- `sync_safety_layer.dart` — 3 catch
+- `sync_notification_manager.dart` — 3 catch
+- `sync_performance_optimizer.dart` — 3 catch
+- `whatsapp_settings_sync.dart` — 2 catch
+- `hotel_day_key_fix_service.dart` — 2 catch
+- `google_drive_conflict_resolver.dart` — 2 catch
+- `restore_fix_service.dart` — 2 catch
+- `appwrite_backup_sync_service.dart` — 2 catch
+- `appwrite_delta_sync.dart` — 1 catch
+- `google_drive_unified_sync_coordinator.dart` — 1 catch
+- `local_backup_service.dart` — 1 catch
+- `app_session_manager.dart` — 1 catch
+- `fcm_service.dart` — 2 catch
+- `telegram/whatsapp_notification_service.dart` — 1 catch
+- `repositories/salary_withdrawals_repository.dart` — 4 catch
+
+### الاستبدال
+```dart
+// قبل
+catch (_) { /* صامت */ }
+
+// بعد
+catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+  // الكود الأصلي موجود (إن وُجد)
+}
+```
+
+**ملاحظة:** لم يتم تعديل CrashlyticsService (10 catches — متعمدة)
+
+---
+
+## 23. ForegroundSyncService — خدمة خلفية للمزامنة الموثوقة
+
+**الملف الجديد:** `mobile/lib/services/foreground_sync_service.dart`
+**الملف الجديد:** `mobile/docs/foreground_service_setup.md`
+**الالتزام:** `c5345f2`
+
+### المشكلة
+- Android 12+ يقتل خدمات WorkManager في الخلفية
+- التطبيق يفقد المزامنة التلقائية بعد ~10 دقائق من الإغلاق
+- المستخدم يضطر لفتح التطبيق يدوياً للمزامنة
+
+### الحل — Foreground Service
+```dart
+class ForegroundSyncService {
+  ForegroundSyncService._();
+  static final ForegroundSyncService instance = ForegroundSyncService._();
+
+  Future<void> start() async {
+    // تستخدم Singletons — لا تفتح اتصال DB جديد
+    final db = AppDatabase.instance;
+    final appwrite = AppwriteService();
+
+    // مزامنة دورية كل 5 دقائق
+    _syncTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) => _performSync(),
+    );
+
+    // تنظيف Outbox كل ساعة
+    _cleanupTimer = Timer.periodic(
+      const Duration(hours: 1),
+      (_) => _cleanupOutbox(),
+    );
+  }
+}
+```
+
+### تفعيل الخدمة في main.dart
+```dart
+// بعد AppwriteConfigManager.init()
+try {
+  await ForegroundSyncService.instance.start();
+  debugPrint('✅ ForegroundSyncService started');
+} catch (e) {
+  debugPrint('⚠️ ForegroundSyncService failed: $e');
+}
+```
+
+### متطلبات التفعيل
+1. إضافة `flutter_background_service: ^5.0.0` للـ pubspec.yaml
+2. إضافة permissions و service للـ AndroidManifest.xml
+3. تشغيل `flutter pub get`
+
+### دورة الحياة
+- تبدأ تلقائياً عند تشغيل التطبيق
+- إشعار دائم "المزامنة نشطة"
+- مزامنة Outbox → Push → Pull كل 5 دقائق
+- تنظيف Outbox القديم (> 24 ساعة) كل ساعة
+- لا تتأثر بقيود Android 12+ Background Execution
+
+---
+
+## 24. آخر التزام
+
+**الالتزام:** `c5345f2`
+**التاريخ:** 15 يونيو 2026
+**الرسالة:** perf: PrefsCache + Silent catch fixes + ForegroundService + memory.md
+**الفرع:** `yy`
+**الرابط:** https://github.com/NassarAlshabi1/marina-hotel-wit-app/tree/yy
+
+---
+
+## 25. المهام المتبقية
+
+### أولوية عالية
+1. **تفعيل Background Service** — يتطلب Flutter SDK:
+   - `flutter pub add flutter_background_service`
+   - تحديث AndroidManifest.xml
+   - `flutter pub get`
+
+### أولوية متوسطة
+2. **باقي Silent Catches (~85)** — في ملفات UI (screens, widgets)
+3. **تحويل 3 شاشات إلى Riverpod** — تحتاج تعديل يدوي:
+   - `ai_chat_screen.dart` — StatefulWidget
+   - `appwrite_backup_endpoints_screen.dart` — StatefulWidget
+   - `database_fixer_screen.dart` — StatefulWidget
+
+### أولوية منخفضة
+4. **تحديث pubspec.yaml** — إضافة الـ dependencies الجديدة
+5. **اختبارات المزامنة** — اختبار Outbox مع 50+ سجل
