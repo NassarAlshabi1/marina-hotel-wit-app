@@ -14,6 +14,7 @@ import 'package:mockito/mockito.dart';
 
 import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/appwrite_config.dart';
+import 'package:marina_hotel_mobile/services/appwrite_config_manager.dart';
 
 /// Mock لـ AppwriteService مع بيانات وهمية قابلة للتخصيص
 class MockAppwriteService extends Mock implements AppwriteService {
