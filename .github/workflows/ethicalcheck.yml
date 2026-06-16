@@ -26,6 +26,10 @@
 
 # This is a starter workflow to help you get started with EthicalCheck Actions
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 name: EthicalCheck-Workflow
 
 # Controls when the workflow will run
