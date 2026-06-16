@@ -188,6 +188,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
                               const SizedBox(height: 8),
+                              DefaultTextStyle(
+                                style: const TextStyle(fontSize: 13),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                               Text('النزيل: ${widget.booking.guestName}'),
                               Text(
                                 'الهاتف: ${widget.booking.guestPhone.isEmpty ? 'غير متوفر' : widget.booking.guestPhone}',
@@ -250,13 +255,16 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                               if (discount > 0)
                                 Text(
                                   'التخفيض: ${CurrencyFormatter.formatAmount(discount)}',
-                                  style: const TextStyle(color: Colors.purple),
+                                  style: const TextStyle(fontSize: 13, color: Colors.purple),
                                 ),
                               Text(
                                 'المبلغ المستحق: ${CurrencyFormatter.formatAmount(totalDue)}',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
                               Text('الحالة: ${widget.booking.status}'),
-                            ],
+                                  ],
+                                ),
+                              ),
                           ),
                         ),
                       ),
@@ -361,28 +369,32 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                                 payment.amount,
                                               ),
                                               style: const TextStyle(
+                                                fontSize: 14,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                            subtitle: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'طريقة الدفع: ${payment.paymentMethod}',
-                                                ),
-                                                Text(
-                                                  'النوع: ${payment.revenueType}',
-                                                ),
-                                                Text(
-                                                  'التاريخ: ${payment.paymentDate}',
-                                                ),
-                                                if (payment.notes != null &&
-                                                    payment.notes!.isNotEmpty)
+                                            subtitle: DefaultTextStyle(
+                                              style: const TextStyle(fontSize: 12),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
                                                   Text(
-                                                    'ملاحظات: ${payment.notes}',
+                                                    'طريقة الدفع: ${payment.paymentMethod}',
                                                   ),
-                                              ],
+                                                  Text(
+                                                    'النوع: ${payment.revenueType}',
+                                                  ),
+                                                  Text(
+                                                    'التاريخ: ${payment.paymentDate}',
+                                                  ),
+                                                  if (payment.notes != null &&
+                                                      payment.notes!.isNotEmpty)
+                                                    Text(
+                                                      'ملاحظات: ${payment.notes}',
+                                                    ),
+                                                ],
+                                              ),
                                             ),
                                             trailing: payment.roomNumber != null
                                                 ? Chip(
@@ -405,55 +417,70 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _isProcessing
-                                  ? null
-                                  : () => _addPayment(context),
-                              icon: const Icon(Icons.add_circle),
-                              label: const Text('إضافة دفعة جديدة'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: StreamBuilder<List<Payment>>(
-                              stream: paymentsRepo.paymentsByBooking(
-                                widget.booking.id,
-                              ),
-                              builder: (context, snapshot) {
-                                // ✅ استبعاد المدفوعات الملغاة
-                                final totalPaid =
-                                    snapshot.data
-                                        ?.where((p) => !p.isVoided)
-                                        .fold<double>(
-                                          0,
-                                          (sum, payment) => sum + payment.amount,
-                                        ) ??
-                                    0.0;
-                                final remainingAmount = (totalDue - totalPaid)
-                                    .clamp(0, totalDue).toDouble();
-                                return ElevatedButton.icon(
-                                  onPressed:
-                                      _isProcessing || remainingAmount > 0
+                      StreamBuilder<List<Payment>>(
+                        stream: paymentsRepo.paymentsByBooking(
+                          widget.booking.id,
+                        ),
+                        builder: (context, snapshot) {
+                          final totalPaid =
+                              snapshot.data
+                                  ?.where((p) => !p.isVoided)
+                                  .fold<double>(
+                                    0,
+                                    (sum, payment) => sum + payment.amount,
+                                  ) ??
+                              0.0;
+                          final remainingAmount =
+                              (totalDue - totalPaid).clamp(0, totalDue).toDouble();
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _isProcessing
                                       ? null
-                                      : () => _completeCheckout(context),
-                                  icon: const Icon(Icons.check_circle),
-                                  label: const Text('إتمام الحجز'),
+                                      : () => _addPayment(context),
+                                  icon: const Icon(Icons.add_circle),
+                                  label: const Text('إضافة دفعة جديدة'),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue,
+                                    backgroundColor: Colors.green,
                                     foregroundColor: Colors.white,
                                   ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
+                                ),
+                              ),
+                              if (remainingAmount <= 0) ...[
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: _isProcessing
+                                        ? null
+                                        : () => _completeCheckout(context),
+                                    icon: const Icon(Icons.check_circle),
+                                    label: const Text('إتمام الحجز'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ] else ...[
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: _isProcessing
+                                        ? null
+                                        : () => _showCheckoutOptions(context, remainingAmount, totalDue),
+                                    icon: const Icon(Icons.logout),
+                                    label: const Text('تسجيل خروج'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -466,17 +493,164 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     );
   }
 
+  /// عرض خيارات تسجيل الخروج: بدون دين أو مع دين
+  Future<void> _showCheckoutOptions(BuildContext context, double remainingAmount, double totalDue) async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('خيارات تسجيل الخروج'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('النزيل لم يسدد المبلغ الكامل. هل ترغب في؟'),
+              const SizedBox(height: 16),
+              Text(
+                'المبلغ المتبقي: ${CurrencyFormatter.formatAmount(remainingAmount)}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop('none'),
+              child: const Text('إلغاء'),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // يسار: تسجيل خروج بدون دين
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.of(ctx).pop('without_debt'),
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: const Text('تسجيل خروج'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // يمين: خروج بدين
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.of(ctx).pop('with_debt'),
+                    icon: const Icon(Icons.logout),
+                    label: const Text('خروج بدين'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == 'without_debt') {
+      await _completeCheckoutNow(context, remainingAmount, totalDue, createDebt: false);
+    } else if (choice == 'with_debt') {
+      await _completeCheckoutNow(context, remainingAmount, totalDue, createDebt: true);
+    }
+  }
+
+  /// تسجيل خروج النزيل مع خيار إنشاء دين
+  Future<void> _completeCheckoutNow(BuildContext context, double remainingAmount, double totalDue, {required bool createDebt}) async {
+    setState(() => _isProcessing = true);
+
+    try {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      final roomsRepo = ref.read(roomsRepoProvider);
+
+      final nowIso = Time.nowIso();
+      final checkin =
+          DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+      final nowDate = DateTime.parse(nowIso);
+      final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
+
+      // 1. تحديث الحجز: مكتمل + تسجيل خروج
+      await bookingsRepo.update(
+        widget.booking.id,
+        status: 'مكتمل',
+        actualCheckout: nowIso,
+        calculatedNights: actualNights,
+      );
+
+      // 2. تحديث حالة الغرفة
+      await roomsRepo.refreshAllRoomOccupancy();
+
+      // 3. إنشاء دين للمبلغ المتبقي (أو الإطلاق بدون دين)
+      if (createDebt) {
+        final debtsRepo = ref.read(debtsRepoProvider);
+        final checkoutDateStr = widget.booking.checkoutDate ?? nowIso;
+        await debtsRepo.create(
+          bookingLocalId: widget.booking.id,
+          guestName: widget.booking.guestName,
+          checkinDate: widget.booking.checkinDate,
+          checkoutDate: checkoutDateStr,
+          debtReason: 'مبلغ متبقي بعد تسجيل الخروج',
+          totalAmount: totalDue,
+          paidAmount: totalDue - remainingAmount,
+          paymentDate: nowIso,
+          isSettled: false,
+        );
+      }
+
+      markDataChanged();
+
+      if (mounted) {
+        final message = createDebt
+            ? 'تم تسجيل الخروج وإضافة دين بقيمة ${CurrencyFormatter.formatAmount(remainingAmount)} إلى قائمة الديون'
+            : 'تم تسجيل الخروج بدون إنشاء دين';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: createDebt ? Colors.orange : Colors.grey,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'إغلاق',
+              textColor: Colors.white,
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
+  }
+
   Widget _buildSummaryRow(String label, double amount, Color color) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: TextStyle(fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
         ),
         Text(
           CurrencyFormatter.formatAmount(amount),
-          style: TextStyle(fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
         ),
       ],
     );

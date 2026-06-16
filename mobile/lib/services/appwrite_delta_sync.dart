@@ -1512,14 +1512,26 @@ class AppwriteDeltaSync {
 
   /// قراءة آخر timestamp خاص بـ booking_nights
   Future<int> _getBookingNightsPullTs() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('delta_sync_last_pull_booking_nights') ?? 0;
+    try {
+      final state = await (_database.select(_database.syncState)
+            ..where((t) => t.id.equals(1)))
+          .getSingleOrNull();
+      return state?.lastPullTs ?? 0;
+    } catch (_) {
+      return 0;
+    }
   }
 
   /// تحديث آخر timestamp خاص بـ booking_nights
   Future<void> _updateBookingNightsPullTs(int ts) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('delta_sync_last_pull_booking_nights', ts);
+    try {
+      await _database.into(_database.syncState).insertOnConflictUpdate(
+            d.SyncStateCompanion(
+              id: const d.Value(1),
+              lastPullTs: d.Value(ts),
+            ),
+          );
+    } catch (_) {}
   }
 
   // تم نقل _intAmountFields إلى AppwriteSyncUtils.
@@ -1527,31 +1539,70 @@ class AppwriteDeltaSync {
   // تم نقل منطق تحويل الأنواع وتطهير البيانات إلى AppwriteSyncUtils لتوحيد السلوك.
 
   Future<int> _getLastDeltaSyncTimestamp() async {
-    // للتوافق العكسي: يُرجع القيمة القديمة الموحدة
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
+    try {
+      final state = await (_database.select(_database.syncState)
+            ..where((t) => t.id.equals(1)))
+          .getSingleOrNull();
+      final ts = state?.lastPullTs ?? 0;
+      if (ts > 10000000000) {
+        return ts ~/ 1000;
+      }
+      return ts;
+    } catch (_) {
+      return 0;
+    }
   }
 
   Future<int> _getLastPushSyncTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_prefsLastPushSyncKey) ??
-        prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
+    try {
+      final state = await (_database.select(_database.syncState)
+            ..where((t) => t.id.equals(1)))
+          .getSingleOrNull();
+      final ts = state?.lastPushTs ?? 0;
+      if (ts > 10000000000) {
+        return ts ~/ 1000;
+      }
+      return ts;
+    } catch (_) {
+      return 0;
+    }
   }
 
   Future<void> _updateLastPushSyncTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefsLastPushSyncKey, Time.nowEpoch());
+    try {
+      await _database.into(_database.syncState).insertOnConflictUpdate(
+            d.SyncStateCompanion(
+              id: const d.Value(1),
+              lastPushTs: d.Value(Time.nowEpoch()),
+            ),
+          );
+    } catch (_) {}
   }
 
   Future<int> _getLastPullSyncTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_prefsLastPullSyncKey) ??
-        prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
+    try {
+      final state = await (_database.select(_database.syncState)
+            ..where((t) => t.id.equals(1)))
+          .getSingleOrNull();
+      final ts = state?.lastPullTs ?? 0;
+      if (ts > 10000000000) {
+        return ts ~/ 1000;
+      }
+      return ts;
+    } catch (_) {
+      return 0;
+    }
   }
 
   Future<void> _updateLastPullSyncTimestamp() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefsLastPullSyncKey, Time.nowEpoch());
+    try {
+      await _database.into(_database.syncState).insertOnConflictUpdate(
+            d.SyncStateCompanion(
+              id: const d.Value(1),
+              lastPullTs: d.Value(Time.nowEpoch()),
+            ),
+          );
+    } catch (_) {}
   }
 
   Future<Map<String, dynamic>> getStatus() async {

@@ -151,7 +151,43 @@ class SyncConflictResolver {
         '(محلي: v$localVersion@$localLastModified vs بعيد: v$remoteVersion@$remoteLastModified)',
       );
 
-      // ✅ Vector Clock: فحص التعديلات المنطقية قبل تطبيق الاستراتيجية
+      // ✅ التحقق من الاستراتيجية أولاً — قبل Vector Clock
+      if (strategy == ConflictStrategy.serverWins) {
+        _log('🔧 حل تعارض $table/$localUuid: serverWins ← البعيد');
+        return const ConflictCheckResult(
+          isConflict: true,
+          resolved: true,
+          usedRemote: true,
+          reason: 'serverWins: تطبيق البيانات البعيدة',
+        );
+      }
+      if (strategy == ConflictStrategy.localWins) {
+        _log('🔧 حل تعارض $table/$localUuid: localWins ← المحلي');
+        return const ConflictCheckResult(
+          isConflict: true,
+          resolved: true,
+          usedLocal: true,
+          reason: 'localWins: الاحتفاظ بالبيانات المحلية',
+        );
+      }
+      if (strategy == ConflictStrategy.manualReview) {
+        _log('🔧 حل تعارض $table/$localUuid: manualReview ← تسجيل للمراجعة');
+        await _logConflict(
+          table: table,
+          localUuid: localUuid,
+          localData: Map<String, dynamic>.from(localRow),
+          remoteData: remoteData,
+          strategy: strategy,
+        );
+        return const ConflictCheckResult(
+          isConflict: true,
+          resolved: true,
+          usedLocal: true,
+          reason: 'manualReview: تم تسجيل التعارض للمراجعة اليدوية — الاحتفاظ بالمحلي كإجراء آمن',
+        );
+      }
+
+      // ✅ Vector Clock: فحص التعديلات المنطقية
       final localVectorClockStr = _extractStringField(localRow, 'vectorClock') ?? 
           _extractStringField(localRow, 'vector_clock') ?? '';
       final remoteVectorClockStr = (remoteData['vectorClock'] as String?) ?? 

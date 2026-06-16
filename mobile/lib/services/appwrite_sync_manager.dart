@@ -39,7 +39,7 @@ import 'sync_core/sync_metrics.dart';
 import 'sync_core/sync_pull_service.dart';
 import 'sync_core/sync_push_service.dart';
 import 'sync_enums.dart';
-import 'sync_mutex.dart';
+import 'sync_locks.dart';
 import 'telegram/whatsapp_notification_service.dart';
 
 // SyncStatus is now defined in sync_enums.dart
@@ -119,7 +119,6 @@ class AppwriteSyncManager {
   late final BookingsRepository _bookingsRepository;
   late final RoomsRepository _roomsRepository;
   late final AdapterRegistry _adapterRegistry;
-  final SyncMutex _mutex = SyncMutex();
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
@@ -145,14 +144,6 @@ class AppwriteSyncManager {
 
   final _syncController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
-
-  Future<bool> _isRemoteEpochMillis() async {
-    return _pullService?.isRemoteEpochMillis() ?? false;
-  }
-
-  Future<List<String>> _buildDeltaQueries(int lastPullTs) async {
-    return _pullService?.buildDeltaQueries(lastPullTs) ?? [];
-  }
 
   /// تهيئة المزامنة
   Future<void> initialize() async {
@@ -344,7 +335,7 @@ class AppwriteSyncManager {
       _deviceCreatedAtEpoch ??= nowEpoch;
 
       if (_currentDeviceId != null) {
-        await _mutex.runExclusive(() async {
+        await SyncLocks.appwriteSyncLock.synchronized(() async {
           final existingDoc = await appwriteService.getDocument(
             collectionId: AppwriteConfig.devicesCollectionId,
             documentId: _currentDeviceId!,
@@ -558,11 +549,13 @@ class AppwriteSyncManager {
   ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
   Future<SyncResult> sync({bool push = true, bool pull = true}) async {
-    if (!await _mutex.acquire()) {
-      _logger.warning('Failed to acquire sync mutex', tag: 'SYNC');
+    try {
+      await SyncLocks.appwriteSyncLock.lock().timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      _logger.warning('Failed to acquire sync lock', tag: 'SYNC');
       return SyncResult(
         status: SyncStatus.failed,
-        errorMessage: 'Sync mutex timeout',
+        errorMessage: 'Sync lock timeout',
         timestamp: DateTime.now(),
         duration: Duration.zero,
       );
@@ -570,7 +563,7 @@ class AppwriteSyncManager {
 
     if (_currentStatus == SyncStatus.syncing) {
       _logger.warning('Sync already in progress', tag: 'SYNC');
-      _mutex.release();
+      SyncLocks.appwriteSyncLock.unlock();
       return SyncResult(
         status: SyncStatus.failed,
         errorMessage: 'Sync already in progress',
@@ -696,7 +689,7 @@ class AppwriteSyncManager {
 
           // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
           final lastPullTs = await _getLastPullTs();
-          final deltaQ = await _buildDeltaQueries(lastPullTs);
+          final deltaQ = await (_pullService?.buildDeltaQueries(lastPullTs) ?? []);
           final isDelta = deltaQ.isNotEmpty;
           if (isDelta) {
             _logger.info(
@@ -792,7 +785,7 @@ class AppwriteSyncManager {
             recordsPulled += await _timePhase('syncBookingNights', () async {
               // booking_nights يستخدم lastPullTs خاص به (مستقل عن باقي الجداول)
               final nightsPullTs = await _getBookingNightsPullTs();
-              final remoteEpochIsMillis = await _isRemoteEpochMillis();
+              final remoteEpochIsMillis = await (_pullService?.isRemoteEpochMillis() ?? false);
               final nightsDeltaQ = _bookingNightsDeltaQueries(
                 nightsPullTs,
                 remoteEpochIsMillis: remoteEpochIsMillis,
@@ -1185,7 +1178,7 @@ class AppwriteSyncManager {
 
     _currentStatus = finalStatus;
     _syncController.add(_currentStatus);
-    _mutex.release();
+    SyncLocks.appwriteSyncLock.unlock();
 
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
@@ -3348,10 +3341,10 @@ class AppwriteSyncManager {
 
   /// سحب التغييرات من Appwrite
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
-  /// Guarded by [_mutex] to prevent concurrent pulls.
+  /// Guarded by [SyncLocks.appwriteSyncLock] to prevent concurrent pulls.
   /// All collection syncs are wrapped in a single database transaction for atomicity.
   Future<bool> pullRemoteChanges() async {
-    return await _mutex.runExclusive(() async {
+    return await SyncLocks.appwriteSyncLock.synchronized(() async {
       if (_currentStatus == SyncStatus.syncing) {
         _logger.warning('⏸️ تخطي السحب - المزامنة جارية', tag: 'SYNC');
         return false;
@@ -3364,7 +3357,7 @@ class AppwriteSyncManager {
 
         // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
         final lastPullTs = await _getLastPullTs();
-        final deltaQ = await _buildDeltaQueries(lastPullTs);
+        final deltaQ = await (_pullService?.buildDeltaQueries(lastPullTs) ?? []);
         final isDelta = deltaQ.isNotEmpty;
         if (isDelta) {
           _logger.info(
@@ -3473,7 +3466,7 @@ class AppwriteSyncManager {
           try {
             // booking_nights يستخدم lastPullTs خاص به (مستقل عن باقي الجداول)
             final nightsPullTs = await _getBookingNightsPullTs();
-            final remoteEpochIsMillis = await _isRemoteEpochMillis();
+            final remoteEpochIsMillis = await (_pullService?.isRemoteEpochMillis() ?? false);
             final nightsDeltaQ = _bookingNightsDeltaQueries(
               nightsPullTs,
               remoteEpochIsMillis: remoteEpochIsMillis,
