@@ -7,6 +7,7 @@ import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
+import '../bookings/booking_edit.dart';
 import 'guest_edit_screen.dart';
 import 'guest_info.dart';
 
@@ -508,24 +509,56 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                 final booking = guest.bookings[index];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor:
-                          StatusUtils.isActiveBooking(booking.status)
-                          ? Colors.green
-                          : Colors.blue,
-                      child: Text((index + 1).toString()),
-                    ),
-                    title: Text('غرفة ${booking.roomNumber}'),
-                    subtitle: Text(
-                      'من ${_formatDate(booking.checkinDate)}\n'
-                      'الحالة: ${booking.status}',
-                    ),
-                    trailing: Text(
-                      '${booking.calculatedNights} ليلة',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    isThreeLine: true,
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              StatusUtils.isActiveBooking(booking.status)
+                              ? Colors.green
+                              : Colors.blue,
+                          child: Text((index + 1).toString()),
+                        ),
+                        title: Text('غرفة ${booking.roomNumber}'),
+                        subtitle: Text(
+                          'من ${_formatDate(booking.checkinDate)}\n'
+                          'الحالة: ${booking.status}',
+                        ),
+                        trailing: Text(
+                          '${booking.calculatedNights} ليلة',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        isThreeLine: true,
+                      ),
+                      // ✅ أزرار تعديل وحذف لكل حجز فردي
+                      OverflowBar(
+                        alignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _editBooking(context, booking);
+                            },
+                            icon: const Icon(Icons.edit, size: 16),
+                            label: const Text('تعديل الحجز'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.blue,
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _deleteBooking(context, booking, guest);
+                            },
+                            icon: const Icon(Icons.delete_outline, size: 16),
+                            label: const Text('حذف الحجز'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 );
               },
@@ -540,6 +573,118 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         ),
       ),
     );
+  }
+
+  /// ✅ تعديل حجز فردي — يفتح BookingEditScreen مع `existing: booking`
+  Future<void> _editBooking(BuildContext context, Booking booking) async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => BookingEditScreen(existing: booking),
+      ),
+    );
+    if ((result ?? false) && mounted) {
+      ref.invalidate(bookingsListProvider);
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم تحديث بيانات الحجز')),
+      );
+    }
+  }
+
+  /// ✅ حذف حجز فردي — مع تأكيد + حذف المدفوعات/الملاحظات/الديون المرتبطة
+  Future<void> _deleteBooking(
+    BuildContext context,
+    Booking booking,
+    GuestInfo guest,
+  ) async {
+    final isActive = StatusUtils.isActiveBooking(booking.status);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تأكيد حذف الحجز'),
+          content: Text(
+            'سيتم حذف الحجز رقم ${booking.id} '
+            '(غرفة ${booking.roomNumber})${'\n'
+                'للضيف: ${guest.name}'}.\n\n'
+            'سيتم حذف جميع المدفوعات والملاحظات والديون المرتبطة بهذا الحجز. '
+            '${isActive ? '\n\n⚠️ هذا حجز نشط — سيتم تحرير الغرفة.' : ''}\n\n'
+            'هل تريد المتابعة؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop<bool>(context, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop<bool>(context, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('حذف'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      final roomsRepo = ref.read(roomsRepoProvider);
+      final paymentsRepo = ref.read(paymentsRepoProvider);
+      final debtsRepo = ref.read(debtsRepoProvider);
+      final notesRepo = ref.read(notesRepoProvider);
+
+      // 1. إذا كان الحجز نشطاً، حرّر الغرفة
+      if (isActive && booking.roomNumber.isNotEmpty) {
+        final room = await roomsRepo.watchByNumber(booking.roomNumber).first;
+        if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
+          await roomsRepo.update(room.id, status: 'شاغرة');
+        }
+      }
+
+      // 2. حذف الملاحظات المرتبطة
+      final notes = await notesRepo.watchByBooking(booking.id).first;
+      for (final note in notes) {
+        await notesRepo.delete(note.id);
+      }
+
+      // 3. حذف المدفوعات المرتبطة
+      final payments = await paymentsRepo.paymentsByBooking(booking.id).first;
+      for (final payment in payments) {
+        await paymentsRepo.delete(payment.id);
+      }
+
+      // 4. حذف الديون المرتبطة
+      final bookingDebts = await debtsRepo.listByBookingLocalId(booking.id);
+      for (final debt in bookingDebts) {
+        await debtsRepo.delete(debt.id);
+      }
+
+      // 5. حذف الحجز نفسه (soft delete مع outbox للمزامنة)
+      await bookingsRepo.delete(booking.id);
+
+      if (!mounted) return;
+      ref.invalidate(bookingsListProvider);
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم حذف الحجز وكل البيانات المرتبطة به'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حذف الحجز: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _showGuestDetails(BuildContext context, GuestInfo guest) {
