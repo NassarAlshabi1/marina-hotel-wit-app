@@ -3,6 +3,10 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 name: Dart
 
 on:

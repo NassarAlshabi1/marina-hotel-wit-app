@@ -13,6 +13,10 @@
 # documentation. If you need additional assistance, please contact Fortify support.                                                            #
 ################################################################################################################################################
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 name: Fortify AST Scan
 
 # Customize trigger events based on your DevSecOps process and/or policy
