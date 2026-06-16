@@ -177,6 +177,21 @@ class AppwriteToolsTab extends ConsumerWidget {
             leading: Container(
               padding: const EdgeInsets.all(UIConstants.spacingSM),
               decoration: BoxDecoration(
+                color: Colors.indigo.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(UIConstants.radiusMD),
+              ),
+              child: const Icon(Icons.cloud_upload, color: Colors.indigo),
+            ),
+            title: const Text('رفع نسخة شاملة إلى السحابة'),
+            subtitle: const Text('رفع جميع البيانات المحلية إلى Appwrite Cloud'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => _pushFullBackupToAppwrite(context, ref),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(UIConstants.spacingSM),
+              decoration: BoxDecoration(
                 color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(UIConstants.radiusMD),
               ),
@@ -453,6 +468,179 @@ class AppwriteToolsTab extends ConsumerWidget {
     Navigator.of(
       context,
     ).push<void>(MaterialPageRoute<void>(builder: (_) => const AppwriteSyncStatsScreen()));
+  }
+
+  /// ✅ رفع نسخة شاملة يدوياً إلى Appwrite Cloud.
+  ///
+  /// يستخدم `pushAllLocalDataToAppwrite(skipDeleted: false)` التي ترفع
+  /// كل الجداول الـ16 (غرف، حجوزات، مدفوعات، مصروفات، موظفين، ديون، ...).
+  /// يعرض تأكيداً قبل البدء، ومؤشر تقدم، وتقريراً بالنتائج.
+  Future<void> _pushFullBackupToAppwrite(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    // 1. تأكيد المستخدم
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.cloud_upload, color: Colors.indigo),
+            SizedBox(width: 8),
+            Text('رفع نسخة شاملة'),
+          ],
+        ),
+        content: const Text(
+          'سيتم رفع جميع البيانات المحلية إلى Appwrite Cloud.\n\n'
+          'هذا يشمل: الغرف، الحجوزات، المدفوعات، المصروفات، الموظفين، '
+          'الديون، ملاحظات الشيفت، ملاحظات الحجز، ليالي الحجز، '
+          'المعاملات النقدية، دورات الرواتب، مدفوعات الرواتب، '
+          'تسحيلات الرواتب، تعديلات الأسعار، تعديلات أسعار الحجوزات، '
+          'وبيانات النزلاء.\n\n'
+          '⚠️ قد تستغرق العملية عدة دقائق حسب حجم البيانات.\n'
+          '⚠️ تأكد من اتصال الإنترنت المستقر.\n\n'
+          'هل تريد المتابعة؟',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop<bool>(context, true),
+            icon: const Icon(Icons.cloud_upload),
+            label: const Text('رفع البيانات'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    // 2. مؤشر التقدم
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text('جاري رفع جميع البيانات إلى Appwrite Cloud...'),
+            ),
+          ],
+        ),
+        duration: Duration(minutes: 10),
+      ),
+    );
+
+    try {
+      // 3. تنفيذ الرفع
+      final syncManager = ref.read(ap.appwriteSyncManagerProvider);
+      await syncManager.appwriteService.initialize();
+
+      if (!syncManager.appwriteService.isInitialized) {
+        throw Exception('فشل تهيئة خدمة Appwrite');
+      }
+
+      // skipDeleted=false (افتراضي) — ارفع كل شيء بما فيه المحذوف softly
+      final stats = await syncManager.pushAllLocalDataToAppwrite();
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // 4. عرض تقرير النتائج
+      final totalPushed = stats.values.fold<int>(0, (a, b) => a + b);
+      final errors = stats['errors'] ?? 0;
+      final isSuccess = errors == 0;
+
+      unawaited(showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          icon: Icon(
+            isSuccess ? Icons.check_circle : Icons.warning,
+            color: isSuccess ? Colors.green : Colors.orange,
+            size: 48,
+          ),
+          title: Text(isSuccess
+              ? 'تم رفع البيانات بنجاح'
+              : 'اكتمل الرفع مع بعض الأخطاء'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'إجمالي السجلات المرفوعة: $totalPushed',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text('التفاصيل حسب الجدول:'),
+                const SizedBox(height: 4),
+                ...stats.entries
+                    .where((e) => e.key != 'errors' && e.value > 0)
+                    .map((e) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 1),
+                          child: Text('  • ${e.key}: ${e.value}'),
+                        )),
+                if (errors > 0) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '⚠️ أخطاء: $errors',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('حسناً'),
+            ),
+          ],
+        ),
+      ));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل رفع البيانات: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 10),
+          action: SnackBarAction(
+            label: 'تفاصيل',
+            textColor: Colors.white,
+            onPressed: () {
+              showDialog<void>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('تفاصيل الخطأ'),
+                  content: SingleChildScrollView(
+                    child: Text(e.toString()),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('إغلاق'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _pullFullBackupFromAppwrite(
