@@ -22,6 +22,8 @@ import 'dart:developer' as developer;
 // import 'package:flutter_background_service/flutter_background_service.dart';
 // import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 
+import 'package:drift/drift.dart' show Variable;
+
 import '../utils/prefs_cache.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart';

@@ -31,7 +31,7 @@ class AlarmBackup {
     AppLogger.info('✅ Alarm system initialized');
 
     // تفعيل النسخ المجدول تلقائياً عند التثبيت لأول مرة
-    final prefs = await getSharedPrefs();
+    final prefs = getSharedPrefs();
     if (prefs.getBool('scheduled_backup_enabled') == null) {
       AppLogger.info('🚀 First run: Enable scheduled backup by default');
       await prefs.setBool('scheduled_backup_enabled', true);

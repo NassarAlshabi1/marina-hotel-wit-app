@@ -77,8 +77,12 @@ class PrefsCache {
 }
 
 /// استبدال مباشر لـ getSharedPrefs()
-/// دون تغيير بقية الكود
-Future<SharedPreferences> getSharedPrefs() async {
-  PrefsCache._prefs ??= await SharedPreferences.getInstance();
+/// يعيد SharedPreferences مباشرة (ليس Future) لأن PrefsCache.init()
+/// يُستدعى في main() قبل أي استخدام
+SharedPreferences getSharedPrefs() {
+  assert(
+    PrefsCache._prefs != null,
+    'PrefsCache لم يُهيّأ — استدعِ PrefsCache.init() في main() أولاً',
+  );
   return PrefsCache._prefs!;
 }

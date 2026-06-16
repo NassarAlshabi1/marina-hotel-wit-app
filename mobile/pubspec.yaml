@@ -30,6 +30,8 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_animate: ^4.5.2
+  flutter_background_service: ^5.0.0
+  flutter_background_service_android: ^6.0.0
   flutter_contacts: ^1.1.9+2
   flutter_local_notifications: ^17.2.1
   flutter_localizations:
@@ -58,8 +60,6 @@ dependencies:
   uuid: ^4.5.1
   web_socket_channel: ^3.0.3
   workmanager: ^0.9.0
-  flutter_background_service: ^5.0.0
-  flutter_background_service_android: ^6.0.0
 dev_dependencies:
   build_runner: ^2.4.13
   drift_dev: ^2.28.0

@@ -484,7 +484,7 @@ class SyncMonitoringSystem {
   /// تنظيف السجلات القديمة من التخزين الدائم
   Future<void> _cleanupOldStoredEvents({int keepDays = 7}) async {
     try {
-      final prefs = await getSharedPrefs();
+      final prefs = getSharedPrefs();
       final allKeys = prefs.getKeys();
       final eventKeys = allKeys.where((String k) => k.startsWith('sync_events_'));
       final now = DateTime.now();

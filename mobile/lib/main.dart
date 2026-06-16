@@ -314,7 +314,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
   const engineRetryKey = 'auto_sync_engine_retry_enabled';
   const legacyRetryKey = 'auto_sync_retry_enabled';
 
-  final prefs = await getSharedPrefs();
+  final prefs = getSharedPrefs();
 
   final debounceSeconds = await migrateAutoSyncPreference<int>(
     prefs: prefs,
