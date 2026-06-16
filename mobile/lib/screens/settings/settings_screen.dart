@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/crashlytics_service.dart';
 import '../../services/local_db.dart';
-import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
 import '../ai/ai_chat_screen.dart';
 import '../security/blacklist_screen.dart';
@@ -37,7 +37,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
-  bool _isSyncing = false;
 
   @override
   void dispose() {
@@ -48,11 +47,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// ✅ قراءة رقم الإصدار ديناميكياً من package_info_plus
   Future<String> _getAppVersion() async {
     try {
-      // استخدام pubspec عبر PackageInfo
-      // fallback ثابت إذا فشل
-      return '1.2.0+3';
+      final info = await PackageInfo.fromPlatform();
+      return '${info.version}+${info.buildNumber}';
     } catch (_) {
-      return '1.2.0';
+      return '1.2.0+3';
     }
   }
 
@@ -77,48 +75,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return AppScaffold(
       title: 'الإعدادات',
-      actions: [
-        // ✅ زر مزامنة مع loading indicator
-        IconButton(
-          onPressed: _isSyncing
-              ? null
-              : () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  setState(() => _isSyncing = true);
-                  try {
-                    await ref.read(syncServiceProvider).runSync();
-                    if (mounted) {
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('✅ تمت المزامنة بنجاح'),
-                          backgroundColor: Colors.green,
-                          duration: Duration(seconds: 3),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text('فشل المزامنة: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  } finally {
-                    if (mounted) setState(() => _isSyncing = false);
-                  }
-                },
-          icon: _isSyncing
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.sync),
-          tooltip: 'مزامنة',
-        ),
-      ],
+      // ✅ P0 fix: إزالة زر المزامنة المكرر — AppScaffold يضيف SyncActionButton تلقائياً
+      actions: const [],
       body: Column(
         children: [
           // ✅ بطاقة الإحصائيات السريعة

@@ -44,6 +44,25 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
       body: StreamBuilder<List<BlacklistEntry>>(
         stream: repo.watchAll(),
         builder: (context, snapshot) {
+          // ✅ P0 fix: معالجة أخطاء الـ stream
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text('خطأ في تحميل البيانات: ${snapshot.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => setState(() {}),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('إعادة المحاولة'),
+                  ),
+                ],
+              ),
+            );
+          }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }

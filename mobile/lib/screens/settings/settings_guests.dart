@@ -1146,74 +1146,78 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       final paymentsRepo = ref.read(paymentsRepoProvider);
       final debtsRepo = ref.read(debtsRepoProvider);
       final notesRepo = ref.read(notesRepoProvider);
+      final database = ref.read(databaseProvider);
 
       if (guest.bookings.isEmpty) {
         return;
       }
 
-      // ─── 1. Checkout للحجوزات النشطة (مع مزامنة Appwrite) ───
-      final nowIso = Time.nowIso();
-      final freedRooms = <String>{};
-      for (final booking in activeBookings) {
-        await bookingsRepo.update(
-          booking.id,
-          status: 'مكتمل',
-          actualCheckout: nowIso,
-        );
-        if (booking.roomNumber.isNotEmpty) {
-          freedRooms.add(booking.roomNumber);
+      // ✅ P0 fix: لف كل العمليات في transaction واحد لضمان atomicity
+      await database.transaction(() async {
+        // ─── 1. Checkout للحجوزات النشطة ───
+        final nowIso = Time.nowIso();
+        final freedRooms = <String>{};
+        for (final booking in activeBookings) {
+          await bookingsRepo.update(
+            booking.id,
+            status: 'مكتمل',
+            actualCheckout: nowIso,
+          );
+          if (booking.roomNumber.isNotEmpty) {
+            freedRooms.add(booking.roomNumber);
+          }
         }
-      }
 
-      // ─── 2. تحرير الغرف ───
-      for (final roomNumber in freedRooms) {
-        final room = await roomsRepo.watchByNumber(roomNumber).first;
-        if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
-          await roomsRepo.update(room.id, status: 'شاغرة');
+        // ─── 2. تحرير الغرف ───
+        for (final roomNumber in freedRooms) {
+          final room = await roomsRepo.watchByNumber(roomNumber).first;
+          if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
+            await roomsRepo.update(room.id, status: 'شاغرة');
+          }
         }
-      }
 
-      // ─── 3. حذف الملاحظات (soft delete مع outbox) ───
-      for (final booking in guest.bookings) {
-        final notes = await notesRepo.watchByBooking(booking.id).first;
-        for (final note in notes) {
-          await notesRepo.delete(note.id);
+        // ─── 3. حذف الملاحظات ───
+        for (final booking in guest.bookings) {
+          final notes = await notesRepo.watchByBooking(booking.id).first;
+          for (final note in notes) {
+            await notesRepo.delete(note.id);
+          }
         }
-      }
 
-      // ─── 4. حذف المدفوعات (soft delete مع outbox) ───
-      for (final booking in guest.bookings) {
-        final payments = await paymentsRepo.paymentsByBooking(booking.id).first;
-        for (final payment in payments) {
-          await paymentsRepo.delete(payment.id);
+        // ─── 4. حذف المدفوعات ───
+        for (final booking in guest.bookings) {
+          final payments = await paymentsRepo.paymentsByBooking(booking.id).first;
+          for (final payment in payments) {
+            await paymentsRepo.delete(payment.id);
+          }
         }
-      }
 
-      // ─── 5. حذف الديون (soft delete مع outbox) ───
-      for (final booking in guest.bookings) {
-        final bookingDebts = await debtsRepo.listByBookingLocalId(booking.id);
-        for (final debt in bookingDebts) {
-          await debtsRepo.delete(debt.id);
+        // ─── 5. حذف الديون ───
+        for (final booking in guest.bookings) {
+          final bookingDebts = await debtsRepo.listByBookingLocalId(booking.id);
+          for (final debt in bookingDebts) {
+            await debtsRepo.delete(debt.id);
+          }
         }
-      }
 
-      // ─── 6. حذف الحجوزات نفسها (soft delete مع outbox للمزامنة مع Appwrite) ───
-      for (final booking in guest.bookings) {
-        await bookingsRepo.delete(booking.id);
-      }
-
-      // ─── 7. تحرير الغرف المتبقية المرتبطة بالحجوزات غير النشطة ───
-      final allRoomNumbers = guest.bookings
-          .where((b) => b.roomNumber.isNotEmpty)
-          .map((b) => b.roomNumber)
-          .toSet()
-          .difference(freedRooms);
-      for (final roomNumber in allRoomNumbers) {
-        final room = await roomsRepo.watchByNumber(roomNumber).first;
-        if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
-          await roomsRepo.update(room.id, status: 'شاغرة');
+        // ─── 6. حذف الحجوزات ───
+        for (final booking in guest.bookings) {
+          await bookingsRepo.delete(booking.id);
         }
-      }
+
+        // ─── 7. تحرير الغرف المتبقية ───
+        final allRoomNumbers = guest.bookings
+            .where((b) => b.roomNumber.isNotEmpty)
+            .map((b) => b.roomNumber)
+            .toSet()
+            .difference(freedRooms);
+        for (final roomNumber in allRoomNumbers) {
+          final room = await roomsRepo.watchByNumber(roomNumber).first;
+          if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
+            await roomsRepo.update(room.id, status: 'شاغرة');
+          }
+        }
+      }); // ✅ نهاية transaction — atomic
 
       if (!mounted) {
         return;

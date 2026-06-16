@@ -641,13 +641,25 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   return;
                 }
 
+                // ✅ P0 fix: التحقق من صحة الراتب قبل الحفظ
+                final salary = double.tryParse(salaryController.text);
+                if (salary == null || salary < 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('قيمة الراتب غير صحيحة — يرجى إدخال رقم موجب'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
                 final repo = ref.read(employeesRepoProvider);
                 try {
                   if (employee == null) {
                     await repo.create(
                       name: nameController.text.trim(),
                       position: positionController.text.trim(),
-                      salary: double.tryParse(salaryController.text) ?? 0.0,
+                      salary: salary,
                       phone: phoneController.text.trim(),
                       hireDate: hireDateController.text,
                       status: status,
@@ -657,7 +669,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       employee.localUuid,
                       name: nameController.text.trim(),
                       position: positionController.text.trim(),
-                      salary: double.tryParse(salaryController.text) ?? 0.0,
+                      salary: salary,
                       phone: phoneController.text.trim(),
                       hireDate: hireDateController.text,
                       status: status,

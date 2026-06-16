@@ -92,7 +92,8 @@ class _PhpApiSettingsScreenState extends ConsumerState<PhpApiSettingsScreen> {
       _testMessage = null;
     });
     try {
-      await _saveSettings();
+      // ✅ P0 fix: لا نحفظ الإعدادات صامتة — نختبر فقط بالإعدادات الحالية
+      // المستخدم يجب أن يضغط "حفظ" بشكل منفصل
       final result = await PhpApiService.instance.testConnection();
       setState(() {
         _testMessage = result.message;
