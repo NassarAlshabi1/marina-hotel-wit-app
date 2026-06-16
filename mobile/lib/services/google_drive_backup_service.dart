@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
@@ -169,6 +170,8 @@ class GoogleDriveBackupService {
   final GoogleDriveSignInManager _signInManager =
       GoogleDriveSignInManager.instance;
   drive.DriveApi? _driveApi;
+  // ✅ مولد أرقام عشوائية لـ jitter في backoff
+  final math.Random _random = math.Random();
   String? _backupFolderId;
   final GoogleDriveLogger _logger = GoogleDriveLogger();
 
@@ -190,21 +193,39 @@ class GoogleDriveBackupService {
     _driveApi = drive.DriveApi(GoogleAuthClient(headers));
   }
 
-  Future<T> _runWithAuth<T>(Future<T> Function() action) async {
+  /// ✅ إصلاح حرج (audit agent-8 H1):
+  /// 1. await على المحاولة الثانية (كان `return action();` بدون await →
+  ///    أخطاء المحاولة الثانية تُفقد صامتة)
+  /// 2. إضافة backoff لـ 429 (rate limit) و 503 (server error)
+  /// 3. إضافة 403 (forbidden) لمحاولة تحديث الاعتماديات
+  Future<T> _runWithAuth<T>(Future<T> Function() action,
+      {int maxAttempts = 3}) async {
     await _ensureDriveClient();
-    try {
-      return await action();
-    } on drive.DetailedApiRequestError catch (e) {
-      if (e.status == 401) {
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await action();
+      } on drive.DetailedApiRequestError catch (e) {
+        final isAuthError = e.status == 401 || e.status == 403;
+        final isRateLimit = e.status == 429 || e.status == 503;
+        if (!isAuthError && !isRateLimit) rethrow;
+        if (attempt == maxAttempts) rethrow;
         _log(
-          '⚠️ تم فقد صلاحية رمز Google Drive، إعادة المحاولة بعد التحديث...',
+          '⚠️ Drive API ${e.status} (محاولة $attempt/$maxAttempts)، '
+          'إعادة المحاولة بعد backoff...',
         );
         _driveApi = null;
-        await _ensureDriveClient();
-        return action();
+        if (isAuthError) {
+          await _ensureDriveClient();
+        } else {
+          // Exponential backoff مع jitter لـ 429/503
+          // 500ms, 1000ms, 2000ms... + jitter عشوائي 0-250ms
+          final delayMs =
+              (500 * (1 << (attempt - 1))) + _random.nextInt(250);
+          await Future<void>.delayed(Duration(milliseconds: delayMs));
+        }
       }
-      rethrow;
     }
+    throw StateError('unreachable');
   }
 
   Future<GoogleSignInAccount?> signInForDrive() async {

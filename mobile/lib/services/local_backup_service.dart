@@ -499,16 +499,40 @@ class LocalBackupService {
     // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
     await db.customStatement('PRAGMA foreign_keys = OFF');
     try {
-      // حذف جميع الجداول بالترتيب الصحيح (من الأطفال إلى الآباء)
-      // لتجنب FOREIGN KEY constraint errors
-      await db.delete(db.payments).go(); // يعتمد على bookings
-      await db.delete(db.debts).go(); // يعتمد على bookings
-      await db.delete(db.bookingNotes).go(); // يعتمد على bookings
-      await db.delete(db.cashTransactions).go(); // يعتمد على bookings
-      await db.delete(db.bookings).go(); // يعتمد على rooms
-      await db.delete(db.expenses).go(); // يعتمد على employees
+      // ✅ إصلاح حرج (audit agent-7, agent-10):
+      // كانت الاستعادة تحذف وتُدرج فقط 8 جداول، مما يُسبب فقدان صامت
+      // لـ 12 جدولاً آخر (booking_nights, shift_notes, salary_cycles, ...).
+      // الآن نحذف كل الجداول الـ20 بالترتيب الصحيح (children قبل parents):
+      // Level 2 (FK→ Level 0/1)
+      await db.delete(db.salaryPayments).go(); // FK→ salary_cycles
+      await db.delete(db.salaryWithdrawals).go(); // FK→ employees
+      await db.delete(db.integrityViolations).go(); // FK→ auto_fix_runs
+      await db.delete(db.bookingPriceAdjustments).go(); // FK→ bookings
+      await db.delete(db.bookingNights).go(); // FK→ bookings
+      await db.delete(db.bookingNotes).go(); // FK→ bookings
+      await db.delete(db.debts).go(); // FK→ bookings
+      await db.delete(db.payments).go(); // FK→ bookings, cash_transactions
+      // Level 1
+      await db.delete(db.bookings).go(); // FK→ rooms
+      await db.delete(db.salaryCycles).go(); // FK→ employees
+      await db.delete(db.syncConflicts).go(); // FK→ sync_log
+      // Level 0
+      await db.delete(db.expenses).go();
+      await db.delete(db.cashTransactions).go();
       await db.delete(db.employees).go();
       await db.delete(db.rooms).go();
+      await db.delete(db.hotelDayLedger).go();
+      await db.delete(db.shiftNotes).go();
+      await db.delete(db.priceAdjustments).go();
+      await db.delete(db.auditLogs).go();
+      await db.delete(db.paymentVoids).go();
+      await db.delete(db.guestInfos).go();
+      await db.delete(db.autoFixRuns).go();
+      await db.delete(db.appSessions).go();
+      await db.delete(db.outbox).go();
+      await db.delete(db.syncQueue).go();
+      await db.delete(db.syncLog).go();
+      await db.delete(db.restoreFixLog).go();
       await db.delete(db.syncState).go();
 
       Future<void> insertList<T>(
@@ -516,6 +540,7 @@ class LocalBackupService {
         Future<void> Function(Map<String, dynamic> json) insert,
       ) async {
         if (!backupData.containsKey(key)) {
+          debugPrint('⚠️ النسخة الاحتياطية لا تحتوي على الجدول "$key" — تم التخطي');
           return;
         }
         final list = backupData[key] as List<dynamic>;
@@ -524,6 +549,8 @@ class LocalBackupService {
         }
       }
 
+      // ✅ الاستعادة بالترتيب الصحيح (parents قبل children):
+      // Level 0
       await insertList<dynamic>('rooms', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = Room.fromJson(map, serializer: lenientValueSerializer);
@@ -534,19 +561,6 @@ class LocalBackupService {
         final data = Employee.fromJson(map, serializer: lenientValueSerializer);
         await db.into(db.employees).insertOnConflictUpdate(data);
       });
-      await insertList<dynamic>('bookings', (json) async {
-        final map = Map<String, dynamic>.from(json as Map);
-        final data = Booking.fromJson(map, serializer: lenientValueSerializer);
-        await db.into(db.bookings).insertOnConflictUpdate(data);
-      });
-      await insertList<dynamic>('booking_notes', (json) async {
-        final map = Map<String, dynamic>.from(json as Map);
-        final data = BookingNote.fromJson(
-          map,
-          serializer: lenientValueSerializer,
-        );
-        await db.into(db.bookingNotes).insertOnConflictUpdate(data);
-      });
       await insertList<dynamic>('cash_transactions', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = CashTransaction.fromJson(
@@ -555,10 +569,97 @@ class LocalBackupService {
         );
         await db.into(db.cashTransactions).insertOnConflictUpdate(data);
       });
+      await insertList<dynamic>('shift_notes', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = ShiftNote.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.shiftNotes).insertOnConflictUpdate(data);
+      });
+      await insertList<dynamic>('hotel_day_ledger', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = HotelDayLedgerEntry.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.hotelDayLedger).insertOnConflictUpdate(data);
+      });
+      await insertList<dynamic>('price_adjustments', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = PriceAdjustment.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.priceAdjustments).insertOnConflictUpdate(data);
+      });
+      await insertList<dynamic>('audit_logs', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = AuditLog.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.auditLogs).insertOnConflictUpdate(data);
+      });
+      await insertList<dynamic>('payment_voids', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = PaymentVoid.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.paymentVoids).insertOnConflictUpdate(data);
+      });
+      await insertList<dynamic>('guest_infos', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = GuestInfo.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.guestInfos).insertOnConflictUpdate(data);
+      });
+      // Level 1
+      await insertList<dynamic>('bookings', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = Booking.fromJson(map, serializer: lenientValueSerializer);
+        await db.into(db.bookings).insertOnConflictUpdate(data);
+      });
       await insertList<dynamic>('expenses', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
         final data = Expense.fromJson(map, serializer: lenientValueSerializer);
         await db.into(db.expenses).insertOnConflictUpdate(data);
+      });
+      await insertList<dynamic>('salary_cycles', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = SalaryCycle.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.salaryCycles).insertOnConflictUpdate(data);
+      });
+      // Level 2
+      await insertList<dynamic>('booking_notes', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = BookingNote.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.bookingNotes).insertOnConflictUpdate(data);
+      });
+      await insertList<dynamic>('booking_nights', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = BookingNight.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.bookingNights).insertOnConflictUpdate(data);
+      });
+      await insertList<dynamic>('booking_price_adjustments', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = BookingPriceAdjustment.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(data);
       });
       await insertList<dynamic>('payments', (json) async {
         final map = Map<String, dynamic>.from(json as Map);
@@ -569,6 +670,22 @@ class LocalBackupService {
         final map = Map<String, dynamic>.from(json as Map);
         final data = Debt.fromJson(map, serializer: lenientValueSerializer);
         await db.into(db.debts).insertOnConflictUpdate(data);
+      });
+      await insertList<dynamic>('salary_payments', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = SalaryPayment.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.salaryPayments).insertOnConflictUpdate(data);
+      });
+      await insertList<dynamic>('salary_withdrawals', (json) async {
+        final map = Map<String, dynamic>.from(json as Map);
+        final data = SalaryWithdrawal.fromJson(
+          map,
+          serializer: lenientValueSerializer,
+        );
+        await db.into(db.salaryWithdrawals).insertOnConflictUpdate(data);
       });
 
       if (backupData.containsKey('sync_state') &&
@@ -585,7 +702,8 @@ class LocalBackupService {
       }
 
       debugPrint(
-        '✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON',
+        '✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON '
+        '(جميع الجداول الـ20)',
       );
     } finally {
       // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الاستعادة بالكامل

@@ -914,20 +914,19 @@ class SmartSyncManager {
 
         _log('🆕 تم العثور على نسخة جديدة من جهاز: $backupDeviceId');
 
-        // تحميل وتطبيق النسخة الاحتياطية
-        final backupData = await _backupService!.downloadBackup(
-          latestBackup.fileId,
+        // ✅ إصلاح حرج (audit agent-8 H2):
+        // pullRemoteChanges كان يستدعي restoreFromBackup بشكل تدميري
+        // (يحذف كل البيانات المحلية ثم يُدرج من النسخة). هذا يُسبب فقدان
+        // التغييرات المحلية المعلقة في outbox التي لم تُرفع بعد!
+        // الحل: نرفض الاستعادة التدميرية التلقائية — المستخدم يجب أن
+        // يبدأ الاستعادة يدوياً مع تأكيد واضح.
+        // دلتا sync فقط هو المسار الآمن للسحب التلقائي.
+        _log(
+          '⚠️ تم رفض الاستعادة التدميرية التلقائية أثناء pullRemoteChanges '
+          'لمنع فقدان التغييرات المحلية المعلقة. '
+          'استخدم delta sync أو اطلب من المستخدم الاستعادة يدوياً.',
         );
-        await DatabaseManager.runWithRestoreGuard(
-          () => _backupService!.restoreFromBackup(backupData),
-        );
-
-        // تحديث timestamp
-        await _setLastRemoteTimestamp(latestBackup.createdTime);
-        await _updateLastSyncTime();
-
-        _log('✅ تم تطبيق التغييرات الجديدة بنجاح');
-        return true;
+        return false;
       }
 
       _log('ℹ️ لا توجد تغييرات جديدة');
