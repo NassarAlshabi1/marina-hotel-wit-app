@@ -125,6 +125,13 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                           checkout: plannedCheckout,
                         )
                       : 1);
+            // ✅ الليالي المتوقعة الأصلية تُحسب من تواريخ الحجز الأصلية
+            // (لا تعتمد على booking.expectedNights لأنها تُحدّث ديناميكياً
+            //  بواسطة BookingDerivedFieldsService لتساوي actualNights).
+            // هذا ضروري لاكتشاف الليالي المنسية بدقة.
+            final originalExpectedNights = (checkin != null && plannedCheckout != null)
+                ? Time.nightsWithCutoff(checkin, checkout: plannedCheckout)
+                : expectedNights;
             // إذا لم يسجل النزيل خروج، نستخدم الوقت الحالي لحساب الليالي
             // حتى يتم تطبيق قاعدة الساعة 14:00 (إضافة ليلة إذا تجاوزت الساعة 14)
             final effectiveCheckout = actualCheckout ?? DateTime.now();
@@ -230,7 +237,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                               if (actualCheckout != null)
                                 Text('الليالي الفعلية: $nightsCount'),
                               // مؤشر إضافة ليالي بعد الساعة 14:00 للنزلاء الذين لم يسجلوا خروج
-                              if (hasNotCheckedOut && nowIsAfterCutoff && actualNights > expectedNights)
+                              // ✅ نستخدم originalExpectedNights (المحسوبة من plannedCheckout)
+                              //    بدلاً من expectedNights التي تُحدّث ديناميكياً
+                              if (hasNotCheckedOut && nowIsAfterCutoff && actualNights > originalExpectedNights)
                                 Container(
                                   margin: const EdgeInsets.only(top: 6),
                                   padding: const EdgeInsets.symmetric(
@@ -248,7 +257,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                       Icon(Icons.schedule, size: 16, color: Colors.orange.shade700),
                                       const SizedBox(width: 6),
                                       Text(
-                                        'تمت إضافة ${actualNights - expectedNights} ليلة بعد الساعة 14:00 (لم يسجل النزيل خروج)',
+                                        'تمت إضافة ${actualNights - originalExpectedNights} ليلة بعد الساعة 14:00 (لم يسجل النزيل خروج)',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.orange.shade700,
@@ -462,7 +471,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                               context,
                                               remainingAmount,
                                               nights: nights,
-                                              expectedNights: expectedNights,
+                                              originalExpectedNights: originalExpectedNights,
+                                              actualNights: actualNights,
+                                              checkin: checkin,
+                                              plannedCheckout: plannedCheckout,
                                             ),
                                     icon: const Icon(Icons.logout),
                                     label: const Text('تسجيل خروج'),
@@ -480,7 +492,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                       : () => _completeCheckout(
                                             context,
                                             nights: nights,
-                                            expectedNights: expectedNights,
+                                            originalExpectedNights: originalExpectedNights,
+                                            actualNights: actualNights,
+                                            checkin: checkin,
+                                            plannedCheckout: plannedCheckout,
                                           ),
                                   icon: const Icon(Icons.check_circle),
                                   label: const Text('إتمام الحجز'),
@@ -696,41 +711,81 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
 
   /// فحص وجود ليالٍ إضافية تلقائية بعد تاريخ المغادرة المتوقع.
   ///
-  /// المنطق:
-  /// - يُحسب عدد الليالي المتوقعة من `booking.expectedNights`
-  /// - يُحسب العدد الفعلي من سجلات `BookingNight` المخزّنة
-  /// - إذا كان الفعلي > المتوقع، فهناك ليالٍ إضافية أُضيفت تلقائياً
-  /// - يُحتمل أن تكون ناتجة عن نسيان الموظف تسجيل الخروج في الوقت
+  /// المنطق الاحترافي:
+  /// - يحسب **الليالي المتوقعة الأصلية** مباشرة من `checkin + plannedCheckout`
+  ///   (ولا يعتمد على `booking.expectedNights` لأنها تُحدّث ديناميكياً
+  ///    بواسطة BookingDerivedFieldsService ← ستساوي دائماً actualNights).
+  /// - يحسب **الليالي الفعلية** من `checkin → now` (إذا لم يُسجل الخروج بعد).
+  /// - إذا كان الفعلي > المتوقع الأصلي، فهناك ليالٍ إضافية تلقائية
+  ///   ناتجة على الأرجح عن نسيان الموظف تسجيل الخروج في الوقت.
+  /// - يستخدم سجلات `BookingNight` لعرض التواريخ إن وُجدت، وإلا يحسبها
+  ///   من تاريخ الدخول + عدد الليالي المتوقعة الأصلية.
   Future<ForgottenNightsDecision> _checkForgottenNights(
     BuildContext context, {
     required List<BookingNight> nights,
-    required int expectedNights,
+    required int originalExpectedNights,
+    required int actualNights,
+    required DateTime? checkin,
+    required DateTime? plannedCheckout,
   }) async {
-    if (nights.isEmpty || expectedNights <= 0) {
+    // ⚠️ إذا لم يكن هناك موعد مغادرة مخطط، فلا يمكن تحديد "ليالٍ منسية"
+    if (plannedCheckout == null || checkin == null) {
+      return ForgottenNightsDecision.noForgottenNights;
+    }
+    if (originalExpectedNights <= 0) {
       return ForgottenNightsDecision.noForgottenNights;
     }
 
-    // ترتيب الليالي حسب مفتاح يوم الفندق (تسلسل زمني)
-    final sortedNights = [...nights]
-      ..sort((a, b) => a.hotelDayKey.compareTo(b.hotelDayKey));
-
-    // الليالي الإضافية = تلك التي تتجاوز العدد المتوقع
-    final extraNights = sortedNights.length > expectedNights
-        ? sortedNights.sublist(expectedNights)
-        : <BookingNight>[];
-
-    if (extraNights.isEmpty) {
+    // ✅ المعيار الأساسي: actualNights > originalExpectedNights
+    // (لا نعتمد على nights.length لأن السجلات قد لا تكون مُحدّثة بعد)
+    final extraCount = actualNights - originalExpectedNights;
+    AppLogger.info(
+      '🔍 فحص الليالي المنسية: actualNights=$actualNights, '
+      'originalExpectedNights=$originalExpectedNights, '
+      'extraCount=$extraCount, nightsRecords=${nights.length}',
+      tag: 'CHECKOUT',
+    );
+    if (extraCount <= 0) {
       return ForgottenNightsDecision.noForgottenNights;
     }
 
-    // تجهيز قائمة تواريخ الليالي الإضافية لعرضها في الحوار
-    final extraDatesText = extraNights
-        .map((n) => '• ${_formatArabicDate(n.hotelDayKey)}')
+    // تجهيز قائمة تواريخ الليالي الإضافية
+    // الأولوية: سجلات BookingNight إن وُجدت، وإلا نحسبها من checkin.
+    final List<String> extraDates = [];
+
+    if (nights.isNotEmpty) {
+      final sortedNights = [...nights]
+        ..sort((a, b) => a.hotelDayKey.compareTo(b.hotelDayKey));
+      final extraNights = sortedNights.length > originalExpectedNights
+          ? sortedNights.sublist(originalExpectedNights)
+          : <BookingNight>[];
+      for (final n in extraNights) {
+        extraDates.add(n.hotelDayKey);
+      }
+    }
+
+    // إذا لم توجد سجلات كافية، نحسب التواريخ مباشرة من checkin
+    if (extraDates.length < extraCount) {
+      extraDates.clear();
+      // بداية اليوم الفندقي لليلة الأولى بعد الموعد المتوقع
+      // قاعدة اليوم الفندقي: اليوم يبدأ عند 14:01 (hotelStartHour=14, hotelStartMinute=1)
+      // لذلك نستخدم HotelDateHelper.getHotelDay لتحديد "يوم الفندق" لكل ليلة
+      final checkinHotelDay = HotelDateHelper.getHotelDay(checkin);
+      // أول ليلة إضافية تبدأ بعد originalExpectedNights يوم من يوم الدخول الفندقي
+      for (int i = 0; i < extraCount; i++) {
+        final extraDay = checkinHotelDay.add(Duration(days: originalExpectedNights + i));
+        extraDates.add(Time.dateToString(extraDay));
+      }
+    }
+
+    final extraDatesText = extraDates
+        .map((d) => '• ${_formatArabicDate(d)}')
         .join('\n');
 
-    final pluralized = extraNights.length == 1
+    final pluralized = extraCount == 1
         ? 'ليلة واحدة'
-        : '${extraNights.length} ليالٍ';
+        : '$extraCount ليالٍ';
+    final originalCheckoutStr = _formatArabicDate(Time.dateToString(plannedCheckout));
 
     // عرض حوار الخيارات للمستخدم (المدير/الموظف المخوّل)
     if (!mounted) return ForgottenNightsDecision.userCancelled;
@@ -755,7 +810,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'تمت إضافة $pluralized بعد موعد المغادرة المتوقع، '
+                  'تمت إضافة $pluralized بعد موعد المغادرة المتوقع ($originalCheckoutStr)، '
                   'يُحتمل أن يكون السبب نسيان تسجيل الخروج في الوقت المحدد.',
                   style: const TextStyle(fontSize: 14),
                 ),
@@ -829,8 +884,16 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       case 'count_all':
         return ForgottenNightsDecision.countAll;
       case 'cancel_extra':
-        // حذف الليالي الإضافية (soft-delete)
-        await _softDeleteExtraNights(extraNights);
+        // حذف الليالي الإضافية (soft-delete) — نمرّر السجلات إن وُجدت
+        final sortedNights = nights.isNotEmpty
+            ? ([...nights]..sort((a, b) => a.hotelDayKey.compareTo(b.hotelDayKey)))
+            : <BookingNight>[];
+        final extraNightsRecords = sortedNights.length > originalExpectedNights
+            ? sortedNights.sublist(originalExpectedNights)
+            : <BookingNight>[];
+        if (extraNightsRecords.isNotEmpty) {
+          await _softDeleteExtraNights(extraNightsRecords);
+        }
         // إعادة بناء الحقول المشتقة للحجز ليعكس المبلغ الجديد
         await _refreshBookingNights();
         return ForgottenNightsDecision.cancelExtra;
@@ -877,13 +940,19 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     BuildContext context,
     double remainingAmount, {
     required List<BookingNight> nights,
-    required int expectedNights,
+    required int originalExpectedNights,
+    required int actualNights,
+    required DateTime? checkin,
+    required DateTime? plannedCheckout,
   }) async {
     // ─── فحص الليالي الإضافية المنسية قبل المتابعة ───
     final forgottenDecision = await _checkForgottenNights(
       context,
       nights: nights,
-      expectedNights: expectedNights,
+      originalExpectedNights: originalExpectedNights,
+      actualNights: actualNights,
+      checkin: checkin,
+      plannedCheckout: plannedCheckout,
     );
     if (forgottenDecision == ForgottenNightsDecision.userCancelled) {
       return; // المستخدم ألغى العملية بالكامل
@@ -1063,13 +1132,19 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   Future<void> _completeCheckout(
     BuildContext context, {
     required List<BookingNight> nights,
-    required int expectedNights,
+    required int originalExpectedNights,
+    required int actualNights,
+    required DateTime? checkin,
+    required DateTime? plannedCheckout,
   }) async {
     // ─── فحص الليالي الإضافية المنسية قبل المتابعة ───
     final forgottenDecision = await _checkForgottenNights(
       context,
       nights: nights,
-      expectedNights: expectedNights,
+      originalExpectedNights: originalExpectedNights,
+      actualNights: actualNights,
+      checkin: checkin,
+      plannedCheckout: plannedCheckout,
     );
     if (forgottenDecision == ForgottenNightsDecision.userCancelled) {
       return; // المستخدم ألغى العملية بالكامل
