@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart' as d;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,11 +10,24 @@ import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
+import '../../utils/app_logger.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_parser.dart';
 import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
 import '../../utils/time.dart';
+
+/// قرار المستخدم بشأن الليالي المنسية المُضافة تلقائياً بعد موعد المغادرة
+enum ForgottenNightsDecision {
+  /// لا توجد ليالٍ منسية — تابع العملية بشكل طبيعي
+  noForgottenNights,
+  /// احتساب جميع الليالي بما فيها المنسية
+  countAll,
+  /// حذف الليالي الإضافية ثم المتابعة
+  cancelExtra,
+  /// إلغاء العملية بالكامل
+  userCancelled,
+}
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
 
@@ -447,6 +461,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                         : () => _checkoutWithDebt(
                                               context,
                                               remainingAmount,
+                                              nights: nights,
+                                              expectedNights: expectedNights,
                                             ),
                                     icon: const Icon(Icons.logout),
                                     label: const Text('تسجيل خروج'),
@@ -461,7 +477,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                 return ElevatedButton.icon(
                                   onPressed: _isProcessing
                                       ? null
-                                      : () => _completeCheckout(context),
+                                      : () => _completeCheckout(
+                                            context,
+                                            nights: nights,
+                                            expectedNights: expectedNights,
+                                          ),
                                   icon: const Icon(Icons.check_circle),
                                   label: const Text('إتمام الحجز'),
                                   style: ElevatedButton.styleFrom(
@@ -655,11 +675,221 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     }
   }
 
+  // ──────────────────────────────────────────────────────────────
+  // نظام احترافي لمعالجة النسيان — فحص الليالي الإضافية التلقائية
+  // ──────────────────────────────────────────────────────────────
+
+  /// تنسيق التاريخ بصيغة عربية قصيرة (يوم/شهر/سنة)
+  String _formatArabicDate(String isoOrKey) {
+    try {
+      final normalized = isoOrKey.contains('T')
+          ? isoOrKey
+          : '${isoOrKey}T00:00:00';
+      final dt = DateTime.parse(normalized);
+      return '${dt.day.toString().padLeft(2, '0')}/'
+          '${dt.month.toString().padLeft(2, '0')}/'
+          '${dt.year}';
+    } catch (_) {
+      return isoOrKey;
+    }
+  }
+
+  /// فحص وجود ليالٍ إضافية تلقائية بعد تاريخ المغادرة المتوقع.
+  ///
+  /// المنطق:
+  /// - يُحسب عدد الليالي المتوقعة من `booking.expectedNights`
+  /// - يُحسب العدد الفعلي من سجلات `BookingNight` المخزّنة
+  /// - إذا كان الفعلي > المتوقع، فهناك ليالٍ إضافية أُضيفت تلقائياً
+  /// - يُحتمل أن تكون ناتجة عن نسيان الموظف تسجيل الخروج في الوقت
+  Future<ForgottenNightsDecision> _checkForgottenNights(
+    BuildContext context, {
+    required List<BookingNight> nights,
+    required int expectedNights,
+  }) async {
+    if (nights.isEmpty || expectedNights <= 0) {
+      return ForgottenNightsDecision.noForgottenNights;
+    }
+
+    // ترتيب الليالي حسب مفتاح يوم الفندق (تسلسل زمني)
+    final sortedNights = [...nights]
+      ..sort((a, b) => a.hotelDayKey.compareTo(b.hotelDayKey));
+
+    // الليالي الإضافية = تلك التي تتجاوز العدد المتوقع
+    final extraNights = sortedNights.length > expectedNights
+        ? sortedNights.sublist(expectedNights)
+        : <BookingNight>[];
+
+    if (extraNights.isEmpty) {
+      return ForgottenNightsDecision.noForgottenNights;
+    }
+
+    // تجهيز قائمة تواريخ الليالي الإضافية لعرضها في الحوار
+    final extraDatesText = extraNights
+        .map((n) => '• ${_formatArabicDate(n.hotelDayKey)}')
+        .join('\n');
+
+    final pluralized = extraNights.length == 1
+        ? 'ليلة واحدة'
+        : '${extraNights.length} ليالٍ';
+
+    // عرض حوار الخيارات للمستخدم (المدير/الموظف المخوّل)
+    if (!mounted) return ForgottenNightsDecision.userCancelled;
+
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded,
+                  color: Colors.orange.shade700, size: 28),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('تنبيه: ليالٍ إضافية تلقائية')),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'تمت إضافة $pluralized بعد موعد المغادرة المتوقع، '
+                  'يُحتمل أن يكون السبب نسيان تسجيل الخروج في الوقت المحدد.',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade300),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'الليالي الإضافية المُضافة:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange.shade900,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        extraDatesText,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'هل تريد احتساب هذه الليالي أم إلغاؤها؟',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop('cancel'),
+              child: const Text('إلغاء العملية'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.of(ctx).pop('cancel_extra'),
+              icon: const Icon(Icons.delete_sweep, size: 18),
+              label: const Text('إلغاء الليالي الإضافية'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey.shade700,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.of(ctx).pop('count_all'),
+              icon: const Icon(Icons.check_circle, size: 18),
+              label: const Text('احتساب الليالي'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    switch (result) {
+      case 'count_all':
+        return ForgottenNightsDecision.countAll;
+      case 'cancel_extra':
+        // حذف الليالي الإضافية (soft-delete)
+        await _softDeleteExtraNights(extraNights);
+        // إعادة بناء الحقول المشتقة للحجز ليعكس المبلغ الجديد
+        await _refreshBookingNights();
+        return ForgottenNightsDecision.cancelExtra;
+      default:
+        return ForgottenNightsDecision.userCancelled;
+    }
+  }
+
+  /// Soft-delete لسجلات الليالي الإضافية (وضع علامة deletedAt)
+  Future<void> _softDeleteExtraNights(
+    List<BookingNight> extraNights,
+  ) async {
+    if (extraNights.isEmpty) return;
+    final db = ref.read(databaseProvider);
+    final nowUtc = DateTime.now().toUtc();
+    final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
+    final stampIso = nowUtc.toIso8601String();
+
+    await db.transaction(() async {
+      for (final night in extraNights) {
+        await (db.update(db.bookingNights)
+              ..where((n) => n.id.equals(night.id)))
+            .write(BookingNightsCompanion(
+          deletedAt: d.Value(stamp),
+          deletedAtIso: d.Value(stampIso),
+          updatedAt: d.Value(stamp),
+          updatedAtIso: d.Value(stampIso),
+          lastModified: d.Value(stamp),
+          lastModifiedEpoch: d.Value(stamp),
+          version: d.Value(night.version + 1),
+        ));
+      }
+    });
+
+    AppLogger.warning(
+      '🗑️ تم حذف ${extraNights.length} ليلة إضافية للحجز ${widget.booking.id} '
+      '(سبب محتمل: نسيان تسجيل الخروج)',
+      tag: 'CHECKOUT',
+    );
+  }
+
   /// تسجيل خروج مع خيارات الدين عند وجود مبلغ متبقي
   Future<void> _checkoutWithDebt(
     BuildContext context,
-    double remainingAmount,
-  ) async {
+    double remainingAmount, {
+    required List<BookingNight> nights,
+    required int expectedNights,
+  }) async {
+    // ─── فحص الليالي الإضافية المنسية قبل المتابعة ───
+    final forgottenDecision = await _checkForgottenNights(
+      context,
+      nights: nights,
+      expectedNights: expectedNights,
+    );
+    if (forgottenDecision == ForgottenNightsDecision.userCancelled) {
+      return; // المستخدم ألغى العملية بالكامل
+    }
+    if (!context.mounted) return;
+
     final choice = await showDialog<String>(
       context: context,
       builder: (ctx) => Directionality(
@@ -830,7 +1060,22 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     }
   }
 
-  Future<void> _completeCheckout(BuildContext context) async {
+  Future<void> _completeCheckout(
+    BuildContext context, {
+    required List<BookingNight> nights,
+    required int expectedNights,
+  }) async {
+    // ─── فحص الليالي الإضافية المنسية قبل المتابعة ───
+    final forgottenDecision = await _checkForgottenNights(
+      context,
+      nights: nights,
+      expectedNights: expectedNights,
+    );
+    if (forgottenDecision == ForgottenNightsDecision.userCancelled) {
+      return; // المستخدم ألغى العملية بالكامل
+    }
+    if (!context.mounted) return;
+
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
