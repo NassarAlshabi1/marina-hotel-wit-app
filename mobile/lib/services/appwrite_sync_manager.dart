@@ -1515,8 +1515,35 @@ class AppwriteSyncManager {
           // 2. Convert legacy discount to adjustments
           await _bookingsRepository.syncLegacyDiscountToAdjustments(booking.id);
 
-          // 3. Recalculate derived fields (nightly rates, total due)
-          await _bookingsRepository.derivedFields.refreshForBookingId(booking.id);
+          // ✅ 3. Recalculate derived fields — فقط للحجوزات النشطة أو غير المكتملة.
+          //
+          // منع حرج: لا نستدعي refreshForBookingId للحجوزات المكتملة (التي تمت
+          // مغادرتها) لأن:
+          //   - جهاز 1: عند _processCheckout، يحدّث الحجز + الغرفة + يرفع البيانات
+          //     (بما في ذلك الليالي النهائية) إلى Appwrite Cloud.
+          //   - جهاز 2: عند _syncBookings، يستقبل الحجز المكتمل + الليالي من السحابة.
+          //     إذا استدعينا refreshForBookingId هنا، سيُعيد بناء الليالي محلياً
+          //     بـ UUIDs جديدة مختلفة عن تلك المرفوعة من جهاز 1، مما يُسبب:
+          //       (أ) تكرار منطق حساب الليالي (إعادة تنفيذ جزء من المغادرة)
+          //       (ب) تضارب UUIDs بين الأجهزة عند الرفع التالي
+          //       (ج) احتمال إنشاء ليالٍ إضافية أو فروقات مالية
+          //   الحل: نعتمد الليالي المرفوعة من جهاز المصدر كما هي للحجوزات
+          //   المكتملة، ونُعيد الحساب فقط للحجوزات النشطة (التي قد تتغير لياليها
+          //   مع مرور الوقت).
+          final isCompletedBooking = !StatusUtils.isActiveBooking(booking.status) ||
+              (booking.actualCheckout != null &&
+                  booking.actualCheckout!.isNotEmpty);
+
+          if (!isCompletedBooking) {
+            await _bookingsRepository.derivedFields.refreshForBookingId(booking.id);
+          } else {
+            _logger.debug(
+              '⏭️ تخطي refreshForBookingId للحجز المكتمل ${localUuid.substring(0, 8)}... '
+              '(status=${booking.status}, actualCheckout=${booking.actualCheckout}) — '
+              'الليالي مرفوعة من جهاز المصدر، لا حاجة لإعادة الحساب',
+              tag: 'SYNC',
+            );
+          }
 
           // ✅ 4. تتبع الغرف المتأثرة بتغيير حالة الحجز
           // إذا تغيرت الحالة من نشطة إلى غير نشطة (مثل تسجيل الخروج)

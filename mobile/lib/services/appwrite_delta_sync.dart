@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' as d;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/id.dart';
+import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
@@ -305,6 +306,20 @@ class AppwriteDeltaSync {
         // تحديث lastPullTs المستقل لـ booking_nights
         await _updateBookingNightsPullTs(Time.nowEpoch());
 
+        // ✅ ضمان منع دورة المزامنة اللانهائية عبر الأجهزة:
+        // بعد سحب سجلات من Appwrite Cloud (مثلاً تغييرات مغادرة من جهاز 1)،
+        // نحدّث lastPushTs ليكون max(القيمة الحالية, max(lastModified للسجلات المسحوبة)).
+        // هذا يمنع DeltaSyncService.compute() في pushDeltaChanges() التالي من
+        // اعتبار هذه السجلات المسحوبة "تغييرات محلية جديدة" (لأن lastModified
+        // > lastPushTs)، وبالتالي لا تُرفع مرة أخرى إلى السحابة من جهاز 2.
+        // السيناريو الذي يمنعه هذا الإصلاح:
+        //   1. جهاز 1: تسجيل مغادرة → رفع السجل بـ lastModified = T
+        //   2. جهاز 2: pullDeltaChanges() يستقبل السجل, يكتبه بـ lastModified = T
+        //   3. جهاز 2: pushDeltaChanges() التالي → compute(since: lastPushTs)
+        //      بدون هذا الإصلاح: lastPushTs < T → السجل يُرفع مرة أخرى ❌
+        //      مع هذا الإصلاح: lastPushTs >= T → السجل يُتخطى ✅
+        await _bumpLastPushTsAfterPull();
+
         // إعادة حساب حالات الغرف بناءً على الحجوزات الفعلية
         try {
           await RoomsRepository(_database).refreshAllRoomOccupancy(originIsServer: true);
@@ -570,7 +585,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
     );
@@ -630,7 +645,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       serverBookingId: _nullableValue<int>(_asInt(data['serverBookingId'])),
       roomNumber: d.Value(roomNumber),
       guestName: d.Value(_asString(data['guestName']) ?? ''),
@@ -674,15 +689,45 @@ class AppwriteDeltaSync {
 
     await db.into(db.bookings).insertOnConflictUpdate(companion);
 
-    // إعادة حساب الحقول المحسوبة محلياً بعد السحب من السيرفر
-    try {
-      await BookingDerivedFieldsService(db).refreshForBookingId(
-        await _getBookingLocalId(db, localUuid),
-        forceRebuild: true,
-      );
-    } catch (e) {
-      _logger.warning(
-        'فشل إعادة حساب الحقول المحسوبة للحجز $localUuid: $e',
+    // ✅ إعادة حساب الحقول المحسوبة محلياً — فقط للحجوزات النشطة (غير المكتملة).
+    //
+    // منع حرج: لا نستدعي refreshForBookingId(forceRebuild: true) للحجوزات
+    // المكتملة (التي تمت مغادرتها) لأن:
+    //   - جهاز 1: عند _processCheckout، يرفع الحجز + الليالي النهائية إلى السحابة.
+    //   - جهاز 2: عند _applyBookingChange، يستقبل الحجز المكتمل + الليالي من السحابة.
+    //     إذا استدعينا refreshForBookingId(forceRebuild: true)، سيحذف الليالي
+    //     المحلية (المسحوبة للتو من السحابة) ويُعيد بناءها بـ UUIDs جديدة، مما:
+    //       (أ) يُكرر منطق حساب الليالي (إعادة تنفيذ جزء من المغادرة)
+    //       (ب) يُنشئ UUIDs مختلفة عن جهاز المصدر → تضارب عند الرفع التالي
+    //       (ج) قد يُنشئ ليالٍ إضافية أو فروقات مالية
+    //   الحل: نعتمد الليالي المرفوعة من جهاز المصدر كما هي للحجوزات المكتملة،
+    //   ونُعيد الحساب فقط للحجوزات النشطة (التي قد تتغير لياليها مع مرور الوقت).
+    final remoteStatus = _asString(data['status']);
+    final remoteActualCheckout = _asString(data['actualCheckout']);
+    // ✅ استخدام StatusUtils.isActiveBooking لضمان اتساق المنطق مع باقي التطبيق.
+    // الحجز "مكتمل" إذا لم يكن نشطاً (وفق StatusUtils) أو كان له actualCheckout.
+    final isCompletedBooking =
+        (remoteStatus != null && remoteStatus.isNotEmpty &&
+            !StatusUtils.isActiveBooking(remoteStatus)) ||
+        (remoteActualCheckout != null && remoteActualCheckout.isNotEmpty);
+
+    if (!isCompletedBooking) {
+      try {
+        await BookingDerivedFieldsService(db).refreshForBookingId(
+          await _getBookingLocalId(db, localUuid),
+          forceRebuild: true,
+        );
+      } catch (e) {
+        _logger.warning(
+          'فشل إعادة حساب الحقول المحسوبة للحجز $localUuid: $e',
+          tag: 'DELTA_SYNC',
+        );
+      }
+    } else {
+      _logger.debug(
+        '⏭️ تخطي refreshForBookingId للحجز المكتمل $localUuid '
+        '(status=$remoteStatus, actualCheckout=$remoteActualCheckout) — '
+        'الليالي مرفوعة من جهاز المصدر، لا حاجة لإعادة الحساب',
         tag: 'DELTA_SYNC',
       );
     }
@@ -714,7 +759,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
       serverPaymentId: _nullableValue<int>(_asInt(data['serverPaymentId'])),
@@ -770,7 +815,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
       expenseType: d.Value(expenseType),
@@ -833,7 +878,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
     );
@@ -862,7 +907,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
       name: d.Value(name),
@@ -895,7 +940,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       targetType: d.Value(targetType),
       targetUuid: d.Value(targetUuid),
       adjustmentType: d.Value(_asString(data['adjustmentType']) ?? ''),
@@ -974,7 +1019,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(_asInt(data['lastModified']) ?? Time.nowEpoch()),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       originalPaymentUuid: d.Value(originalPaymentUuid),
       originalPaymentId: d.Value(_asInt(data['originalPaymentId']) ?? 0),
       bookingUuid: d.Value(_asString(data['bookingUuid']) ?? ''),
@@ -1028,7 +1073,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
     );
@@ -1071,7 +1116,7 @@ class AppwriteDeltaSync {
         _asInt(data['lastModifiedEpoch']) ?? incomingLastModified,
       ),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
     );
@@ -1101,7 +1146,7 @@ class AppwriteDeltaSync {
       deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
       lastModified: d.Value(lastModified),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
       createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
@@ -1148,7 +1193,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
       bookingId: d.Value(resolvedBookingId),
@@ -1179,7 +1224,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
       registerId: _nullableValue<int>(_asInt(data['registerId'])),
@@ -1213,7 +1258,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
       title: d.Value(_asString(data['title']) ?? ''),
@@ -1255,7 +1300,7 @@ class AppwriteDeltaSync {
         _asInt(data['lastModifiedEpoch']) ?? lastModified,
       ),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
       employeeId: d.Value(resolvedEmployeeId),
@@ -1293,7 +1338,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
       cycleId: d.Value(resolvedCycleId),
@@ -1588,6 +1633,99 @@ class AppwriteDeltaSync {
     } catch (_) {}
   }
 
+  /// ✅ تحديث lastPushTs بعد السحب لمنع دورة المزامنة اللانهائية عبر الأجهزة.
+  ///
+  /// يحسب max(lastModified) لكل السجلات المحلية ذات origin='server' (أي
+  /// السجلات المسحوبة من Appwrite Cloud)، ويضبط lastPushTs على الأقل لهذه
+  /// القيمة. بهذه الطريقة، عند تشغيل pushDeltaChanges() التالي على هذا الجهاز،
+  /// لن تعتبر DeltaSyncService.compute() هذه السجلات المسحوبة "تغييرات محلية
+  /// جديدة" (لأن lastModified <= lastPushTs)، ولن تُرفع مرة أخرى إلى السحابة.
+  ///
+  /// هذا يكسر الدورة اللانهائية المحتملة:
+  ///   جهاز 1 (رفع) → جهاز 2 (سحب + إعادة رفع) → جهاز 1 (سحب + إعادة رفع) → ...
+  ///
+  /// ملاحظة: السجلات التي يتم تعديلها محلياً بعد السحب ستحصل على lastModified
+  /// جديد (وقت التعديل المحلي) > lastPushTs، لذا ستُرفع بشكل صحيح. هذا الإصلاح
+  /// لا يؤثر على التعديلات المحلية الحقيقية، بل يمنع فقط إعادة رفع السجلات
+  /// المسحوبة حرفياً كما هي.
+  Future<void> _bumpLastPushTsAfterPull() async {
+    try {
+      // تجميع max(lastModified) لكل الجداول المتزامنة للسجلات origin='server'
+      final tables = <String>[
+        'rooms',
+        'bookings',
+        'employees',
+        'expenses',
+        'payments',
+        'debts',
+        'guest_infos',
+        'salary_withdrawals',
+        'salary_cycles',
+        'salary_payments',
+        'shift_notes', // الجدول الفعلي هو shift_notes (shiftNote في drift)
+        'booking_notes',
+        'booking_nights',
+        'booking_price_adjustments',
+        'cash_transactions',
+        'price_adjustments',
+        'audit_logs',
+        'payment_voids',
+      ];
+
+      int maxLastModified = 0;
+      for (final table in tables) {
+        try {
+          final sanitized = table.replaceAll("'", "''");
+          final rows = await _database.customSelect(
+            "SELECT MAX(last_modified) AS m FROM '$sanitized' WHERE origin = 'server'",
+            readsFrom: Set.unmodifiable({}),
+          ).get();
+          if (rows.isNotEmpty) {
+            final m = rows.first.data['m'];
+            if (m is int && m > maxLastModified) {
+              maxLastModified = m;
+            } else if (m is num && m.toInt() > maxLastModified) {
+              maxLastModified = m.toInt();
+            }
+          }
+        } catch (_) {
+          // بعض الجداول قد لا تكون موجودة أو قد تفشل — نتخطاها
+        }
+      }
+
+      if (maxLastModified <= 0) {
+        // لا توجد سجلات origin='server' → لا حاجة للتحديث
+        return;
+      }
+
+      final currentLastPushTs = await _getLastPushSyncTimestamp();
+      // ✅ استخدام max(currentLastPushTs, maxLastModified) لضمان عدم الرجوع للوراء
+      final newLastPushTs = currentLastPushTs > maxLastModified
+          ? currentLastPushTs
+          : maxLastModified;
+
+      if (newLastPushTs > currentLastPushTs) {
+        await _database.into(_database.syncState).insertOnConflictUpdate(
+              SyncStateCompanion(
+                id: const d.Value(1),
+                lastPushTs: d.Value(newLastPushTs),
+              ),
+            );
+        _logger.info(
+          '✅ تم تحديث lastPushTs إلى $newLastPushTs بعد السحب '
+          '(max(lastModified) للسجلات المسحوبة = $maxLastModified) — '
+          'يمنع إعادة رفع السجلات المسحوبة',
+          tag: 'DELTA_SYNC',
+        );
+      }
+    } catch (e) {
+      _logger.warning(
+        '⚠️ فشل تحديث lastPushTs بعد السحب: $e',
+        tag: 'DELTA_SYNC',
+      );
+    }
+  }
+
   Future<int> _getLastPullSyncTimestamp() async {
     try {
       final state = await (_database.select(_database.syncState)
@@ -1825,7 +1963,7 @@ class AppwriteDeltaSync {
       createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? 0),
       lastModifiedEpoch: d.Value(_asInt(data['lastModifiedEpoch']) ?? 0),
       version: d.Value(_asInt(data['version']) ?? 1),
-      origin: const d.Value('appwrite_delta'),
+      origin: const d.Value('server'),
       vectorClock: d.Value(_asString(data['vectorClock']) ?? _asString(data['vector_clock']) ?? '{}'),
       deviceId: d.Value(_asString(data['deviceId']) ?? ''),
     );
