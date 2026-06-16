@@ -130,6 +130,7 @@ class AppwriteSyncManager {
   Timer? _debouncePushTimer;
   Timer? _failedRetryTimer;
   Timer? _cleanupTimer;
+  Timer? _stuckRecoveryTimer;
   double _adaptiveBatchSize = 50;
   StreamSubscription<void>? _outboxSubscription;
   Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
@@ -453,7 +454,7 @@ class AppwriteSyncManager {
 
           // إعادة تعيين العناصر الفاشلة إلى pending مع backoff
           final resetCount = await outboxDao.retryFailedWithBackoff(
-            
+
           );
           if (resetCount == 0) return;
 
@@ -472,6 +473,32 @@ class AppwriteSyncManager {
       },
     );
     debugPrint('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
+
+    // ✅ إصلاح حرج (audit agent-6): استعادة stuck 'processing' entries بشكل دوري
+    // المشكلة: cleanupStuckEntries كان يُستدعى فقط عند initialize() (مرة واحدة عند بدء التطبيق)
+    // بعدها، أي entry يعلق في 'processing' (بسبب crash أو timeout) يبقى غير مرئي
+    // لـ takeBatch (الذي يجلب فقط 'pending') → فقدان صامت للبيانات حتى إعادة
+    // تشغيل التطبيق بعد >5 دقائق.
+    // الحل: تشغيل cleanupStuckEntries كل دقيقة بعتبة 60 ثانية (أقصر من الـ 5 دقائق
+    // السابقة) لاستعادة العناصر العالقة بسرعة.
+    _stuckRecoveryTimer?.cancel();
+    _stuckRecoveryTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) async {
+        try {
+          final recovered = await outboxDao.cleanupStuckEntries();
+          if (recovered > 0) {
+            _logger.info(
+              '🔧 تم استعادة $recovered عنصر عالق في outbox من "processing" إلى "pending"',
+              tag: 'SYNC',
+            );
+          }
+        } catch (e) {
+          _logger.warning('⚠️ فشل استعادة العناصر العالقة: $e', tag: 'SYNC');
+        }
+      },
+    );
+    debugPrint('🔧 تم تشغيل مؤقت استعادة العناصر العالقة (كل دقيقة)');
 
     // ✅ تنظيف outbox تلقائي كل 24 ساعة
     _cleanupTimer?.cancel();
@@ -535,6 +562,7 @@ class AppwriteSyncManager {
     _debouncePushTimer?.cancel();
     _failedRetryTimer?.cancel();
     _cleanupTimer?.cancel();
+    _stuckRecoveryTimer?.cancel();
     _outboxSubscription?.cancel();
     stopAutoSync();
     _syncController.close();
@@ -1163,10 +1191,15 @@ class AppwriteSyncManager {
         recordsPushed: recordsPushed,
         recordsPulled: recordsPulled,
       );
+    } finally {
+      // ✅ إصلاح حرج (audit agent-6): ضمان إعادة ضبط _currentStatus دائماً
+      // حتى لو فشل معالج الأخطاء نفسه (مثل CrashlyticsService أو
+      // WhatsAppNotificationService). بدون finally، كان _currentStatus
+      // يبقى stuck عند 'syncing' → المزامنة التالية ترجع "Sync already in
+      // progress" → توقف دائم للمزامنة حتى إعادة تشغيل التطبيق.
+      _currentStatus = finalStatus;
+      _syncController.add(_currentStatus);
     }
-
-    _currentStatus = finalStatus;
-    _syncController.add(_currentStatus);
 
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
@@ -2674,7 +2707,7 @@ class AppwriteSyncManager {
       'bedsCount': 1,
     };
     _putIfNotNull(data, 'serverId', room.serverId);
-    _putIfNotNull(data, 'deletedAt', room.deletedAt);
+    data['deletedAt'] = room.deletedAt;
     _putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
     return AppwriteSyncUtils.sanitizePayload('rooms', data, collectionId: AppwriteConfig.roomsCollectionId);
   }
@@ -2700,7 +2733,7 @@ class AppwriteSyncManager {
     };
     _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
     _putIfNotNull(data, 'serverId', booking.serverId);
-    _putIfNotNull(data, 'deletedAt', booking.deletedAt);
+    data['deletedAt'] = booking.deletedAt;
     _putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
     _putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
     _putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
@@ -2756,7 +2789,7 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'relatedId', expense.relatedId);
     _putIfNotNull(data, 'cashTransactionId', expense.cashTransactionId);
     _putIfNotNull(data, 'serverId', expense.serverId);
-    _putIfNotNull(data, 'deletedAt', expense.deletedAt);
+    data['deletedAt'] = expense.deletedAt;
     _putIfStringNotEmpty(data, 'hotelDayKey', expense.hotelDayKey);
     _putIfStringNotEmpty(data, 'categoryUuid', expense.categoryUuid);
     _putIfStringNotEmpty(data, 'cashFlowUuid', expense.cashFlowUuid);
@@ -2799,7 +2832,7 @@ class AppwriteSyncManager {
     );
     _putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
     _putIfNotNull(data, 'serverId', payment.serverId);
-    _putIfNotNull(data, 'deletedAt', payment.deletedAt);
+    data['deletedAt'] = payment.deletedAt;
     _putIfStringNotEmpty(data, 'deletedAtIso', payment.deletedAtIso);
     _putIfStringNotEmpty(data, 'linkedDebtUuid', payment.linkedDebtUuid);
     _putIfNotNull(data, 'discountAmount', payment.discountAmount);
@@ -2848,7 +2881,7 @@ class AppwriteSyncManager {
       'origin': debt.origin,
     };
     _putIfNotNull(data, 'serverId', debt.serverId);
-    _putIfNotNull(data, 'deletedAt', debt.deletedAt);
+    data['deletedAt'] = debt.deletedAt;
     _putIfStringNotEmpty(data, 'deletedAtIso', debt.deletedAtIso);
     _putIfStringNotEmpty(data, 'hotelDayOpened', debt.hotelDayOpened);
     _putIfStringNotEmpty(data, 'hotelDayClosed', debt.hotelDayClosed);
@@ -2962,37 +2995,38 @@ class AppwriteSyncManager {
         // إذا كان outbox entry يمثل تغييراً محلياً لم يُرفع بعد،
         // والسحابة ليس لديها بيانات أحدث لهذا localUuid،
         // يجب إبقاء العنصر في outbox.
+        //
+        // ⚠️ إصلاح حرج (audit agent-5):
+        // المنطق السابق كان يحذف العنصر إذا كان `origin == 'server'` حتى لو
+        // كان `entry.source == 'local'` (تغيير محلي فعلي). المشكلة أن
+        // `updateById` و `softDelete` لا يُحدّثان حقل `origin` إلى `'local'`
+        // عند التعديل المحلي، فتبقى القيمة `'server'` من السحب السابق.
+        // هذا يسبب فقدان صامت للتغييرات المحلية المعلقة في outbox.
+        //
+        // المنطق الجديد: نعتمد على `entry.source == 'local'` كدليل قاطع على
+        // وجود تغيير محلي لم يُرفع. نحذف العنصر فقط في حالتين:
+        //   (أ) السجل المحلي لم يعد موجوداً (حُذف نهائياً)
+        //   (ب) السجل المحلي أحدث من `entry.clientTs` (السحب حدّثه فعلاً
+        //       بقيمة أحدث من التغيير المعلق — وهذا نادر لأن السحب يحترم
+        //       lastModified المحلي الأحدث عبر _isRemoteDataNewer)
         final uuidsToRemove = <String>[];
         for (final entry in outboxEntries) {
-          // التحقق من وجود بيانات محلية أحدث من السحابة
-          // إذا كانت البيانات المحلية لا تزال تحتاج رفع، نبقي العنصر
+          // فقط عناصر source='local' تفحص (الاستعلام أعلاه يضمن ذلك)
           final localData = await _getLocalLastModified(entity, entry.localUuid);
           if (localData == null) {
-            // لا يوجد سجل محلي — ربما تم حذفه، نحذف outbox entry
+            // لا يوجد سجل محلي — ربما تم حذفه نهائياً، نحذف outbox entry
             uuidsToRemove.add(entry.localUuid);
             continue;
           }
 
           if (localData > entry.clientTs) {
-            // البيانات المحلية أحدث من outbox entry — السحب حدّثها
-            // لا حاجة لإبقاء العنصر القديم
+            // البيانات المحلية أحدث من outbox entry — يعني السحب حدّثها
+            // بقيمة أحدث من التغيير المعلق. آمن الحذف.
             uuidsToRemove.add(entry.localUuid);
-          } else if (localData == entry.clientTs) {
-            // ✅ عندما يتساوى lastModified المحلي مع clientTs في outbox،
-            // نحتاج لتمييز حالتين:
-            // 1) التغيير محلي ولم يُرفع بعد → نبقي العنصر
-            // 2) البيانات قادمة من السيرفر (origin='server') →
-            //    السيرفر لديها نفس البيانات، لا حاجة لإعادة الرفع
-            final origin = await _getLocalOrigin(entity, entry.localUuid);
-            if (origin == 'server') {
-              // البيانات كانت قادمة من السيرفر → السيرفر لديها بالفعل
-              // لا حاجة لإبقاء عنصر outbox
-              uuidsToRemove.add(entry.localUuid);
-            }
-            // إذا origin == 'local' → التغيير المحلي لم يُرفع بعد → نبقي العنصر
           }
-          // إذا كان localData < clientTs، التغيير المحلي لا يزال صالحاً
-          // يجب إبقاء العنصر ليُرفع
+          // في جميع الحالات الأخرى (localData == clientTs أو localData < clientTs):
+          // التغيير المحلي لا يزال صالحاً ويحتاج الرفع — نبقي العنصر.
+          // ✅ هذا يحمي التغييرات المحلية المعلقة من الحذف الخاطئ.
         }
 
         if (uuidsToRemove.isEmpty) continue;
@@ -3136,6 +3170,7 @@ class AppwriteSyncManager {
   /// جلب حقل origin لسجل محلي بناءً على entity و localUuid
   /// يُستخدم لتحديد ما إذا كانت البيانات قادمة من السيرفر ('server')
   /// أو تم إنشاؤها محلياً ('local')
+  // ignore: unused_element
   Future<String?> _getLocalOrigin(String entity, String localUuid) async {
     try {
       // استخدام استعلام SQL مباشر لتجنب مشاكل الأنواع العامة في Drift
@@ -4087,7 +4122,7 @@ class AppwriteSyncManager {
       'deviceId': employee.deviceId,
     };
     _putIfNotNull(data, 'serverId', employee.serverId);
-    _putIfNotNull(data, 'deletedAt', employee.deletedAt);
+    data['deletedAt'] = employee.deletedAt;
     return data;
   }
 
@@ -4107,7 +4142,7 @@ class AppwriteSyncManager {
       'deviceId': note.deviceId,
     };
     _putIfNotNull(data, 'serverId', note.serverId);
-    _putIfNotNull(data, 'deletedAt', note.deletedAt);
+    data['deletedAt'] = note.deletedAt;
     _putIfStringNotEmpty(data, 'alertUntil', note.alertUntil);
     return data;
   }
@@ -4134,7 +4169,7 @@ class AppwriteSyncManager {
       'deviceId': night.deviceId,
     };
     _putIfNotNull(data, 'serverId', night.serverId);
-    _putIfNotNull(data, 'deletedAt', night.deletedAt);
+    data['deletedAt'] = night.deletedAt;
     _putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
     _putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
     return data;
@@ -4157,7 +4192,7 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'referenceId', transaction.referenceId);
     _putIfNotNull(data, 'createdBy', transaction.createdBy);
     _putIfNotNull(data, 'serverId', transaction.serverId);
-    _putIfNotNull(data, 'deletedAt', transaction.deletedAt);
+    data['deletedAt'] = transaction.deletedAt;
     _putIfStringNotEmpty(data, 'referenceType', transaction.referenceType);
     _putIfStringNotEmpty(data, 'description', transaction.description);
     return data;
@@ -4181,7 +4216,7 @@ class AppwriteSyncManager {
       'deviceId': cycle.deviceId,
     };
     _putIfNotNull(data, 'serverId', cycle.serverId);
-    _putIfNotNull(data, 'deletedAt', cycle.deletedAt);
+    data['deletedAt'] = cycle.deletedAt;
     _putIfStringNotEmpty(data, 'hotelDayStart', cycle.hotelDayStart);
     _putIfStringNotEmpty(data, 'hotelDayEnd', cycle.hotelDayEnd);
     return data;
@@ -4202,7 +4237,7 @@ class AppwriteSyncManager {
       'deviceId': payment.deviceId,
     };
     _putIfNotNull(data, 'serverId', payment.serverId);
-    _putIfNotNull(data, 'deletedAt', payment.deletedAt);
+    data['deletedAt'] = payment.deletedAt;
     _putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
     _putIfStringNotEmpty(data, 'method', payment.method);
     return data;
@@ -4513,7 +4548,12 @@ class AppwriteSyncManager {
           updatedAtEpoch = Time.nowEpoch();
         }
 
-        final lastModified = _asInt(data['lastModified']);
+        // ✅ إصلاح حرج (audit agent-2): استخدام _asIntNullable بدلاً من _asInt
+        // _asInt يرجع 0 عند غياب lastModified → يلوّث قاعدة البيانات المحلية
+        // بقيمة 0 → كل سحب لاحق يرى المحلي "قديم جداً" ويستبدله → حلقة فقدان بيانات.
+        final lastModified = _asIntNullable(data['lastModified']) ??
+            _extractUpdatedAtSec(doc) ??
+            Time.nowEpoch();
         final serverId = _asIntNullable(data['serverId']);
 
         // معالجة الحذف الناعم
@@ -4546,6 +4586,27 @@ class AppwriteSyncManager {
           continue;
         }
 
+        // ✅ إصلاح حرج (audit agent-2): فحص _isRemoteDataNewer قبل الكتابة
+        // المنطق السابق كان يستبدل السجل المحلي بغض النظر عن lastModified.
+        // الآن نفحص أولاً: إذا كان المحلي أحدث، نتخطى (نحمي تعديلات المستخدم).
+        final existingForCheck = await (database.select(database.shiftNotes)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (!_isRemoteDataNewer(
+          data,
+          existingForCheck?.lastModified,
+          localDeletedAt: existingForCheck?.deletedAt,
+          remoteUpdatedAtSec: _extractUpdatedAtSec(doc),
+        )) {
+          _logger.debug(
+            'Skipping blacklist ${doc.$id}: local is newer or equal '
+            '(local=${existingForCheck?.lastModified}, remote=$lastModified)',
+            tag: 'SYNC',
+          );
+          processed++;
+          continue;
+        }
+
         final companion = ShiftNotesCompanion(
           title: drift.Value(name),
           content: drift.Value(content),
@@ -4565,11 +4626,7 @@ class AppwriteSyncManager {
         );
 
         // upsert: البحث عن سجل موجود بنفس localUuid
-        final existing = await (database.select(database.shiftNotes)
-              ..where((t) => t.localUuid.equals(localUuid)))
-            .getSingleOrNull();
-
-        if (existing != null) {
+        if (existingForCheck != null) {
           await (database.update(database.shiftNotes)
                 ..where((t) => t.localUuid.equals(localUuid)))
               .write(companion);

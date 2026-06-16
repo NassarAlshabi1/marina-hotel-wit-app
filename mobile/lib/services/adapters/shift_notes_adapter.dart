@@ -88,6 +88,10 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
       lastModified: d.Value(lastModified),
+      // ✅ إصلاح (audit agent-3): إضافة createdAtEpoch و lastModifiedEpoch
+      // كانا مفقودين من fromJson → يُخزّنان كـ 0 افتراضياً → يُفقدان عند السحب
+      createdAtEpoch: d.Value(_asInt(json, 'createdAtEpoch', src) ?? createdAt),
+      lastModifiedEpoch: d.Value(_asInt(json, 'lastModifiedEpoch', src) ?? lastModified),
       createdAtIso: _vStr(
         json,
         'createdAtIso',
