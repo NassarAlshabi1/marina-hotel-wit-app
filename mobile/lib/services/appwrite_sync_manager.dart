@@ -487,7 +487,7 @@ class AppwriteSyncManager {
           if (resetCount == 0) return; // لا يوجد شيء لإعادة المحاولة
 
           AppLogger.info(
-  '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $failedCount)',,
+  '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $failedCount)',
   tag: 'APP',
 );
 

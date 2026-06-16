@@ -48,7 +48,7 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
     if (resolvedId == null && localId != null) {
       // تسجيل تحذير فقط، سيتم معالجة الخطأ في _syncPayments
       AppLogger.info(
-  '[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId',,
+  '[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId',
   tag: 'APP',
 );
     }

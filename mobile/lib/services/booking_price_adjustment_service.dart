@@ -483,7 +483,7 @@ class BookingPriceAdjustmentService {
 
     AppLogger.info(
   'تم نقل ${adjustments.length} تعديل(ات) سعر للغرفة $newRoomNumber '
-      'للحجز #$bookingId',,
+      'للحجز #$bookingId',
   tag: 'APP',
 );
   }

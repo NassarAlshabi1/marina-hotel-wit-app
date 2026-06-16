@@ -74,13 +74,9 @@ class AppwriteBackupService {
           break;
         }
         offset += limit;
-<<<<<<< HEAD
-      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-        debugPrint('⚠️ AppwriteBackupService: فشل جلب المجموعات، استخدام fallback');
-=======
       } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         AppLogger.warning('⚠️ AppwriteBackupService: فشل جلب المجموعات، استخدام fallback', tag: 'APP');
->>>>>>> 3dd20f1 (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
+ (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
         usedFallback = true;
         break;
       }
@@ -95,13 +91,9 @@ class AppwriteBackupService {
                 collectionId: id,
               );
           allCollections.add(collection);
-<<<<<<< HEAD
-        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-          debugPrint('⚠️ AppwriteBackupService: فشل جلب المجموعة $id');
-=======
         } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
           AppLogger.warning('⚠️ AppwriteBackupService: فشل جلب المجموعة $id', tag: 'APP');
->>>>>>> 3dd20f1 (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
+ (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
           allCollections.add({r'$id': id});
         }
       }
@@ -117,13 +109,9 @@ class AppwriteBackupService {
     try {
       final map = (collection as dynamic).toMap();
       return Map<String, dynamic>.from(map as Map);
-<<<<<<< HEAD
-    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-      debugPrint('⚠️ AppwriteBackupService: فشل serialize collection via toMap');
-=======
     } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       AppLogger.warning('⚠️ AppwriteBackupService: فشل serialize collection via toMap', tag: 'APP');
->>>>>>> 3dd20f1 (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
+ (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
       try {
         final dynamic c = collection;
         return {
@@ -133,13 +121,9 @@ class AppwriteBackupService {
           'documentSecurity': c.documentSecurity,
           'permissions': c.permissions,
         };
-<<<<<<< HEAD
-      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-        debugPrint('⚠️ AppwriteBackupService: فشل serialize collection تماماً');
-=======
       } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         AppLogger.warning('⚠️ AppwriteBackupService: فشل serialize collection تماماً', tag: 'APP');
->>>>>>> 3dd20f1 (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
+ (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
         return {'raw': collection.toString()};
       }
     }

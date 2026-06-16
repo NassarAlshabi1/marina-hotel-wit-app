@@ -103,7 +103,7 @@ class AutoBackupDatabaseHelper {
   static Future<int> insertBooking(BookingsCompanion booking) async {
     final result = await _db.insertWithBackupTrigger(_db.bookings, booking);
     AppLogger.info(
-  '📝 تم إضافة حجز جديد (${booking.guestName.value}) - سيتم النسخ التلقائي',,
+  '📝 تم إضافة حجز جديد (${booking.guestName.value}) - سيتم النسخ التلقائي',
   tag: 'APP',
 );
     return result;
@@ -137,7 +137,7 @@ class AutoBackupDatabaseHelper {
   static Future<int> insertRoom(RoomsCompanion room) async {
     final result = await _db.insertWithBackupTrigger(_db.rooms, room);
     AppLogger.info(
-  '🏠 تم إضافة غرفة جديدة (${room.roomNumber.value}) - سيتم النسخ التلقائي',,
+  '🏠 تم إضافة غرفة جديدة (${room.roomNumber.value}) - سيتم النسخ التلقائي',
   tag: 'APP',
 );
     return result;
@@ -159,7 +159,7 @@ class AutoBackupDatabaseHelper {
   static Future<int> insertPayment(PaymentsCompanion payment) async {
     final result = await _db.insertWithBackupTrigger(_db.payments, payment);
     AppLogger.info(
-  '💰 تم إضافة دفعة جديدة (${payment.amount.value}) - سيتم النسخ التلقائي',,
+  '💰 تم إضافة دفعة جديدة (${payment.amount.value}) - سيتم النسخ التلقائي',
   tag: 'APP',
 );
     return result;
@@ -181,7 +181,7 @@ class AutoBackupDatabaseHelper {
   static Future<int> insertExpense(ExpensesCompanion expense) async {
     final result = await _db.insertWithBackupTrigger(_db.expenses, expense);
     AppLogger.info(
-  '🧾 تم إضافة مصروف جديد (${expense.amount.value}) - سيتم النسخ التلقائي',,
+  '🧾 تم إضافة مصروف جديد (${expense.amount.value}) - سيتم النسخ التلقائي',
   tag: 'APP',
 );
     return result;
@@ -208,7 +208,7 @@ class AutoBackupDatabaseHelper {
       transaction,
     );
     AppLogger.info(
-  '💳 تم إضافة معاملة نقدية (${transaction.amount.value}) - سيتم النسخ التلقائي',,
+  '💳 تم إضافة معاملة نقدية (${transaction.amount.value}) - سيتم النسخ التلقائي',
   tag: 'APP',
 );
     return result;
@@ -218,7 +218,7 @@ class AutoBackupDatabaseHelper {
   static Future<int> insertEmployee(EmployeesCompanion employee) async {
     final result = await _db.insertWithBackupTrigger(_db.employees, employee);
     AppLogger.info(
-  '👤 تم إضافة موظف جديد (${employee.name.value}) - سيتم النسخ التلقائي',,
+  '👤 تم إضافة موظف جديد (${employee.name.value}) - سيتم النسخ التلقائي',
   tag: 'APP',
 );
     return result;
@@ -265,7 +265,7 @@ class AutoBackupDatabaseHelper {
   static Future<int> insertDebt(DebtsCompanion debt) async {
     final result = await _db.insertWithBackupTrigger(_db.debts, debt);
     AppLogger.info(
-  '💳 تم إضافة دين جديد (${debt.totalAmount.value}) - سيتم النسخ التلقائي',,
+  '💳 تم إضافة دين جديد (${debt.totalAmount.value}) - سيتم النسخ التلقائي',
   tag: 'APP',
 );
     return result;

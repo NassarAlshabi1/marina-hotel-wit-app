@@ -115,7 +115,7 @@ class DataUsageManager {
       await prefs.setDouble(_keyTodayUsage, _todayUsageMB);
 
       AppLogger.info(
-  '📊 تم إضافة ${megabytes.toStringAsFixed(2)} MB للاستخدام اليومي',,
+  '📊 تم إضافة ${megabytes.toStringAsFixed(2)} MB للاستخدام اليومي',
   tag: 'APP',
 );
     } catch (e) {
@@ -276,7 +276,7 @@ class DataUsageManager {
   Future<void> recordDataUsage(double megabytes) async {
     await addUsage(megabytes);
     AppLogger.info(
-  '📊 تم تسجيل استخدام البيانات: ${megabytes.toStringAsFixed(2)} MB',,
+  '📊 تم تسجيل استخدام البيانات: ${megabytes.toStringAsFixed(2)} MB',
   tag: 'APP',
 );
   }

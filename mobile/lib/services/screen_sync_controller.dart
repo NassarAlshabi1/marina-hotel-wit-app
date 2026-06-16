@@ -134,7 +134,7 @@ class ScreenSyncController {
         },
         fallback: () {
           AppLogger.warning(
-  '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات',,
+  '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات',
   tag: 'APP',
 );
           return false;
@@ -151,7 +151,7 @@ class ScreenSyncController {
         return true;
       } else {
         AppLogger.warning(
-  '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox',,
+  '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox',
   tag: 'APP',
 );
         return false;

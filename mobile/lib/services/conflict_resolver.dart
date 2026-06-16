@@ -139,7 +139,7 @@ class EnhancedConflictResolver {
 
     if (timeDiff.inSeconds < 30) {
       AppLogger.info(
-  '🔀 تعارض متزامن (${timeDiff.inSeconds}s) - استخدام field-level merge',,
+  '🔀 تعارض متزامن (${timeDiff.inSeconds}s) - استخدام field-level merge',
   tag: 'APP',
 );
       return _fieldLevelMerge(context);

@@ -647,7 +647,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           AppLogger.warning('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}', tag: 'APP');
         } else {
           AppLogger.info(
-  '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',,
+  '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
   tag: 'APP',
 );
         }
@@ -965,7 +965,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         AppLogger.warning('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}', tag: 'APP');
       } else {
         AppLogger.info(
-  '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',,
+  '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
   tag: 'APP',
 );
       }
@@ -1083,7 +1083,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         AppLogger.warning('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}', tag: 'APP');
       } else {
         AppLogger.info(
-  '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',,
+  '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
   tag: 'APP',
 );
       }

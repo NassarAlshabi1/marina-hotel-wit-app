@@ -269,7 +269,7 @@ void callbackDispatcher() {
             AppLogger.info('✅ تم النسخ الاحتياطي السحابي بنجاح', tag: 'APP');
           } else {
             AppLogger.warning(
-  '⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي',,
+  '⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي',
   tag: 'APP',
 );
           }

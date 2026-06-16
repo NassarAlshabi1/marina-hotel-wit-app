@@ -57,7 +57,7 @@ class SqliteBackupRestore {
           return documentsTarget;
         } catch (e) {
           AppLogger.warning(
-  '⚠️ Failed to access default backup dir, falling back: $e',,
+  '⚠️ Failed to access default backup dir, falling back: $e',
   tag: 'APP',
 );
         }
@@ -142,7 +142,7 @@ class SqliteBackupRestore {
       
       if (!dstFile.existsSync() || validationError != null) {
         AppLogger.info(
-  '🔄 استرجاع من pre_restore: DB الحالي غير صالح ($validationError)',,
+  '🔄 استرجاع من pre_restore: DB الحالي غير صالح ($validationError)',
   tag: 'APP',
 );
         // حذف DB التالف إن وجد

@@ -36,7 +36,7 @@ class RecalculateBookingNightsMigration {
     for (final booking in bookings) {
       try {
         AppLogger.info(
-  '   Processing ${booking.guestName} (${booking.roomNumber})...',,
+  '   Processing ${booking.guestName} (${booking.roomNumber})...',
   tag: 'APP',
 );
 

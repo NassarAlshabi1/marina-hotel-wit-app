@@ -345,7 +345,7 @@ class SyncSafetyLayer {
         );
         if (filtered.isEmpty) {
           AppLogger.warning(
-  '⚠️ تخطي استعادة صف فارغ لـ $tableName بسبب اختلاف الأعمدة',,
+  '⚠️ تخطي استعادة صف فارغ لـ $tableName بسبب اختلاف الأعمدة',
   tag: 'APP',
 );
           continue;

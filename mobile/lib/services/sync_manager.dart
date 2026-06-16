@@ -869,7 +869,7 @@ class SyncManager {
               );
 
               AppLogger.info(
-  '🔀 تعارض [$table/$key]: استراتيجية ${resolution.strategy.name}',,
+  '🔀 تعارض [$table/$key]: استراتيجية ${resolution.strategy.name}',
   tag: 'APP',
 );
 

@@ -215,7 +215,7 @@ class SyncPerformanceOptimizer {
 
       if (timeSinceLastSync < minInterval) {
         AppLogger.warning(
-  '⏭️ تم تخطي المزامنة: لم تمر الفترة المطلوبة بعد (${timeSinceLastSync.inSeconds}/${minInterval.inSeconds} ثانية)',,
+  '⏭️ تم تخطي المزامنة: لم تمر الفترة المطلوبة بعد (${timeSinceLastSync.inSeconds}/${minInterval.inSeconds} ثانية)',
   tag: 'APP',
 );
         return true;
@@ -278,7 +278,7 @@ class SyncPerformanceOptimizer {
     } else {
       _syncAttempts++;
       AppLogger.error(
-  '❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)',,
+  '❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)',
   tag: 'APP',
 );
     }
@@ -424,7 +424,7 @@ class SyncPerformanceOptimizer {
       }
 
       AppLogger.warning(
-  '🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)',,
+  '🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)',
   tag: 'APP',
 );
       return optimizedInterval;

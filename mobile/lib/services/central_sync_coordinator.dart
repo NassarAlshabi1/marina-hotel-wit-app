@@ -48,7 +48,7 @@ class CentralSyncCoordinator {
       if (elapsed < syncCooldown) {
         final remaining = syncCooldown - elapsed;
         AppLogger.info(
-  '⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining',,
+  '⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining',
   tag: 'APP',
 );
 
@@ -73,7 +73,7 @@ class CentralSyncCoordinator {
     _isSyncing = true;
     _syncCount++;
     AppLogger.info(
-  '🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)',,
+  '🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)',
   tag: 'APP',
 );
 

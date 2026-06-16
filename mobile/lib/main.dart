@@ -484,7 +484,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
               final remaining = SyncConstants.appOpenSyncInterval - elapsed;
               AppLogger.warning(
   '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
-                '(متبقي ${remaining.inMinutes} دقيقة)',,
+                '(متبقي ${remaining.inMinutes} دقيقة)',
   tag: 'APP',
 );
               shouldSync = false;

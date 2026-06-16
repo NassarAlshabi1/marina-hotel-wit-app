@@ -116,13 +116,9 @@ class AppSessionManager {
     if (_deviceIdResolver != null) {
       try {
         return await _deviceIdResolver!();
-<<<<<<< HEAD
-      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-        debugPrint('⚠️ فشل حل deviceId');
-=======
       } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         AppLogger.warning('⚠️ فشل حل deviceId', tag: 'APP');
->>>>>>> 3dd20f1 (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
+ (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
         return null;
       }
     }
@@ -139,7 +135,7 @@ class AppSessionManager {
 
       if (!appwriteEnabled) {
         AppLogger.info(
-  'ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.',,
+  'ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.',
   tag: 'APP',
 );
         return;
@@ -164,7 +160,7 @@ class AppSessionManager {
         if (difference.inMinutes < 60) {
           final remainingMinutes = 60 - difference.inMinutes;
           AppLogger.info(
-  'ℹ️ [AppOpen] Smart Sync: Skipping pull. Last pull was ${difference.inMinutes} mins ago. Next pull available in $remainingMinutes mins.',,
+  'ℹ️ [AppOpen] Smart Sync: Skipping pull. Last pull was ${difference.inMinutes} mins ago. Next pull available in $remainingMinutes mins.',
   tag: 'APP',
 );
           return;
@@ -191,7 +187,7 @@ class AppSessionManager {
       await prefs.setInt(lastPullKey, nowMs);
 
       AppLogger.info(
-  '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',,
+  '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',
   tag: 'APP',
 );
     } catch (e) {

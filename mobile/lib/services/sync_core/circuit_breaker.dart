@@ -86,7 +86,7 @@ class CircuitBreaker {
     if (_state == CircuitState.halfOpen) {
       _successCount++;
       AppLogger.info(
-  '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}',,
+  '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}',
   tag: 'APP',
 );
 
@@ -103,7 +103,7 @@ class CircuitBreaker {
     _successCount = 0;
 
     AppLogger.warning(
-  '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}',,
+  '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}',
   tag: 'APP',
 );
 

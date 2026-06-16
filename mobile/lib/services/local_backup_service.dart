@@ -220,7 +220,7 @@ class LocalBackupService {
         AppLogger.info(
   '✅ نسخة محلية مضغوطة: '
           '${(jsonBytes.length / 1024).toStringAsFixed(1)} KB → '
-          '${(compressedBytes.length / 1024).toStringAsFixed(1)} KB',,
+          '${(compressedBytes.length / 1024).toStringAsFixed(1)} KB',
   tag: 'APP',
 );
 
@@ -277,7 +277,7 @@ class LocalBackupService {
         );
 
         AppLogger.info(
-  '✅ تم إنشاء النسخة الاحتياطية المحلية (SQLite): $destinationPath',,
+  '✅ تم إنشاء النسخة الاحتياطية المحلية (SQLite): $destinationPath',
   tag: 'APP',
 );
         return destinationPath;
@@ -588,7 +588,7 @@ class LocalBackupService {
       }
 
       AppLogger.info(
-  '✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON',,
+  '✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON',
   tag: 'APP',
 );
     } finally {
@@ -652,12 +652,12 @@ class LocalBackupService {
         metadata.backupTimestamp.toIso8601String(),
       );
       AppLogger.info(
-  '✅ تم استعادة النسخة الاحتياطية (SQLite) بتاريخ ${metadata.backupTimestamp}',,
+  '✅ تم استعادة النسخة الاحتياطية (SQLite) بتاريخ ${metadata.backupTimestamp}',
   tag: 'APP',
 );
     } else {
       AppLogger.info(
-  '✅ تم استعادة النسخة الاحتياطية (SQLite) بدون بيانات وصفية إضافية',,
+  '✅ تم استعادة النسخة الاحتياطية (SQLite) بدون بيانات وصفية إضافية',
   tag: 'APP',
 );
     }

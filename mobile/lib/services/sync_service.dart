@@ -131,7 +131,7 @@ class SyncService {
             allSucceeded = false;
             final missingChange = computation.changes[index];
             AppLogger.error(
-  '❌ Missing push result for ${missingChange.entity}/${missingChange.localUuid}',,
+  '❌ Missing push result for ${missingChange.entity}/${missingChange.localUuid}',
   tag: 'APP',
 );
             break;
@@ -148,7 +148,7 @@ class SyncService {
           } else {
             allSucceeded = false;
             AppLogger.warning(
-  '❌ فشل إرسال ${change.entity}/${change.localUuid}: ${result['error']}',,
+  '❌ فشل إرسال ${change.entity}/${change.localUuid}: ${result['error']}',
   tag: 'APP',
 );
           }
@@ -248,7 +248,7 @@ class SyncService {
           await _applyIncoming(entity, op, serverId, serverTs, item);
         } catch (e) {
           AppLogger.error(
-  '❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.',,
+  '❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.',
   tag: 'APP',
 );
         }

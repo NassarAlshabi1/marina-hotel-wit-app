@@ -144,7 +144,7 @@ class SafeDatabaseOperations {
 
           if (!DatabaseManager.isInitialized) {
             AppLogger.warning(
-  '⚠️ Database not initialized for $opName. Attempting to initialize...',,
+  '⚠️ Database not initialized for $opName. Attempting to initialize...',
   tag: 'APP',
 );
             try {
@@ -175,7 +175,7 @@ class SafeDatabaseOperations {
                   errorStr.contains('Can\'t re-open a database') ||
                   errorStr.contains('DatabaseManager has been closed')) {
                 AppLogger.warning(
-  '⚠️ Database stream error: $error. Attempting to recover...',,
+  '⚠️ Database stream error: $error. Attempting to recover...',
   tag: 'APP',
 );
 
@@ -184,7 +184,7 @@ class SafeDatabaseOperations {
                 // التحقق من حالة الاستعادة قبل المحاولة
                 if (DatabaseManager.isRestoring) {
                   AppLogger.info(
-  '⏸️ Database is being restored, will retry after restore completes',,
+  '⏸️ Database is being restored, will retry after restore completes',
   tag: 'APP',
 );
                   Future<void>.delayed(const Duration(seconds: 1), () {
@@ -198,7 +198,7 @@ class SafeDatabaseOperations {
                 Future<void>.delayed(const Duration(milliseconds: 500), () async {
                   try {
                     AppLogger.info(
-  '🔄 Attempting to reopen database for stream...',,
+  '🔄 Attempting to reopen database for stream...',
   tag: 'APP',
 );
                     await DatabaseManager.reopen();

@@ -25,7 +25,7 @@ class DatabaseHealthTriggers {
 
       if (hoursSinceLastScan < 6) {
         AppLogger.info(
-  '🏥 [HealthTrigger] Skipped (scanned ${hoursSinceLastScan.toStringAsFixed(1)}h ago)',,
+  '🏥 [HealthTrigger] Skipped (scanned ${hoursSinceLastScan.toStringAsFixed(1)}h ago)',
   tag: 'APP',
 );
         return null;
@@ -94,7 +94,7 @@ class DatabaseHealthTriggers {
 
       if (report.hasIssues) {
         AppLogger.warning(
-  '⚠️ [HealthTrigger] ${report.totalIssues} issues after restore',,
+  '⚠️ [HealthTrigger] ${report.totalIssues} issues after restore',
   tag: 'APP',
 );
 
@@ -120,7 +120,7 @@ class DatabaseHealthTriggers {
   /// فحص مجدول (يومي)
   Future<void> scheduledDailyScan({required TimeOfDay time}) async {
     AppLogger.info(
-  '⏰ [HealthTrigger] Scheduled scan at ${time.hour}:${time.minute}',,
+  '⏰ [HealthTrigger] Scheduled scan at ${time.hour}:${time.minute}',
   tag: 'APP',
 );
 
@@ -156,7 +156,7 @@ class DatabaseHealthTriggers {
   /// تنبيه مشاكل مكتشفة
   Future<void> _notifyIssuesFound(HealthReport report) async {
     AppLogger.info(
-  '🔔 [HealthTrigger] Sending issues notification: ${report.totalIssues} issues',,
+  '🔔 [HealthTrigger] Sending issues notification: ${report.totalIssues} issues',
   tag: 'APP',
 );
   }

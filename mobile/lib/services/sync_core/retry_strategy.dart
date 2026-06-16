@@ -126,7 +126,7 @@ class RetryStrategy {
 
         final delay = calculateDelay(attempt);
         AppLogger.info(
-  '⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية',,
+  '⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية',
   tag: 'APP',
 );
 

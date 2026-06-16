@@ -89,7 +89,7 @@ class DeltaSyncService {
       if (!hasMirror) {
         fallbackTables.add(config.entity);
         AppLogger.warning(
-  '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط',,
+  '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط',
   tag: 'APP',
 );
       }
@@ -399,7 +399,7 @@ class DeltaSyncService {
           );
         }
         AppLogger.info(
-  '✅ Rebuilt mirror for ${config.entity} (${limitedRows.length} rows)',,
+  '✅ Rebuilt mirror for ${config.entity} (${limitedRows.length} rows)',
   tag: 'APP',
 );
       } catch (e) {

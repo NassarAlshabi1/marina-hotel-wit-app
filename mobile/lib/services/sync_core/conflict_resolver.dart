@@ -135,7 +135,7 @@ class ConflictResolver {
 
       final winnerType = winner == conflict.localData ? 'محلي' : 'بعيد';
       AppLogger.info(
-  '✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType',,
+  '✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType',
   tag: 'APP',
 );
     }

@@ -1152,7 +1152,7 @@ class _AppwriteSettingsScreenState
         final fixService = RestoreFixService(DatabaseManager.instance);
         final fixReport = await fixService.runAutoFixAfterRestore();
         AppLogger.info(
-  'Auto-fix after sync: ${fixReport.bookingsFixed} bookings fixed',,
+  'Auto-fix after sync: ${fixReport.bookingsFixed} bookings fixed',
   tag: 'APP',
 );
       }

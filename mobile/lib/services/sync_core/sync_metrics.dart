@@ -142,7 +142,7 @@ class SyncMetrics {
 
     AppLogger.info(
   '✅ SyncMetrics: مزامنة ناجحة - ${session.duration.inSeconds}ث، '
-      'السجلات: $recordsSynced، التضارب: $conflictsResolved',,
+      'السجلات: $recordsSynced، التضارب: $conflictsResolved',
   tag: 'APP',
 );
   }
@@ -163,7 +163,7 @@ class SyncMetrics {
     _updateStats();
 
     AppLogger.error(
-  '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error',,
+  '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error',
   tag: 'APP',
 );
   }

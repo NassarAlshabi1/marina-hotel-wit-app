@@ -127,7 +127,7 @@ class GoogleDriveDeltaSync {
       await _updateLastPushTimestamp();
 
       AppLogger.info(
-  '✅ تم رفع ${computation.changes.length} تغيير إلى Google Drive',,
+  '✅ تم رفع ${computation.changes.length} تغيير إلى Google Drive',
   tag: 'APP',
 );
 

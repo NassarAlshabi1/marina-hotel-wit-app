@@ -503,7 +503,7 @@ class SyncMonitoringSystem {
 
       if (removedCount > 0) {
         AppLogger.info(
-  '🗑️ SyncMonitoringSystem: تم حذف $removedCount سجل قديم (أقدم من $keepDays أيام)',,
+  '🗑️ SyncMonitoringSystem: تم حذف $removedCount سجل قديم (أقدم من $keepDays أيام)',
   tag: 'APP',
 );
       }

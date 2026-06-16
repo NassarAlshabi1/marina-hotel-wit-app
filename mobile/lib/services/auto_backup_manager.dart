@@ -92,7 +92,7 @@ class AutoBackupManager {
     }
 
     AppLogger.info(
-  '🤖 مدير النسخ التلقائي: تم التهيئة بنجاح (الوضع: ${_currentMode.name})',,
+  '🤖 مدير النسخ التلقائي: تم التهيئة بنجاح (الوضع: ${_currentMode.name})',
   tag: 'APP',
 );
   }
@@ -159,7 +159,7 @@ class AutoBackupManager {
 
     _pendingChanges++;
     AppLogger.info(
-  '🔄 تغيير في $tableName ($operation) - تغييرات معلقة: $_pendingChanges',,
+  '🔄 تغيير في $tableName ($operation) - تغييرات معلقة: $_pendingChanges',
   tag: 'APP',
 );
 
@@ -197,7 +197,7 @@ class AutoBackupManager {
   }) async {
     if (_isBackingUp || _backupService == null || !_backupService!.isSignedIn) {
       AppLogger.info(
-  '⏸️ نسخ تلقائي مؤجل: نسخ جارية $_isBackingUp، مسجل دخول ${_backupService?.isSignedIn}',,
+  '⏸️ نسخ تلقائي مؤجل: نسخ جارية $_isBackingUp، مسجل دخول ${_backupService?.isSignedIn}',
   tag: 'APP',
 );
       return;
@@ -214,7 +214,7 @@ class AutoBackupManager {
       if (lastBackupTime != null &&
           now.difference(lastBackupTime).inMinutes < 5) {
         AppLogger.warning(
-  '⏭️ تم تخطي النسخ التلقائي: نسخة حديثة موجودة (${now.difference(lastBackupTime).inMinutes} دقائق)',,
+  '⏭️ تم تخطي النسخ التلقائي: نسخة حديثة موجودة (${now.difference(lastBackupTime).inMinutes} دقائق)',
   tag: 'APP',
 );
         return;
@@ -310,7 +310,7 @@ class AutoBackupManager {
           try {
             await _backupService!.deleteBackupFile(file.fileId);
             AppLogger.info(
-  '✅ تم حذف: ${file.fileName} (${_formatDateTime(file.createdTime)})',,
+  '✅ تم حذف: ${file.fileName} (${_formatDateTime(file.createdTime)})',
   tag: 'APP',
 );
           } catch (e) {
@@ -523,7 +523,7 @@ class AutoBackupManager {
             results['success'] = false;
           }
           AppLogger.info(
-  '✅ Google Drive Delta: رفع ${pushResult.changesCount}، سحب ${pullResult.changesCount}',,
+  '✅ Google Drive Delta: رفع ${pushResult.changesCount}، سحب ${pullResult.changesCount}',
   tag: 'APP',
 );
         } catch (e) {
@@ -551,7 +551,7 @@ class AutoBackupManager {
             results['success'] = false;
           }
           AppLogger.info(
-  '✅ Appwrite Delta: رفع ${pushResult.pushedCount}، سحب ${pullResult.pulledCount}',,
+  '✅ Appwrite Delta: رفع ${pushResult.pushedCount}، سحب ${pullResult.pulledCount}',
   tag: 'APP',
 );
         } catch (e) {
@@ -625,7 +625,7 @@ class AutoBackupManager {
     final prefs = getSharedPrefs();
     await prefs.setBool(_googleDriveDeltaSyncEnabledKey, enabled);
     AppLogger.info(
-  '🔧 مزامنة Google Drive التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}',,
+  '🔧 مزامنة Google Drive التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}',
   tag: 'APP',
 );
   }

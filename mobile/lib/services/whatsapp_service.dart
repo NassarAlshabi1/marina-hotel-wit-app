@@ -93,7 +93,7 @@ class WhatsAppService {
       }
 
       AppLogger.info(
-  'WhatsApp send failed: ${response.statusCode} ${response.body}',,
+  'WhatsApp send failed: ${response.statusCode} ${response.body}',
   tag: 'APP',
 );
       return (success: false, quotaMessage: null);
@@ -133,7 +133,7 @@ class WhatsAppService {
       }
 
       AppLogger.info(
-  'Custom WhatsApp API failed: ${response.statusCode} ${response.body}',,
+  'Custom WhatsApp API failed: ${response.statusCode} ${response.body}',
   tag: 'APP',
 );
       return (success: false, quotaMessage: null);
@@ -213,7 +213,7 @@ class WhatsAppService {
     }
 
     AppLogger.info(
-  'WhatsApp message trimmed: ${message.characters.length} → $maxMessageLength chars',,
+  'WhatsApp message trimmed: ${message.characters.length} → $maxMessageLength chars',
   tag: 'APP',
 );
 

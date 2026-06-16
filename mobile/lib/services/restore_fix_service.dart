@@ -130,7 +130,7 @@ class RestoreFixService {
     bool useTransaction = true,
   }) async {
     AppLogger.info(
-  '📸 إنشاء لقطة احتياطية أمان: ${prefix}_restore_snapshot_${Time.nowEpoch()}.json',,
+  '📸 إنشاء لقطة احتياطية أمان: ${prefix}_restore_snapshot_${Time.nowEpoch()}.json',
   tag: 'APP',
 );
 
@@ -728,7 +728,7 @@ class RestoreFixService {
 
       if (room == null) {
         AppLogger.warning(
-  '⚠️ تحذير: الغرفة ${booking.roomNumber} غير موجودة للحجز #${booking.id}',,
+  '⚠️ تحذير: الغرفة ${booking.roomNumber} غير موجودة للحجز #${booking.id}',
   tag: 'APP',
 );
         changes.add(

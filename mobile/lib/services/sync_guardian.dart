@@ -96,7 +96,7 @@ class SyncGuardian {
     _debounceTimer = Timer(SyncConstants.guardianLocalChangeDebounce, () async {
       try {
         AppLogger.info(
-  '📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation',,
+  '📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation',
   tag: 'APP',
 );
         final ok = await _orchestrator!.syncNow(

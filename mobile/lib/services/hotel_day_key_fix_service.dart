@@ -320,7 +320,7 @@ class HotelDayKeyFixService {
           step2Fixed++;
           AppLogger.info(
   '  🔗 ربط سحب راتب قديم: sw.id=${sw.id} → expense.id=${matched.id} '
-            '(موظف=${sw.employeeId}, يوم=$swDayKey, مبلغ=${sw.amount})',,
+            '(موظف=${sw.employeeId}, يوم=$swDayKey, مبلغ=${sw.amount})',
   tag: 'APP',
 );
         }
@@ -332,7 +332,7 @@ class HotelDayKeyFixService {
       if (total > 0) {
         AppLogger.info(
   '  🔗 expense_withdrawal_links: تم إصلاح $total سجل '
-          '(step1=$step1Fixed, step2=$step2Fixed, outbox=$outboxCreated)',,
+          '(step1=$step1Fixed, step2=$step2Fixed, outbox=$outboxCreated)',
   tag: 'APP',
 );
       }

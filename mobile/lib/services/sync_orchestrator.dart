@@ -331,7 +331,7 @@ class SyncOrchestrator {
     _taskQueue.sort((a, b) => a.priority.index.compareTo(b.priority.index));
 
     AppLogger.info(
-  '📋 [Orchestrator] مهمة مجدولة: ${task.name} (${task.priority.name})',,
+  '📋 [Orchestrator] مهمة مجدولة: ${task.name} (${task.priority.name})',
   tag: 'APP',
 );
 
@@ -381,7 +381,7 @@ class SyncOrchestrator {
           result.conflicts,
         );
         AppLogger.info(
-  '✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms',,
+  '✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms',
   tag: 'APP',
 );
       } else {
@@ -438,7 +438,7 @@ class SyncOrchestrator {
         } else {
           _taskQueue.removeAt(0);
           AppLogger.info(
-  '🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}',,
+  '🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}',
   tag: 'APP',
 );
         }
