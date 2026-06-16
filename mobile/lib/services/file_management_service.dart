@@ -2,13 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class FileManagementService {
   static const String _exportFolderName = 'MarinaHotelExports';
@@ -16,7 +15,7 @@ class FileManagementService {
   /// تصدير البيانات بتنسيقات متعددة
   Future<String> exportToCSV() async {
     try {
-      AppLogger.info('📊 بدء تصدير البيانات إلى CSV...', tag: 'APP');
+      AppLogger.info('📊 بدء تصدير البيانات إلى CSV...');
 
       // الحصول على مجلد التصدير
       final exportDir = await _getExportDirectory();
@@ -41,10 +40,10 @@ class FileManagementService {
       );
       await _exportTableToCSV(csvFolder, 'payments', 'payments');
 
-      AppLogger.info('✅ تم تصدير البيانات إلى: ${csvFolder.path}', tag: 'APP');
+      AppLogger.info('✅ تم تصدير البيانات إلى: ${csvFolder.path}');
       return csvFolder.path;
     } catch (e) {
-      AppLogger.warning('❌ خطأ في تصدير البيانات إلى CSV: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في تصدير البيانات إلى CSV: $e');
       rethrow;
     }
   }
@@ -52,7 +51,7 @@ class FileManagementService {
   /// تصدير تقرير شامل بتنسيق JSON قابل للقراءة
   Future<String> exportReadableReport() async {
     try {
-      AppLogger.info('📋 بدء تصدير التقرير الشامل...', tag: 'APP');
+      AppLogger.info('📋 بدء تصدير التقرير الشامل...');
 
       final exportDir = await _getExportDirectory();
       final timestamp = DateTime.now();
@@ -90,10 +89,10 @@ class FileManagementService {
       final jsonString = const JsonEncoder.withIndent('  ').convert(report);
       await file.writeAsString(jsonString);
 
-      AppLogger.info('✅ تم إنشاء التقرير الشامل: $filePath', tag: 'APP');
+      AppLogger.info('✅ تم إنشاء التقرير الشامل: $filePath');
       return filePath;
     } catch (e) {
-      AppLogger.warning('❌ خطأ في إنشاء التقرير الشامل: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في إنشاء التقرير الشامل: $e');
       rethrow;
     }
   }
@@ -118,9 +117,9 @@ class FileManagementService {
             'ملفات مُصدرة من تطبيق مارينا هوتيل لإدارة الفنادق',
       );
 
-      AppLogger.info('✅ تم مشاركة ${filePaths.length} ملف', tag: 'APP');
+      AppLogger.info('✅ تم مشاركة ${filePaths.length} ملف');
     } catch (e) {
-      AppLogger.warning('❌ خطأ في مشاركة الملفات: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في مشاركة الملفات: $e');
       rethrow;
     }
   }
@@ -131,7 +130,7 @@ class FileManagementService {
     List<String>? allowedExtensions,
   }) async {
     try {
-      AppLogger.info('📁 بدء استيراد ملفات متعددة...', tag: 'APP');
+      AppLogger.info('📁 بدء استيراد ملفات متعددة...');
 
       final result = await FilePicker.platform.pickFiles(
         type: fileType,
@@ -156,10 +155,10 @@ class FileManagementService {
         }
       }
 
-      AppLogger.info('✅ تم استيراد ${importedPaths.length} ملف', tag: 'APP');
+      AppLogger.info('✅ تم استيراد ${importedPaths.length} ملف');
       return importedPaths;
     } catch (e) {
-      AppLogger.warning('❌ خطأ في استيراد الملفات: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في استيراد الملفات: $e');
       rethrow;
     }
   }
@@ -183,7 +182,7 @@ class FileManagementService {
 
         organized.putIfAbsent(dateKey, () => []).add(path);
       } catch (e) {
-        AppLogger.warning('⚠️ خطأ في معالجة ملف $path: $e', tag: 'APP');
+        AppLogger.warning('⚠️ خطأ في معالجة ملف $path: $e');
       }
     }
 
@@ -196,7 +195,7 @@ class FileManagementService {
     String archiveName,
   ) async {
     try {
-      AppLogger.info('📦 إنشاء أرشيف: $archiveName', tag: 'APP');
+      AppLogger.info('📦 إنشاء أرشيف: $archiveName');
 
       final exportDir = await _getExportDirectory();
       final archiveFolder = Directory('${exportDir.path}/$archiveName');
@@ -224,10 +223,10 @@ class FileManagementService {
         'محتويات أرشيف مارينا هوتيل\n\n$indexContent',
       );
 
-      AppLogger.info('✅ تم إنشاء الأرشيف: ${archiveFolder.path}', tag: 'APP');
+      AppLogger.info('✅ تم إنشاء الأرشيف: ${archiveFolder.path}');
       return archiveFolder.path;
     } catch (e) {
-      AppLogger.warning('❌ خطأ في إنشاء الأرشيف: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في إنشاء الأرشيف: $e');
       rethrow;
     }
   }
@@ -266,7 +265,7 @@ class FileManagementService {
         'files_by_month': _groupFilesByMonth(localBackups),
       };
     } catch (e) {
-      AppLogger.warning('❌ خطأ في تحليل الملفات: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في تحليل الملفات: $e');
       return {};
     }
   }
@@ -330,13 +329,13 @@ class FileManagementService {
       final backupData = await backupService.exportDatabaseToJson();
 
       if (!backupData.containsKey(tableKey) || backupData[tableKey] is! List) {
-        AppLogger.warning('⚠️ لا توجد بيانات للجدول: $tableName', tag: 'APP');
+        AppLogger.warning('⚠️ لا توجد بيانات للجدول: $tableName');
         return;
       }
 
       final tableData = backupData[tableKey] as List<dynamic>;
       if (tableData.isEmpty) {
-        AppLogger.warning('⚠️ الجدول $tableName فارغ', tag: 'APP');
+        AppLogger.warning('⚠️ الجدول $tableName فارغ');
         return;
       }
 
@@ -360,9 +359,9 @@ class FileManagementService {
       }
 
       await csvFile.writeAsString(csvContent.toString());
-      AppLogger.info('✅ تم تصدير جدول $tableName إلى CSV', tag: 'APP');
+      AppLogger.info('✅ تم تصدير جدول $tableName إلى CSV');
     } catch (e) {
-      AppLogger.warning('❌ خطأ في تصدير الجدول $tableName: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في تصدير الجدول $tableName: $e');
     }
   }
 
@@ -407,7 +406,7 @@ class FileManagementService {
     String mergedFileName,
   ) async {
     try {
-      AppLogger.info('🔗 بدء دمج ${backupPaths.length} نسخة احتياطية...', tag: 'APP');
+      AppLogger.info('🔗 بدء دمج ${backupPaths.length} نسخة احتياطية...');
 
       final mergedData = <String, List<dynamic>>{
         'rooms': [],
@@ -468,7 +467,7 @@ class FileManagementService {
             }
           }
         } catch (e) {
-          AppLogger.warning('⚠️ خطأ في معالجة الملف $backupPath: $e', tag: 'APP');
+          AppLogger.warning('⚠️ خطأ في معالجة الملف $backupPath: $e');
         }
       }
 
@@ -495,12 +494,12 @@ class FileManagementService {
       ).convert(mergedBackup);
       await mergedFile.writeAsString(jsonString);
 
-      AppLogger.info('✅ تم دمج النسخ بنجاح: $mergedPath', tag: 'APP');
-      AppLogger.info('📊 إجمالي السجلات المدمجة: $totalRecords', tag: 'APP');
+      AppLogger.info('✅ تم دمج النسخ بنجاح: $mergedPath');
+      AppLogger.info('📊 إجمالي السجلات المدمجة: $totalRecords');
 
       return mergedPath;
     } catch (e) {
-      AppLogger.warning('❌ خطأ في دمج النسخ الاحتياطية: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في دمج النسخ الاحتياطية: $e');
       rethrow;
     }
   }
@@ -578,10 +577,10 @@ class FileManagementService {
       final readableFile = File(readablePath);
       await readableFile.writeAsString(readableContent.toString());
 
-      AppLogger.info('✅ تم تحويل النسخة إلى تنسيق قابل للقراءة: $readablePath', tag: 'APP');
+      AppLogger.info('✅ تم تحويل النسخة إلى تنسيق قابل للقراءة: $readablePath');
       return readablePath;
     } catch (e) {
-      AppLogger.warning('❌ خطأ في تحويل النسخة إلى تنسيق قابل للقراءة: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في تحويل النسخة إلى تنسيق قابل للقراءة: $e');
       rethrow;
     }
   }
@@ -620,9 +619,9 @@ class FileManagementService {
       // حذف ملفات التصدير الأقدم من 3 أيام
       await _cleanDirectoryOlderThan(exportDir, const Duration(days: 3));
 
-      AppLogger.info('✅ تم تنظيف الملفات المؤقتة', tag: 'APP');
+      AppLogger.info('✅ تم تنظيف الملفات المؤقتة');
     } catch (e) {
-      AppLogger.warning('❌ خطأ في تنظيف الملفات المؤقتة: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في تنظيف الملفات المؤقتة: $e');
     }
   }
 
@@ -648,7 +647,7 @@ class FileManagementService {
           }
         }
       } catch (e) {
-        AppLogger.warning('⚠️ خطأ في حذف ${entity.path}: $e', tag: 'APP');
+        AppLogger.warning('⚠️ خطأ في حذف ${entity.path}: $e');
       }
     }
   }

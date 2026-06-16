@@ -72,14 +72,14 @@ class SyncPerformanceOptimizer {
       _connectivitySubscription = connectivity.onConnectivityChanged.listen(
         _updateConnectivityStatus,
         onError: (Object error) {
-          AppLogger.warning('❌ خطأ في مراقبة الاتصال: $error', tag: 'APP');
+          AppLogger.warning('❌ خطأ في مراقبة الاتصال: $error');
         },
       );
 
       _isInitialized = true;
-      AppLogger.info('✅ تم تهيئة مُحسِّن أداء المزامنة (مستوى: متوازن - مثبت دائماً)', tag: 'APP');
+      AppLogger.info('✅ تم تهيئة مُحسِّن أداء المزامنة (مستوى: متوازن - مثبت دائماً)');
     } catch (e) {
-      AppLogger.warning('❌ خطأ في تهيئة مُحسِّن أداء المزامنة: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في تهيئة مُحسِّن أداء المزامنة: $e');
     }
   }
 
@@ -90,7 +90,7 @@ class SyncPerformanceOptimizer {
     // معالجة الحالات الاستثنائية (قائمة فارغة)
     if (results.isEmpty) {
       _isOnWiFi = false;
-      AppLogger.warning('⚠️ قائمة نتائج الاتصال فارغة - افتراض عدم وجود اتصال', tag: 'APP');
+      AppLogger.warning('⚠️ قائمة نتائج الاتصال فارغة - افتراض عدم وجود اتصال');
       return;
     }
 
@@ -117,10 +117,9 @@ class SyncPerformanceOptimizer {
     // طباعة تفاصيل التغيير إذا حدث
     if (wasOnWiFi != _isOnWiFi) {
       final connectionType = _getConnectionTypeString(results);
-      AppLogger.info('📡 تغيير نوع الاتصال: $connectionType', tag: 'APP');
+      AppLogger.info('📡 تغيير نوع الاتصال: $connectionType');
       AppLogger.info(
   '🔄 حالة WiFi: ${_isOnWiFi ? 'متصل' : 'غير متصل'}',
-  tag: 'APP',
 );
 
       // إعادة تعيين عداد المحاولات عند تغيير نوع الاتصال
@@ -175,7 +174,7 @@ class SyncPerformanceOptimizer {
     _performanceLevel = 2; // دائماً متوازن
     final prefs = getSharedPrefs();
     await prefs.setInt('performance_level', 2);
-    AppLogger.info('⚙️ مستوى الأداء مثبت على: متوازن (2)', tag: 'APP');
+    AppLogger.info('⚙️ مستوى الأداء مثبت على: متوازن (2)');
   }
 
   /// الحصول على مستوى الأداء الحالي
@@ -197,13 +196,13 @@ class SyncPerformanceOptimizer {
   Future<bool> shouldSkipSync() async {
     // التحقق من وجود اتصال بالإنترنت
     if (!await _hasInternetConnection()) {
-      AppLogger.warning('⏭️ تم تخطي المزامنة: لا يوجد اتصال بالإنترنت', tag: 'APP');
+      AppLogger.warning('⏭️ تم تخطي المزامنة: لا يوجد اتصال بالإنترنت');
       return true;
     }
 
     // التحقق من إعدادات WiFi Only
     if (await _isWifiOnlyEnabled() && !_isOnWiFi) {
-      AppLogger.warning('⏭️ تم تخطي المزامنة: مطلوب WiFi فقط', tag: 'APP');
+      AppLogger.warning('⏭️ تم تخطي المزامنة: مطلوب WiFi فقط');
       return true;
     }
 
@@ -216,7 +215,6 @@ class SyncPerformanceOptimizer {
       if (timeSinceLastSync < minInterval) {
         AppLogger.warning(
   '⏭️ تم تخطي المزامنة: لم تمر الفترة المطلوبة بعد (${timeSinceLastSync.inSeconds}/${minInterval.inSeconds} ثانية)',
-  tag: 'APP',
 );
         return true;
       }
@@ -229,11 +227,11 @@ class SyncPerformanceOptimizer {
       const cooldownMinutes = 30;
       if (_lastAttemptTime != null &&
           DateTime.now().difference(_lastAttemptTime!).inMinutes >= cooldownMinutes) {
-        AppLogger.info('🔄 انتهت فترة cooldown - إعادة تعيين المحاولات والمحاولة مجدداً', tag: 'APP');
+        AppLogger.info('🔄 انتهت فترة cooldown - إعادة تعيين المحاولات والمحاولة مجدداً');
         _syncAttempts = 0;
         return false;
       }
-      AppLogger.warning('⏭️ تم تخطي المزامنة: تم الوصول للحد الأقصى للمحاولات (cooldown $cooldownMinutes دقيقة)', tag: 'APP');
+      AppLogger.warning('⏭️ تم تخطي المزامنة: تم الوصول للحد الأقصى للمحاولات (cooldown $cooldownMinutes دقيقة)');
       return true;
     }
 
@@ -252,7 +250,7 @@ class SyncPerformanceOptimizer {
     } on TimeoutException catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
       return false;
     } catch (e) {
-      AppLogger.warning('❌ خطأ في فحص الاتصال: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في فحص الاتصال: $e');
       return false;
     }
   }
@@ -263,7 +261,7 @@ class SyncPerformanceOptimizer {
       final prefs = getSharedPrefs();
       return prefs.getBool('wifi_only_sync') ?? false;
     } catch (e) {
-      AppLogger.warning('❌ خطأ في قراءة إعدادات WiFi Only: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في قراءة إعدادات WiFi Only: $e');
       return false;
     }
   }
@@ -274,12 +272,11 @@ class SyncPerformanceOptimizer {
     if (success) {
       _lastSyncTime = DateTime.now();
       _syncAttempts = 0;
-      AppLogger.info('✅ تم تسجيل مزامنة ناجحة', tag: 'APP');
+      AppLogger.info('✅ تم تسجيل مزامنة ناجحة');
     } else {
       _syncAttempts++;
       AppLogger.error(
   '❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)',
-  tag: 'APP',
 );
     }
   }
@@ -304,17 +301,16 @@ class SyncPerformanceOptimizer {
       await prefs.setBool('wifi_only_sync', enabled);
       AppLogger.info(
   '⚙️ تم تحديث إعدادات WiFi Only: ${enabled ? 'مفعل' : 'معطل'}',
-  tag: 'APP',
 );
     } catch (e) {
-      AppLogger.warning('❌ خطأ في حفظ إعدادات WiFi Only: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في حفظ إعدادات WiFi Only: $e');
     }
   }
 
   /// إعادة تعيين عداد المحاولات
   void resetSyncAttempts() {
     _syncAttempts = 0;
-    AppLogger.info('🔄 تم إعادة تعيين عداد المحاولات', tag: 'APP');
+    AppLogger.info('🔄 تم إعادة تعيين عداد المحاولات');
   }
 
   /// الحصول على إحصائيات الأداء
@@ -346,10 +342,9 @@ class SyncPerformanceOptimizer {
       await prefs.setBool('adaptive_interval_enabled', value);
       AppLogger.info(
   '⚙️ تم تحديث الفترة التكيفية: ${value ? 'مفعل' : 'معطل'}',
-  tag: 'APP',
 );
     } catch (e) {
-      AppLogger.warning('❌ خطأ في حفظ إعدادات الفترة التكيفية: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في حفظ إعدادات الفترة التكيفية: $e');
     }
   }
 
@@ -360,10 +355,9 @@ class SyncPerformanceOptimizer {
       await prefs.setBool('battery_optimization_enabled', value);
       AppLogger.info(
   '⚙️ تم تحديث تحسين البطارية: ${value ? 'مفعل' : 'معطل'}',
-  tag: 'APP',
 );
     } catch (e) {
-      AppLogger.warning('❌ خطأ في حفظ إعدادات تحسين البطارية: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في حفظ إعدادات تحسين البطارية: $e');
     }
   }
 
@@ -378,7 +372,7 @@ class SyncPerformanceOptimizer {
       final prefs = getSharedPrefs();
       return prefs.getBool('adaptive_interval_enabled') ?? true;
     } catch (e) {
-      AppLogger.warning('❌ خطأ في قراءة إعدادات الفترة التكيفية: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في قراءة إعدادات الفترة التكيفية: $e');
       return true;
     }
   }
@@ -389,7 +383,7 @@ class SyncPerformanceOptimizer {
       final prefs = getSharedPrefs();
       return prefs.getBool('battery_optimization_enabled') ?? true;
     } catch (e) {
-      AppLogger.warning('❌ خطأ في قراءة إعدادات تحسين البطارية: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في قراءة إعدادات تحسين البطارية: $e');
       return true;
     }
   }
@@ -425,11 +419,10 @@ class SyncPerformanceOptimizer {
 
       AppLogger.warning(
   '🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)',
-  tag: 'APP',
 );
       return optimizedInterval;
     } catch (e) {
-      AppLogger.warning('❌ خطأ في حساب الفترة المحسنة: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في حساب الفترة المحسنة: $e');
       return baseInterval;
     }
   }
@@ -437,13 +430,13 @@ class SyncPerformanceOptimizer {
   /// تسجيل نجاح المزامنة
   void recordSyncSuccess() {
     recordSyncAttempt(success: true);
-    AppLogger.info('✅ تم تسجيل مزامنة ناجحة', tag: 'APP');
+    AppLogger.info('✅ تم تسجيل مزامنة ناجحة');
   }
 
   /// تسجيل فشل المزامنة
   void recordSyncFailure() {
     recordSyncAttempt(success: false);
-    AppLogger.warning('❌ تم تسجيل فشل في المزامنة', tag: 'APP');
+    AppLogger.warning('❌ تم تسجيل فشل في المزامنة');
   }
 
   /// تنظيف الموارد
@@ -451,7 +444,7 @@ class SyncPerformanceOptimizer {
     _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
     _isInitialized = false;
-    AppLogger.info('🧹 تم تنظيف موارد مُحسِّن أداء المزامنة', tag: 'APP');
+    AppLogger.info('🧹 تم تنظيف موارد مُحسِّن أداء المزامنة');
   }
 
   /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)

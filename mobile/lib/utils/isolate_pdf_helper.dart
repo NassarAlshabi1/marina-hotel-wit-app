@@ -104,7 +104,7 @@ class IsolatePdfHelper {
         },
       );
     } catch (e, st) {
-      AppLogger.error('❌ IsolatePdfHelper.generateInIsolate failed: $e\n$st', tag: 'APP');
+      AppLogger.error('❌ IsolatePdfHelper.generateInIsolate failed: $e\n$st');
       return PdfResult(
         success: false,
         errorMessage: e.toString(),

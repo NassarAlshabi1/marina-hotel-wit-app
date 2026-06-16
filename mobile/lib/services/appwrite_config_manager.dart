@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import 'appwrite_config.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class AppwriteConfigManager {
   static const String _endpointKey = 'appwrite_endpoint';
@@ -28,10 +28,10 @@ class AppwriteConfigManager {
     _apiKeyValue = prefs.getString(_apiKey) ?? '';
 
     if (kDebugMode) {
-      AppLogger.info('📱 Appwrite Config Loaded:', tag: 'APP');
-      AppLogger.info('   Endpoint: $_endpoint', tag: 'APP');
-      AppLogger.info('   Project ID: $_projectId', tag: 'APP');
-      AppLogger.info('   Database ID: $_databaseId', tag: 'APP');
+      AppLogger.info('📱 Appwrite Config Loaded:');
+      AppLogger.info('   Endpoint: $_endpoint');
+      AppLogger.info('   Project ID: $_projectId');
+      AppLogger.info('   Database ID: $_databaseId');
     }
   }
 
@@ -54,10 +54,10 @@ class AppwriteConfigManager {
     _apiKeyValue = apiKey;
 
     if (kDebugMode) {
-      AppLogger.info('💾 Appwrite Config Saved:', tag: 'APP');
-      AppLogger.info('   Endpoint: $_endpoint', tag: 'APP');
-      AppLogger.info('   Project ID: $_projectId', tag: 'APP');
-      AppLogger.info('   Database ID: $_databaseId', tag: 'APP');
+      AppLogger.info('💾 Appwrite Config Saved:');
+      AppLogger.info('   Endpoint: $_endpoint');
+      AppLogger.info('   Project ID: $_projectId');
+      AppLogger.info('   Database ID: $_databaseId');
     }
   }
 
@@ -75,7 +75,7 @@ class AppwriteConfigManager {
     _apiKeyValue = '';
 
     if (kDebugMode) {
-      AppLogger.info('🔄 Appwrite Config Reset to Defaults', tag: 'APP');
+      AppLogger.info('🔄 Appwrite Config Reset to Defaults');
     }
   }
 

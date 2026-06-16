@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:drift/drift.dart' show Value;
-import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:workmanager/workmanager.dart';
@@ -117,8 +116,8 @@ class AppSessionManager {
       try {
         return await _deviceIdResolver!();
       } catch (e) {
-        AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
-        AppLogger.warning('⚠️ فشل حل deviceId', tag: 'APP');
+        AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
+        AppLogger.warning('⚠️ فشل حل deviceId');
 
         return null;
       }
@@ -130,14 +129,13 @@ class AppSessionManager {
   /// تم تحسينها لتكون "ذكية": يتم السحب مرة واحدة فقط كل ساعة كحد أقصى عند الفتح.
   static Future<void> _triggerAppOpenAppwritePull() async {
     try {
-      AppLogger.info('🔄 [AppOpen] Checking for automatic Appwrite pull...', tag: 'APP');
+      AppLogger.info('🔄 [AppOpen] Checking for automatic Appwrite pull...');
       final prefs = getSharedPrefs();
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!appwriteEnabled) {
         AppLogger.info(
   'ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.',
-  tag: 'APP',
 );
         return;
       }
@@ -162,7 +160,6 @@ class AppSessionManager {
           final remainingMinutes = 60 - difference.inMinutes;
           AppLogger.info(
   'ℹ️ [AppOpen] Smart Sync: Skipping pull. Last pull was ${difference.inMinutes} mins ago. Next pull available in $remainingMinutes mins.',
-  tag: 'APP',
 );
           return;
         }
@@ -172,12 +169,12 @@ class AppSessionManager {
       // الانتظار قليلاً للتأكد من استقرار الشبكة والأنظمة
       await Future<void>.delayed(const Duration(seconds: 3));
 
-      AppLogger.info('📥 [AppOpen] Starting smart automatic Appwrite pull...', tag: 'APP');
+      AppLogger.info('📥 [AppOpen] Starting smart automatic Appwrite pull...');
 
       // استخدام SyncManager المشترك لتجنب مزامنة مزدوجة ومصادمات mutex
       final syncManager = _sharedSyncManager;
       if (syncManager == null) {
-        AppLogger.info('ℹ️ [AppOpen] No shared SyncManager — skipping pull.', tag: 'APP');
+        AppLogger.info('ℹ️ [AppOpen] No shared SyncManager — skipping pull.');
         return;
       }
 
@@ -189,10 +186,9 @@ class AppSessionManager {
 
       AppLogger.info(
   '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',
-  tag: 'APP',
 );
     } catch (e) {
-      AppLogger.error('❌ [AppOpen] Error during automatic Appwrite pull: $e', tag: 'APP');
+      AppLogger.error('❌ [AppOpen] Error during automatic Appwrite pull: $e');
     }
   }
 }

@@ -10,6 +10,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../data/sync_models.dart';
@@ -23,7 +24,6 @@ import 'sync_enums.dart';
 import 'sync_mutex.dart';
 import 'sync_safety_layer.dart';
 import 'vector_clock.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// واجهة اختيارية لإرسال إشعارات FCM عند اكتمال الرفع
 abstract class SyncTriggerDispatcher {
@@ -83,7 +83,7 @@ class SyncManager {
 
   void _addSyncJob(_SyncJob job) {
     if (_syncJobs.length >= SyncConfig.maxQueueSize) {
-      AppLogger.warning('⚠️ طابور المزامنة ممتلئ، حذف أقدم عملية', tag: 'APP');
+      AppLogger.warning('⚠️ طابور المزامنة ممتلئ، حذف أقدم عملية');
       final dropped = _syncJobs.removeFirst();
       dropped.completer.completeError(
         StateError('Sync job dropped due to queue overflow'),
@@ -406,8 +406,8 @@ class SyncManager {
           error: error,
         );
       }
-      AppLogger.warning('❌ فشل سحب البيانات: $error', tag: 'APP');
-      AppLogger.info('$stack', tag: 'APP');
+      AppLogger.warning('❌ فشل سحب البيانات: $error');
+      AppLogger.info('$stack');
       _statusController.add(
         SyncStatus(
           phase: SyncPhase.error,
@@ -451,7 +451,7 @@ class SyncManager {
     };
 
     if (!allowedTables.contains(table)) {
-      AppLogger.warning('⚠️ Invalid table name: $table', tag: 'APP');
+      AppLogger.warning('⚠️ Invalid table name: $table');
       return;
     }
 
@@ -479,7 +479,7 @@ class SyncManager {
         yield mappedBatch;
         offset += batchSize;
       } catch (e) {
-        AppLogger.warning('⚠️ Error streaming table $table at offset $offset: $e', tag: 'APP');
+        AppLogger.warning('⚠️ Error streaming table $table at offset $offset: $e');
         break;
       }
     }
@@ -520,7 +520,7 @@ class SyncManager {
 
   Future<void> _drainQueue({bool force = false}) async {
     if (!await _drainMutex.acquire()) {
-      AppLogger.warning('⏸️ طابور المزامنة مشغول - تخطي', tag: 'APP');
+      AppLogger.warning('⏸️ طابور المزامنة مشغول - تخطي');
       return;
     }
     await _ensureReady();
@@ -659,8 +659,8 @@ class SyncManager {
           error: error,
         );
       }
-      AppLogger.warning('❌ فشل رفع التغييرات: $error', tag: 'APP');
-      AppLogger.info('$stack', tag: 'APP');
+      AppLogger.warning('❌ فشل رفع التغييرات: $error');
+      AppLogger.info('$stack');
       _statusController.add(
         SyncStatus(
           phase: SyncPhase.error,
@@ -828,7 +828,7 @@ class SyncManager {
                   remoteVectorClock = VectorClock.fromJson(remoteVc);
                 }
               } catch (e) {
-                AppLogger.warning('⚠️ VectorClock parse error for $table/$key: $e', tag: 'APP');
+                AppLogger.warning('⚠️ VectorClock parse error for $table/$key: $e');
               }
 
               final context = ConflictContext(
@@ -870,7 +870,6 @@ class SyncManager {
 
               AppLogger.info(
   '🔀 تعارض [$table/$key]: استراتيجية ${resolution.strategy.name}',
-  tag: 'APP',
 );
 
               // إشعار: تضارب تم حله تلقائياً

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -18,7 +19,6 @@ import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});
@@ -1153,7 +1153,6 @@ class _AppwriteSettingsScreenState
         final fixReport = await fixService.runAutoFixAfterRestore();
         AppLogger.info(
   'Auto-fix after sync: ${fixReport.bookingsFixed} bookings fixed',
-  tag: 'APP',
 );
       }
 

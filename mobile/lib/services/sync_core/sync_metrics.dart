@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
-import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 /// معلومات دورة مزامنة واحدة
 class SyncSession {
@@ -120,7 +119,7 @@ class SyncMetrics {
   /// بدء دورة مزامنة جديدة
   void startSync() {
     _currentSession = SyncSession(startTime: DateTime.now());
-    AppLogger.info('📊 SyncMetrics: بدأت دورة مزامنة جديدة', tag: 'APP');
+    AppLogger.info('📊 SyncMetrics: بدأت دورة مزامنة جديدة');
   }
 
   /// تسجيل نجاح المزامنة
@@ -143,7 +142,6 @@ class SyncMetrics {
     AppLogger.info(
   '✅ SyncMetrics: مزامنة ناجحة - ${session.duration.inSeconds}ث، '
       'السجلات: $recordsSynced، التضارب: $conflictsResolved',
-  tag: 'APP',
 );
   }
 
@@ -164,7 +162,6 @@ class SyncMetrics {
 
     AppLogger.error(
   '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error',
-  tag: 'APP',
 );
   }
 
@@ -231,7 +228,7 @@ class SyncMetrics {
       final jsonList = _history.map((s) => jsonEncode(s.toJson())).toList();
       await prefs.setStringList(_prefsKey, jsonList);
     } catch (e) {
-      AppLogger.warning('⚠️ SyncMetrics: فشل حفظ السجل: $e', tag: 'APP');
+      AppLogger.warning('⚠️ SyncMetrics: فشل حفظ السجل: $e');
     }
   }
 
@@ -247,10 +244,10 @@ class SyncMetrics {
         _history.add(session);
       }
 
-      AppLogger.info('📊 SyncMetrics: تم تحميل ${_history.length} سجل', tag: 'APP');
+      AppLogger.info('📊 SyncMetrics: تم تحميل ${_history.length} سجل');
       _updateStats();
     } catch (e) {
-      AppLogger.warning('⚠️ SyncMetrics: فشل تحميل السجل: $e', tag: 'APP');
+      AppLogger.warning('⚠️ SyncMetrics: فشل تحميل السجل: $e');
     }
   }
 
@@ -260,7 +257,7 @@ class SyncMetrics {
     final prefs = getSharedPrefs();
     await prefs.remove(_prefsKey);
     _updateStats();
-    AppLogger.info('🗑️ SyncMetrics: تم مسح السجل', tag: 'APP');
+    AppLogger.info('🗑️ SyncMetrics: تم مسح السجل');
   }
 
   /// تنظيف الموارد

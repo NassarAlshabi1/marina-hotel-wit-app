@@ -1,6 +1,7 @@
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,7 +10,6 @@ import 'lark/lark_report_service.dart';
 import 'local_backup_service.dart';
 import 'telegram/telegram_config.dart';
 import 'telegram/telegram_report_service.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class AlarmBackup {
   static const int alarmId = 0;
@@ -28,12 +28,12 @@ class AlarmBackup {
     );
     const initSettings = InitializationSettings(android: androidSettings);
     await _notif.initialize(initSettings);
-    AppLogger.info('✅ Alarm system initialized', tag: 'APP');
+    AppLogger.info('✅ Alarm system initialized');
 
     // تفعيل النسخ المجدول تلقائياً عند التثبيت لأول مرة
     final prefs = await getSharedPrefs();
     if (prefs.getBool('scheduled_backup_enabled') == null) {
-      AppLogger.info('🚀 First run: Enable scheduled backup by default', tag: 'APP');
+      AppLogger.info('🚀 First run: Enable scheduled backup by default');
       await prefs.setBool('scheduled_backup_enabled', true);
       // وقت افتراضي 9:00 مساءً
       await prefs.setString('auto_backup_time', '21:00');
@@ -43,7 +43,7 @@ class AlarmBackup {
     // تهيئة أولية لإعدادات تقرير WhatsApp/Telegram اليومي
     // مثل إنذار النسخ الاحتياطي — يُفعّل تلقائياً عند التثبيت لأول مرة
     if (prefs.getBool('telegram_enabled') == null) {
-      AppLogger.info('🚀 First run: Enable WhatsApp/Telegram report by default', tag: 'APP');
+      AppLogger.info('🚀 First run: Enable WhatsApp/Telegram report by default');
       await prefs.setBool('telegram_enabled', true);
       await prefs.setBool('telegram_notifications_enabled', true);
       await prefs.setBool('telegram_daily_report_enabled', true);
@@ -74,7 +74,7 @@ class AlarmBackup {
       allowWhileIdle: true,
     );
 
-    AppLogger.info('✅ Alarm scheduled at $scheduled', tag: 'APP');
+    AppLogger.info('✅ Alarm scheduled at $scheduled');
   }
 
   /// لإلغاء وإعادة جدولة — استخدمها عند تغيير الوقت
@@ -82,14 +82,14 @@ class AlarmBackup {
     await AndroidAlarmManager.cancel(alarmId);
     await Future<void>.delayed(const Duration(milliseconds: 300));
     await scheduleDailyAlarm(hour, minute);
-    AppLogger.info('♻️ Alarm rescheduled to $hour:$minute', tag: 'APP');
+    AppLogger.info('♻️ Alarm rescheduled to $hour:$minute');
   }
 
   /// الكولباك الذي ينفذ وقت الإنذار — يجب أن يكون top-level أو static annotated
   @pragma('vm:entry-point')
   static Future<void> _alarmCallback() async {
     WidgetsFlutterBinding.ensureInitialized();
-    AppLogger.info('🔔 Alarm fired: performing backup', tag: 'APP');
+    AppLogger.info('🔔 Alarm fired: performing backup');
 
     try {
       final prefs = getSharedPrefs();
@@ -102,9 +102,9 @@ class AlarmBackup {
       if (enableLocal) {
         try {
           await localService.createLocalBackup(format: format);
-          AppLogger.info('✅ Local backup done from alarm', tag: 'APP');
+          AppLogger.info('✅ Local backup done from alarm');
         } catch (e) {
-          AppLogger.error('❌ Local backup error: $e', tag: 'APP');
+          AppLogger.error('❌ Local backup error: $e');
         }
       }
 
@@ -116,17 +116,17 @@ class AlarmBackup {
           final signed = await drive.signInSilentlyIfNeeded();
           if (signed) {
             await drive.performAutoBackup();
-            AppLogger.info('✅ Drive backup done from alarm', tag: 'APP');
+            AppLogger.info('✅ Drive backup done from alarm');
           } else {
-            AppLogger.warning('⚠️ Drive not signed in (alarm). Notifying user...', tag: 'APP');
+            AppLogger.warning('⚠️ Drive not signed in (alarm). Notifying user...');
             await _showOpenAppNotification();
           }
         } catch (e) {
-          AppLogger.error('❌ Drive backup error: $e', tag: 'APP');
+          AppLogger.error('❌ Drive backup error: $e');
         }
       }
     } catch (e) {
-      AppLogger.error('❌ Alarm backup general error: $e', tag: 'APP');
+      AppLogger.error('❌ Alarm backup general error: $e');
     } finally {
       // أعد جدولة الإنذار لليوم التالي في نفس الوقت
       final prefs = getSharedPrefs();
@@ -158,7 +158,7 @@ class AlarmBackup {
   /// إلغاء الإنذار
   static Future<void> cancelAlarm() async {
     await AndroidAlarmManager.cancel(alarmId);
-    AppLogger.info('🚫 Alarm cancelled', tag: 'APP');
+    AppLogger.info('🚫 Alarm cancelled');
   }
 
   /// جدولة تقرير Lark اليومي إذا كان مفعّلاً
@@ -195,7 +195,7 @@ class AlarmBackup {
       allowWhileIdle: true,
     );
 
-    AppLogger.info('✅ Lark report alarm scheduled at $scheduled', tag: 'APP');
+    AppLogger.info('✅ Lark report alarm scheduled at $scheduled');
   }
 
   /// إعادة جدولة تقرير Lark
@@ -203,7 +203,7 @@ class AlarmBackup {
     await AndroidAlarmManager.cancel(larkReportAlarmId);
     await Future<void>.delayed(const Duration(milliseconds: 300));
     await scheduleLarkReportAlarm(hour, minute);
-    AppLogger.info('♻️ Lark report alarm rescheduled to $hour:$minute', tag: 'APP');
+    AppLogger.info('♻️ Lark report alarm rescheduled to $hour:$minute');
   }
 
   /// جدولة تقرير Telegram/WhatsApp اليومي إذا كان مفعّلاً
@@ -241,7 +241,7 @@ class AlarmBackup {
       allowWhileIdle: true,
     );
 
-    AppLogger.info('✅ Telegram report alarm scheduled at $scheduled', tag: 'APP');
+    AppLogger.info('✅ Telegram report alarm scheduled at $scheduled');
   }
 
   /// إعادة جدولة تقرير Telegram
@@ -249,20 +249,20 @@ class AlarmBackup {
     await AndroidAlarmManager.cancel(telegramReportAlarmId);
     await Future<void>.delayed(const Duration(milliseconds: 300));
     await scheduleTelegramReportAlarm(hour, minute);
-    AppLogger.info('♻️ Telegram report alarm rescheduled to $hour:$minute', tag: 'APP');
+    AppLogger.info('♻️ Telegram report alarm rescheduled to $hour:$minute');
   }
 
   /// إلغاء إنذار تقرير Telegram
   static Future<void> cancelTelegramReportAlarm() async {
     await AndroidAlarmManager.cancel(telegramReportAlarmId);
-    AppLogger.info('🚫 Telegram report alarm cancelled', tag: 'APP');
+    AppLogger.info('🚫 Telegram report alarm cancelled');
   }
 
   /// Callback لإرسال تقرير Telegram اليومي
   @pragma('vm:entry-point')
   static Future<void> _telegramReportCallback() async {
     WidgetsFlutterBinding.ensureInitialized();
-    AppLogger.info('🔔 Telegram report alarm fired', tag: 'APP');
+    AppLogger.info('🔔 Telegram report alarm fired');
 
     try {
       final prefs = getSharedPrefs();
@@ -274,13 +274,13 @@ class AlarmBackup {
         if (configured) {
           final reportService = TelegramReportService.instance();
           await reportService.sendDailyReport();
-          AppLogger.info('✅ Telegram daily report sent from alarm', tag: 'APP');
+          AppLogger.info('✅ Telegram daily report sent from alarm');
         } else {
-          AppLogger.warning('⚠️ Telegram report skipped: bot token or chat ID not configured', tag: 'APP');
+          AppLogger.warning('⚠️ Telegram report skipped: bot token or chat ID not configured');
         }
       }
     } catch (e) {
-      AppLogger.error('❌ Telegram report alarm error: $e', tag: 'APP');
+      AppLogger.error('❌ Telegram report alarm error: $e');
     } finally {
       // أعد جدولة لليوم التالي
       final prefs = getSharedPrefs();
@@ -296,7 +296,7 @@ class AlarmBackup {
   @pragma('vm:entry-point')
   static Future<void> _larkReportCallback() async {
     WidgetsFlutterBinding.ensureInitialized();
-    AppLogger.info('🔔 Lark report alarm fired', tag: 'APP');
+    AppLogger.info('🔔 Lark report alarm fired');
 
     try {
       final prefs = getSharedPrefs();
@@ -308,13 +308,13 @@ class AlarmBackup {
         if (webhookUrl.isNotEmpty) {
           final reportService = LarkReportService.instance;
           await reportService.sendDailyReport();
-          AppLogger.info('✅ Lark daily report sent from alarm', tag: 'APP');
+          AppLogger.info('✅ Lark daily report sent from alarm');
         } else {
-          AppLogger.warning('⚠️ Lark report skipped: no webhook URL configured', tag: 'APP');
+          AppLogger.warning('⚠️ Lark report skipped: no webhook URL configured');
         }
       }
     } catch (e) {
-      AppLogger.error('❌ Lark report alarm error: $e', tag: 'APP');
+      AppLogger.error('❌ Lark report alarm error: $e');
     } finally {
       // أعد جدولة لليوم التالي
       final prefs = getSharedPrefs();

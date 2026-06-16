@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../utils/env.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class ApiConfig {
 
@@ -99,7 +99,7 @@ class ApiConfigService {
         _currentConfig = ApiConfig.fromJson(json);
         configNotifier.value = _currentConfig;
       } catch (e) {
-        AppLogger.warning('خطأ في تحميل إعدادات API: $e', tag: 'APP');
+        AppLogger.warning('خطأ في تحميل إعدادات API: $e');
       }
     }
     await _loadServerList();
@@ -116,7 +116,7 @@ class ApiConfigService {
           list.map((e) => ServerInfo.fromJson(e as Map<String, dynamic>)),
         );
       } catch (e) {
-        AppLogger.warning('خطأ في تحميل قائمة السيرفرات: $e', tag: 'APP');
+        AppLogger.warning('خطأ في تحميل قائمة السيرفرات: $e');
       }
     }
   }
@@ -126,7 +126,7 @@ class ApiConfigService {
     configNotifier.value = config;
     final prefs = getSharedPrefs();
     await prefs.setString(_configKey, jsonEncode(config.toJson()));
-    AppLogger.info('✅ تم حفظ إعدادات API: ${config.baseUrl}', tag: 'APP');
+    AppLogger.info('✅ تم حفظ إعدادات API: ${config.baseUrl}');
   }
 
   Future<void> updateBaseUrl(String url) async {

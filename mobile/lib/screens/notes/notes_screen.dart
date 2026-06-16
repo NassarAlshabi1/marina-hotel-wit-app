@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../models/shift_note_adapter.dart';
 import '../../providers/repository_providers.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// شاشة الملاحظات البسيطة
 class NotesScreen extends ConsumerStatefulWidget {
@@ -229,7 +229,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           await repo.markAsRead(note.id);
           unawaited(_refreshData());
         } catch (e) {
-          AppLogger.warning('❌ خطأ في تحديد الملاحظة كمقروءة: $e', tag: 'APP');
+          AppLogger.warning('❌ خطأ في تحديد الملاحظة كمقروءة: $e');
         }
       case 'edit':
         _editNote(note);

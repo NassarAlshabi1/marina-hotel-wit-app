@@ -1,10 +1,9 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import 'lark_config.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// عميل API للتواصل مع خوادم Lark Suite
 /// يدعم المصادقة عبر Tenant Access Token والطلبات المباشرة عبر Webhook
@@ -94,13 +93,13 @@ class LarkApiClient {
         // تخزين في SharedPreferences
         await LarkConfig.setTokenCache(token, _tokenExpiry!);
 
-        AppLogger.info('✅ Lark: تم الحصول على Tenant Access Token (ينتهي بعد $expire ثانية)', tag: 'APP');
+        AppLogger.info('✅ Lark: تم الحصول على Tenant Access Token (ينتهي بعد $expire ثانية)');
         return token;
       } else {
         throw Exception('فشل الحصول على الرمز: ${data['msg']}');
       }
     } catch (e) {
-      AppLogger.warning('❌ Lark: خطأ في طلب Tenant Access Token: $e', tag: 'APP');
+      AppLogger.warning('❌ Lark: خطأ في طلب Tenant Access Token: $e');
       rethrow;
     }
   }
@@ -127,7 +126,7 @@ class LarkApiClient {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return data;
     } catch (e) {
-      AppLogger.warning('❌ Lark API POST خطأ ($path): $e', tag: 'APP');
+      AppLogger.warning('❌ Lark API POST خطأ ($path): $e');
       rethrow;
     }
   }
@@ -159,7 +158,7 @@ class LarkApiClient {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return data;
     } catch (e) {
-      AppLogger.warning('❌ Lark API GET خطأ ($path): $e', tag: 'APP');
+      AppLogger.warning('❌ Lark API GET خطأ ($path): $e');
       rethrow;
     }
   }
@@ -180,18 +179,18 @@ class LarkApiClient {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['code'] == 0 || data['StatusCode'] == 0) {
-          AppLogger.info('✅ Lark Webhook: تم إرسال الرسالة بنجاح', tag: 'APP');
+          AppLogger.info('✅ Lark Webhook: تم إرسال الرسالة بنجاح');
           return true;
         } else {
-          AppLogger.warning('⚠️ Lark Webhook: استجابة غير متوقعة: ${response.body}', tag: 'APP');
+          AppLogger.warning('⚠️ Lark Webhook: استجابة غير متوقعة: ${response.body}');
           return false;
         }
       } else {
-        AppLogger.warning('❌ Lark Webhook: خطأ HTTP ${response.statusCode}', tag: 'APP');
+        AppLogger.warning('❌ Lark Webhook: خطأ HTTP ${response.statusCode}');
         return false;
       }
     } catch (e) {
-      AppLogger.warning('❌ Lark Webhook خطأ: $e', tag: 'APP');
+      AppLogger.warning('❌ Lark Webhook خطأ: $e');
       return false;
     }
   }
@@ -282,17 +281,16 @@ class LarkApiClient {
       );
 
       if (data['code'] == 0) {
-        AppLogger.info('✅ Lark Bot: تم إرسال الرسالة إلى $chatId', tag: 'APP');
+        AppLogger.info('✅ Lark Bot: تم إرسال الرسالة إلى $chatId');
         return true;
       } else {
         AppLogger.warning(
   '⚠️ Lark Bot: فشل الإرسال: ${data['msg']}',
-  tag: 'APP',
 );
         return false;
       }
     } catch (e) {
-      AppLogger.warning('❌ Lark Bot خطأ: $e', tag: 'APP');
+      AppLogger.warning('❌ Lark Bot خطأ: $e');
       return false;
     }
   }
@@ -302,7 +300,7 @@ class LarkApiClient {
     _cachedToken = null;
     _tokenExpiry = null;
     await LarkConfig.clearTokenCache();
-    AppLogger.info('🔓 Lark: تم مسح الرمز المخزن', tag: 'APP');
+    AppLogger.info('🔓 Lark: تم مسح الرمز المخزن');
   }
 
   /// اختبار الاتصال بالخادم
@@ -328,7 +326,7 @@ class LarkApiClient {
 
       return false;
     } catch (e) {
-      AppLogger.warning('❌ Lark: فشل اختبار الاتصال: $e', tag: 'APP');
+      AppLogger.warning('❌ Lark: فشل اختبار الاتصال: $e');
       return false;
     }
   }

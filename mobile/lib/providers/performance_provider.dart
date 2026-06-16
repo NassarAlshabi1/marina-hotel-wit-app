@@ -68,7 +68,7 @@ class PerformanceNotifier extends StateNotifier<PerformanceState> {
     );
     
     if (metric.duration.inMilliseconds > 1000) {
-      AppLogger.warning('⚠️  Slow: ${metric.operation} = ${metric.durationMs}', tag: 'APP');
+      AppLogger.warning('⚠️  Slow: ${metric.operation} = ${metric.durationMs}');
     }
   }
   

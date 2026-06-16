@@ -1,5 +1,4 @@
 import 'package:collection/collection.dart';
-import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// استراتيجية حل التضارب
@@ -101,7 +100,7 @@ class ConflictResolver {
       }
     }
 
-    AppLogger.info('🔍 ConflictResolver: اكتشف ${conflicts.length} تضارب', tag: 'APP');
+    AppLogger.info('🔍 ConflictResolver: اكتشف ${conflicts.length} تضارب');
     return conflicts;
   }
 
@@ -136,7 +135,6 @@ class ConflictResolver {
       final winnerType = winner == conflict.localData ? 'محلي' : 'بعيد';
       AppLogger.info(
   '✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType',
-  tag: 'APP',
 );
     }
 
@@ -164,7 +162,7 @@ class ConflictResolver {
       case ConflictStrategy.manualResolve:
         // ✅ إصلاح: بدلاً من السقوط الصامت إلى newerWins، نُرجع البيانات المحلية
         // كإجراء آمن مع تسجيل الحاجة لمراجعة يدوية
-        AppLogger.warning('⚠️ ConflictResolver: تعارض يحتاج مراجعة يدوية — تم الاحتفاظ بالبيانات المحلية كإجراء آمن: ${conflict.table}/${conflict.uuid}', tag: 'APP');
+        AppLogger.warning('⚠️ ConflictResolver: تعارض يحتاج مراجعة يدوية — تم الاحتفاظ بالبيانات المحلية كإجراء آمن: ${conflict.table}/${conflict.uuid}');
         return conflict.localData;
     }
   }
@@ -189,7 +187,7 @@ class ConflictResolver {
         return DateTime.fromMillisecondsSinceEpoch(timestamp);
       }
     } catch (e) {
-      AppLogger.warning('⚠️ ConflictResolver: فشل تحليل timestamp: $e', tag: 'APP');
+      AppLogger.warning('⚠️ ConflictResolver: فشل تحليل timestamp: $e');
     }
 
     return null;

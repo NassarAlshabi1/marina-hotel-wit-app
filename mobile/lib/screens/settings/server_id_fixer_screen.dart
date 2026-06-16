@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/repository_providers.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
+
+import '../../providers/repository_providers.dart';
 
 class ServerIdFixerScreen extends ConsumerStatefulWidget {
   const ServerIdFixerScreen({super.key});
@@ -158,7 +159,6 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
     }
     AppLogger.info(
   message,
-  tag: 'APP',
 );
   }
 

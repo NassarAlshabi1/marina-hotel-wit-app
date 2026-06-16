@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/app_scaffold.dart';
@@ -14,7 +15,6 @@ import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// بيانات معاملة واحدة من جدول salary_withdrawals
 class _SalaryTxRow {
@@ -804,7 +804,7 @@ class _SalaryWithdrawalsReportScreenState
     try {
       return DateTime.parse(normalized);
     } catch (e) {
-      AppLogger.warning('⚠️ تعذر تحليل تاريخ سحب الراتب "$value": $e', tag: 'APP');
+      AppLogger.warning('⚠️ تعذر تحليل تاريخ سحب الراتب "$value": $e');
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
   }

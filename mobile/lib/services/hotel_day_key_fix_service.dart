@@ -1,12 +1,10 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 
 import '../utils/app_logger.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// ✅ خدمة إصلاح hotelDayKey لجميع الجداول
 ///
@@ -45,7 +43,7 @@ class HotelDayKeyFixService {
     if (_applied) return;
     _applied = true;
 
-    AppLogger.info('🔧 HotelDayKeyFixService: بدء فحص وإصلاح hotelDayKey...', tag: 'APP');
+    AppLogger.info('🔧 HotelDayKeyFixService: بدء فحص وإصلاح hotelDayKey...');
 
     int totalFixed = 0;
 
@@ -60,13 +58,13 @@ class HotelDayKeyFixService {
       totalFixed += await _fixPaymentVoids(db);
       totalFixed += await _fixAuditLogs(db);
     } catch (e) {
-      AppLogger.warning('⚠️ HotelDayKeyFixService: خطأ أثناء الإصلاح: $e', tag: 'APP');
+      AppLogger.warning('⚠️ HotelDayKeyFixService: خطأ أثناء الإصلاح: $e');
     }
 
     if (totalFixed > 0) {
-      AppLogger.info('✅ HotelDayKeyFixService: تم إصلاح $totalFixed سجل إجمالاً', tag: 'APP');
+      AppLogger.info('✅ HotelDayKeyFixService: تم إصلاح $totalFixed سجل إجمالاً');
     } else {
-      AppLogger.info('✅ HotelDayKeyFixService: لا توجد سجلات تحتاج إصلاح', tag: 'APP');
+      AppLogger.info('✅ HotelDayKeyFixService: لا توجد سجلات تحتاج إصلاح');
     }
   }
 
@@ -125,10 +123,10 @@ class HotelDayKeyFixService {
           fixed++;
         }
       }
-      if (fixed > 0) AppLogger.info('  📋 expenses: تم إصلاح $fixed سجل', tag: 'APP');
+      if (fixed > 0) AppLogger.info('  📋 expenses: تم إصلاح $fixed سجل');
       return fixed;
     } catch (e) {
-      AppLogger.warning('  ⚠️ expenses: خطأ $e', tag: 'APP');
+      AppLogger.warning('  ⚠️ expenses: خطأ $e');
       return 0;
     }
   }
@@ -154,11 +152,11 @@ class HotelDayKeyFixService {
         }
       }
       if (fixed > 0) {
-        AppLogger.info('  📋 salary_withdrawals: تم إصلاح $fixed سجل', tag: 'APP');
+        AppLogger.info('  📋 salary_withdrawals: تم إصلاح $fixed سجل');
       }
       return fixed;
     } catch (e) {
-      AppLogger.warning('  ⚠️ salary_withdrawals: خطأ $e', tag: 'APP');
+      AppLogger.warning('  ⚠️ salary_withdrawals: خطأ $e');
       return 0;
     }
   }
@@ -200,7 +198,7 @@ class HotelDayKeyFixService {
         step1Fixed = -1; // علامة على أن العملية تمت بدون خطأ
       } catch (e) {
         // العمود قد لا يكون موجوداً بعد
-        AppLogger.warning('  ⚠️ fixExpenseWithdrawalLinks step1: $e', tag: 'APP');
+        AppLogger.warning('  ⚠️ fixExpenseWithdrawalLinks step1: $e');
       }
 
       // ─── الخطوة 2: ربط السحوبات القديمة (بدون exp_XX) بالمصروفات ───
@@ -314,18 +312,17 @@ class HotelDayKeyFixService {
             );
             outboxCreated++;
           } catch (e) {
-            AppLogger.warning('  ⚠️ fixExpenseWithdrawalLinks outbox: فشل إنشاء outbox لـ sw.id=${sw.id}: $e', tag: 'APP');
+            AppLogger.warning('  ⚠️ fixExpenseWithdrawalLinks outbox: فشل إنشاء outbox لـ sw.id=${sw.id}: $e');
           }
 
           step2Fixed++;
           AppLogger.info(
   '  🔗 ربط سحب راتب قديم: sw.id=${sw.id} → expense.id=${matched.id} '
             '(موظف=${sw.employeeId}, يوم=$swDayKey, مبلغ=${sw.amount})',
-  tag: 'APP',
 );
         }
       } catch (e) {
-        AppLogger.warning('  ⚠️ fixExpenseWithdrawalLinks step2: $e', tag: 'APP');
+        AppLogger.warning('  ⚠️ fixExpenseWithdrawalLinks step2: $e');
       }
 
       final total = step1Fixed + step2Fixed;
@@ -333,12 +330,11 @@ class HotelDayKeyFixService {
         AppLogger.info(
   '  🔗 expense_withdrawal_links: تم إصلاح $total سجل '
           '(step1=$step1Fixed, step2=$step2Fixed, outbox=$outboxCreated)',
-  tag: 'APP',
 );
       }
       return total;
     } catch (e) {
-      AppLogger.warning('  ⚠️ expense_withdrawal_links: خطأ $e', tag: 'APP');
+      AppLogger.warning('  ⚠️ expense_withdrawal_links: خطأ $e');
       return 0;
     }
   }
@@ -393,7 +389,7 @@ class HotelDayKeyFixService {
       // لذلك لا نحتاج أي إصلاح محلي هنا
       return fixed;
     } catch (e) {
-      AppLogger.warning('  ⚠️ salary_withdrawals employeeUuid: خطأ $e', tag: 'APP');
+      AppLogger.warning('  ⚠️ salary_withdrawals employeeUuid: خطأ $e');
       return 0;
     }
   }
@@ -419,10 +415,10 @@ class HotelDayKeyFixService {
           fixed++;
         }
       }
-      if (fixed > 0) AppLogger.info('  📋 payments: تم إصلاح $fixed سجل', tag: 'APP');
+      if (fixed > 0) AppLogger.info('  📋 payments: تم إصلاح $fixed سجل');
       return fixed;
     } catch (e) {
-      AppLogger.warning('  ⚠️ payments: خطأ $e', tag: 'APP');
+      AppLogger.warning('  ⚠️ payments: خطأ $e');
       return 0;
     }
   }
@@ -446,10 +442,10 @@ class HotelDayKeyFixService {
           fixed++;
         }
       }
-      if (fixed > 0) AppLogger.info('  📋 booking_nights: تم إصلاح $fixed سجل', tag: 'APP');
+      if (fixed > 0) AppLogger.info('  📋 booking_nights: تم إصلاح $fixed سجل');
       return fixed;
     } catch (e) {
-      AppLogger.warning('  ⚠️ booking_nights: خطأ $e', tag: 'APP');
+      AppLogger.warning('  ⚠️ booking_nights: خطأ $e');
       return 0;
     }
   }
@@ -473,10 +469,10 @@ class HotelDayKeyFixService {
           fixed++;
         }
       }
-      if (fixed > 0) AppLogger.info('  📋 salary_payments: تم إصلاح $fixed سجل', tag: 'APP');
+      if (fixed > 0) AppLogger.info('  📋 salary_payments: تم إصلاح $fixed سجل');
       return fixed;
     } catch (e) {
-      AppLogger.warning('  ⚠️ salary_payments: خطأ $e', tag: 'APP');
+      AppLogger.warning('  ⚠️ salary_payments: خطأ $e');
       return 0;
     }
   }
@@ -500,10 +496,10 @@ class HotelDayKeyFixService {
           fixed++;
         }
       }
-      if (fixed > 0) AppLogger.info('  📋 payment_voids: تم إصلاح $fixed سجل', tag: 'APP');
+      if (fixed > 0) AppLogger.info('  📋 payment_voids: تم إصلاح $fixed سجل');
       return fixed;
     } catch (e) {
-      AppLogger.warning('  ⚠️ payment_voids: خطأ $e', tag: 'APP');
+      AppLogger.warning('  ⚠️ payment_voids: خطأ $e');
       return 0;
     }
   }
@@ -527,10 +523,10 @@ class HotelDayKeyFixService {
           fixed++;
         }
       }
-      if (fixed > 0) AppLogger.info('  📋 audit_logs: تم إصلاح $fixed سجل', tag: 'APP');
+      if (fixed > 0) AppLogger.info('  📋 audit_logs: تم إصلاح $fixed سجل');
       return fixed;
     } catch (e) {
-      AppLogger.warning('  ⚠️ audit_logs: خطأ $e', tag: 'APP');
+      AppLogger.warning('  ⚠️ audit_logs: خطأ $e');
       return 0;
     }
   }

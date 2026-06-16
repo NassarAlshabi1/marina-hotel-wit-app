@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../data/sync_models.dart' as models;
@@ -12,7 +12,6 @@ import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
 import 'sync_integrity_checker.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class UnifiedSyncState {
 
@@ -228,24 +227,24 @@ class UnifiedSyncOrchestrator {
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!appwriteEnabled) {
-        AppLogger.warning('ℹ️ Appwrite sync معطل - تخطي الرفع التلقائي', tag: 'APP');
+        AppLogger.warning('ℹ️ Appwrite sync معطل - تخطي الرفع التلقائي');
         return true;
       }
 
       _syncing = true;
-      AppLogger.info('🔄 رفع تلقائي إلى Appwrite: $reason', tag: 'APP');
+      AppLogger.info('🔄 رفع تلقائي إلى Appwrite: $reason');
 
       final success = await _syncAppwrite(push: true, pull: false);
 
       if (success) {
-        AppLogger.info('✅ تم الرفع التلقائي إلى Appwrite', tag: 'APP');
+        AppLogger.info('✅ تم الرفع التلقائي إلى Appwrite');
       } else {
-        AppLogger.warning('❌ فشل الرفع التلقائي إلى Appwrite', tag: 'APP');
+        AppLogger.warning('❌ فشل الرفع التلقائي إلى Appwrite');
       }
 
       return success;
     } catch (e) {
-      AppLogger.warning('❌ خطأ في الرفع التلقائي: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في الرفع التلقائي: $e');
       return false;
     } finally {
       _syncing = false;

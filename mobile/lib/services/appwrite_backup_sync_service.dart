@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:appwrite/appwrite.dart';
-import 'package:flutter/foundation.dart';
 
 import '../utils/app_logger.dart';
 import 'appwrite_backup_endpoint.dart';
@@ -9,7 +8,6 @@ import 'appwrite_backup_endpoints_manager.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// عملية احتياطية — تستخدم لإرسال دفعة
 class BackupOperation {
@@ -980,7 +978,7 @@ class AppwriteBackupSyncService {
       );
       return true;
     } catch (e) {
-      AppLogger.error('❌ Backup endpoint test failed: $e', tag: 'APP');
+      AppLogger.error('❌ Backup endpoint test failed: $e');
       return false;
     }
   }

@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,7 +17,6 @@ import 'logging/log_models.dart';
 import 'sync_constants.dart';
 import 'sync_locks.dart';
 import 'unified_sync_orchestrator.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class RetryConfig {
 
@@ -138,7 +138,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('AutoSyncEngine', message);
-    AppLogger.info('[AutoSyncEngine] $message', tag: 'APP');
+    AppLogger.info('[AutoSyncEngine] $message');
     _logger?.log(message, level: level, tag: 'AUTO_SYNC');
   }
 

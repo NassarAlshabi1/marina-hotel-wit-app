@@ -1,12 +1,11 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
 import 'remote_config_service.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class BookingDerivedFieldsService {
   BookingDerivedFieldsService(this.db);
@@ -130,7 +129,7 @@ class BookingDerivedFieldsService {
         await refreshForBooking(booking, now: moment, forceRebuild: true);
         return (promoted: didPromote, refreshed: true);
       } catch (e) {
-        AppLogger.warning('⚠️ خطأ في تحديث حجز ${booking.id}: $e', tag: 'APP');
+        AppLogger.warning('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
         return (promoted: false, refreshed: false);
       }
     }),);
@@ -138,10 +137,10 @@ class BookingDerivedFieldsService {
     refreshed = results.where((r) => r.refreshed).length;
 
     if (promoted > 0) {
-      AppLogger.info('✅ تم تثبيت $promoted حجز مؤقت → محجوزة', tag: 'APP');
+      AppLogger.info('✅ تم تثبيت $promoted حجز مؤقت → محجوزة');
     }
     if (refreshed > 0) {
-      AppLogger.info('🔄 تم تجديد إقامة $refreshed حجز نشط تلقائياً', tag: 'APP');
+      AppLogger.info('🔄 تم تجديد إقامة $refreshed حجز نشط تلقائياً');
     }
     return refreshed;
   }

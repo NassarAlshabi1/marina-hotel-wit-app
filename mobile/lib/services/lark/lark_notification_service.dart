@@ -1,8 +1,7 @@
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import 'lark_api_client.dart';
 import 'lark_config.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// أنواع أحداث الفندق التي يمكن إرسال إشعارات عنها
 enum LarkEventType {
@@ -68,7 +67,7 @@ class LarkNotificationService {
 
       final webhookUrl = await LarkConfig.getWebhookUrl();
       if (webhookUrl.isEmpty) {
-        AppLogger.warning('⚠️ Lark: Webhook URL غير مضبوط', tag: 'APP');
+        AppLogger.warning('⚠️ Lark: Webhook URL غير مضبوط');
         return false;
       }
 
@@ -83,12 +82,12 @@ class LarkNotificationService {
       );
 
       if (success) {
-        AppLogger.info('✅ Lark: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}', tag: 'APP');
+        AppLogger.info('✅ Lark: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
       }
 
       return success;
     } catch (e) {
-      AppLogger.warning('❌ Lark: خطأ في إرسال الإشعار: $e', tag: 'APP');
+      AppLogger.warning('❌ Lark: خطأ في إرسال الإشعار: $e');
       return false;
     }
   }

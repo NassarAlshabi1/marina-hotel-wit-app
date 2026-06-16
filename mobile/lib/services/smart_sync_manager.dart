@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../utils/app_logger.dart';
@@ -17,7 +16,6 @@ import 'sync_constants.dart';
 import 'sync_locks.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// استراتيجيات حل التضارب
 enum ConflictResolution {
@@ -48,7 +46,6 @@ class SmartSyncManager {
     DebugLogs.add('SmartSync', message);
     AppLogger.info(
   message,
-  tag: 'APP',
 );
   }
 

@@ -1,14 +1,13 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../../utils/hotel_time_engine.dart';
 import '../local_db.dart';
 import '../remote_config_service.dart';
 import 'telegram_config.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// بيانات التقرير اليومي
 class TelegramDailyReportData {
@@ -101,7 +100,7 @@ class TelegramReportService {
       final hotelDayKey = HotelTimeEngine.getHotelDayKey();
       final lastSent = await TelegramConfig.getLastReportSent();
       if (lastSent == hotelDayKey) {
-        AppLogger.info('⏭️ WhatsApp: تم إرسال تقرير اليوم بالفعل', tag: 'APP');
+        AppLogger.info('⏭️ WhatsApp: تم إرسال تقرير اليوم بالفعل');
         return true;
       }
 
@@ -118,19 +117,19 @@ class TelegramReportService {
 
       // Retry مرة واحدة
       if (!success) {
-        AppLogger.info('🔄 WhatsApp: إعادة محاولة إرسال التقرير...', tag: 'APP');
+        AppLogger.info('🔄 WhatsApp: إعادة محاولة إرسال التقرير...');
         await Future<void>.delayed(const Duration(seconds: 2));
         success = await _sendViaCallMeBot(message, phone: phone, apiKey: apiKey);
       }
 
       if (success) {
         await TelegramConfig.setLastReportSent(hotelDayKey);
-        AppLogger.info('✅ WhatsApp: تم إرسال التقرير اليومي بنجاح', tag: 'APP');
+        AppLogger.info('✅ WhatsApp: تم إرسال التقرير اليومي بنجاح');
       }
 
       return success;
     } catch (e) {
-      AppLogger.warning('❌ WhatsApp: خطأ في التقرير اليومي: $e', tag: 'APP');
+      AppLogger.warning('❌ WhatsApp: خطأ في التقرير اليومي: $e');
       return false;
     }
   }
@@ -155,7 +154,7 @@ class TelegramReportService {
 
       // Retry مرة واحدة
       if (!success) {
-        AppLogger.info('🔄 WhatsApp: إعادة محاولة إرسال التقرير...', tag: 'APP');
+        AppLogger.info('🔄 WhatsApp: إعادة محاولة إرسال التقرير...');
         await Future<void>.delayed(const Duration(seconds: 2));
         success = await _sendViaCallMeBot(message, phone: phone, apiKey: apiKey);
       }
@@ -167,7 +166,7 @@ class TelegramReportService {
 
       return success;
     } catch (e) {
-      AppLogger.warning('❌ WhatsApp: خطأ في إرسال التقرير: $e', tag: 'APP');
+      AppLogger.warning('❌ WhatsApp: خطأ في إرسال التقرير: $e');
       return false;
     }
   }
@@ -317,7 +316,7 @@ class TelegramReportService {
         alerts: alerts,
       );
     } catch (e) {
-      AppLogger.warning('❌ Telegram: خطأ في تجميع بيانات التقرير: $e', tag: 'APP');
+      AppLogger.warning('❌ Telegram: خطأ في تجميع بيانات التقرير: $e');
       return null;
     }
   }
@@ -325,7 +324,7 @@ class TelegramReportService {
   /// إرسال رسالة عبر CallMeBot WhatsApp API
   Future<bool> _sendViaCallMeBot(String message, {required String phone, required String apiKey}) async {
     if (phone.isEmpty || apiKey.isEmpty) {
-      AppLogger.error('❌ WhatsApp (CallMeBot): رقم الهاتف أو مفتاح API فارغ', tag: 'APP');
+      AppLogger.error('❌ WhatsApp (CallMeBot): رقم الهاتف أو مفتاح API فارغ');
       return false;
     }
     try {
@@ -353,7 +352,7 @@ class TelegramReportService {
         try {
           final json = jsonDecode(body) as Map<String, dynamic>;
           if (json['success'] == true || json['sent'] == true) {
-            AppLogger.info('✅ WhatsApp (CallMeBot): تم إرسال التقرير', tag: 'APP');
+            AppLogger.info('✅ WhatsApp (CallMeBot): تم إرسال التقرير');
             return true;
           }
         } catch (_) {
@@ -363,13 +362,13 @@ class TelegramReportService {
             return true;
           }
         }
-        AppLogger.warning('⚠️ WhatsApp (CallMeBot): فشل الإرسال — $body', tag: 'APP');
+        AppLogger.warning('⚠️ WhatsApp (CallMeBot): فشل الإرسال — $body');
         return false;
       }
-      AppLogger.warning('⚠️ WhatsApp (CallMeBot): HTTP ${response.statusCode} — $body', tag: 'APP');
+      AppLogger.warning('⚠️ WhatsApp (CallMeBot): HTTP ${response.statusCode} — $body');
       return false;
     } catch (e) {
-      AppLogger.warning('❌ WhatsApp (CallMeBot): خطأ — $e', tag: 'APP');
+      AppLogger.warning('❌ WhatsApp (CallMeBot): خطأ — $e');
       return false;
     }
   }

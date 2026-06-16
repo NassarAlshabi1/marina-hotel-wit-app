@@ -1,10 +1,9 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import 'smart_sync_manager.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// مُعلِم المزامنة الفورية - يتلقى إشعارات من الأجهزة الأخرى
 class RealtimeSyncNotifier {
@@ -33,7 +32,7 @@ class RealtimeSyncNotifier {
 
     _pollingTimer = Timer.periodic(_pollingInterval, (_) => _checkForNewSync());
 
-    AppLogger.info('🔔 بدء الاستماع لإشعارات المزامنة', tag: 'APP');
+    AppLogger.info('🔔 بدء الاستماع لإشعارات المزامنة');
   }
 
   /// إيقاف الاستماع
@@ -42,7 +41,7 @@ class RealtimeSyncNotifier {
     _pollingTimer = null;
     _isListening = false;
 
-    AppLogger.info('🔕 إيقاف الاستماع لإشعارات المزامنة', tag: 'APP');
+    AppLogger.info('🔕 إيقاف الاستماع لإشعارات المزامنة');
   }
 
   /// التحقق من وجود مزامنة جديدة
@@ -71,10 +70,10 @@ class RealtimeSyncNotifier {
 
         _syncTriggerController.add(trigger);
         await _saveLastProcessedSyncId(syncId);
-        AppLogger.info('🔔 تم اكتشاف تغييرات جديدة', tag: 'APP');
+        AppLogger.info('🔔 تم اكتشاف تغييرات جديدة');
       }
     } catch (e) {
-      AppLogger.warning('❌ خطأ في التحقق من المزامنة الجديدة: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في التحقق من المزامنة الجديدة: $e');
     }
   }
 
@@ -92,9 +91,9 @@ class RealtimeSyncNotifier {
         'timestamp': DateTime.now().toUtc().toIso8601String(),
       };
 
-      AppLogger.info('📤 إرسال إشعار للأجهزة الأخرى: $syncId', tag: 'APP');
+      AppLogger.info('📤 إرسال إشعار للأجهزة الأخرى: $syncId');
     } catch (e) {
-      AppLogger.warning('⚠️ فشل إرسال الإشعار: $e', tag: 'APP');
+      AppLogger.warning('⚠️ فشل إرسال الإشعار: $e');
     }
   }
 

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
@@ -14,7 +15,6 @@ import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/type_constants.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -1146,7 +1146,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         remainingText =
             'الراتب المتبقي: ${CurrencyFormatter.formatAmount(entitlement.netEntitlement)}';
       } catch (e) {
-        AppLogger.info('Error calculating remaining salary: $e', tag: 'APP');
+        AppLogger.info('Error calculating remaining salary: $e');
       }
 
       final message = StringBuffer()
@@ -1191,7 +1191,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         }
       }
     } catch (e) {
-      AppLogger.info('WhatsApp salary notification error: $e', tag: 'APP');
+      AppLogger.info('WhatsApp salary notification error: $e');
     }
   }
 

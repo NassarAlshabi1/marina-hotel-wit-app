@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../mixins/sync_on_exit_mixin.dart';
@@ -14,7 +15,6 @@ import '../../services/local_db.dart';
 import '../../services/screen_sync_controller.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing, this.initialRoomNumber});
@@ -744,7 +744,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                 revenueType: 'deposit',
                               );
                             } catch (e) {
-                              AppLogger.warning('⚠️ خطأ في حفظ الدفعة المقدمة: $e', tag: 'APP');
+                              AppLogger.warning('⚠️ خطأ في حفظ الدفعة المقدمة: $e');
                               if (mounted) {
                                 // ignore: use_build_context_synchronously
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -792,7 +792,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             ),
                           );
                         }
-                        AppLogger.warning('❌ خطأ في حفظ الحجز: $e', tag: 'APP');
+                        AppLogger.warning('❌ خطأ في حفظ الحجز: $e');
                       } finally {
                         if (mounted) {
                           setState(() => _isSaving = false);
@@ -1031,7 +1031,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
         operation: 'batch_update_status',
       );
     } catch (e) {
-      AppLogger.info('Error refreshing room occupancy: $e', tag: 'APP');
+      AppLogger.info('Error refreshing room occupancy: $e');
     }
   }
 

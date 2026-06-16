@@ -13,7 +13,7 @@ class AppwriteBackupEndpointsScreen extends ConsumerStatefulWidget {
   const AppwriteBackupEndpointsScreen({super.key});
 
   @override
-  State<AppwriteBackupEndpointsScreen> createState() =>
+  ConsumerState<AppwriteBackupEndpointsScreen> createState() =>
       _AppwriteBackupEndpointsScreenState();
 }
 

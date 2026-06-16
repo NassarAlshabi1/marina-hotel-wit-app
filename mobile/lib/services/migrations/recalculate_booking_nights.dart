@@ -1,10 +1,9 @@
 // ignore_for_file: avoid_print
 
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../booking_derived_fields_service.dart';
 import '../local_db.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// Migration لإعادة حساب عدد الليالي والحقول المشتقة لجميع الحجوزات
 /// بناءً على التواريخ الفعلية بدلاً من الاعتماد على القيم المحفوظة
@@ -14,7 +13,7 @@ class RecalculateBookingNightsMigration {
   final AppDatabase db;
 
   Future<void> execute() async {
-    AppLogger.info('🔧 Starting booking nights recalculation migration...', tag: 'APP');
+    AppLogger.info('🔧 Starting booking nights recalculation migration...');
 
     final derivedFieldsService = BookingDerivedFieldsService(db);
 
@@ -24,11 +23,11 @@ class RecalculateBookingNightsMigration {
     )..where((b) => b.deletedAt.isNull())).get();
 
     if (bookings.isEmpty) {
-      AppLogger.info('✅ No bookings found', tag: 'APP');
+      AppLogger.info('✅ No bookings found');
       return;
     }
 
-    AppLogger.info('📋 Found ${bookings.length} bookings to recalculate', tag: 'APP');
+    AppLogger.info('📋 Found ${bookings.length} bookings to recalculate');
 
     int successCount = 0;
     int errorCount = 0;
@@ -37,7 +36,6 @@ class RecalculateBookingNightsMigration {
       try {
         AppLogger.info(
   '   Processing ${booking.guestName} (${booking.roomNumber})...',
-  tag: 'APP',
 );
 
         // إعادة حساب جميع الحقول المشتقة بناءً على التواريخ
@@ -48,15 +46,15 @@ class RecalculateBookingNightsMigration {
 
         successCount++;
       } catch (e) {
-        AppLogger.error('   ❌ Error processing booking ${booking.id}: $e', tag: 'APP');
+        AppLogger.error('   ❌ Error processing booking ${booking.id}: $e');
         errorCount++;
       }
     }
 
-    AppLogger.info('', tag: 'APP');
-    AppLogger.info('✅ Migration completed:', tag: 'APP');
-    AppLogger.info('   - Success: $successCount', tag: 'APP');
-    AppLogger.info('   - Errors: $errorCount', tag: 'APP');
+    AppLogger.info('');
+    AppLogger.info('✅ Migration completed:');
+    AppLogger.info('   - Success: $successCount');
+    AppLogger.info('   - Errors: $errorCount');
   }
 
   Future<RecalculationReport> executeWithReport() async {

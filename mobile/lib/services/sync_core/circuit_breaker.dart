@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum CircuitState { closed, open, halfOpen }
@@ -72,10 +71,10 @@ class CircuitBreaker {
     try {
       return await execute(operation);
     } on CircuitBreakerOpenException catch (e) {
-      AppLogger.warning('⚠️ [CircuitBreaker] $e', tag: 'APP');
+      AppLogger.warning('⚠️ [CircuitBreaker] $e');
       return defaultValue;
     } catch (e) {
-      AppLogger.warning('❌ [CircuitBreaker] خطأ: $e', tag: 'APP');
+      AppLogger.warning('❌ [CircuitBreaker] خطأ: $e');
       return defaultValue;
     }
   }
@@ -87,7 +86,6 @@ class CircuitBreaker {
       _successCount++;
       AppLogger.info(
   '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}',
-  tag: 'APP',
 );
 
       if (_successCount >= config.successThreshold) {
@@ -104,7 +102,6 @@ class CircuitBreaker {
 
     AppLogger.warning(
   '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}',
-  tag: 'APP',
 );
 
     if (_state == CircuitState.halfOpen) {
@@ -131,7 +128,7 @@ class CircuitBreaker {
     final oldState = _state;
     _state = newState;
 
-    AppLogger.info('🔄 [CircuitBreaker] [$name] $oldState → $newState', tag: 'APP');
+    AppLogger.info('🔄 [CircuitBreaker] [$name] $oldState → $newState');
 
     _stateController.add(newState);
 
@@ -148,7 +145,7 @@ class CircuitBreaker {
     _cancelReset();
     _resetTimer = Timer(config.resetTimeout, () {
       if (_state == CircuitState.open) {
-        AppLogger.info('⏰ [CircuitBreaker] [$name] محاولة إعادة الفتح تلقائيًا', tag: 'APP');
+        AppLogger.info('⏰ [CircuitBreaker] [$name] محاولة إعادة الفتح تلقائيًا');
         _transitionTo(CircuitState.halfOpen);
       }
     });
@@ -160,7 +157,7 @@ class CircuitBreaker {
   }
 
   void reset() {
-    AppLogger.info('🔄 [CircuitBreaker] [$name] إعادة تعيين يدوية', tag: 'APP');
+    AppLogger.info('🔄 [CircuitBreaker] [$name] إعادة تعيين يدوية');
     _failureCount = 0;
     _successCount = 0;
     _lastFailureTime = null;

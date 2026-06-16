@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 
@@ -17,7 +18,6 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// أيقونات وألوان لأنواع المصروفات
 const _typeConfig = <String, _ExpenseTypeConfig>{
@@ -428,7 +428,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   _hotelDayKeysMatch(expense.hotelDayKey, sw.hotelDayKey, expense.date, sw.withdrawDate) &&
                   expense.amount.abs() == sw.amount.abs()) {
                 hasMatchingExpense = true;
-                AppLogger.warning('⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر المطابقة بالبيانات', tag: 'APP');
+                AppLogger.warning('⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر المطابقة بالبيانات');
                 break;
               }
             }
@@ -1257,7 +1257,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     try {
       return DateTime.parse(normalized);
     } catch (e) {
-      AppLogger.warning('⚠️ تعذر تحليل تاريخ المصروف "$value": $e', tag: 'APP');
+      AppLogger.warning('⚠️ تعذر تحليل تاريخ المصروف "$value": $e');
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
   }

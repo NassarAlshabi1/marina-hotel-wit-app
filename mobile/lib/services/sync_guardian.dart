@@ -8,7 +8,6 @@ import '../utils/app_logger.dart';
 import 'local_db.dart';
 import 'sync_constants.dart';
 import 'unified_sync_orchestrator.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class SyncHealthSnapshot {
   const SyncHealthSnapshot({
@@ -97,7 +96,6 @@ class SyncGuardian {
       try {
         AppLogger.info(
   '📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation',
-  tag: 'APP',
 );
         final ok = await _orchestrator!.syncNow(
           reason: 'guardian_debounce',
@@ -107,7 +105,7 @@ class SyncGuardian {
         }
         _pendingChangesCount = 0;
       } catch (e) {
-        AppLogger.warning('⚠️ فشل رفع التغييرات: $e', tag: 'APP');
+        AppLogger.warning('⚠️ فشل رفع التغييرات: $e');
         try {
           await AutoSyncTask.scheduleImmediateSync();
         } catch (e, st) {
@@ -149,7 +147,7 @@ class SyncGuardian {
   }
 
   void _log(String message) {
-    AppLogger.info('[SyncGuardian] $message', tag: 'APP');
+    AppLogger.info('[SyncGuardian] $message');
   }
 
   Future<void> forceSync() async {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../../../../core/core.dart';
@@ -9,7 +10,6 @@ import '../../../../providers/appwrite_providers.dart' as ap;
 import '../../../../providers/repository_providers.dart';
 import '../../../../services/appwrite_cache_manager.dart';
 import '../../../../services/appwrite_config.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// Appwrite Sync Tab - إدارة المزامنة مع Appwrite
 class AppwriteSyncTab extends ConsumerStatefulWidget {
@@ -646,11 +646,11 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       final errors = stats['errors'] ?? 0;
 
       // طباعة النتائج في console
-      AppLogger.info('📊 نتيجة الرفع الشامل:', tag: 'APP');
-      AppLogger.info('   إجمالي السجلات: $totalRecords', tag: 'APP');
-      AppLogger.info('   الأخطاء: $errors', tag: 'APP');
+      AppLogger.info('📊 نتيجة الرفع الشامل:');
+      AppLogger.info('   إجمالي السجلات: $totalRecords');
+      AppLogger.info('   الأخطاء: $errors');
       for (final e in stats.entries) {
-        AppLogger.info('   ${e.key}: ${e.value}', tag: 'APP');
+        AppLogger.info('   ${e.key}: ${e.value}');
       }
 
       // إظهار النتائج
@@ -744,8 +744,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       Navigator.pop(context);
 
       // طباعة الخطأ في console
-      AppLogger.warning('❌ خطأ في الرفع الشامل: $e', tag: 'APP');
-      AppLogger.info('Stack trace: $stackTrace', tag: 'APP');
+      AppLogger.warning('❌ خطأ في الرفع الشامل: $e');
+      AppLogger.info('Stack trace: $stackTrace');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -813,25 +813,23 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
           .get()
           .then((l) => l.length);
 
-      AppLogger.info('📊 البيانات المحلية:', tag: 'APP');
-      AppLogger.info('   الغرف: $roomsCount', tag: 'APP');
-      AppLogger.info('   الحجوزات: $bookingsCount', tag: 'APP');
-      AppLogger.info('   المدفوعات: $paymentsCount', tag: 'APP');
+      AppLogger.info('📊 البيانات المحلية:');
+      AppLogger.info('   الغرف: $roomsCount');
+      AppLogger.info('   الحجوزات: $bookingsCount');
+      AppLogger.info('   المدفوعات: $paymentsCount');
 
       // فحص Appwrite
       await appwriteService.initialize();
       final isInitialized = appwriteService.isInitialized;
       final projectInfo = appwriteService.getProjectInfo();
 
-      AppLogger.info('🔌 حالة Appwrite:', tag: 'APP');
-      AppLogger.info('   مُهيأ: $isInitialized', tag: 'APP');
+      AppLogger.info('🔌 حالة Appwrite:');
+      AppLogger.info('   مُهيأ: $isInitialized');
       AppLogger.info(
   '   Project ID: ${projectInfo['projectId']}',
-  tag: 'APP',
 );
       AppLogger.info(
   '   Database ID: ${projectInfo['databaseId']}',
-  tag: 'APP',
 );
 
       // اختبار رفع غرفة واحدة
@@ -863,16 +861,16 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
             payload['deletedAt'] = room.deletedAt;
           }
 
-          AppLogger.info('📤 اختبار رفع غرفة ${room.roomNumber}...', tag: 'APP');
+          AppLogger.info('📤 اختبار رفع غرفة ${room.roomNumber}...');
 
           final doc = await appwriteService.upsertRoom(room.localUuid, payload);
           testResult =
               '✅ نجح رفع غرفة ${room.roomNumber}\nDocument ID: ${doc.$id}';
 
-          AppLogger.info('✅ نجح الاختبار!', tag: 'APP');
+          AppLogger.info('✅ نجح الاختبار!');
         } catch (e) {
           testResult = '❌ فشل رفع الغرفة:\n$e';
-          AppLogger.warning('❌ خطأ في رفع الغرفة: $e', tag: 'APP');
+          AppLogger.warning('❌ خطأ في رفع الغرفة: $e');
         }
       }
 
@@ -936,8 +934,8 @@ class _AppwriteSyncTabState extends ConsumerState<AppwriteSyncTab> {
       }
       Navigator.pop(context);
 
-      AppLogger.warning('❌ خطأ في الاختبار التشخيصي: $e', tag: 'APP');
-      AppLogger.info('Stack trace: $stackTrace', tag: 'APP');
+      AppLogger.warning('❌ خطأ في الاختبار التشخيصي: $e');
+      AppLogger.info('Stack trace: $stackTrace');
 
       unawaited(showDialog<void>(
         context: context,

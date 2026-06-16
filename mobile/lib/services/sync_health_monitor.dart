@@ -1,8 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
-import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
+import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 enum SyncHealthStatus { healthy, warning, critical, error }
 
@@ -57,7 +56,7 @@ class SyncHealthMonitor {
       (_) => _performHealthCheck(),
     );
 
-    AppLogger.info('🏥 بدء مراقبة صحة المزامنة', tag: 'APP');
+    AppLogger.info('🏥 بدء مراقبة صحة المزامنة');
   }
 
   void recordSyncSuccess({
@@ -88,20 +87,19 @@ class SyncHealthMonitor {
     _persistMetrics();
     _emitMetrics();
 
-    AppLogger.warning('⚠️ فشل المزامنة (المحاولة $_consecutiveFailures)', tag: 'APP');
+    AppLogger.warning('⚠️ فشل المزامنة (المحاولة $_consecutiveFailures)');
   }
 
   Future<void> _performHealthCheck() async {
     final metrics = await getHealthMetrics();
 
     if (metrics.status == SyncHealthStatus.critical) {
-      AppLogger.info('🚨 حالة المزامنة حرجة!', tag: 'APP');
+      AppLogger.info('🚨 حالة المزامنة حرجة!');
       AppLogger.info(
   'توصيات: ${metrics.recommendations.join(', ')}',
-  tag: 'APP',
 );
     } else if (metrics.status == SyncHealthStatus.warning) {
-      AppLogger.warning('⚠️ تحذير: ${metrics.recommendations.first}', tag: 'APP');
+      AppLogger.warning('⚠️ تحذير: ${metrics.recommendations.first}');
     }
 
     _metricsController.add(metrics);

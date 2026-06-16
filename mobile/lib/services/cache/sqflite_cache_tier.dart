@@ -8,10 +8,9 @@
 library;
 
 
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../local_db.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// مدير ذاكرة التخزين المؤقت على القرص باستخدام sqflite
 class SqfliteCacheTier {
@@ -41,9 +40,9 @@ class SqfliteCacheTier {
         ON cache_store (expires_at)
       ''');
       _tableCreated = true;
-      AppLogger.info('✅ SqfliteCacheTier table initialized', tag: 'APP');
+      AppLogger.info('✅ SqfliteCacheTier table initialized');
     } catch (e) {
-      AppLogger.warning('⚠️ SqfliteCacheTier.ensureTable failed: $e', tag: 'APP');
+      AppLogger.warning('⚠️ SqfliteCacheTier.ensureTable failed: $e');
     }
   }
 
@@ -72,7 +71,7 @@ class SqfliteCacheTier {
 
       return result.read<String>('value');
     } catch (e) {
-      AppLogger.warning('⚠️ SqfliteCacheTier.get($key) failed: $e', tag: 'APP');
+      AppLogger.warning('⚠️ SqfliteCacheTier.get($key) failed: $e');
       return null;
     }
   }
@@ -106,7 +105,7 @@ class SqfliteCacheTier {
       // تنظيف إذا تجاوزنا الحد الأقصى
       await _enforceMaxSize();
     } catch (e) {
-      AppLogger.warning('⚠️ SqfliteCacheTier.set($key) failed: $e', tag: 'APP');
+      AppLogger.warning('⚠️ SqfliteCacheTier.set($key) failed: $e');
     }
   }
 
@@ -119,7 +118,7 @@ class SqfliteCacheTier {
         variables: [Variable<String>(key)],
       );
     } catch (e) {
-      AppLogger.warning('⚠️ SqfliteCacheTier.delete($key) failed: $e', tag: 'APP');
+      AppLogger.warning('⚠️ SqfliteCacheTier.delete($key) failed: $e');
     }
   }
 
@@ -134,7 +133,7 @@ class SqfliteCacheTier {
       );
       return result;
     } catch (e) {
-      AppLogger.warning('⚠️ SqfliteCacheTier.cleanExpired failed: $e', tag: 'APP');
+      AppLogger.warning('⚠️ SqfliteCacheTier.cleanExpired failed: $e');
       return 0;
     }
   }
@@ -145,7 +144,7 @@ class SqfliteCacheTier {
       await ensureTable();
       await db.customUpdate('DELETE FROM cache_store');
     } catch (e) {
-      AppLogger.warning('⚠️ SqfliteCacheTier.clearAll failed: $e', tag: 'APP');
+      AppLogger.warning('⚠️ SqfliteCacheTier.clearAll failed: $e');
     }
   }
 
@@ -193,7 +192,7 @@ class SqfliteCacheTier {
         )
       ''');
     } catch (e) {
-      AppLogger.warning('⚠️ SqfliteCacheTier._enforceMaxSize failed: $e', tag: 'APP');
+      AppLogger.warning('⚠️ SqfliteCacheTier._enforceMaxSize failed: $e');
     }
   }
 }

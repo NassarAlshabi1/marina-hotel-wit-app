@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/backup_provider.dart';
 import '../../services/auto_backup_manager.dart';
 import '../../utils/theme.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
   const GoogleDriveLoginScreen({super.key});
@@ -65,9 +65,9 @@ class _GoogleDriveLoginScreenState
         try {
           final autoBackupManager = AutoBackupManager.instance;
           await autoBackupManager.setEnabled(true);
-          AppLogger.info('✅ تم تفعيل المزامنة التلقائية', tag: 'APP');
+          AppLogger.info('✅ تم تفعيل المزامنة التلقائية');
         } catch (e) {
-          AppLogger.warning('⚠️ خطأ في تفعيل المزامنة التلقائية: $e', tag: 'APP');
+          AppLogger.warning('⚠️ خطأ في تفعيل المزامنة التلقائية: $e');
         }
         if (mounted) {
           setState(() {
@@ -161,7 +161,7 @@ class _GoogleDriveLoginScreenState
       // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل السحب
       await manager.pullAllDataWithDisabledFK();
     } catch (e) {
-      AppLogger.error('❌ Appwrite auto pull after skip error: $e', tag: 'APP');
+      AppLogger.error('❌ Appwrite auto pull after skip error: $e');
     }
   }
 

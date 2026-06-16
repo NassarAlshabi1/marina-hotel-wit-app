@@ -1,9 +1,8 @@
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import 'database_fixer.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// نظام مراقبة صحة قاعدة البيانات المستمر
 class DatabaseHealthMonitor {
@@ -96,7 +95,7 @@ class DatabaseHealthMonitor {
         orphanExpenses: results[2],
       );
     } catch (e) {
-      AppLogger.info('Error collecting metrics: $e', tag: 'APP');
+      AppLogger.info('Error collecting metrics: $e');
       return HealthMetrics(
         invalidServerIds: 0,
         orphanPayments: 0,
@@ -118,7 +117,7 @@ class DatabaseHealthMonitor {
 
       return result.data['total'] as int? ?? 0;
     } catch (e) {
-      AppLogger.info('Error counting invalid serverIds: $e', tag: 'APP');
+      AppLogger.info('Error counting invalid serverIds: $e');
       return 0;
     }
   }
@@ -137,7 +136,7 @@ class DatabaseHealthMonitor {
 
       return result.data['count'] as int? ?? 0;
     } catch (e) {
-      AppLogger.info('Error counting orphan payments: $e', tag: 'APP');
+      AppLogger.info('Error counting orphan payments: $e');
       return 0;
     }
   }
@@ -154,7 +153,7 @@ class DatabaseHealthMonitor {
 
       return result.data['count'] as int? ?? 0;
     } catch (e) {
-      AppLogger.info('Error counting orphan expenses: $e', tag: 'APP');
+      AppLogger.info('Error counting orphan expenses: $e');
       return 0;
     }
   }
@@ -219,7 +218,7 @@ class DatabaseHealthMonitor {
 
       await _cleanOldHistory();
     } catch (e) {
-      AppLogger.info('Error saving health history: $e', tag: 'APP');
+      AppLogger.info('Error saving health history: $e');
     }
   }
 
@@ -232,7 +231,7 @@ class DatabaseHealthMonitor {
         variables: [Variable.withInt(cutoff.millisecondsSinceEpoch ~/ 1000)],
       );
     } catch (e) {
-      AppLogger.info('Error cleaning old history: $e', tag: 'APP');
+      AppLogger.info('Error cleaning old history: $e');
     }
   }
 
@@ -266,7 +265,7 @@ class DatabaseHealthMonitor {
         );
       }).toList();
     } catch (e) {
-      AppLogger.info('Error getting history: $e', tag: 'APP');
+      AppLogger.info('Error getting history: $e');
       return [];
     }
   }

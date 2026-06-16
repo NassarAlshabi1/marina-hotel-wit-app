@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import 'connectivity_service.dart';
@@ -10,7 +10,6 @@ import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'sync_core/circuit_breaker.dart';
 import 'sync_mutex.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum SyncPriority { critical, high, normal, low, background }
 
@@ -313,7 +312,7 @@ class SyncOrchestrator {
     await _loadPersistedMetrics();
 
     _setState(OrchestratorState.idle);
-    AppLogger.info('✅ [Orchestrator] تم التهيئة بنجاح', tag: 'APP');
+    AppLogger.info('✅ [Orchestrator] تم التهيئة بنجاح');
   }
 
   CircuitBreaker getCircuitBreaker(String name) {
@@ -332,7 +331,6 @@ class SyncOrchestrator {
 
     AppLogger.info(
   '📋 [Orchestrator] مهمة مجدولة: ${task.name} (${task.priority.name})',
-  tag: 'APP',
 );
 
     if (_state == OrchestratorState.idle) {
@@ -382,11 +380,10 @@ class SyncOrchestrator {
         );
         AppLogger.info(
   '✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms',
-  tag: 'APP',
 );
       } else {
         _metrics.recordFailure(duration);
-        AppLogger.error('❌ [Orchestrator] ${task.name}: ${result.error}', tag: 'APP');
+        AppLogger.error('❌ [Orchestrator] ${task.name}: ${result.error}');
       }
 
       _metricsController.add(_metrics);
@@ -439,7 +436,6 @@ class SyncOrchestrator {
           _taskQueue.removeAt(0);
           AppLogger.info(
   '🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}',
-  tag: 'APP',
 );
         }
       }
@@ -473,7 +469,7 @@ class SyncOrchestrator {
     _healthController.add(health);
 
     if (!health.isHealthy) {
-      AppLogger.warning('⚠️ [Orchestrator] صحة النظام: غير صحي', tag: 'APP');
+      AppLogger.warning('⚠️ [Orchestrator] صحة النظام: غير صحي');
 
       if (_metrics.consecutiveFailures >= 5) {
         _setState(OrchestratorState.recovering);
@@ -483,7 +479,7 @@ class SyncOrchestrator {
   }
 
   Future<void> _attemptRecovery() async {
-    AppLogger.info('🔧 [Orchestrator] محاولة الاسترداد...', tag: 'APP');
+    AppLogger.info('🔧 [Orchestrator] محاولة الاسترداد...');
 
     for (final cb in _circuitBreakers.values) {
       if (cb.state == CircuitState.open) {
@@ -495,7 +491,7 @@ class SyncOrchestrator {
     _metrics.consecutiveFailures = 0;
 
     _setState(OrchestratorState.idle);
-    AppLogger.info('✅ [Orchestrator] تم الاسترداد', tag: 'APP');
+    AppLogger.info('✅ [Orchestrator] تم الاسترداد');
   }
 
   Future<List<DataIntegrityCheck>> verifyDataIntegrity() async {
@@ -537,7 +533,7 @@ class SyncOrchestrator {
           ),
         );
       } catch (e) {
-        AppLogger.warning('⚠️ [Orchestrator] خطأ في فحص $table: $e', tag: 'APP');
+        AppLogger.warning('⚠️ [Orchestrator] خطأ في فحص $table: $e');
       }
     }
 
@@ -557,7 +553,7 @@ class SyncOrchestrator {
         _metrics.totalConflicts = (data['totalConflicts'] as num?)?.toInt() ?? 0;
       }
     } catch (e) {
-      AppLogger.warning('⚠️ [Orchestrator] خطأ في تحميل المقاييس: $e', tag: 'APP');
+      AppLogger.warning('⚠️ [Orchestrator] خطأ في تحميل المقاييس: $e');
     }
   }
 
@@ -569,7 +565,7 @@ class SyncOrchestrator {
         jsonEncode(_metrics.toJson()),
       );
     } catch (e) {
-      AppLogger.warning('⚠️ [Orchestrator] خطأ في حفظ المقاييس: $e', tag: 'APP');
+      AppLogger.warning('⚠️ [Orchestrator] خطأ في حفظ المقاييس: $e');
     }
   }
 
@@ -579,7 +575,7 @@ class SyncOrchestrator {
     }
     _state = newState;
     _stateController.add(newState);
-    AppLogger.info('🔄 [Orchestrator] الحالة: ${newState.name}', tag: 'APP');
+    AppLogger.info('🔄 [Orchestrator] الحالة: ${newState.name}');
   }
 
   void pause() {

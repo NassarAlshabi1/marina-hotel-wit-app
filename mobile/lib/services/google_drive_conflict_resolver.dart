@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
@@ -117,7 +116,7 @@ class GoogleDriveConflictResolver {
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('ConflictResolver', message);
-    AppLogger.info('[ConflictResolver] $message', tag: 'APP');
+    AppLogger.info('[ConflictResolver] $message');
     _logger?.log(message, level: level, tag: 'CONFLICT');
   }
 
@@ -467,7 +466,7 @@ class GoogleDriveConflictResolver {
     for (final entry in history.take(limit)) {
       try {
         decoded.add(jsonDecode(entry) as Map<String, dynamic>);
-      } catch (e) { AppLogger.info('WARN: Failed to parse conflict history: $e', tag: 'APP'); }
+      } catch (e) { AppLogger.info('WARN: Failed to parse conflict history: $e'); }
     }
 
     return decoded;

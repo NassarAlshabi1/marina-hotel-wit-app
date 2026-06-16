@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
@@ -10,7 +10,6 @@ import 'auto_backup_manager.dart';
 import 'booking_derived_fields_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum AdjustmentType {
   discount(0),
@@ -315,7 +314,7 @@ class BookingPriceAdjustmentService {
           ..where((a) => a.localUuid.equals(uuid)))
         .getSingle();
 
-    AppLogger.info('✅ تم تطبيق تعديل السعر: $uuid للحجز $bookingLocalUuid', tag: 'APP');
+    AppLogger.info('✅ تم تطبيق تعديل السعر: $uuid للحجز $bookingLocalUuid');
 
     return result;
   }
@@ -408,7 +407,7 @@ class BookingPriceAdjustmentService {
       recordData: update.toColumns(false),
     );
 
-    AppLogger.info('⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd)', tag: 'APP');
+    AppLogger.info('⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd)');
   }
 
   Future<List<BookingPriceAdjustment>> getActiveAdjustments(
@@ -484,7 +483,6 @@ class BookingPriceAdjustmentService {
     AppLogger.info(
   'تم نقل ${adjustments.length} تعديل(ات) سعر للغرفة $newRoomNumber '
       'للحجز #$bookingId',
-  tag: 'APP',
 );
   }
 
@@ -501,7 +499,7 @@ class BookingPriceAdjustmentService {
       forceRebuild: true,
     );
 
-    AppLogger.info('🔄 تم إعادة حساب الحجز #$bookingId', tag: 'APP');
+    AppLogger.info('🔄 تم إعادة حساب الحجز #$bookingId');
   }
 
   Future<void> recalculateAfterSync(int bookingId) async {

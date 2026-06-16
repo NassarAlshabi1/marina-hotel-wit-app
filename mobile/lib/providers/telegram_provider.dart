@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../services/alarm_backup.dart';
@@ -8,7 +8,6 @@ import '../services/telegram/telegram_notification_service.dart';
 import '../services/telegram/telegram_report_service.dart';
 import '../services/telegram/telegram_service.dart';
 import '../utils/env.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// حالة إعداد Telegram
 enum TelegramSetupStatus {
@@ -106,7 +105,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
         lastReportSent: lastReportSent,
       );
     } catch (e) {
-      AppLogger.warning('❌ خطأ في تهيئة TelegramNotifier: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في تهيئة TelegramNotifier: $e');
     }
   }
 
@@ -172,7 +171,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
         await AlarmBackup.cancelTelegramReportAlarm();
       }
     } catch (e) {
-      AppLogger.warning('⚠️ خطأ في جدولة إنذار Telegram: $e', tag: 'APP');
+      AppLogger.warning('⚠️ خطأ في جدولة إنذار Telegram: $e');
     }
     _clearMessageAfterDelay();
   }
@@ -191,7 +190,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
         );
       }
     } catch (e) {
-      AppLogger.warning('⚠️ خطأ في إعادة جدولة إنذار Telegram: $e', tag: 'APP');
+      AppLogger.warning('⚠️ خطأ في إعادة جدولة إنذار Telegram: $e');
     }
   }
 
@@ -262,7 +261,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
     try {
       return await _reports.sendDailyReport();
     } catch (e) {
-      AppLogger.warning('❌ خطأ في إرسال التقرير اليومي: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في إرسال التقرير اليومي: $e');
       return false;
     }
   }

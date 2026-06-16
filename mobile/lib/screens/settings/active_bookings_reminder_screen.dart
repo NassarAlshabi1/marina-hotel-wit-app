@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
@@ -11,7 +12,6 @@ import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/whatsapp_template_manager.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// شاشة إرسال تذكير واتساب بالمبلغ المتبقي للحجوزات النشطة
 /// تعرض جميع الحجوزات النشطة التي لديها مبلغ متبقي مع إمكانية إرسال رسالة تذكير
@@ -54,7 +54,7 @@ class _ActiveBookingsReminderScreenState
         setState(() => _isInitialLoading = false);
       }
     } catch (e) {
-      AppLogger.warning('⚠️ خطأ في التحديث التلقائي: $e', tag: 'APP');
+      AppLogger.warning('⚠️ خطأ في التحديث التلقائي: $e');
       if (mounted) {
         setState(() => _isInitialLoading = false);
       }

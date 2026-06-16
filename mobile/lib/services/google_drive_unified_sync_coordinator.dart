@@ -2,7 +2,6 @@
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
@@ -160,7 +159,7 @@ class GoogleDriveUnifiedSyncCoordinator {
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('UnifiedSyncCoordinator', message);
-    AppLogger.info('[UnifiedSyncCoordinator] $message', tag: 'APP');
+    AppLogger.info('[UnifiedSyncCoordinator] $message');
     _logger?.log(message, level: level, tag: 'SYNC_COORD');
   }
 

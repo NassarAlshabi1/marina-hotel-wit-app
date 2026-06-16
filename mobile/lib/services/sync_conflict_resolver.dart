@@ -1,11 +1,10 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../utils/debug_logs.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// استراتيجية حل التعارضات
 enum ConflictStrategy { serverWins, localWins, manualReview }
@@ -198,7 +197,7 @@ class SyncConflictResolver {
       }
     } catch (e, st) {
       _log('❌ خطأ في كشف التعارض $table/$localUuid: $e');
-      AppLogger.info('SyncConflictResolver.detectAndResolve stackTrace: $st', tag: 'APP');
+      AppLogger.info('SyncConflictResolver.detectAndResolve stackTrace: $st');
       // في حالة الخطأ - الاحتفاظ بالمحلي كإجراء آمن
       return const ConflictCheckResult(
         resolved: true,
@@ -451,6 +450,6 @@ class SyncConflictResolver {
 
   void _log(String message) {
     DebugLogs.add('SyncConflictResolver', message);
-    AppLogger.info('[SyncConflictResolver] $message', tag: 'APP');
+    AppLogger.info('[SyncConflictResolver] $message');
   }
 }

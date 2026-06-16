@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
@@ -25,7 +26,6 @@ import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../../widgets/report_date_filter.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
   const IncomeExpenseReportScreen({super.key});
@@ -161,7 +161,7 @@ class _IncomeExpenseReportScreenState
             final toDay = DateTime(toDate.year, toDate.month, toDate.day);
             return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
           } catch (e) {
-            AppLogger.warning('⚠️ تعذر تحليل تاريخ الدين dateRecorded="${d.dateRecorded}": $e', tag: 'APP');
+            AppLogger.warning('⚠️ تعذر تحليل تاريخ الدين dateRecorded="${d.dateRecorded}": $e');
             return false; // استبعاد السجل غير الصالح من فلترة الفترة
           }
         }
@@ -178,7 +178,7 @@ class _IncomeExpenseReportScreenState
             final toDay = DateTime(toDate.year, toDate.month, toDate.day);
             return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
           } catch (e) {
-            AppLogger.warning('⚠️ تعذر تحليل تاريخ الدين paymentDate="${d.paymentDate}": $e', tag: 'APP');
+            AppLogger.warning('⚠️ تعذر تحليل تاريخ الدين paymentDate="${d.paymentDate}": $e');
             return false; // استبعاد السجل غير الصالح من فلترة الفترة
           }
         }

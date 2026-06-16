@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import 'smart_sync_manager.dart';
 import 'sync_core/circuit_breaker.dart';
@@ -9,7 +9,6 @@ import 'sync_core/retry_strategy.dart';
 import 'sync_core/sync_error_handler.dart';
 import 'sync_core/sync_validator.dart';
 import 'sync_locks.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class ScreenSyncController {
 
@@ -47,13 +46,13 @@ class ScreenSyncController {
     _hasChanges = true;
     _emitStatus(SyncStatus.pending);
     _resetDebounceTimer();
-    AppLogger.info('📝 [$screenId] تم تسجيل تغيير - إعادة ضبط المؤقت', tag: 'APP');
+    AppLogger.info('📝 [$screenId] تم تسجيل تغيير - إعادة ضبط المؤقت');
   }
 
   void _resetDebounceTimer() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(debounceDelay, () {
-      AppLogger.info('⏰ [$screenId] انتهى المؤقت - بدء المزامنة التلقائية', tag: 'APP');
+      AppLogger.info('⏰ [$screenId] انتهى المؤقت - بدء المزامنة التلقائية');
       syncNow();
     });
   }
@@ -72,7 +71,7 @@ class ScreenSyncController {
 
   Future<bool> syncNow() async {
     if (!_hasChanges) {
-      AppLogger.info('✓ [$screenId] لا توجد تغييرات للمزامنة', tag: 'APP');
+      AppLogger.info('✓ [$screenId] لا توجد تغييرات للمزامنة');
       return true;
     }
 
@@ -85,7 +84,7 @@ class ScreenSyncController {
     });
 
     if (!canStart) {
-      AppLogger.info('⏳ [$screenId] المزامنة جارية بالفعل', tag: 'APP');
+      AppLogger.info('⏳ [$screenId] المزامنة جارية بالفعل');
       return false;
     }
 
@@ -102,26 +101,26 @@ class ScreenSyncController {
           .validateNetworkConditions(hasConnection: hasConnection);
 
       if (!networkValidation.isValid) {
-        AppLogger.info('📴 [$screenId] ${networkValidation.error}', tag: 'APP');
+        AppLogger.info('📴 [$screenId] ${networkValidation.error}');
         // تم إلغاء SyncQueue لصالح Outbox - سيتم المزامنة تلقائياً عند عودة الاتصال
         return false;
       }
 
       if (!SmartSyncManager.instance().isDriveSignedIn) {
-        AppLogger.info('🔒 [$screenId] المستخدم غير مسجل في Google Drive', tag: 'APP');
+        AppLogger.info('🔒 [$screenId] المستخدم غير مسجل في Google Drive');
         return false;
       }
 
       if (networkValidation.warnings.isNotEmpty) {
         for (final warning in networkValidation.warnings) {
-          AppLogger.warning('⚠️ [$screenId] $warning', tag: 'APP');
+          AppLogger.warning('⚠️ [$screenId] $warning');
         }
       }
 
       final success = await _retryStrategy.executeWithFallback(
         operation: () async {
           return _circuitBreaker.execute(() async {
-            AppLogger.info('🌐 [$screenId] بدء المزامنة مع الحماية...', tag: 'APP');
+            AppLogger.info('🌐 [$screenId] بدء المزامنة مع الحماية...');
             return SmartSyncManager.instance().pushLocalChanges();
           });
         },
@@ -135,29 +134,27 @@ class ScreenSyncController {
         fallback: () {
           AppLogger.warning(
   '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات',
-  tag: 'APP',
 );
           return false;
         },
         onRetry: (attempt, error) {
-          AppLogger.info('🔄 [$screenId] إعادة المحاولة $attempt', tag: 'APP');
+          AppLogger.info('🔄 [$screenId] إعادة المحاولة $attempt');
         },
       );
 
       if (success ?? false) {
         _hasChanges = false;
         _emitStatus(SyncStatus.synced);
-        AppLogger.info('✅ [$screenId] تمت المزامنة بنجاح', tag: 'APP');
+        AppLogger.info('✅ [$screenId] تمت المزامنة بنجاح');
         return true;
       } else {
         AppLogger.warning(
   '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox',
-  tag: 'APP',
 );
         return false;
       }
     } on CircuitBreakerOpenException catch (e) {
-      AppLogger.info('🔌 [$screenId] Circuit breaker مفتوح: $e', tag: 'APP');
+      AppLogger.info('🔌 [$screenId] Circuit breaker مفتوح: $e');
       _emitStatus(SyncStatus.error);
       return false;
     } catch (e, stackTrace) {
@@ -166,7 +163,7 @@ class ScreenSyncController {
         stackTrace: stackTrace,
         context: {'screenId': screenId, 'operation': 'syncNow'},
       );
-      AppLogger.warning('❌ [$screenId] خطأ في المزامنة: $e', tag: 'APP');
+      AppLogger.warning('❌ [$screenId] خطأ في المزامنة: $e');
       _emitStatus(SyncStatus.error);
       return false;
     } finally {
@@ -181,7 +178,7 @@ class ScreenSyncController {
   }
 
   Future<bool> syncOnExit() async {
-    AppLogger.info('🚪 [$screenId] الخروج من الشاشة...', tag: 'APP');
+    AppLogger.info('🚪 [$screenId] الخروج من الشاشة...');
     cancelTimer();
     return syncNow();
   }

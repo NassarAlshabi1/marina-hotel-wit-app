@@ -6,15 +6,14 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
-import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../data/sync_models.dart';
 import 'google_drive_sign_in_manager.dart';
 import 'sync_constants.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 const _kPrimarySnapshotName = 'sync_data.json.gz';
 const _kIndexFileName = 'sync_index.json';
@@ -212,8 +211,8 @@ class GoogleDriveSyncService {
       _driveApi = drive.DriveApi(_GoogleAuthClient(headers));
       return account;
     } catch (error, stack) {
-      AppLogger.warning('❌ فشل تسجيل الدخول Google Drive: $error', tag: 'APP');
-      AppLogger.info('$stack', tag: 'APP');
+      AppLogger.warning('❌ فشل تسجيل الدخول Google Drive: $error');
+      AppLogger.info('$stack');
       rethrow;
     }
   }
@@ -293,7 +292,7 @@ class GoogleDriveSyncService {
           : null;
       return snapFile?.modifiedTime;
     } catch (error) {
-      AppLogger.warning('⚠️ تعذر قراءة modifiedTime من Google Drive: $error', tag: 'APP');
+      AppLogger.warning('⚠️ تعذر قراءة modifiedTime من Google Drive: $error');
       return null;
     }
   }
@@ -450,7 +449,7 @@ class GoogleDriveSyncService {
       final json = jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
       return DriveSyncIndex.fromJson(json);
     } catch (error) {
-      AppLogger.warning('⚠️ تعذر تحميل ملف الفهرس: $error', tag: 'APP');
+      AppLogger.warning('⚠️ تعذر تحميل ملف الفهرس: $error');
       return null;
     }
   }
@@ -568,7 +567,7 @@ class GoogleDriveSyncService {
     try {
       await _cleanupLegacySnapshot(api, keepShardIds: keepIds.toList());
     } catch (e) {
-      AppLogger.warning('⚠️ تحذير: فشل حذف الملفات القديمة (غير حرج): $e', tag: 'APP');
+      AppLogger.warning('⚠️ تحذير: فشل حذف الملفات القديمة (غير حرج): $e');
     }
 
     return uploaded;

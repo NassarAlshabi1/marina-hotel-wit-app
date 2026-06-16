@@ -3,11 +3,11 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -24,7 +24,6 @@ import 'google_drive_logger.dart';
 import 'google_drive_sign_in_manager.dart';
 import 'local_db.dart';
 import 'restore_fix_service.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum BackupFormat { json, sqlite }
 
@@ -483,7 +482,6 @@ class GoogleDriveBackupService {
     DebugLogs.add('DriveBackup', message);
     AppLogger.info(
   message,
-  tag: 'APP',
 );
   }
 
@@ -1437,7 +1435,7 @@ class GoogleDriveBackupService {
           'فشلت مزامنة Appwrite بعد الاستعادة: $e',
           tag: 'RESTORE',
         );
-        AppLogger.info('Stack trace: $st', tag: 'APP');
+        AppLogger.info('Stack trace: $st');
       }
     } catch (e) {
       _log('❌ خطأ في استعادة البيانات: $e');

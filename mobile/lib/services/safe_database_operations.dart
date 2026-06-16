@@ -1,10 +1,9 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import 'database_health_checker.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class SafeDatabaseOperations {
   static final _healthChecker = DatabaseHealthChecker.instance;
@@ -21,7 +20,7 @@ class SafeDatabaseOperations {
     try {
       // التحقق من حالة الاستعادة
       if (DatabaseManager.isRestoring) {
-        AppLogger.info('⏸️ Operation $opName paused: database is being restored', tag: 'APP');
+        AppLogger.info('⏸️ Operation $opName paused: database is being restored');
         await Future<void>.delayed(const Duration(milliseconds: 100));
         if (DatabaseManager.isRestoring) {
           throw StateError(
@@ -52,10 +51,9 @@ class SafeDatabaseOperations {
 
       return result;
     } on StateError catch (e, stack) {
-      AppLogger.error('❌ StateError in $opName: $e', tag: 'APP');
+      AppLogger.error('❌ StateError in $opName: $e');
       AppLogger.info(
   stack.toString(),
-  tag: 'APP',
 );
 
       if (throwOnError) {
@@ -66,10 +64,9 @@ class SafeDatabaseOperations {
         rethrow;
       }
     } catch (e, stack) {
-      AppLogger.error('❌ Error in $opName: $e', tag: 'APP');
+      AppLogger.error('❌ Error in $opName: $e');
       AppLogger.info(
   stack.toString(),
-  tag: 'APP',
 );
 
       // معالجة أخطاء قاعدة البيانات الشائعة
@@ -78,23 +75,23 @@ class SafeDatabaseOperations {
           errorStr.contains('isolate channel') ||
           errorStr.contains('Can\'t re-open a database') ||
           errorStr.contains('DatabaseManager has been closed')) {
-        AppLogger.warning('⚠️ Database connection error detected in $opName', tag: 'APP');
+        AppLogger.warning('⚠️ Database connection error detected in $opName');
 
         // عدم محاولة reopen إذا كانت استعادة جارية
         if (DatabaseManager.isRestoring) {
-          AppLogger.info('⏸️ Database is being restored, will not attempt reopen', tag: 'APP');
+          AppLogger.info('⏸️ Database is being restored, will not attempt reopen');
           throw StateError('Database is being restored');
         }
 
         try {
-          AppLogger.info('🔄 Attempting to reopen database...', tag: 'APP');
+          AppLogger.info('🔄 Attempting to reopen database...');
           await DatabaseManager.reopen();
-          AppLogger.info('✅ Database reopened successfully. Retrying operation...', tag: 'APP');
+          AppLogger.info('✅ Database reopened successfully. Retrying operation...');
 
           final db = DatabaseManager.instance;
           return await operation(db).timeout(timeout);
         } catch (retryError) {
-          AppLogger.error('❌ Retry failed: $retryError', tag: 'APP');
+          AppLogger.error('❌ Retry failed: $retryError');
           if (throwOnError) {
             rethrow;
           } else if (fallbackValue != null) {
@@ -133,7 +130,7 @@ class SafeDatabaseOperations {
         try {
           // التحقق من حالة الاستعادة
           if (DatabaseManager.isRestoring) {
-            AppLogger.info('⏸️ Stream $opName paused: database is being restored', tag: 'APP');
+            AppLogger.info('⏸️ Stream $opName paused: database is being restored');
             Future<void>.delayed(const Duration(milliseconds: 200), () {
               if (!isClosed && !DatabaseManager.isRestoring) {
                 setupStream();
@@ -145,7 +142,6 @@ class SafeDatabaseOperations {
           if (!DatabaseManager.isInitialized) {
             AppLogger.warning(
   '⚠️ Database not initialized for $opName. Attempting to initialize...',
-  tag: 'APP',
 );
             try {
               // محاولة الحصول على instance لتهيئة قاعدة البيانات
@@ -176,7 +172,6 @@ class SafeDatabaseOperations {
                   errorStr.contains('DatabaseManager has been closed')) {
                 AppLogger.warning(
   '⚠️ Database stream error: $error. Attempting to recover...',
-  tag: 'APP',
 );
 
                 subscription?.cancel();
@@ -185,7 +180,6 @@ class SafeDatabaseOperations {
                 if (DatabaseManager.isRestoring) {
                   AppLogger.info(
   '⏸️ Database is being restored, will retry after restore completes',
-  tag: 'APP',
 );
                   Future<void>.delayed(const Duration(seconds: 1), () {
                     if (!isClosed && !DatabaseManager.isRestoring) {
@@ -199,10 +193,9 @@ class SafeDatabaseOperations {
                   try {
                     AppLogger.info(
   '🔄 Attempting to reopen database for stream...',
-  tag: 'APP',
 );
                     await DatabaseManager.reopen();
-                    AppLogger.info('✅ Database reopened. Recreating stream...', tag: 'APP');
+                    AppLogger.info('✅ Database reopened. Recreating stream...');
                     setupStream();
                   } catch (e) {
                     if (!isClosed) {

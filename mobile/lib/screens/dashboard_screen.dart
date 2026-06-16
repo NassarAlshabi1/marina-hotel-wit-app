@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../providers/appwrite_providers.dart';
@@ -18,7 +19,6 @@ import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
 import 'payments/booking_payment_screen.dart';
 import 'reports/expenses_report_screen.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101',
@@ -161,10 +161,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       } else if (mounted) {
         // إشعار صامت بأن البيانات محدثة
-        AppLogger.info('✅ البيانات محدثة — لا توجد سجلات جديدة', tag: 'APP');
+        AppLogger.info('✅ البيانات محدثة — لا توجد سجلات جديدة');
       }
     } catch (e) {
-      AppLogger.warning('❌ فشل السحب التلقائي عند الفتح: $e', tag: 'APP');
+      AppLogger.warning('❌ فشل السحب التلقائي عند الفتح: $e');
     }
   }
 

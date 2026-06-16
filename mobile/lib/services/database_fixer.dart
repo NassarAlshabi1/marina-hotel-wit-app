@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
-import 'local_db.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
+
+import 'local_db.dart';
 
 /// خدمة لإصلاح البيانات الفاسدة في قاعدة البيانات
 class DatabaseFixer {
@@ -101,9 +101,9 @@ class DatabaseFixer {
         }
       }
 
-      AppLogger.info('Fixed $fixed invalid serverId records', tag: 'APP');
+      AppLogger.info('Fixed $fixed invalid serverId records');
     } catch (e) {
-      AppLogger.info('Error fixing serverId: $e', tag: 'APP');
+      AppLogger.info('Error fixing serverId: $e');
     }
 
     return fixed;
@@ -133,12 +133,12 @@ class DatabaseFixer {
           updates: {db.payments},
         );
         fixed++;
-        AppLogger.info('Fixed orphan payment: $paymentId', tag: 'APP');
+        AppLogger.info('Fixed orphan payment: $paymentId');
       }
 
-      AppLogger.info('Fixed $fixed orphan payments', tag: 'APP');
+      AppLogger.info('Fixed $fixed orphan payments');
     } catch (e) {
-      AppLogger.info('Error fixing orphan payments: $e', tag: 'APP');
+      AppLogger.info('Error fixing orphan payments: $e');
     }
 
     return fixed;
@@ -191,13 +191,13 @@ class DatabaseFixer {
             updates: {db.expenses},
           );
           fixed++;
-          AppLogger.info('Fixed orphan expense: $expenseId', tag: 'APP');
+          AppLogger.info('Fixed orphan expense: $expenseId');
         }
       }
 
-      AppLogger.info('Fixed $fixed orphan expenses', tag: 'APP');
+      AppLogger.info('Fixed $fixed orphan expenses');
     } catch (e) {
-      AppLogger.info('Error fixing orphan expenses: $e', tag: 'APP');
+      AppLogger.info('Error fixing orphan expenses: $e');
     }
 
     return fixed;

@@ -2,12 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../utils/field_mapper.dart';
 import 'api_config_service.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum PhpApiStatus { disconnected, connecting, connected, error }
 
@@ -150,7 +149,7 @@ class PhpApiService {
       try {
         final response = await _retryRequest(e.requestOptions);
         return handler.resolve(response);
-      } catch (e) { AppLogger.info('API retry failed: $e', tag: 'APP'); }
+      } catch (e) { AppLogger.info('API retry failed: $e'); }
     }
 
     handler.next(e);

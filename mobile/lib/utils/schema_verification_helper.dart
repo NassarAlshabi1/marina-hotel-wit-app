@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/appwrite_schema_verifier.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
+
+import '../services/appwrite_schema_verifier.dart';
 
 /// Script للتحقق من مطابقة Schema مع Appwrite Cloud
 ///
@@ -13,7 +14,7 @@ import 'package:marina_hotel_mobile/utils/app_logger.dart';
 /// await checkAppwriteSchema();
 /// ```
 Future<void> checkAppwriteSchema() async {
-  AppLogger.info('🔍 جاري التحقق من Appwrite Schema...', tag: 'APP');
+  AppLogger.info('🔍 جاري التحقق من Appwrite Schema...');
 
   try {
     final results = await AppwriteSchemaVerifier.verifySchema();
@@ -22,37 +23,37 @@ Future<void> checkAppwriteSchema() async {
     final missingAttrs = results['missingAttributes'] as Map;
 
     if (missingCollections.isEmpty && missingAttrs.isEmpty) {
-      AppLogger.info('✅ Schema مطابق تماماً - جميع الحقول موجودة', tag: 'APP');
+      AppLogger.info('✅ Schema مطابق تماماً - جميع الحقول موجودة');
       return;
     }
 
     if (missingCollections.isNotEmpty) {
-      AppLogger.error('❌ Collections ناقصة:', tag: 'APP');
+      AppLogger.error('❌ Collections ناقصة:');
       for (final collection in missingCollections) {
-        AppLogger.info('  - $collection', tag: 'APP');
+        AppLogger.info('  - $collection');
       }
     }
 
     if (missingAttrs.isNotEmpty) {
-      AppLogger.error('❌ Attributes ناقصة:', tag: 'APP');
+      AppLogger.error('❌ Attributes ناقصة:');
       missingAttrs.forEach((collection, attrs) {
-        AppLogger.info('  📂 $collection:', tag: 'APP');
+        AppLogger.info('  📂 $collection:');
         for (final attr in attrs as Iterable) {
-          AppLogger.info('    - $attr', tag: 'APP');
+          AppLogger.info('    - $attr');
         }
       });
 
       // طباعة تعليمات الإضافة
-      AppLogger.info('\n📖 لإضافة الحقول الناقصة:', tag: 'APP');
-      AppLogger.info('1. افتح Appwrite Console', tag: 'APP');
-      AppLogger.info('2. اذهب إلى Databases → اختر قاعدة البيانات', tag: 'APP');
-      AppLogger.info('3. افتح Collection المطلوب', tag: 'APP');
-      AppLogger.info('4. اضغط "Create Attribute" وأضف الحقول الناقصة', tag: 'APP');
-      AppLogger.info('\nراجع APPWRITE_SCHEMA_UPDATE.md للتفاصيل', tag: 'APP');
+      AppLogger.info('\n📖 لإضافة الحقول الناقصة:');
+      AppLogger.info('1. افتح Appwrite Console');
+      AppLogger.info('2. اذهب إلى Databases → اختر قاعدة البيانات');
+      AppLogger.info('3. افتح Collection المطلوب');
+      AppLogger.info('4. اضغط "Create Attribute" وأضف الحقول الناقصة');
+      AppLogger.info('\nراجع APPWRITE_SCHEMA_UPDATE.md للتفاصيل');
     }
   } catch (e, stack) {
-    AppLogger.warning('❌ خطأ في التحقق من Schema: $e', tag: 'APP');
-    AppLogger.info('Stack trace: $stack', tag: 'APP');
+    AppLogger.warning('❌ خطأ في التحقق من Schema: $e');
+    AppLogger.info('Stack trace: $stack');
   }
 }
 

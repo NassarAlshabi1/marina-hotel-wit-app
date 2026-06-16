@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
@@ -8,7 +8,6 @@ import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
   PaymentsAdapter(this.resolver);
@@ -49,7 +48,6 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       // تسجيل تحذير فقط، سيتم معالجة الخطأ في _syncPayments
       AppLogger.info(
   '[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId',
-  tag: 'APP',
 );
     }
 

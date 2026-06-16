@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 enum ConnectionType { none, wifi, mobile, ethernet, vpn, bluetooth, other }
@@ -89,16 +88,16 @@ class ConnectivityService {
       _subscription = _connectivity.onConnectivityChanged.listen(
         _updateStatus,
         onError: (Object error) {
-          AppLogger.warning('❌ [Connectivity] خطأ في مراقبة الاتصال: $error', tag: 'APP');
+          AppLogger.warning('❌ [Connectivity] خطأ في مراقبة الاتصال: $error');
           _currentStatus = ConnectionStatus.offline();
           _statusController.add(_currentStatus);
         },
       );
 
       _initialized = true;
-      AppLogger.info('✅ [Connectivity] تم تهيئة خدمة الاتصال: $_currentStatus', tag: 'APP');
+      AppLogger.info('✅ [Connectivity] تم تهيئة خدمة الاتصال: $_currentStatus');
     } catch (e) {
-      AppLogger.warning('❌ [Connectivity] فشل في تهيئة خدمة الاتصال: $e', tag: 'APP');
+      AppLogger.warning('❌ [Connectivity] فشل في تهيئة خدمة الاتصال: $e');
       _currentStatus = ConnectionStatus.offline();
     }
   }
@@ -110,9 +109,9 @@ class ConnectivityService {
     _statusController.add(newStatus);
 
     if (!wasOnline && newStatus.isOnline) {
-      AppLogger.info('🌐 [Connectivity] الاتصال متاح: ${newStatus.type}', tag: 'APP');
+      AppLogger.info('🌐 [Connectivity] الاتصال متاح: ${newStatus.type}');
     } else if (wasOnline && !newStatus.isOnline) {
-      AppLogger.info('📴 [Connectivity] الاتصال مفقود', tag: 'APP');
+      AppLogger.info('📴 [Connectivity] الاتصال مفقود');
     }
   }
 
@@ -122,7 +121,7 @@ class ConnectivityService {
       _updateStatus(results);
       return _currentStatus.isOnline;
     } catch (e) {
-      AppLogger.warning('❌ [Connectivity] فشل في فحص الاتصال: $e', tag: 'APP');
+      AppLogger.warning('❌ [Connectivity] فشل في فحص الاتصال: $e');
       return false;
     }
   }
@@ -147,7 +146,7 @@ class ConnectivityService {
           .timeout(timeout);
       return await operation();
     } on TimeoutException {
-      AppLogger.info('⏱️ [Connectivity] انتهت مهلة انتظار الاتصال', tag: 'APP');
+      AppLogger.info('⏱️ [Connectivity] انتهت مهلة انتظار الاتصال');
       return null;
     }
   }

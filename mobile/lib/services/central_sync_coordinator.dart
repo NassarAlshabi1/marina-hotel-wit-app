@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import 'unified_sync_orchestrator.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class CentralSyncCoordinator {
   factory CentralSyncCoordinator() => _instance;
@@ -21,7 +21,7 @@ class CentralSyncCoordinator {
   static const Duration syncCooldown = Duration(seconds: 10);
 
   void notifyLocalChange({required String table, required String operation}) {
-    AppLogger.info('🔔 CentralSyncCoordinator: تغيير في $table ($operation)', tag: 'APP');
+    AppLogger.info('🔔 CentralSyncCoordinator: تغيير في $table ($operation)');
 
     _debounceTimer?.cancel();
     _debounceTimer = Timer(unifiedDebounce, () async {
@@ -49,7 +49,6 @@ class CentralSyncCoordinator {
         final remaining = syncCooldown - elapsed;
         AppLogger.info(
   '⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining',
-  tag: 'APP',
 );
 
         _debounceTimer?.cancel();
@@ -66,7 +65,7 @@ class CentralSyncCoordinator {
     }
 
     if (_isSyncing) {
-      AppLogger.info('⏸️ Sync قيد التنفيذ بالفعل', tag: 'APP');
+      AppLogger.info('⏸️ Sync قيد التنفيذ بالفعل');
       return false;
     }
 
@@ -74,7 +73,6 @@ class CentralSyncCoordinator {
     _syncCount++;
     AppLogger.info(
   '🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)',
-  tag: 'APP',
 );
 
     try {
@@ -86,15 +84,15 @@ class CentralSyncCoordinator {
 
       if (success) {
         _lastSyncTime = DateTime.now();
-        AppLogger.info('✅ [$_syncCount] المزامنة نجحت: $reason', tag: 'APP');
+        AppLogger.info('✅ [$_syncCount] المزامنة نجحت: $reason');
       } else {
-        AppLogger.warning('❌ [$_syncCount] المزامنة فشلت: $reason', tag: 'APP');
+        AppLogger.warning('❌ [$_syncCount] المزامنة فشلت: $reason');
       }
 
       return success;
     } catch (e, stackTrace) {
-      AppLogger.warning('❌ [$_syncCount] خطأ في المزامنة: $e', tag: 'APP');
-      AppLogger.info('Stack trace: $stackTrace', tag: 'APP');
+      AppLogger.warning('❌ [$_syncCount] خطأ في المزامنة: $e');
+      AppLogger.info('Stack trace: $stackTrace');
       return false;
     } finally {
       _isSyncing = false;

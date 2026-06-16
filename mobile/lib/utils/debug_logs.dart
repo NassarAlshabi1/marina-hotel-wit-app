@@ -11,7 +11,6 @@ class DebugLogs {
     final entry = '[${DateTime.now().toIso8601String()}][$source] $message';
     AppLogger.info(
   entry,
-  tag: 'APP',
 );
     _entries.add(entry);
     if (_entries.length > _maxEntries) {

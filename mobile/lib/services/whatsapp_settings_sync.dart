@@ -1,5 +1,4 @@
 import 'package:appwrite/appwrite.dart';
-import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
@@ -56,14 +55,14 @@ class WhatsAppSettingsSync {
         );
       }
 
-      AppLogger.info('WhatsApp settings uploaded to Appwrite successfully', tag: 'APP');
+      AppLogger.info('WhatsApp settings uploaded to Appwrite successfully');
       return (success: true, error: null);
     } on AppwriteException catch (e) {
       final msg = _parseAppwriteError(e);
-      AppLogger.info('WhatsApp settings upload failed: $msg', tag: 'APP');
+      AppLogger.info('WhatsApp settings upload failed: $msg');
       return (success: false, error: msg);
     } catch (e) {
-      AppLogger.info('WhatsApp settings upload error: $e', tag: 'APP');
+      AppLogger.info('WhatsApp settings upload error: $e');
       return (success: false, error: e.toString());
     }
   }
@@ -105,14 +104,14 @@ class WhatsAppSettingsSync {
         }
       }
 
-      AppLogger.info('WhatsApp settings downloaded from Appwrite successfully', tag: 'APP');
+      AppLogger.info('WhatsApp settings downloaded from Appwrite successfully');
       return (success: true, error: null, settings: saved);
     } on AppwriteException catch (e) {
       final msg = _parseAppwriteError(e);
-      AppLogger.info('WhatsApp settings download failed: $msg', tag: 'APP');
+      AppLogger.info('WhatsApp settings download failed: $msg');
       return (success: false, error: msg, settings: null);
     } catch (e) {
-      AppLogger.info('WhatsApp settings download error: $e', tag: 'APP');
+      AppLogger.info('WhatsApp settings download error: $e');
       return (success: false, error: e.toString(), settings: null);
     }
   }

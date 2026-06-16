@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import '../services/alarm_backup.dart';
@@ -7,7 +7,6 @@ import '../services/remote_config_service.dart';
 import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_report_service.dart';
 import '../utils/env.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// حالة إعداد التقرير اليومي عبر واتساب
 enum WhatsAppReportStatus {
@@ -104,7 +103,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
         await prefs.setString('whatsapp_api_key', apiKey);
       }
     } catch (e) {
-      AppLogger.warning('خطأ في تهيئة WhatsAppDailyReportNotifier: $e', tag: 'APP');
+      AppLogger.warning('خطأ في تهيئة WhatsAppDailyReportNotifier: $e');
     }
   }
 
@@ -150,7 +149,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
         await AlarmBackup.cancelTelegramReportAlarm();
       }
     } catch (e) {
-      AppLogger.warning('خطأ في جدولة إنذار التقرير اليومي: $e', tag: 'APP');
+      AppLogger.warning('خطأ في جدولة إنذار التقرير اليومي: $e');
     }
     _clearMessageAfterDelay();
   }
@@ -169,7 +168,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
         );
       }
     } catch (e) {
-      AppLogger.warning('خطأ في إعادة جدولة إنذار التقرير: $e', tag: 'APP');
+      AppLogger.warning('خطأ في إعادة جدولة إنذار التقرير: $e');
     }
   }
 
@@ -240,7 +239,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
     try {
       return await _reports.sendDailyReport();
     } catch (e) {
-      AppLogger.warning('خطأ في إرسال التقرير اليومي: $e', tag: 'APP');
+      AppLogger.warning('خطأ في إرسال التقرير اليومي: $e');
       return false;
     }
   }

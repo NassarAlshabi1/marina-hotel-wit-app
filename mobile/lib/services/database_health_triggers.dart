@@ -1,9 +1,8 @@
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 
 import 'database_fixer.dart';
 import 'database_health_monitor.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// نظام التشغيل التلقائي لفحص صحة قاعدة البيانات
 class DatabaseHealthTriggers {
@@ -14,7 +13,7 @@ class DatabaseHealthTriggers {
 
   /// فحص عند إقلاع التطبيق
   Future<HealthReport?> onAppLaunch({bool quickScan = true}) async {
-    AppLogger.info('🏥 [HealthTrigger] Running app launch scan...', tag: 'APP');
+    AppLogger.info('🏥 [HealthTrigger] Running app launch scan...');
 
     try {
       final prefs = getSharedPrefs();
@@ -26,7 +25,6 @@ class DatabaseHealthTriggers {
       if (hoursSinceLastScan < 6) {
         AppLogger.info(
   '🏥 [HealthTrigger] Skipped (scanned ${hoursSinceLastScan.toStringAsFixed(1)}h ago)',
-  tag: 'APP',
 );
         return null;
       }
@@ -38,56 +36,56 @@ class DatabaseHealthTriggers {
       await prefs.setInt('health_last_scan', now);
 
       if (report.isCritical) {
-        AppLogger.error('❌ [HealthTrigger] CRITICAL health detected!', tag: 'APP');
+        AppLogger.error('❌ [HealthTrigger] CRITICAL health detected!');
         await _notifyCriticalHealth(report);
       } else if (!report.isHealthy) {
-        AppLogger.warning('⚠️ [HealthTrigger] Health issues detected', tag: 'APP');
+        AppLogger.warning('⚠️ [HealthTrigger] Health issues detected');
       } else {
-        AppLogger.info('✅ [HealthTrigger] Database is healthy', tag: 'APP');
+        AppLogger.info('✅ [HealthTrigger] Database is healthy');
       }
 
       return report;
     } catch (e) {
-      AppLogger.error('❌ [HealthTrigger] Error: $e', tag: 'APP');
+      AppLogger.error('❌ [HealthTrigger] Error: $e');
       return null;
     }
   }
 
   /// فحص قبل المزامنة
   Future<bool> preSyncValidation() async {
-    AppLogger.info('🔄 [HealthTrigger] Pre-sync validation...', tag: 'APP');
+    AppLogger.info('🔄 [HealthTrigger] Pre-sync validation...');
 
     try {
       final report = await monitor.quickScan();
 
       if (report.isCritical) {
-        AppLogger.error('❌ [HealthTrigger] CRITICAL - sync blocked', tag: 'APP');
+        AppLogger.error('❌ [HealthTrigger] CRITICAL - sync blocked');
         return false;
       }
 
       if (report.totalIssues > 0) {
-        AppLogger.warning('⚠️ [HealthTrigger] ${report.totalIssues} issues found', tag: 'APP');
+        AppLogger.warning('⚠️ [HealthTrigger] ${report.totalIssues} issues found');
 
         final prefs = getSharedPrefs();
         final autoFix = prefs.getBool('health_auto_fix_before_sync') ?? false;
 
         if (autoFix) {
-          AppLogger.info('🔧 [HealthTrigger] Auto-fixing...', tag: 'APP');
+          AppLogger.info('🔧 [HealthTrigger] Auto-fixing...');
           final fixResult = await fixer.fixAllIssues();
-          AppLogger.info('✅ [HealthTrigger] Fixed ${fixResult.totalFixed} issues', tag: 'APP');
+          AppLogger.info('✅ [HealthTrigger] Fixed ${fixResult.totalFixed} issues');
         }
       }
 
       return true;
     } catch (e) {
-      AppLogger.error('❌ [HealthTrigger] Validation failed: $e', tag: 'APP');
+      AppLogger.error('❌ [HealthTrigger] Validation failed: $e');
       return false;
     }
   }
 
   /// فحص بعد استعادة النسخة الاحتياطية
   Future<HealthReport> postRestoreScan() async {
-    AppLogger.info('📥 [HealthTrigger] Post-restore scan...', tag: 'APP');
+    AppLogger.info('📥 [HealthTrigger] Post-restore scan...');
 
     try {
       final report = await monitor.deepScan();
@@ -95,16 +93,15 @@ class DatabaseHealthTriggers {
       if (report.hasIssues) {
         AppLogger.warning(
   '⚠️ [HealthTrigger] ${report.totalIssues} issues after restore',
-  tag: 'APP',
 );
 
         final prefs = getSharedPrefs();
         final autoFix = prefs.getBool('health_auto_fix_after_restore') ?? true;
 
         if (autoFix) {
-          AppLogger.info('🔧 [HealthTrigger] Auto-fixing after restore...', tag: 'APP');
+          AppLogger.info('🔧 [HealthTrigger] Auto-fixing after restore...');
           final fixResult = await fixer.fixAllIssues();
-          AppLogger.info('✅ [HealthTrigger] Fixed ${fixResult.totalFixed} issues', tag: 'APP');
+          AppLogger.info('✅ [HealthTrigger] Fixed ${fixResult.totalFixed} issues');
 
           return await monitor.quickScan();
         }
@@ -112,7 +109,7 @@ class DatabaseHealthTriggers {
 
       return report;
     } catch (e) {
-      AppLogger.error('❌ [HealthTrigger] Post-restore scan failed: $e', tag: 'APP');
+      AppLogger.error('❌ [HealthTrigger] Post-restore scan failed: $e');
       return HealthReport.error(e.toString());
     }
   }
@@ -121,7 +118,6 @@ class DatabaseHealthTriggers {
   Future<void> scheduledDailyScan({required TimeOfDay time}) async {
     AppLogger.info(
   '⏰ [HealthTrigger] Scheduled scan at ${time.hour}:${time.minute}',
-  tag: 'APP',
 );
 
     try {
@@ -137,27 +133,26 @@ class DatabaseHealthTriggers {
         final autoFix = prefs.getBool('health_auto_fix_scheduled') ?? false;
 
         if (autoFix && report.totalIssues <= 20) {
-          AppLogger.info('🔧 [HealthTrigger] Auto-fixing scheduled issues...', tag: 'APP');
+          AppLogger.info('🔧 [HealthTrigger] Auto-fixing scheduled issues...');
           await fixer.fixAllIssues();
         } else {
           await _notifyIssuesFound(report);
         }
       }
     } catch (e) {
-      AppLogger.error('❌ [HealthTrigger] Scheduled scan failed: $e', tag: 'APP');
+      AppLogger.error('❌ [HealthTrigger] Scheduled scan failed: $e');
     }
   }
 
   /// تنبيه صحة حرجة
   Future<void> _notifyCriticalHealth(HealthReport report) async {
-    AppLogger.info('🔔 [HealthTrigger] Sending critical notification', tag: 'APP');
+    AppLogger.info('🔔 [HealthTrigger] Sending critical notification');
   }
 
   /// تنبيه مشاكل مكتشفة
   Future<void> _notifyIssuesFound(HealthReport report) async {
     AppLogger.info(
   '🔔 [HealthTrigger] Sending issues notification: ${report.totalIssues} issues',
-  tag: 'APP',
 );
   }
 }

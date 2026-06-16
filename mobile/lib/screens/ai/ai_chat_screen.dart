@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../../services/gemini_service.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// مزود AI النشط
 enum AiProvider {
@@ -66,7 +66,7 @@ class AiChatScreen extends ConsumerStatefulWidget {
   const AiChatScreen({super.key});
 
   @override
-  State<AiChatScreen> createState() => _AiChatScreenState();
+  ConsumerState<AiChatScreen> createState() => _AiChatScreenState();
 }
 
 class _AiChatScreenState extends ConsumerState<AiChatScreen>
@@ -181,7 +181,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
         _scrollToBottom();
       }
     } catch (e) {
-      AppLogger.error('❌ Chat Error: $e', tag: 'APP');
+      AppLogger.error('❌ Chat Error: $e');
       if (mounted) {
         String errorMsg = 'عذراً، حدث خطأ أثناء الاتصال.';
         if (e.toString().contains('API_KEY') || e.toString().contains('401')) {

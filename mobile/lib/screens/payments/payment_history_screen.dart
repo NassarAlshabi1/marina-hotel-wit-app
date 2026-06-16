@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
@@ -9,7 +10,6 @@ import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/time.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
   const PaymentHistoryScreen({super.key, this.bookingId});
@@ -391,7 +391,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           if (_toDate != null && paymentDate.isAfter(_toDate!)) {
             return false;
           }
-        } catch (e) { AppLogger.info('Date parse error in filter: $e', tag: 'APP'); }
+        } catch (e) { AppLogger.info('Date parse error in filter: $e'); }
       }
 
       return true;

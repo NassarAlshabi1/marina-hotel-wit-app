@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
@@ -113,7 +112,7 @@ class WhatsAppNotificationService {
   /// إرسال رسالة عبر CallMeBot WhatsApp API
   Future<bool> _sendViaCallMeBot(String message, {required String phone, required String apiKey}) async {
     if (phone.isEmpty || apiKey.isEmpty) {
-      AppLogger.error('❌ WhatsApp: رقم الهاتف أو مفتاح API فارغ — تأكد من إعدادات واتساب في Firebase Console', tag: 'APP');
+      AppLogger.error('❌ WhatsApp: رقم الهاتف أو مفتاح API فارغ — تأكد من إعدادات واتساب في Firebase Console');
       return false;
     }
     try {
@@ -150,13 +149,13 @@ class WhatsAppNotificationService {
             return true;
           }
         }
-        AppLogger.warning('⚠️ WhatsApp: فشل الإرسال — $body', tag: 'APP');
+        AppLogger.warning('⚠️ WhatsApp: فشل الإرسال — $body');
         return false;
       }
-      AppLogger.warning('⚠️ WhatsApp: HTTP ${response.statusCode} — $body', tag: 'APP');
+      AppLogger.warning('⚠️ WhatsApp: HTTP ${response.statusCode} — $body');
       return false;
     } catch (e) {
-      AppLogger.warning('❌ WhatsApp: خطأ في الإرسال — $e', tag: 'APP');
+      AppLogger.warning('❌ WhatsApp: خطأ في الإرسال — $e');
       return false;
     }
   }
@@ -214,7 +213,7 @@ class WhatsAppNotificationService {
 
       // Retry مرة واحدة إذا فشلت المحاولة الأولى
       if (!success) {
-        AppLogger.info('🔄 WhatsApp: إعادة محاولة الإرسال...', tag: 'APP');
+        AppLogger.info('🔄 WhatsApp: إعادة محاولة الإرسال...');
         await Future<void>.delayed(const Duration(seconds: 2));
         success = await _sendViaCallMeBot(
           buffer.toString().trimRight(),
@@ -224,12 +223,12 @@ class WhatsAppNotificationService {
       }
 
       if (success) {
-        AppLogger.info('✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}', tag: 'APP');
+        AppLogger.info('✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
       }
 
       return success;
     } catch (e) {
-      AppLogger.warning('❌ WhatsApp: خطأ في إرسال الإشعار: $e', tag: 'APP');
+      AppLogger.warning('❌ WhatsApp: خطأ في إرسال الإشعار: $e');
       return false;
     }
   }
@@ -463,13 +462,13 @@ class WhatsAppNotificationService {
       }
 
       if (success) {
-        AppLogger.warning('✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation', tag: 'APP');
+        AppLogger.warning('✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation');
       } else {
-        AppLogger.warning('⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — $operation', tag: 'APP');
+        AppLogger.warning('⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — $operation');
       }
       return success;
     } catch (e) {
-      AppLogger.warning('❌ WhatsApp: فشل إرسال تنبيه المزامنة — $e', tag: 'APP');
+      AppLogger.warning('❌ WhatsApp: فشل إرسال تنبيه المزامنة — $e');
       return false;
     }
   }
@@ -503,7 +502,7 @@ class WhatsAppNotificationService {
       }
       return success;
     } catch (e) {
-      AppLogger.warning('❌ WhatsApp: فشل إرسال تنبيه Crash — $e', tag: 'APP');
+      AppLogger.warning('❌ WhatsApp: فشل إرسال تنبيه Crash — $e');
       return false;
     }
   }

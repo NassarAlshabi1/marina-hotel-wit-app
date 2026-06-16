@@ -1,13 +1,12 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 String _normalizeArabic(String input) {
   var s = input.trim();
@@ -94,7 +93,7 @@ class BlacklistRepository {
     Map<String, dynamic> payload = const {};
     try {
       payload = jsonDecode(row.content) as Map<String, dynamic>;
-    } catch (e) { AppLogger.info('WARN: Failed to parse blacklist JSON: $e', tag: 'APP'); }
+    } catch (e) { AppLogger.info('WARN: Failed to parse blacklist JSON: $e'); }
     return BlacklistEntry(
       id: row.id,
       name: row.title,
@@ -204,7 +203,7 @@ class BlacklistRepository {
     Map<String, dynamic> payload = const {};
     try {
       payload = jsonDecode(row.content) as Map<String, dynamic>;
-    } catch (e) { AppLogger.info('WARN: Failed to parse blacklist JSON: $e', tag: 'APP'); }
+    } catch (e) { AppLogger.info('WARN: Failed to parse blacklist JSON: $e'); }
     payload['active'] = active;
     final now = Time.nowEpoch();
     final updated =

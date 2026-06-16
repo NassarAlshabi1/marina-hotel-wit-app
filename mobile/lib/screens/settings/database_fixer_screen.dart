@@ -7,7 +7,7 @@ class DatabaseFixerScreen extends ConsumerStatefulWidget {
   const DatabaseFixerScreen({super.key});
 
   @override
-  State<DatabaseFixerScreen> createState() => _DatabaseFixerScreenState();
+  ConsumerState<DatabaseFixerScreen> createState() => _DatabaseFixerScreenState();
 }
 
 class _DatabaseFixerScreenState extends ConsumerState<DatabaseFixerScreen> {

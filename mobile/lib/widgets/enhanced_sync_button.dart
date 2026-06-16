@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../services/connectivity_service.dart';
 import '../services/sync_error_recovery.dart';
 import '../services/sync_orchestrator.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class EnhancedSyncButton extends ConsumerStatefulWidget {
 
@@ -396,7 +396,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> {
         );
       }
     } catch (e) {
-      AppLogger.warning('❌ خطأ في رفع التغييرات: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في رفع التغييرات: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -438,7 +438,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> {
         );
       }
     } catch (e) {
-      AppLogger.warning('❌ خطأ في سحب التحديثات: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في سحب التحديثات: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -1,11 +1,10 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:uuid/uuid.dart';
 
 import 'appwrite_backup_operation_log.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 /// مدير سجل عمليات النقاط الاحتياطية
 class BackupHistoryManager {
@@ -23,7 +22,7 @@ class BackupHistoryManager {
           .map((e) => BackupOperationLog.fromJson(e as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      AppLogger.error('❌ Failed to load backup history: $e', tag: 'APP');
+      AppLogger.error('❌ Failed to load backup history: $e');
       return [];
     }
   }

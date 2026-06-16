@@ -196,12 +196,12 @@ class SyncErrorHandler {
   }
 
   void _logError(SyncError error) {
-    AppLogger.error('❌ [SyncError] ${error.type.name}: ${error.message}', tag: 'APP');
+    AppLogger.error('❌ [SyncError] ${error.type.name}: ${error.message}');
     if (error.context != null) {
-      AppLogger.info('   Context: ${error.context}', tag: 'APP');
+      AppLogger.info('   Context: ${error.context}');
     }
     if (error.stackTrace != null && kDebugMode) {
-      AppLogger.info('   Stack: ${error.stackTrace}', tag: 'APP');
+      AppLogger.info('   Stack: ${error.stackTrace}');
     }
   }
 

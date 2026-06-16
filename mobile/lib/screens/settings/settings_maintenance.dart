@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
@@ -18,7 +19,6 @@ import '../../services/google_drive_auto_sync_engine.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_guardian.dart';
 import '../../services/sync_orchestrator.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class SettingsMaintenanceScreen extends ConsumerStatefulWidget {
   const SettingsMaintenanceScreen({super.key});
@@ -131,7 +131,7 @@ class _SettingsMaintenanceScreenState
         });
       }
     } catch (e) {
-      AppLogger.warning('⚠️ SettingsMaintenance: فشل تحميل معلومات النظام: $e', tag: 'APP');
+      AppLogger.warning('⚠️ SettingsMaintenance: فشل تحميل معلومات النظام: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoadingInfo = false);

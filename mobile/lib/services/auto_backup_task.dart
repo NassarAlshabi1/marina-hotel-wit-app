@@ -1,10 +1,10 @@
 import 'package:flutter/widgets.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class AutoBackupTask {
   static const String taskName = 'autoBackupTask';
@@ -16,9 +16,9 @@ class AutoBackupTask {
       await Workmanager().initialize(
         callbackDispatcher,
       );
-      AppLogger.info('✅ تم تهيئة AutoBackupTask', tag: 'APP');
+      AppLogger.info('✅ تم تهيئة AutoBackupTask');
     } catch (e) {
-      AppLogger.warning('❌ خطأ في تهيئة AutoBackupTask: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في تهيئة AutoBackupTask: $e');
     }
   }
 
@@ -44,9 +44,9 @@ class AutoBackupTask {
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
-      AppLogger.info('✅ تم جدولة النسخ اليومي في $time', tag: 'APP');
+      AppLogger.info('✅ تم جدولة النسخ اليومي في $time');
     } catch (e) {
-      AppLogger.warning('❌ خطأ في جدولة النسخ اليومي: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في جدولة النسخ اليومي: $e');
     }
   }
 
@@ -75,9 +75,9 @@ class AutoBackupTask {
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
-      AppLogger.info('✅ تم جدولة النسخ الأسبوعي في $time يوم $weekday', tag: 'APP');
+      AppLogger.info('✅ تم جدولة النسخ الأسبوعي في $time يوم $weekday');
     } catch (e) {
-      AppLogger.warning('❌ خطأ في جدولة النسخ الأسبوعي: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في جدولة النسخ الأسبوعي: $e');
     }
   }
 
@@ -106,9 +106,9 @@ class AutoBackupTask {
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
-      AppLogger.info('✅ تم جدولة النسخ الشهري في $time يوم $day', tag: 'APP');
+      AppLogger.info('✅ تم جدولة النسخ الشهري في $time يوم $day');
     } catch (e) {
-      AppLogger.warning('❌ خطأ في جدولة النسخ الشهري: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في جدولة النسخ الشهري: $e');
     }
   }
 
@@ -116,9 +116,9 @@ class AutoBackupTask {
   static Future<void> cancelScheduled() async {
     try {
       await _cancelExisting();
-      AppLogger.info('✅ تم إلغاء جميع مهام النسخ المجدولة', tag: 'APP');
+      AppLogger.info('✅ تم إلغاء جميع مهام النسخ المجدولة');
     } catch (e) {
-      AppLogger.warning('❌ خطأ في إلغاء المهام المجدولة: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في إلغاء المهام المجدولة: $e');
     }
   }
 
@@ -220,9 +220,9 @@ class AutoBackupTask {
         },
         existingWorkPolicy: ExistingWorkPolicy.replace,
       );
-      AppLogger.info('✅ تم تشغيل مهمة النسخ الفوري', tag: 'APP');
+      AppLogger.info('✅ تم تشغيل مهمة النسخ الفوري');
     } catch (e) {
-      AppLogger.warning('❌ خطأ في تشغيل مهمة النسخ الفوري: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في تشغيل مهمة النسخ الفوري: $e');
     }
   }
 }
@@ -233,7 +233,7 @@ void callbackDispatcher() {
   WidgetsFlutterBinding.ensureInitialized();
   Workmanager().executeTask((task, inputData) async {
     try {
-      AppLogger.info('🔄 بدء تنفيذ مهمة النسخ الخلفية: $task', tag: 'APP');
+      AppLogger.info('🔄 بدء تنفيذ مهمة النسخ الخلفية: $task');
 
       // قراءة إعدادات النسخ التلقائي
       final prefs = getSharedPrefs();
@@ -247,11 +247,11 @@ void callbackDispatcher() {
       // تنفيذ النسخ المحلي إذا كان مُفعلاً
       if (enableLocal) {
         try {
-          AppLogger.info('📱 بدء النسخ الاحتياطي المحلي...', tag: 'APP');
+          AppLogger.info('📱 بدء النسخ الاحتياطي المحلي...');
           await localBackupService.createLocalBackup(format: backupFormat);
-          AppLogger.info('✅ تم النسخ الاحتياطي المحلي بنجاح', tag: 'APP');
+          AppLogger.info('✅ تم النسخ الاحتياطي المحلي بنجاح');
         } catch (e) {
-          AppLogger.warning('❌ خطأ في النسخ الاحتياطي المحلي: $e', tag: 'APP');
+          AppLogger.warning('❌ خطأ في النسخ الاحتياطي المحلي: $e');
           success = false;
         }
       }
@@ -259,35 +259,34 @@ void callbackDispatcher() {
       // تنفيذ النسخ السحابي إذا كان مُفعلاً ومتصل
       if (enableGoogleDrive) {
         try {
-          AppLogger.info('☁️ بدء النسخ الاحتياطي السحابي...', tag: 'APP');
+          AppLogger.info('☁️ بدء النسخ الاحتياطي السحابي...');
           final driveBackupService = GoogleDriveBackupService();
           if (!driveBackupService.isSignedIn) {
             await driveBackupService.attemptSilentSignIn();
           }
           if (driveBackupService.isSignedIn) {
             await driveBackupService.performAutoBackup();
-            AppLogger.info('✅ تم النسخ الاحتياطي السحابي بنجاح', tag: 'APP');
+            AppLogger.info('✅ تم النسخ الاحتياطي السحابي بنجاح');
           } else {
             AppLogger.warning(
   '⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي',
-  tag: 'APP',
 );
           }
         } catch (e) {
-          AppLogger.warning('❌ خطأ في النسخ الاحتياطي السحابي: $e', tag: 'APP');
+          AppLogger.warning('❌ خطأ في النسخ الاحتياطي السحابي: $e');
           // عدم فشل المهمة إذا فشل النسخ السحابي فقط
         }
       }
 
       if (success || enableLocal) {
-        AppLogger.info('✅ تم تنفيذ مهمة النسخ الخلفية بنجاح', tag: 'APP');
+        AppLogger.info('✅ تم تنفيذ مهمة النسخ الخلفية بنجاح');
         return Future.value(true);
       } else {
-        AppLogger.warning('❌ فشل في تنفيذ جميع أنواع النسخ', tag: 'APP');
+        AppLogger.warning('❌ فشل في تنفيذ جميع أنواع النسخ');
         return Future.value(false);
       }
     } catch (e) {
-      AppLogger.warning('❌ خطأ في تنفيذ مهمة النسخ الخلفية: $e', tag: 'APP');
+      AppLogger.warning('❌ خطأ في تنفيذ مهمة النسخ الخلفية: $e');
 
       // إرجاع false سيؤدي إلى إعادة تشغيل المهمة
       return Future.value(false);

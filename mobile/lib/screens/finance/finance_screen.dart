@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
@@ -14,7 +15,6 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../payments/booking_checkout_screen.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class FinanceScreen extends ConsumerStatefulWidget {
   const FinanceScreen({super.key});
@@ -948,10 +948,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         message: message.toString(),
       );
       if (result.quotaMessage != null) {
-        AppLogger.info('تجاوز حصة الواتساب: ${result.quotaMessage}', tag: 'APP');
+        AppLogger.info('تجاوز حصة الواتساب: ${result.quotaMessage}');
       }
     } catch (_) {
-      AppLogger.info('تعذّر إرسال إشعار واتساب للدفعة التراكمية', tag: 'APP');
+      AppLogger.info('تعذّر إرسال إشعار واتساب للدفعة التراكمية');
     }
   }
 }

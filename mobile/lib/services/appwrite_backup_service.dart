@@ -1,14 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:appwrite/appwrite.dart';
-import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+
 import '../utils/app_logger.dart';
 import 'appwrite_config.dart';
 import 'appwrite_config_manager.dart';
 import 'appwrite_service.dart';
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 
 class AppwriteBackupResult {
 
@@ -75,8 +75,8 @@ class AppwriteBackupService {
         }
         offset += limit;
       } catch (e) {
-        AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
-        AppLogger.warning('⚠️ AppwriteBackupService: فشل جلب المجموعات، استخدام fallback', tag: 'APP');
+        AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
+        AppLogger.warning('⚠️ AppwriteBackupService: فشل جلب المجموعات، استخدام fallback');
 
         usedFallback = true;
         break;
@@ -93,8 +93,8 @@ class AppwriteBackupService {
               );
           allCollections.add(collection);
         } catch (e) {
-          AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
-          AppLogger.warning('⚠️ AppwriteBackupService: فشل جلب المجموعة $id', tag: 'APP');
+          AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
+          AppLogger.warning('⚠️ AppwriteBackupService: فشل جلب المجموعة $id');
 
           allCollections.add({r'$id': id});
         }
@@ -111,8 +111,8 @@ class AppwriteBackupService {
     try {
       final map = (collection as dynamic).toMap();
       return Map<String, dynamic>.from(map as Map);
-    } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
-      AppLogger.warning('⚠️ AppwriteBackupService: فشل serialize collection via toMap', tag: 'APP');
+    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
+      AppLogger.warning('⚠️ AppwriteBackupService: فشل serialize collection via toMap');
 
       try {
         final dynamic c = collection;
@@ -123,8 +123,8 @@ class AppwriteBackupService {
           'documentSecurity': c.documentSecurity,
           'permissions': c.permissions,
         };
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
-        AppLogger.warning('⚠️ AppwriteBackupService: فشل serialize collection تماماً', tag: 'APP');
+      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
+        AppLogger.warning('⚠️ AppwriteBackupService: فشل serialize collection تماماً');
 
         return {'raw': collection.toString()};
       }
