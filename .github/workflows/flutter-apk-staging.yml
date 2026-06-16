@@ -1,6 +1,10 @@
 # Name: Build Flutter Staging APK
 #
 # This workflow is triggered manually via the 'workflow_dispatch' event for staging builds.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 name: Build Flutter Staging APK
 
 on:
