@@ -39,6 +39,28 @@ class AppwriteSyncUtils {
       'hotelDayCheckin', 'hotelDayCheckout', 'isFullyPaid', 'isOverdue',
       'lastNightEpoch', 'localUuid', 'needsCheckoutReview', 'notes',
       'roomNumber', 'serverBookingId', 'serverId', 'status', 'stayDurationIso',
+      // ✅ إصلاح حرج لمنع فقدان التحديثات (Lost Update):
+      // هذه الحقول كانت مفقودة من المخطط المحلي، مما يسبب:
+      //   1. filterPayloadForCollection يحذفها قبل الرفع → مستند Appwrite
+      //      لا يحتوي على lastModified/version/origin/deletedAt إلخ.
+      //   2. عند السحب، _isRemoteDataNewer يجد lastModified=null في البيان
+      //      البعيد → كان يرجع true (احتياطاً) → يستبدل المحلي الأحدث بالبعيد القديم
+      //   3. النتيجة: نزيل تم تسجيل مغادرته على جهاز 1 يُعاد إلى "محجوز"
+      //      على جهاز 2 بعد السحب الكامل
+      // الآن هذه الحقول مُضافة لتضمن:
+      //   - رفع lastModified/version/origin/deletedAt مع كل تغيير
+      //   - حل التعارضات بشكل صحيح (Last Write Wins) عبر مقارنة lastModified
+      //   - منع استبدال الأحدث بالأقدم
+      'createdAt', 'createdAtEpoch', 'createdAtIso',
+      'updatedAt', 'updatedAtIso',
+      'deletedAt', 'deletedAtIso',
+      'lastModified', 'lastModifiedEpoch',
+      'version', 'origin', 'vectorClock',
+      'deviceId',
+      // حقول إضافية محسوبة موجودة في نموذج Booking
+      'calculatedNights', 'expectedNights', 'totalNightsCached',
+      'totalDueCached', 'totalPaidCached', 'remainingBalanceCached',
+      'discount', 'discountType', 'discountStartDate',
     },
     'expenses': {
       'amount', 'cashFlowUuid', 'cashTransactionId', 'categoryUuid',

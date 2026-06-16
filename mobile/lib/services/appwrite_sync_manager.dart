@@ -1382,10 +1382,28 @@ class AppwriteSyncManager {
   /// - كتابة غير ضرورية لبيانات مطابقة
   /// - تغيير lastModified المحلي بدون سبب حقيقي
   /// - حلقة المزامنة الدائرية (pull → update → push → pull → ...)
+  /// ✅ استخراج $updatedAt من مستند Appwrite وتحويله إلى ثوانٍ epoch.
+  ///
+  /// $updatedAt هو حقل نظام في Appwrite يتوفر دائماً في كل مستند ويُحدَّث
+  /// تلقائياً عند أي تعديل. نستخدمه كمرجع زمني موثوق لفحص التعارضات عندما
+  /// يكون lastModified البعيد مفقوداً (وهو ما يحدث في بعض المجموعات مثل
+  /// bookings حيث لا يُخزن lastModified في مخطط Appwrite).
+  int? _extractUpdatedAtSec(models.Document doc) {
+    try {
+      final updatedAtStr = doc.$updatedAt;
+      if (updatedAtStr.isEmpty) return null;
+      final dt = DateTime.parse(updatedAtStr);
+      return (dt.millisecondsSinceEpoch / 1000).round();
+    } catch (_) {
+      return null;
+    }
+  }
+
   bool _isRemoteDataNewer(
     Map<String, dynamic> remoteData,
     int? localLastModified, {
     int? localDeletedAt,
+    int? remoteUpdatedAtSec,
   }) {
     // ✅ إصلاح: إذا حُذف السجل محلياً (soft delete) وكان الحذف أحدث
     // من البيانات البعيدة، لا نكتب فوق الحذف المحلي — نحمي الحذف
@@ -1410,13 +1428,32 @@ class AppwriteSyncManager {
         _asIntNullable(remoteData['last_modified']) ??
         _asIntNullable(remoteData['lastModifiedEpoch']);
 
-    if (remoteLastModified == null) {
-      // لا نعرف عمر البيانات البعيدة — نتابع بالتحديث احتياطاً
-      return true;
+    // ✅ إصلاح حرج لمنع فقدان التحديثات (Lost Update):
+    // المنطق السابق كان يرجع true عند غياب lastModified البعيد، مما يسمح
+    // للبيانات البعيدة القديمة باستبدال البيانات المحلية الأحدث. هذا يحدث
+    // خصوصاً مع مجموعة bookings في Appwrite حيث لا يُخزن lastModified في
+    // المخطط. الآن نستخدم $updatedAt (متوفر دائماً في كل مستند Appwrite)
+    // كمرجع زمني موثوق بدلاً من إرجاع true بشكل خطير.
+    final effectiveRemoteTs = remoteLastModified ?? remoteUpdatedAtSec;
+
+    if (effectiveRemoteTs == null) {
+      // ⚠️ لا نعرف عمر البيانات البعيدة على الإطلاق (لا lastModified ولا
+      // $updatedAt) — هذا حالة استثنائية نادرة جداً.
+      // السياسة الآمنة: لا نستبدل بيانات محلية موجودة ببيانات بعيدة مجهولة العمر.
+      // هذا يحمي من فقدان التحديثات المحلية الأحدث.
+      _logger.warning(
+        '⚠️ _isRemoteDataNewer: لا يوجد lastModified ولا \$updatedAt للبيان البعيد — '
+        'الحفاظ على البيانات المحلية (localLastModified=$localLastModified) '
+        'لمنع فقدان التحديثات. localUuid=${remoteData['localUuid']}',
+        tag: 'SYNC',
+      );
+      return false;
     }
 
     // البيانات البعيدة أحدث فقط إذا كان lastModified أكبر من المحلي
-    return remoteLastModified > localLastModified;
+    // ✅ استخدام >= بدلاً من > سيتسبب في إعادة كتابة نفس البيان — نستخدم >
+    // للسماح بالتحديث فقط عند التأكد من أن البعيد أحدث فعلاً.
+    return effectiveRemoteTs > localLastModified;
   }
 
   Future<int> _syncRooms(List<models.Document> documents) async {
@@ -1434,7 +1471,7 @@ class AppwriteSyncManager {
               ..limit(1))
             .getSingleOrNull();
 
-        if (!_isRemoteDataNewer(data, existingRoom?.lastModified, localDeletedAt: existingRoom?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existingRoom?.lastModified, localDeletedAt: existingRoom?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue; // البيانات مطابقة أو السجل محذوف محلياً
         }
 
@@ -1466,7 +1503,7 @@ class AppwriteSyncManager {
         final oldRoomNumber = existingBooking?.roomNumber;
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
-        if (!_isRemoteDataNewer(data, existingBooking?.lastModified, localDeletedAt: existingBooking?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existingBooking?.lastModified, localDeletedAt: existingBooking?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue; // البيانات مطابقة أو السجل محذوف محلياً
         }
 
@@ -1654,7 +1691,7 @@ class AppwriteSyncManager {
               ..where((e) => e.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
@@ -1693,7 +1730,7 @@ class AppwriteSyncManager {
               ..where((e) => e.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
@@ -2324,7 +2361,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
@@ -2393,7 +2430,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
@@ -4786,7 +4823,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
@@ -4819,7 +4856,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
@@ -4855,7 +4892,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
@@ -4928,7 +4965,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
@@ -4963,7 +5000,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
@@ -5081,7 +5118,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
@@ -5166,7 +5203,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
@@ -5264,7 +5301,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
@@ -5341,7 +5378,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.timestamp)) {
+        if (!_isRemoteDataNewer(data, existing?.timestamp, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
@@ -5516,7 +5553,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
           continue;
         }
 
