@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../models/payment_models.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' as db;
@@ -253,7 +254,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       context: context,
       barrierDismissible: false,
       builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
           title: Row(
             children: [
@@ -2571,21 +2572,21 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           )
         : summary.totalAmount;
     final effectiveRemaining = (effectiveNightTotal - summary.paidAmount)
-        .clamp(0.0, effectiveNightTotal)
-        .toDouble();
+        .clamp(0.0, effectiveNightTotal);
     final hasRemaining = effectiveRemaining > 0;
 
     // 3. عرض نافذة التأكيد العادية
     // ignore: use_build_context_synchronously
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              hasRemaining ? Icons.warning : Icons.check_circle,
-              color: hasRemaining ? Colors.red : Colors.green,
-            ),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                hasRemaining ? Icons.warning : Icons.check_circle,
+                color: hasRemaining ? Colors.red : Colors.green,
+              ),
             const SizedBox(width: 8),
             Text(
               hasRemaining ? 'تحذير!' : 'تأكيد المغادرة',
@@ -2682,6 +2683,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             child: Text(hasRemaining ? 'متابعة رغم ذلك' : 'تأكيد المغادرة'),
           ),
         ],
+      ),
       ),
     );
   }
@@ -2919,6 +2921,26 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       // ✅ تسجيل تغيير المزامنة بعد تحرير الغرفة
       markDataChanged();
 
+      // ✅ رفع التغييرات إلى Appwrite Cloud فوراً (push-only بدون pull)
+      // يضمن عدم حدوث سحب تلقائي بعد الرفع، وبالتالي تجنّب تعارض البيانات
+      // عند المغادرة المبكرة. الـ outbox subscription في AppwriteSyncManager
+      // يستخدم sync(pull: false) تلقائياً، لكن هذا الاستدعاء الصريح يضمن
+      // الرفع الفوري بدون انتظار debounce الافتراضي.
+      unawaited(
+        ref
+            .read(appwriteSyncManagerProvider)
+            .pushLocalChanges()
+            .then((success) {
+          debugPrint(
+            '📤 [EarlyCheckout] push-only to Appwrite Cloud: '
+            '${success ? "success" : "deferred (will retry via outbox)"}',
+          );
+        }).catchError((Object e) {
+          debugPrint('⚠️ [EarlyCheckout] push to Appwrite Cloud failed: $e — '
+              'سيتم إعادة المحاولة تلقائياً عبر outbox',);
+        }),
+      );
+
       // 4. إرسال رسالة واتساب
       final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
       if (cleanedPhone.isNotEmpty) {
@@ -3017,6 +3039,27 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       }
       // ✅ تسجيل تغيير المزامنة بعد تحرير الغرفة
       markDataChanged();
+
+      // ✅ رفع التغييرات إلى Appwrite Cloud فوراً (push-only بدون pull)
+      // هذا يضمن عدم حدوث سحب تلقائي بعد الرفع، وبالتالي تجنّب تعارض
+      // البيانات عند تسجيل المغادرة. الـ outbox subscription في
+      // AppwriteSyncManager يستخدم sync(pull: false) تلقائياً، لكن هذا
+      // الاستدعاء الصريح يضمن الرفع الفوري بدون انتظار debounce الافتراضي.
+      unawaited(
+        ref
+            .read(appwriteSyncManagerProvider)
+            .pushLocalChanges()
+            .then((success) {
+          debugPrint(
+            '📤 [Checkout] push-only to Appwrite Cloud: '
+            '${success ? "success" : "deferred (will retry via outbox)"}',
+          );
+        }).catchError((Object e) {
+          debugPrint('⚠️ [Checkout] push to Appwrite Cloud failed: $e — '
+              'سيتم إعادة المحاولة تلقائياً عبر outbox',);
+        }),
+      );
+
       if (!mounted) {
         return;
       }
