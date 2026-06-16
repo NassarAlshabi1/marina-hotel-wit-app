@@ -133,7 +133,7 @@ Future<List<String>> buildDeltaQueries(int lastPullTs) async {
     return [];
   }
   final cutoffSeconds = lastPullTs - 5;
-  final isMillis = await _isRemoteEpochMillis();
+  final isMillis = await isRemoteEpochMillis();
   if (isMillis) {
     return [Query.greaterThan('lastModified', cutoffSeconds * 1000)];
   }

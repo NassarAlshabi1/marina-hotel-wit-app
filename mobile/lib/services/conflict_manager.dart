@@ -264,7 +264,7 @@ class ConflictManager {
     final rows = await (db.delete(db.syncConflicts)
           ..where((t) =>
               t.createdAt.isSmallerOrEqualValue(cutoff.toIso8601String()) &
-              t.resolution.isNotEqualTo('')))
+              (t.resolution.equals('')).not()))
         .go();
     if (rows > 0) {
       _pendingConflicts.removeWhere((c) => c.detectedAt.isBefore(cutoff));
