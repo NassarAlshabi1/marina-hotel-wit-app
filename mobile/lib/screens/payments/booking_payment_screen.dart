@@ -1477,11 +1477,65 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       ),
     ];
 
+    // ✅ رسالة تحذير المبلغ المتبقي + زر إنشاء دين
+    final hasRemainingBalance = summary.remainingAmount > 0;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ✅ رسالة تحذير: النزيل عليه مبلغ متبقي
+          if (hasRemainingBalance) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: Colors.orange.shade700, size: 24),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '⚠️ النزيل عليه مبلغ متبقي: ${_currencyFmt.format(summary.remainingAmount)}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // ✅ زر إنشاء دين بالمبلغ المتبقي (برتقالي)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _createDebtFromRemainingBalance(summary, booking),
+                icon: const Icon(Icons.add_circle, size: 18),
+                label: Text(
+                  'إنشاء دين بالمبلغ المتبقي (${_currencyFmt.format(summary.remainingAmount)})',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -3011,6 +3065,118 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       }
     } catch (_) {
       // تجاهل الأخطاء
+    }
+  }
+
+  /// ✅ إنشاء دين بالمبلغ المتبقي لدى النزيل
+  /// يضيف الدين تلقائياً إلى جدول الديون مع ربطه بالحجز الحالي
+  Future<void> _createDebtFromRemainingBalance(
+    BookingPaymentSummary summary,
+    db.Booking booking,
+  ) async {
+    final remaining = summary.remainingAmount;
+    if (remaining <= 0) return;
+
+    // تأكيد المستخدم
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.add_circle, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('إنشاء دين بالمبلغ المتبقي'),
+            ],
+          ),
+          content: Text(
+            'سيتم إنشاء دين بقيمة ${_currencyFmt.format(remaining)} '
+            'للنزيل ${booking.guestName} (غرفة ${booking.roomNumber}).\n\n'
+            'الدين سيُضاف تلقائياً إلى قائمة الديون ويمكن متابعته '
+            'وسداد لاحقاً.\n\nهل تريد المتابعة؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop<bool>(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop<bool>(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text('إنشاء الدين'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final debtsRepo = ref.read(debtsRepoProvider);
+      final nowIso = Time.nowIso();
+
+      await debtsRepo.create(
+        bookingLocalId: booking.id,
+        guestName: booking.guestName,
+        checkinDate: booking.checkinDate,
+        checkoutDate: booking.actualCheckout ?? booking.checkoutDate ?? nowIso,
+        dateRecorded: nowIso,
+        debtReason: 'مبلغ متبقي من إقامة - غرفة ${booking.roomNumber}',
+        totalAmount: remaining,
+        paidAmount: 0,
+        paymentDate: nowIso,
+        isSettled: false,
+        note: 'تم إنشاء هذا الدين تلقائياً من شاشة المدفوعات '
+            'عند وجود مبلغ متبقي لدى النزيل.',
+      );
+
+      // ✅ تسجيل تغيير المزامنة
+      markDataChanged();
+
+      // ✅ رفع التغييرات إلى Appwrite Cloud فوراً (push-only)
+      unawaited(
+        ref
+            .read(appwriteSyncManagerProvider)
+            .pushLocalChanges()
+            .then((success) {
+          debugPrint(
+            '📤 [CreateDebt] push-only to Appwrite Cloud: '
+            '${success ? "success" : "deferred"}',
+          );
+        }).catchError((Object e) {
+          debugPrint('⚠️ [CreateDebt] push failed: $e');
+        }),
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '✅ تم إنشاء دين بقيمة ${_currencyFmt.format(remaining)} '
+            'وإضافته إلى قائمة الديون',
+          ),
+          backgroundColor: Colors.orange,
+          action: SnackBarAction(
+            label: 'عرض الديون',
+            textColor: Colors.white,
+            onPressed: () {
+              // التنقل لشاشة الديون
+              Navigator.pushNamed(context, '/debts');
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ خطأ في إنشاء الدين: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل إنشاء الدين: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
