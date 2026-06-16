@@ -12,10 +12,16 @@ on:
     branches:
       - main
       - marina
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches:
       - main
       - marina
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/ci.yml'
   workflow_dispatch:
 
 jobs:

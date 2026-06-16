@@ -9,8 +9,14 @@ on:
     branches:
       - main
       - marina
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/sonarcloud.yml'
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/sonarcloud.yml'
   workflow_dispatch:
 
 permissions:
