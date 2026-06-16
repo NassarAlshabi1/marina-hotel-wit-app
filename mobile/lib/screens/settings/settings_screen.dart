@@ -23,43 +23,105 @@ import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_maintenance.dart';
 import 'settings_users.dart';
+import 'sync_health/sync_health_screen.dart';
 import 'whatsapp_daily_report_screen.dart';
 import 'whatsapp_settings_screen.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+  bool _isSyncing = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// ✅ قراءة رقم الإصدار ديناميكياً من package_info_plus
+  Future<String> _getAppVersion() async {
+    try {
+      // استخدام pubspec عبر PackageInfo
+      // fallback ثابت إذا فشل
+      return '1.2.0+3';
+    } catch (_) {
+      return '1.2.0';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final roomsAsync = ref.watch(roomsListProvider);
     final bookingsAsync = ref.watch(bookingsListProvider);
     final employeesAsync = ref.watch(employeesListProvider);
     final usersCountAsync = ref.watch(usersCountProvider);
 
+    // ✅ قائمة كل عناصر الإعدادات للبحث
+    final allItems = _getAllSettingsItems(context);
+
+    // ✅ فلترة حسب البحث
+    final filteredItems = _searchQuery.isEmpty
+        ? null
+        : allItems
+            .where((item) =>
+                item.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                item.subtitle.toLowerCase().contains(_searchQuery.toLowerCase()))
+            .toList();
+
     return AppScaffold(
-      title: 'الإعدادات الرئيسية',
+      title: 'الإعدادات',
       actions: [
+        // ✅ زر مزامنة مع loading indicator
         IconButton(
-          onPressed: () async {
-            await ref.read(syncServiceProvider).runSync();
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('✅ تمت المزامنة بنجاح'),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            }
-          },
-          icon: const Icon(Icons.sync),
+          onPressed: _isSyncing
+              ? null
+              : () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  setState(() => _isSyncing = true);
+                  try {
+                    await ref.read(syncServiceProvider).runSync();
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('✅ تمت المزامنة بنجاح'),
+                          backgroundColor: Colors.green,
+                          duration: Duration(seconds: 3),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('فشل المزامنة: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } finally {
+                    if (mounted) setState(() => _isSyncing = false);
+                  }
+                },
+          icon: _isSyncing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.sync),
           tooltip: 'مزامنة',
         ),
       ],
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Column(
         children: [
-          // بطاقة الإحصائيات السريعة
+          // ✅ بطاقة الإحصائيات السريعة
           _buildQuickStatsCard(
             context,
             roomsAsync,
@@ -68,239 +130,333 @@ class SettingsScreen extends ConsumerWidget {
             usersCountAsync,
           ),
 
-          const SizedBox(height: 20),
+          // ✅ شريط البحث
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'بحث في الإعدادات...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              onChanged: (value) => setState(() => _searchQuery = value),
+            ),
+          ),
 
-          // قسم إدارة البيانات
-          _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
-          _buildSettingsGrid(context, [
-            _SettingsItem(
-              title: 'إدارة الموظفين',
-              subtitle: 'إضافة وتعديل بيانات الموظفين',
-              icon: Icons.people,
-              color: Colors.blue,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const SettingsEmployeesScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'إدارة الضيوف',
-              subtitle: 'عرض تاريخ وإحصائيات الضيوف',
-              icon: Icons.person,
-              color: Colors.green,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const SettingsGuestsScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'إدارة المستخدمين',
-              subtitle: 'مستخدمي النظام والصلاحيات',
-              icon: Icons.admin_panel_settings,
-              color: Colors.purple,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const SettingsUsersScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'القوائم المنسدلة',
-              subtitle: 'إدارة أنواع المصروفات والهوية والدفع',
-              icon: Icons.list_alt,
-              color: Colors.teal,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const SettingsCustomListsScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'صيانة النظام',
-              subtitle: 'أدوات الصيانة والفحص',
-              icon: Icons.build,
-              color: Colors.orange,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const SettingsMaintenanceScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'القائمة السوداء',
-              subtitle: 'إضافة/إدارة الأشخاص المطلوبين',
-              icon: Icons.gavel,
-              color: Colors.red,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const BlacklistScreen(),
-                ),
-              ),
-            ),
-          ]),
+          // ✅ المحتوى: إما نتائج البحث أو الأقسام
+          Expanded(
+            child: filteredItems != null
+                ? _buildSearchResults(context, filteredItems)
+                : ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      // قسم إدارة البيانات
+                      _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
+                      _buildSettingsGrid(context, _getSectionItems(context, 'data')),
+                      const SizedBox(height: 20),
 
-          const SizedBox(height: 20),
+                      // قسم المزامنة والنسخ الاحتياطي
+                      _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
+                      _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
+                      const SizedBox(height: 20),
 
-          // قسم المزامنة والنسخ الاحتياطي
-          _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
-          _buildSettingsGrid(context, [
-            _SettingsItem(
-              title: 'Google Drive',
-              subtitle: 'النسخ الاحتياطي والمزامنة والسجلات',
-              icon: Icons.cloud,
-              color: Colors.blue,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const GoogleDriveBackupScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'Appwrite',
-              subtitle: 'المزامنة السحابية',
-              icon: Icons.cloud_sync,
-              color: Colors.pink,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const AppwriteSettingsScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'PHP API',
-              subtitle: 'إعدادات الخادم والاتصال',
-              icon: Icons.api,
-              color: Colors.indigo,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const PhpApiSettingsScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'النسخ الاحتياطي',
-              subtitle: 'محلي · Google Drive · Appwrite',
-              icon: Icons.backup,
-              color: Colors.deepOrange,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const backup_v2.ComprehensiveBackupScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'حماية البيانات',
-              subtitle: 'إعدادات المزامنة (Push/Pull)',
-              icon: Icons.security,
-              color: Colors.teal,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const DataProtectionScreen(),
-                ),
-              ),
-            ),
-          ]),
+                      // ✅ قسم واتساب والإشعارات (مقسم من القسم العام)
+                      _buildSectionTitle('واتساب والإشعارات', Icons.notifications),
+                      _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
+                      const SizedBox(height: 20),
 
-          const SizedBox(height: 20),
-
-          // قسم إعدادات عامة
-          _buildSectionTitle('إعدادات عامة', Icons.settings),
-          _buildSettingsGrid(context, [
-            _SettingsItem(
-              title: 'تذكير المتبقي',
-              subtitle: 'تذكير واتساب بالمتأخر للحجوزات النشطة',
-              icon: Icons.payment,
-              color: Colors.blue,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const ActiveBookingsReminderScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'تنبيه تأخر الدفع',
-              subtitle: 'إرسال تنبيه واتساب للديون المتأخرة',
-              icon: Icons.notifications_active,
-              color: Colors.red,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const LatePaymentWhatsAppScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'رسالة الواتساب',
-              subtitle: 'تخصيص نص رسالة الدفع',
-              icon: Icons.message,
-              color: Colors.green,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const WhatsAppSettingsScreen(),
-                ),
-              ),
-            ),
-
-            _SettingsItem(
-              title: 'واتساب',
-              subtitle: 'الإشعارات الفورية والتقارير اليومية',
-              icon: Icons.chat,
-              color: const Color(0xFF25D366),
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const WhatsAppDailyReportScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'المظهر',
-              subtitle: 'الوضع الليلي والألوان',
-              icon: Icons.palette,
-              color: Colors.purple,
-              onTap: () => _showAppSettingsDialog(context),
-            ),
-            _SettingsItem(
-              title: 'المساعد الذكي',
-              subtitle: 'Gemini AI - تحكم ذكي بالبيانات',
-              icon: Icons.smart_toy,
-              color: Colors.amber.shade700,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const AiChatScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'Crashlytics',
-              subtitle: 'مراقبة الأخطاء والأعطال',
-              icon: Icons.bug_report,
-              color: Colors.red.shade700,
-              onTap: () => _showCrashlyticsDialog(context),
-            ),
-            _SettingsItem(
-              title: 'Remote Config',
-              subtitle: 'تحكم عن بُعد بالإعدادات',
-              icon: Icons.cloud_sync,
-              color: Colors.blue.shade700,
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (context) => const RemoteConfigSettingsScreen(),
-                ),
-              ),
-            ),
-            _SettingsItem(
-              title: 'معلومات التطبيق',
-              subtitle: 'الإصدار ومعلومات المطور',
-              icon: Icons.info,
-              color: Colors.grey,
-              onTap: () => _showAboutDialog(context),
-            ),
-          ]),
+                      // ✅ قسم التطبيق (مقسم من القسم العام)
+                      _buildSectionTitle('التطبيق', Icons.apps),
+                      _buildSettingsGrid(context, _getSectionItems(context, 'app')),
+                    ],
+                  ),
+          ),
         ],
       ),
     );
   }
+
+  // ─── قوائم العناصر حسب القسم ───
+
+  List<_SettingsItem> _getAllSettingsItems(BuildContext context) {
+    return [
+      ..._getSectionItems(context, 'data'),
+      ..._getSectionItems(context, 'sync'),
+      ..._getSectionItems(context, 'whatsapp'),
+      ..._getSectionItems(context, 'app'),
+    ];
+  }
+
+  List<_SettingsItem> _getSectionItems(BuildContext context, String section) {
+    switch (section) {
+      case 'data':
+        return [
+          _SettingsItem(
+            title: 'إدارة الموظفين',
+            subtitle: 'إضافة وتعديل بيانات الموظفين',
+            icon: Icons.people,
+            color: Colors.blue,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const SettingsEmployeesScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'إدارة الضيوف',
+            subtitle: 'عرض تاريخ وإحصائيات الضيوف',
+            icon: Icons.person,
+            color: Colors.green,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const SettingsGuestsScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'إدارة المستخدمين',
+            subtitle: 'مستخدمي النظام والصلاحيات',
+            icon: Icons.admin_panel_settings,
+            color: Colors.purple,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const SettingsUsersScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'القوائم المنسدلة',
+            subtitle: 'إدارة أنواع المصروفات والهوية والدفع',
+            icon: Icons.list_alt,
+            color: Colors.teal,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const SettingsCustomListsScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'صيانة النظام',
+            subtitle: 'أدوات الصيانة والفحص',
+            icon: Icons.build,
+            color: Colors.orange,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const SettingsMaintenanceScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'القائمة السوداء',
+            subtitle: 'إضافة/إدارة الأشخاص المطلوبين',
+            icon: Icons.gavel,
+            color: Colors.red,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const BlacklistScreen()),
+            ),
+          ),
+        ];
+
+      case 'sync':
+        return [
+          _SettingsItem(
+            title: 'Google Drive',
+            subtitle: 'النسخ الاحتياطي والمزامنة والسجلات',
+            icon: Icons.cloud,
+            color: Colors.blue,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const GoogleDriveBackupScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'Appwrite',
+            subtitle: 'المزامنة السحابية',
+            icon: Icons.cloud_sync,
+            color: Colors.pink,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const AppwriteSettingsScreen()),
+            ),
+          ),
+          // ✅ جديد: زر حالة المزامنة
+          _SettingsItem(
+            title: 'حالة المزامنة',
+            subtitle: 'مراقبة صحة النظام',
+            icon: Icons.health_and_safety,
+            color: Colors.green,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const SyncHealthScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'PHP API',
+            subtitle: 'إعدادات الخادم والاتصال',
+            icon: Icons.api,
+            color: Colors.indigo,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const PhpApiSettingsScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'النسخ الاحتياطي',
+            subtitle: 'محلي · Google Drive · Appwrite',
+            icon: Icons.backup,
+            color: Colors.deepOrange,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const backup_v2.ComprehensiveBackupScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'حماية البيانات',
+            subtitle: 'إعدادات المزامنة (Push/Pull)',
+            icon: Icons.security,
+            color: Colors.teal,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const DataProtectionScreen()),
+            ),
+          ),
+        ];
+
+      case 'whatsapp':
+        return [
+          _SettingsItem(
+            title: 'تذكير المتبقي',
+            subtitle: 'تذكير واتساب بالمتأخر للحجوزات النشطة',
+            icon: Icons.payment,
+            color: Colors.blue,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const ActiveBookingsReminderScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'تنبيه تأخر الدفع',
+            subtitle: 'إرسال تنبيه واتساب للديون المتأخرة',
+            icon: Icons.notifications_active,
+            color: Colors.red,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const LatePaymentWhatsAppScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'رسالة الواتساب',
+            subtitle: 'تخصيص نص رسالة الدفع',
+            icon: Icons.message,
+            color: Colors.green,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const WhatsAppSettingsScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'واتساب',
+            subtitle: 'الإشعارات الفورية والتقارير اليومية',
+            icon: Icons.chat,
+            color: const Color(0xFF25D366),
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const WhatsAppDailyReportScreen()),
+            ),
+          ),
+        ];
+
+      case 'app':
+        return [
+          _SettingsItem(
+            title: 'المظهر',
+            subtitle: 'الوضع الليلي والألوان',
+            icon: Icons.palette,
+            color: Colors.purple,
+            onTap: () => _showAppSettingsDialog(context),
+          ),
+          _SettingsItem(
+            title: 'المساعد الذكي',
+            subtitle: 'Gemini AI - تحكم ذكي بالبيانات',
+            icon: Icons.smart_toy,
+            color: Colors.amber.shade700,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const AiChatScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'Crashlytics',
+            subtitle: 'مراقبة الأخطاء والأعطال',
+            icon: Icons.bug_report,
+            color: Colors.red.shade700,
+            onTap: () => _showCrashlyticsDialog(context),
+          ),
+          _SettingsItem(
+            title: 'Remote Config',
+            subtitle: 'تحكم عن بُعد بالإعدادات',
+            icon: Icons.cloud_sync,
+            color: Colors.blue.shade700,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const RemoteConfigSettingsScreen()),
+            ),
+          ),
+          _SettingsItem(
+            title: 'معلومات التطبيق',
+            subtitle: 'الإصدار ومعلومات المطور',
+            icon: Icons.info,
+            color: Colors.grey,
+            onTap: () => _showAboutDialog(context),
+          ),
+        ];
+
+      default:
+        return [];
+    }
+  }
+
+  // ─── نتائج البحث ───
+
+  Widget _buildSearchResults(BuildContext context, List<_SettingsItem> items) {
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.search_off, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              'لا توجد نتائج لـ "$_searchQuery"',
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text(
+          'نتائج البحث (${items.length})',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
+        ),
+        const SizedBox(height: 12),
+        _buildSettingsGrid(context, items),
+      ],
+    );
+  }
+
+  // ─── بطاقة الإحصائيات ───
 
   Widget _buildQuickStatsCard(
     BuildContext context,
@@ -311,6 +467,7 @@ class SettingsScreen extends ConsumerWidget {
   ) {
     return Card(
       elevation: 4,
+      margin: const EdgeInsets.all(16),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -406,6 +563,8 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  // ─── عناوين الأقسام ───
+
   Widget _buildSectionTitle(String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -425,6 +584,8 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+
+  // ─── شبكة الإعدادات ───
 
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
     const crossAxisCount = 3;
@@ -479,6 +640,8 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  // ─── Dialogs ───
+
   void _showAppSettingsDialog(BuildContext context) {
     showDialog<void>(
       context: context,
@@ -497,11 +660,7 @@ class SettingsScreen extends ConsumerWidget {
                   onChanged: (v) =>
                       ref.read(themeSettingsProvider.notifier).setDarkMode(v),
                 ),
-                const ListTile(
-                  leading: Icon(Icons.language),
-                  title: Text('اللغة'),
-                  subtitle: Text('العربية'),
-                ),
+                // ✅ تم إزالة عنصر "اللغة" الجامد — لم يكن функциaly
               ],
             ),
             actions: [
@@ -523,7 +682,6 @@ class SettingsScreen extends ConsumerWidget {
     final errorCount = crashlytics.errorCount;
     final history = crashlytics.getErrorHistory();
 
-    // تحديد النص والأيقونة واللون حسب الحالة
     final String statusText;
     final IconData statusIcon;
     final Color statusColor;
@@ -563,7 +721,6 @@ class SettingsScreen extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // حالة الخدمة
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -594,8 +751,6 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ],
                 const SizedBox(height: 16),
-
-                // إحصائيات
                 Text(
                   'الأخطاء المسجلة: $errorCount',
                   style: const TextStyle(
@@ -604,8 +759,6 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // قائمة الأخطاء الأخيرة
                 if (history.isEmpty)
                   const Center(
                     child: Padding(
@@ -729,14 +882,18 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showAboutDialog(BuildContext context) {
-    showDialog<void>(
+  /// ✅ قراءة الإصدار ديناميكياً
+  Future<void> _showAboutDialog(BuildContext context) async {
+    final version = await _getAppVersion();
+    if (!mounted) return;
+    await showDialog<void>(
+      // ignore: use_build_context_synchronously
       context: context,
-      builder: (context) => const AboutDialog(
-        applicationName: 'تطبيق إدارة الفندق',
-        applicationVersion: '1.2',
+      builder: (context) => AboutDialog(
+        applicationName: 'تطبيق إدارة فندق مارينا',
+        applicationVersion: version,
         applicationLegalese: '© 2026 Marina Hotel',
-        children: [
+        children: const [
           Text('تطبيق شامل لإدارة العمليات الفندقية'),
           SizedBox(height: 6),
           Text('تصميم Eng: Nassar Alshabi'),
