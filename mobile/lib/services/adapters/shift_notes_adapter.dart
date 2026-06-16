@@ -103,6 +103,7 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -123,7 +124,18 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
         'shiftType': model.shiftType,
         'isRead': model.isRead == 1, // Appwrite يتوقع boolean
         'createdAt': model.createdAt, // Appwrite يتوقع integer epoch
+        'createdAtEpoch': model.createdAtEpoch,
+        'createdAtIso': model.createdAtIso,
         'updatedAt': model.updatedAt, // integer epoch — مطلوب
+        'updatedAtIso': model.updatedAtIso,
+        'deletedAt': model.deletedAt,
+        'deletedAtIso': model.deletedAtIso,
+        'lastModified': model.lastModified,
+        'lastModifiedEpoch': model.lastModifiedEpoch,
+        'version': model.version,
+        'origin': model.origin,
+        'vectorClock': model.vectorClock,
+        'deviceId': model.deviceId,
         'createdBy': model.createdBy,
         'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
         'note': model.content, // مطلوب — يوازي content
@@ -143,11 +155,17 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       _k(src, 'createdBy', 'created_by'): model.createdBy,
       _k(src, 'expiresAt', 'expires_at'): model.expiresAt,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
       'deviceId': model.deviceId,
     };
   }

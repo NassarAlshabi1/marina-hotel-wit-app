@@ -95,6 +95,8 @@ class CashTransactionsAdapter
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
       lastModified: d.Value(lastModified),
+      createdAtEpoch: d.Value(_asInt(json, 'createdAtEpoch', src) ?? createdAt),
+      lastModifiedEpoch: d.Value(_asInt(json, 'lastModifiedEpoch', src) ?? lastModified),
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
@@ -105,6 +107,7 @@ class CashTransactionsAdapter
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -124,11 +127,17 @@ class CashTransactionsAdapter
       _k(src, 'transactionTime', 'transaction_time'): model.transactionTime,
       _k(src, 'createdBy', 'created_by'): model.createdBy,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
       'deviceId': model.deviceId,
     };
   }
