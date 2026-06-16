@@ -74,9 +74,10 @@ class AppwriteBackupService {
           break;
         }
         offset += limit;
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+      } catch (e) {
+        AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         AppLogger.warning('⚠️ AppwriteBackupService: فشل جلب المجموعات، استخدام fallback', tag: 'APP');
- (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
+
         usedFallback = true;
         break;
       }
@@ -91,9 +92,10 @@ class AppwriteBackupService {
                 collectionId: id,
               );
           allCollections.add(collection);
-        } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+        } catch (e) {
+          AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
           AppLogger.warning('⚠️ AppwriteBackupService: فشل جلب المجموعة $id', tag: 'APP');
- (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
+
           allCollections.add({r'$id': id});
         }
       }
@@ -111,7 +113,7 @@ class AppwriteBackupService {
       return Map<String, dynamic>.from(map as Map);
     } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
       AppLogger.warning('⚠️ AppwriteBackupService: فشل serialize collection via toMap', tag: 'APP');
- (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
+
       try {
         final dynamic c = collection;
         return {
@@ -123,7 +125,7 @@ class AppwriteBackupService {
         };
       } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         AppLogger.warning('⚠️ AppwriteBackupService: فشل serialize collection تماماً', tag: 'APP');
- (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
+
         return {'raw': collection.toString()};
       }
     }

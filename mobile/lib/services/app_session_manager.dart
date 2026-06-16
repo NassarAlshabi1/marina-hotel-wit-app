@@ -116,9 +116,10 @@ class AppSessionManager {
     if (_deviceIdResolver != null) {
       try {
         return await _deviceIdResolver!();
-      } catch (e) { AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
+      } catch (e) {
+        AppLogger.warning("⚠️ silent catch", tag: "SYNC", error: e);
         AppLogger.warning('⚠️ فشل حل deviceId', tag: 'APP');
- (fix: debugPrint → AppLogger (1071 استدعاء في 117 ملف))
+
         return null;
       }
     }
