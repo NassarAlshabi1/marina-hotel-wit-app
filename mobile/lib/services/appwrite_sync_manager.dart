@@ -1778,10 +1778,16 @@ class AppwriteSyncManager {
         }
 
         // Financial immutability: if local payment exists and is newer, keep local
-        final incomingLastModified = _asInt(data['lastModified']);
-        if (existingPayment != null && existingPayment.lastModified > incomingLastModified) {
+        // ✅ إصلاح حرج: نستخدم $updatedAt كـ fallback عند غياب lastModified البعيد
+        // (المستندات القديمة قبل تثبيت التحديث). بدون هذا، incomingLastModified=0
+        // ويتخطى كل التحديثات حتى لو كانت بعيدة وأحدث.
+        final incomingLastModified = _asIntNullable(data['lastModified']) ??
+            _extractUpdatedAtSec(doc) ?? 0;
+        if (existingPayment != null &&
+            existingPayment.lastModified > incomingLastModified) {
           _logger.debug(
-            'Skipping payment ${doc.$id}: local is newer (financial immutability)',
+            'Skipping payment ${doc.$id}: local is newer (financial immutability, '
+            'local=${existingPayment.lastModified} > remote=$incomingLastModified)',
             tag: 'SYNC',
           );
           processed++;
@@ -1871,10 +1877,15 @@ class AppwriteSyncManager {
         }
 
         // Financial immutability: if local debt exists and is newer, keep local
-        final incomingLastModified = _asInt(data['lastModified']);
-        if (existingDebt != null && existingDebt.lastModified > incomingLastModified) {
+        // ✅ إصلاح حرج: نستخدم $updatedAt كـ fallback عند غياب lastModified البعيد
+        // (المستندات القديمة قبل تثبيت التحديث).
+        final incomingLastModified = _asIntNullable(data['lastModified']) ??
+            _extractUpdatedAtSec(doc) ?? 0;
+        if (existingDebt != null &&
+            existingDebt.lastModified > incomingLastModified) {
           _logger.debug(
-            'Skipping debt ${doc.$id}: local is newer (financial immutability)',
+            'Skipping debt ${doc.$id}: local is newer (financial immutability, '
+            'local=${existingDebt.lastModified} > remote=$incomingLastModified)',
             tag: 'SYNC',
           );
           processed++;
@@ -2719,6 +2730,8 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'vectorClock', booking.vectorClock);
     data['deviceId'] = booking.deviceId;
     // ✅ حقول SyncFields المضافة حديثاً إلى Appwrite Cloud
+    _putIfStringNotEmpty(data, 'createdAtIso', booking.createdAtIso);
+    _putIfStringNotEmpty(data, 'updatedAtIso', booking.updatedAtIso);
     _putIfStringNotEmpty(data, 'deletedAtIso', booking.deletedAtIso);
     _putIfNotNull(data, 'createdAtEpoch', booking.createdAtEpoch);
     _putIfNotNull(data, 'lastModifiedEpoch', booking.lastModifiedEpoch);
