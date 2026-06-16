@@ -625,6 +625,12 @@ class SalaryWithdrawals extends Table with SyncFields {
   TextColumn get hotelDayKey => text().nullable()();
   TextColumn get withdrawalType => text().nullable()();
   TextColumn get description => text().nullable()();
+  // ✅ إصلاح (audit agent-10 G4 + engineer recommendation):
+  // العمود expense_id موجود في DB (أُضيف في migration 40) لكنه لم يكن
+  // مُعلناً في Drift class → الكود كان يستخدم customSelect بدلاً من ORM
+  // → أخطاء صامتة وعدم استفادة من type safety.
+  // الآن مُعلن ومتاح عبر ORM. (migration 42 يضمن وجوده في DBs القديمة)
+  IntColumn get expenseId => integer().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -781,7 +787,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 41;
+  int get schemaVersion => 42;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1989,6 +1995,30 @@ class AppDatabase extends _$AppDatabase {
           'Migration 41: added device_id to all SyncFields tables',
           name: 'db.migration',
         );
+      }
+
+      // ✅ Migration 42 (engineer recommendation):
+      // إعلان expense_id في Drift class لـ salary_withdrawals.
+      // العمود موجود في DB منذ migration 40، لكن Drift لم يكن يعرفه.
+      // هذا migration ضماني: إذا كان DB قديم (قبل migration 40) يضيف العمود،
+      // وإذا كان موجوداً بالفعل يتجاهله (IF NOT EXISTS غير مدعوم في ALTER TABLE
+      // لذا نستخدم try/catch).
+      if (from < 42) {
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE salary_withdrawals ADD COLUMN expense_id INTEGER',
+          );
+          developer.log(
+            'Migration 42: added expense_id to salary_withdrawals',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          // العمود موجود بالفعل (من migration 40) — آمن
+          developer.log(
+            'Migration 42: expense_id already exists in salary_withdrawals: $e',
+            name: 'db.migration',
+          );
+        }
       }
     },
   );

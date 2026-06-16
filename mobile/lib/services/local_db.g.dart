@@ -32459,6 +32459,17 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _expenseIdMeta = const VerificationMeta(
+    'expenseId',
+  );
+  @override
+  late final GeneratedColumn<int> expenseId = GeneratedColumn<int>(
+    'expense_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -32484,6 +32495,7 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     hotelDayKey,
     withdrawalType,
     description,
+    expenseId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -32679,6 +32691,12 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         ),
       );
     }
+    if (data.containsKey('expense_id')) {
+      context.handle(
+        _expenseIdMeta,
+        expenseId.isAcceptableOrUnknown(data['expense_id']!, _expenseIdMeta),
+      );
+    }
     return context;
   }
 
@@ -32780,6 +32798,10 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         DriftSqlType.string,
         data['${effectivePrefix}description'],
       ),
+      expenseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}expense_id'],
+      ),
     );
   }
 
@@ -32814,6 +32836,7 @@ class SalaryWithdrawal extends DataClass
   final String? hotelDayKey;
   final String? withdrawalType;
   final String? description;
+  final int? expenseId;
   const SalaryWithdrawal({
     required this.localUuid,
     this.serverId,
@@ -32838,6 +32861,7 @@ class SalaryWithdrawal extends DataClass
     this.hotelDayKey,
     this.withdrawalType,
     this.description,
+    this.expenseId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -32882,6 +32906,9 @@ class SalaryWithdrawal extends DataClass
     }
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
+    }
+    if (!nullToAbsent || expenseId != null) {
+      map['expense_id'] = Variable<int>(expenseId);
     }
     return map;
   }
@@ -32929,6 +32956,9 @@ class SalaryWithdrawal extends DataClass
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
+      expenseId: expenseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expenseId),
     );
   }
 
@@ -32961,6 +32991,7 @@ class SalaryWithdrawal extends DataClass
       hotelDayKey: serializer.fromJson<String?>(json['hotelDayKey']),
       withdrawalType: serializer.fromJson<String?>(json['withdrawalType']),
       description: serializer.fromJson<String?>(json['description']),
+      expenseId: serializer.fromJson<int?>(json['expenseId']),
     );
   }
   @override
@@ -32990,6 +33021,7 @@ class SalaryWithdrawal extends DataClass
       'hotelDayKey': serializer.toJson<String?>(hotelDayKey),
       'withdrawalType': serializer.toJson<String?>(withdrawalType),
       'description': serializer.toJson<String?>(description),
+      'expenseId': serializer.toJson<int?>(expenseId),
     };
   }
 
@@ -33017,6 +33049,7 @@ class SalaryWithdrawal extends DataClass
     Value<String?> hotelDayKey = const Value.absent(),
     Value<String?> withdrawalType = const Value.absent(),
     Value<String?> description = const Value.absent(),
+    Value<int?> expenseId = const Value.absent(),
   }) => SalaryWithdrawal(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -33043,6 +33076,7 @@ class SalaryWithdrawal extends DataClass
         ? withdrawalType.value
         : this.withdrawalType,
     description: description.present ? description.value : this.description,
+    expenseId: expenseId.present ? expenseId.value : this.expenseId,
   );
   SalaryWithdrawal copyWithCompanion(SalaryWithdrawalsCompanion data) {
     return SalaryWithdrawal(
@@ -33093,6 +33127,7 @@ class SalaryWithdrawal extends DataClass
       description: data.description.present
           ? data.description.value
           : this.description,
+      expenseId: data.expenseId.present ? data.expenseId.value : this.expenseId,
     );
   }
 
@@ -33121,7 +33156,8 @@ class SalaryWithdrawal extends DataClass
           ..write('reason: $reason, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('withdrawalType: $withdrawalType, ')
-          ..write('description: $description')
+          ..write('description: $description, ')
+          ..write('expenseId: $expenseId')
           ..write(')'))
         .toString();
   }
@@ -33151,6 +33187,7 @@ class SalaryWithdrawal extends DataClass
     hotelDayKey,
     withdrawalType,
     description,
+    expenseId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -33178,7 +33215,8 @@ class SalaryWithdrawal extends DataClass
           other.reason == this.reason &&
           other.hotelDayKey == this.hotelDayKey &&
           other.withdrawalType == this.withdrawalType &&
-          other.description == this.description);
+          other.description == this.description &&
+          other.expenseId == this.expenseId);
 }
 
 class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
@@ -33205,6 +33243,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
   final Value<String?> hotelDayKey;
   final Value<String?> withdrawalType;
   final Value<String?> description;
+  final Value<int?> expenseId;
   const SalaryWithdrawalsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -33229,6 +33268,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.hotelDayKey = const Value.absent(),
     this.withdrawalType = const Value.absent(),
     this.description = const Value.absent(),
+    this.expenseId = const Value.absent(),
   });
   SalaryWithdrawalsCompanion.insert({
     required String localUuid,
@@ -33254,6 +33294,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.hotelDayKey = const Value.absent(),
     this.withdrawalType = const Value.absent(),
     this.description = const Value.absent(),
+    this.expenseId = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -33285,6 +33326,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Expression<String>? hotelDayKey,
     Expression<String>? withdrawalType,
     Expression<String>? description,
+    Expression<int>? expenseId,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -33310,6 +33352,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
       if (withdrawalType != null) 'withdrawal_type': withdrawalType,
       if (description != null) 'description': description,
+      if (expenseId != null) 'expense_id': expenseId,
     });
   }
 
@@ -33337,6 +33380,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Value<String?>? hotelDayKey,
     Value<String?>? withdrawalType,
     Value<String?>? description,
+    Value<int?>? expenseId,
   }) {
     return SalaryWithdrawalsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -33362,6 +33406,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
       withdrawalType: withdrawalType ?? this.withdrawalType,
       description: description ?? this.description,
+      expenseId: expenseId ?? this.expenseId,
     );
   }
 
@@ -33437,6 +33482,9 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
+    if (expenseId.present) {
+      map['expense_id'] = Variable<int>(expenseId.value);
+    }
     return map;
   }
 
@@ -33465,7 +33513,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
           ..write('reason: $reason, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('withdrawalType: $withdrawalType, ')
-          ..write('description: $description')
+          ..write('description: $description, ')
+          ..write('expenseId: $expenseId')
           ..write(')'))
         .toString();
   }
@@ -50306,6 +50355,7 @@ typedef $$SalaryWithdrawalsTableCreateCompanionBuilder =
       Value<String?> hotelDayKey,
       Value<String?> withdrawalType,
       Value<String?> description,
+      Value<int?> expenseId,
     });
 typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
     SalaryWithdrawalsCompanion Function({
@@ -50332,6 +50382,7 @@ typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
       Value<String?> hotelDayKey,
       Value<String?> withdrawalType,
       Value<String?> description,
+      Value<int?> expenseId,
     });
 
 final class $$SalaryWithdrawalsTableReferences
@@ -50486,6 +50537,11 @@ class $$SalaryWithdrawalsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get expenseId => $composableBuilder(
+    column: $table.expenseId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$EmployeesTableFilterComposer get employeeId {
     final $$EmployeesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -50629,6 +50685,11 @@ class $$SalaryWithdrawalsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get expenseId => $composableBuilder(
+    column: $table.expenseId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$EmployeesTableOrderingComposer get employeeId {
     final $$EmployeesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -50750,6 +50811,9 @@ class $$SalaryWithdrawalsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get expenseId =>
+      $composableBuilder(column: $table.expenseId, builder: (column) => column);
+
   $$EmployeesTableAnnotationComposer get employeeId {
     final $$EmployeesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -50830,6 +50894,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String?> hotelDayKey = const Value.absent(),
                 Value<String?> withdrawalType = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<int?> expenseId = const Value.absent(),
               }) => SalaryWithdrawalsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -50854,6 +50919,7 @@ class $$SalaryWithdrawalsTableTableManager
                 hotelDayKey: hotelDayKey,
                 withdrawalType: withdrawalType,
                 description: description,
+                expenseId: expenseId,
               ),
           createCompanionCallback:
               ({
@@ -50880,6 +50946,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String?> hotelDayKey = const Value.absent(),
                 Value<String?> withdrawalType = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<int?> expenseId = const Value.absent(),
               }) => SalaryWithdrawalsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -50904,6 +50971,7 @@ class $$SalaryWithdrawalsTableTableManager
                 hotelDayKey: hotelDayKey,
                 withdrawalType: withdrawalType,
                 description: description,
+                expenseId: expenseId,
               ),
           withReferenceMapper: (p0) => p0
               .map(

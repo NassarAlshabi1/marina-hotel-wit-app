@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/smart_sync_manager.dart';
 import '../../services/sync_guardian.dart';
-import 'sync_health_dashboard_screen.dart';
+import 'sync_health/sync_health_screen.dart';
 
 class SmartSyncSettingsScreen extends ConsumerStatefulWidget {
   const SmartSyncSettingsScreen({super.key});
@@ -717,7 +717,7 @@ class _SmartSyncSettingsScreenState
         trailing: const Icon(Icons.chevron_left),
         onTap: () => Navigator.push<void>(
           context,
-          MaterialPageRoute<void>(builder: (_) => const SyncHealthDashboardScreen()),
+          MaterialPageRoute<void>(builder: (_) => const SyncHealthScreen()),
         ),
       ),
     );
