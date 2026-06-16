@@ -7,7 +7,6 @@ import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
-import '../bookings/booking_edit.dart';
 import 'guest_edit_screen.dart';
 import 'guest_info.dart';
 
@@ -530,33 +529,20 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                         ),
                         isThreeLine: true,
                       ),
-                      // ✅ أزرار تعديل وحذف لكل حجز فردي
-                      OverflowBar(
-                        alignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          TextButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _editBooking(context, booking);
-                            },
-                            icon: const Icon(Icons.edit, size: 16),
-                            label: const Text('تعديل الحجز'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.blue,
-                            ),
+                      // ✅ زر حذف لكل حجز فردي
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _deleteBooking(context, booking, guest);
+                          },
+                          icon: const Icon(Icons.delete_outline, size: 16),
+                          label: const Text('حذف الحجز'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
                           ),
-                          TextButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _deleteBooking(context, booking, guest);
-                            },
-                            icon: const Icon(Icons.delete_outline, size: 16),
-                            label: const Text('حذف الحجز'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
@@ -573,22 +559,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         ),
       ),
     );
-  }
-
-  /// ✅ تعديل حجز فردي — يفتح BookingEditScreen مع `existing: booking`
-  Future<void> _editBooking(BuildContext context, Booking booking) async {
-    final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => BookingEditScreen(existing: booking),
-      ),
-    );
-    if ((result ?? false) && mounted) {
-      ref.invalidate(bookingsListProvider);
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم تحديث بيانات الحجز')),
-      );
-    }
   }
 
   /// ✅ حذف حجز فردي — مع تأكيد + حذف المدفوعات/الملاحظات/الديون المرتبطة
