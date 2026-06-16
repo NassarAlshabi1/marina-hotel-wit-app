@@ -172,12 +172,11 @@ class SyncConflictResolver {
       }
       if (strategy == ConflictStrategy.manualReview) {
         _log('🔧 حل تعارض $table/$localUuid: manualReview ← تسجيل للمراجعة');
-        await _logConflict(
+        await logConflict(
           table: table,
           localUuid: localUuid,
           localData: Map<String, dynamic>.from(localRow),
           remoteData: remoteData,
-          strategy: strategy,
         );
         return const ConflictCheckResult(
           isConflict: true,

@@ -265,6 +265,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                   ],
                                 ),
                               ),
+                            ],
                           ),
                         ),
                       ),
@@ -557,9 +558,12 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       ),
     );
 
+    // ignore: use_build_context_synchronously
     if (choice == 'without_debt') {
+      // ignore: use_build_context_synchronously
       await _completeCheckoutNow(context, remainingAmount, totalDue, createDebt: false);
     } else if (choice == 'with_debt') {
+      // ignore: use_build_context_synchronously
       await _completeCheckoutNow(context, remainingAmount, totalDue, createDebt: true);
     }
   }
@@ -612,6 +616,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         final message = createDebt
             ? 'تم تسجيل الخروج وإضافة دين بقيمة ${CurrencyFormatter.formatAmount(remainingAmount)} إلى قائمة الديون'
             : 'تم تسجيل الخروج بدون إنشاء دين';
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
@@ -625,10 +630,12 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             ),
           ),
         );
+        // ignore: use_build_context_synchronously
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
         );

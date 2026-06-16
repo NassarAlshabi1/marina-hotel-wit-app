@@ -1,3 +1,4 @@
+// ignore_for_file: unused_field
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:drift/drift.dart' as d;
@@ -1526,7 +1527,7 @@ class AppwriteDeltaSync {
   Future<void> _updateBookingNightsPullTs(int ts) async {
     try {
       await _database.into(_database.syncState).insertOnConflictUpdate(
-            d.SyncStateCompanion(
+            SyncStateCompanion(
               id: const d.Value(1),
               lastPullTs: d.Value(ts),
             ),
@@ -1571,7 +1572,7 @@ class AppwriteDeltaSync {
   Future<void> _updateLastPushSyncTimestamp() async {
     try {
       await _database.into(_database.syncState).insertOnConflictUpdate(
-            d.SyncStateCompanion(
+            SyncStateCompanion(
               id: const d.Value(1),
               lastPushTs: d.Value(Time.nowEpoch()),
             ),
@@ -1597,7 +1598,7 @@ class AppwriteDeltaSync {
   Future<void> _updateLastPullSyncTimestamp() async {
     try {
       await _database.into(_database.syncState).insertOnConflictUpdate(
-            d.SyncStateCompanion(
+            SyncStateCompanion(
               id: const d.Value(1),
               lastPullTs: d.Value(Time.nowEpoch()),
             ),

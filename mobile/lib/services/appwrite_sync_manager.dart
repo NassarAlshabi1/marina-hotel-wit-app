@@ -549,21 +549,8 @@ class AppwriteSyncManager {
   ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
   Future<SyncResult> sync({bool push = true, bool pull = true}) async {
-    try {
-      await SyncLocks.appwriteSyncLock.lock().timeout(const Duration(seconds: 30));
-    } on TimeoutException {
-      _logger.warning('Failed to acquire sync lock', tag: 'SYNC');
-      return SyncResult(
-        status: SyncStatus.failed,
-        errorMessage: 'Sync lock timeout',
-        timestamp: DateTime.now(),
-        duration: Duration.zero,
-      );
-    }
-
     if (_currentStatus == SyncStatus.syncing) {
       _logger.warning('Sync already in progress', tag: 'SYNC');
-      SyncLocks.appwriteSyncLock.unlock();
       return SyncResult(
         status: SyncStatus.failed,
         errorMessage: 'Sync already in progress',
@@ -572,6 +559,8 @@ class AppwriteSyncManager {
       );
     }
 
+    try {
+      return await SyncLocks.appwriteSyncLock.synchronized(() async {
     _currentStatus = SyncStatus.syncing;
     _syncController.add(_currentStatus);
 
@@ -689,7 +678,7 @@ class AppwriteSyncManager {
 
           // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
           final lastPullTs = await _getLastPullTs();
-          final deltaQ = await (_pullService?.buildDeltaQueries(lastPullTs) ?? []);
+          final List<String> deltaQ = await (_pullService?.buildDeltaQueries(lastPullTs) ?? <String>[]);
           final isDelta = deltaQ.isNotEmpty;
           if (isDelta) {
             _logger.info(
@@ -785,7 +774,7 @@ class AppwriteSyncManager {
             recordsPulled += await _timePhase('syncBookingNights', () async {
               // booking_nights يستخدم lastPullTs خاص به (مستقل عن باقي الجداول)
               final nightsPullTs = await _getBookingNightsPullTs();
-              final remoteEpochIsMillis = await (_pullService?.isRemoteEpochMillis() ?? false);
+              final bool remoteEpochIsMillis = await (_pullService?.isRemoteEpochMillis() ?? false);
               final nightsDeltaQ = _bookingNightsDeltaQueries(
                 nightsPullTs,
                 remoteEpochIsMillis: remoteEpochIsMillis,
@@ -1178,7 +1167,6 @@ class AppwriteSyncManager {
 
     _currentStatus = finalStatus;
     _syncController.add(_currentStatus);
-    SyncLocks.appwriteSyncLock.unlock();
 
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
@@ -1230,6 +1218,16 @@ class AppwriteSyncManager {
       timestamp: endTime,
       duration: duration,
     );
+      });
+    } on TimeoutException {
+      _logger.warning('Failed to acquire sync lock', tag: 'SYNC');
+      return SyncResult(
+        status: SyncStatus.failed,
+        errorMessage: 'Sync lock timeout',
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+      );
+    }
   }
 
   /// الحصول على إحصائيات المزامنة
@@ -3357,7 +3355,7 @@ class AppwriteSyncManager {
 
         // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
         final lastPullTs = await _getLastPullTs();
-        final deltaQ = await (_pullService?.buildDeltaQueries(lastPullTs) ?? []);
+        final List<String> deltaQ = await (_pullService?.buildDeltaQueries(lastPullTs) ?? <String>[]);
         final isDelta = deltaQ.isNotEmpty;
         if (isDelta) {
           _logger.info(
@@ -3466,7 +3464,7 @@ class AppwriteSyncManager {
           try {
             // booking_nights يستخدم lastPullTs خاص به (مستقل عن باقي الجداول)
             final nightsPullTs = await _getBookingNightsPullTs();
-            final remoteEpochIsMillis = await (_pullService?.isRemoteEpochMillis() ?? false);
+            final bool remoteEpochIsMillis = await (_pullService?.isRemoteEpochMillis() ?? false);
             final nightsDeltaQ = _bookingNightsDeltaQueries(
               nightsPullTs,
               remoteEpochIsMillis: remoteEpochIsMillis,
@@ -3571,6 +3569,7 @@ class AppwriteSyncManager {
         );
         return false;
       }
+    // ignore: dead_null_aware_expression
     }, timeout: const Duration(minutes: 5),) ?? false;
   }
 
