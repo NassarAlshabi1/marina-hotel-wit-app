@@ -438,9 +438,28 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                     0.0;
                                 final remainingAmount = (totalDue - totalPaid)
                                     .clamp(0, totalDue).toDouble();
+
+                                // المبلغ المتبقي > 0 → زر "تسجيل خروج" برتقالي
+                                if (remainingAmount > 0) {
+                                  return ElevatedButton.icon(
+                                    onPressed: _isProcessing
+                                        ? null
+                                        : () => _checkoutWithDebt(
+                                              context,
+                                              remainingAmount,
+                                            ),
+                                    icon: const Icon(Icons.logout),
+                                    label: const Text('تسجيل خروج'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  );
+                                }
+
+                                // المبلغ = 0 → زر "إتمام الحجز" أزرق كما كان
                                 return ElevatedButton.icon(
-                                  onPressed:
-                                      _isProcessing || remainingAmount > 0
+                                  onPressed: _isProcessing
                                       ? null
                                       : () => _completeCheckout(context),
                                   icon: const Icon(Icons.check_circle),
@@ -633,6 +652,181 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     } finally {
       amountController.dispose();
       notesController.dispose();
+    }
+  }
+
+  /// تسجيل خروج مع خيارات الدين عند وجود مبلغ متبقي
+  Future<void> _checkoutWithDebt(
+    BuildContext context,
+    double remainingAmount,
+  ) async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تسجيل خروج'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'النزيل لم يسدد المبلغ الكامل. هل ترغب في؟',
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'المبلغ المتبقي:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      CurrencyFormatter.formatAmount(remainingAmount),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red.shade700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop('cancel'),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop('no_debt'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey.shade600,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('تسجيل خروج بدون دين'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop('with_debt'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('تسجيل خروج مع دين'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == null || choice == 'cancel') return;
+    if (!mounted) return;
+
+    setState(() => _isProcessing = true);
+
+    try {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      final roomsRepo = ref.read(roomsRepoProvider);
+
+      // ✅ تحديث حالة الحجز → مكتمل + خروج
+      final nowIso = Time.nowIso();
+      final checkin =
+          DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+      final nowDate = DateTime.parse(nowIso);
+      final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
+
+      await bookingsRepo.update(
+        widget.booking.id,
+        status: 'مكتمل',
+        actualCheckout: nowIso,
+        calculatedNights: actualNights,
+      );
+
+      // ✅ تحديث الغرفة → شاغرة
+      await roomsRepo.refreshAllRoomOccupancy();
+      markDataChanged();
+
+      if (!mounted) return;
+
+      if (choice == 'with_debt') {
+        // ✅ إنشاء دين في قائمة الديون
+        final debtsRepo = ref.read(debtsRepoProvider);
+        await debtsRepo.create(
+          bookingLocalId: widget.booking.id,
+          guestName: widget.booking.guestName,
+          checkinDate: widget.booking.checkinDate,
+          checkoutDate: nowIso,
+          debtReason: 'مبلغ متبقي بعد تسجيل الخروج',
+          totalAmount: remainingAmount,
+          paidAmount: 0,
+          paymentDate: nowIso,
+          note:
+              'حجز غرفة ${widget.booking.roomNumber} — مبلغ متبقي بعد تسجيل الخروج',
+        );
+
+        if (mounted) {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'تم تسجيل الخروج وإضافة دين بقيمة ${CurrencyFormatter.formatAmount(remainingAmount)} إلى قائمة الديون',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'إغلاق',
+                textColor: Colors.white,
+                onPressed: () =>
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              ),
+            ),
+          );
+          // ignore: use_build_context_synchronously
+          Navigator.of(context).pop();
+        }
+      } else {
+        // no_debt — إغلاق الحجز مباشرة بدون إنشاء دين
+        if (mounted) {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('تم تسجيل الخروج بنجاح بدون دين'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'إغلاق',
+                textColor: Colors.white,
+                onPressed: () =>
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              ),
+            ),
+          );
+          // ignore: use_build_context_synchronously
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     }
   }
 
