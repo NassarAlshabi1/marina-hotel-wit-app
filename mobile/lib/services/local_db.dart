@@ -640,6 +640,28 @@ class SalaryWithdrawals extends Table with SyncFields {
   ];
 }
 
+/// ✅ جدول سجل ترحيل الراتب — يسجّل كل عملية ترحيل تلقائية
+/// عندما يتجاوز الموظف راتبه في دورة شهرية.
+@DataClassName('SalaryCarryOverLog')
+class SalaryCarryOverLogs extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get employeeId => integer().references(Employees, #id)();
+  RealColumn get amount => real()();
+  TextColumn get previousCycleStart => text()();
+  TextColumn get previousCycleEnd => text()();
+  TextColumn get newCycleStart => text()();
+  TextColumn get newCycleEnd => text()();
+  TextColumn get reason => text()();
+  IntColumn get carriedAt => integer()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_salary_carryover_employee',
+      'CREATE INDEX idx_salary_carryover_employee ON salary_carry_over_logs (employee_id)',
+    ),
+  ];
+}
+
 class Outbox extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get entity => text()();
@@ -778,6 +800,7 @@ class SyncConflicts extends Table {
     PaymentVoids,
     GuestInfos,
     SalaryWithdrawals,
+    SalaryCarryOverLogs,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -787,7 +810,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 42;
+  int get schemaVersion => 43;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2013,9 +2036,53 @@ class AppDatabase extends _$AppDatabase {
             name: 'db.migration',
           );
         } catch (e) {
-          // العمود موجود بالفعل (من migration 40) — آمن
           developer.log(
             'Migration 42: expense_id already exists in salary_withdrawals: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+
+      // ✅ Migration 43: إنشاء جدول سجل ترحيل الراتب
+      if (from < 43) {
+        try {
+          await m.database.customStatement('''
+            CREATE TABLE IF NOT EXISTS salary_carry_over_logs (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              employee_id INTEGER NOT NULL REFERENCES employees(id),
+              amount REAL NOT NULL,
+              previous_cycle_start TEXT NOT NULL,
+              previous_cycle_end TEXT NOT NULL,
+              new_cycle_start TEXT NOT NULL,
+              new_cycle_end TEXT NOT NULL,
+              reason TEXT NOT NULL DEFAULT '',
+              carried_at INTEGER NOT NULL,
+              local_uuid TEXT NOT NULL UNIQUE,
+              server_id INTEGER,
+              created_at INTEGER NOT NULL,
+              updated_at INTEGER NOT NULL,
+              deleted_at INTEGER,
+              created_at_iso TEXT,
+              updated_at_iso TEXT,
+              deleted_at_iso TEXT,
+              created_at_epoch INTEGER NOT NULL DEFAULT 0,
+              last_modified_epoch INTEGER NOT NULL DEFAULT 0,
+              version INTEGER NOT NULL DEFAULT 1,
+              origin TEXT NOT NULL DEFAULT 'local',
+              vector_clock TEXT NOT NULL DEFAULT '{}',
+              device_id TEXT NOT NULL DEFAULT ''
+            )
+          ''');
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee ON salary_carry_over_logs (employee_id)',
+          );
+          developer.log(
+            'Migration 43: created salary_carry_over_logs table',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 43: salary_carry_over_logs already exists: $e',
             name: 'db.migration',
           );
         }
