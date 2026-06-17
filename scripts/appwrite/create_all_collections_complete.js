@@ -300,6 +300,39 @@ const collections = [
         ]
     },
     {
+        id: 'salary_carry_over_logs',
+        name: 'SalaryCarryOverLogs',
+        attributes: [
+            { key: 'localUuid', type: 'string', size: 36, required: true },
+            { key: 'employeeId', type: 'integer', required: true },
+            { key: 'amount', type: 'double', required: true },
+            { key: 'previousCycleStart', type: 'string', size: 20, required: true },
+            { key: 'previousCycleEnd', type: 'string', size: 20, required: true },
+            { key: 'newCycleStart', type: 'string', size: 20, required: true },
+            { key: 'newCycleEnd', type: 'string', size: 20, required: true },
+            { key: 'reason', type: 'string', size: 500, required: false },
+            { key: 'carriedAt', type: 'integer', required: true },
+            { key: 'serverId', type: 'integer', required: false },
+            { key: 'createdAt', type: 'integer', required: true },
+            { key: 'updatedAt', type: 'integer', required: true },
+            { key: 'deletedAt', type: 'integer', required: false },
+            { key: 'lastModified', type: 'integer', required: true },
+            { key: 'lastModifiedEpoch', type: 'integer', required: false },
+            { key: 'createdAtEpoch', type: 'integer', required: false },
+            { key: 'createdAtIso', type: 'string', size: 30, required: false },
+            { key: 'updatedAtIso', type: 'string', size: 30, required: false },
+            { key: 'deletedAtIso', type: 'string', size: 30, required: false },
+            { key: 'version', type: 'integer', required: false },
+            { key: 'origin', type: 'string', size: 20, required: false },
+            { key: 'vectorClock', type: 'string', size: 500, required: false },
+            { key: 'deviceId', type: 'string', size: 100, required: false },
+        ],
+        indexes: [
+            { key: 'idx_salary_carryover_uuid', type: 'unique', attributes: ['localUuid'] },
+            { key: 'idx_salary_carryover_employee', type: 'key', attributes: ['employeeId'] },
+        ]
+    },
+    {
         id: 'hotel_day_ledger',
         name: 'HotelDayLedger',
         attributes: [

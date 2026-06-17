@@ -480,6 +480,15 @@ class DeltaSyncService {
         deletedAt: (dynamic row) => (row as SalaryWithdrawal).deletedAt,
         toJson: (dynamic row) => (row as SalaryWithdrawal).toJson(),
       ),
+      _EntityConfig(
+        entity: 'salary_carry_over_logs',
+        fetchAll: () => db.select(db.salaryCarryOverLogs).get(),
+        localUuid: (dynamic row) => (row as SalaryCarryOverLog).localUuid,
+        createdAt: (dynamic row) => (row as SalaryCarryOverLog).createdAt,
+        lastModified: (dynamic row) => (row as SalaryCarryOverLog).lastModified,
+        deletedAt: (dynamic row) => (row as SalaryCarryOverLog).deletedAt,
+        toJson: (dynamic row) => (row as SalaryCarryOverLog).toJson(),
+      ),
       // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
       _EntityConfig(
         entity: 'shift_notes',

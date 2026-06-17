@@ -141,6 +141,14 @@ class AppwriteSyncUtils {
       'lastModifiedEpoch', 'localUuid', 'name', 'note', 'origin', 'serverId',
       'syncTimestamp', 'updatedAt', 'updatedAtIso', 'vectorClock', 'version',
     },
+    'salary_carry_over_logs': {
+      'amount', 'carriedAt', 'createdAt', 'createdAtEpoch', 'createdAtIso',
+      'deletedAt', 'deletedAtIso', 'deviceId', 'employeeId', 'id',
+      'lastModified', 'lastModifiedEpoch', 'localUuid', 'newCycleEnd',
+      'newCycleStart', 'origin', 'previousCycleEnd', 'previousCycleStart',
+      'reason', 'serverId', 'updatedAt', 'updatedAtIso', 'vectorClock',
+      'version',
+    },
     'price_adjustments': {
       'adjustmentMode', 'adjustmentType', 'appliedBy', 'createdAt',
       'createdAtEpoch', 'createdAtIso', 'deletedAt', 'deletedAtIso', 'deviceId',

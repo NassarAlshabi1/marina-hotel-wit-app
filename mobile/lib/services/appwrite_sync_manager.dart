@@ -2099,6 +2099,8 @@ class AppwriteSyncManager {
           return await _processGuestInfoEntry(entry);
         case 'salary_withdrawals':
           return await _processSalaryWithdrawalEntry(entry);
+        case 'salary_carry_over_logs':
+          return await _processSalaryCarryOverLogEntry(entry);
         case 'blacklist':
           return await _processBlacklistEntry(entry);
         case 'price_adjustments':
@@ -2965,6 +2967,7 @@ class AppwriteSyncManager {
       'debts': 'debts',
       'guest_infos': 'guest_infos',
       'salary_withdrawals': 'salary_withdrawals',
+      'salary_carry_over_logs': 'salary_carry_over_logs',
       'booking_price_adjustments': 'booking_price_adjustments',
       'shift_notes': 'shift_notes',
       'blacklist': 'blacklist',
@@ -3140,6 +3143,8 @@ class AppwriteSyncManager {
         return _getLocalGuestInfoLastModified(localUuid);
       case 'salary_withdrawals':
         return _getLocalSalaryWithdrawalLastModified(localUuid);
+      case 'salary_carry_over_logs':
+        return _getLocalSalaryCarryOverLogLastModified(localUuid);
       case 'booking_price_adjustments':
         return _getLocalBookingPriceAdjustmentLastModified(localUuid);
       case 'shift_notes':
@@ -3210,6 +3215,8 @@ class AppwriteSyncManager {
         return 'guest_infos';
       case 'salary_withdrawals':
         return 'salary_withdrawals';
+      case 'salary_carry_over_logs':
+        return 'salary_carry_over_logs';
       case 'booking_price_adjustments':
         return 'booking_price_adjustments';
       case 'shift_notes':
@@ -3288,6 +3295,14 @@ class AppwriteSyncManager {
 
   Future<int?> _getLocalSalaryWithdrawalLastModified(String localUuid) async {
     final row = await (database.select(database.salaryWithdrawals)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.lastModified;
+  }
+
+  Future<int?> _getLocalSalaryCarryOverLogLastModified(String localUuid) async {
+    final row = await (database.select(database.salaryCarryOverLogs)
           ..where((t) => t.localUuid.equals(localUuid))
           ..limit(1))
         .getSingleOrNull();
@@ -3751,6 +3766,7 @@ class AppwriteSyncManager {
       'booking_price_adjustments': 0,
       'guest_infos': 0,
       'salary_withdrawals': 0,
+      'salary_carry_over_logs': 0,
       'errors': 0,
     };
 
@@ -4062,6 +4078,29 @@ class AppwriteSyncManager {
       }
       _logger.info('✅ تم رفع ${stats['salary_withdrawals']} سحب راتب', tag: 'SYNC');
 
+      // ✅ رفع سجلات ترحيل الراتب
+      final carryOverLogs = await database.select(database.salaryCarryOverLogs).get();
+      _logger.info('📦 وُجد ${carryOverLogs.length} سجل ترحيل راتب', tag: 'SYNC');
+      for (final log in carryOverLogs) {
+        if (log.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.salaryCarryOverLogs.adapter.toJson(
+            log,
+            src: Source.appwrite,
+          );
+          await appwriteService.upsertDocument(
+            collectionId: 'salary_carry_over_logs',
+            documentId: log.localUuid,
+            data: _filterPayload('salary_carry_over_logs', payload),
+          );
+          stats['salary_carry_over_logs'] = (stats['salary_carry_over_logs'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع سجل ترحيل: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['salary_carry_over_logs']} سجل ترحيل راتب', tag: 'SYNC');
+
       final totalRecords =
           stats['rooms']! +
           stats['bookings']! +
@@ -4077,7 +4116,8 @@ class AppwriteSyncManager {
           stats['shift_notes']! +
           (stats['booking_price_adjustments'] ?? 0) +
           (stats['guest_infos'] ?? 0) +
-          (stats['salary_withdrawals'] ?? 0);
+          (stats['salary_withdrawals'] ?? 0) +
+          (stats['salary_carry_over_logs'] ?? 0);
 
       _logger.info(
         '✅ اكتمل رفع البيانات: $totalRecords سجل، ${stats['errors']} خطأ',
@@ -4368,6 +4408,42 @@ class AppwriteSyncManager {
   }
 
   // ─── Blacklist ──────────────────────────────────────────────────────────
+
+  /// ✅ رفع سجل ترحيل الراتب إلى Appwrite
+  Future<bool> _processSalaryCarryOverLogEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: 'salary_carry_over_logs',
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final log = await (database.select(database.salaryCarryOverLogs)
+          ..where((t) => t.localUuid.equals(entry.localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+    if (log == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: 'salary_carry_over_logs',
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final payload = _adapterRegistry.salaryCarryOverLogs.adapter.toJson(
+      log,
+      src: Source.appwrite,
+    );
+    await appwriteService.upsertDocument(
+      collectionId: 'salary_carry_over_logs',
+      documentId: entry.localUuid,
+      data: _filterPayload('salary_carry_over_logs', _addIdempotencyKey(payload, entry)),
+    );
+    return true;
+  }
 
   Future<bool> _processBlacklistEntry(OutboxData entry) async {
     if (entry.op == 'delete') {

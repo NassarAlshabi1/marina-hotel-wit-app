@@ -168,6 +168,7 @@ class LocalBackupService {
         final paymentVoidsData = await db.select(db.paymentVoids).get();
         final guestInfosData = await db.select(db.guestInfos).get();
         final salaryWithdrawalsData = await db.select(db.salaryWithdrawals).get();
+        final salaryCarryOverLogsData = await db.select(db.salaryCarryOverLogs).get();
 
         final tableData = BackupTableData(
           roomsData: roomsData,
@@ -189,6 +190,7 @@ class LocalBackupService {
           paymentVoidsData: paymentVoidsData,
           guestInfosData: guestInfosData,
           salaryWithdrawalsData: salaryWithdrawalsData,
+          salaryCarryOverLogsData: salaryCarryOverLogsData,
         );
 
         final totalRecords = tableData.totalRecords;
@@ -511,6 +513,7 @@ class LocalBackupService {
         // Level 2 (FK→ Level 0/1)
         await db.delete(db.salaryPayments).go(); // FK→ salary_cycles
         await db.delete(db.salaryWithdrawals).go(); // FK→ employees
+        await db.delete(db.salaryCarryOverLogs).go(); // FK→ employees
         await db.delete(db.integrityViolations).go(); // FK→ auto_fix_runs
         await db.delete(db.bookingPriceAdjustments).go(); // FK→ bookings
         await db.delete(db.bookingNights).go(); // FK→ bookings
@@ -691,6 +694,14 @@ class LocalBackupService {
             serializer: lenientValueSerializer,
           );
           await db.into(db.salaryWithdrawals).insertOnConflictUpdate(data);
+        });
+        await insertList<dynamic>('salary_carry_over_logs', (json) async {
+          final map = Map<String, dynamic>.from(json as Map);
+          final data = SalaryCarryOverLog.fromJson(
+            map,
+            serializer: lenientValueSerializer,
+          );
+          await db.into(db.salaryCarryOverLogs).insertOnConflictUpdate(data);
         });
 
         if (backupData.containsKey('sync_state') &&

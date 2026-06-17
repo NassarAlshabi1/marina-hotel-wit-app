@@ -165,6 +165,7 @@ class BackupTableData {
     required this.paymentVoidsData,
     required this.guestInfosData,
     required this.salaryWithdrawalsData,
+    required this.salaryCarryOverLogsData,
   });
 
   final List<dynamic> roomsData;
@@ -186,6 +187,7 @@ class BackupTableData {
   final List<dynamic> paymentVoidsData;
   final List<dynamic> guestInfosData;
   final List<dynamic> salaryWithdrawalsData;
+  final List<dynamic> salaryCarryOverLogsData;
 
   /// إجمالي عدد السجلات في جميع الجداول
   int get totalRecords =>
@@ -207,7 +209,8 @@ class BackupTableData {
       auditLogsData.length +
       paymentVoidsData.length +
       guestInfosData.length +
-      salaryWithdrawalsData.length;
+      salaryWithdrawalsData.length +
+      salaryCarryOverLogsData.length;
 
   /// بناء خريطة بيانات النسخ الاحتياطي من هذه الحاوية
   Map<String, dynamic> toBackupDataMap({
@@ -237,6 +240,7 @@ class BackupTableData {
       paymentVoidsData: paymentVoidsData,
       guestInfosData: guestInfosData,
       salaryWithdrawalsData: salaryWithdrawalsData,
+      salaryCarryOverLogsData: salaryCarryOverLogsData,
       blacklistData: blacklistData,
       whatsappSettings: whatsappSettings,
       syncStateData: syncStateData,
@@ -267,6 +271,7 @@ Map<String, dynamic> buildBackupDataMap({
   required List<dynamic> paymentVoidsData,
   required List<dynamic> guestInfosData,
   required List<dynamic> salaryWithdrawalsData,
+  required List<dynamic> salaryCarryOverLogsData,
   List<dynamic>? blacklistData,
   Map<String, dynamic>? whatsappSettings,
   Map<String, dynamic>? syncStateData,
@@ -304,6 +309,9 @@ Map<String, dynamic> buildBackupDataMap({
     'payment_voids': paymentVoidsData.map((v) => v.toJson()).toList(),
     'guest_infos': guestInfosData.map((g) => g.toJson()).toList(),
     'salary_withdrawals': salaryWithdrawalsData
+        .map((s) => s.toJson())
+        .toList(),
+    'salary_carry_over_logs': salaryCarryOverLogsData
         .map((s) => s.toJson())
         .toList(),
   };

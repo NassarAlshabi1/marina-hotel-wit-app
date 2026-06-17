@@ -282,6 +282,7 @@ class AppwriteDeltaSync {
         'salary_cycles': AppwriteConfig.salaryCyclesCollectionId,
         'salary_payments': AppwriteConfig.salaryPaymentsCollectionId,
         'salary_withdrawals': AppwriteConfig.salaryWithdrawalsCollectionId,
+        'salary_carry_over_logs': 'salary_carry_over_logs',
         'shift_notes': AppwriteConfig.shiftNotesCollectionId,
         'price_adjustments': AppwriteConfig.priceAdjustmentsCollectionId,
         'audit_logs': AppwriteConfig.auditLogsCollectionId,
@@ -549,6 +550,8 @@ class AppwriteDeltaSync {
         await _applyGuestInfoChange(db, documentId, data);
       case 'salary_withdrawals':
         await _applySalaryWithdrawalChange(db, documentId, data);
+      case 'salary_carry_over_logs':
+        await _applySalaryCarryOverLogChange(db, documentId, data);
     }
   }
 
@@ -1124,6 +1127,58 @@ class AppwriteDeltaSync {
     await db.into(db.salaryWithdrawals).insertOnConflictUpdate(companion);
   }
 
+  /// ✅ تطبيق سجل ترحيل الراتب من Appwrite
+  Future<void> _applySalaryCarryOverLogChange(
+    AppDatabase db,
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final resolvedEmployeeId = await _resolveEmployeeId(db, data);
+    if (resolvedEmployeeId == null) return;
+
+    final incomingLastModified =
+        _asInt(data['lastModified']) ?? Time.nowEpoch();
+    final createdAt = _asInt(data['createdAt']) ?? Time.nowEpoch();
+
+    final companion = SalaryCarryOverLogsCompanion(
+      localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
+      serverId: _nullableValue<int>(_asInt(data['serverId'])),
+      employeeId: d.Value(resolvedEmployeeId),
+      amount: d.Value(_asDouble(data['amount']) ?? 0),
+      previousCycleStart: d.Value(
+          _asString(data['previousCycleStart']) ??
+          _asString(data['previous_cycle_start']) ?? ''),
+      previousCycleEnd: d.Value(
+          _asString(data['previousCycleEnd']) ??
+          _asString(data['previous_cycle_end']) ?? ''),
+      newCycleStart: d.Value(
+          _asString(data['newCycleStart']) ??
+          _asString(data['new_cycle_start']) ?? ''),
+      newCycleEnd: d.Value(
+          _asString(data['newCycleEnd']) ??
+          _asString(data['new_cycle_end']) ?? ''),
+      reason: d.Value(_asString(data['reason']) ?? ''),
+      carriedAt: d.Value(_asInt(data['carriedAt']) ?? createdAt),
+      createdAt: d.Value(createdAt),
+      updatedAt: d.Value(_asInt(data['updatedAt']) ?? Time.nowEpoch()),
+      deletedAt: _nullableValue<int>(_asInt(data['deletedAt'])),
+      lastModified: d.Value(incomingLastModified),
+      createdAtIso: _nullableValue<String>(_asString(data['createdAtIso'])),
+      updatedAtIso: _nullableValue<String>(_asString(data['updatedAtIso'])),
+      deletedAtIso: _nullableValue<String>(_asString(data['deletedAtIso'])),
+      createdAtEpoch: d.Value(_asInt(data['createdAtEpoch']) ?? createdAt),
+      lastModifiedEpoch: d.Value(
+        _asInt(data['lastModifiedEpoch']) ?? incomingLastModified,
+      ),
+      version: d.Value(_asInt(data['version']) ?? 1),
+      origin: const d.Value('server'),
+      vectorClock: d.Value(_asString(data['vectorClock']) ?? '{}'),
+      deviceId: d.Value(_asString(data['deviceId']) ?? ''),
+    );
+
+    await db.into(db.salaryCarryOverLogs).insertOnConflictUpdate(companion);
+  }
+
   Future<void> _applyBookingNightChange(
     AppDatabase db,
     String localUuid,
@@ -1501,6 +1556,12 @@ class AppwriteDeltaSync {
               ..limit(1))
             .getSingleOrNull();
         return row?.lastModified;
+      case 'salary_carry_over_logs':
+        final row = await (db.select(db.salaryCarryOverLogs)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+        return row?.lastModified;
       default:
         return null;
     }
@@ -1557,6 +1618,8 @@ class AppwriteDeltaSync {
         return AppwriteConfig.guestInfosCollectionId;
       case 'salary_withdrawals':
         return AppwriteConfig.salaryWithdrawalsCollectionId;
+      case 'salary_carry_over_logs':
+        return 'salary_carry_over_logs';
       default:
         return null;
     }

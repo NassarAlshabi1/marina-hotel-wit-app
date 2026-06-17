@@ -18,6 +18,7 @@ import 'rooms_adapter.dart';
 import 'salary_cycles_adapter.dart';
 import 'salary_payments_adapter.dart';
 import 'salary_withdrawals_adapter.dart';
+import 'salary_carry_over_logs_adapter.dart';
 import 'shift_notes_adapter.dart';
 
 class AdapterRegistry {
@@ -115,6 +116,11 @@ class AdapterRegistry {
         db: db,
         table: db.salaryWithdrawals,
         adapter: SalaryWithdrawalsAdapter(IdResolver(db)),
+      ),
+      salaryCarryOverLogs = BaseRepository<SalaryCarryOverLog, SalaryCarryOverLogsCompanion>(
+        db: db,
+        table: db.salaryCarryOverLogs,
+        adapter: SalaryCarryOverLogsAdapter(IdResolver(db)),
       );
 
   final AppDatabase db;
@@ -140,4 +146,5 @@ class AdapterRegistry {
       bookingPriceAdjustments;
   final BaseRepository<GuestInfo, GuestInfosCompanion> guestInfos;
   final BaseRepository<SalaryWithdrawal, SalaryWithdrawalsCompanion> salaryWithdrawals;
+  final BaseRepository<SalaryCarryOverLog, SalaryCarryOverLogsCompanion> salaryCarryOverLogs;
 }

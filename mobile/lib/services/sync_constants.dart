@@ -46,6 +46,7 @@ class SyncConstants {
     'booking_price_adjustments', // FK→ bookings.localUuid, bookings.id
     'salary_payments', // FK→ salary_cycles.id
     'salary_withdrawals', // FK→ employees.id
+    'salary_carry_over_logs', // FK→ employees.id
     'integrity_violations', // FK→ auto_fix_runs.id
   ];
 

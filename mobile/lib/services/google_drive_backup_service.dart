@@ -384,6 +384,7 @@ class GoogleDriveBackupService {
       final paymentVoidsData = await _loadTableBatched<dynamic>(db.paymentVoids);
       final guestInfosData = await _loadTableBatched<dynamic>(db.guestInfos);
       final salaryWithdrawalsData = await _loadTableBatched<dynamic>(db.salaryWithdrawals);
+      final salaryCarryOverLogsData = await _loadTableBatched<dynamic>(db.salaryCarryOverLogs);
 
       // استخراج عناصر القائمة السوداء بشكل منفصل (createdBy = 'blacklist')
       final blacklistQuery = db.select(db.shiftNotes)
@@ -410,6 +411,7 @@ class GoogleDriveBackupService {
         paymentVoidsData: paymentVoidsData,
         guestInfosData: guestInfosData,
         salaryWithdrawalsData: salaryWithdrawalsData,
+        salaryCarryOverLogsData: salaryCarryOverLogsData,
       );
 
       final totalRecords = tableData.totalRecords + blacklistData.length;
@@ -963,6 +965,7 @@ class GoogleDriveBackupService {
           await db.delete(db.debts).go();
           await db.delete(db.salaryPayments).go();          // FK → employees, salaryCycles
           await db.delete(db.salaryWithdrawals).go();      // FK → employees
+          await db.delete(db.salaryCarryOverLogs).go();   // FK → employees
           await db.delete(db.expenses).go();
           await db.delete(db.cashTransactions).go();
           await db.delete(db.auditLogs).go();
@@ -1245,6 +1248,20 @@ class GoogleDriveBackupService {
             }
             if (skippedWithdrawals > 0) {
               _log('⚠️ تم تخطي $skippedWithdrawals سحب راتب بسبب مراجع FK مفقودة');
+            }
+          }
+
+          if (backupData.containsKey('salary_carry_over_logs')) {
+            final carryOverList = backupData['salary_carry_over_logs'] as List<dynamic>;
+            for (final cJson in carryOverList) {
+              try {
+                await adapterRegistry.salaryCarryOverLogs.upsertFromJson(
+                  Map<String, dynamic>.from(cJson as Map),
+                  src: Source.drive,
+                );
+              } catch (e) {
+                _log('⚠️ فشل استعادة سجل ترحيل راتب: $e');
+              }
             }
           }
 
