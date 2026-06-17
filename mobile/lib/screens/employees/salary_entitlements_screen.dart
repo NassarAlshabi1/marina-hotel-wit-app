@@ -180,88 +180,82 @@ class _SalaryEntitlementsScreenState
   Widget _buildEmployeeCard(SalaryEntitlement ent) {
     final isPositive = ent.netEntitlement >= 0;
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 6),
+      clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
         dense: true,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 10),
+        childrenPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         title: Text(
           ent.employee.name,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
           'المتبقي: ${CurrencyFormatter.formatAmount(ent.netEntitlement)}',
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 10,
             color: isPositive ? Colors.green : Colors.red,
           ),
         ),
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                _row('تاريخ التعيين', _formatDate(ent.hireDate)),
-                _row('مدة العمل', '${ent.totalMonthsWorked} شهر'),
-                _row(
-                  'الراتب الشهري',
-                  CurrencyFormatter.formatAmount(ent.basicSalary),
-                ),
-                const Divider(),
-                _row(
-                  'إجمالي الاستحقاق',
-                  CurrencyFormatter.formatAmount(ent.totalEntitlement),
-                  Colors.green,
-                ),
-                _row(
-                  'السحبيات',
-                  '- ${CurrencyFormatter.formatAmount(ent.totalWithdrawals)}',
-                  Colors.orange,
-                ),
-                // ✅ إضافة: السلف مع رصيد متبقي
-                _row(
-                  'السلف',
-                  '- ${CurrencyFormatter.formatAmount(ent.totalAdvances)}',
-                  Colors.indigo,
-                ),
-                if (ent.totalAdvances > 0)
-                  _row(
-                    'رصيد السلف المتبقي',
-                    CurrencyFormatter.formatAmount(ent.advanceBalance),
-                    ent.advanceBalance > 0 ? Colors.indigo.shade300 : Colors.grey,
-                  ),
-                _row(
-                  'الخصومات',
-                  '- ${CurrencyFormatter.formatAmount(ent.totalDeductions)}',
-                  Colors.red,
-                ),
-                const Divider(),
-                _row(
-                  'المتبقي',
-                  CurrencyFormatter.formatAmount(ent.netEntitlement),
-                  isPositive ? Colors.green : Colors.red,
-                  true,
-                ),
-                // ✅ بطاقة الدورة الشهرية الحالية
-                const SizedBox(height: 8),
-                _buildMonthlyCycleCard(ent.employee),
-                if (ent.transactions.isNotEmpty) ...[
-                  const Divider(),
-                  const Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      'آخر المعاملات:',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  ...ent.transactions.take(8).map(_buildTransactionRow),
-                ],
-              ],
-            ),
+          _row('تاريخ التعيين', _formatDate(ent.hireDate)),
+          _row('مدة العمل', '${ent.totalMonthsWorked} شهر'),
+          _row(
+            'الراتب الشهري',
+            CurrencyFormatter.formatAmount(ent.basicSalary),
           ),
+          const Divider(height: 6),
+          _row(
+            'إجمالي الاستحقاق',
+            CurrencyFormatter.formatAmount(ent.totalEntitlement),
+            Colors.green,
+          ),
+          _row(
+            'السحبيات',
+            '- ${CurrencyFormatter.formatAmount(ent.totalWithdrawals)}',
+            Colors.orange,
+          ),
+          _row(
+            'السلف',
+            '- ${CurrencyFormatter.formatAmount(ent.totalAdvances)}',
+            Colors.indigo,
+          ),
+          if (ent.totalAdvances > 0)
+            _row(
+              'رصيد السلف المتبقي',
+              CurrencyFormatter.formatAmount(ent.advanceBalance),
+              ent.advanceBalance > 0 ? Colors.indigo.shade300 : Colors.grey,
+            ),
+          _row(
+            'الخصومات',
+            '- ${CurrencyFormatter.formatAmount(ent.totalDeductions)}',
+            Colors.red,
+          ),
+          const Divider(height: 6),
+          _row(
+            'المتبقي',
+            CurrencyFormatter.formatAmount(ent.netEntitlement),
+            isPositive ? Colors.green : Colors.red,
+            true,
+          ),
+          const SizedBox(height: 6),
+          _buildMonthlyCycleCard(ent.employee),
+          if (ent.transactions.isNotEmpty) ...[
+            const Divider(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                'آخر المعاملات:',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            ...ent.transactions.take(6).map(_buildTransactionRow),
+          ],
         ],
       ),
     );
@@ -341,15 +335,15 @@ class _SalaryEntitlementsScreenState
   String _formatDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  /// ✅ بطاقة الدورة الشهرية الحالية
+  /// ✅ بطاقة الدورة الشهرية الحالية — مصغّرة
   Widget _buildMonthlyCycleCard(Employee employee) {
     return FutureBuilder<MonthlySalaryCycle>(
       future: _service.calculateCurrentCycle(employee),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Padding(
-            padding: EdgeInsets.all(8),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            padding: EdgeInsets.all(4),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 1.5)),
           );
         }
         final cycle = snapshot.data!;
@@ -359,99 +353,80 @@ class _SalaryEntitlementsScreenState
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
             color: hasExceeded
                 ? Colors.red.shade50
                 : (hasCarryOver ? Colors.orange.shade50 : Colors.blue.shade50),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
               color: hasExceeded
-                  ? Colors.red.shade300
-                  : (hasCarryOver ? Colors.orange.shade300 : Colors.blue.shade300),
+                  ? Colors.red.shade200
+                  : (hasCarryOver ? Colors.orange.shade200 : Colors.blue.shade200),
             ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // عنوان الدورة
               Row(
                 children: [
                   Icon(Icons.calendar_month,
-                      size: 16,
+                      size: 12,
                       color: hasExceeded ? Colors.red : Colors.blue),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      'الدورة الحالية: ${cycle.monthLabel}',
-                      style: const TextStyle(
-                        fontSize: 12,
+                      '${cycle.monthLabel}',
+                      style: TextStyle(
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
+                        color: hasExceeded ? Colors.red : Colors.blue,
                       ),
                     ),
                   ),
+                  Text(
+                    cycle.cycleKey,
+                    style: TextStyle(fontSize: 8, color: Colors.grey.shade500),
+                  ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                cycle.cycleKey,
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-              ),
-              const Divider(height: 8),
-              // الراتب الأساسي
-              _row('الراتب الأساسي',
+              const Divider(height: 4),
+              _row('الراتب',
                   CurrencyFormatter.formatAmount(cycle.basicSalary),
                   Colors.green),
-              // المرحّل من سابق (إن وُجد)
               if (hasCarryOver)
-                _row(
-                  'مرحّل من الدورة السابقة',
-                  '- ${CurrencyFormatter.formatAmount(cycle.carriedOverFromPrevious)}',
-                  Colors.orange.shade700,
-                ),
-              // المسحوبات
+                _row('مرحّل',
+                    '- ${CurrencyFormatter.formatAmount(cycle.carriedOverFromPrevious)}',
+                    Colors.orange.shade700),
               if (cycle.totalWithdrawals > 0)
                 _row('المسحوبات',
                     '- ${CurrencyFormatter.formatAmount(cycle.totalWithdrawals)}',
                     Colors.orange),
-              // السلف
               if (cycle.totalAdvances > 0)
                 _row('السلف',
                     '- ${CurrencyFormatter.formatAmount(cycle.totalAdvances)}',
                     Colors.indigo),
-              // الخصومات
               if (cycle.totalDeductions > 0)
                 _row('الخصومات',
                     '- ${CurrencyFormatter.formatAmount(cycle.totalDeductions)}',
                     Colors.red),
-              const Divider(height: 8),
-              // المتبقي
-              _row(
-                'المتبقي للموظف',
-                CurrencyFormatter.formatAmount(remaining),
-                hasExceeded ? Colors.red : Colors.green,
-                true,
-              ),
-              // تنبيه التجاوز
-              if (hasExceeded) ...[
-                const SizedBox(height: 4),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade100,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+              const Divider(height: 4),
+              _row('المتبقي',
+                  CurrencyFormatter.formatAmount(remaining),
+                  hasExceeded ? Colors.red : Colors.green,
+                  true),
+              if (hasExceeded)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
                   child: Row(
                     children: [
-                      const Icon(Icons.warning, size: 14, color: Colors.red),
-                      const SizedBox(width: 4),
+                      Icon(Icons.warning, size: 10, color: Colors.red.shade400),
+                      const SizedBox(width: 3),
                       Expanded(
                         child: Text(
-                          'تنبيه: تجاوز الراتب بمبلغ ${CurrencyFormatter.formatAmount(cycle.carryOverToNext)} '
-                          '— سيتم ترحيله للدورة التالية',
-                          style: const TextStyle(
-                            fontSize: 10,
+                          'تجاوز ${CurrencyFormatter.formatAmount(cycle.carryOverToNext)} → يُرحّل',
+                          style: TextStyle(
+                            fontSize: 8,
                             fontWeight: FontWeight.bold,
                             color: Colors.red,
                           ),
@@ -460,35 +435,25 @@ class _SalaryEntitlementsScreenState
                     ],
                   ),
                 ),
-              ],
-              // تنبيه الترحيل من سابق
-              if (hasCarryOver && !hasExceeded) ...[
-                const SizedBox(height: 4),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade100,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+              if (hasCarryOver && !hasExceeded)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline, size: 14, color: Colors.orange),
-                      const SizedBox(width: 4),
+                      Icon(Icons.info_outline, size: 10, color: Colors.orange.shade400),
+                      const SizedBox(width: 3),
                       Expanded(
                         child: Text(
-                          'تم خصم ${CurrencyFormatter.formatAmount(cycle.carriedOverFromPrevious)} '
-                          'من استحقاق هذا الشهر كمبلغ مرحّل من الدورة السابقة',
+                          'خصم ${CurrencyFormatter.formatAmount(cycle.carriedOverFromPrevious)} مرحّل',
                           style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.orange.shade900,
+                            fontSize: 8,
+                            color: Colors.orange.shade700,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
             ],
           ),
         );

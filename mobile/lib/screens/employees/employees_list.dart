@@ -1131,17 +1131,17 @@ class _EmployeeCard extends StatelessWidget {
                 ),
               ),
 
-              // أزرار العمليات
-              Column(
+              // أزرار العمليات — بجانب بعض أفقياً
+              Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (onTerminate != null)
                     SizedBox(
-                      width: 22,
-                      height: 22,
+                      width: 24,
+                      height: 24,
                       child: IconButton(
                         onPressed: onTerminate,
-                        icon: const Icon(Icons.person_off, size: 11),
+                        icon: const Icon(Icons.person_off, size: 12),
                         color: Colors.red,
                         padding: EdgeInsets.zero,
                         style: IconButton.styleFrom(
@@ -1152,11 +1152,11 @@ class _EmployeeCard extends StatelessWidget {
                     ),
                   if (onReactivate != null)
                     SizedBox(
-                      width: 22,
-                      height: 22,
+                      width: 24,
+                      height: 24,
                       child: IconButton(
                         onPressed: onReactivate,
-                        icon: const Icon(Icons.person_add, size: 11),
+                        icon: const Icon(Icons.person_add, size: 12),
                         color: Colors.green,
                         padding: EdgeInsets.zero,
                         style: IconButton.styleFrom(
@@ -1165,12 +1165,13 @@ class _EmployeeCard extends StatelessWidget {
                         tooltip: 'إعادة تفعيل',
                       ),
                     ),
+                  const SizedBox(width: 2),
                   SizedBox(
-                    width: 22,
-                    height: 22,
+                    width: 24,
+                    height: 24,
                     child: IconButton(
                       onPressed: onDelete,
-                      icon: const Icon(Icons.delete_outline, size: 11),
+                      icon: const Icon(Icons.delete_outline, size: 12),
                       color: AppColors.dangerColor,
                       padding: EdgeInsets.zero,
                       style: IconButton.styleFrom(

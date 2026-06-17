@@ -382,14 +382,14 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     }
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 6),
       color: cardColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         side: BorderSide(color: borderColor),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -400,7 +400,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   child: Text(
                     debt.guestName,
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -409,7 +409,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               ],
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
 
             // التواريخ والسبب
             Row(
@@ -432,11 +432,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             ),
 
             if (debt.debtReason.isNotEmpty) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               _buildInfoRow(Icons.info, 'السبب', debt.debtReason),
             ],
 
-            const Divider(height: 20),
+            const Divider(height: 8),
 
             // المبالغ
             Row(
@@ -446,16 +446,16 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'إجمالي المبلغ',
+                        'إجمالي',
                         style: TextStyle(
                           color: Colors.grey.shade600,
-                          fontSize: 12,
+                          fontSize: 9,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         CurrencyFormatter.formatAmount(debt.totalAmount),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -468,13 +468,14 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                         'المدفوع',
                         style: TextStyle(
                           color: Colors.grey.shade600,
-                          fontSize: 12,
+                          fontSize: 9,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         CurrencyFormatter.formatAmount(debt.paidAmount),
                         style: TextStyle(
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                           color: Colors.green.shade700,
                         ),
@@ -490,13 +491,14 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                         'المتبقي',
                         style: TextStyle(
                           color: Colors.grey.shade600,
-                          fontSize: 12,
+                          fontSize: 9,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         CurrencyFormatter.formatAmount(debt.remainingAmount),
                         style: TextStyle(
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                           color: Colors.red.shade700,
                         ),
@@ -509,34 +511,29 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
             // الرهن إذا كان موجود
             if (debt.pledge?.isNotEmpty ?? false) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: Colors.blue.shade200),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.security, size: 16, color: Colors.blue.shade700),
-                    const SizedBox(width: 8),
-                    Text(
-                      'رهن: ${debt.pledge}',
-                      style: TextStyle(
-                        color: Colors.blue.shade700,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (debt.pledgeType?.isNotEmpty ?? false)
-                      Text(
-                        ' (${debt.pledgeType})',
+                    Icon(Icons.security, size: 12, color: Colors.blue.shade700),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'رهن: ${debt.pledge}${debt.pledgeType?.isNotEmpty == true ? ' (${debt.pledgeType})' : ''}',
                         style: TextStyle(
-                          color: Colors.blue.shade600,
+                          fontSize: 9,
+                          color: Colors.blue.shade700,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -544,76 +541,83 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
             // الملاحظة إذا كانت موجودة
             if (debt.note?.isNotEmpty ?? false) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
                 child: Text(
                   debt.note!,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 9,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
 
-            // أزرار الإجراءات
+            // أزرار الإجراءات — مدمجة وصغيرة
             Row(
               children: [
                 if (!isSettled) ...[
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _markAsSettled(debt),
-                      icon: const Icon(Icons.check, size: 16),
-                      label: const Text('تم السداد'),
+                      icon: const Icon(Icons.check, size: 12),
+                      label: const Text('سداد', style: TextStyle(fontSize: 10)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        minimumSize: const Size(0, 28),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                 ],
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _isSendingWhatsApp
                         ? null
                         : () => _sendDebtWhatsApp(debt),
-                    icon: const Icon(Icons.chat, size: 16, color: Colors.green),
-                    label: const Text(
-                      'واتساب',
-                      style: TextStyle(color: Colors.green),
-                    ),
+                    icon: const Icon(Icons.chat, size: 12, color: Colors.green),
+                    label: const Text('واتساب', style: TextStyle(fontSize: 10, color: Colors.green)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.green,
                       side: const BorderSide(color: Colors.green),
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      minimumSize: const Size(0, 28),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _openDebtForm(context, existing: debt),
-                    icon: const Icon(Icons.edit, size: 16),
-                    label: const Text('تعديل'),
+                    icon: const Icon(Icons.edit, size: 12),
+                    label: const Text('تعديل', style: TextStyle(fontSize: 10)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      minimumSize: const Size(0, 28),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 OutlinedButton(
                   onPressed: () => _deleteDebt(context, debt),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    minimumSize: const Size(0, 28),
                   ),
-                  child: const Icon(Icons.delete, size: 16),
+                  child: const Icon(Icons.delete, size: 12),
                 ),
               ],
             ),
