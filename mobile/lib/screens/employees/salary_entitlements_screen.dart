@@ -340,4 +340,159 @@ class _SalaryEntitlementsScreenState
 
   String _formatDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  /// ✅ بطاقة الدورة الشهرية الحالية
+  Widget _buildMonthlyCycleCard(Employee employee) {
+    return FutureBuilder<MonthlySalaryCycle>(
+      future: _service.calculateCurrentCycle(employee),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Padding(
+            padding: EdgeInsets.all(8),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        }
+        final cycle = snapshot.data!;
+        final remaining = cycle.remainingBalance;
+        final hasExceeded = cycle.hasExceeded;
+        final hasCarryOver = cycle.carriedOverFromPrevious > 0;
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: hasExceeded
+                ? Colors.red.shade50
+                : (hasCarryOver ? Colors.orange.shade50 : Colors.blue.shade50),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: hasExceeded
+                  ? Colors.red.shade300
+                  : (hasCarryOver ? Colors.orange.shade300 : Colors.blue.shade300),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // عنوان الدورة
+              Row(
+                children: [
+                  Icon(Icons.calendar_month,
+                      size: 16,
+                      color: hasExceeded ? Colors.red : Colors.blue),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'الدورة الحالية: ${cycle.monthLabel}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                cycle.cycleKey,
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+              ),
+              const Divider(height: 8),
+              // الراتب الأساسي
+              _row('الراتب الأساسي',
+                  CurrencyFormatter.formatAmount(cycle.basicSalary),
+                  Colors.green),
+              // المرحّل من سابق (إن وُجد)
+              if (hasCarryOver)
+                _row(
+                  'مرحّل من الدورة السابقة',
+                  '- ${CurrencyFormatter.formatAmount(cycle.carriedOverFromPrevious)}',
+                  Colors.orange.shade700,
+                ),
+              // المسحوبات
+              if (cycle.totalWithdrawals > 0)
+                _row('المسحوبات',
+                    '- ${CurrencyFormatter.formatAmount(cycle.totalWithdrawals)}',
+                    Colors.orange),
+              // السلف
+              if (cycle.totalAdvances > 0)
+                _row('السلف',
+                    '- ${CurrencyFormatter.formatAmount(cycle.totalAdvances)}',
+                    Colors.indigo),
+              // الخصومات
+              if (cycle.totalDeductions > 0)
+                _row('الخصومات',
+                    '- ${CurrencyFormatter.formatAmount(cycle.totalDeductions)}',
+                    Colors.red),
+              const Divider(height: 8),
+              // المتبقي
+              _row(
+                'المتبقي للموظف',
+                CurrencyFormatter.formatAmount(remaining),
+                hasExceeded ? Colors.red : Colors.green,
+                true,
+              ),
+              // تنبيه التجاوز
+              if (hasExceeded) ...[
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning, size: 14, color: Colors.red),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'تنبيه: تجاوز الراتب بمبلغ ${CurrencyFormatter.formatAmount(cycle.carryOverToNext)} '
+                          '— سيتم ترحيله للدورة التالية',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              // تنبيه الترحيل من سابق
+              if (hasCarryOver && !hasExceeded) ...[
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, size: 14, color: Colors.orange),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'تم خصم ${CurrencyFormatter.formatAmount(cycle.carriedOverFromPrevious)} '
+                          'من استحقاق هذا الشهر كمبلغ مرحّل من الدورة السابقة',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.orange.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
