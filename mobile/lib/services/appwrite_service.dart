@@ -236,17 +236,43 @@ class AppwriteService {
       );
     } on AppwriteException catch (e) {
       // 404 Not Found -> Create (هذا السلوك الطبيعي لـ Upsert)
-      if (e.code == 404 || e.toString().contains('document_not_found')) {
-        return _networkHelper.withRetryAndTimeout(
-          // ignore: deprecated_member_use
-          operation: () => _databases.createDocument(
-            databaseId: dbId,
-            collectionId: collectionId,
-            documentId: documentId,
-            data: data,
-          ),
-          operationName: 'createDocument',
-        );
+      if (e.code == 404 || (e.type ?? '').contains('document_not_found')) {
+        try {
+          return _networkHelper.withRetryAndTimeout(
+            // ignore: deprecated_member_use
+            operation: () => _databases.createDocument(
+              databaseId: dbId,
+              collectionId: collectionId,
+              documentId: documentId,
+              data: data,
+            ),
+            operationName: 'createDocument',
+          );
+        } on AppwriteException catch (createErr) {
+          // ✅ 409 document_already_exists يعني أن المستند موجود فعلاً
+          //    (حدث race condition بين update و create، أو update رجع 404
+          //    بالخطأ بسبب تأخر replication على Appwrite Cloud).
+          //    الحل: نعيد المحاولة update مرة واحدة لأن المستند موجود.
+          if (createErr.code == 409 ||
+              (createErr.type ?? '').contains('document_already_exists') ||
+              (createErr.message ?? '')
+                  .toLowerCase()
+                  .contains('already exists')) {
+            _logger.warning(
+              'upsert($collectionId/$documentId): 409 on create — '
+              'falling back to update (race condition resolved)',
+              tag: 'SYNC',
+            );
+            // ignore: deprecated_member_use
+            return _databases.updateDocument(
+              databaseId: dbId,
+              collectionId: collectionId,
+              documentId: documentId,
+              data: data,
+            );
+          }
+          rethrow;
+        }
       }
       rethrow;
     }

@@ -210,6 +210,9 @@ class AppwriteSyncUtils {
       'timestamp', 'updatedAt', 'updatedAtIso', 'vectorClock', 'version',
     },
     'app_settings': {
+      // ✅ localUuid مطلوب في مخطط Appwrite Cloud (required attribute)
+      // بدونه: خطأ 400 "Missing required attribute localUuid"
+      'localUuid',
       'value',
       'appwrite_sync_interval', 'dark_mode', 'hotel_cutoff_hour',
       'hotel_name', 'key', 'lark_app_id', 'lark_app_secret',

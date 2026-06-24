@@ -6145,9 +6145,16 @@ class AppwriteSyncManager {
       // ⚠️ حقول app_settings الفعلية في Appwrite Cloud (25 حقل فقط — الحد الأقصى)
       // تم تدقيق كل حقل مقابل المخطط الفعلي في 2026-06-14
       // ❌ لا ترسل حقولاً غير موجودة — يسبب "Unknown attribute" خطأ 400
+      const docId = 'whatsapp_settings';
+      const collectionId = 'app_settings';
+
       final data = <String, dynamic>{
         // ── مفتاح المستند — مطلوب من Appwrite Schema (required attribute)
         'key': 'whatsapp_settings',
+        // ✅ localUuid مطلوب في مخطط Appwrite Cloud (required attribute)
+        // بدونه: خطأ 400 "Missing required attribute localUuid"
+        // نستخدم نفس قيمة docId لأنه مستند واحد بالإعدادات
+        'localUuid': docId,
         // ── فندق ──
         'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
         'hotel_cutoff_hour': prefs.getInt('hotel_cutoff_hour') ?? 14,
@@ -6184,23 +6191,31 @@ class AppwriteSyncManager {
       // ── قيمة JSON مطلوبة من Appwrite Schema (required attribute)
       data['value'] = jsonEncode(data);
 
-      const docId = 'whatsapp_settings';
-      const collectionId = 'app_settings';
+      final filteredData = _filterPayload('app_settings', data);
 
       // محاولة تحديث، إذا لم يكن موجوداً ننشئه
+      // ⚠️ نلتقط فقط 404 (document_not_found) — لا نلتقط أخطاء الـ schema
+      // لأنها ستفشل أيضاً في الإنشاء، والأفضل رفعها للتشخيص
       try {
         await appwriteService.updateDocument(
           collectionId: collectionId,
           documentId: docId,
-          data: _filterPayload('app_settings', data),
+          data: filteredData,
         );
-      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-        _logger.warning('⚠️ فشل تحديث إعدادات التطبيق — نحاول الإنشاء', tag: 'SYNC');
-        await appwriteService.createDocument(
-          collectionId: collectionId,
-          documentId: docId,
-          data: _filterPayload('app_settings', data),
-        );
+      } on AppwriteException catch (e) {
+        if (e.code == 404 ||
+            (e.type ?? '').contains('document_not_found') ||
+            (e.message ?? '').toLowerCase().contains('not found')) {
+          _logger.warning('⚠️ مستند app_settings غير موجود — ننشئه', tag: 'SYNC');
+          await appwriteService.createDocument(
+            collectionId: collectionId,
+            documentId: docId,
+            data: filteredData,
+          );
+        } else {
+          // خطأ schema أو صلاحيات — لا فائدة من المحاولة create
+          rethrow;
+        }
       }
 
       return true;

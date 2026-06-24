@@ -24,6 +24,9 @@ class WhatsAppSettingsSync {
 
       final data = <String, dynamic>{
         'key': 'whatsapp_settings', // حقل مطلوب في مجموعة app_settings
+        // ✅ localUuid مطلوب في مخطط Appwrite Cloud (required attribute)
+        // بدونه: خطأ 400 "Missing required attribute localUuid"
+        'localUuid': _docId,
         'wa_api_type': prefs.getString('wa_api_type') ?? 'custom',
         'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
         'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',
@@ -36,6 +39,8 @@ class WhatsAppSettingsSync {
       final dbId = AppwriteConfigManager.databaseId;
 
       // محاولة تحديث المستند الموجود
+      // ⚠️ نلتقط فقط 404 (document_not_found) — لا نلتقط أخطاء الـ schema
+      // لأنها ستفشل أيضاً في الإنشاء، والأفضل رفعها للتشخيص
       try {
         // ignore: deprecated_member_use
         await _appwrite.databases.updateDocument(
@@ -44,15 +49,22 @@ class WhatsAppSettingsSync {
           documentId: _docId,
           data: data,
         );
-      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-        // إذا لم يكن موجوداً، إنشاء مستند جديد
-        // ignore: deprecated_member_use
-        await _appwrite.databases.createDocument(
-          databaseId: dbId,
-          collectionId: _collectionId,
-          documentId: _docId,
-          data: data,
-        );
+      } on AppwriteException catch (e) {
+        if (e.code == 404 ||
+            (e.type ?? '').contains('document_not_found') ||
+            (e.message ?? '').toLowerCase().contains('not found')) {
+          // المستند غير موجود — ننشئه
+          // ignore: deprecated_member_use
+          await _appwrite.databases.createDocument(
+            databaseId: dbId,
+            collectionId: _collectionId,
+            documentId: _docId,
+            data: data,
+          );
+        } else {
+          // خطأ schema أو صلاحيات — لا فائدة من المحاولة create
+          rethrow;
+        }
       }
 
       AppLogger.info('WhatsApp settings uploaded to Appwrite successfully');
