@@ -27,7 +27,9 @@ class WhatsAppSettingsSync {
         // ✅ localUuid مطلوب في مخطط Appwrite Cloud (required attribute)
         // بدونه: خطأ 400 "Missing required attribute localUuid"
         'localUuid': _docId,
-        'wa_api_type': prefs.getString('wa_api_type') ?? 'custom',
+        // ✅ توحيد default مع _pushAppSettingsToCloud في appwrite_sync_manager
+        // (كان 'custom' سابقاً — تناقض يُربك المستخدم عند المزامنة بين الأجهزة)
+        'wa_api_type': prefs.getString('wa_api_type') ?? 'greenapi',
         'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
         'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',
         'wa_api_token': prefs.getString('wa_api_token') ?? '',
@@ -100,6 +102,8 @@ class WhatsAppSettingsSync {
         'wa_api_instance_id',
         'wa_api_token',
         'wa_custom_url_template',
+        'wa_sendzen_api_key',
+        'wa_sendzen_from_number',
         'wa_template',
       ];
 

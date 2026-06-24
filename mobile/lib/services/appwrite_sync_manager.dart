@@ -1048,7 +1048,10 @@ class AppwriteSyncManager {
                 collectionId: 'app_settings',
                 queries: <String>[], // بدون delta filter - app_settings لا يملك lastModified
               );
-              final synced = await _syncAppSettings(docs);
+              // ✅ نمرّ عبر syncCollection (وليس _syncAppSettings مباشرة) لضمان
+              // تطبيع UUIDs مركزياً عبر _normalizeIncomingDocuments. هذا يحافظ
+              // على اتساق الـ workflow مع باقي المجموعات.
+              final synced = await syncCollection('app_settings', docs);
               _logger.debug('Synced $synced app_settings', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -6225,7 +6228,12 @@ class AppwriteSyncManager {
     }
   }
 
-  /// مزامنة إعدادات المراسلة (واتساب + تلجرام) من Appwrite → SharedPreferences
+  /// مزامنة إعدادات التطبيق (واتساب + تلجرام + Lark + فندق + مزامنة)
+  /// من Appwrite → SharedPreferences.
+  ///
+  /// ⚠️ يجب أن تكون قائمة الحقول هنا **متطابقة تماماً** مع قائمة الحقول
+  /// في `_pushAppSettingsToCloud` و `filterPayloadForCollection('app_settings')`.
+  /// أي تناقض يُسبب فقدان بيانات عند المزامنة بين الأجهزة.
   Future<int> _syncAppSettings(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
@@ -6235,53 +6243,115 @@ class AppwriteSyncManager {
       try {
         final data = doc.data;
 
-        // ── WhatsApp fields ──
-        const waStringFields = {
+        // ── حقل key (معرّف المستند) ──
+        // لا يُخزَّن في prefs لأنه مُضمَّن في doc.$id
+
+        // ── حقل value (JSON string يحتوي كل الإعدادات) ──
+        // لا نُخزّنه في prefs مباشرة — الحقول الفردية تُخزَّن منفصلة
+
+        // ──────────────────────────────────────────────────────────────
+        // WhatsApp fields (8 حقول)
+        // ──────────────────────────────────────────────────────────────
+        const waStringFields = <String, String>{
           'wa_api_type': 'wa_api_type',
           'wa_api_base_url': 'wa_api_base_url',
           'wa_api_instance_id': 'wa_api_instance_id',
           'wa_api_token': 'wa_api_token',
           'wa_custom_url_template': 'wa_custom_url_template',
+          'wa_sendzen_api_key': 'wa_sendzen_api_key',
+          'wa_sendzen_from_number': 'wa_sendzen_from_number',
         };
-
         for (final entry in waStringFields.entries) {
           final value = data[entry.key];
           if (value != null && value.toString().isNotEmpty) {
             await prefs.setString(entry.value, value.toString());
           }
         }
-
         // wa_template → whatsapp_template (مفتاح مختلف في prefs)
         final template = data['wa_template'];
         if (template != null && template.toString().isNotEmpty) {
           await prefs.setString('whatsapp_template', template.toString());
         }
 
-        // ── Telegram fields ──
-        const tgStringFields = {
+        // ──────────────────────────────────────────────────────────────
+        // Telegram fields (6 حقول)
+        // ──────────────────────────────────────────────────────────────
+        const tgStringFields = <String, String>{
           'telegram_bot_token': 'telegram_bot_token',
           'telegram_chat_id': 'telegram_chat_id',
           'telegram_daily_report_time': 'telegram_daily_report_time',
         };
-
         for (final entry in tgStringFields.entries) {
           final value = data[entry.key];
           if (value != null && value.toString().isNotEmpty) {
             await prefs.setString(entry.value, value.toString());
           }
         }
-
-        const tgBoolFields = {
+        const tgBoolFields = <String, String>{
           'telegram_enabled': 'telegram_enabled',
           'telegram_notifications_enabled': 'telegram_notifications_enabled',
           'telegram_daily_report_enabled': 'telegram_daily_report_enabled',
         };
-
         for (final entry in tgBoolFields.entries) {
           final value = data[entry.key];
           if (value != null) {
             await prefs.setBool(entry.value, value as bool);
           }
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // Lark fields (6 حقول) — ✅ كانت مفقودة سابقاً
+        // ──────────────────────────────────────────────────────────────
+        const larkStringFields = <String, String>{
+          'lark_app_id': 'lark_app_id',
+          'lark_app_secret': 'lark_app_secret',
+          'lark_webhook_url': 'lark_webhook_url',
+          'lark_daily_report_time': 'lark_daily_report_time',
+          'lark_daily_report_chat_id': 'lark_daily_report_chat_id',
+        };
+        for (final entry in larkStringFields.entries) {
+          final value = data[entry.key];
+          if (value != null && value.toString().isNotEmpty) {
+            await prefs.setString(entry.value, value.toString());
+          }
+        }
+        const larkBoolFields = <String, String>{
+          'lark_enabled': 'lark_enabled',
+          'lark_daily_report_enabled': 'lark_daily_report_enabled',
+        };
+        for (final entry in larkBoolFields.entries) {
+          final value = data[entry.key];
+          if (value != null) {
+            await prefs.setBool(entry.value, value as bool);
+          }
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // Hotel fields (2 حقول) — ✅ كانت مفقودة سابقاً
+        // ──────────────────────────────────────────────────────────────
+        final hotelName = data['hotel_name'];
+        if (hotelName != null && hotelName.toString().isNotEmpty) {
+          await prefs.setString('hotel_name', hotelName.toString());
+        }
+        final hotelCutoffHour = data['hotel_cutoff_hour'];
+        if (hotelCutoffHour != null && hotelCutoffHour is int) {
+          await prefs.setInt('hotel_cutoff_hour', hotelCutoffHour);
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // Appearance fields (1 حقل) — ✅ كان مفقوداً سابقاً
+        // ──────────────────────────────────────────────────────────────
+        final darkMode = data['dark_mode'];
+        if (darkMode != null) {
+          await prefs.setBool('dark_mode', darkMode as bool);
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // Sync settings (1 حقل) — ✅ كان مفقوداً سابقاً
+        // ──────────────────────────────────────────────────────────────
+        final syncInterval = data['appwrite_sync_interval'];
+        if (syncInterval != null && syncInterval is int) {
+          await prefs.setInt('appwrite_sync_interval', syncInterval);
         }
 
         processed++;
