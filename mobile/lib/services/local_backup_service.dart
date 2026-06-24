@@ -16,6 +16,7 @@ import '../utils/app_logger.dart';
 import 'backup_serializers.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
+import 'sqlite_backup_restore.dart';
 
 export 'google_drive_backup_service.dart' show BackupFormat;
 
@@ -613,6 +614,7 @@ class LocalBackupService {
       throw Exception('ملف النسخة الاحتياطية غير موجود');
     }
 
+    // ─── قراءة بيانات metadata الوصفية (إن وُجدت) ───────────────────────
     BackupMetadata? metadata;
     final metadataFile = File(_metadataFilePath(filePath));
     if (metadataFile.existsSync()) {
@@ -620,26 +622,49 @@ class LocalBackupService {
       metadata = BackupMetadata.fromJson(
         jsonDecode(metaContent) as Map<String, dynamic>,
       );
-      if (metadata.databaseVersion > AppDatabase().schemaVersion) {
+      // ⚠️ التحقق من إصدار schema قبل الاستبدال — نقرأه من metadata فقط
+      // (لا نفتح DB الحالي لأننا سنغلقه لاحقاً)
+      final currentSchemaVersion = DatabaseManager.isInitialized
+          ? DatabaseManager.instance.schemaVersion
+          : 44; // fallback لأحدث إصدار معروف
+      if (metadata.databaseVersion > currentSchemaVersion) {
         throw Exception(
-          'إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي',
+          'إصدار قاعدة البيانات في النسخة الاحتياطية (${metadata.databaseVersion}) '
+          'أحدث من التطبيق الحالي ($currentSchemaVersion). '
+          'حدّث التطبيق أولاً.',
         );
       }
     }
 
+    AppLogger.info('🗃️ بدء استعادة نسخة SQLite احتياطية: $filePath');
+
+    // ─── الاستعادة الآمنة عبر SqliteBackupRestore ─────────────────────────
+    // ✅ هذه الطريقة تقوم بـ:
+    //   1) DatabaseManager.close() — يُغلق قاعدة البيانات الحالية وأي
+    //      اتصالات نشطة (يمنع تلف الملف).
+    //   2) نسخ الاحتياطي إلى ملف مؤقت.
+    //   3) التحقق من سلامة ملف SQLite المؤقت (integrity check).
+    //   4) استبدال ذري: rename DB الحالي → .pre_restore، ثم rename المؤقت → DB.
+    //   5) استرجاع تلقائي في حال الفشل (rollback).
+    //   6) DatabaseManager.reopen() — يفتح قاعدة البيانات الجديدة.
+    //
+    // ⚠️ قبل هذا الإصلاح، كان الكود يفعل:
+    //   - deleteDatabase(dbPath) بينما DB مفتوح → فشل الحذف على Windows/Android
+    //   - File(filePath).copy(dbPath) فوق ملف مفتوح → تلف محتمل
+    //   - لا إعادة فتح بعد الاستبدال → DB غير صالح للاستخدام
+    await SqliteBackupRestore.restoreDatabase(filePath);
+
+    // ─── حذف ملفات sidecar (wal, shm) بعد الاستعادة ─────────────────────
+    // ⚠️ حرج: بعد استبدال ملف DB الرئيسي، يجب حذف ملفات -wal و -shm
+    // لأنها قد تحتوي على بيانات من DB القديم لم تُدمج بعد.
+    // إذا تركناها، قد يفتح SQLite الـ DB الجديد ويقرأ بيانات قديمة من wal
+    // مما يُسبب تلفاً في البيانات أو سلوكاً غير متوقع.
+    // DatabaseManager.reopen() أعاد فتح DB، لكن ملفات sidecar القديمة قد
+    // تكون ما زالت موجودة. نحذفها الآن بعد إعادة الفتح.
     final dbPath = await _getDatabaseFilePath();
-    AppLogger.info('🗃️ مسار قاعدة البيانات الحالي: $dbPath');
-
-    try {
-      await deleteDatabase(dbPath);
-    } catch (e) {
-      AppLogger.warning('⚠️ تعذر حذف قاعدة البيانات الحالية: $e');
-    }
-
-    await _deleteSidecarFiles(dbPath);
-    await File(filePath).copy(dbPath);
     await _deleteSidecarFiles(dbPath);
 
+    // ─── تحديث prefs بتاريخ آخر استعادة ──────────────────────────────────
     if (metadata != null) {
       final prefs = getSharedPrefs();
       await prefs.setString(
@@ -647,12 +672,12 @@ class LocalBackupService {
         metadata.backupTimestamp.toIso8601String(),
       );
       AppLogger.info(
-  '✅ تم استعادة النسخة الاحتياطية (SQLite) بتاريخ ${metadata.backupTimestamp}',
-);
+        '✅ تم استعادة النسخة الاحتياطية (SQLite) بتاريخ ${metadata.backupTimestamp}',
+      );
     } else {
       AppLogger.info(
-  '✅ تم استعادة النسخة الاحتياطية (SQLite) بدون بيانات وصفية إضافية',
-);
+        '✅ تم استعادة النسخة الاحتياطية (SQLite) بدون بيانات وصفية إضافية',
+      );
     }
   }
 
