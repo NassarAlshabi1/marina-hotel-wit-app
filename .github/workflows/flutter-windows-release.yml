@@ -70,6 +70,8 @@ jobs:
         run: flutter pub run build_runner build --delete-conflicting-outputs --verbose
 
       - name: Build Windows release
+        env:
+          CL: "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
         run: >
           flutter build windows --release
           --dart-define=BASE_API_URL=${{ env.BASE_API_URL }}

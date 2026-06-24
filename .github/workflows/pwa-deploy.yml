@@ -1,0 +1,54 @@
+# .github/workflows/pwa-deploy.yml
+#
+# بناء ونشر نسخة PWA (Web) من التطبيق
+
+name: PWA Build & Deploy
+
+on:
+  push:
+    branches: [marina]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/pwa-deploy.yml'
+  workflow_dispatch:
+
+jobs:
+  build-pwa:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build Web (PWA)
+        run: flutter build web --release --no-tree-shake-icons
+        env:
+          BASE_API_URL: http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
+
+      - name: Upload PWA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: marina-hotel-pwa-${{ github.run_number }}
+          path: mobile/build/web
+          retention-days: 30
+
+      - name: PWA build info
+        run: |
+          echo "✅ PWA build complete"
+          echo "📁 Build path: build/web"
+          echo "📦 Size: $(du -sh build/web | cut -f1)"
+          echo "📄 Files: $(find build/web -type f | wc -l)"
