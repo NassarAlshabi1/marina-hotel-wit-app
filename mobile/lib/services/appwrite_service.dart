@@ -9,6 +9,7 @@ import 'appwrite_config_manager.dart';
 import 'appwrite_error_handler.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
+import 'appwrite_sync_utils.dart';
 
 /// خدمة Appwrite الأساسية - CRUD Operations
 class AppwriteService {
@@ -225,14 +226,27 @@ class AppwriteService {
   }) async {
     final dbId = AppwriteConfigManager.databaseId;
 
+    // ✅ تطبيع UUID قبل إرساله إلى Appwrite.
+    // هذا يمنع مشكلة وجود مستندات بنفس UUID لكن بصيغ مختلفة (مع/بدون شرطة).
+    // مثال: `c0e88e86...` و `c0e88e86-1405-...` يُعاملان كـ ID مختلف في Appwrite.
+    final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
+
+    // ✅ تطبيع حقل localUuid داخل الحمولة أيضاً (إذا وُجد)
+    final normalizedData = Map<String, dynamic>.from(data);
+    final localUuidInPayload = normalizedData['localUuid'];
+    if (localUuidInPayload is String && localUuidInPayload.isNotEmpty) {
+      normalizedData['localUuid'] =
+          AppwriteSyncUtils.normalizeUuid(localUuidInPayload);
+    }
+
     // نحاول التحديث أولاً (Optimistic) — 404 متوقع في Upsert
     try {
       // ignore: deprecated_member_use
       return await _databases.updateDocument(
         databaseId: dbId,
         collectionId: collectionId,
-        documentId: documentId,
-        data: data,
+        documentId: normalizedId,
+        data: normalizedData,
       );
     } on AppwriteException catch (e) {
       // 404 Not Found -> Create (هذا السلوك الطبيعي لـ Upsert)
@@ -243,8 +257,8 @@ class AppwriteService {
             operation: () => _databases.createDocument(
               databaseId: dbId,
               collectionId: collectionId,
-              documentId: documentId,
-              data: data,
+              documentId: normalizedId,
+              data: normalizedData,
             ),
             operationName: 'createDocument',
           );
@@ -259,7 +273,7 @@ class AppwriteService {
                   .toLowerCase()
                   .contains('already exists')) {
             _logger.warning(
-              'upsert($collectionId/$documentId): 409 on create — '
+              'upsert($collectionId/$normalizedId): 409 on create — '
               'falling back to update (race condition resolved)',
               tag: 'SYNC',
             );
@@ -267,8 +281,8 @@ class AppwriteService {
             return _databases.updateDocument(
               databaseId: dbId,
               collectionId: collectionId,
-              documentId: documentId,
-              data: data,
+              documentId: normalizedId,
+              data: normalizedData,
             );
           }
           rethrow;
@@ -282,13 +296,15 @@ class AppwriteService {
     required String collectionId,
     required String documentId,
   }) async {
+    // ✅ تطبيع UUID قبل الحذف — نفس السبب كما في _upsertDocumentInternal.
+    final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
     try {
       await _networkHelper.withRetryAndTimeout<void>(
         // ignore: deprecated_member_use
         operation: () => _databases.deleteDocument(
           databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
-          documentId: documentId,
+          documentId: normalizedId,
         ),
         operationName: 'deleteDocument',
       );

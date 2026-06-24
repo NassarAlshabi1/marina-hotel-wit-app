@@ -803,7 +803,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 43;
+  int get schemaVersion => 44;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2082,6 +2082,87 @@ class AppDatabase extends _$AppDatabase {
         }
         developer.log(
           'Migration 43: additional performance indexes created',
+          name: 'db.migration',
+        );
+      }
+      if (from < 44) {
+        // ─── Migration 44: تطبيع كل UUIDs محلياً إلى صيغة بدون شرطة ──────
+        //
+        // الـ workflow الكامل:
+        //   1) Full Pull من Appwrite → البيانات تأتي محلياً (قد تحتوي شرطات).
+        //   2) [هذا الـ migration] يطبّع UUIDs محلياً (إزالة الشرطة + lowercase).
+        //   3) Push التالي يرفع UUIDs المُطبَّعة إلى Appwrite (بفضل normalizeUuid
+        //      في _upsertDocumentInternal) → السحابة تُصبح بدون شرطة.
+        //   4) Full Pull لاحق يجلب UUIDs بدون شرطة → لا حاجة للـ migration مجدداً.
+        //
+        // مثال: `c0e88e86-1405-4f71-8279-a86e632e3921` → `c0e88e8614054f718279a86e632e3921`
+        //
+        // السبب الجذري: Appwrite يتعامل مع UUIDs كـ strings حرفية. وجود نفس UUID
+        // بصيغتين مختلفتين (مع وبدون شرطة) يُسبب تكرار المستندات وأخطاء 409.
+
+        final uuidColumnsByTable = <String, List<String>>{
+          // الأب أولاً ثم الابن (حسب FK dependencies) لتفادي تعارض FK
+          'rooms': ['local_uuid'],
+          'bookings': ['local_uuid'],
+          'employees': ['local_uuid'],
+          'expenses': ['local_uuid', 'category_uuid', 'cash_flow_uuid', 'employee_uuid'],
+          'cash_transactions': ['local_uuid', 'linked_debt_uuid', 'booking_uuid_cache'],
+          'payments': ['local_uuid', 'debt_uuid', 'booking_uuid_cache'],
+          'debts': ['local_uuid'],
+          'shift_notes': ['local_uuid'],
+          'booking_notes': ['local_uuid'],
+          'booking_nights': ['local_uuid'],
+          'hotel_day_ledger': ['local_uuid'],
+          'price_adjustments': ['local_uuid', 'target_uuid', 'applied_adjustment_uuid', 'booking_uuid_cache'],
+          'booking_price_adjustments': ['local_uuid', 'booking_local_uuid'],
+          'audit_logs': ['local_uuid', 'entity_uuid'],
+          'payment_voids': ['local_uuid', 'original_payment_uuid', 'booking_uuid', 'reversal_payment_uuid', 'payment_uuid'],
+          'guest_infos': ['local_uuid'],
+          'auto_fix_runs': ['run_uuid'],
+          'integrity_violations': ['record_uuid'],
+          'app_sessions': ['session_uuid'],
+          'salary_cycles': ['local_uuid'],
+          'salary_payments': ['local_uuid', 'employee_uuid'],
+          'salary_withdrawals': ['local_uuid', 'employee_uuid'],
+          'outbox': ['local_uuid'],
+          'sync_state': ['local_uuid'],
+          'sync_log': ['local_uuid'],
+          'sync_conflicts': ['local_uuid'],
+        };
+
+        int totalUpdated = 0;
+        for (final entry in uuidColumnsByTable.entries) {
+          final table = entry.key;
+          for (final col in entry.value) {
+            try {
+              // عدّ الصفوف التي تحتاج تطبيع (تحتوي على شرطة)
+              final countResult = await m.database.customSelect(
+                "SELECT COUNT(*) AS c FROM $table WHERE $col LIKE '%-%'",
+              ).getSingle();
+              final rowCount = countResult.data['c'] as int;
+              if (rowCount == 0) continue;
+
+              // تطبيع: إزالة الشرطة + lowercase
+              await m.database.customStatement(
+                "UPDATE $table SET $col = LOWER(REPLACE($col, '-', '')) "
+                "WHERE $col LIKE '%-%'",
+              );
+              totalUpdated += rowCount;
+              developer.log(
+                'Migration 44: normalized $rowCount UUIDs in $table.$col',
+                name: 'db.migration',
+              );
+            } catch (e) {
+              // تخطي الجداول/الأعمدة غير الموجودة في إصدارات قديمة
+              developer.log(
+                'Migration 44: $table.$col skipped: $e',
+                name: 'db.migration',
+              );
+            }
+          }
+        }
+        developer.log(
+          'Migration 44: UUID normalization complete — $totalUpdated rows updated',
           name: 'db.migration',
         );
       }

@@ -6554,50 +6554,116 @@ class AppwriteSyncManager {
   /// [docs] قائمة الوثائق المسحوبة من Appwrite
   /// return: عدد السجلات التي تمت مزامنتها
   Future<int> syncCollection(String name, List<models.Document> docs) async {
+    // ✅ تطبيع UUIDs المُستقبلة من Appwrite مركزياً قبل المعالجة.
+    //
+    // هذا يمنع عودة الشرطة في الـ Full Pull التالي ويضمن أن كل UUID
+    // مُخزَّن محلياً بصيغة بدون شرطة (32 حرف hex متصلة).
+    //
+    // الـ workflow:
+    //   1) Appwrite يجلب UUIDs (قد تحتوي شرطة)
+    //   2) [هنا] نطبّعها قبل تمريرها لـ _sync*
+    //   3) تُخزَّن محلياً بدون شرطة
+    //   4) Push التالي يرفع UUIDs بدون شرطة (بفضل normalizeUuid في
+    //      _upsertDocumentInternal)
+    //   5) مع الوقت، Appwrite Cloud سيصبح كله بدون شرطة
+    final normalizedDocs = _normalizeIncomingDocuments(docs);
+
     switch (name) {
       case 'rooms':
-        return _syncRooms(docs);
+        return _syncRooms(normalizedDocs);
       case 'bookings':
-        return _syncBookings(docs);
+        return _syncBookings(normalizedDocs);
       case 'employees':
-        return _syncEmployees(docs);
+        return _syncEmployees(normalizedDocs);
       case 'expenses':
-        return _syncExpenses(docs);
+        return _syncExpenses(normalizedDocs);
       case 'payments':
-        return _syncPayments(docs);
+        return _syncPayments(normalizedDocs);
       case 'debts':
-        return _syncDebts(docs);
+        return _syncDebts(normalizedDocs);
       case 'booking_notes':
-        return _syncBookingNotes(docs);
+        return _syncBookingNotes(normalizedDocs);
       case 'booking_nights':
-        return _syncBookingNights(docs);
+        return _syncBookingNights(normalizedDocs);
       case 'shift_notes':
-        return _syncShiftNotes(docs);
+        return _syncShiftNotes(normalizedDocs);
       case 'cash_transactions':
-        return _syncCashTransactions(docs);
+        return _syncCashTransactions(normalizedDocs);
       case 'salary_cycles':
-        return _syncSalaryCycles(docs);
+        return _syncSalaryCycles(normalizedDocs);
       case 'salary_payments':
-        return _syncSalaryPayments(docs);
+        return _syncSalaryPayments(normalizedDocs);
       case 'salary_withdrawals':
-        return _syncSalaryWithdrawals(docs);
+        return _syncSalaryWithdrawals(normalizedDocs);
       case 'guest_infos':
-        return _syncGuestInfos(docs);
+        return _syncGuestInfos(normalizedDocs);
       case 'booking_price_adjustments':
-        return _syncBookingPriceAdjustments(docs);
+        return _syncBookingPriceAdjustments(normalizedDocs);
       case 'blacklist':
-        return _syncBlacklist(docs);
+        return _syncBlacklist(normalizedDocs);
       case 'price_adjustments':
-        return _syncPriceAdjustments(docs);
+        return _syncPriceAdjustments(normalizedDocs);
       case 'audit_logs':
-        return _syncAuditLogs(docs);
+        return _syncAuditLogs(normalizedDocs);
       case 'payment_voids':
-        return _syncPaymentVoids(docs);
+        return _syncPaymentVoids(normalizedDocs);
       case 'app_settings':
-        return _syncAppSettings(docs);
+        return _syncAppSettings(normalizedDocs);
       default:
         _logger.warning('⚠️ syncCollection: مجموعة غير معروفة: $name', tag: 'SYNC');
         return 0;
     }
+  }
+
+  /// يُطبّع UUIDs (الـ doc ID + حقل localUuid في data + باقي حقول UUID
+  /// المعروفة) في قائمة المستندات المُستقبَلة من Appwrite قبل المعالجة.
+  ///
+  /// هذا يضمن أن أي UUID قادم من السحابة يُخزَّن محلياً بصيغة بدون شرطة.
+  List<models.Document> _normalizeIncomingDocuments(
+    List<models.Document> docs,
+  ) {
+    if (docs.isEmpty) return docs;
+
+    // قائمة الحقول المعروفة التي تحتوي على UUIDs عبر كل المجموعات.
+    // نُطبّع فقط هذه الحقول + الـ doc ID.
+    const uuidFields = <String>{
+      'localUuid',
+      'bookingLocalUuid',
+      'bookingUuid',
+      'bookingUuidCache',
+      'originalPaymentUuid',
+      'reversalPaymentUuid',
+      'paymentUuid',
+      'debtUuid',
+      'linkedDebtUuid',
+      'categoryUuid',
+      'cashFlowUuid',
+      'employeeUuid',
+      'targetUuid',
+      'appliedAdjustmentUuid',
+      'entityUuid',
+    };
+
+    return docs.map((doc) {
+      final normalizedId = AppwriteSyncUtils.normalizeUuid(doc.$id);
+      final newData = Map<String, dynamic>.from(doc.data);
+      for (final field in uuidFields) {
+        final value = newData[field];
+        if (value is String && value.isNotEmpty) {
+          newData[field] = AppwriteSyncUtils.normalizeUuid(value);
+        }
+      }
+      // نُعيد بناء Document بنفس البيانات الوصفية لكن بـ ID مُطبَّع و data مُطبَّعة
+      return models.Document(
+        $id: normalizedId,
+        $sequence: doc.$sequence,
+        $collectionId: doc.$collectionId,
+        $databaseId: doc.$databaseId,
+        $createdAt: doc.$createdAt,
+        $updatedAt: doc.$updatedAt,
+        $permissions: doc.$permissions,
+        data: newData,
+      );
+    }).toList();
   }
 }

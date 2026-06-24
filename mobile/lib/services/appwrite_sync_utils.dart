@@ -395,4 +395,65 @@ class AppwriteSyncUtils {
         .map((p) => p.isEmpty ? '' : '${p[0].toUpperCase()}${p.substring(1)}');
     return '$first${rest.join()}';
   }
+
+  /// ⚠️ تطبيع UUID إلى الصيغة **بدون شرطة** (32 حرف hex متصلة).
+  ///
+  /// **المشكلة التي يحلها:**
+  /// Appwrite يتعامل مع UUIDs كـ strings حرفية — لا يُطبّعها. فـ:
+  ///   - `c0e88e8614054f718279a86e632e3921` (32 حرف بدون شرطة)
+  ///   - `c0e88e86-1405-4f71-8279-a86e632e3921` (36 حرف مع شرطة)
+  /// هما document IDs مختلفة تماماً بالنسبة لـ Appwrite، مما يُسبب:
+  ///   1. `updateDocument(noHyphensId)` → 404 (المستند مخزن بالصيغة المع شرطة)
+  ///   2. `createDocument(noHyphensId)` → 409 (إذا وُجد بنفس الـ ID)
+  ///   3. تكرار المستندات (نسختان لكل كيان منطقي)
+  ///
+  /// **الحل المعتمد:** توحيد كل UUIDs إلى **بدون شرطة** (أقصر، أوفر مساحة،
+  /// أسهل في URLs وأسماء الملفات). ويتم تطبيق ذلك:
+  ///   1. على كل ID قبل إرساله إلى Appwrite.
+  ///   2. على حقل `localUuid` داخل الحمولة.
+  ///   3. على كل UUIDs المخزنة محلياً عبر Drift schema migration.
+  ///   4. على المستندات الموجودة في Appwrite Cloud عبر سكربت migration.
+  ///
+  /// **أمثلة:**
+  ///   - `c0e88e86-1405-4f71-8279-a86e632e3921` → `c0e88e8614054f718279a86e632e3921`
+  ///   - `c0e88e8614054f718279a86e632e3921` → `c0e88e8614054f718279a86e632e3921` (لا تغيير)
+  ///   - `C0E88E86-1405-4F71-8279-A86E632E3921` → `c0e88e8614054f718279a86e632e3921` ( lowercase )
+  ///   - `whatsapp_settings` → `whatsapp_settings` (ليس hex، يُعاد كما هو)
+  ///   - `ID.unique()` → `ID.unique()` (ليس hex، يُعاد كما هو)
+  ///   - `auto-1234567890-abcd1234` → `auto-1234567890-abcd1234` (ليس hex، يُعاد كما هو)
+  static String normalizeUuid(String id) {
+    // إذا كان الـ ID فارغاً، أعدمه كما هو
+    if (id.isEmpty) return id;
+
+    // إذا كان يحتوي على أحرف غير hex أو شرطة، فهو ليس UUID (مثل 'whatsapp_settings')
+    // نتحقق من النسخة بدون شرطة
+    final stripped = id.replaceAll('-', '');
+    // UUID v4 القياسي = 32 حرف hex. نقبل 32 فقط.
+    if (stripped.length != 32) return id;
+    // التحقق من أن كل الأحرف hex
+    final hexRegex = RegExp(r'^[0-9a-fA-F]+$');
+    if (!hexRegex.hasMatch(stripped)) return id;
+
+    // تطبيع إلى الصيغة بدون شرطة + lowercase
+    return stripped.toLowerCase();
+  }
+
+  /// تطبيع UUID مع إرجاع null إذا كان المدخل null.
+  static String? normalizeUuidNullable(String? id) {
+    if (id == null) return null;
+    return normalizeUuid(id);
+  }
+
+  /// فحص ما إذا كان الـ ID يحتاج تطبيع (أي ليس بالفعل بالصيغة بدون شرطة).
+  /// يُستخدم في migrations لتحديد الصفوف التي تحتاج تحديث.
+  static bool needsNormalization(String id) {
+    if (id.isEmpty) return false;
+    // ليس UUID أصلاً
+    final stripped = id.replaceAll('-', '');
+    if (stripped.length != 32) return false;
+    final hexRegex = RegExp(r'^[0-9a-fA-F]+$');
+    if (!hexRegex.hasMatch(stripped)) return false;
+    // إذا كان يطابق الصيغة المعيارية (بدون شرطة + lowercase) لا يحتاج تطبيع
+    return id != stripped.toLowerCase();
+  }
 }
