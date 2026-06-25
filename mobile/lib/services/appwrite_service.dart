@@ -1068,40 +1068,60 @@ class AppwriteService {
   }
 
   /// إنشاء مستند جديد
+  ///
+  /// ✅ يُطبّع UUID (documentId + localUuid في الحمولة) بدون شرطة
+  /// بنفس نمط `_upsertDocumentInternal`.
   Future<models.Document> createDocument({
     required String collectionId,
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
     await _ensureInitialized();
+    final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
+    final normalizedData = Map<String, dynamic>.from(data);
+    final localUuidInPayload = normalizedData['localUuid'];
+    if (localUuidInPayload is String && localUuidInPayload.isNotEmpty) {
+      normalizedData['localUuid'] =
+          AppwriteSyncUtils.normalizeUuid(localUuidInPayload);
+    }
     return _networkHelper.withTimeout(
       // ignore: deprecated_member_use
       operation: () => _databases.createDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
-        documentId: documentId,
-        data: data,
+        documentId: normalizedId,
+        data: normalizedData,
       ),
-      operationName: 'createDocument($collectionId/$documentId)',
+      operationName: 'createDocument($collectionId/$normalizedId)',
     );
   }
 
   /// تحديث مستند موجود
+  ///
+  /// ✅ يُطبّع UUID (documentId + localUuid في الحمولة) بدون شرطة
+  /// بنفس نمط `_upsertDocumentInternal`.
   Future<models.Document> updateDocument({
     required String collectionId,
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
     await _ensureInitialized();
+    final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
+    final normalizedData = Map<String, dynamic>.from(data);
+    final localUuidInPayload = normalizedData['localUuid'];
+    if (localUuidInPayload is String && localUuidInPayload.isNotEmpty) {
+      normalizedData['localUuid'] =
+          AppwriteSyncUtils.normalizeUuid(localUuidInPayload);
+    }
     return _networkHelper.withTimeout(
       // ignore: deprecated_member_use
       operation: () => _databases.updateDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
-        documentId: documentId,
-        data: data,
+        documentId: normalizedId,
+        data: normalizedData,
       ),
-      operationName: 'updateDocument($collectionId/$documentId)',
+      operationName: 'updateDocument($collectionId/$normalizedId)',
     );
   }
 
