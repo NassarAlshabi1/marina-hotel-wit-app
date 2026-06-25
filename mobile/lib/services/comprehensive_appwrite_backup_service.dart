@@ -13,6 +13,7 @@ import 'package:path_provider/path_provider.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_service.dart';
+import 'appwrite_sync_utils.dart';
 import 'local_db.dart';
 
 /// خدمة النسخ الاحتياطي والاستعادة الشاملة لـ Appwrite
@@ -299,6 +300,9 @@ class ComprehensiveAppwriteBackupService {
               documentId = ID.unique();
             }
 
+            // ✅ تطبيع documentId بدون شرطة قبل الرفع
+            documentId = AppwriteSyncUtils.normalizeUuid(documentId!);
+
             // تنظيف البيانات من الحقول الخاصة بـ Appwrite أو Drift التي لا يجب إرسالها
             final cleanData = _cleanDataForAppwrite(docData);
 
@@ -308,7 +312,7 @@ class ComprehensiveAppwriteBackupService {
               await _appwriteService.databases.createDocument(
                 databaseId: AppwriteConfig.databaseId,
                 collectionId: collectionId,
-                documentId: documentId!,
+                documentId: documentId,
                 data: cleanData,
               );
             } on AppwriteException catch (e) {
@@ -318,7 +322,7 @@ class ComprehensiveAppwriteBackupService {
                 await _appwriteService.databases.updateDocument(
                   databaseId: AppwriteConfig.databaseId,
                   collectionId: collectionId,
-                  documentId: documentId!,
+                  documentId: documentId,
                   data: cleanData,
                 );
               } else {

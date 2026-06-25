@@ -7,6 +7,7 @@ import 'appwrite_backup_endpoint.dart';
 import 'appwrite_backup_endpoints_manager.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
+import 'appwrite_sync_utils.dart';
 import 'local_db.dart';
 
 /// عملية احتياطية — تستخدم لإرسال دفعة
@@ -160,13 +161,16 @@ class AppwriteBackupSyncService {
     final databases = Databases(client);
     final dbId = endpoint.databaseId;
 
+    // ✅ تطبيع documentId بدون شرطة قبل أي رفع للـ Cloud
+    final normalizedDocId = AppwriteSyncUtils.normalizeUuid(documentId);
+
     switch (operation) {
       case 'create':
         // ignore: deprecated_member_use
         await databases.createDocument(
           databaseId: dbId,
           collectionId: tableName,
-          documentId: documentId,
+          documentId: normalizedDocId,
           data: data,
         );
       case 'update':
@@ -175,7 +179,7 @@ class AppwriteBackupSyncService {
           await databases.updateDocument(
             databaseId: dbId,
             collectionId: tableName,
-            documentId: documentId,
+            documentId: normalizedDocId,
             data: data,
           );
         } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
@@ -185,7 +189,7 @@ class AppwriteBackupSyncService {
           await databases.createDocument(
             databaseId: dbId,
             collectionId: tableName,
-            documentId: documentId,
+            documentId: normalizedDocId,
             data: data,
           );
         }
@@ -195,7 +199,7 @@ class AppwriteBackupSyncService {
           await databases.deleteDocument(
             databaseId: dbId,
             collectionId: tableName,
-            documentId: documentId,
+            documentId: normalizedDocId,
           );
         } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
           _logger.warning('⚠️ فشل حذف وثيقة احتياطية (قد لا تكون موجودة)', tag: 'BACKUP');
@@ -287,12 +291,14 @@ class AppwriteBackupSyncService {
     /// في عمليات الرفع الشامل (fullPush)، نقوم بالتحديث فقط — لا ننشئ وثائق.
     /// إذا لم تكن الوثيقة موجودة يتم تجاوزها بصمت.
     Future<bool> upsert(String collection, String docId, Map<String, dynamic> data) async {
+      // ✅ تطبيع documentId بدون شرطة قبل الرفع
+      final normalizedDocId = AppwriteSyncUtils.normalizeUuid(docId);
       try {
         // ignore: deprecated_member_use
         await databases.updateDocument(
           databaseId: dbId,
           collectionId: collection,
-          documentId: docId,
+          documentId: normalizedDocId,
           data: data,
         );
         return true;
