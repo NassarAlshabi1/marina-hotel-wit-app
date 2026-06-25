@@ -772,7 +772,8 @@ class AppwriteSyncManager {
           try {
             recordsPulled += await _timePhase('syncRooms', () async {
               final rooms = await appwriteService.listRooms(queries: deltaQ, useCache: false);
-              final roomsSynced = await _syncRooms(rooms);
+              // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+              final roomsSynced = await syncCollection('rooms', rooms);
               _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
               return roomsSynced;
             }, phaseMs,);
@@ -790,7 +791,8 @@ class AppwriteSyncManager {
                 queries: deltaQ,
                 useCache: false,
               );
-              final employeesSynced = await _syncEmployees(employees);
+              // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+              final employeesSynced = await syncCollection('employees', employees);
               _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
               return employeesSynced;
             }, phaseMs,);
@@ -805,7 +807,8 @@ class AppwriteSyncManager {
           try {
             recordsPulled += await _timePhase('syncBookings', () async {
               final bookings = await appwriteService.listBookings(queries: deltaQ, useCache: false);
-              final bookingsSynced = await _syncBookings(bookings);
+              // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+              final bookingsSynced = await syncCollection('bookings', bookings);
               _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
               return bookingsSynced;
             }, phaseMs,);
@@ -821,7 +824,8 @@ class AppwriteSyncManager {
           try {
             recordsPulled += await _timePhase('syncCashTransactions', () async {
               final cashTransactions = await appwriteService.listCashTransactions(queries: deltaQ, useCache: false);
-              final synced = await _syncCashTransactions(cashTransactions);
+              // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+              final synced = await syncCollection('cash_transactions', cashTransactions);
               _logger.debug('Synced $synced cash transactions', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -833,7 +837,8 @@ class AppwriteSyncManager {
           try {
             recordsPulled += await _timePhase('syncExpenses', () async {
               final expenses = await appwriteService.listExpenses(queries: deltaQ, useCache: false);
-              final expensesSynced = await _syncExpenses(expenses);
+              // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+              final expensesSynced = await syncCollection('expenses', expenses);
               _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
               return expensesSynced;
             }, phaseMs,);
@@ -858,7 +863,7 @@ class AppwriteSyncManager {
                 );
               }
               final bookingNights = await appwriteService.listBookingNights(queries: nightsDeltaQ, useCache: false);
-              final synced = await _syncBookingNights(bookingNights);
+              final synced = await syncCollection('booking_nights', bookingNights);
               // تحديث lastPullTs الخاص بـ booking_nights بعد نجاح السحب
               await _updateBookingNightsPullTs(Time.nowEpoch());
               _logger.debug('Synced $synced booking nights', tag: 'SYNC');
@@ -872,7 +877,7 @@ class AppwriteSyncManager {
           try {
             recordsPulled += await _timePhase('syncBookingNotes', () async {
               final bookingNotes = await appwriteService.listBookingNotes(queries: deltaQ, useCache: false);
-              final synced = await _syncBookingNotes(bookingNotes);
+              final synced = await syncCollection('booking_notes', bookingNotes);
               _logger.debug('Synced $synced booking notes', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -884,7 +889,8 @@ class AppwriteSyncManager {
           try {
             recordsPulled += await _timePhase('syncPayments', () async {
               final payments = await appwriteService.listPayments(queries: deltaQ, useCache: false);
-              final paymentsSynced = await _syncPayments(payments);
+              // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+              final paymentsSynced = await syncCollection('payments', payments);
               _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
               return paymentsSynced;
             }, phaseMs,);
@@ -909,7 +915,7 @@ class AppwriteSyncManager {
           try {
             recordsPulled += await _timePhase('syncSalaryCycles', () async {
               final salaryCycles = await appwriteService.listSalaryCycles(queries: deltaQ, useCache: false);
-              final synced = await _syncSalaryCycles(salaryCycles);
+              final synced = await syncCollection('salary_cycles', salaryCycles);
               _logger.debug('Synced $synced salary_cycles', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -921,7 +927,7 @@ class AppwriteSyncManager {
           try {
             recordsPulled += await _timePhase('syncSalaryPayments', () async {
               final salaryPayments = await appwriteService.listSalaryPayments(queries: deltaQ, useCache: false);
-              final synced = await _syncSalaryPayments(salaryPayments);
+              final synced = await syncCollection('salary_payments', salaryPayments);
               _logger.debug('Synced $synced salary_payments', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -933,7 +939,7 @@ class AppwriteSyncManager {
           try {
             recordsPulled += await _timePhase('syncSalaryWithdrawals', () async {
               final salaryWithdrawals = await appwriteService.listSalaryWithdrawals(queries: deltaQ, useCache: false);
-              final synced = await _syncSalaryWithdrawals(salaryWithdrawals);
+              final synced = await syncCollection('salary_withdrawals', salaryWithdrawals);
               _logger.debug('Synced $synced salary_withdrawals', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -945,7 +951,7 @@ class AppwriteSyncManager {
           try {
             recordsPulled += await _timePhase('syncGuestInfos', () async {
               final guestInfos = await appwriteService.listGuestInfos(queries: deltaQ, useCache: false);
-              final synced = await _syncGuestInfos(guestInfos);
+              final synced = await syncCollection('guest_infos', guestInfos);
               _logger.debug('Synced $synced guest_infos', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -960,7 +966,7 @@ class AppwriteSyncManager {
                 collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
                 queries: deltaQ,
               );
-              final adjustmentsSynced = await _syncBookingPriceAdjustments(adjustments);
+              final adjustmentsSynced = await syncCollection('booking_price_adjustments', adjustments);
               _logger.debug('Synced $adjustmentsSynced booking price adjustments', tag: 'SYNC');
               return adjustmentsSynced;
             }, phaseMs,);
@@ -972,7 +978,7 @@ class AppwriteSyncManager {
           try {
             recordsPulled += await _timePhase('syncShiftNotes', () async {
               final shiftNotes = await appwriteService.listShiftNotes(queries: deltaQ, useCache: false);
-              final synced = await _syncShiftNotes(shiftNotes);
+              final synced = await syncCollection('shift_notes', shiftNotes);
               _logger.debug('Synced $synced shift notes', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -984,7 +990,7 @@ class AppwriteSyncManager {
           try {
             recordsPulled += await _timePhase('syncBlacklist', () async {
               final blacklistDocs = await appwriteService.listBlacklist(queries: deltaQ, useCache: false);
-              final synced = await _syncBlacklist(blacklistDocs);
+              final synced = await syncCollection('blacklist', blacklistDocs);
               _logger.debug('Synced $synced blacklist entries', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -999,7 +1005,7 @@ class AppwriteSyncManager {
                 collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
                 queries: deltaQ,
               );
-              final synced = await _syncPriceAdjustments(docs);
+              final synced = await syncCollection('price_adjustments', docs);
               _logger.debug('Synced $synced price adjustments', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -1014,7 +1020,7 @@ class AppwriteSyncManager {
                 collectionId: AppwriteConfig.auditLogsCollectionId,
                 queries: deltaQ,
               );
-              final synced = await _syncAuditLogs(docs);
+              final synced = await syncCollection('audit_logs', docs);
               _logger.debug('Synced $synced audit logs', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -1029,7 +1035,7 @@ class AppwriteSyncManager {
                 collectionId: AppwriteConfig.paymentVoidsCollectionId,
                 queries: deltaQ,
               );
-              final synced = await _syncPaymentVoids(docs);
+              final synced = await syncCollection('payment_voids', docs);
               _logger.debug('Synced $synced payment voids', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -3742,35 +3748,40 @@ class AppwriteSyncManager {
           // مزامنة كل كولكشن بشكل مستقل — فشل واحد لا يوقف الباقي
           try {
             final rooms = await appwriteService.listRooms(queries: deltaQ, useCache: false);
-            recordsPulled += await _syncRooms(rooms);
+            // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+            recordsPulled += await syncCollection('rooms', rooms);
           } catch (e, st) {
             _logger.error('❌ فشل سحب rooms (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
 
           try {
             final bookings = await appwriteService.listBookings(queries: deltaQ, useCache: false);
-            recordsPulled += await _syncBookings(bookings);
+            // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+            recordsPulled += await syncCollection('bookings', bookings);
           } catch (e, st) {
             _logger.error('❌ فشل سحب bookings (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
 
           try {
             final employees = await appwriteService.listEmployees(queries: deltaQ, useCache: false);
-            recordsPulled += await _syncEmployees(employees);
+            // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+            recordsPulled += await syncCollection('employees', employees);
           } catch (e, st) {
             _logger.error('❌ فشل سحب employees (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
 
           try {
             final expenses = await appwriteService.listExpenses(queries: deltaQ, useCache: false);
-            recordsPulled += await _syncExpenses(expenses);
+            // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+            recordsPulled += await syncCollection('expenses', expenses);
           } catch (e, st) {
             _logger.error('❌ فشل سحب expenses (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
 
           try {
             final payments = await appwriteService.listPayments(queries: deltaQ, useCache: false);
-            recordsPulled += await _syncPayments(payments);
+            // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+            recordsPulled += await syncCollection('payments', payments);
           } catch (e, st) {
             _logger.error('❌ فشل سحب payments (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
@@ -3785,14 +3796,14 @@ class AppwriteSyncManager {
 
           try {
             final guestInfos = await appwriteService.listGuestInfos(queries: deltaQ, useCache: false);
-            recordsPulled += await _syncGuestInfos(guestInfos);
+            recordsPulled += await syncCollection('guest_infos', guestInfos);
           } catch (e, st) {
             _logger.error('❌ فشل سحب guest_infos (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
 
           try {
             final salaryWithdrawals = await appwriteService.listSalaryWithdrawals(queries: deltaQ, useCache: false);
-            recordsPulled += await _syncSalaryWithdrawals(salaryWithdrawals);
+            recordsPulled += await syncCollection('salary_withdrawals', salaryWithdrawals);
           } catch (e, st) {
             _logger.error('❌ فشل سحب salary_withdrawals (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
@@ -3802,21 +3813,21 @@ class AppwriteSyncManager {
               collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
               queries: deltaQ,
             );
-            recordsPulled += await _syncBookingPriceAdjustments(bookingPriceAdjustments);
+            recordsPulled += await syncCollection('booking_price_adjustments', bookingPriceAdjustments);
           } catch (e, st) {
             _logger.error('❌ فشل سحب booking_price_adjustments (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
 
           try {
             final shiftNotes = await appwriteService.listShiftNotes(queries: deltaQ, useCache: false);
-            recordsPulled += await _syncShiftNotes(shiftNotes);
+            recordsPulled += await syncCollection('shift_notes', shiftNotes);
           } catch (e, st) {
             _logger.error('❌ فشل سحب shift_notes (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
 
           try {
             final blacklistDocs = await appwriteService.listBlacklist(queries: deltaQ, useCache: false);
-            recordsPulled += await _syncBlacklist(blacklistDocs);
+            recordsPulled += await syncCollection('blacklist', blacklistDocs);
           } catch (e, st) {
             _logger.error('❌ فشل سحب blacklist (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
@@ -3826,7 +3837,7 @@ class AppwriteSyncManager {
               queries: deltaQ,
               useCache: false,
             );
-            recordsPulled += await _syncBookingNotes(bookingNotes);
+            recordsPulled += await syncCollection('booking_notes', bookingNotes);
           } catch (e, st) {
             _logger.error('❌ فشل سحب booking_notes (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
@@ -3843,7 +3854,7 @@ class AppwriteSyncManager {
               queries: nightsDeltaQ,
               useCache: false,
             );
-            recordsPulled += await _syncBookingNights(bookingNights);
+            recordsPulled += await syncCollection('booking_nights', bookingNights);
             await _updateBookingNightsPullTs(Time.nowEpoch());
           } catch (e, st) {
             _logger.error('❌ فشل سحب booking_nights (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
@@ -3854,7 +3865,8 @@ class AppwriteSyncManager {
               queries: deltaQ,
               useCache: false,
             );
-            recordsPulled += await _syncCashTransactions(cashTransactions);
+            // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+            recordsPulled += await syncCollection('cash_transactions', cashTransactions);
           } catch (e, st) {
             _logger.error('❌ فشل سحب cash_transactions (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
@@ -3864,7 +3876,7 @@ class AppwriteSyncManager {
               queries: deltaQ,
               useCache: false,
             );
-            recordsPulled += await _syncSalaryCycles(salaryCycles);
+            recordsPulled += await syncCollection('salary_cycles', salaryCycles);
           } catch (e, st) {
             _logger.error('❌ فشل سحب salary_cycles (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
@@ -3874,7 +3886,7 @@ class AppwriteSyncManager {
               queries: deltaQ,
               useCache: false,
             );
-            recordsPulled += await _syncSalaryPayments(salaryPayments);
+            recordsPulled += await syncCollection('salary_payments', salaryPayments);
           } catch (e, st) {
             _logger.error('❌ فشل سحب salary_payments (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
@@ -3884,7 +3896,7 @@ class AppwriteSyncManager {
               collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
               queries: deltaQ,
             );
-            recordsPulled += await _syncPriceAdjustments(priceAdjustments);
+            recordsPulled += await syncCollection('price_adjustments', priceAdjustments);
           } catch (e, st) {
             _logger.error('❌ فشل سحب price_adjustments (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
@@ -3894,7 +3906,7 @@ class AppwriteSyncManager {
               collectionId: AppwriteConfig.auditLogsCollectionId,
               queries: deltaQ,
             );
-            recordsPulled += await _syncAuditLogs(auditLogs);
+            recordsPulled += await syncCollection('audit_logs', auditLogs);
           } catch (e, st) {
             _logger.error('❌ فشل سحب audit_logs (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
@@ -3904,7 +3916,7 @@ class AppwriteSyncManager {
               collectionId: AppwriteConfig.paymentVoidsCollectionId,
               queries: deltaQ,
             );
-            recordsPulled += await _syncPaymentVoids(paymentVoids);
+            recordsPulled += await syncCollection('payment_voids', paymentVoids);
           } catch (e, st) {
             _logger.error('❌ فشل سحب payment_voids (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
