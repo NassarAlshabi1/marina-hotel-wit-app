@@ -275,15 +275,49 @@ class AppwriteService {
 
     try {
       // ignore: deprecated_member_use
-      return await _databases.updateDocument(
-        databaseId: dbId,
-        collectionId: collectionId,
-        documentId: normalizedId,
-        data: normalizedData,
+      return await _networkHelper.withRetryAndTimeout(
+        operation: () => _databases.updateDocument(
+          databaseId: dbId,
+          collectionId: collectionId,
+          documentId: normalizedId,
+          data: normalizedData,
+        ),
+        operationName: 'updateDocument($collectionId/$normalizedId)',
       );
     } on AppwriteException catch (e) {
       // 404 Not Found → ننشئ المستند
       if (e.code == 404 || (e.type ?? '').contains('document_not_found')) {
+        // ⚠️ حالة خاصة: إذا لم نجد المستند بالـ normalizedId، قد يكون موجوداً بالـ unnormalizedId.
+        // نحاول البحث عنه بالـ unnormalizedId ونقوم بـ "هجرة" (migration) له.
+        final unnormalizedId = documentId; // documentId الأصلي قبل التطبيع
+        if (unnormalizedId != normalizedId) {
+          try {
+            final existingDoc = await _databases.getDocument(
+              databaseId: dbId,
+              collectionId: collectionId,
+              documentId: unnormalizedId,
+            );
+            _logger.info(
+              'Found document with unnormalized ID $unnormalizedId. Migrating to $normalizedId.',
+              tag: 'SYNC_MIGRATION',
+            );
+            // إذا وجدناه، نقوم بحذفه ثم إنشاءه بالـ normalizedId
+            await _databases.deleteDocument(
+              databaseId: dbId,
+              collectionId: collectionId,
+              documentId: unnormalizedId,
+            );
+            // ثم نتابع لإنشاء المستند بالـ normalizedId
+          } on AppwriteException catch (migrationError) {
+            if (migrationError.code != 404 && !(migrationError.type ?? '').contains('document_not_found')) {
+              _logger.warning(
+                'Error during unnormalized ID check for $unnormalizedId: ${migrationError.message}',
+                tag: 'SYNC_MIGRATION',
+              );
+            }
+            // إذا لم نجد المستند بالـ unnormalizedId أو حدث خطأ آخر، نتابع لإنشاء المستند بالـ normalizedId
+          }
+        }
         try {
           final created = await _networkHelper.withRetryAndTimeout(
             // ignore: deprecated_member_use
@@ -336,11 +370,14 @@ class AppwriteService {
               tag: 'SYNC',
             );
             // ignore: deprecated_member_use
-            return _databases.updateDocument(
-              databaseId: dbId,
-              collectionId: collectionId,
-              documentId: normalizedId,
-              data: normalizedData,
+            return _networkHelper.withRetryAndTimeout(
+              operation: () => _databases.updateDocument(
+                databaseId: dbId,
+                collectionId: collectionId,
+                documentId: normalizedId,
+                data: normalizedData,
+              ),
+              operationName: 'retryUpdateDocument($collectionId/$normalizedId)',
             );
           }
           rethrow;
@@ -370,17 +407,136 @@ class AppwriteService {
       // 404 = المستند غير موجود (ربما حُذف سابقاً) — نتجاهله بأمان
       if (e.code == 404 || (e.type ?? '').contains('document_not_found')) {
         _logger.debug(
-          'delete($collectionId/$normalizedId): 404 — already deleted, ignoring',
-          tag: 'SYNC',
+          'delete($collectionId/$normalizedId) - مستند غير موجود (طبيعي للحذف المسبق)',
+          tag: 'CRUD',
         );
         return;
       }
+      _logger.error(
+        'Failed to delete document $normalizedId from $collectionId',
+        error: e,
+        tag: 'CRUD',
+      );
       rethrow;
     }
   }
 
+  /// قراءة مستند واحد
+  Future<models.Document> getDocument({
+    required String collectionId,
+    required String documentId,
+  }) async {
+    final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
+    await _ensureInitialized();
+    return _networkHelper.withTimeout(
+      // ignore: deprecated_member_use
+      operation: () => _databases.getDocument(
+        databaseId: AppwriteConfigManager.databaseId,
+        collectionId: collectionId,
+        documentId: normalizedId,
+      ),
+      operationName: 'getDocument($collectionId/$documentId)',
+    );
+  }
+
+  /// قراءة مستند بأمان — يُرجع null بدلاً من رمي استثناء إذا لم يوجد
+  /// لا يُسجّل 404 كخطأ لأن البحث عن مستند مفقود أمر طبيعي في المزامنة
+  Future<models.Document?> getDocumentSafe({
+    required String collectionId,
+    required String documentId,
+  }) async {
+    final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
+    await _ensureInitialized();
+    try {
+      // ignore: deprecated_member_use
+      return await _databases.getDocument(
+        databaseId: AppwriteConfigManager.databaseId,
+        collectionId: collectionId,
+        documentId: normalizedId,
+      ).timeout(AppwriteConfig.defaultTimeout);
+    } on AppwriteException catch (e) {
+          if (e.code == 404 || e.toString().contains('document_not_found')) {
+            _logger.debug(
+              'getDocumentSafe($collectionId/$normalizedId) - مستند غير موجود (طبيعي لسجلات يتيمة)',
+              tag: 'SYNC',
+            );
+        return null;
+      }
+            _logger.error(
+              'getDocumentSafe($collectionId/$normalizedId) - خطأ: $e',
+              error: e,
+              tag: 'SYNC',
+            );
+      rethrow;
+    } on TimeoutException {
+            _logger.warning(
+              'getDocumentSafe($collectionId/$normalizedId) - انتهت المهلة',
+              tag: 'SYNC',
+            );
+      return null;
+    }
+  }
+
+  /// إنشاء مستند جديد
+  Future<models.Document> createDocument({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) async {
+    final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
+    await _ensureInitialized();
+    return _networkHelper.withTimeout(
+      // ignore: deprecated_member_use
+      operation: () => _databases.createDocument(
+        databaseId: AppwriteConfigManager.databaseId,
+        collectionId: collectionId,
+        documentId: normalizedId,
+        data: data,
+      ),
+      operationName: 'createDocument($collectionId/$documentId)',
+    );
+  }
+
+  /// تحديث مستند موجود
+  Future<models.Document> updateDocument({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) async {
+    final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
+    await _ensureInitialized();
+    return _networkHelper.withTimeout(
+      // ignore: deprecated_member_use
+      operation: () => _databases.updateDocument(
+        databaseId: AppwriteConfigManager.databaseId,
+        collectionId: collectionId,
+        documentId: normalizedId,
+        data: data,
+      ),
+      operationName: 'updateDocument($collectionId/$documentId)',
+    );
+  }
+
+  /// حذف مستند
+  Future<void> deleteDocument({
+    required String collectionId,
+    required String documentId,
+  }) async {
+    final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
+    await _ensureInitialized();
+    return _networkHelper.withTimeout<void>(
+      // ignore: deprecated_member_use
+      operation: () => _databases.deleteDocument(
+        databaseId: AppwriteConfigManager.databaseId,
+        collectionId: collectionId,
+        documentId: normalizedId,
+      ),
+      operationName: 'deleteDocument($collectionId/$documentId)',
+    );
+  }
+
   // ---------------------------------------------------------------------------
-  // Specific Entity Operations
+  // Specific Collections
   // ---------------------------------------------------------------------------
 
   // Rooms
@@ -581,39 +737,6 @@ class AppwriteService {
     );
   }
 
-  // Shift Notes
-  Future<List<models.Document>> listShiftNotes({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
-    await _ensureInitialized();
-    return _listAllDocumentsInternal(
-      collectionId: AppwriteConfig.shiftNotesCollectionId,
-      queries: queries ?? [],
-      useCache: useCache,
-    );
-  }
-
-  Future<models.Document> upsertShiftNote(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
-    await _ensureInitialized();
-    return _upsertDocumentInternal(
-      collectionId: AppwriteConfig.shiftNotesCollectionId,
-      documentId: documentId,
-      data: data,
-    );
-  }
-
-  Future<void> deleteShiftNote(String documentId) async {
-    await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.shiftNotesCollectionId,
-      documentId: documentId,
-    );
-  }
-
   // Booking Notes
   Future<List<models.Document>> listBookingNotes({
     List<String>? queries,
@@ -713,6 +836,39 @@ class AppwriteService {
     );
   }
 
+  // Shift Notes
+  Future<List<models.Document>> listShiftNotes({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.shiftNotesCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertShiftNote(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    await _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.shiftNotesCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteShiftNote(String documentId) async {
+    await _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.shiftNotesCollectionId,
+      documentId: documentId,
+    );
+  }
+
   // Salary Cycles
   Future<List<models.Document>> listSalaryCycles({
     List<String>? queries,
@@ -779,40 +935,7 @@ class AppwriteService {
     );
   }
 
-  // GuestInfos
-  Future<List<models.Document>> listGuestInfos({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
-    await _ensureInitialized();
-    return _listAllDocumentsInternal(
-      collectionId: AppwriteConfig.guestInfosCollectionId,
-      queries: queries ?? [],
-      useCache: useCache,
-    );
-  }
-
-  Future<models.Document> upsertGuestInfo(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
-    await _ensureInitialized();
-    return _upsertDocumentInternal(
-      collectionId: AppwriteConfig.guestInfosCollectionId,
-      documentId: documentId,
-      data: data,
-    );
-  }
-
-  Future<void> deleteGuestInfo(String documentId) async {
-    await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.guestInfosCollectionId,
-      documentId: documentId,
-    );
-  }
-
-  // SalaryWithdrawals
+  // Salary Withdrawals
   Future<List<models.Document>> listSalaryWithdrawals({
     List<String>? queries,
     bool useCache = true,
@@ -845,6 +968,171 @@ class AppwriteService {
     );
   }
 
+  // Price Adjustments
+  Future<List<models.Document>> listPriceAdjustments({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertPriceAdjustment(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    await _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deletePriceAdjustment(String documentId) async {
+    await _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+      documentId: documentId,
+    );
+  }
+
+  // Booking Price Adjustments
+  Future<List<models.Document>> listBookingPriceAdjustments({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertBookingPriceAdjustment(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    await _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteBookingPriceAdjustment(String documentId) async {
+    await _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+      documentId: documentId,
+    );
+  }
+
+  // Audit Logs
+  Future<List<models.Document>> listAuditLogs({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.auditLogsCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertAuditLog(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    await _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.auditLogsCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteAuditLog(String documentId) async {
+    await _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.auditLogsCollectionId,
+      documentId: documentId,
+    );
+  }
+
+  // Payment Voids
+  Future<List<models.Document>> listPaymentVoids({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.paymentVoidsCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertPaymentVoid(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    await _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.paymentVoidsCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deletePaymentVoid(String documentId) async {
+    await _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.paymentVoidsCollectionId,
+      documentId: documentId,
+    );
+  }
+
+  // Guest Infos
+  Future<List<models.Document>> listGuestInfos({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.guestInfosCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertGuestInfo(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    await _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.guestInfosCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteGuestInfo(String documentId) async {
+    await _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.guestInfosCollectionId,
+      documentId: documentId,
+    );
+  }
+
   // Blacklist
   Future<List<models.Document>> listBlacklist({
     List<String>? queries,
@@ -858,7 +1146,7 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertBlacklist(
+  Future<models.Document> upsertBlacklistEntry(
     String documentId,
     Map<String, dynamic> data,
   ) async {
@@ -870,7 +1158,7 @@ class AppwriteService {
     );
   }
 
-  Future<void> deleteBlacklist(String documentId) async {
+  Future<void> deleteBlacklistEntry(String documentId) async {
     await _ensureInitialized();
     return _deleteDocumentInternal(
       collectionId: AppwriteConfig.blacklistCollectionId,
@@ -878,347 +1166,215 @@ class AppwriteService {
     );
   }
 
-  // Generic methods for delta sync
-  Future<List<models.Document>> listDocuments({
-    required String collectionId,
+  // Devices
+  Future<List<models.Document>> listDevices({
     List<String>? queries,
     bool useCache = true,
   }) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
-      collectionId: collectionId,
+      collectionId: AppwriteConfig.devicesCollectionId,
       queries: queries ?? [],
       useCache: useCache,
     );
   }
 
-  Future<void> deleteDocument({
-    required String collectionId,
-    required String documentId,
-  }) async {
-    await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: collectionId,
-      documentId: documentId,
-    );
-  }
-
-  Future<models.Document> upsertDocument({
-    required String collectionId,
-    required String documentId,
-    required Map<String, dynamic> data,
-  }) async {
+  Future<models.Document> upsertDevice(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
-      collectionId: collectionId,
+      collectionId: AppwriteConfig.devicesCollectionId,
       documentId: documentId,
       data: data,
     );
   }
 
-  /// اختبار اتصال سريع (قراءة فقط)
-  Future<bool> quickConnectionTest() async {
-    try {
-      await _ensureInitialized();
-
-      await _networkHelper.withTimeout<models.DocumentList>(
-        operation: () =>
-            // ignore: deprecated_member_use
-            _databases.listDocuments(
-          databaseId: AppwriteConfigManager.databaseId,
-          collectionId: AppwriteConfig.roomsCollectionId,
-        ),
-        operationName: 'quickConnectionTest',
-        timeout: const Duration(seconds: 5),
-      );
-
-      _logger.info('Quick connection test successful', tag: 'CONNECTION');
-      return true;
-    } catch (e) {
-      _logger.warning(
-        'Quick connection test failed',
-        error: e,
-        tag: 'CONNECTION',
-      );
-      return false;
-    }
-  }
-
-  /// اختبار شامل للاتصال (قراءة فقط - لا يعتمد على كتابة المستندات)
-  Future<Map<String, dynamic>> fullConnectionTest() async {
-    final results = <String, dynamic>{
-      'tests': <String, dynamic>{},
-      'overall_success': false,
-    };
-
+  Future<void> deleteDevice(String documentId) async {
     await _ensureInitialized();
-
-    try {
-      // 1. اختبار Ping الأساسي — محاولة listDocuments على bookings
-      //    (وليس rooms) لأن bookings عادةً ما يكون له index أسرع.
-      //    نستخدم Query.limit(1) لتقليل الحمل.
-      try {
-        await _networkHelper.withTimeout<models.DocumentList>(
-          operation: () =>
-              // ignore: deprecated_member_use
-              _databases.listDocuments(
-            databaseId: AppwriteConfigManager.databaseId,
-            collectionId: AppwriteConfig.bookingsCollectionId,
-            queries: [Query.limit(1)],
-          ),
-          operationName: 'ping(bookings)',
-          timeout: const Duration(seconds: 10),
-        );
-        results['tests']['ping'] = true;
-      } catch (e) {
-        results['tests']['ping'] = false;
-        results['tests']['ping_error'] = e.toString();
-      }
-
-      // 2. اختبار قراءة rooms (مع timeout أطول لأن rooms قد يكون كبيراً)
-      try {
-        await _networkHelper.withTimeout<models.DocumentList>(
-          operation: () =>
-              // ignore: deprecated_member_use
-              _databases.listDocuments(
-            databaseId: AppwriteConfigManager.databaseId,
-            collectionId: AppwriteConfig.roomsCollectionId,
-            queries: [Query.limit(1)],
-          ),
-          operationName: 'listDocuments(rooms)',
-          timeout: const Duration(seconds: 15),
-        );
-        results['tests']['rooms'] = true;
-      } catch (e) {
-        results['tests']['rooms'] = false;
-        results['tests']['rooms_error'] = e.toString();
-      }
-
-      // 3. اختبار قراءة bookings
-      try {
-        await _networkHelper.withTimeout<models.DocumentList>(
-          operation: () =>
-              // ignore: deprecated_member_use
-              _databases.listDocuments(
-            databaseId: AppwriteConfigManager.databaseId,
-            collectionId: AppwriteConfig.bookingsCollectionId,
-            queries: [Query.limit(1)],
-          ),
-          operationName: 'listDocuments(bookings)',
-          timeout: const Duration(seconds: 10),
-        );
-        results['tests']['bookings'] = true;
-      } catch (e) {
-        results['tests']['bookings'] = false;
-        results['tests']['bookings_error'] = e.toString();
-      }
-
-      // 4. اختبار قراءة devices
-      try {
-        await _networkHelper.withTimeout<models.DocumentList>(
-          operation: () =>
-              // ignore: deprecated_member_use
-              _databases.listDocuments(
-            databaseId: AppwriteConfigManager.databaseId,
-            collectionId: AppwriteConfig.devicesCollectionId,
-            queries: [Query.limit(1)],
-          ),
-          operationName: 'listDocuments(devices)',
-          timeout: const Duration(seconds: 10),
-        );
-        results['tests']['devices'] = true;
-      } catch (e) {
-        results['tests']['devices'] = false;
-        results['tests']['devices_error'] = e.toString();
-      }
-
-      // حساب الحالة النهائية:
-      // - overall_success = ping نجح (الاتصال الأساسي بالخادم)
-      // - rooms/bookings/devices = اختبارات إضافية للمجموعات
-      final tests = results['tests'] as Map<String, dynamic>;
-      results['overall_success'] = tests['ping'] == true;
-
-      if (results['overall_success'] == true) {
-        _logger.info('Full connection test passed', tag: 'CONNECTION_TEST');
-      } else {
-        _logger.warning(
-          'Full connection test failed: $results',
-          tag: 'CONNECTION_TEST',
-        );
-      }
-
-      return results;
-    } catch (e) {
-      _logger.error(
-        'Full connection test fatal error',
-        error: e,
-        tag: 'CONNECTION_TEST',
-      );
-      results['overall_success'] = false;
-      results['error'] = e.toString();
-      return results;
-    }
-  }
-
-  /// اختبار الاتصال (alias لـ fullConnectionTest)
-  Future<Map<String, dynamic>> testConnection() => fullConnectionTest();
-
-  /// Getter للتحقق من حالة التهيئة
-  bool get isInitialized => _initialized;
-
-  /// قراءة مستند واحد
-  Future<models.Document> getDocument({
-    required String collectionId,
-    required String documentId,
-  }) async {
-    await _ensureInitialized();
-    return _networkHelper.withTimeout(
-      // ignore: deprecated_member_use
-      operation: () => _databases.getDocument(
-        databaseId: AppwriteConfigManager.databaseId,
-        collectionId: collectionId,
-        documentId: documentId,
-      ),
-      operationName: 'getDocument($collectionId/$documentId)',
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.devicesCollectionId,
+      documentId: documentId,
     );
   }
 
-  /// قراءة مستند بأمان — يُرجع null بدلاً من رمي استثناء إذا لم يوجد
-  /// لا يُسجّل 404 كخطأ لأن البحث عن مستند مفقود أمر طبيعي في المزامنة
-  Future<models.Document?> getDocumentSafe({
-    required String collectionId,
-    required String documentId,
-  }) async {
-    await _ensureInitialized();
-    // ✅ تطبيع UUID بدون شرطة — المستند في Cloud قد يكون بدون شرطة
-    final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
-    try {
-      // ignore: deprecated_member_use
-      return await _databases.getDocument(
-        databaseId: AppwriteConfigManager.databaseId,
-        collectionId: collectionId,
-        documentId: normalizedId,
-      ).timeout(AppwriteConfig.defaultTimeout);
-    } on AppwriteException catch (e) {
-      if (e.code == 404 || e.toString().contains('document_not_found')) {
-        _logger.debug(
-          'getDocumentSafe($collectionId/$normalizedId) - مستند غير موجود (طبيعي لسجلات يتيمة)',
-          tag: 'SYNC',
-        );
-        return null;
-      }
-      _logger.error(
-        'getDocumentSafe($collectionId/$normalizedId) - خطأ: $e',
-        error: e,
-        tag: 'SYNC',
-      );
-      rethrow;
-    } on TimeoutException {
-      _logger.warning(
-        'getDocumentSafe($collectionId/$normalizedId) - انتهت المهلة',
-        tag: 'SYNC',
-      );
-      return null;
-    }
-  }
-
-  /// إنشاء مستند جديد
-  ///
-  /// ✅ يُطبّع UUID (documentId + كل حقول UUID في الحمولة) بدون شرطة
-  /// بنفس نمط `_upsertDocumentInternal`.
-  Future<models.Document> createDocument({
-    required String collectionId,
-    required String documentId,
-    required Map<String, dynamic> data,
-  }) async {
-    await _ensureInitialized();
-    final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
-    final normalizedData = _normalizeUuidFields(data);
-    return _networkHelper.withTimeout(
-      // ignore: deprecated_member_use
-      operation: () => _databases.createDocument(
-        databaseId: AppwriteConfigManager.databaseId,
-        collectionId: collectionId,
-        documentId: normalizedId,
-        data: normalizedData,
-      ),
-      operationName: 'createDocument($collectionId/$normalizedId)',
-    );
-  }
-
-  /// تحديث مستند موجود
-  ///
-  /// ✅ يُطبّع UUID (documentId + كل حقول UUID في الحمولة) بدون شرطة
-  /// بنفس نمط `_upsertDocumentInternal`.
-  Future<models.Document> updateDocument({
-    required String collectionId,
-    required String documentId,
-    required Map<String, dynamic> data,
-  }) async {
-    await _ensureInitialized();
-    final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
-    final normalizedData = _normalizeUuidFields(data);
-    return _networkHelper.withTimeout(
-      // ignore: deprecated_member_use
-      operation: () => _databases.updateDocument(
-        databaseId: AppwriteConfigManager.databaseId,
-        collectionId: collectionId,
-        documentId: normalizedId,
-        data: normalizedData,
-      ),
-      operationName: 'updateDocument($collectionId/$normalizedId)',
-    );
-  }
-
-  /// إنشاء سجل مزامنة
-  Future<models.Document> createSyncLog(Map<String, dynamic> data) async {
-    return createDocument(
-      collectionId: AppwriteConfig.syncLogsCollectionId,
-      documentId: (data['localUuid'] ?? ID.unique()) as String,
-      data: data,
-    );
-  }
-
-  /// جلب سجلات المزامنة
+  // Sync Logs
   Future<List<models.Document>> listSyncLogs({
     List<String>? queries,
     bool useCache = true,
   }) async {
-    return listDocuments(
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.syncLogsCollectionId,
-      queries: queries,
+      queries: queries ?? [],
       useCache: useCache,
     );
   }
 
-  /// إنشاء جهاز
-  Future<models.Document> createDevice(Map<String, dynamic> data) async {
-    return createDocument(
-      collectionId: AppwriteConfig.devicesCollectionId,
-      documentId: (data['localUuid'] ?? ID.unique()) as String,
+  Future<models.Document> upsertSyncLog(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    await _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.syncLogsCollectionId,
+      documentId: documentId,
       data: data,
     );
   }
 
-  /// جلب الأجهزة
-  Future<List<models.Document>> listDevices({
+  Future<models.Document> createSyncLog(Map<String, dynamic> data) async {
+    await _ensureInitialized();
+    return _networkHelper.withTimeout(
+      // ignore: deprecated_member_use
+      operation: () => _databases.createDocument(
+        databaseId: AppwriteConfigManager.databaseId,
+        collectionId: AppwriteConfig.syncLogsCollectionId,
+        documentId: 'unique()',
+        data: data,
+      ),
+      operationName: 'createSyncLog',
+    );
+  }
+
+  Future<void> deleteSyncLog(String documentId) async {
+    await _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.syncLogsCollectionId,
+      documentId: documentId,
+    );
+  }
+
+  // App Settings
+  Future<List<models.Document>> listAppSettings({
     List<String>? queries,
     bool useCache = true,
   }) async {
-    return listDocuments(
-      collectionId: AppwriteConfig.devicesCollectionId,
-      queries: queries,
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.appSettingsCollectionId,
+      queries: queries ?? [],
       useCache: useCache,
     );
   }
 
-  /// الحصول على معلومات المشروع
-  Map<String, String> getProjectInfo() {
-    return {
-      'endpoint': AppwriteConfigManager.endpoint,
-      'projectId': AppwriteConfigManager.projectId,
-      'databaseId': AppwriteConfigManager.databaseId,
-      'initialized': _initialized.toString(),
-    };
+  Future<models.Document> upsertAppSetting(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    await _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.appSettingsCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteAppSetting(String documentId) async {
+    await _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.appSettingsCollectionId,
+      documentId: documentId,
+    );
+  }
+
+  // App Users
+  Future<List<models.Document>> listAppUsers({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.appUsersCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertAppUser(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    await _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.appUsersCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteAppUser(String documentId) async {
+    await _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.appUsersCollectionId,
+      documentId: documentId,
+    );
+  }
+
+  // Outbox
+  Future<List<models.Document>> listOutboxEntries({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.outboxCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertOutboxEntry(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    await _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.outboxCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteOutboxEntry(String documentId) async {
+    await _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.outboxCollectionId,
+      documentId: documentId,
+    );
+  }
+
+  // Sync State
+  Future<List<models.Document>> listSyncStateEntries({
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: AppwriteConfig.syncStateCollectionId,
+      queries: queries ?? [],
+      useCache: useCache,
+    );
+  }
+
+  Future<models.Document> upsertSyncStateEntry(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async {
+    await _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: AppwriteConfig.syncStateCollectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  Future<void> deleteSyncStateEntry(String documentId) async {
+    await _ensureInitialized();
+    return _deleteDocumentInternal(
+      collectionId: AppwriteConfig.syncStateCollectionId,
+      documentId: documentId,
+    );
   }
 }
