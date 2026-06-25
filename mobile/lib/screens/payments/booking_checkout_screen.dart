@@ -666,13 +666,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           SnackBar(
             content: const Text('تم إضافة الدفعة بنجاح'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'إغلاق',
-              textColor: Colors.white,
-              onPressed: () =>
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-            ),
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       } catch (e) {
@@ -1082,13 +1077,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 'تم تسجيل الخروج وإضافة دين بقيمة ${CurrencyFormatter.formatAmount(remainingAmount)} إلى قائمة الديون',
               ),
               backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 5),
-              action: SnackBarAction(
-                label: 'إغلاق',
-                textColor: Colors.white,
-                onPressed: () =>
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-              ),
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
             ),
           );
           // ignore: use_build_context_synchronously
@@ -1102,13 +1092,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             SnackBar(
               content: const Text('تم تسجيل الخروج بنجاح بدون دين'),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 5),
-              action: SnackBarAction(
-                label: 'إغلاق',
-                textColor: Colors.white,
-                onPressed: () =>
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-              ),
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
             ),
           );
           // ignore: use_build_context_synchronously
@@ -1207,13 +1192,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             SnackBar(
               content: const Text('تم إتمام الحجز بنجاح'),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 5),
-              action: SnackBarAction(
-                label: 'إغلاق',
-                textColor: Colors.white,
-                onPressed: () =>
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-              ),
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
             ),
           );
           // ignore: use_build_context_synchronously

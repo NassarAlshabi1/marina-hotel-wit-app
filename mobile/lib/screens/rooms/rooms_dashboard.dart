@@ -223,12 +223,7 @@ class RoomsDashboard extends ConsumerWidget {
           content: Text('خطأ في تحميل الحجز: $e'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            textColor: Colors.white,
-            onPressed: () =>
-                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-          ),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
