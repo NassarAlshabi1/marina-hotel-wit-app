@@ -2426,6 +2426,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   /// ✅ تنفيذ تسجيل الخروج (المغادرة) مع إنشاء دين اختيارياً.
+  ///
+  /// 🧠 نمط Optimistic UI:
+  /// - كل العمليات محلية (SQLite) — سريعة جداً (< 100ms)
+  /// - لا انتظار للشبكة — المزامنة تتم في الخلفية عبر outbox + ScreenSyncController
+  /// - المستخدم حر في الخروج فوراً (لا blocking)
+  /// - إذا فشلت المزامنة لاحقاً، يُعاد المحاولة تلقائياً (retry with backoff)
+  ///
   /// تستدعيها `_showCheckoutOptions` بعد اختيار المستخدم.
   Future<void> _completeCheckoutNow(
     BuildContext context, {
@@ -2433,8 +2440,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     required double totalDue,
     required bool createDebt,
   }) async {
-    setState(() => _isSavingPayment = true);
-
+    // 🧠 لا نستخدم _isSavingPayment هنا — العمليات محلية وسريعة
+    // لا نمنع المستخدم من الخروج (النظام ذكي ويعالج نفسه بنفسه)
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
       final roomsRepo = ref.read(roomsRepoProvider);
@@ -2445,7 +2452,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final nowDate = DateTime.parse(nowIso);
       final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
 
-      // 1. تحديث الحجز: مكتمل + تسجيل خروج
+      // 1. تحديث الحجز: مكتمل + تسجيل خروج (محلي فقط + outbox)
       await bookingsRepo.update(
         widget.booking.id,
         status: 'مكتمل',
@@ -2453,10 +2460,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         calculatedNights: actualNights,
       );
 
-      // 2. تحديث حالة الغرفة
+      // 2. تحديث حالة الغرفة (محلي فقط + outbox)
       await roomsRepo.refreshAllRoomOccupancy();
 
-      // 3. إنشاء دين للمبلغ المتبقي (إذا اختار المستخدم)
+      // 3. إنشاء دين للمبلغ المتبقي (محلي فقط + outbox)
       if (createDebt) {
         final debtsRepo = ref.read(debtsRepoProvider);
         final checkoutDateStr = widget.booking.checkoutDate ?? nowIso;
@@ -2474,26 +2481,32 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         );
       }
 
+      // 4. ✅ تفعيل المزامنة في الخلفية (fire-and-forget)
+      //    markDataChanged يُفعّل debounce 15 ثانية ثم يُزامن تلقائياً
+      //    إذا خرج المستخدم من الشاشة، wrapWithSyncOnExit يُزامن عند الخروج
+      //    إذا فشلت الشبكة، الـ outbox يُعاد رفعه لاحقاً تلقائياً
       markDataChanged();
 
+      // 5. ✅ إغلاق الشاشة فوراً — لا انتظار للمزامنة
       if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
         final message = createDebt
             ? 'تم تسجيل الخروج وإضافة دين بقيمة ${CurrencyFormatter.formatAmount(remainingAmount)} إلى قائمة الديون'
-            : 'تم تسجيل الخروج بدون إنشاء دين';
+            : 'تم تسجيل الخروج بنجاح';
 
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text(message),
-            backgroundColor: createDebt ? Colors.orange : Colors.grey,
-            duration: const Duration(seconds: 5),
+            backgroundColor: createDebt ? Colors.orange : Colors.green,
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'إغلاق',
               textColor: Colors.white,
-              onPressed: () =>
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              onPressed: messenger.hideCurrentSnackBar,
             ),
           ),
         );
+        // ✅ إغلاق فوري — الشاشة التالية ستعرض البيانات المُحدّثة من DB
         Navigator.of(context).pop();
       }
     } catch (e) {
@@ -2503,14 +2516,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           SnackBar(
             content: Text('حدث خطأ: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isSavingPayment = false);
-      }
     }
+    // ✅ لا finally — لا يوجد state لإعادة تعيينه
   }
 
   /// نافذة المغادرة المبكرة مع حساب المردود
