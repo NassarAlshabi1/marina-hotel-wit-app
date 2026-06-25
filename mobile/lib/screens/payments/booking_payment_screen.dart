@@ -217,7 +217,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final paymentsRepo = ref.watch(paymentsRepoProvider);
 
     return PopScope(
-      // منع الخروج فقط أثناء حفظ الدفعة (وليس أثناء معالجة المغادرة)
       canPop: !_isSavingPayment,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
@@ -2287,30 +2286,67 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   void _showCheckoutConfirmation(BookingPaymentSummary summary) {
     final hasRemaining = summary.remainingAmount > 0;
 
-    // ✅ توحيد: "تسجيل مغادرة" = "تسجيل خروج" — نفس العملية.
-    // إذا كان هناك مبلغ متبقي، اعرض خيارات الخروج (بدون دين / بدين).
-    // إذا لم يكن هناك مبلغ متبقي، اكمل الخروج مباشرة.
-    if (hasRemaining) {
-      _showCheckoutOptions(
-        context,
-        remainingAmount: summary.remainingAmount,
-        totalDue: summary.totalAmount,
-      );
-      return;
-    }
-
-    // لا يوجد مبلغ متبقي — تأكيد مباشر للمغادرة بدون دين
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.green),
+            Icon(
+              hasRemaining ? Icons.warning : Icons.check_circle,
+              color: hasRemaining ? Colors.red : Colors.green,
+            ),
             const SizedBox(width: 8),
-            const Text('تأكيد المغادرة'),
+            Text(
+              hasRemaining ? 'تحذير!' : 'تأكيد المغادرة',
+              style: TextStyle(color: hasRemaining ? Colors.red : null),
+            ),
           ],
         ),
-        content: const Text('هل تريد تسجيل مغادرة العميل وتحرير الغرفة؟'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (hasRemaining) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.money_off, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Text(
+                          'المبلغ المتبقي: ${_currencyFmt.format(summary.remainingAmount)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      '⚠️ سيتم خصم المبلغ من راتبكم',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            const Text('هل تريد تسجيل مغادرة العميل وتحرير الغرفة؟'),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -2319,209 +2355,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _completeCheckoutNow(
-                context,
-                remainingAmount: 0,
-                totalDue: summary.totalAmount,
-                createDebt: false,
-              );
+              _processCheckout();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: hasRemaining ? Colors.red : Colors.green,
             ),
-            child: const Text('تأكيد المغادرة'),
+            child: Text(hasRemaining ? 'متابعة رغم ذلك' : 'تأكيد المغادرة'),
           ),
         ],
       ),
     );
-  }
-
-  /// ✅ نافذة خيارات تسجيل الخروج عند وجود مبلغ متبقي.
-  /// - "تسجيل خروج" → خروج بدون دين (النزيل سدد ما يقدر، الباقي يُمحى)
-  /// - "خروج بدين" → خروج + تسجيل المبلغ المتبقي كدين في جدول debts
-  Future<void> _showCheckoutOptions(
-    BuildContext context, {
-    required double remainingAmount,
-    required double totalDue,
-  }) async {
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
-        child: AlertDialog(
-          title: const Text('خيارات تسجيل الخروج'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('النزيل لم يسدد المبلغ الكامل. هل ترغب في؟'),
-              const SizedBox(height: 16),
-              Text(
-                'المبلغ المتبقي: ${CurrencyFormatter.formatAmount(remainingAmount)}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop('none'),
-              child: const Text('إلغاء'),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // خيار: تسجيل خروج بدون دين
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.of(ctx).pop('without_debt'),
-                    icon: const Icon(Icons.check_circle_outline),
-                    label: const Text('تسجيل خروج'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // خيار: خروج مع إنشاء دين
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.of(ctx).pop('with_debt'),
-                    icon: const Icon(Icons.logout),
-                    label: const Text('خروج بدين'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (!mounted) return;
-
-    if (choice == 'without_debt') {
-      await _completeCheckoutNow(
-        context,
-        remainingAmount: remainingAmount,
-        totalDue: totalDue,
-        createDebt: false,
-      );
-    } else if (choice == 'with_debt') {
-      await _completeCheckoutNow(
-        context,
-        remainingAmount: remainingAmount,
-        totalDue: totalDue,
-        createDebt: true,
-      );
-    }
-  }
-
-  /// ✅ تنفيذ تسجيل الخروج (المغادرة) مع إنشاء دين اختيارياً.
-  ///
-  /// 🧠 نمط Optimistic UI:
-  /// - كل العمليات محلية (SQLite) — سريعة جداً (< 100ms)
-  /// - لا انتظار للشبكة — المزامنة تتم في الخلفية عبر outbox + ScreenSyncController
-  /// - المستخدم حر في الخروج فوراً (لا blocking)
-  /// - إذا فشلت المزامنة لاحقاً، يُعاد المحاولة تلقائياً (retry with backoff)
-  ///
-  /// تستدعيها `_showCheckoutOptions` بعد اختيار المستخدم.
-  Future<void> _completeCheckoutNow(
-    BuildContext context, {
-    required double remainingAmount,
-    required double totalDue,
-    required bool createDebt,
-  }) async {
-    // 🧠 لا نستخدم _isSavingPayment هنا — العمليات محلية وسريعة
-    // لا نمنع المستخدم من الخروج (النظام ذكي ويعالج نفسه بنفسه)
-    try {
-      final bookingsRepo = ref.read(bookingsRepoProvider);
-      final roomsRepo = ref.read(roomsRepoProvider);
-
-      final nowIso = Time.nowIso();
-      final checkin =
-          DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-      final nowDate = DateTime.parse(nowIso);
-      final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
-
-      // 1. تحديث الحجز: مكتمل + تسجيل خروج (محلي فقط + outbox)
-      await bookingsRepo.update(
-        widget.booking.id,
-        status: 'مكتمل',
-        actualCheckout: nowIso,
-        calculatedNights: actualNights,
-      );
-
-      // 2. تحديث حالة الغرفة (محلي فقط + outbox)
-      await roomsRepo.refreshAllRoomOccupancy();
-
-      // 3. إنشاء دين للمبلغ المتبقي (محلي فقط + outbox)
-      if (createDebt) {
-        final debtsRepo = ref.read(debtsRepoProvider);
-        final checkoutDateStr = widget.booking.checkoutDate ?? nowIso;
-
-        await debtsRepo.create(
-          bookingLocalId: widget.booking.id,
-          guestName: widget.booking.guestName,
-          checkinDate: widget.booking.checkinDate,
-          checkoutDate: checkoutDateStr,
-          debtReason: 'مبلغ متبقي بعد تسجيل الخروج',
-          totalAmount: totalDue,
-          paidAmount: totalDue - remainingAmount,
-          paymentDate: nowIso,
-          isSettled: false,
-        );
-      }
-
-      // 4. ✅ تفعيل المزامنة في الخلفية (fire-and-forget)
-      //    markDataChanged يُفعّل debounce 15 ثانية ثم يُزامن تلقائياً
-      //    إذا خرج المستخدم من الشاشة، wrapWithSyncOnExit يُزامن عند الخروج
-      //    إذا فشلت الشبكة، الـ outbox يُعاد رفعه لاحقاً تلقائياً
-      markDataChanged();
-
-      // 5. ✅ إغلاق الشاشة فوراً — لا انتظار للمزامنة
-      if (mounted) {
-        final messenger = ScaffoldMessenger.of(context);
-        final message = createDebt
-            ? 'تم تسجيل الخروج وإضافة دين بقيمة ${CurrencyFormatter.formatAmount(remainingAmount)} إلى قائمة الديون'
-            : 'تم تسجيل الخروج بنجاح';
-
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: createDebt ? Colors.orange : Colors.green,
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'إغلاق',
-              textColor: Colors.white,
-              onPressed: messenger.hideCurrentSnackBar,
-            ),
-          ),
-        );
-        // ✅ إغلاق فوري — الشاشة التالية ستعرض البيانات المُحدّثة من DB
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      AppLogger.warning('❌ خطأ في تسجيل الخروج: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('حدث خطأ: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    }
-    // ✅ لا finally — لا يوجد state لإعادة تعيينه
   }
 
   /// نافذة المغادرة المبكرة مع حساب المردود
@@ -2827,30 +2670,56 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
-  /// معالجة المغادرة العادية — تُظهر نافذة الخيارات (مع/بدون دين) ثم تنفذ.
-  ///
-  /// ⚠️ محفوظة للتوافق مع الكود القديم الذي يستدعيها (مثل _showEarlyCheckoutDialog
-  /// في بعض المسارات). الآن تُحوّل إلى `_showCheckoutConfirmation` الموحّدة.
+  /// معالجة المغادرة العادية
   Future<void> _processCheckout() async {
-    // اقرأ الـ summary الحالي من الـ state لحساب المبلغ المتبقي
-    // fallback إلى 0.0 لو لم يكن متاحاً (فيكون خروج عادي بدون دين)
-    final remaining = _remainingAmount > 0 ? _remainingAmount : 0.0;
-    final totalDue = remaining + 0; // ✅ placeholder — سيزود من الـ summary الفعلي
-
-    if (remaining > 0) {
-      await _showCheckoutOptions(
-        context,
-        remainingAmount: remaining,
-        totalDue: totalDue,
+    try {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      final roomsRepo = ref.read(roomsRepoProvider);
+      final nowIso = Time.nowIso();
+      final checkin =
+          DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+      final nowDate = DateTime.parse(nowIso);
+      final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
+      await bookingsRepo.update(
+        widget.booking.id,
+        status: 'مكتمل',
+        actualCheckout: nowIso,
+        calculatedNights: actualNights,
       );
-    } else {
-      // لا مبلغ متبقي — خروج مباشر بدون دين
-      await _completeCheckoutNow(
-        context,
-        remainingAmount: 0,
-        totalDue: totalDue,
-        createDebt: false,
+      final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
+      if (room != null) {
+        await roomsRepo.update(room.id, status: 'شاغرة');
+      }
+      // ✅ تسجيل تغيير المزامنة بعد تحرير الغرفة
+      markDataChanged();
+      if (!mounted) {
+        return;
+      }
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'إغلاق',
+            textColor: Colors.white,
+            onPressed: messenger.hideCurrentSnackBar,
+          ),
+        ),
       );
+      Navigator.pop(context);
+    } catch (e) {
+      AppLogger.warning('❌ خطأ في تسجيل المغادرة: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل تسجيل المغادرة: $e'),
+            backgroundColor: Colors.red.shade900,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     }
   }
 
