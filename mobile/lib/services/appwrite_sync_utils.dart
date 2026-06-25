@@ -78,6 +78,10 @@ class AppwriteSyncUtils {
       'voidedAt', 'voidedBy',
     },
     'debts': {
+      // ✅ bookingUuidCache يُرسل ديناميكياً في _processDebtEntry (يُحل من FK)
+      // غير موجود في schema Cloud حالياً، لكن نُضيفه للقائمة المسموحة للتوافق
+      // المستقبلي — سيُحذف تلقائياً إذا لم يكن في Cloud.
+      'bookingUuidCache',
       'bookingLocalId', 'checkinDate', 'checkoutDate', 'createdAt',
       'createdAtEpoch', 'createdAtIso', 'dateRecorded', 'debtReason',
       'debtUuid', 'deletedAt', 'deletedAtIso', 'deviceId',

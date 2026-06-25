@@ -896,7 +896,8 @@ class AppwriteSyncManager {
           try {
             recordsPulled += await _timePhase('syncDebts', () async {
               final debts = await appwriteService.listDebts(queries: deltaQ, useCache: false);
-              final debtsSynced = await _syncDebts(debts);
+              // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+              final debtsSynced = await syncCollection('debts', debts);
               _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
               return debtsSynced;
             }, phaseMs,);
@@ -3074,13 +3075,10 @@ class AppwriteSyncManager {
       'localUuid': debt.localUuid,
       'guestName': debt.guestName,
       'checkinDate': debt.checkinDate,
-      'totalAmount': debt.totalAmount,
-      // ✅ إصلاح حرج: إرسال 'amount' كاسم بديل لـ totalAmount
-      // Appwrite Cloud يتطلب حقل 'amount' (required) في مجموعة debts
-      // بينما المحلي يستخدم 'totalAmount' — نرسل كلا الاسمين للتوافق
-      'amount': debt.totalAmount,
+      'totalAmount': debt.totalAmount, // ✅ Cloud: double (الحقل الفعلي)
+      // ❌ تم إزالة 'amount' — غير موجود في schema Cloud (يستخدم totalAmount)
       'paidAmount': debt.paidAmount,
-      'remainingAmount': debt.remainingAmount.round(), // ✅ Appwrite: integer
+      'remainingAmount': debt.remainingAmount.round(), // ✅ Cloud: integer
       // ── Business fields ──
       'bookingLocalId': debt.bookingLocalId,
       'checkoutDate': debt.checkoutDate,
@@ -3116,6 +3114,9 @@ class AppwriteSyncManager {
     data['vectorClock'] = debt.vectorClock;
     _putIfNotNull(data, 'createdAtEpoch', debt.createdAtEpoch);
     _putIfNotNull(data, 'lastModifiedEpoch', debt.lastModifiedEpoch);
+    // ✅ bookingUuidCache يُضاف ديناميكياً في _processDebtEntry (يُحل من FK)
+    // وليس كحقل ثابت — لكنه غير موجود في schema Cloud، لذا يُحذف بواسطة
+    // _filterPayload. نتركه يُرسل ويُحذف بأمان للحفاظ على التوافق المستقبلي.
     return AppwriteSyncUtils.sanitizePayload('debts', data, collectionId: AppwriteConfig.debtsCollectionId);
   }
 
@@ -3776,7 +3777,8 @@ class AppwriteSyncManager {
 
           try {
             final debts = await appwriteService.listDebts(queries: deltaQ, useCache: false);
-            recordsPulled += await _syncDebts(debts);
+            // ✅ توجيه عبر syncCollection لتطبيع UUIDs مركزياً
+            recordsPulled += await syncCollection('debts', debts);
           } catch (e, st) {
             _logger.error('❌ فشل سحب debts (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
           }
