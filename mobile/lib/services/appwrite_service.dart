@@ -285,7 +285,7 @@ class AppwriteService {
       // 404 Not Found → ننشئ المستند
       if (e.code == 404 || (e.type ?? '').contains('document_not_found')) {
         try {
-          return _networkHelper.withRetryAndTimeout(
+          final created = await _networkHelper.withRetryAndTimeout(
             // ignore: deprecated_member_use
             operation: () => _databases.createDocument(
               databaseId: dbId,
@@ -295,6 +295,32 @@ class AppwriteService {
             ),
             operationName: 'createDocument',
           );
+
+          // ✅ تنظيف تلقائي: إذا كان documentId الأصلي مع شرطة، نحذف
+          //    المستند القديم (مع شرطة) من Cloud لأنه أصبح مكرراً.
+          //    هذا يُصلح البيانات القديمة تدريجياً عبر دورات المزامنة.
+          if (documentId != normalizedId) {
+            try {
+              // ignore: deprecated_member_use
+              await _databases.deleteDocument(
+                databaseId: dbId,
+                collectionId: collectionId,
+                documentId: documentId,
+              );
+              _logger.info(
+                'upsert($collectionId): cleaned up old hyphenated doc $documentId → $normalizedId',
+                tag: 'SYNC',
+              );
+            } catch (cleanupErr) {
+              // فشل حذف القديم — ليس حرجاً (المستند الجديد نشط)
+              _logger.debug(
+                'upsert($collectionId): could not delete old hyphenated doc $documentId: $cleanupErr',
+                tag: 'SYNC',
+              );
+            }
+          }
+
+          return created;
         } on AppwriteException catch (createErr) {
           // ✅ 409 document_already_exists — المستند ظهر بين update و create
           //    (race condition أو تأخر replication على Appwrite Cloud).
