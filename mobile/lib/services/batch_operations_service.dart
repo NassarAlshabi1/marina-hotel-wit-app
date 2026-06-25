@@ -1,3 +1,4 @@
+import 'package:appwrite/appwrite.dart' show ID;
 import 'package:appwrite/models.dart' as models;
 
 import 'appwrite_error_handler.dart';
@@ -148,7 +149,7 @@ class BatchOperationsService {
           try {
             final doc = await _appwriteService.createDocument(
               collectionId: collectionId,
-              documentId: (data['localUuid'] as String?) ?? 'unique()',
+              documentId: (data['localUuid'] as String?) ?? ID.unique(),
               data: data,
             );
             return {'index': index, 'success': true, 'document': doc};
