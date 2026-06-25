@@ -805,6 +805,53 @@ class GoogleDriveBackupService {
     });
   }
 
+  /// تنزيل نسخة احتياطية كـ bytes خام (لدعم صيغة .db / .sqlite الثنائية).
+  ///
+  /// يستخدم لاستعادة النسخ الاحتياطية بصيغة `BackupFormat.sqlite` التي
+  /// لا يمكن تمريرها عبر `downloadBackup` (الذي يفترض JSON دائماً).
+  ///
+  /// يُرجع:
+  /// - bytes الخام للملف (بدون فك ضغط gzip تلقائياً — نتركه للمُستدعي).
+  /// - metadata (appProperties) للتمييز بين sqlite / json.gz.
+  Future<({List<int> bytes, Map<String, String> appProperties})>
+      downloadBackupAsBytes(String fileId) async {
+    return _runWithAuth<
+        ({List<int> bytes, Map<String, String> appProperties})
+    >(() async {
+      // 1) جلب metadata للملف أولاً لمعرفة الصيغة
+      final fileInfo = await _driveApi!.files.get(
+            fileId,
+            $fields: 'id,name,size,appProperties',
+          )
+          as drive.File;
+      final appProperties = <String, String>{};
+      if (fileInfo.appProperties != null) {
+        fileInfo.appProperties!.forEach((k, v) {
+          if (v != null) {
+            appProperties[k] = v;
+          }
+        });
+      }
+      final format = appProperties['format'] ?? 'json';
+
+      // 2) تنزيل المحتوى الخام
+      final media =
+          await _driveApi!.files.get(
+                fileId,
+                downloadOptions: drive.DownloadOptions.fullMedia,
+              )
+              as drive.Media;
+
+      final List<int> dataStore = [];
+      await media.stream.forEach(dataStore.addAll);
+
+      _log(
+        '📥 تم تنزيل النسخة (format=$format, ${dataStore.length} bytes): $fileId',
+      );
+      return (bytes: dataStore, appProperties: appProperties);
+    });
+  }
+
   Future<void> restoreFromBackup(Map<String, dynamic> backupData) async {
     // ✅ إصلاح: منع nesting guards — إذا كنا بالفعل في وضع الاستعادة، نستدعي المباشر
     if (DatabaseManager.isRestoring) {

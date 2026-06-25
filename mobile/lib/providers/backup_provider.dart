@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../services/appwrite_sync_manager.dart';
 import '../services/auto_backup_task.dart';
@@ -608,26 +609,78 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 0.0,
       );
 
-      final downloaded = await _backupService.downloadBackup(
-        driveBackup.fileId,
-      );
+      // ✅ تحديد الصيغة قبل التنزيل لاختيار المسار الصحيح:
+      //   - BackupFormat.json  → downloadBackup (يُرجع Map) → restoreFromBackup
+      //   - BackupFormat.sqlite → downloadBackupAsBytes → SqliteBackupRestore
+      // ⚠️ قبل هذا الإصلاح، كانت محاولة استعادة نسخة .db من Google Drive
+      // تفشل في utf8.decode (لأن bytes الثنائية ليست JSON).
+      final isSqlite = driveBackup.format == BackupFormat.sqlite;
 
-      state = state.copyWith(
-        status: BackupStatus.restoring,
-        message: 'استعادة البيانات...',
-        progress: 0.5,
-      );
-
-      // ✅ إصلاح: إزالة nested guard — `restoreFromBackup` يدير الحماية داخلياً
-      try {
-        await _backupService.restoreFromBackup(downloaded);
-      } catch (restoreError) {
-        AppLogger.warning('❌ فشل الاستعادة: $restoreError');
-        state = state.copyWith(
-          status: BackupStatus.error,
-          message: 'فشل استعادة البيانات: $restoreError',
+      if (isSqlite) {
+        // ─── مسار SQLite (.db) ───────────────────────────────────────────
+        final downloaded = await _backupService.downloadBackupAsBytes(
+          driveBackup.fileId,
         );
-        return;
+
+        // كتابة bytes إلى ملف مؤقت محلي
+        final tempDir = await getTemporaryDirectory();
+        final tempPath =
+            '${tempDir.path}/restore_${DateTime.now().millisecondsSinceEpoch}.sqlite';
+        final tempFile = File(tempPath);
+        await tempFile.writeAsBytes(downloaded.bytes);
+
+        state = state.copyWith(
+          status: BackupStatus.restoring,
+          message: 'استعادة قاعدة البيانات (SQLite)...',
+          progress: 0.5,
+        );
+
+        try {
+          // ✅ SqliteBackupRestore.restoreDatabase يقوم بـ:
+          //   1) DatabaseManager.close() — إغلاق آمن
+          //   2) نسخ + تحقق سلامة + استبدال ذري
+          //   3) DatabaseManager.reopen()
+          await SqliteBackupRestore.restoreDatabase(tempPath);
+        } catch (restoreError) {
+          AppLogger.warning('❌ فشل الاستعادة: $restoreError');
+          state = state.copyWith(
+            status: BackupStatus.error,
+            message: 'فشل استعادة البيانات: $restoreError',
+          );
+          // تنظيف الملف المؤقت
+          try {
+            await tempFile.delete();
+          } catch (_) {}
+          return;
+        }
+
+        // تنظيف الملف المؤقت
+        try {
+          await tempFile.delete();
+        } catch (_) {}
+      } else {
+        // ─── مسار JSON (.json.gz) ───────────────────────────────────────
+        final downloaded = await _backupService.downloadBackup(
+          driveBackup.fileId,
+        );
+
+        state = state.copyWith(
+          status: BackupStatus.restoring,
+          message: 'استعادة البيانات...',
+          progress: 0.5,
+        );
+
+        // ✅ إصلاح: إزالة nested guard — `restoreFromBackup` يدير الحماية داخلياً
+        try {
+          await _backupService.restoreFromBackup(downloaded);
+        } catch (restoreError) {
+          AppLogger.warning('❌ فشل الاستعادة: $restoreError');
+          state = state.copyWith(
+            status: BackupStatus.error,
+            message: 'فشل استعادة البيانات: $restoreError',
+          );
+          return;
+        }
       }
 
       // تشغيل الإصلاح التلقائي
