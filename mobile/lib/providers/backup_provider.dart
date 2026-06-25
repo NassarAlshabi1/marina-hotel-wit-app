@@ -1320,7 +1320,14 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     }
   }
 
-  /// إنشاء نسخة احتياطية شاملة (محلي + Google Drive)
+  /// إنشاء نسخة احتياطية شاملة (محلي + Google Drive).
+  ///
+  /// ⚠️ بعد التبسيط: النسخ الاحتياطي **`.db` فقط** (SQLite).
+  /// - أسرع (نسخ ملف بدلاً من تصدير JSON)
+  /// - أصغر (باينري بدلاً من JSON نصي)
+  /// - أكثر موثوقية (نسخة 1:1 من قاعدة البيانات)
+  /// - ⚠️ لا تشمل SharedPreferences (إعدادات WhatsApp/Telegram/Lark)
+  ///   — هذه تُزامَل عبر Appwrite Cloud (app_settings) بشكل مستقل.
   Future<void> createComprehensiveBackup() async {
     String? tempSqlitePath;
     try {
@@ -1332,50 +1339,48 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       String? localBackupPath;
 
-      // إنشاء النسخة المحلية أولاً
+      // ─── 1) إنشاء النسخة المحلية (SQLite فقط) ──────────────────────
       if (state.hasStoragePermission) {
         state = state.copyWith(
           message: 'إنشاء النسخة المحلية...',
           progress: 0.2,
         );
         localBackupPath = await _localBackupService.createLocalBackup(
-          format: state.autoSettings.backupFormat,
+          format: BackupFormat.sqlite,
         );
       }
 
-      // ثم النسخة السحابية إذا كان المستخدم مسجل الدخول
+      // ─── 2) رفع النسخة السحابية (SQLite فقط) ───────────────────────
       if (state.isSignedIn) {
         state = state.copyWith(
           message: 'رفع النسخة إلى Google Drive...',
           progress: 0.6,
         );
-        if (state.autoSettings.backupFormat == BackupFormat.json) {
-          final backupData = await _backupService.exportDatabaseToJson();
-          await _backupService.uploadBackup(backupData);
-        } else {
-          final sqlitePath =
-              localBackupPath ??
-              (tempSqlitePath = await SqliteBackupRestore.backupDatabase());
-          final sqliteFile = File(sqlitePath);
-          if (!sqliteFile.existsSync()) {
-            throw Exception(
-              'تعذر العثور على ملف النسخة الاحتياطية SQLite لرفعه',
-            );
-          }
-          final bytes = await sqliteFile.readAsBytes();
-          final timestamp = DateTime.now();
-          final fileName =
-              '${GoogleDriveBackupService.fullBackupPrefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.sqlite';
-          final appProps = <String, String>{
-            'format': BackupFormat.sqlite.name,
-            'backup_type': 'manual',
-          };
-          await _backupService.uploadBackupWithName(
-            fileName,
-            bytes,
-            appProperties: appProps,
+
+        // استخدام النسخة المحلية إن وُجدت، أو إنشاء واحدة مؤقتة
+        final sqlitePath =
+            localBackupPath ??
+            (tempSqlitePath = await SqliteBackupRestore.backupDatabase());
+        final sqliteFile = File(sqlitePath);
+        if (!sqliteFile.existsSync()) {
+          throw Exception(
+            'تعذر العثور على ملف النسخة الاحتياطية SQLite لرفعه',
           );
         }
+
+        final bytes = await sqliteFile.readAsBytes();
+        final timestamp = DateTime.now();
+        final fileName =
+            '${GoogleDriveBackupService.fullBackupPrefix}${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.sqlite';
+        final appProps = <String, String>{
+          'format': BackupFormat.sqlite.name,
+          'backup_type': 'manual',
+        };
+        await _backupService.uploadBackupWithName(
+          fileName,
+          bytes,
+          appProperties: appProps,
+        );
       }
 
       // تحديث جميع القوائم

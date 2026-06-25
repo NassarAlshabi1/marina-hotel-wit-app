@@ -241,14 +241,16 @@ void callbackDispatcher() {
       final enableLocal = prefs.getBool('auto_local_backup_enabled') ?? true;
 
       final localBackupService = LocalBackupService();
-      final backupFormat = await localBackupService.getPreferredBackupFormat();
+      // ⚠️ بعد التبسيط: النسخ المحلي التلقائي يستخدم SQLite فقط (أسرع وأصغر).
       bool success = true;
 
       // تنفيذ النسخ المحلي إذا كان مُفعلاً
       if (enableLocal) {
         try {
-          AppLogger.info('📱 بدء النسخ الاحتياطي المحلي...');
-          await localBackupService.createLocalBackup(format: backupFormat);
+          AppLogger.info('📱 بدء النسخ الاحتياطي المحلي (SQLite)...');
+          await localBackupService.createLocalBackup(
+            format: BackupFormat.sqlite,
+          );
           AppLogger.info('✅ تم النسخ الاحتياطي المحلي بنجاح');
         } catch (e) {
           AppLogger.warning('❌ خطأ في النسخ الاحتياطي المحلي: $e');

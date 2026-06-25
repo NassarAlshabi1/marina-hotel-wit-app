@@ -24,6 +24,7 @@ import 'google_drive_logger.dart';
 import 'google_drive_sign_in_manager.dart';
 import 'local_db.dart';
 import 'restore_fix_service.dart';
+import 'sqlite_backup_restore.dart';
 
 enum BackupFormat { json, sqlite }
 
@@ -1565,6 +1566,12 @@ class GoogleDriveBackupService {
     }
   }
 
+  /// النسخ الاحتياطي التلقائي.
+  ///
+  /// ⚠️ بعد التبسيط: يستخدم **`.db` فقط** (SQLite) بدلاً من JSON.
+  /// - أسرع (نسخ ملف بدلاً من تصدير JSON)
+  /// - أصغر حجماً
+  /// - أكثر موثوقية (نسخة 1:1 من قاعدة البيانات)
   Future<void> performAutoBackup() async {
     try {
       if (!isSignedIn) {
@@ -1572,12 +1579,35 @@ class GoogleDriveBackupService {
         return;
       }
 
-      _log('🔄 بدء النسخ التلقائي...');
+      _log('🔄 بدء النسخ التلقائي (SQLite)...');
 
-      final backupData = await exportDatabaseToJson();
-      final fileId = await uploadBackup(backupData);
+      // إنشاء نسخة SQLite مؤقتة ورفعها مباشرة إلى Google Drive
+      final sqlitePath = await SqliteBackupRestore.backupDatabase();
+      final sqliteFile = File(sqlitePath);
+      if (!sqliteFile.existsSync()) {
+        throw Exception('تعذر إنشاء ملف النسخة الاحتياطية SQLite');
+      }
 
-      _log('✅ تم النسخ التلقائي بنجاح: $fileId');
+      final bytes = await sqliteFile.readAsBytes();
+      final timestamp = DateTime.now();
+      final fileName =
+          '$autoSyncPrefix${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.sqlite';
+      final appProps = <String, String>{
+        'format': BackupFormat.sqlite.name,
+        'backup_type': 'auto',
+      };
+      final fileId = await uploadBackupWithName(
+        fileName,
+        bytes,
+        appProperties: appProps,
+      );
+
+      // تنظيف الملف المؤقت
+      try {
+        await sqliteFile.delete();
+      } catch (_) {}
+
+      _log('✅ تم النسخ التلقائي (SQLite) بنجاح: $fileId');
     } catch (e) {
       _log('❌ خطأ في النسخ التلقائي: $e');
     }
