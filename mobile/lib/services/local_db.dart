@@ -803,7 +803,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 45;
+  int get schemaVersion => 46;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2246,6 +2246,83 @@ class AppDatabase extends _$AppDatabase {
         }
         developer.log(
           'Migration 45: UUID hyphenation complete — $totalHyphenated rows updated',
+          name: 'db.migration',
+        );
+      }
+      if (from < 46) {
+        // ─── Migration 46: إزالة الشرطات من UUIDs (عكس Migration 45) ────
+        //
+        // السياسة النهائية المعتمدة: UUIDs **بدون شرطة** (32 حرف hex متصل).
+        // Migration 45 أضاف الشرطات، لكن السياسة عُدّلت لاعتماد الصيغة
+        // بدون شرطة لأن:
+        // 1) أقصر وأوفر مساحة (32 vs 36 حرف)
+        // 2) أسهل في URLs وأسماء الملفات
+        // 3) يطابق ما يُرسله `_upsertDocumentInternal` (normalizeUuid)
+        //
+        // هذه الـ migration تُزيل الشرطات من أي UUID يحتوي عليها.
+
+        final uuidColumnsByTable = <String, List<String>>{
+          'rooms': ['local_uuid'],
+          'bookings': ['local_uuid'],
+          'employees': ['local_uuid'],
+          'expenses': ['local_uuid', 'category_uuid', 'cash_flow_uuid', 'employee_uuid'],
+          'cash_transactions': ['local_uuid', 'linked_debt_uuid', 'booking_uuid_cache'],
+          'payments': ['local_uuid', 'debt_uuid', 'booking_uuid_cache'],
+          'debts': ['local_uuid'],
+          'shift_notes': ['local_uuid'],
+          'booking_notes': ['local_uuid'],
+          'booking_nights': ['local_uuid'],
+          'hotel_day_ledger': ['local_uuid'],
+          'price_adjustments': ['local_uuid', 'target_uuid', 'applied_adjustment_uuid', 'booking_uuid_cache'],
+          'booking_price_adjustments': ['local_uuid', 'booking_local_uuid'],
+          'audit_logs': ['local_uuid', 'entity_uuid'],
+          'payment_voids': ['local_uuid', 'original_payment_uuid', 'booking_uuid', 'reversal_payment_uuid', 'payment_uuid'],
+          'guest_infos': ['local_uuid'],
+          'auto_fix_runs': ['run_uuid'],
+          'integrity_violations': ['record_uuid'],
+          'app_sessions': ['session_uuid'],
+          'salary_cycles': ['local_uuid'],
+          'salary_payments': ['local_uuid', 'employee_uuid'],
+          'salary_withdrawals': ['local_uuid', 'employee_uuid'],
+          'outbox': ['local_uuid'],
+          'sync_state': ['local_uuid'],
+          'sync_log': ['local_uuid'],
+          'sync_conflicts': ['local_uuid'],
+        };
+
+        int totalStripped = 0;
+        for (final entry in uuidColumnsByTable.entries) {
+          final table = entry.key;
+          for (final col in entry.value) {
+            try {
+              // عدّ الصفوف التي تحتاج إزالة شرطات (تحتوي على '-')
+              final countResult = await m.database.customSelect(
+                'SELECT COUNT(*) AS c FROM $table '
+                "WHERE $col LIKE '%-%'",
+              ).getSingle();
+              final rowCount = countResult.data['c'] as int;
+              if (rowCount == 0) continue;
+
+              // إزالة الشرطات + lowercase
+              await m.database.customStatement(
+                'UPDATE $table SET $col = LOWER(REPLACE($col, "-", "")) '
+                "WHERE $col LIKE '%-%'",
+              );
+              totalStripped += rowCount;
+              developer.log(
+                'Migration 46: stripped hyphens from $rowCount UUIDs in $table.$col',
+                name: 'db.migration',
+              );
+            } catch (e) {
+              developer.log(
+                'Migration 46: $table.$col skipped: $e',
+                name: 'db.migration',
+              );
+            }
+          }
+        }
+        developer.log(
+          'Migration 46: UUID hyphen stripping complete — $totalStripped rows updated',
           name: 'db.migration',
         );
       }

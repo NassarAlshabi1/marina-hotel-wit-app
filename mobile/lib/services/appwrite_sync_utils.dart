@@ -400,16 +400,15 @@ class AppwriteSyncUtils {
     return '$first${rest.join()}';
   }
 
-  /// ⚠️ تطبيع UUID إلى الصيغة **مع شرطة** (8-4-4-4-12 القياسية).
+  /// ⚠️ تطبيع UUID إلى الصيغة **بدون شرطة** (32 حرف hex متصلة).
   ///
   /// **السياسة المعتمدة:** كل UUIDs في النظام (محلياً وفي Appwrite Cloud)
-  /// يجب أن تكون بصيغة مع شرطة، مطابقة لما يُولّده `IdGen.uuid()` =
-  /// `Uuid().v4()` في Dart.
+  /// يجب أن تكون بصيغة بدون شرطة (32 حرف hex متصل lowercase).
   ///
   /// **أمثلة:**
-  ///   - `c0e88e8614054f718279a86e632e3921` → `c0e88e86-1405-4f71-8279-a86e632e3921`
-  ///   - `c0e88e86-1405-4f71-8279-a86e632e3921` → `c0e88e86-1405-4f71-8279-a86e632e3921` (لا تغيير)
-  ///   - `C0E88E86-1405-4F71-8279-A86E632E3921` → `c0e88e86-1405-4f71-8279-a86e632e3921` (lowercase)
+  ///   - `c0e88e86-1405-4f71-8279-a86e632e3921` → `c0e88e8614054f718279a86e632e3921`
+  ///   - `c0e88e8614054f718279a86e632e3921` → `c0e88e8614054f718279a86e632e3921` (لا تغيير)
+  ///   - `C0E88E86-1405-4F71-8279-A86E632E3921` → `c0e88e8614054f718279a86e632e3921` (lowercase)
   ///   - `whatsapp_settings` → `whatsapp_settings` (ليس hex، يُعاد كما هو)
   ///   - `ID.unique()` → `ID.unique()` (ليس hex، يُعاد كما هو)
   static String normalizeUuid(String id) {
@@ -422,13 +421,8 @@ class AppwriteSyncUtils {
     final hexRegex = RegExp(r'^[0-9a-fA-F]+$');
     if (!hexRegex.hasMatch(stripped)) return id;
 
-    // تطبيع إلى الصيغة القياسية 8-4-4-4-12 مع شرطة + lowercase
-    final lower = stripped.toLowerCase();
-    return '${lower.substring(0, 8)}-'
-        '${lower.substring(8, 12)}-'
-        '${lower.substring(12, 16)}-'
-        '${lower.substring(16, 20)}-'
-        '${lower.substring(20, 32)}';
+    // تطبيع إلى الصيغة بدون شرطة + lowercase
+    return stripped.toLowerCase();
   }
 
   /// تطبيع UUID مع إرجاع null إذا كان المدخل null.
@@ -437,19 +431,14 @@ class AppwriteSyncUtils {
     return normalizeUuid(id);
   }
 
-  /// فحص ما إذا كان الـ ID يحتاج تطبيع (أي ليس بالفعل بالصيغة مع شرطة).
+  /// فحص ما إذا كان الـ ID يحتاج تطبيع (أي ليس بالفعل بالصيغة بدون شرطة).
   static bool needsNormalization(String id) {
     if (id.isEmpty) return false;
     final stripped = id.replaceAll('-', '');
     if (stripped.length != 32) return false;
     final hexRegex = RegExp(r'^[0-9a-fA-F]+$');
     if (!hexRegex.hasMatch(stripped)) return false;
-    // الصيغة المعيارية = 8-4-4-4-12 مع شرطة + lowercase
-    final normalized = '${stripped.substring(0, 8)}-'
-        '${stripped.substring(8, 12)}-'
-        '${stripped.substring(12, 16)}-'
-        '${stripped.substring(16, 20)}-'
-        '${stripped.substring(20, 32)}';
-    return id != normalized;
+    // الصيغة المعيارية = بدون شرطة + lowercase
+    return id != stripped.toLowerCase();
   }
 }
