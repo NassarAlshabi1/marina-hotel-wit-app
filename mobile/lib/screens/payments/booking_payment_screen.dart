@@ -1787,12 +1787,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           'تم تسجيل دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية - ${_currencyFmt.format(amount)}',
         ),
         backgroundColor: Colors.green,
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(
-          label: 'إغلاق',
-          textColor: Colors.white,
-          onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-        ),
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -2155,11 +2151,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       messenger.showSnackBar(
         SnackBar(
           content: Text('تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}'),
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            onPressed: messenger.hideCurrentSnackBar,
-          ),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
@@ -2657,12 +2650,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             'تم تسجيل مغادرة مبكرة — المردود: ${_currencyFmt.format(refundAmount)} ($unusedNights ${unusedNights == 1 ? 'ليلة' : 'ليالي'})',
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 6),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            textColor: Colors.white,
-            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-          ),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
@@ -2787,16 +2776,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final message = createDebt
           ? 'تم تسجيل المغادرة وإضافة دين بقيمة ${_currencyFmt.format(remainingAmount ?? 0)} إلى قائمة الديون'
           : 'تم تسجيل المغادرة بنجاح وتحرير الغرفة';
+      // ✅ SnackBar يختفي تلقائياً بعد duration — لا زر "إغلاق"
       messenger.showSnackBar(
         SnackBar(
           content: Text(message),
           backgroundColor: createDebt ? Colors.orange : Colors.green,
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            textColor: Colors.white,
-            onPressed: messenger.hideCurrentSnackBar,
-          ),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
         ),
       );
       Navigator.pop(context);
@@ -2998,12 +2984,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             'تم إلغاء ${paymentsToCancel.length} دفعة بنجاح',
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            textColor: Colors.white,
-            onPressed: messenger.hideCurrentSnackBar,
-          ),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
@@ -3648,12 +3630,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             'تم تمديد الإقامة $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'} وتسجيل الدفعة',
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            textColor: Colors.white,
-            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-          ),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
