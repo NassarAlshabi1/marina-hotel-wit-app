@@ -46,7 +46,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   double _remainingAmount = 0;
   late String _currentGuestPhone;
   bool _isSavingPayment = false;
-  bool _isProcessing = false; // ✅ لتتبع عملية تسجيل الخروج
   double _debtAmount = 0;
   StreamSubscription<void>? _hotelDayTickerSub;
 
@@ -218,8 +217,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final paymentsRepo = ref.watch(paymentsRepoProvider);
 
     return PopScope(
-      // منع الخروج أثناء حفظ الدفعة أو أثناء معالجة تسجيل الخروج
-      canPop: !_isSavingPayment && !_isProcessing,
+      // منع الخروج فقط أثناء حفظ الدفعة (وليس أثناء معالجة المغادرة)
+      canPop: !_isSavingPayment,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
           return;
@@ -2434,7 +2433,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     required double totalDue,
     required bool createDebt,
   }) async {
-    setState(() => _isProcessing = true);
+    setState(() => _isSavingPayment = true);
 
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
@@ -2509,7 +2508,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       }
     } finally {
       if (mounted) {
-        setState(() => _isProcessing = false);
+        setState(() => _isSavingPayment = false);
       }
     }
   }
