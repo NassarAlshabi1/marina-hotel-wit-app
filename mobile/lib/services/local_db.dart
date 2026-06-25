@@ -2267,11 +2267,11 @@ class AppDatabase extends _$AppDatabase {
           'employees': ['local_uuid'],
           'expenses': ['local_uuid', 'category_uuid', 'cash_flow_uuid', 'employee_uuid'],
           'cash_transactions': ['local_uuid', 'linked_debt_uuid', 'booking_uuid_cache'],
-          'payments': ['local_uuid', 'debt_uuid', 'booking_uuid_cache'],
-          'debts': ['local_uuid'],
+          'payments': ['local_uuid', 'debt_uuid', 'linked_debt_uuid', 'booking_uuid_cache'],
+          'debts': ['local_uuid', 'debt_uuid'],
           'shift_notes': ['local_uuid'],
           'booking_notes': ['local_uuid'],
-          'booking_nights': ['local_uuid'],
+          'booking_nights': ['local_uuid', 'applied_adjustment_uuid', 'booking_uuid_cache'],
           'hotel_day_ledger': ['local_uuid'],
           'price_adjustments': ['local_uuid', 'target_uuid', 'applied_adjustment_uuid', 'booking_uuid_cache'],
           'booking_price_adjustments': ['local_uuid', 'booking_local_uuid'],
@@ -2287,7 +2287,8 @@ class AppDatabase extends _$AppDatabase {
           'outbox': ['local_uuid'],
           'sync_state': ['local_uuid'],
           'sync_log': ['local_uuid'],
-          'sync_conflicts': ['local_uuid'],
+          'sync_conflicts': ['local_uuid', 'uuid'],
+          'sync_queue': ['uuid'],
         };
 
         int totalStripped = 0;
