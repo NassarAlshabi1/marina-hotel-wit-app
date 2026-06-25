@@ -237,7 +237,15 @@ class AppwriteService {
           AppwriteSyncUtils.normalizeUuid(localUuidInPayload);
     }
 
-    // نحاول التحديث أولاً (Optimistic) — 404 متوقع في Upsert
+    // Upsert بمنطق بسيط واضح:
+    //   1) updateDocument(normalizedId) — إذا نجح → نرجع النتيجة
+    //   2) إذا 404 → createDocument(normalizedId)
+    //   3) إذا create فشل بـ 409 (المستند ظهر بين المحاولتين) → updateDocument(normalizedId) مرة أخيرة
+    //
+    // ⚠️ لا نحاول بصيغة UUID بديلة — كل IDs في Appwrite يجب أن تكون
+    // بدون شرطة (وفق سياسة التطبيع المعتمدة). إذا وُجد مستند بصيغة مع
+    // شرطة، سيُطبَّع تدريجياً عبر دورات المزامنة (Pull → normalize → Push).
+
     try {
       // ignore: deprecated_member_use
       return await _databases.updateDocument(
@@ -247,7 +255,7 @@ class AppwriteService {
         data: normalizedData,
       );
     } on AppwriteException catch (e) {
-      // 404 Not Found -> Create (هذا السلوك الطبيعي لـ Upsert)
+      // 404 Not Found → ننشئ المستند
       if (e.code == 404 || (e.type ?? '').contains('document_not_found')) {
         try {
           return _networkHelper.withRetryAndTimeout(
@@ -261,9 +269,9 @@ class AppwriteService {
             operationName: 'createDocument',
           );
         } on AppwriteException catch (createErr) {
-          // ✅ 409 document_already_exists يعني أن المستند موجود فعلاً
-          //    لكن ربما بصيغة UUID مختلفة (مع شرطة بدلاً من بدون شرطة،
-          //    أو العكس). نحاول update بصيغة الـ ID البديلة.
+          // ✅ 409 document_already_exists — المستند ظهر بين update و create
+          //    (race condition أو تأخر replication على Appwrite Cloud).
+          //    الحل البسيط: نعيد update بنفس normalizedId.
           if (createErr.code == 409 ||
               (createErr.type ?? '').contains('document_already_exists') ||
               (createErr.message ?? '')
@@ -271,50 +279,9 @@ class AppwriteService {
                   .contains('already exists')) {
             _logger.warning(
               'upsert($collectionId/$normalizedId): 409 on create — '
-              'trying alternative UUID format',
+              'retrying update (race condition resolved)',
               tag: 'SYNC',
             );
-
-            // ✅ المحاولة 2: update بصيغة الـ ID البديلة
-            //    إذا كان normalizedId بدون شرطة، نجرب مع شرطة، والعكس.
-            final alternativeId = _getAlternativeUuidFormat(documentId);
-            if (alternativeId != null && alternativeId != normalizedId) {
-              try {
-                // ignore: deprecated_member_use
-                final updated = await _databases.updateDocument(
-                  databaseId: dbId,
-                  collectionId: collectionId,
-                  documentId: alternativeId,
-                  data: normalizedData,
-                );
-                _logger.info(
-                  'upsert($collectionId): succeeded with alternative format '
-                  '$alternativeId — will be normalized on next push',
-                  tag: 'SYNC',
-                );
-                return updated;
-              } on AppwriteException catch (altErr) {
-                // ✅ المحاولة 3: update بصيغة normalizedId مرة أخيرة
-                //    (ربما المستند ظهر للتو بعد تأخر replication)
-                if (altErr.code == 404) {
-                  _logger.warning(
-                    'upsert($collectionId/$normalizedId): alt format also 404 — '
-                    'retrying update with normalizedId',
-                    tag: 'SYNC',
-                  );
-                  // ignore: deprecated_member_use
-                  return _databases.updateDocument(
-                    databaseId: dbId,
-                    collectionId: collectionId,
-                    documentId: normalizedId,
-                    data: normalizedData,
-                  );
-                }
-                rethrow;
-              }
-            }
-
-            // ✅ fallback أخير: update بصيغة normalizedId
             // ignore: deprecated_member_use
             return _databases.updateDocument(
               databaseId: dbId,
@@ -328,29 +295,6 @@ class AppwriteService {
       }
       rethrow;
     }
-  }
-
-  /// يُرجع الصيغة البديلة للـ UUID:
-  /// - إذا كان بدون شرطة (32 حرف) → يُرجع الصيغة مع شرطة (36 حرف)
-  /// - إذا كان مع شرطة (36 حرف) → يُرجع الصيغة بدون شرطة (32 حرف)
-  /// - إذا لم يكن UUID → يُرجع null
-  String? _getAlternativeUuidFormat(String id) {
-    if (id.isEmpty) return null;
-    final stripped = id.replaceAll('-', '');
-    final hexRegex = RegExp(r'^[0-9a-fA-F]+$');
-    if (stripped.length != 32 || !hexRegex.hasMatch(stripped)) return null;
-
-    final lower = stripped.toLowerCase();
-    // إذا كان أصلياً بدون شرطة → نُرجع مع شرطة
-    if (id == lower) {
-      return '${lower.substring(0, 8)}-'
-          '${lower.substring(8, 12)}-'
-          '${lower.substring(12, 16)}-'
-          '${lower.substring(16, 20)}-'
-          '${lower.substring(20, 32)}';
-    }
-    // إذا كان أصلياً مع شرطة (أو بصيغة أخرى) → نُرجع بدون شرطة
-    return lower;
   }
 
   Future<void> _deleteDocumentInternal({
