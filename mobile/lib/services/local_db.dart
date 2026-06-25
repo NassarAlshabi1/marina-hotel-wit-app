@@ -2215,7 +2215,7 @@ class AppDatabase extends _$AppDatabase {
             try {
               // عدّ الصفوف التي تحتاج إضافة شرطات (32 حرف hex بدون شرطة)
               final countResult = await m.database.customSelect(
-                "SELECT COUNT(*) AS c FROM $table "
+                'SELECT COUNT(*) AS c FROM $table '
                 "WHERE $col NOT LIKE '%-%' AND LENGTH($col) = 32",
               ).getSingle();
               final rowCount = countResult.data['c'] as int;
@@ -2223,12 +2223,12 @@ class AppDatabase extends _$AppDatabase {
 
               // إضافة الشرطات: SUBSTR لكل جزء من 8-4-4-4-12
               await m.database.customStatement(
-                "UPDATE $table SET $col = "
+                'UPDATE $table SET $col = '
                 "LOWER(SUBSTR($col, 1, 8)) || '-' || "
                 "LOWER(SUBSTR($col, 9, 4)) || '-' || "
                 "LOWER(SUBSTR($col, 13, 4)) || '-' || "
                 "LOWER(SUBSTR($col, 17, 4)) || '-' || "
-                "LOWER(SUBSTR($col, 21, 12)) "
+                'LOWER(SUBSTR($col, 21, 12)) '
                 "WHERE $col NOT LIKE '%-%' AND LENGTH($col) = 32",
               );
               totalHyphenated += rowCount;

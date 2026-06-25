@@ -901,7 +901,28 @@ class AppwriteService {
     await _ensureInitialized();
 
     try {
-      // 1. اختبار الاتصال الأساسي (Ping) - listDocuments على rooms
+      // 1. اختبار Ping الأساسي — محاولة listDocuments على bookings
+      //    (وليس rooms) لأن bookings عادةً ما يكون له index أسرع.
+      //    نستخدم Query.limit(1) لتقليل الحمل.
+      try {
+        await _networkHelper.withTimeout<models.DocumentList>(
+          operation: () =>
+              // ignore: deprecated_member_use
+              _databases.listDocuments(
+            databaseId: AppwriteConfigManager.databaseId,
+            collectionId: AppwriteConfig.bookingsCollectionId,
+            queries: [Query.limit(1)],
+          ),
+          operationName: 'ping(bookings)',
+          timeout: const Duration(seconds: 10),
+        );
+        results['tests']['ping'] = true;
+      } catch (e) {
+        results['tests']['ping'] = false;
+        results['tests']['ping_error'] = e.toString();
+      }
+
+      // 2. اختبار قراءة rooms (مع timeout أطول لأن rooms قد يكون كبيراً)
       try {
         await _networkHelper.withTimeout<models.DocumentList>(
           operation: () =>
@@ -912,7 +933,7 @@ class AppwriteService {
             queries: [Query.limit(1)],
           ),
           operationName: 'listDocuments(rooms)',
-          timeout: const Duration(seconds: 10),
+          timeout: const Duration(seconds: 15),
         );
         results['tests']['rooms'] = true;
       } catch (e) {
@@ -920,7 +941,7 @@ class AppwriteService {
         results['tests']['rooms_error'] = e.toString();
       }
 
-      // 2. اختبار القراءة من bookings
+      // 3. اختبار قراءة bookings
       try {
         await _networkHelper.withTimeout<models.DocumentList>(
           operation: () =>
@@ -931,7 +952,7 @@ class AppwriteService {
             queries: [Query.limit(1)],
           ),
           operationName: 'listDocuments(bookings)',
-          timeout: const Duration(seconds: 5),
+          timeout: const Duration(seconds: 10),
         );
         results['tests']['bookings'] = true;
       } catch (e) {
@@ -939,7 +960,7 @@ class AppwriteService {
         results['tests']['bookings_error'] = e.toString();
       }
 
-      // 3. اختبار القراءة من devices
+      // 4. اختبار قراءة devices
       try {
         await _networkHelper.withTimeout<models.DocumentList>(
           operation: () =>
@@ -950,7 +971,7 @@ class AppwriteService {
             queries: [Query.limit(1)],
           ),
           operationName: 'listDocuments(devices)',
-          timeout: const Duration(seconds: 5),
+          timeout: const Duration(seconds: 10),
         );
         results['tests']['devices'] = true;
       } catch (e) {
@@ -958,10 +979,11 @@ class AppwriteService {
         results['tests']['devices_error'] = e.toString();
       }
 
-      // حساب الحالة النهائية - ping يعتمد على rooms فقط
+      // حساب الحالة النهائية:
+      // - overall_success = ping نجح (الاتصال الأساسي بالخادم)
+      // - rooms/bookings/devices = اختبارات إضافية للمجموعات
       final tests = results['tests'] as Map<String, dynamic>;
-      results['overall_success'] = tests['rooms'] == true;
-      results['tests']['ping'] = tests['rooms'];
+      results['overall_success'] = tests['ping'] == true;
 
       if (results['overall_success'] == true) {
         _logger.info('Full connection test passed', tag: 'CONNECTION_TEST');

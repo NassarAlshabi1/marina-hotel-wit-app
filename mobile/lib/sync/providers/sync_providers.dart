@@ -117,9 +117,11 @@ final deltaSyncEngineProvider = Provider<DeltaSyncEngine>((ref) {
   return DeltaSyncEngine(
     config: ref.watch(syncConfigurationProvider),
     clockManager: ref.watch(vectorClockManagerProvider),
-    // ignore: deprecated_member_use — placeholder providers يتم تخصيصها لاحقاً
+    // ignore: deprecated_member_use_from_same_package
     outbox: ref.watch(outboxDataSourceProvider)!, // TODO: تخصيص before enabling delta sync
+    // ignore: deprecated_member_use_from_same_package
     inbox: ref.watch(inboxDataSourceProvider)!, // TODO: تخصيص before enabling delta sync
+    // ignore: deprecated_member_use_from_same_package
     remote: ref.watch(remoteDataSourceProvider)!, // TODO: تخصيص before enabling delta sync
     conflictResolver: ref.watch(conflictResolverProvider),
   );
@@ -128,7 +130,7 @@ final deltaSyncEngineProvider = Provider<DeltaSyncEngine>((ref) {
 /// Provider لمعالج Outbox
 final outboxProcessorProvider = Provider<OutboxProcessor>((ref) {
   return OutboxProcessor(
-    // ignore: deprecated_member_use — placeholder provider يتم تخصيصه لاحقاً
+    // ignore: deprecated_member_use_from_same_package
     storage: ref.watch(outboxStorageProvider)!, // TODO: تخصيص before enabling delta sync
     clockManager: ref.watch(vectorClockManagerProvider),
     config: ref.watch(syncConfigurationProvider),

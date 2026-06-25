@@ -86,10 +86,10 @@ class _AppwriteConnectionSettingsScreenState
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('تم حفظ الإعدادات بنجاح'),
+          const SnackBar(
+            content: Text('تم حفظ الإعدادات بنجاح'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 4),
+
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -170,10 +170,10 @@ class _AppwriteConnectionSettingsScreenState
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('تم إعادة تعيين الإعدادات'),
+        const SnackBar(
+          content: Text('تم إعادة تعيين الإعدادات'),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 4),
+
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -190,12 +190,12 @@ class _AppwriteConnectionSettingsScreenState
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
+          const SnackBar(
+            content: Text(
               'اختبار الاتصال: يرجى حفظ الإعدادات أولاً ثم إعادة تشغيل التطبيق',
             ),
             backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 4),
+
             behavior: SnackBarBehavior.floating,
           ),
         );

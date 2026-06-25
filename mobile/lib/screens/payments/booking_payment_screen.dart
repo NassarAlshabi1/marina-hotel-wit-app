@@ -49,7 +49,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   double _debtAmount = 0;
   StreamSubscription<void>? _hotelDayTickerSub;
 
-
   Payment _mapDbPaymentToUi(db.Payment p) {
     return Payment(
       id: p.localUuid,
@@ -1101,8 +1100,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
   }
 
-
-
   Widget _buildPaymentMethodCard(PaymentMethod method) {
     return Card(
       elevation: 1,
@@ -1787,7 +1784,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           'تم تسجيل دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية - ${_currencyFmt.format(amount)}',
         ),
         backgroundColor: Colors.green,
-        duration: const Duration(seconds: 4),
+
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -2151,7 +2148,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       messenger.showSnackBar(
         SnackBar(
           content: Text('تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}'),
-          duration: const Duration(seconds: 4),
+
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -2284,11 +2281,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Row(
+          title: const Row(
             children: [
-              const Icon(Icons.check_circle, color: Colors.green),
-              const SizedBox(width: 8),
-              const Text('تأكيد المغادرة'),
+              Icon(Icons.check_circle, color: Colors.green),
+              SizedBox(width: 8),
+              Text('تأكيد المغادرة'),
             ],
           ),
           content: const Text('هل تريد تسجيل مغادرة العميل وتحرير الغرفة؟'),
@@ -2300,6 +2297,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
+                // ignore: avoid_redundant_argument_values
                 _processCheckout(createDebt: false);
               },
               style: ElevatedButton.styleFrom(
@@ -2317,11 +2315,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.warning, color: Colors.red),
-            const SizedBox(width: 8),
-            const Text('تحذير!', style: TextStyle(color: Colors.red)),
+            Icon(Icons.warning, color: Colors.red),
+            SizedBox(width: 8),
+            Text('تحذير!', style: TextStyle(color: Colors.red)),
           ],
         ),
         content: Column(
@@ -2367,6 +2365,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 child: ElevatedButton.icon(
                   onPressed: () {
                     Navigator.pop(context);
+                    // ignore: avoid_redundant_argument_values
                     _processCheckout(createDebt: false);
                   },
                   icon: const Icon(Icons.check_circle_outline),
@@ -2562,6 +2561,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.pop(context);
+                // ignore: avoid_redundant_argument_values
                 _processCheckout(createDebt: false);
               },
               icon: const Icon(Icons.check_circle, size: 18),
@@ -2650,7 +2650,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             'تم تسجيل مغادرة مبكرة — المردود: ${_currencyFmt.format(refundAmount)} ($unusedNights ${unusedNights == 1 ? 'ليلة' : 'ليالي'})',
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 4),
+
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -2781,7 +2781,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         SnackBar(
           content: Text(message),
           backgroundColor: createDebt ? Colors.orange : Colors.green,
-          duration: const Duration(seconds: 4),
+
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -2984,7 +2984,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             'تم إلغاء ${paymentsToCancel.length} دفعة بنجاح',
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 4),
+
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -3630,7 +3630,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             'تم تمديد الإقامة $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'} وتسجيل الدفعة',
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 4),
+
           behavior: SnackBarBehavior.floating,
         ),
       );

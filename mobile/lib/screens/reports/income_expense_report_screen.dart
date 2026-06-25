@@ -1857,7 +1857,7 @@ class _IncomeExpenseReportScreenState
         messenger.showSnackBar(
           SnackBar(
             content: Text('تم حفظ الملف: ${file.path}'),
-            duration: const Duration(seconds: 4),
+
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1867,7 +1867,7 @@ class _IncomeExpenseReportScreenState
         messenger.showSnackBar(
           SnackBar(
             content: Text('خطأ في الحفظ: $e'),
-            duration: const Duration(seconds: 4),
+
             behavior: SnackBarBehavior.floating,
           ),
         );
