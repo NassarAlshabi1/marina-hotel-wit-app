@@ -219,6 +219,38 @@ class AppwriteService {
     );
   }
 
+  /// قائمة حقول UUID المعروفة عبر كل المجموعات.
+  /// تُستخدم لتطبيع كل حقول UUID في الحمولة عند الرفع (Push) بدون شرطة.
+  static const Set<String> _uuidPayloadFields = <String>{
+    'localUuid',
+    'bookingLocalUuid',
+    'bookingUuid',
+    'bookingUuidCache',
+    'originalPaymentUuid',
+    'reversalPaymentUuid',
+    'paymentUuid',
+    'debtUuid',
+    'linkedDebtUuid',
+    'categoryUuid',
+    'cashFlowUuid',
+    'employeeUuid',
+    'targetUuid',
+    'appliedAdjustmentUuid',
+    'entityUuid',
+  };
+
+  /// يُطبّع كل حقول UUID في الحمولة (معروفة من `_uuidPayloadFields`).
+  Map<String, dynamic> _normalizeUuidFields(Map<String, dynamic> data) {
+    final normalized = Map<String, dynamic>.from(data);
+    for (final field in _uuidPayloadFields) {
+      final value = normalized[field];
+      if (value is String && value.isNotEmpty) {
+        normalized[field] = AppwriteSyncUtils.normalizeUuid(value);
+      }
+    }
+    return normalized;
+  }
+
   Future<models.Document> _upsertDocumentInternal({
     required String collectionId,
     required String documentId,
@@ -229,13 +261,8 @@ class AppwriteService {
     // ✅ تطبيع UUID قبل إرساله إلى Appwrite (بدون شرطة + lowercase).
     final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
 
-    // ✅ تطبيع حقل localUuid داخل الحمولة أيضاً (إذا وُجد)
-    final normalizedData = Map<String, dynamic>.from(data);
-    final localUuidInPayload = normalizedData['localUuid'];
-    if (localUuidInPayload is String && localUuidInPayload.isNotEmpty) {
-      normalizedData['localUuid'] =
-          AppwriteSyncUtils.normalizeUuid(localUuidInPayload);
-    }
+    // ✅ تطبيع كل حقول UUID داخل الحمولة بدون شرطة
+    final normalizedData = _normalizeUuidFields(data);
 
     // Upsert بمنطق بسيط واضح:
     //   1) updateDocument(normalizedId) — إذا نجح → نرجع النتيجة
@@ -1069,7 +1096,7 @@ class AppwriteService {
 
   /// إنشاء مستند جديد
   ///
-  /// ✅ يُطبّع UUID (documentId + localUuid في الحمولة) بدون شرطة
+  /// ✅ يُطبّع UUID (documentId + كل حقول UUID في الحمولة) بدون شرطة
   /// بنفس نمط `_upsertDocumentInternal`.
   Future<models.Document> createDocument({
     required String collectionId,
@@ -1078,12 +1105,7 @@ class AppwriteService {
   }) async {
     await _ensureInitialized();
     final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
-    final normalizedData = Map<String, dynamic>.from(data);
-    final localUuidInPayload = normalizedData['localUuid'];
-    if (localUuidInPayload is String && localUuidInPayload.isNotEmpty) {
-      normalizedData['localUuid'] =
-          AppwriteSyncUtils.normalizeUuid(localUuidInPayload);
-    }
+    final normalizedData = _normalizeUuidFields(data);
     return _networkHelper.withTimeout(
       // ignore: deprecated_member_use
       operation: () => _databases.createDocument(
@@ -1098,7 +1120,7 @@ class AppwriteService {
 
   /// تحديث مستند موجود
   ///
-  /// ✅ يُطبّع UUID (documentId + localUuid في الحمولة) بدون شرطة
+  /// ✅ يُطبّع UUID (documentId + كل حقول UUID في الحمولة) بدون شرطة
   /// بنفس نمط `_upsertDocumentInternal`.
   Future<models.Document> updateDocument({
     required String collectionId,
@@ -1107,12 +1129,7 @@ class AppwriteService {
   }) async {
     await _ensureInitialized();
     final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
-    final normalizedData = Map<String, dynamic>.from(data);
-    final localUuidInPayload = normalizedData['localUuid'];
-    if (localUuidInPayload is String && localUuidInPayload.isNotEmpty) {
-      normalizedData['localUuid'] =
-          AppwriteSyncUtils.normalizeUuid(localUuidInPayload);
-    }
+    final normalizedData = _normalizeUuidFields(data);
     return _networkHelper.withTimeout(
       // ignore: deprecated_member_use
       operation: () => _databases.updateDocument(
