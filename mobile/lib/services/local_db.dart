@@ -803,7 +803,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 44;
+  int get schemaVersion => 45;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2163,6 +2163,89 @@ class AppDatabase extends _$AppDatabase {
         }
         developer.log(
           'Migration 44: UUID normalization complete — $totalUpdated rows updated',
+          name: 'db.migration',
+        );
+      }
+      if (from < 45) {
+        // ─── Migration 45: إعادة الشرطات للـ UUIDs (عكس Migration 44) ────
+        //
+        // Migration 44 أزال الشرطات من UUIDs (تحويل إلى 32 حرف متصل).
+        // لكن السياسة الجديدة تعتمد الصيغة القياسية **مع شرطة** (8-4-4-4-12)
+        // لأن:
+        // 1) `IdGen.uuid()` = `Uuid().v4()` يُولّد UUIDs مع شرطة محلياً
+        // 2) الصيغة القياسية مع شرطة هي المعيار العالمي
+        // 3) هذا يحل أخطاء 409 في Appwrite (تطابق بين محلي وسحابي)
+        //
+        // هذه الـ migration تُضيف الشرطات لأي UUID بدونها (32 حرف hex متصل).
+        // إذا كان الـ UUID بالفعل مع شرطة، لا يتغير.
+
+        final uuidColumnsByTable = <String, List<String>>{
+          'rooms': ['local_uuid'],
+          'bookings': ['local_uuid'],
+          'employees': ['local_uuid'],
+          'expenses': ['local_uuid', 'category_uuid', 'cash_flow_uuid', 'employee_uuid'],
+          'cash_transactions': ['local_uuid', 'linked_debt_uuid', 'booking_uuid_cache'],
+          'payments': ['local_uuid', 'debt_uuid', 'booking_uuid_cache'],
+          'debts': ['local_uuid'],
+          'shift_notes': ['local_uuid'],
+          'booking_notes': ['local_uuid'],
+          'booking_nights': ['local_uuid'],
+          'hotel_day_ledger': ['local_uuid'],
+          'price_adjustments': ['local_uuid', 'target_uuid', 'applied_adjustment_uuid', 'booking_uuid_cache'],
+          'booking_price_adjustments': ['local_uuid', 'booking_local_uuid'],
+          'audit_logs': ['local_uuid', 'entity_uuid'],
+          'payment_voids': ['local_uuid', 'original_payment_uuid', 'booking_uuid', 'reversal_payment_uuid', 'payment_uuid'],
+          'guest_infos': ['local_uuid'],
+          'auto_fix_runs': ['run_uuid'],
+          'integrity_violations': ['record_uuid'],
+          'app_sessions': ['session_uuid'],
+          'salary_cycles': ['local_uuid'],
+          'salary_payments': ['local_uuid', 'employee_uuid'],
+          'salary_withdrawals': ['local_uuid', 'employee_uuid'],
+          'outbox': ['local_uuid'],
+          'sync_state': ['local_uuid'],
+          'sync_log': ['local_uuid'],
+          'sync_conflicts': ['local_uuid'],
+        };
+
+        int totalHyphenated = 0;
+        for (final entry in uuidColumnsByTable.entries) {
+          final table = entry.key;
+          for (final col in entry.value) {
+            try {
+              // عدّ الصفوف التي تحتاج إضافة شرطات (32 حرف hex بدون شرطة)
+              final countResult = await m.database.customSelect(
+                "SELECT COUNT(*) AS c FROM $table "
+                "WHERE $col NOT LIKE '%-%' AND LENGTH($col) = 32",
+              ).getSingle();
+              final rowCount = countResult.data['c'] as int;
+              if (rowCount == 0) continue;
+
+              // إضافة الشرطات: SUBSTR لكل جزء من 8-4-4-4-12
+              await m.database.customStatement(
+                "UPDATE $table SET $col = "
+                "LOWER(SUBSTR($col, 1, 8)) || '-' || "
+                "LOWER(SUBSTR($col, 9, 4)) || '-' || "
+                "LOWER(SUBSTR($col, 13, 4)) || '-' || "
+                "LOWER(SUBSTR($col, 17, 4)) || '-' || "
+                "LOWER(SUBSTR($col, 21, 12)) "
+                "WHERE $col NOT LIKE '%-%' AND LENGTH($col) = 32",
+              );
+              totalHyphenated += rowCount;
+              developer.log(
+                'Migration 45: hyphenated $rowCount UUIDs in $table.$col',
+                name: 'db.migration',
+              );
+            } catch (e) {
+              developer.log(
+                'Migration 45: $table.$col skipped: $e',
+                name: 'db.migration',
+              );
+            }
+          }
+        }
+        developer.log(
+          'Migration 45: UUID hyphenation complete — $totalHyphenated rows updated',
           name: 'db.migration',
         );
       }

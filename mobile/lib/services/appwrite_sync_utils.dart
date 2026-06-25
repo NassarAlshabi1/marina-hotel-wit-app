@@ -400,46 +400,35 @@ class AppwriteSyncUtils {
     return '$first${rest.join()}';
   }
 
-  /// ⚠️ تطبيع UUID إلى الصيغة **بدون شرطة** (32 حرف hex متصلة).
+  /// ⚠️ تطبيع UUID إلى الصيغة **مع شرطة** (8-4-4-4-12 القياسية).
   ///
-  /// **المشكلة التي يحلها:**
-  /// Appwrite يتعامل مع UUIDs كـ strings حرفية — لا يُطبّعها. فـ:
-  ///   - `c0e88e8614054f718279a86e632e3921` (32 حرف بدون شرطة)
-  ///   - `c0e88e86-1405-4f71-8279-a86e632e3921` (36 حرف مع شرطة)
-  /// هما document IDs مختلفة تماماً بالنسبة لـ Appwrite، مما يُسبب:
-  ///   1. `updateDocument(noHyphensId)` → 404 (المستند مخزن بالصيغة المع شرطة)
-  ///   2. `createDocument(noHyphensId)` → 409 (إذا وُجد بنفس الـ ID)
-  ///   3. تكرار المستندات (نسختان لكل كيان منطقي)
-  ///
-  /// **الحل المعتمد:** توحيد كل UUIDs إلى **بدون شرطة** (أقصر، أوفر مساحة،
-  /// أسهل في URLs وأسماء الملفات). ويتم تطبيق ذلك:
-  ///   1. على كل ID قبل إرساله إلى Appwrite.
-  ///   2. على حقل `localUuid` داخل الحمولة.
-  ///   3. على كل UUIDs المخزنة محلياً عبر Drift schema migration.
-  ///   4. على المستندات الموجودة في Appwrite Cloud عبر سكربت migration.
+  /// **السياسة المعتمدة:** كل UUIDs في النظام (محلياً وفي Appwrite Cloud)
+  /// يجب أن تكون بصيغة مع شرطة، مطابقة لما يُولّده `IdGen.uuid()` =
+  /// `Uuid().v4()` في Dart.
   ///
   /// **أمثلة:**
-  ///   - `c0e88e86-1405-4f71-8279-a86e632e3921` → `c0e88e8614054f718279a86e632e3921`
-  ///   - `c0e88e8614054f718279a86e632e3921` → `c0e88e8614054f718279a86e632e3921` (لا تغيير)
-  ///   - `C0E88E86-1405-4F71-8279-A86E632E3921` → `c0e88e8614054f718279a86e632e3921` ( lowercase )
+  ///   - `c0e88e8614054f718279a86e632e3921` → `c0e88e86-1405-4f71-8279-a86e632e3921`
+  ///   - `c0e88e86-1405-4f71-8279-a86e632e3921` → `c0e88e86-1405-4f71-8279-a86e632e3921` (لا تغيير)
+  ///   - `C0E88E86-1405-4F71-8279-A86E632E3921` → `c0e88e86-1405-4f71-8279-a86e632e3921` (lowercase)
   ///   - `whatsapp_settings` → `whatsapp_settings` (ليس hex، يُعاد كما هو)
   ///   - `ID.unique()` → `ID.unique()` (ليس hex، يُعاد كما هو)
-  ///   - `auto-1234567890-abcd1234` → `auto-1234567890-abcd1234` (ليس hex، يُعاد كما هو)
   static String normalizeUuid(String id) {
-    // إذا كان الـ ID فارغاً، أعدمه كما هو
     if (id.isEmpty) return id;
 
-    // إذا كان يحتوي على أحرف غير hex أو شرطة، فهو ليس UUID (مثل 'whatsapp_settings')
-    // نتحقق من النسخة بدون شرطة
+    // إزالة الشرطات للتحقق
     final stripped = id.replaceAll('-', '');
-    // UUID v4 القياسي = 32 حرف hex. نقبل 32 فقط.
+    // UUID v4 القياسي = 32 حرف hex
     if (stripped.length != 32) return id;
-    // التحقق من أن كل الأحرف hex
     final hexRegex = RegExp(r'^[0-9a-fA-F]+$');
     if (!hexRegex.hasMatch(stripped)) return id;
 
-    // تطبيع إلى الصيغة بدون شرطة + lowercase
-    return stripped.toLowerCase();
+    // تطبيع إلى الصيغة القياسية 8-4-4-4-12 مع شرطة + lowercase
+    final lower = stripped.toLowerCase();
+    return '${lower.substring(0, 8)}-'
+        '${lower.substring(8, 12)}-'
+        '${lower.substring(12, 16)}-'
+        '${lower.substring(16, 20)}-'
+        '${lower.substring(20, 32)}';
   }
 
   /// تطبيع UUID مع إرجاع null إذا كان المدخل null.
@@ -448,16 +437,19 @@ class AppwriteSyncUtils {
     return normalizeUuid(id);
   }
 
-  /// فحص ما إذا كان الـ ID يحتاج تطبيع (أي ليس بالفعل بالصيغة بدون شرطة).
-  /// يُستخدم في migrations لتحديد الصفوف التي تحتاج تحديث.
+  /// فحص ما إذا كان الـ ID يحتاج تطبيع (أي ليس بالفعل بالصيغة مع شرطة).
   static bool needsNormalization(String id) {
     if (id.isEmpty) return false;
-    // ليس UUID أصلاً
     final stripped = id.replaceAll('-', '');
     if (stripped.length != 32) return false;
     final hexRegex = RegExp(r'^[0-9a-fA-F]+$');
     if (!hexRegex.hasMatch(stripped)) return false;
-    // إذا كان يطابق الصيغة المعيارية (بدون شرطة + lowercase) لا يحتاج تطبيع
-    return id != stripped.toLowerCase();
+    // الصيغة المعيارية = 8-4-4-4-12 مع شرطة + lowercase
+    final normalized = '${stripped.substring(0, 8)}-'
+        '${stripped.substring(8, 12)}-'
+        '${stripped.substring(12, 16)}-'
+        '${stripped.substring(16, 20)}-'
+        '${stripped.substring(20, 32)}';
+    return id != normalized;
   }
 }
