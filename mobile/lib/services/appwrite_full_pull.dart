@@ -7,6 +7,7 @@ import 'adapters/source.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_service.dart';
+import 'appwrite_sync_utils.dart';
 import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
 
@@ -301,10 +302,14 @@ class AppwriteFullPull {
             }
 
             // استخدام document ID كـ localUuid إذا لم يكن موجوداً
+            // ✅ تطبيع UUID بدون شرطة — doc.$id قد يكون مع شرطة من Cloud
+            final normalizedDocId = AppwriteSyncUtils.normalizeUuid(doc.$id);
             remoteData['localUuid'] =
-                remoteData['localUuid']?.toString() ??
-                remoteData['local_uuid']?.toString() ??
-                doc.$id;
+                AppwriteSyncUtils.normalizeUuid(
+                  remoteData['localUuid']?.toString() ??
+                  remoteData['local_uuid']?.toString() ??
+                  normalizedDocId,
+                );
 
             // ✅ إصلاح دقيق: فحص FK قبل الإدراج للجداول ذات القيود
             // هذا يمنع انتهاكات FK عند سحب سجلات يتيمة (تشير لآباء محذوفين)
@@ -518,7 +523,9 @@ class AppwriteFullPull {
                 );
                 if (bookingDoc != null) {
                   final bookingData = Map<String, dynamic>.from(bookingDoc.data);
-                  bookingData['localUuid'] ??= bookingDoc.$id;
+                  // ✅ تطبيع UUID بدون شرطة
+                  bookingData['localUuid'] ??=
+                      AppwriteSyncUtils.normalizeUuid(bookingDoc.$id);
                   _cleanDataFromAppwrite(bookingData, bookingDoc.$id);
                   await _adapterRegistry!.bookings.upsertFromJson(
                     bookingData,

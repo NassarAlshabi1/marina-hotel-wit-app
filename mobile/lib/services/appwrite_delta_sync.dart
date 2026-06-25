@@ -428,6 +428,15 @@ class AppwriteDeltaSync {
         // تخطي المستندات التي أرسلها هذا الجهاز نفسه
         if (sourceDeviceId == _deviceId) continue;
 
+        // ✅ تطبيع UUIDs بدون شرطة قبل المعالجة
+        // doc.$id قد يكون مع شرطة من Cloud — نُطبّعه
+        final normalizedDocId = AppwriteSyncUtils.normalizeUuid(doc.$id);
+        // data['localUuid'] أيضاً قد يكون مع شرطة — نُطبّعه
+        final localUuidInData = data['localUuid'];
+        if (localUuidInData is String && localUuidInData.isNotEmpty) {
+          data['localUuid'] = AppwriteSyncUtils.normalizeUuid(localUuidInData);
+        }
+
         // ✅ تحويل أنواع المبالغ من integer (Cloud) إلى double (محلي)
         data = AppwriteSyncUtils.convertAmountTypesFromAppwrite(collectionId, data);
 
@@ -457,22 +466,22 @@ class AppwriteDeltaSync {
           effectiveRemoteTs = dataLastModified;
         }
 
-        final shouldApply = await _shouldApplyRemote(entity, doc.$id, effectiveRemoteTs);
+        final shouldApply = await _shouldApplyRemote(entity, normalizedDocId, effectiveRemoteTs);
         if (!shouldApply) {
           _skippedConflicts++;
           _logger.debug(
-            '⚡ تعارض $entity/${doc.$id}: المحلية أحدث (local > $effectiveRemoteTs) → تخطي',
+            '⚡ تعارض $entity/$normalizedDocId: المحلية أحدث (local > $effectiveRemoteTs) → تخطي',
             tag: 'DELTA_SYNC',
           );
           continue;
         }
 
         try {
-          await _applyRemoteChange(entity, doc.$id, data);
+          await _applyRemoteChange(entity, normalizedDocId, data);
           applied++;
         } catch (e) {
           _logger.warning(
-            'فشل تطبيق تغيير: $entity/${doc.$id} - $e',
+            'فشل تطبيق تغيير: $entity/$normalizedDocId - $e',
             tag: 'DELTA_SYNC',
           );
         }

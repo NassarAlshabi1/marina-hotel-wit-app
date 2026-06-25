@@ -1064,30 +1064,32 @@ class AppwriteService {
     required String documentId,
   }) async {
     await _ensureInitialized();
+    // ✅ تطبيع UUID بدون شرطة — المستند في Cloud قد يكون بدون شرطة
+    final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
     try {
       // ignore: deprecated_member_use
       return await _databases.getDocument(
         databaseId: AppwriteConfigManager.databaseId,
         collectionId: collectionId,
-        documentId: documentId,
+        documentId: normalizedId,
       ).timeout(AppwriteConfig.defaultTimeout);
     } on AppwriteException catch (e) {
       if (e.code == 404 || e.toString().contains('document_not_found')) {
         _logger.debug(
-          'getDocumentSafe($collectionId/$documentId) - مستند غير موجود (طبيعي لسجلات يتيمة)',
+          'getDocumentSafe($collectionId/$normalizedId) - مستند غير موجود (طبيعي لسجلات يتيمة)',
           tag: 'SYNC',
         );
         return null;
       }
       _logger.error(
-        'getDocumentSafe($collectionId/$documentId) - خطأ: $e',
+        'getDocumentSafe($collectionId/$normalizedId) - خطأ: $e',
         error: e,
         tag: 'SYNC',
       );
       rethrow;
     } on TimeoutException {
       _logger.warning(
-        'getDocumentSafe($collectionId/$documentId) - انتهت المهلة',
+        'getDocumentSafe($collectionId/$normalizedId) - انتهت المهلة',
         tag: 'SYNC',
       );
       return null;
