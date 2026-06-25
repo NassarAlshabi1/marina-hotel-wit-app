@@ -301,7 +301,7 @@ class AppwriteService {
     required String collectionId,
     required String documentId,
   }) async {
-    // ✅ تطبيع UUID قبل الحذف — نفس السبب كما في _upsertDocumentInternal.
+    // ✅ تطبيع UUID قبل الحذف (مع شرطة — مطابق للسياسة المعتمدة).
     final normalizedId = AppwriteSyncUtils.normalizeUuid(documentId);
     try {
       await _networkHelper.withRetryAndTimeout<void>(
@@ -314,35 +314,12 @@ class AppwriteService {
         operationName: 'deleteDocument',
       );
     } on AppwriteException catch (e) {
-      if (e.code == 404) {
-        // ✅ المستند غير موجود بالصيغة بدون شرطة — نجرب الصيغة البديلة
-        final alternativeId = _getAlternativeUuidFormat(documentId);
-        if (alternativeId != null && alternativeId != normalizedId) {
-          try {
-            await _networkHelper.withRetryAndTimeout<void>(
-              // ignore: deprecated_member_use
-              operation: () => _databases.deleteDocument(
-                databaseId: AppwriteConfigManager.databaseId,
-                collectionId: collectionId,
-                documentId: alternativeId,
-              ),
-              operationName: 'deleteDocument(alt)',
-            );
-            _logger.info(
-              'delete($collectionId): succeeded with alternative format '
-              '$alternativeId',
-              tag: 'SYNC',
-            );
-            return;
-          } on AppwriteException catch (altErr) {
-            if (altErr.code == 404) {
-              // Already deleted in both formats, ignore
-              return;
-            }
-            rethrow;
-          }
-        }
-        // Already deleted, ignore
+      // 404 = المستند غير موجود (ربما حُذف سابقاً) — نتجاهله بأمان
+      if (e.code == 404 || (e.type ?? '').contains('document_not_found')) {
+        _logger.debug(
+          'delete($collectionId/$normalizedId): 404 — already deleted, ignoring',
+          tag: 'SYNC',
+        );
         return;
       }
       rethrow;
