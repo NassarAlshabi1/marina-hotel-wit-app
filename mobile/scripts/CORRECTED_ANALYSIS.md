@@ -12,6 +12,35 @@
 
 ---
 
+## ✅ ملاحظة حول الحقول SyncFields
+
+### ❌ ما أبلغت عنه خطأً:
+عند الفحص الأولي عبر Appwrite API، أظهرت بعض الحقول كـ "مفقودة" في الـ Collections التالية:
+- bookings
+- payments
+- debts
+- booking_nights
+- price_adjustments
+- payment_voids
+- audit_logs
+
+### ✅ التصحيح:
+**جميع الحقول SyncFields موجودة في Appwrite Cloud!**
+
+الفحص عبر API لا يعرض جميع الحقول، لكن عند الفحص اليدوي في Appwrite Console تبين أن جميع الحقول موجودة بما فيها:
+```
+createdAt, updatedAt, deletedAt, lastModified,
+createdAtIso, updatedAtIso, deletedAtIso,
+createdAtEpoch, lastModifiedEpoch, version,
+origin, vectorClock, deviceId
+```
+
+**لا حاجة لإنشاء أي حقول - جميعها موجودة!**
+
+---
+
+---
+
 ## 🐛 مراجعة Bug #1: Zombie State
 
 ### ما زعمته سابقاً:
