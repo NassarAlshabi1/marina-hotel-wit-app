@@ -20,21 +20,103 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   LogLevel? _filterLevel;
   String _searchQuery = '';
   Timer? _debounceTimer;
+  Timer? _refreshTimer;
+  List<LogEntry> _currentLogs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // بدء التحديث التلقائي كل ثانية
+    _startAutoRefresh();
+  }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _refreshTimer?.cancel();
     super.dispose();
+  }
+
+  /// بدء التحديث التلقائي
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {}); // تحديث الشاشة
+      }
+    });
+  }
+
+  /// إيقاف التحديث التلقائي
+  void _stopAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+  }
+
+  /// الحصول على السجلات الحالية من Logger
+  List<LogEntry> _getCurrentLogs() {
+    try {
+      final logger = ref.read(appwriteLoggerProvider);
+      return logger.getLogs();
+    } catch (e) {
+      return [];
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final logs = ref.watch(logsProvider);
+    // الحصول على السجلات مباشرة من Logger في كل تحديث
+    final logs = _getCurrentLogs();
     final filteredLogs = _filterLogs(logs);
+    
+    // حفظ السجلات الحالية للنسخ والتصدير
+    _currentLogs = filteredLogs;
 
     return AppScaffold(
-      title: 'سجلات Appwrite',
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('سجلات Appwrite'),
+          const SizedBox(width: 8),
+          // مؤشر الحية
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'LIVE',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.green.shade700,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
       actions: [
+        // زر تحديث يدوي
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          tooltip: 'تحديث',
+          onPressed: () => setState(() {}),
+        ),
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
           onSelected: (value) async {
@@ -42,12 +124,24 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
               case 'export':
                 unawaited(_exportLogs());
               case 'share':
-                unawaited(_shareLogs(filteredLogs));
+                unawaited(_shareLogs(_currentLogs));
               case 'clear':
                 unawaited(_clearLogs());
+              case 'copy_all':
+                unawaited(_copyAllLogs());
             }
           },
           itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'copy_all',
+              child: Row(
+                children: [
+                  Icon(Icons.copy_all),
+                  SizedBox(width: 8),
+                  Text('نسخ جميع السجلات'),
+                ],
+              ),
+            ),
             const PopupMenuItem(
               value: 'export',
               child: Row(
@@ -89,6 +183,31 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
             padding: const EdgeInsets.all(12),
             child: Column(
               children: [
+                // عدد السجلات
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'عدد السجلات: ${filteredLogs.length}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    if (_searchQuery.isNotEmpty || _filterLevel != null)
+                      TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _filterLevel = null;
+                            _searchQuery = '';
+                          });
+                        },
+                        icon: const Icon(Icons.clear, size: 16),
+                        label: const Text('إعادة تعيين'),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 // شريط البحث
                 TextField(
                   decoration: InputDecoration(
@@ -483,6 +602,31 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
     ).showSnackBar(const SnackBar(content: Text('تم نسخ السجل إلى الحافظة')));
   }
 
+  /// نسخ جميع السجلات
+  Future<void> _copyAllLogs() async {
+    if (_currentLogs.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لا توجد سجلات لنسخها')));
+      return;
+    }
+
+    final buffer = StringBuffer();
+    for (final log in _currentLogs) {
+      buffer.writeln(log.toFormattedString());
+      buffer.writeln('─' * 50);
+    }
+
+    await Clipboard.setData(ClipboardData(text: buffer.toString()));
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(
+        content: Text('تم نسخ ${_currentLogs.length} سجل إلى الحافظة'),
+      ));
+    }
+  }
+
   Future<void> _exportLogs() async {
     final logger = ref.read(appwriteLoggerProvider);
     final file = await logger.exportLogs();
@@ -545,8 +689,21 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
     );
 
     if (confirmed ?? false) {
-      ref.read(appwriteLoggerProvider).clearLogs();
-      setState(() {});
+      // إيقاف التحديث المؤقت
+      _stopAutoRefresh();
+      
+      // مسح السجلات
+      final logger = ref.read(appwriteLoggerProvider);
+      logger.clearLogs();
+      
+      // تحديث الشاشة فوراً
+      setState(() {
+        _currentLogs = [];
+      });
+      
+      // إعادة تشغيل التحديث التلقائي
+      _startAutoRefresh();
+      
       if (mounted) {
         ScaffoldMessenger.of(
           context,
