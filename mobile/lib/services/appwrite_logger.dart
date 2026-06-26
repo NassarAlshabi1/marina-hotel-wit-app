@@ -80,6 +80,154 @@ class AppwriteLogger {
       _logs.removeRange(0, _logs.length - _maxLogEntries);
     }
 
+    if (_enableConsole) {
+      _printToConsole(entry);
+    }
+
+    if (_enableFile && _logFile != null) {
+      _writeToFile(entry);
+    }
+  }
+
+  /// تسجيل خطأ في الجدول
+  void logTableError({
+    required String tableName,
+    required String operation,
+    required String errorMessage,
+    String? recordId,
+    Map<String, dynamic>? recordData,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('❌ خطأ في الجدول: $tableName');
+    message.writeln('   العملية: $operation');
+    if (recordId != null) {
+      message.writeln('   معرف السجل: $recordId');
+    }
+    if (recordData != null) {
+      message.writeln('   البيانات: $recordData');
+    }
+    message.write('   الخطأ: $errorMessage');
+
+    log(
+      message.toString(),
+      level: LogLevel.error,
+      tag: 'TABLE_ERROR',
+      error: errorMessage,
+      stackTrace: stackTrace,
+    );
+  }
+
+  /// تسجيل خطأ في الحقل
+  void logFieldError({
+    required String tableName,
+    required String fieldName,
+    required String errorMessage,
+    String? recordId,
+    dynamic fieldValue,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('❌ خطأ في الحقل: $tableName.$fieldName');
+    message.writeln('   نوع الخطأ: $errorMessage');
+    if (recordId != null) {
+      message.writeln('   معرف السجل: $recordId');
+    }
+    if (fieldValue != null) {
+      message.writeln('   قيمة الحقل: $fieldValue');
+    }
+
+    log(
+      message.toString(),
+      level: LogLevel.error,
+      tag: 'FIELD_ERROR',
+      error: errorMessage,
+      stackTrace: stackTrace,
+    );
+  }
+
+  /// تسجيل خطأ في المخطط (Schema)
+  void logSchemaError({
+    required String collectionName,
+    required String errorMessage,
+    String? expectedField,
+    String? actualField,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('⚠️ خطأ في مخطط Appwrite: $collectionName');
+    message.writeln('   الرسالة: $errorMessage');
+    if (expectedField != null) {
+      message.writeln('   الحقل المتوقع: $expectedField');
+    }
+    if (actualField != null) {
+      message.writeln('   الحقل الفعلي: $actualField');
+    }
+
+    log(
+      message.toString(),
+      level: LogLevel.warning,
+      tag: 'SCHEMA_ERROR',
+      error: errorMessage,
+      stackTrace: stackTrace,
+    );
+  }
+
+  /// تسجيل عدم تطابق الحقول
+  void logFieldMismatch({
+    required String tableName,
+    required List<String> missingFields,
+    required List<String> extraFields,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('🔍 عدم تطابق الحقول: $tableName');
+    if (missingFields.isNotEmpty) {
+      message.writeln('   حقول مفقودة: ${missingFields.join(', ')}');
+    }
+    if (extraFields.isNotEmpty) {
+      message.writeln('   حقول إضافية: ${extraFields.join(', ')}');
+    }
+
+    log(
+      message.toString(),
+      level: LogLevel.warning,
+      tag: 'FIELD_MISMATCH',
+      error: 'Missing: ${missingFields.length}, Extra: ${extraFields.length}',
+      stackTrace: stackTrace,
+    );
+  }
+
+  /// تسجيل فشل المزامنة
+  void logSyncError({
+    required String tableName,
+    required String operation,
+    required String errorMessage,
+    String? localId,
+    String? serverId,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('🔄 فشل المزامنة: $tableName');
+    message.writeln('   العملية: $operation');
+    if (localId != null) {
+      message.writeln('   المحلي ID: $localId');
+    }
+    if (serverId != null) {
+      message.writeln('   السيرفر ID: $serverId');
+    }
+    message.write('   الخطأ: $errorMessage');
+
+    log(
+      message.toString(),
+      level: LogLevel.error,
+      tag: 'SYNC_ERROR',
+      error: errorMessage,
+      stackTrace: stackTrace,
+    );
+  }
+    }
+
     // طباعة في وضع Debug
     if (_enableConsole && kDebugMode) {
       _printToConsole(entry);

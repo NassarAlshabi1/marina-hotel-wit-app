@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../adapters/adapter_registry.dart';
+import '../appwrite_logger.dart';
 import '../local_db.dart';
 
 part 'outbox_dao.g.dart';
@@ -218,6 +219,46 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   Future<void> setError(int id, String message, int attempts) async {
+    // الحصول على معلومات السجل قبل التحديث
+    String? entityType;
+    String? operationType;
+    try {
+      final record = await (select(outbox)..where((t) => t.id.equals(id))).getSingleOrNull();
+      if (record != null) {
+        entityType = record.entity;
+        operationType = record.op;
+        
+        // تسجيل الخطأ في AppwriteLogger
+        AppwriteLogger().log(
+          '❌ فشل في Outbox',
+          level: LogLevel.error,
+          tag: 'OUTBOX_ERROR',
+          error: message,
+        );
+        
+        // تفاصيل أكثر
+        AppwriteLogger().log(
+          '   الجدول: ${record.entity}',
+          level: LogLevel.error,
+          tag: 'OUTBOX_ERROR',
+        );
+        
+        AppwriteLogger().log(
+          '   العملية: ${record.op}',
+          level: LogLevel.error,
+          tag: 'OUTBOX_ERROR',
+        );
+        
+        AppwriteLogger().log(
+          '   عدد المحاولات: $attempts',
+          level: LogLevel.error,
+          tag: 'OUTBOX_ERROR',
+        );
+      }
+    } catch (e) {
+      // تجاهل أخطاء القراءة
+    }
+
     await (update(outbox)..where((t) => t.id.equals(id))).write(
       OutboxCompanion(
         lastError: Value(message),
