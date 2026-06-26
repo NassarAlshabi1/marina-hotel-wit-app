@@ -2156,10 +2156,30 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _roomToRemote(room);
-    await appwriteService.upsertRoom(
-      room.localUuid,
-      _filterPayload('rooms', _addIdempotencyKey(payload, entry)),
-    );
+
+    try {
+      await appwriteService.upsertRoom(
+        room.localUuid,
+        _filterPayload('rooms', _addIdempotencyKey(payload, entry)),
+      );
+    } catch (e) {
+      // ✅ إذا فشل الرفع بسبب حقل idempotencyKey غير موجود، نُعيد المحاولة بدونه
+      if (e.toString().contains('attribute_not_found') ||
+          e.toString().contains('Property not found') ||
+          e.toString().contains('invalid_attribute') ||
+          e.toString().contains('idempotencyKey')) {
+        _logger.warning(
+          '⚠️ إعادة محاولة رفع الغرفة بدون idempotencyKey: $e',
+          tag: 'SYNC',
+        );
+        await appwriteService.upsertRoom(
+          room.localUuid,
+          _filterPayload('rooms', payload), // بدون idempotencyKey
+        );
+      } else {
+        rethrow;
+      }
+    }
     return true;
   }
 
