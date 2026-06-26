@@ -226,18 +226,6 @@ class AppwriteLogger {
       stackTrace: stackTrace,
     );
   }
-    }
-
-    // طباعة في وضع Debug
-    if (_enableConsole && kDebugMode) {
-      _printToConsole(entry);
-    }
-
-    // كتابة إلى الملف
-    if (_enableFile && _logFile != null) {
-      _writeToFile(entry);
-    }
-  }
 
   /// طباعة إلى Console
   void _printToConsole(LogEntry entry) {
