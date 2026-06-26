@@ -235,16 +235,31 @@ class AppwriteService {
     } on AppwriteException catch (e) {
       // 404 Not Found -> Create (هذا السلوك الطبيعي لـ Upsert)
       if (e.code == 404 || e.toString().contains('document_not_found')) {
-        return _networkHelper.withRetryAndTimeout(
-          // ignore: deprecated_member_use
-          operation: () => _databases.createDocument(
-            databaseId: dbId,
-            collectionId: collectionId,
-            documentId: documentId,
-            data: data,
-          ),
-          operationName: 'createDocument',
-        );
+        try {
+          return _networkHelper.withRetryAndTimeout(
+            // ignore: deprecated_member_use
+            operation: () => _databases.createDocument(
+              databaseId: dbId,
+              collectionId: collectionId,
+              documentId: documentId,
+              data: data,
+            ),
+            operationName: 'createDocument',
+          );
+        } on AppwriteException catch (createError) {
+          // 409 Conflict -> Document already exists, try update again
+          if (createError.code == 409 || 
+              createError.toString().contains('document_already_exists')) {
+            // ignore: deprecated_member_use
+            return await _databases.updateDocument(
+              databaseId: dbId,
+              collectionId: collectionId,
+              documentId: documentId,
+              data: data,
+            );
+          }
+          rethrow;
+        }
       }
       rethrow;
     }
