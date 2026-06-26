@@ -48,6 +48,12 @@ class AppwriteConfig {
   // جدول إعدادات التطبيق (واتساب، وغيرها)
   static const String appSettingsCollectionId = 'app_settings';
 
+  // ✅ إضافات 6da81fce: مجموعات جديدة مطلوبة لطرق per-entity الجديدة في AppwriteService
+  // (listAppUsers/upsertAppUser/deleteAppUser, listOutboxEntries/..., listSyncStateEntries/...)
+  static const String appUsersCollectionId = 'app_users';
+  static const String outboxCollectionId = 'outbox';
+  static const String syncStateCollectionId = 'sync_state';
+
   // إعدادات المزامنة
   static const Duration syncInterval = Duration(minutes: 15);
   static const Duration cacheExpiry = Duration(hours: 6);

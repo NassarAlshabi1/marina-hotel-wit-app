@@ -1,7 +1,6 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:drift/drift.dart' as d;
-import 'package:marina_hotel_mobile/utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/prefs_cache.dart';
 import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
@@ -224,22 +223,137 @@ class AppwriteDeltaSync {
           payload,
           collectionId: collectionId,
         );
-        await _appwriteService!.upsertDocument(
-          collectionId: collectionId,
+        // ✅ استخدام dispatcher per-entity بدل upsertDocument العامة المُلغاة في 6da81fce.
+        // يستفيد تلقائياً من _upsertDocumentInternal (تطبيع UUID + migration + 409 retry + withRetryAndTimeout).
+        await _upsertForEntity(
+          entity: change.entity,
           documentId: change.localUuid,
           data: sanitized,
         );
       case 'delete':
-        try {
-          await _appwriteService!.deleteDocument(
-            collectionId: collectionId,
-            documentId: change.localUuid,
-          );
-        } on AppwriteException catch (e) {
-          if (e.code != 404) rethrow;
-        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-          rethrow;
-        }
+        // ✅ dispatcher per-entity بدل deleteDocument العامة.
+        // _deleteDocumentInternal يتعامل مع 404 بصمت (debug log) + withRetryAndTimeout.
+        // لا حاجة لـ try/catch هنا — الـ helper الداخلي يتكفل بـ 404.
+        await _deleteForEntity(
+          entity: change.entity,
+          documentId: change.localUuid,
+        );
+    }
+  }
+
+  /// ✅ dispatcher per-entity للـ upsert — يوجّه كل كيان إلى طريقته المخصصة
+  /// في AppwriteService (upsertRoom, upsertBooking, ...).
+  ///
+  /// كل طريقة upsertXxx تستدعي داخلياً `_upsertDocumentInternal` التي توفر:
+  ///   1) تطبيع documentId بدون شرطة (AppwriteSyncUtils.normalizeUuid)
+  ///   2) تطبيع كل حقول UUID في الحمولة عبر _normalizeUuidFields
+  ///   3) معالجة 404: محاولة migration من الـ ID القديم مع شرطة إلى الجديد
+  ///   4) معالجة 409: إعادة update عند race condition
+  ///   5) تنظيف تلقائي للمستند القديم مع شرطة بعد نجاح الإنشاء
+  ///   6) withRetryAndTimeout لمقاومة الأعطال الشبكية العابرة
+  Future<models.Document> _upsertForEntity({
+    required String entity,
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) async {
+    switch (entity) {
+      case 'rooms':
+        return _appwriteService!.upsertRoom(documentId, data);
+      case 'bookings':
+        return _appwriteService!.upsertBooking(documentId, data);
+      case 'employees':
+        return _appwriteService!.upsertEmployee(documentId, data);
+      case 'expenses':
+        return _appwriteService!.upsertExpense(documentId, data);
+      case 'payments':
+        return _appwriteService!.upsertPayment(documentId, data);
+      case 'debts':
+        return _appwriteService!.upsertDebt(documentId, data);
+      case 'booking_notes':
+        return _appwriteService!.upsertBookingNote(documentId, data);
+      case 'booking_nights':
+        return _appwriteService!.upsertBookingNight(documentId, data);
+      case 'cash_transactions':
+        return _appwriteService!.upsertCashTransaction(documentId, data);
+      case 'shift_notes':
+        return _appwriteService!.upsertShiftNote(documentId, data);
+      case 'salary_cycles':
+        return _appwriteService!.upsertSalaryCycle(documentId, data);
+      case 'salary_payments':
+        return _appwriteService!.upsertSalaryPayment(documentId, data);
+      case 'salary_withdrawals':
+        return _appwriteService!.upsertSalaryWithdrawal(documentId, data);
+      case 'price_adjustments':
+        return _appwriteService!.upsertPriceAdjustment(documentId, data);
+      case 'booking_price_adjustments':
+        return _appwriteService!.upsertBookingPriceAdjustment(documentId, data);
+      case 'audit_logs':
+        return _appwriteService!.upsertAuditLog(documentId, data);
+      case 'payment_voids':
+        return _appwriteService!.upsertPaymentVoid(documentId, data);
+      case 'guest_infos':
+        return _appwriteService!.upsertGuestInfo(documentId, data);
+      default:
+        throw ArgumentError(
+          'لا توجد طريقة upsert للكيان: $entity '
+          '(أضفها إلى _upsertForEntity و _getCollectionId معاً)',
+        );
+    }
+  }
+
+  /// ✅ dispatcher per-entity للحذف — يوجّه كل كيان إلى طريقته المخصصة.
+  ///
+  /// كل طريقة deleteXxx تستدعي داخلياً `_deleteDocumentInternal` التي توفر:
+  ///   1) تطبيع documentId بدون شرطة
+  ///   2) withRetryAndTimeout لمقاومة الأعطال الشبكية العابرة
+  ///   3) 404 → debug log بصمت (المستند محذوف مسبقاً — طبيعي)
+  ///   4) أي خطأ آخر → error log + rethrow
+  Future<void> _deleteForEntity({
+    required String entity,
+    required String documentId,
+  }) async {
+    switch (entity) {
+      case 'rooms':
+        return _appwriteService!.deleteRoom(documentId);
+      case 'bookings':
+        return _appwriteService!.deleteBooking(documentId);
+      case 'employees':
+        return _appwriteService!.deleteEmployee(documentId);
+      case 'expenses':
+        return _appwriteService!.deleteExpense(documentId);
+      case 'payments':
+        return _appwriteService!.deletePayment(documentId);
+      case 'debts':
+        return _appwriteService!.deleteDebt(documentId);
+      case 'booking_notes':
+        return _appwriteService!.deleteBookingNote(documentId);
+      case 'booking_nights':
+        return _appwriteService!.deleteBookingNight(documentId);
+      case 'cash_transactions':
+        return _appwriteService!.deleteCashTransaction(documentId);
+      case 'shift_notes':
+        return _appwriteService!.deleteShiftNote(documentId);
+      case 'salary_cycles':
+        return _appwriteService!.deleteSalaryCycle(documentId);
+      case 'salary_payments':
+        return _appwriteService!.deleteSalaryPayment(documentId);
+      case 'salary_withdrawals':
+        return _appwriteService!.deleteSalaryWithdrawal(documentId);
+      case 'price_adjustments':
+        return _appwriteService!.deletePriceAdjustment(documentId);
+      case 'booking_price_adjustments':
+        return _appwriteService!.deleteBookingPriceAdjustment(documentId);
+      case 'audit_logs':
+        return _appwriteService!.deleteAuditLog(documentId);
+      case 'payment_voids':
+        return _appwriteService!.deletePaymentVoid(documentId);
+      case 'guest_infos':
+        return _appwriteService!.deleteGuestInfo(documentId);
+      default:
+        throw ArgumentError(
+          'لا توجد طريقة delete للكيان: $entity '
+          '(أضفها إلى _deleteForEntity و _getCollectionId معاً)',
+        );
     }
   }
 
@@ -375,10 +489,13 @@ class AppwriteDeltaSync {
             ...filterQueries,
             Query.greaterThan('\$updatedAt', lastPullIso),
           ];
-          
+
           _logger.debug('Pulling $entity changes updated after $lastPullIso', tag: 'DELTA_SYNC');
-          
-          documents = await _appwriteService!.listDocuments(
+
+          // ✅ استخدام listAllDocuments (الموجودة) بدل listDocuments المُلغاة في 6da81fce.
+          // listAllDocuments تستدعي _listAllDocumentsInternal التي تتعامل مع pagination تلقائياً
+          // (limit=100 + تصفّح حتى نهاية البيانات) + withRetryAndTimeout.
+          documents = await _appwriteService!.listAllDocuments(
             collectionId: collectionId,
             queries: newEventsQueries,
             useCache: false,
@@ -388,9 +505,9 @@ class AppwriteDeltaSync {
             'فشل فلترة $entity بـ \$updatedAt، جلب كامل محدود: $e',
             tag: 'DELTA_SYNC',
           );
-          
+
           // في حال فشل الفلترة، نجلب آخر 100 سجل فقط بدلاً من الكل لتوفير البيانات
-          documents = await _appwriteService!.listDocuments(
+          documents = await _appwriteService!.listAllDocuments(
             collectionId: collectionId,
             queries: [
               Query.orderDesc('\$updatedAt'),
@@ -400,15 +517,15 @@ class AppwriteDeltaSync {
           );
         }
       } else {
-        // ✅ أول سحب: listDocuments يتعامل مع Pagination تلقائياً عبر
-        // _listAllDocumentsInternal (limit=100, يصفّي حتى نهاية البيانات)
+        // ✅ أول سحب: listAllDocuments تتعامل مع Pagination تلقائياً عبر
+        // _listAllDocumentsInternal (limit=100، يصفّي حتى نهاية البيانات)
         // لا نضيف limit/offset يدوياً لتجنب التعارض مع الترقيم الداخلي
         _logger.info(
           '📥 سحب أولي كامل لـ $entity (pagination تلقائي)',
           tag: 'DELTA_SYNC',
         );
 
-        documents = await _appwriteService!.listDocuments(
+        documents = await _appwriteService!.listAllDocuments(
           collectionId: collectionId,
           queries: filterQueries,
           useCache: false,
@@ -428,13 +545,15 @@ class AppwriteDeltaSync {
         // تخطي المستندات التي أرسلها هذا الجهاز نفسه
         if (sourceDeviceId == _deviceId) continue;
 
-        // ✅ تطبيع UUIDs بدون شرطة قبل المعالجة
-        // doc.$id قد يكون مع شرطة من Cloud — نُطبّعه
+        // ✅ تطبيع UUIDs بدون شرطة قبل المعالجة — شامل لكل الحقول المعروفة
+        // (مطابق لـ _uuidPayloadFields في AppwriteService) لمنع تخزين UUIDs
+        // مع شرطة محلياً وكسر سياسة التطبيع المعتمدة في 6da81fce.
         final normalizedDocId = AppwriteSyncUtils.normalizeUuid(doc.$id);
-        // data['localUuid'] أيضاً قد يكون مع شرطة — نُطبّعه
-        final localUuidInData = data['localUuid'];
-        if (localUuidInData is String && localUuidInData.isNotEmpty) {
-          data['localUuid'] = AppwriteSyncUtils.normalizeUuid(localUuidInData);
+        for (final field in _uuidPayloadFields) {
+          final value = data[field];
+          if (value is String && value.isNotEmpty) {
+            data[field] = AppwriteSyncUtils.normalizeUuid(value);
+          }
         }
 
         // ✅ تحويل أنواع المبالغ من integer (Cloud) إلى double (محلي)
@@ -493,11 +612,40 @@ class AppwriteDeltaSync {
       );
 
       return applied;
-    } catch (e) {
-      _logger.warning('فشل سحب $entity: $e', tag: 'DELTA_SYNC');
+    } catch (e, stackTrace) {
+      // ✅ فشل جسيم في الكيان — نسجّل مع stack trace لسهولة التشخيص،
+      // ونُرجع 0 لمتابعة سحب باقي الكيانات (تجنب توقف المزامنة بالكامل).
+      _logger.error(
+        '❌ فشل سحب كامل لـ $entity: $e\n$stackTrace',
+        tag: 'DELTA_SYNC',
+      );
       return 0;
     }
   }
+
+  /// ✅ قائمة حقول UUID المعروفة عبر كل المجموعات — مطابقة لـ `_uuidPayloadFields`
+  /// في `AppwriteService`. تُستخدم لتطبيع شامل لكل حقول UUID في الحمولة المسحوبة
+  /// من Cloud (قد تكون مع شرطة) قبل تخزينها محلياً.
+  ///
+  /// 🔒 مهم: أبقِ هذه القائمة متزامنة مع `AppwriteService._uuidPayloadFields`.
+  /// إذا أضفت حقلاً هناك، أضفه هنا أيضاً.
+  static const Set<String> _uuidPayloadFields = <String>{
+    'localUuid',
+    'bookingLocalUuid',
+    'bookingUuid',
+    'bookingUuidCache',
+    'originalPaymentUuid',
+    'reversalPaymentUuid',
+    'paymentUuid',
+    'debtUuid',
+    'linkedDebtUuid',
+    'categoryUuid',
+    'cashFlowUuid',
+    'employeeUuid',
+    'targetUuid',
+    'appliedAdjustmentUuid',
+    'entityUuid',
+  };
 
   Future<void> _applyRemoteChange(
     String entity,

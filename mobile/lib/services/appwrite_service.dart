@@ -292,6 +292,7 @@ class AppwriteService {
         final unnormalizedId = documentId; // documentId الأصلي قبل التطبيع
         if (unnormalizedId != normalizedId) {
           try {
+            // ignore: deprecated_member_use, unused_local_variable
             final existingDoc = await _databases.getDocument(
               databaseId: dbId,
               collectionId: collectionId,
@@ -302,6 +303,7 @@ class AppwriteService {
               tag: 'SYNC_MIGRATION',
             );
             // إذا وجدناه، نقوم بحذفه ثم إنشاءه بالـ normalizedId
+            // ignore: deprecated_member_use
             await _databases.deleteDocument(
               databaseId: dbId,
               collectionId: collectionId,
@@ -1377,4 +1379,165 @@ class AppwriteService {
       documentId: documentId,
     );
   }
+
+  // ===========================================================================
+  // ⚠️ Compatibility shims — توافق خلفي للطرق المُلغاة في 6da81fce
+  // ===========================================================================
+  // آخر التزام (6da81fce) حذف الطرق العامة التالية من AppwriteService:
+  //   - listDocuments(collectionId, ...)
+  //   - upsertDocument(collectionId, ...)
+  //   - deleteDocument(collectionId, ...)  [العامة القديمة قبل إعادة إضافتها]
+  //   - createDevice(data)
+  //   - getProjectInfo()
+  //   - bool get isInitialized
+  //   - testConnection() / fullConnectionTest() / quickConnectionTest()
+  //
+  // لكن عدة ملفات (appwrite_sync_manager, auth_local_store, appwrite_providers,
+  // google_drive_backup_service, appwrite_delta_sync, screens/settings/appwrite/...)
+  // ما زالت تستدعيها. بدلاً من تعديل 30+ ملف، نُعيد تقديمها كـ shims
+  // تُفوّض إلى الطرق per-entity / internal الجديدة، فنحتفظ بنمط آخر التزام
+  // (تطبيع UUID + migration + retry) دون كسر الـ compile.
+  // ===========================================================================
+
+  /// ✅ Shim: قائمة مستندات عامة (بدل listDocuments المُلغاة).
+  /// تُفوّض إلى listAllDocuments الموجودة (نفس التوقيع).
+  Future<List<models.Document>> listDocuments({
+    required String collectionId,
+    List<String>? queries,
+    bool useCache = true,
+  }) async {
+    return listAllDocuments(
+      collectionId: collectionId,
+      queries: queries,
+      useCache: useCache,
+    );
+  }
+
+  /// ✅ Shim: upsert عام (بدل upsertDocument المُلغاة).
+  /// يُفوّض إلى _upsertDocumentInternal (يحوي migration + 409 retry + تطبيع UUID
+  /// + withRetryAndTimeout) — نفس منطق طرق upsertXxx per-entity.
+  Future<models.Document> upsertDocument({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) async {
+    await _ensureInitialized();
+    return _upsertDocumentInternal(
+      collectionId: collectionId,
+      documentId: documentId,
+      data: data,
+    );
+  }
+
+  /// ✅ Shim: إنشاء جهاز (بدل createDevice المُلغاة).
+  /// يُفوّض إلى upsertDevice التي تستخدم _upsertDocumentInternal.
+  Future<models.Document> createDevice(Map<String, dynamic> data) async {
+    final documentId = (data['localUuid'] ?? ID.unique()) as String;
+    return upsertDevice(documentId, data);
+  }
+
+  /// ✅ Shim: حذف Blacklist (للتوافق مع appwrite_sync_manager).
+  Future<void> deleteBlacklist(String documentId) async => deleteBlacklistEntry(documentId);
+
+  /// ✅ Shim: upsert Blacklist (للتوافق مع appwrite_sync_manager).
+  Future<models.Document> upsertBlacklist(
+    String documentId,
+    Map<String, dynamic> data,
+  ) async => upsertBlacklistEntry(documentId, data);
+
+  /// ✅ Shim: getter حالة التهيئة (بدل isInitialized المُلغاة).
+  bool get isInitialized => _initialized;
+
+  /// ✅ Shim: معلومات المشروع (بدل getProjectInfo المُلغاة).
+  Map<String, String> getProjectInfo() {
+    return {
+      'endpoint': AppwriteConfigManager.endpoint,
+      'projectId': AppwriteConfigManager.projectId,
+      'databaseId': AppwriteConfigManager.databaseId,
+      'initialized': _initialized.toString(),
+    };
+  }
+
+  /// ✅ Shim: اختبار اتصال سريع (بدل quickConnectionTest المُلغاة).
+  Future<bool> quickConnectionTest() async {
+    try {
+      await _ensureInitialized();
+      await _networkHelper.withTimeout<models.DocumentList>(
+        operation: () =>
+            // ignore: deprecated_member_use
+            _databases.listDocuments(
+          databaseId: AppwriteConfigManager.databaseId,
+          collectionId: AppwriteConfig.roomsCollectionId,
+          queries: [Query.limit(1)],
+        ),
+        operationName: 'quickConnectionTest',
+        timeout: const Duration(seconds: 5),
+      );
+      _logger.info('Quick connection test successful', tag: 'CONNECTION');
+      return true;
+    } catch (e) {
+      _logger.warning('Quick connection test failed', error: e, tag: 'CONNECTION');
+      return false;
+    }
+  }
+
+  /// ✅ Shim: اختبار اتصال شامل (بدل fullConnectionTest المُلغاة).
+  Future<Map<String, dynamic>> fullConnectionTest() async {
+    final results = <String, dynamic>{
+      'tests': <String, dynamic>{},
+      'overall_success': false,
+    };
+
+    try {
+      await _ensureInitialized();
+
+      Future<void> pingCollection(
+        String name,
+        String collectionId, {
+        Duration timeout = const Duration(seconds: 10),
+      }) async {
+        try {
+          await _networkHelper.withTimeout<models.DocumentList>(
+            operation: () =>
+                // ignore: deprecated_member_use
+                _databases.listDocuments(
+              databaseId: AppwriteConfigManager.databaseId,
+              collectionId: collectionId,
+              queries: [Query.limit(1)],
+            ),
+            operationName: 'ping($name)',
+            timeout: timeout,
+          );
+          results['tests'][name] = true;
+        } catch (e) {
+          results['tests'][name] = false;
+          results['tests']['${name}_error'] = e.toString();
+        }
+      }
+
+      await pingCollection('ping', AppwriteConfig.bookingsCollectionId);
+      await pingCollection('rooms', AppwriteConfig.roomsCollectionId,
+          timeout: const Duration(seconds: 15));
+      await pingCollection('bookings', AppwriteConfig.bookingsCollectionId);
+      await pingCollection('devices', AppwriteConfig.devicesCollectionId);
+
+      final tests = results['tests'] as Map<String, dynamic>;
+      results['overall_success'] = tests['ping'] == true;
+
+      if (results['overall_success'] == true) {
+        _logger.info('Full connection test passed', tag: 'CONNECTION_TEST');
+      } else {
+        _logger.warning('Full connection test failed: $results', tag: 'CONNECTION_TEST');
+      }
+      return results;
+    } catch (e) {
+      _logger.error('Full connection test fatal error', error: e, tag: 'CONNECTION_TEST');
+      results['overall_success'] = false;
+      results['error'] = e.toString();
+      return results;
+    }
+  }
+
+  /// ✅ Shim: alias لـ fullConnectionTest (للتوافق مع شاشات الإعدادات).
+  Future<Map<String, dynamic>> testConnection() => fullConnectionTest();
 }
