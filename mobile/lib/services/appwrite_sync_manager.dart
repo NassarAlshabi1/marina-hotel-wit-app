@@ -1989,15 +1989,17 @@ class AppwriteSyncManager {
     // القيمة الأولية من إعدادات الأداء
     if (_adaptiveBatchSize == 0) {
       final perfSettings = SyncPerformanceOptimizer.instance.getCurrentPerformanceSettings();
-      _adaptiveBatchSize = perfSettings['batchSize'] as int? ?? 50;
+      // ✅ تقليل الحجم الافتراضي من 50 إلى 15 لتجنب 429 rate limit على
+      //    Appwrite Cloud (الخطة المجانية لها حدود صارمة).
+      _adaptiveBatchSize = perfSettings['batchSize'] as int? ?? 15;
     }
 
     if (lastBatchSuccess && processedCount == totalCount) {
-      // كل السجلات نجحت → زد الحجم (بحد أقصى 200)
-      _adaptiveBatchSize = (_adaptiveBatchSize * 1.3).clamp(10, 200).toInt();
+      // كل السجلات نجحت → زد الحجم ببطء (بحد أقصى 30 لتفادي 429)
+      _adaptiveBatchSize = (_adaptiveBatchSize * 1.2).clamp(5, 30).toInt();
     } else if (!lastBatchSuccess || processedCount < totalCount) {
-      // فشل أو لم تكتمل → نصف الحجم (بحد أدنى 5)
-      _adaptiveBatchSize = (_adaptiveBatchSize * 0.6).clamp(5, 100).toInt();
+      // فشل أو لم تكتمل → نصف الحجم (بحد أدنى 3)
+      _adaptiveBatchSize = (_adaptiveBatchSize * 0.5).clamp(3, 20).toInt();
       _logger.debug('📉 تقليل حجم الدفعة إلى $_adaptiveBatchSize (فشل)', tag: 'SYNC');
     }
   }
@@ -2062,6 +2064,10 @@ class AppwriteSyncManager {
         } catch (e) {
           failedInBatch++;
         }
+        // ✅ تأخير صغير بين الطلبات الفردية لتجنب 429 rate limit.
+        //    Appwrite Cloud المجاني يفرض حدوداً صارمة على معدل الطلبات.
+        //    100ms بين كل طلب = 10 طلبات/ثانية كحد أقصى (آمن).
+        await Future<void>.delayed(const Duration(milliseconds: 100));
       }
 
       totalProcessed += processedInBatch;
@@ -2282,11 +2288,15 @@ class AppwriteSyncManager {
     Booking expected,
   ) async {
     try {
+      // ✅ تطبيع localUuid بدون شرطة قبل البحث في Cloud.
+      // _upsertDocumentInternal يُطبّع الـ ID قبل الرفع، فالمستند في Cloud
+      // مخزون بدون شرطة. البحث بالصيغة مع شرطة يُرجع 404 خطأ.
+      final normalizedUuid = AppwriteSyncUtils.normalizeUuid(localUuid);
       // ignore: deprecated_member_use
       final doc = await appwriteService.databases.getDocument(
         databaseId: AppwriteConfig.databaseId,
         collectionId: AppwriteConfig.bookingsCollectionId,
-        documentId: localUuid,
+        documentId: normalizedUuid,
       );
       final remoteStatus = doc.data['status']?.toString();
       final remoteActualCheckout = doc.data['actualCheckout']?.toString();
@@ -4083,6 +4093,14 @@ class AppwriteSyncManager {
       );
       for (final employee in employees) {
         if (skipDeleted && employee.deletedAt != null) continue;
+        // ✅ تخطي الموظفين بـ localUuid فارغ أو غير صالح (يمنع 400/404)
+        if (employee.localUuid.isEmpty || employee.localUuid.length < 8) {
+          _logger.warning(
+            '⏭️ تخطي موظف ${employee.name} (id=${employee.id}): localUuid فارغ أو غير صالح',
+            tag: 'SYNC',
+          );
+          continue;
+        }
         try {
           final payload = _employeeToRemote(employee);
           await appwriteService.upsertEmployee(employee.localUuid, _filterPayload('employees', payload));
