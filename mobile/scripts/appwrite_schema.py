@@ -100,19 +100,21 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 2. BOOKINGS (الحجوزات) - 44 attributes
+    # 2. BOOKINGS (الحجوزات) - 45 attributes
     # -------------------------------------------------------------------------
     "bookings": {
         "collection_id": "bookings",
         "name": "Bookings",
         "description": "حجوزات الضيوف",
-        "cloud_fields": 44,
+        "cloud_fields": 45,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
             "roomNumber": {"type": "string", "size": 50, "required": True, "description": "رقم الغرفة"},
             "guestName": {"type": "string", "size": 200, "required": True, "description": "اسم النزيل"},
             "guestPhone": {"type": "string", "size": 20, "required": True, "description": "هاتف النزيل"},
+            # Sync Fields
+            "idempotencyKey": {"type": "string", "size": 255, "required": False, "description": "مفتاح idempotency للمزامنة"},
             "guestIdType": {"type": "string", "size": 100, "required": False, "description": "نوع الهوية"},
             "guestIdNumber": {"type": "string", "size": 50, "required": False, "description": "رقم الهوية"},
             "guestIdIssueDate": {"type": "string", "size": 50, "required": False, "description": "تاريخ إصدار الهوية"},
@@ -163,16 +165,18 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 3. PAYMENTS (المدفوعات) - 31 attributes
+    # 3. PAYMENTS (المدفوعات) - 32 attributes
     # -------------------------------------------------------------------------
     "payments": {
         "collection_id": "payments",
         "name": "Payments",
         "description": "مدفوعات الحجوزات والإيرادات",
-        "cloud_fields": 31,
+        "cloud_fields": 32,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
+            # Sync Fields
+            "idempotencyKey": {"type": "string", "size": 255, "required": False, "description": "مفتاح idempotency للمزامنة"},
             "serverPaymentId": {"type": "integer", "required": False, "description": "معرف الدفع على السيرفر"},
             "bookingLocalId": {"type": "integer", "required": False, "description": "معرف الحجز المحلي"},
             "serverBookingId": {"type": "integer", "required": False, "description": "معرف الحجز على السيرفر"},
@@ -213,16 +217,18 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 4. EXPENSES (المصروفات) - 25 attributes
+    # 4. EXPENSES (المصروفات) - 26 attributes
     # -------------------------------------------------------------------------
     "expenses": {
         "collection_id": "expenses",
         "name": "Expenses",
         "description": "مصروفات الفندق",
-        "cloud_fields": 25,
+        "cloud_fields": 26,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
+            # Sync Fields
+            "idempotencyKey": {"type": "string", "size": 255, "required": False, "description": "مفتاح idempotency للمزامنة"},
             "description": {"type": "string", "size": 500, "required": True, "description": "الوصف"},
             "amount": {"type": "double", "required": True, "description": "المبلغ"},
             "category": {"type": "string", "size": 100, "required": True, "description": "الفئة"},
@@ -292,16 +298,18 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 6. EMPLOYEES (الموظفون) - 21 attributes
+    # 6. EMPLOYEES (الموظفون) - 22 attributes
     # -------------------------------------------------------------------------
     "employees": {
         "collection_id": "employees",
         "name": "Employees",
         "description": "موظفو الفندق",
-        "cloud_fields": 21,
+        "cloud_fields": 22,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
+            # Sync Fields
+            "idempotencyKey": {"type": "string", "size": 255, "required": False, "description": "مفتاح idempotency للمزامنة"},
             "name": {"type": "string", "size": 200, "required": True, "description": "الاسم"},
             "basicSalary": {"type": "double", "required": True, "description": "الراتب الأساسي"},
             "position": {"type": "string", "size": 100, "required": False, "description": "المنصب"},
@@ -379,16 +387,18 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 7. DEBTS (الديون) - 34 attributes
+    # 7. DEBTS (الديون) - 35 attributes
     # -------------------------------------------------------------------------
     "debts": {
         "collection_id": "debts",
         "name": "Debts",
         "description": "سجل الديون",
-        "cloud_fields": 34,
+        "cloud_fields": 35,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
+            # Sync Fields
+            "idempotencyKey": {"type": "string", "size": 255, "required": False, "description": "مفتاح idempotency للمزامنة"},
             "bookingUuid": {"type": "string", "size": 100, "required": False, "description": "UUID الحجز"},
             "bookingLocalId": {"type": "integer", "required": False, "description": "معرف الحجز المحلي"},
             "roomNumber": {"type": "string", "size": 50, "required": False, "description": "رقم الغرفة"},
@@ -458,16 +468,18 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 9. CASH TRANSACTIONS (المعاملات النقدية) - 23 attributes
+    # 9. CASH TRANSACTIONS (المعاملات النقدية) - 24 attributes
     # -------------------------------------------------------------------------
     "cash_transactions": {
         "collection_id": "cash_transactions",
         "name": "Cash Transactions",
         "description": "المعاملات النقدية",
-        "cloud_fields": 23,
+        "cloud_fields": 24,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
+            # Sync Fields
+            "idempotencyKey": {"type": "string", "size": 255, "required": False, "description": "مفتاح idempotency للمزامنة"},
             "registerId": {"type": "integer", "required": False, "description": "معرف الدرج"},
             "transactionType": {"type": "string", "size": 50, "required": True, "description": "نوع المعاملة"},
             "amount": {"type": "double", "required": True, "description": "المبلغ"},
@@ -490,16 +502,18 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 10. BOOKING NOTES (ملاحظات الحجوزات) - 20 attributes
+    # 10. BOOKING NOTES (ملاحظات الحجوزات) - 21 attributes
     # -------------------------------------------------------------------------
     "booking_notes": {
         "collection_id": "booking_notes",
         "name": "Booking Notes",
         "description": "ملاحظات الحجوزات",
-        "cloud_fields": 20,
+        "cloud_fields": 21,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
+            # Sync Fields
+            "idempotencyKey": {"type": "string", "size": 255, "required": False, "description": "مفتاح idempotency للمزامنة"},
             "bookingLocalUuid": {"type": "string", "size": 100, "required": False, "description": "UUID الحجز"},
             "bookingLocalId": {"type": "integer", "required": False, "description": "معرف الحجز المحلي"},
             "noteText": {"type": "string", "size": 1000, "required": True, "description": "نص الملاحظة"},
@@ -592,16 +606,18 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 13. SALARY PAYMENTS (مدفوعات الرواتب) - 21 attributes
+    # 13. SALARY PAYMENTS (مدفوعات الرواتب) - 22 attributes
     # -------------------------------------------------------------------------
     "salary_payments": {
         "collection_id": "salary_payments",
         "name": "Salary Payments",
         "description": "مدفوعات الرواتب",
-        "cloud_fields": 21,
+        "cloud_fields": 22,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
+            # Sync Fields
+            "idempotencyKey": {"type": "string", "size": 255, "required": False, "description": "مفتاح idempotency للمزامنة"},
             "cycleLocalUuid": {"type": "string", "size": 100, "required": False, "description": "UUID الدورة"},
             "cycleId": {"type": "integer", "required": True, "description": "معرف دورة الراتب"},
             "employeeId": {"type": "integer", "required": False, "description": "معرف الموظف"},
@@ -785,16 +801,18 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 18. SHIFT NOTES (ملاحظات الورديات) - 22 attributes
+    # 18. SHIFT NOTES (ملاحظات الورديات) - 23 attributes
     # -------------------------------------------------------------------------
     "shift_notes": {
         "collection_id": "shift_notes",
         "name": "Shift Notes",
         "description": "ملاحظات الورديات",
-        "cloud_fields": 22,
+        "cloud_fields": 23,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
+            # Sync Fields
+            "idempotencyKey": {"type": "string", "size": 255, "required": False, "description": "مفتاح idempotency للمزامنة"},
             "title": {"type": "string", "size": 200, "required": True, "description": "العنوان"},
             "content": {"type": "string", "size": 2000, "required": False, "description": "المحتوى"},
             "priority": {"type": "string", "size": 50, "required": False, "description": "الأولوية"},

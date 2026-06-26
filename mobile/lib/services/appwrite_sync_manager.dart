@@ -2310,10 +2310,30 @@ class AppwriteSyncManager {
         payload['employeeUuid'] = employee.localUuid;
       }
     }
-    await appwriteService.upsertExpense(
-      expense.localUuid,
-      _filterPayload('expenses', _addIdempotencyKey(payload, entry)),
-    );
+    try {
+      await appwriteService.upsertExpense(
+        expense.localUuid,
+        _filterPayload('expenses', _addIdempotencyKey(payload, entry)),
+      );
+    } catch (e) {
+      // ✅ إذا فشل الرفع بسبب حقل idempotencyKey غير موجود، نُعيد المحاولة بدونه
+      if (e.toString().contains('attribute_not_found') ||
+          e.toString().contains('Property not found') ||
+          e.toString().contains('invalid_attribute') ||
+          e.toString().contains('idempotencyKey') ||
+          e.toString().contains('document_invalid_structure')) {
+        _logger.warning(
+          '⚠️ إعادة محاولة رفع المصروف بدون idempotencyKey: $e',
+          tag: 'SYNC',
+        );
+        await appwriteService.upsertExpense(
+          expense.localUuid,
+          _filterPayload('expenses', payload), // بدون idempotencyKey
+        );
+      } else {
+        rethrow;
+      }
+    }
     return true;
   }
 
@@ -2332,10 +2352,30 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _paymentToRemote(payment);
-    await appwriteService.upsertPayment(
-      payment.localUuid,
-      _filterPayload('payments', _addIdempotencyKey(payload, entry)),
-    );
+    try {
+      await appwriteService.upsertPayment(
+        payment.localUuid,
+        _filterPayload('payments', _addIdempotencyKey(payload, entry)),
+      );
+    } catch (e) {
+      // ✅ إذا فشل الرفع بسبب حقل idempotencyKey غير موجود، نُعيد المحاولة بدونه
+      if (e.toString().contains('attribute_not_found') ||
+          e.toString().contains('Property not found') ||
+          e.toString().contains('invalid_attribute') ||
+          e.toString().contains('idempotencyKey') ||
+          e.toString().contains('document_invalid_structure')) {
+        _logger.warning(
+          '⚠️ إعادة محاولة رفع الدفع بدون idempotencyKey: $e',
+          tag: 'SYNC',
+        );
+        await appwriteService.upsertPayment(
+          payment.localUuid,
+          _filterPayload('payments', payload), // بدون idempotencyKey
+        );
+      } else {
+        rethrow;
+      }
+    }
     return true;
   }
 
@@ -2350,10 +2390,30 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _debtToRemote(debt);
-    await appwriteService.upsertDebt(
-      debt.localUuid,
-      _filterPayload('debts', _addIdempotencyKey(payload, entry)),
-    );
+    try {
+      await appwriteService.upsertDebt(
+        debt.localUuid,
+        _filterPayload('debts', _addIdempotencyKey(payload, entry)),
+      );
+    } catch (e) {
+      // ✅ إذا فشل الرفع بسبب حقل idempotencyKey غير موجود، نُعيد المحاولة بدونه
+      if (e.toString().contains('attribute_not_found') ||
+          e.toString().contains('Property not found') ||
+          e.toString().contains('invalid_attribute') ||
+          e.toString().contains('idempotencyKey') ||
+          e.toString().contains('document_invalid_structure')) {
+        _logger.warning(
+          '⚠️ إعادة محاولة رفع الدين بدون idempotencyKey: $e',
+          tag: 'SYNC',
+        );
+        await appwriteService.upsertDebt(
+          debt.localUuid,
+          _filterPayload('debts', payload), // بدون idempotencyKey
+        );
+      } else {
+        rethrow;
+      }
+    }
     return true;
   }
 
@@ -4753,10 +4813,29 @@ class AppwriteSyncManager {
           item,
           src: Source.appwrite,
         );
-        await appwriteService.upsertEmployee(
-          item.localUuid,
-          _filterPayload('employees', _addIdempotencyKey(payload, entry)),
-        );
+        try {
+          await appwriteService.upsertEmployee(
+            item.localUuid,
+            _filterPayload('employees', _addIdempotencyKey(payload, entry)),
+          );
+        } catch (e) {
+          if (e.toString().contains('attribute_not_found') ||
+              e.toString().contains('Property not found') ||
+              e.toString().contains('invalid_attribute') ||
+              e.toString().contains('idempotencyKey') ||
+              e.toString().contains('document_invalid_structure')) {
+            _logger.warning(
+              '⚠️ إعادة محاولة رفع الموظف بدون idempotencyKey: $e',
+              tag: 'SYNC',
+            );
+            await appwriteService.upsertEmployee(
+              item.localUuid,
+              _filterPayload('employees', payload),
+            );
+          } else {
+            rethrow;
+          }
+        }
         return true;
       }
       // الموظف غير موجود محلياً إطلاقاً — حذف فعلي من Appwrite
@@ -4776,10 +4855,29 @@ class AppwriteSyncManager {
       item,
       src: Source.appwrite,
     );
-    await appwriteService.upsertEmployee(
-      item.localUuid,
-      _filterPayload('employees', _addIdempotencyKey(payload, entry)),
-    );
+    try {
+      await appwriteService.upsertEmployee(
+        item.localUuid,
+        _filterPayload('employees', _addIdempotencyKey(payload, entry)),
+      );
+    } catch (e) {
+      if (e.toString().contains('attribute_not_found') ||
+          e.toString().contains('Property not found') ||
+          e.toString().contains('invalid_attribute') ||
+          e.toString().contains('idempotencyKey') ||
+          e.toString().contains('document_invalid_structure')) {
+        _logger.warning(
+          '⚠️ إعادة محاولة رفع الموظف بدون idempotencyKey: $e',
+          tag: 'SYNC',
+        );
+        await appwriteService.upsertEmployee(
+          item.localUuid,
+          _filterPayload('employees', payload),
+        );
+      } else {
+        rethrow;
+      }
+    }
     return true;
   }
 
