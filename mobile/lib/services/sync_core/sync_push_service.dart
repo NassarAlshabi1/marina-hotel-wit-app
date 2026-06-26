@@ -200,6 +200,26 @@ Future<bool> _processOutboxEntry(OutboxData entry) async {
       context: 'push:${entry.entity}:${entry.op}',
       stackTrace: stackTrace,
     );
+    
+    // تسجيل مفصل للخطأ
+    _logger.log(
+      '❌ فشل رفع ${entry.entity}',
+      level: LogLevel.error,
+      tag: 'PUSH_ERROR',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    _logger.log(
+      '   العملية: ${entry.op}',
+      level: LogLevel.error,
+      tag: 'PUSH_ERROR',
+    );
+    _logger.log(
+      '   Local UUID: ${entry.localUuid}',
+      level: LogLevel.error,
+      tag: 'PUSH_ERROR',
+    );
+    
     await outboxDao.setError(entry.id, parsed.message, entry.attempts + 1);
     await outboxDao.markFailed([entry.id]);
     return false;
