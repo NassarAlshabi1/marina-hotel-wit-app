@@ -360,7 +360,10 @@ class AppwriteService {
         } on AppwriteException catch (createErr) {
           // ✅ 409 document_already_exists — المستند ظهر بين update و create
           //    (race condition أو تأخر replication على Appwrite Cloud).
-          //    الحل البسيط: نعيد update بنفس normalizedId.
+          //    نعيد update بنفس normalizedId، مع انتظار قصير لإعطاء فرصة
+          //    للـ replication بإكمال النسخ إلى عقدة القراءة.
+          //    إذا فشل retry update بـ 404 (replication lag شديد)، نعيد
+          //    createDocument مرة أخيرة كحل أخير.
           if (createErr.code == 409 ||
               (createErr.type ?? '').contains('document_already_exists') ||
               (createErr.message ?? '')
@@ -368,19 +371,81 @@ class AppwriteService {
                   .contains('already exists')) {
             _logger.warning(
               'upsert($collectionId/$normalizedId): 409 on create — '
-              'retrying update (race condition resolved)',
+              'retrying update after delay (race condition + replication lag)',
               tag: 'SYNC',
             );
-            // ignore: deprecated_member_use
-            return _networkHelper.withRetryAndTimeout(
-              operation: () => _databases.updateDocument(
-                databaseId: dbId,
-                collectionId: collectionId,
-                documentId: normalizedId,
-                data: normalizedData,
-              ),
-              operationName: 'retryUpdateDocument($collectionId/$normalizedId)',
-            );
+            // ⏳ انتظار 250ms لإعطاء Appwrite Cloud فرصة لإكمال النسخ
+            // من عقدة الكتابة إلى عقد القراءة. هذا يحل السيناريو:
+            //   T=0: update → 404
+            //   T=1: create → 409 (موجود في عقدة الكتابة)
+            //   T=2: retry update → 404 (لم يُنسخ بعد إلى عقدة القراءة) ← الفشل
+            // بالانتظار 250ms، يصبح:
+            //   T=2 + 250ms: retry update → ✅ نجاح
+            await Future<void>.delayed(const Duration(milliseconds: 250));
+
+            try {
+              // ignore: deprecated_member_use
+              return await _networkHelper.withRetryAndTimeout(
+                operation: () => _databases.updateDocument(
+                  databaseId: dbId,
+                  collectionId: collectionId,
+                  documentId: normalizedId,
+                  data: normalizedData,
+                ),
+                operationName: 'retryUpdateDocument($collectionId/$normalizedId)',
+              );
+            } on AppwriteException catch (retryErr) {
+              // 🚨 replication lag شديد: المستند موجود فعلاً (409) لكن
+              //    عقدة القراءة لا تزال تراه 404. نعيد createDocument
+              //    كحل أخير — إذا نجح فالحمد لله، وإذا 409 مرة أخرى
+              //    فالمستند موجود فعلاً وآمن أن نتجاهل الخطأ.
+              if (retryErr.code == 404 ||
+                  (retryErr.type ?? '').contains('document_not_found')) {
+                _logger.warning(
+                  'upsert($collectionId/$normalizedId): retry update got 404 '
+                  '(replication lag) — final attempt: re-create',
+                  tag: 'SYNC',
+                );
+                try {
+                  // ignore: deprecated_member_use
+                  return await _networkHelper.withTimeout(
+                    operation: () => _databases.createDocument(
+                      databaseId: dbId,
+                      collectionId: collectionId,
+                      documentId: normalizedId,
+                      data: normalizedData,
+                    ),
+                    operationName: 'finalCreateDocument($collectionId/$normalizedId)',
+                  );
+                } on AppwriteException catch (finalCreateErr) {
+                  if (finalCreateErr.code == 409 ||
+                      (finalCreateErr.type ?? '')
+                          .contains('document_already_exists') ||
+                      (finalCreateErr.message ?? '')
+                          .toLowerCase()
+                          .contains('already exists')) {
+                    // ✅ المستند موجود فعلاً (تأكد مرتين) — آمن اعتباره
+                    //    upsert ناجح. نقرأه ونرجعه بدلاً من رمي خطأ.
+                    _logger.info(
+                      'upsert($collectionId/$normalizedId): confirmed exists '
+                      'after 2×409 — fetching document as success',
+                      tag: 'SYNC',
+                    );
+                    // ignore: deprecated_member_use
+                    return _networkHelper.withTimeout(
+                      operation: () => _databases.getDocument(
+                        databaseId: dbId,
+                        collectionId: collectionId,
+                        documentId: normalizedId,
+                      ),
+                      operationName: 'getDocument($collectionId/$normalizedId)',
+                    );
+                  }
+                  rethrow;
+                }
+              }
+              rethrow;
+            }
           }
           rethrow;
         }
