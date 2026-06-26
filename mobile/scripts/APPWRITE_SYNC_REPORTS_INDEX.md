@@ -6,25 +6,26 @@
 
 ---
 
-## 📋 قائمة التقارير (11 تقرير)
+## 📋 قائمة التقارير (12 تقرير)
 
 | # | التقرير | الجدول | الحالة |
 |---|---------|--------|--------|
-| 1 | `ROOMS_SYNC_REPORT.md` | 🏠 Rooms | ✅ من Cloud |
-| 2 | `BOOKINGS_SYNC_REPORT.md` | 📅 Bookings | ✅ من Cloud |
-| 3 | `PAYMENTS_SYNC_REPORT.md` | 💰 Payments | ✅ من Cloud |
-| 4 | `EMPLOYEES_SYNC_REPORT.md` | 👥 Employees | ⚠️ من الكود |
-| 5 | `EXPENSES_SYNC_REPORT.md` | 📊 Expenses | ⚠️ من الكود |
-| 6 | `SALARY_WITHDRAWALS_SYNC_REPORT.md` | 💵 Salary Withdrawals | ⚠️ من الكود |
-| 7 | `GUEST_INFOS_SYNC_REPORT.md` | 🧳 Guest Infos | ⚠️ من الكود |
-| 8 | `BLACKLIST_SYNC_REPORT.md` | 🚫 Blacklist | ⚠️ من الكود |
-| 9 | `DEBTS_SYNC_REPORT.md` | 💳 Debts | ⚠️ من الكود |
-| 10 | `REMAINING_TABLES_REPORT.md` | 📋 باقي الجداول (13 جدول) | ⚠️ من الكود |
-| 11 | `APPWRITE_SYNC_REPORTS_INDEX.md` | 📚 هذا الفهرس | - |
+| 1 | `SYNC_SYSTEM_REPORT.md` | 🏗️ **نظام المزامنة الشامل** | ✅ من الكود |
+| 2 | `ROOMS_SYNC_REPORT.md` | 🏠 Rooms | ✅ من Cloud |
+| 3 | `BOOKINGS_SYNC_REPORT.md` | 📅 Bookings | ✅ من Cloud |
+| 4 | `PAYMENTS_SYNC_REPORT.md` | 💰 Payments | ✅ من Cloud |
+| 5 | `EMPLOYEES_SYNC_REPORT.md` | 👥 Employees | ⚠️ من الكود |
+| 6 | `EXPENSES_SYNC_REPORT.md` | 📊 Expenses | ⚠️ من الكود |
+| 7 | `SALARY_WITHDRAWALS_SYNC_REPORT.md` | 💵 Salary Withdrawals | ⚠️ من الكود |
+| 8 | `GUEST_INFOS_SYNC_REPORT.md` | 🧳 Guest Infos | ⚠️ من الكود |
+| 9 | `BLACKLIST_SYNC_REPORT.md` | 🚫 Blacklist | ⚠️ من الكود |
+| 10 | `DEBTS_SYNC_REPORT.md` | 💳 Debts | ⚠️ من الكود |
+| 11 | `REMAINING_TABLES_REPORT.md` | 📋 باقي الجداول (13 جدول) | ⚠️ من الكود |
+| 12 | `APPWRITE_SYNC_REPORTS_INDEX.md` | 📚 هذا الفهرس | - |
 
 ---
 
-## 📊 ملخص شامل لجميع الجداول (22 جدول)
+## 📊 ملخص شامل لجميع الجداول (24 جدول)
 
 | # | الجدول | الحقول | الفهارس | الحالة |
 |---|--------|--------|---------|--------|
