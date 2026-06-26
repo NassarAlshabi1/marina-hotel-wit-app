@@ -441,4 +441,28 @@ class AppwriteSyncUtils {
     // الصيغة المعيارية = بدون شرطة + lowercase
     return id != stripped.toLowerCase();
   }
+
+  /// ✅ يحوّل UUID من الصيغة بدون شرطة (32 hex) إلى الصيغة القياسية مع شرطة.
+  ///
+  /// مثال: `e8537e1eb33b45a38cd9e2ff9f39c103` → `e8537e1e-b33b-45a3-8cd9-e2ff9f39c103`
+  ///
+  /// يُستخدم في `_upsertDocumentInternal` للبحث عن المستندات القديمة في Cloud
+  /// التي قد تكون مخزنة بصيغة UUID القياسية (مع شرطة) قبل اعتماد سياسة التطبيع.
+  /// عند فشل `updateDocument(normalizedId)` بـ 404، نحاول `getDocument(denormalizedId)`
+  /// لإيجاد المستند القديم وترحيله للصيغة الجديدة.
+  static String denormalizeUuid(String id) {
+    if (id.isEmpty) return id;
+    // إزالة الشرطات أولاً للتأكد من أن المدخل 32 حرف hex
+    final stripped = id.replaceAll('-', '');
+    if (stripped.length != 32) return id;
+    final hexRegex = RegExp(r'^[0-9a-fA-F]+$');
+    if (!hexRegex.hasMatch(stripped)) return id;
+    // إعادة التركيب بصيغة UUID v4 القياسية: 8-4-4-4-12
+    final lower = stripped.toLowerCase();
+    return '${lower.substring(0, 8)}-'
+        '${lower.substring(8, 12)}-'
+        '${lower.substring(12, 16)}-'
+        '${lower.substring(16, 20)}-'
+        '${lower.substring(20, 32)}';
+  }
 }

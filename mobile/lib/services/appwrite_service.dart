@@ -287,19 +287,28 @@ class AppwriteService {
     } on AppwriteException catch (e) {
       // 404 Not Found → ننشئ المستند
       if (e.code == 404 || (e.type ?? '').contains('document_not_found')) {
-        // ⚠️ حالة خاصة: إذا لم نجد المستند بالـ normalizedId، قد يكون موجوداً بالـ unnormalizedId.
-        // نحاول البحث عنه بالـ unnormalizedId ونقوم بـ "هجرة" (migration) له.
-        final unnormalizedId = documentId; // documentId الأصلي قبل التطبيع
-        if (unnormalizedId != normalizedId) {
+        // ✅ التحقق الذكي: قد يكون المستند موجوداً في Cloud بصيغة UUID مختلفة.
+        // نحاول البحث بصيغتين بديلتين:
+        //   1. documentId الأصلي (قد يكون مع شرطة إذا أُرسل كذلك)
+        //   2. denormalizeUuid(normalizedId) — إعادة تركيب الصيغة القياسية مع شرطة
+        //      (8-4-4-4-12) من الـ 32 hex المُطبّع. هذا يُغطّي السيناريو الشائع
+        //      حيث المخزن المحلي يحوي UUID بدون شرطة لكن Cloud يخزّنه بالصيغة
+        //      القياسية مع شرطة من إصدارات سابقة للتطبيق.
+        final candidates = <String>[
+          documentId, // الصيغة الأصلية كما وردت من المستدعي
+          AppwriteSyncUtils.denormalizeUuid(normalizedId), // الصيغة القياسية مع شرطة
+        ].where((id) => id != normalizedId && id.isNotEmpty).toSet();
+
+        for (final altId in candidates) {
           try {
             // ignore: deprecated_member_use, unused_local_variable
             final existingDoc = await _databases.getDocument(
               databaseId: dbId,
               collectionId: collectionId,
-              documentId: unnormalizedId,
+              documentId: altId,
             );
             _logger.info(
-              'Found document with unnormalized ID $unnormalizedId. Migrating to $normalizedId.',
+              'Found document with alternative ID $altId. Migrating to $normalizedId.',
               tag: 'SYNC_MIGRATION',
             );
             // إذا وجدناه، نقوم بحذفه ثم إنشاءه بالـ normalizedId
@@ -307,17 +316,19 @@ class AppwriteService {
             await _databases.deleteDocument(
               databaseId: dbId,
               collectionId: collectionId,
-              documentId: unnormalizedId,
+              documentId: altId,
             );
-            // ثم نتابع لإنشاء المستند بالـ normalizedId
+            // تم الترحيل بنجاح — نخرج من الحلقة ونتابع للإنشاء
+            break;
           } on AppwriteException catch (migrationError) {
-            if (migrationError.code != 404 && !(migrationError.type ?? '').contains('document_not_found')) {
+            if (migrationError.code != 404 &&
+                !(migrationError.type ?? '').contains('document_not_found')) {
               _logger.warning(
-                'Error during unnormalized ID check for $unnormalizedId: ${migrationError.message}',
+                'Error during alternative ID check for $altId: ${migrationError.message}',
                 tag: 'SYNC_MIGRATION',
               );
             }
-            // إذا لم نجد المستند بالـ unnormalizedId أو حدث خطأ آخر، نتابع لإنشاء المستند بالـ normalizedId
+            // نجرّب الصيغة التالية
           }
         }
         try {
