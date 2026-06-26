@@ -78,10 +78,10 @@ class AppwriteSyncUtils {
       'voidedAt', 'voidedBy',
     },
     'debts': {
-      // ✅ bookingUuidCache يُرسل ديناميكياً في _processDebtEntry (يُحل من FK)
-      // غير موجود في schema Cloud حالياً، لكن نُضيفه للقائمة المسموحة للتوافق
-      // المستقبلي — سيُحذف تلقائياً إذا لم يكن في Cloud.
-      'bookingUuidCache',
+      // ❌ bookingUuidCache تمت إزالته — غير موجود في schema Appwrite Cloud
+      //    لمجموعة debts، فإرساله يسبب خطأ 400 "Unknown attribute".
+      //    كان يُضاف ديناميكياً في _processDebtEntry لكن filterPayload
+      //    لا يُزيله لأنه كان مُدرجاً هنا. الآن سيُزال تلقائياً.
       'bookingLocalId', 'checkinDate', 'checkoutDate', 'createdAt',
       'createdAtEpoch', 'createdAtIso', 'dateRecorded', 'debtReason',
       'debtUuid', 'deletedAt', 'deletedAtIso', 'deviceId',
