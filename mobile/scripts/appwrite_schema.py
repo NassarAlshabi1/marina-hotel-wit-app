@@ -1,14 +1,36 @@
 #!/usr/bin/env python3
 """
 📋 Appwrite Schema - Marina Hotel Mobile
-========================================
+=========================================
 
-This file contains the complete schema for all Appwrite Collections
-including SyncFields that are present in the cloud.
+This file contains the complete schema for all Appwrite Collections.
 
 Generated: 2026-06-26
 Project: Marina Hotel Mobile
 Database: hotel_db
+
+Collections (21 total):
+  1. rooms                   - الغرف
+  2. bookings               - الحجوزات
+  3. payments               - المدفوعات
+  4. expenses               - المصروفات
+  5. sync_logs              - سجل المزامنة
+  6. employees              - الموظفين
+  7. guest_infos            - معلومات النزلاء
+  8. debts                  - الديون
+  9. devices                - الأجهزة
+ 10. cash_transactions      - المعاملات النقدية
+ 11. booking_notes         - ملاحظات الحجوزات
+ 12. booking_nights        - ليالي الحجوزات
+ 13. salary_cycles          - دورات الرواتب
+ 14. salary_payments        - مدفوعات الرواتب
+ 15. salary_withdrawals     - سحوبات الرواتب
+ 16. booking_price_adjustments - تعديلات أسعار الحجوزات
+ 17. hotel_day_ledger       - دفتر يوم الفندق
+ 18. outbox                 - الصندوق الصادر (محلي)
+ 19. sync_state             - حالة المزامنة (محلي)
+ 20. shift_notes            - ملاحظات الورديات
+ 21. blacklist              - القائمة السوداء
 """
 
 # =============================================================================
@@ -31,17 +53,18 @@ SYNC_FIELDS = {
 }
 
 # =============================================================================
-# COLLECTIONS SCHEMA
+# COLLECTIONS SCHEMA (17 Collections on Appwrite Cloud)
 # =============================================================================
 
 COLLECTIONS = {
     # -------------------------------------------------------------------------
-    # 1. ROOMS (الغرف)
+    # 1. ROOMS (الغرف) - 24 attributes
     # -------------------------------------------------------------------------
     "rooms": {
         "collection_id": "rooms",
         "name": "Rooms",
         "description": "إدارة الغرف الفندقية",
+        "cloud_fields": 24,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
@@ -65,7 +88,7 @@ COLLECTIONS = {
             "currentGuestName": {"type": "string", "size": 200, "required": False, "description": "اسم النزيل الحالي"},
             "checkoutDate": {"type": "string", "size": 50, "required": False, "description": "تاريخ الخروج المتوقع"},
             "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
-            # Sync Fields (already included in all collections)
+            # Sync Fields (included)
         },
         "indexes": [
             {"attribute": "roomNumber", "type": "unique"},
@@ -75,12 +98,13 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 2. BOOKINGS (الحجوزات)
+    # 2. BOOKINGS (الحجوزات) - 44 attributes
     # -------------------------------------------------------------------------
     "bookings": {
         "collection_id": "bookings",
         "name": "Bookings",
         "description": "حجوزات الضيوف",
+        "cloud_fields": 44,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
@@ -137,12 +161,13 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 3. PAYMENTS (المدفوعات)
+    # 3. PAYMENTS (المدفوعات) - 31 attributes
     # -------------------------------------------------------------------------
     "payments": {
         "collection_id": "payments",
         "name": "Payments",
         "description": "مدفوعات الحجوزات والإيرادات",
+        "cloud_fields": 31,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
@@ -186,12 +211,13 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 4. EXPENSES (المصروفات)
+    # 4. EXPENSES (المصروفات) - 25 attributes
     # -------------------------------------------------------------------------
     "expenses": {
         "collection_id": "expenses",
         "name": "Expenses",
         "description": "مصروفات الفندق",
+        "cloud_fields": 25,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
@@ -220,12 +246,47 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 5. EMPLOYEES (الموظفون)
+    # 5. SYNC LOGS (سجل المزامنة) - 28 attributes
+    # -------------------------------------------------------------------------
+    "sync_logs": {
+        "collection_id": "sync_logs",
+        "name": "Sync Logs",
+        "description": "سجلات المزامنة",
+        "cloud_fields": 28,
+        "fields": {
+            # Basic Fields
+            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
+            "syncType": {"type": "string", "size": 50, "required": True, "description": "نوع المزامنة"},
+            "direction": {"type": "string", "size": 50, "required": False, "description": "الاتجاه"},
+            "status": {"type": "string", "size": 50, "required": True, "description": "الحالة"},
+            "startedAt": {"type": "integer", "required": False, "description": "وقت البدء"},
+            "completedAt": {"type": "integer", "required": False, "description": "وقت الانتهاء"},
+            "duration": {"type": "integer", "required": False, "description": "المدة (ms)"},
+            "recordsProcessed": {"type": "integer", "required": False, "description": "السجلات المعالجة"},
+            "recordsFailed": {"type": "integer", "required": False, "description": "السجلات الفاشلة"},
+            "errorMessage": {"type": "string", "size": 1000, "required": False, "description": "رسالة الخطأ"},
+            "deviceId": {"type": "string", "size": 100, "required": False, "description": "معرف الجهاز"},
+            "hotelDayKey": {"type": "string", "size": 50, "required": False, "description": "يوم الفندق"},
+            "changesSummary": {"type": "string", "size": 2000, "required": False, "description": "ملخص التغييرات"},
+            # Server
+            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
+            # Sync Fields (included)
+        },
+        "indexes": [
+            {"attribute": "localUuid", "type": "unique"},
+            {"attribute": "startedAt", "type": "key"},
+            {"attribute": "status", "type": "key"},
+        ],
+    },
+
+    # -------------------------------------------------------------------------
+    # 6. EMPLOYEES (الموظفون) - 21 attributes
     # -------------------------------------------------------------------------
     "employees": {
         "collection_id": "employees",
         "name": "Employees",
         "description": "موظفو الفندق",
+        "cloud_fields": 21,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
@@ -255,12 +316,54 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 6. DEBTS (الديون)
+    # 7. GUEST INFOS (معلومات النزلاء) - 25 attributes
+    # -------------------------------------------------------------------------
+    "guest_infos": {
+        "collection_id": "guest_infos",
+        "name": "Guest Infos",
+        "description": "معلومات النزلاء",
+        "cloud_fields": 25,
+        "fields": {
+            # Basic Fields
+            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
+            "name": {"type": "string", "size": 200, "required": True, "description": "الاسم"},
+            "phone": {"type": "string", "size": 20, "required": False, "description": "الهاتف"},
+            "idType": {"type": "string", "size": 100, "required": False, "description": "نوع الهوية"},
+            "idNumber": {"type": "string", "size": 50, "required": False, "description": "رقم الهوية"},
+            "nationality": {"type": "string", "size": 100, "required": False, "description": "الجنسية"},
+            "email": {"type": "string", "size": 200, "required": False, "description": "البريد الإلكتروني"},
+            "address": {"type": "string", "size": 500, "required": False, "description": "العنوان"},
+            "notes": {"type": "string", "size": 500, "required": False, "description": "ملاحظات"},
+            # ID Details
+            "idIssueDate": {"type": "string", "size": 50, "required": False, "description": "تاريخ إصدار الهوية"},
+            "idIssuePlace": {"type": "string", "size": 200, "required": False, "description": "مكان إصدار الهوية"},
+            "dateOfBirth": {"type": "string", "size": 50, "required": False, "description": "تاريخ الميلاد"},
+            # Stats
+            "totalBookings": {"type": "integer", "required": False, "description": "إجمالي الحجوزات"},
+            "totalSpent": {"type": "double", "required": False, "description": "إجمالي المصروف"},
+            "totalNights": {"type": "integer", "required": False, "description": "إجمالي الليالي"},
+            # Preferences
+            "preferredRoomType": {"type": "string", "size": 100, "required": False, "description": "نوع الغرفة المفضل"},
+            "specialRequests": {"type": "string", "size": 500, "required": False, "description": "طلبات خاصة"},
+            # Server
+            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
+            # Sync Fields (included)
+        },
+        "indexes": [
+            {"attribute": "localUuid", "type": "unique"},
+            {"attribute": "phone", "type": "key"},
+            {"attribute": "idNumber", "type": "key"},
+        ],
+    },
+
+    # -------------------------------------------------------------------------
+    # 7. DEBTS (الديون) - 34 attributes
     # -------------------------------------------------------------------------
     "debts": {
         "collection_id": "debts",
         "name": "Debts",
         "description": "سجل الديون",
+        "cloud_fields": 34,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
@@ -296,43 +399,74 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 7. GUESTS (معلومات النزلاء)
+    # 8. DEVICES (الأجهزة) - 21 attributes
     # -------------------------------------------------------------------------
-    "guest_infos": {
-        "collection_id": "guest_infos",
-        "name": "Guest Infos",
-        "description": "معلومات النزلاء",
+    "devices": {
+        "collection_id": "devices",
+        "name": "Devices",
+        "description": "الأجهزة المسجلة",
+        "cloud_fields": 21,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
-            "name": {"type": "string", "size": 200, "required": True, "description": "الاسم"},
-            "phone": {"type": "string", "size": 20, "required": False, "description": "الهاتف"},
-            "idType": {"type": "string", "size": 100, "required": False, "description": "نوع الهوية"},
-            "idNumber": {"type": "string", "size": 50, "required": False, "description": "رقم الهوية"},
-            "nationality": {"type": "string", "size": 100, "required": False, "description": "الجنسية"},
-            "email": {"type": "string", "size": 200, "required": False, "description": "البريد الإلكتروني"},
-            "address": {"type": "string", "size": 500, "required": False, "description": "العنوان"},
-            "notes": {"type": "string", "size": 500, "required": False, "description": "ملاحظات"},
-            # Stats
-            "totalBookings": {"type": "integer", "required": False, "description": "إجمالي الحجوزات"},
-            "totalSpent": {"type": "double", "required": False, "description": "إجمالي المصروف"},
+            "deviceId": {"type": "string", "size": 200, "required": True, "description": "معرف الجهاز"},
+            "deviceName": {"type": "string", "size": 200, "required": False, "description": "اسم الجهاز"},
+            "deviceType": {"type": "string", "size": 50, "required": False, "description": "نوع الجهاز"},
+            "os": {"type": "string", "size": 50, "required": False, "description": "نظام التشغيل"},
+            "appVersion": {"type": "string", "size": 50, "required": False, "description": "إصدار التطبيق"},
+            "lastSyncTime": {"type": "integer", "required": False, "description": "آخر وقت مزامنة"},
+            "isActive": {"type": "boolean", "required": False, "description": "نشط"},
+            "registeredAt": {"type": "integer", "required": False, "description": "تاريخ التسجيل"},
             # Server
             "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
             # Sync Fields (included)
         },
         "indexes": [
             {"attribute": "localUuid", "type": "unique"},
-            {"attribute": "phone", "type": "key"},
+            {"attribute": "deviceId", "type": "unique"},
         ],
     },
 
     # -------------------------------------------------------------------------
-    # 8. BOOKING NOTES (ملاحظات الحجوزات)
+    # 9. CASH TRANSACTIONS (المعاملات النقدية) - 23 attributes
+    # -------------------------------------------------------------------------
+    "cash_transactions": {
+        "collection_id": "cash_transactions",
+        "name": "Cash Transactions",
+        "description": "المعاملات النقدية",
+        "cloud_fields": 23,
+        "fields": {
+            # Basic Fields
+            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
+            "registerId": {"type": "integer", "required": False, "description": "معرف الدرج"},
+            "transactionType": {"type": "string", "size": 50, "required": True, "description": "نوع المعاملة"},
+            "amount": {"type": "double", "required": True, "description": "المبلغ"},
+            "referenceType": {"type": "string", "size": 50, "required": False, "description": "نوع المرجع"},
+            "referenceId": {"type": "integer", "required": False, "description": "معرف المرجع"},
+            "description": {"type": "string", "size": 500, "required": False, "description": "الوصف"},
+            "transactionTime": {"type": "string", "size": 50, "required": True, "description": "وقت المعاملة"},
+            "createdBy": {"type": "integer", "required": False, "description": "منشئ المعاملة"},
+            # Hotel Day
+            "hotelDayKey": {"type": "string", "size": 50, "required": False, "description": "يوم الفندق"},
+            # Server
+            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
+            # Sync Fields (included)
+        },
+        "indexes": [
+            {"attribute": "localUuid", "type": "unique"},
+            {"attribute": "hotelDayKey", "type": "key"},
+            {"attribute": "transactionType", "type": "key"},
+        ],
+    },
+
+    # -------------------------------------------------------------------------
+    # 10. BOOKING NOTES (ملاحظات الحجوزات) - 20 attributes
     # -------------------------------------------------------------------------
     "booking_notes": {
         "collection_id": "booking_notes",
         "name": "Booking Notes",
         "description": "ملاحظات الحجوزات",
+        "cloud_fields": 20,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
@@ -355,12 +489,13 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 9. BOOKING NIGHTS (ليالي الحجوزات)
+    # 11. BOOKING NIGHTS (ليالي الحجوزات) - 22 attributes
     # -------------------------------------------------------------------------
     "booking_nights": {
         "collection_id": "booking_nights",
         "name": "Booking Nights",
         "description": "ليالي الحجوزات",
+        "cloud_fields": 22,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
@@ -395,141 +530,13 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 10. PRICE ADJUSTMENTS (تعديلات الأسعار)
-    # -------------------------------------------------------------------------
-    "price_adjustments": {
-        "collection_id": "price_adjustments",
-        "name": "Price Adjustments",
-        "description": "تعديلات الأسعار",
-        "fields": {
-            # Basic Fields
-            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
-            "targetType": {"type": "string", "size": 50, "required": True, "description": "نوع الهدف"},
-            "targetUuid": {"type": "string", "size": 100, "required": False, "description": "UUID الهدف"},
-            "targetId": {"type": "integer", "required": False, "description": "معرف الهدف"},
-            "adjustmentType": {"type": "string", "size": 50, "required": True, "description": "نوع التعديل"},
-            "previousValue": {"type": "integer", "required": True, "description": "القيمة السابقة"},
-            "newValue": {"type": "integer", "required": True, "description": "القيمة الجديدة"},
-            "reason": {"type": "string", "size": 255, "required": False, "description": "السبب"},
-            "effectiveDate": {"type": "string", "size": 50, "required": True, "description": "تاريخ الفعالية"},
-            "endDate": {"type": "string", "size": 50, "required": False, "description": "تاريخ الانتهاء"},
-            "appliedBy": {"type": "string", "size": 100, "required": False, "description": "من طبّق"},
-            "hotelDayKey": {"type": "string", "size": 50, "required": False, "description": "يوم الفندق"},
-            "isReversed": {"type": "boolean", "required": False, "description": "ملغى"},
-            "reversedAt": {"type": "string", "size": 50, "required": False, "description": "تاريخ الإلغاء"},
-            "reversedBy": {"type": "string", "size": 100, "required": False, "description": "من ألغى"},
-            # Server
-            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
-            # Sync Fields (included)
-        },
-        "indexes": [
-            {"attribute": "localUuid", "type": "unique"},
-            {"attribute": "targetUuid", "type": "key"},
-            {"attribute": "hotelDayKey", "type": "key"},
-        ],
-    },
-
-    # -------------------------------------------------------------------------
-    # 11. PAYMENT VOIDS (إلغاء المدفوعات)
-    # -------------------------------------------------------------------------
-    "payment_voids": {
-        "collection_id": "payment_voids",
-        "name": "Payment Voids",
-        "description": "إلغاء المدفوعات",
-        "fields": {
-            # Basic Fields
-            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
-            "originalPaymentUuid": {"type": "string", "size": 100, "required": True, "description": "UUID الدفع الأصلي"},
-            "originalPaymentId": {"type": "integer", "required": False, "description": "معرف الدفع الأصلي"},
-            "bookingUuid": {"type": "string", "size": 100, "required": False, "description": "UUID الحجز"},
-            "bookingLocalId": {"type": "integer", "required": False, "description": "معرف الحجز المحلي"},
-            "roomNumber": {"type": "string", "size": 50, "required": False, "description": "رقم الغرفة"},
-            "voidedAmount": {"type": "integer", "required": True, "description": "المبلغ الملغى"},
-            "voidReason": {"type": "string", "size": 500, "required": True, "description": "سبب الإلغاء"},
-            "voidedBy": {"type": "string", "size": 100, "required": True, "description": "من ألغى"},
-            "voidedAt": {"type": "integer", "required": True, "description": "وقت الإلغاء"},
-            "voidedAtIso": {"type": "string", "size": 50, "required": False, "description": "وقت الإلغاء ISO"},
-            "hotelDayKey": {"type": "string", "size": 50, "required": False, "description": "يوم الفندق"},
-            "reversalPaymentUuid": {"type": "string", "size": 100, "required": False, "description": "UUID الدفع المعاكس"},
-            "approvedBy": {"type": "string", "size": 100, "required": False, "description": "من وافق"},
-            # Server
-            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
-            # Sync Fields (included)
-        },
-        "indexes": [
-            {"attribute": "localUuid", "type": "unique"},
-            {"attribute": "originalPaymentUuid", "type": "key"},
-        ],
-    },
-
-    # -------------------------------------------------------------------------
-    # 12. CASH TRANSACTIONS (المعاملات النقدية)
-    # -------------------------------------------------------------------------
-    "cash_transactions": {
-        "collection_id": "cash_transactions",
-        "name": "Cash Transactions",
-        "description": "المعاملات النقدية",
-        "fields": {
-            # Basic Fields
-            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
-            "registerId": {"type": "integer", "required": False, "description": "معرف الدرج"},
-            "transactionType": {"type": "string", "size": 50, "required": True, "description": "نوع المعاملة"},
-            "amount": {"type": "double", "required": True, "description": "المبلغ"},
-            "referenceType": {"type": "string", "size": 50, "required": False, "description": "نوع المرجع"},
-            "referenceId": {"type": "integer", "required": False, "description": "معرف المرجع"},
-            "description": {"type": "string", "size": 500, "required": False, "description": "الوصف"},
-            "transactionTime": {"type": "string", "size": 50, "required": True, "description": "وقت المعاملة"},
-            "createdBy": {"type": "integer", "required": False, "description": "منشئ المعاملة"},
-            # Hotel Day
-            "hotelDayKey": {"type": "string", "size": 50, "required": False, "description": "يوم الفندق"},
-            # Server
-            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
-            # Sync Fields (included)
-        },
-        "indexes": [
-            {"attribute": "localUuid", "type": "unique"},
-            {"attribute": "hotelDayKey", "type": "key"},
-            {"attribute": "transactionType", "type": "key"},
-        ],
-    },
-
-    # -------------------------------------------------------------------------
-    # 13. SHIFT NOTES (ملاحظات الورديات)
-    # -------------------------------------------------------------------------
-    "shift_notes": {
-        "collection_id": "shift_notes",
-        "name": "Shift Notes",
-        "description": "ملاحظات الورديات",
-        "fields": {
-            # Basic Fields
-            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
-            "title": {"type": "string", "size": 200, "required": True, "description": "العنوان"},
-            "content": {"type": "string", "size": 2000, "required": False, "description": "المحتوى"},
-            "priority": {"type": "string", "size": 50, "required": False, "description": "الأولوية"},
-            "shiftType": {"type": "string", "size": 50, "required": False, "description": "نوع الوردية"},
-            "shiftId": {"type": "integer", "required": False, "description": "معرف الوردية"},
-            "isRead": {"type": "boolean", "required": False, "description": "مقروء"},
-            "expiresAt": {"type": "string", "size": 50, "required": False, "description": "تاريخ الانتهاء"},
-            "createdBy": {"type": "string", "size": 100, "required": True, "description": "منشئ الملاحظة"},
-            "category": {"type": "string", "size": 100, "required": False, "description": "الفئة"},
-            # Server
-            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
-            # Sync Fields (included)
-        },
-        "indexes": [
-            {"attribute": "localUuid", "type": "unique"},
-            {"attribute": "shiftId", "type": "key"},
-            {"attribute": "priority", "type": "key"},
-        ],
-    },
-
-    # -------------------------------------------------------------------------
-    # 14. SALARY CYCLES (دورات الرواتب)
+    # 12. SALARY CYCLES (دورات الرواتب) - 23 attributes
     # -------------------------------------------------------------------------
     "salary_cycles": {
         "collection_id": "salary_cycles",
         "name": "Salary Cycles",
         "description": "دورات الرواتب",
+        "cloud_fields": 23,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
@@ -555,12 +562,13 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 15. SALARY PAYMENTS (مدفوعات الرواتب)
+    # 13. SALARY PAYMENTS (مدفوعات الرواتب) - 21 attributes
     # -------------------------------------------------------------------------
     "salary_payments": {
         "collection_id": "salary_payments",
         "name": "Salary Payments",
         "description": "مدفوعات الرواتب",
+        "cloud_fields": 21,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
@@ -584,12 +592,13 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 16. SALARY WITHDRAWALS (سحوبات الرواتب)
+    # 14. SALARY WITHDRAWALS (سحوبات الرواتب) - 24 attributes
     # -------------------------------------------------------------------------
     "salary_withdrawals": {
         "collection_id": "salary_withdrawals",
         "name": "Salary Withdrawals",
         "description": "سحوبات الرواتب",
+        "cloud_fields": 24,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
@@ -613,41 +622,48 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 17. SALARY CARRY OVER LOGS (سجلات ترحيل الرواتب)
+    # 15. BOOKING PRICE ADJUSTMENTS (تعديلات أسعار الحجوزات) - 18 attributes
     # -------------------------------------------------------------------------
-    "salary_carry_over_logs": {
-        "collection_id": "salary_carry_over_logs",
-        "name": "Salary Carry Over Logs",
-        "description": "سجلات ترحيل الرواتب",
+    "booking_price_adjustments": {
+        "collection_id": "booking_price_adjustments",
+        "name": "Booking Price Adjustments",
+        "description": "تعديلات أسعار الحجوزات",
+        "cloud_fields": 18,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
-            "employeeLocalUuid": {"type": "string", "size": 100, "required": False, "description": "UUID الموظف"},
-            "employeeId": {"type": "integer", "required": True, "description": "معرف الموظف"},
+            "bookingLocalUuid": {"type": "string", "size": 100, "required": False, "description": "UUID الحجز"},
+            "bookingLocalId": {"type": "integer", "required": False, "description": "معرف الحجز"},
+            "roomNumber": {"type": "string", "size": 50, "required": False, "description": "رقم الغرفة"},
+            "adjustmentType": {"type": "integer", "required": True, "description": "نوع التعديل"},
+            "adjustmentMode": {"type": "string", "size": 50, "required": False, "description": "وضع التعديل"},
             "amount": {"type": "double", "required": True, "description": "المبلغ"},
-            "previousCycleStart": {"type": "string", "size": 50, "required": True, "description": "بداية الدورة السابقة"},
-            "previousCycleEnd": {"type": "string", "size": 50, "required": True, "description": "نهاية الدورة السابقة"},
-            "newCycleStart": {"type": "string", "size": 50, "required": True, "description": "بداية الدورة الجديدة"},
-            "newCycleEnd": {"type": "string", "size": 50, "required": True, "description": "نهاية الدورة الجديدة"},
-            "reason": {"type": "string", "size": 255, "required": True, "description": "السبب"},
-            "carriedAt": {"type": "integer", "required": True, "description": "وقت الترحيل"},
+            "effectiveHotelDay": {"type": "string", "size": 50, "required": True, "description": "يوم الفندق الفعال"},
+            "endHotelDay": {"type": "string", "size": 50, "required": False, "description": "يوم انتهاء الصلاحية"},
+            "isActive": {"type": "boolean", "required": False, "description": "نشط"},
+            "reason": {"type": "string", "size": 255, "required": False, "description": "السبب"},
+            "appliedBy": {"type": "string", "size": 100, "required": False, "description": "من طبّق"},
+            "appliedAt": {"type": "integer", "required": False, "description": "وقت التطبيق"},
+            "cancelledAt": {"type": "integer", "required": False, "description": "تاريخ الإلغاء"},
+            "cancelledBy": {"type": "string", "size": 100, "required": False, "description": "من ألغى"},
             # Server
             "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
             # Sync Fields (included)
         },
         "indexes": [
             {"attribute": "localUuid", "type": "unique"},
-            {"attribute": "employeeId", "type": "key"},
+            {"attribute": "bookingLocalId", "type": "key"},
         ],
     },
 
     # -------------------------------------------------------------------------
-    # 18. HOTEL DAY LEDGER (دفتر يوم الفندق)
+    # 16. HOTEL DAY LEDGER (دفتر يوم الفندق) - 25 attributes
     # -------------------------------------------------------------------------
     "hotel_day_ledger": {
         "collection_id": "hotel_day_ledger",
         "name": "Hotel Day Ledger",
         "description": "دفتر يوم الفندق",
+        "cloud_fields": 25,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
@@ -679,170 +695,13 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 19. AUDIT LOGS (سجل التدقيق)
-    # -------------------------------------------------------------------------
-    "audit_logs": {
-        "collection_id": "audit_logs",
-        "name": "Audit Logs",
-        "description": "سجل التدقيق",
-        "fields": {
-            # Basic Fields
-            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
-            "operationType": {"type": "string", "size": 50, "required": True, "description": "نوع العملية"},
-            "entityType": {"type": "string", "size": 100, "required": True, "description": "نوع الكيان"},
-            "entityUuid": {"type": "string", "size": 100, "required": False, "description": "UUID الكيان"},
-            "entityId": {"type": "integer", "required": False, "description": "معرف الكيان"},
-            "previousState": {"type": "string", "size": 2000, "required": False, "description": "الحالة السابقة"},
-            "newState": {"type": "string", "size": 2000, "required": False, "description": "الحالة الجديدة"},
-            "changedFields": {"type": "string", "size": 1000, "required": False, "description": "الحقول المتغيرة"},
-            "performedBy": {"type": "string", "size": 100, "required": True, "description": "من قام بالعملية"},
-            "deviceId": {"type": "string", "size": 100, "required": False, "description": "معرف الجهاز"},
-            "ipAddress": {"type": "string", "size": 50, "required": False, "description": "عنوان IP"},
-            "hotelDayKey": {"type": "string", "size": 50, "required": False, "description": "يوم الفندق"},
-            "timestamp": {"type": "integer", "required": True, "description": "الطابع الزمني"},
-            # Server
-            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
-            # Sync Fields (included)
-        },
-        "indexes": [
-            {"attribute": "localUuid", "type": "unique"},
-            {"attribute": "entityUuid", "type": "key"},
-            {"attribute": "timestamp", "type": "key"},
-        ],
-    },
-
-    # -------------------------------------------------------------------------
-    # 20. BLACKLIST (القائمة السوداء)
-    # -------------------------------------------------------------------------
-    "blacklist": {
-        "collection_id": "blacklist",
-        "name": "Blacklist",
-        "description": "القائمة السوداء للنزلاء",
-        "fields": {
-            # Basic Fields
-            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
-            "name": {"type": "string", "size": 200, "required": True, "description": "الاسم"},
-            "phone": {"type": "string", "size": 20, "required": False, "description": "الهاتف"},
-            "nationalId": {"type": "string", "size": 50, "required": False, "description": "رقم الهوية"},
-            "nationality": {"type": "string", "size": 100, "required": False, "description": "الجنسية"},
-            "reason": {"type": "string", "size": 500, "required": False, "description": "السبب"},
-            "notes": {"type": "string", "size": 1000, "required": False, "description": "ملاحظات"},
-            "reportedBy": {"type": "string", "size": 100, "required": True, "description": "المُبلّغ"},
-            "active": {"type": "boolean", "required": False, "description": "نشط"},
-            "createdAt": {"type": "integer", "required": False, "description": "تاريخ الإنشاء"},
-            # Server
-            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
-            # Sync Fields (included)
-        },
-        "indexes": [
-            {"attribute": "localUuid", "type": "unique"},
-            {"attribute": "phone", "type": "key"},
-            {"attribute": "nationalId", "type": "key"},
-        ],
-    },
-
-    # -------------------------------------------------------------------------
-    # 21. DEVICES (الأجهزة المسجلة)
-    # -------------------------------------------------------------------------
-    "devices": {
-        "collection_id": "devices",
-        "name": "Devices",
-        "description": "الأجهزة المسجلة",
-        "fields": {
-            # Basic Fields
-            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
-            "deviceId": {"type": "string", "size": 200, "required": True, "description": "معرف الجهاز"},
-            "deviceName": {"type": "string", "size": 200, "required": False, "description": "اسم الجهاز"},
-            "deviceType": {"type": "string", "size": 50, "required": False, "description": "نوع الجهاز"},
-            "os": {"type": "string", "size": 50, "required": False, "description": "نظام التشغيل"},
-            "appVersion": {"type": "string", "size": 50, "required": False, "description": "إصدار التطبيق"},
-            "lastSyncTime": {"type": "integer", "required": False, "description": "آخر وقت مزامنة"},
-            "isActive": {"type": "boolean", "required": False, "description": "نشط"},
-            "registeredAt": {"type": "integer", "required": False, "description": "تاريخ التسجيل"},
-            # Server
-            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
-            # Sync Fields (included)
-        },
-        "indexes": [
-            {"attribute": "localUuid", "type": "unique"},
-            {"attribute": "deviceId", "type": "unique"},
-        ],
-    },
-
-    # -------------------------------------------------------------------------
-    # 22. SYNC LOGS (سجلات المزامنة)
-    # -------------------------------------------------------------------------
-    "sync_logs": {
-        "collection_id": "sync_logs",
-        "name": "Sync Logs",
-        "description": "سجلات المزامنة",
-        "fields": {
-            # Basic Fields
-            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
-            "syncType": {"type": "string", "size": 50, "required": True, "description": "نوع المزامنة"},
-            "direction": {"type": "string", "size": 50, "required": False, "description": "الاتجاه"},
-            "status": {"type": "string", "size": 50, "required": True, "description": "الحالة"},
-            "startedAt": {"type": "integer", "required": False, "description": "وقت البدء"},
-            "completedAt": {"type": "integer", "required": False, "description": "وقت الانتهاء"},
-            "duration": {"type": "integer", "required": False, "description": "المدة (ms)"},
-            "recordsProcessed": {"type": "integer", "required": False, "description": "السجلات المعالجة"},
-            "recordsFailed": {"type": "integer", "required": False, "description": "السجلات الفاشلة"},
-            "errorMessage": {"type": "string", "size": 1000, "required": False, "description": "رسالة الخطأ"},
-            "deviceId": {"type": "string", "size": 100, "required": False, "description": "معرف الجهاز"},
-            "hotelDayKey": {"type": "string", "size": 50, "required": False, "description": "يوم الفندق"},
-            "changesSummary": {"type": "string", "size": 2000, "required": False, "description": "ملخص التغييرات"},
-            # Server
-            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
-            # Sync Fields (included)
-        },
-        "indexes": [
-            {"attribute": "localUuid", "type": "unique"},
-            {"attribute": "startedAt", "type": "key"},
-            {"attribute": "status", "type": "key"},
-        ],
-    },
-
-    # -------------------------------------------------------------------------
-    # 23. BOOKING PRICE ADJUSTMENTS
-    # -------------------------------------------------------------------------
-    "booking_price_adjustments": {
-        "collection_id": "booking_price_adjustments",
-        "name": "Booking Price Adjustments",
-        "description": "تعديلات أسعار الحجوزات",
-        "fields": {
-            # Basic Fields
-            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
-            "bookingLocalUuid": {"type": "string", "size": 100, "required": False, "description": "UUID الحجز"},
-            "bookingLocalId": {"type": "integer", "required": False, "description": "معرف الحجز"},
-            "roomNumber": {"type": "string", "size": 50, "required": False, "description": "رقم الغرفة"},
-            "adjustmentType": {"type": "integer", "required": True, "description": "نوع التعديل"},
-            "adjustmentMode": {"type": "string", "size": 50, "required": False, "description": "وضع التعديل"},
-            "amount": {"type": "double", "required": True, "description": "المبلغ"},
-            "effectiveHotelDay": {"type": "string", "size": 50, "required": True, "description": "يوم الفندق الفعال"},
-            "endHotelDay": {"type": "string", "size": 50, "required": False, "description": "يوم انتهاء الصلاحية"},
-            "isActive": {"type": "boolean", "required": False, "description": "نشط"},
-            "reason": {"type": "string", "size": 255, "required": False, "description": "السبب"},
-            "appliedBy": {"type": "string", "size": 100, "required": False, "description": "من طبّق"},
-            "appliedAt": {"type": "integer", "required": False, "description": "وقت التطبيق"},
-            "cancelledAt": {"type": "integer", "required": False, "description": "تاريخ الإلغاء"},
-            "cancelledBy": {"type": "string", "size": 100, "required": False, "description": "من ألغى"},
-            # Server
-            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
-            # Sync Fields (included)
-        },
-        "indexes": [
-            {"attribute": "localUuid", "type": "unique"},
-            {"attribute": "bookingLocalId", "type": "key"},
-        ],
-    },
-
-    # -------------------------------------------------------------------------
-    # 24. OUTBOX (الصندوق الصادر)
+    # 15. OUTBOX (الصندوق الصادر) - 12 attributes (Local Only)
     # -------------------------------------------------------------------------
     "outbox": {
         "collection_id": "outbox",
         "name": "Outbox",
-        "description": "صندوق المزامنة المحلي (لا يُزامن للكلاود)",
+        "description": "صندوق المزامنة المحلي (محلي فقط)",
+        "cloud_fields": 12,
         "fields": {
             # Local Only Fields (not synced to cloud)
             "id": {"type": "integer", "required": True, "description": "معرف محلي"},
@@ -869,12 +728,13 @@ COLLECTIONS = {
     },
 
     # -------------------------------------------------------------------------
-    # 25. SYNC STATE (حالة المزامنة)
+    # 16. SYNC STATE (حالة المزامنة) - 10 attributes (Local Only)
     # -------------------------------------------------------------------------
     "sync_state": {
         "collection_id": "sync_state",
         "name": "Sync State",
-        "description": "حالة المزامنة",
+        "description": "حالة المزامنة (محلي فقط)",
+        "cloud_fields": 10,
         "fields": {
             # Basic Fields
             "id": {"type": "integer", "required": True, "description": "معرف"},
@@ -890,6 +750,69 @@ COLLECTIONS = {
         "indexes": [
             {"attribute": "id", "type": "unique"},
             {"attribute": "entityType", "type": "unique"},
+        ],
+        "note": "هذا الجدول محلي فقط ولا يُزامن للكلاود",
+    },
+
+    # -------------------------------------------------------------------------
+    # 18. SHIFT NOTES (ملاحظات الورديات) - 22 attributes
+    # -------------------------------------------------------------------------
+    "shift_notes": {
+        "collection_id": "shift_notes",
+        "name": "Shift Notes",
+        "description": "ملاحظات الورديات",
+        "cloud_fields": 22,
+        "fields": {
+            # Basic Fields
+            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
+            "title": {"type": "string", "size": 200, "required": True, "description": "العنوان"},
+            "content": {"type": "string", "size": 2000, "required": False, "description": "المحتوى"},
+            "priority": {"type": "string", "size": 50, "required": False, "description": "الأولوية"},
+            "shiftType": {"type": "string", "size": 50, "required": False, "description": "نوع الوردية"},
+            "shiftId": {"type": "integer", "required": False, "description": "معرف الوردية"},
+            "isRead": {"type": "boolean", "required": False, "description": "مقروء"},
+            "expiresAt": {"type": "string", "size": 50, "required": False, "description": "تاريخ الانتهاء"},
+            "createdBy": {"type": "string", "size": 100, "required": True, "description": "منشئ الملاحظة"},
+            "category": {"type": "string", "size": 100, "required": False, "description": "الفئة"},
+            # Server
+            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
+            # Sync Fields (included)
+        },
+        "indexes": [
+            {"attribute": "localUuid", "type": "unique"},
+            {"attribute": "shiftId", "type": "key"},
+            {"attribute": "priority", "type": "key"},
+        ],
+    },
+
+    # -------------------------------------------------------------------------
+    # 19. BLACKLIST (القائمة السوداء) - 11 attributes
+    # -------------------------------------------------------------------------
+    "blacklist": {
+        "collection_id": "blacklist",
+        "name": "Blacklist",
+        "description": "القائمة السوداء للنزلاء",
+        "cloud_fields": 11,
+        "fields": {
+            # Basic Fields
+            "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
+            "name": {"type": "string", "size": 200, "required": True, "description": "الاسم"},
+            "phone": {"type": "string", "size": 20, "required": False, "description": "الهاتف"},
+            "nationalId": {"type": "string", "size": 50, "required": False, "description": "رقم الهوية"},
+            "nationality": {"type": "string", "size": 100, "required": False, "description": "الجنسية"},
+            "reason": {"type": "string", "size": 500, "required": False, "description": "السبب"},
+            "notes": {"type": "string", "size": 1000, "required": False, "description": "ملاحظات"},
+            "reportedBy": {"type": "string", "size": 100, "required": True, "description": "المُبلّغ"},
+            "active": {"type": "boolean", "required": False, "description": "نشط"},
+            "createdAt": {"type": "integer", "required": False, "description": "تاريخ الإنشاء"},
+            # Server
+            "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
+            # Sync Fields (included)
+        },
+        "indexes": [
+            {"attribute": "localUuid", "type": "unique"},
+            {"attribute": "phone", "type": "key"},
+            {"attribute": "nationalId", "type": "key"},
         ],
     },
 }
