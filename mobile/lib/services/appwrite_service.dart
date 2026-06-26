@@ -424,22 +424,59 @@ class AppwriteService {
                       (finalCreateErr.message ?? '')
                           .toLowerCase()
                           .contains('already exists')) {
-                    // ✅ المستند موجود فعلاً (تأكد مرتين) — آمن اعتباره
-                    //    upsert ناجح. نقرأه ونرجعه بدلاً من رمي خطأ.
+                    // ✅ المستند موجود فعلاً (تأكد مرتين عبر 2×409).
+                    //    نحاول قراءته لإرجاع أحدث نسخة، لكن إذا فشلت القراءة
+                    //    بـ 404 (تناقض داخلي في Appwrite Cloud: الفهرس يقول
+                    //    "موجود" ومسار القراءة يقول "غير موجود")، نعتبر العملية
+                    //    نجاحاً ونُرجع مستنداً اصطناعياً يحمّل بياناتنا المحلية.
                     _logger.info(
                       'upsert($collectionId/$normalizedId): confirmed exists '
                       'after 2×409 — fetching document as success',
                       tag: 'SYNC',
                     );
-                    // ignore: deprecated_member_use
-                    return _networkHelper.withTimeout(
-                      operation: () => _databases.getDocument(
-                        databaseId: dbId,
-                        collectionId: collectionId,
-                        documentId: normalizedId,
-                      ),
-                      operationName: 'getDocument($collectionId/$normalizedId)',
-                    );
+                    try {
+                      // ignore: deprecated_member_use
+                      return await _networkHelper.withTimeout(
+                        operation: () => _databases.getDocument(
+                          databaseId: dbId,
+                          collectionId: collectionId,
+                          documentId: normalizedId,
+                        ),
+                        operationName: 'getDocument($collectionId/$normalizedId)',
+                      );
+                    } on AppwriteException catch (getErr) {
+                      // 🛡️ الطبقة 6: Cloud inconsistency — 2×409 أكّدا الوجود
+                      //    لكن getDocument يُرجع 404. هذا تناقض Appwrite Cloud
+                      //    الداخلي (replication lag بين فهرس التفرد ومسار القراءة،
+                      //    أو ghost document). لا يمكننا إصلاحه من العميل، لكن
+                      //    يمكننا قبول النجاح لأن المستند موجود فعلاً (مشهور
+                      //    في الفهرس) وسيُسحب في الدورة القادمة.
+                      if (getErr.code == 404 ||
+                          (getErr.type ?? '')
+                              .contains('document_not_found')) {
+                        _logger.warning(
+                          'upsert($collectionId/$normalizedId): Cloud inconsistency '
+                          'detected — 2×409 confirmed existence but getDocument '
+                          'returned 404. Accepting as soft success (document exists '
+                          'per uniqueness index, will be reconciled in next pull).',
+                          tag: 'SYNC',
+                        );
+                        // ✅ نُرجع مستنداً اصطناعياً يحمّل البيانات المحلية.
+                        //    الحقول الوصفية تُملأ بقيم افتراضية — المستدعون
+                        //    (upsertXxx) لا يقرؤونها عادةً بعد العملية.
+                        return models.Document(
+                          $id: normalizedId,
+                          $sequence: -1,
+                          $collectionId: collectionId,
+                          $databaseId: dbId,
+                          $createdAt: DateTime.now().toUtc().toIso8601String(),
+                          $updatedAt: DateTime.now().toUtc().toIso8601String(),
+                          $permissions: const [],
+                          data: normalizedData,
+                        );
+                      }
+                      rethrow;
+                    }
                   }
                   rethrow;
                 }
