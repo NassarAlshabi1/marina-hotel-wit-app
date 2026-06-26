@@ -154,13 +154,21 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
         return;
       }
 
+      // ✅ الكشف عن نوع السحب: كامل (أول مرة) أم تفاضلي.
+      // - السحب الكامل: يبقى السناك بار طوال العملية (قد يستغرق دقائق).
+      // - السحب التفاضلي: السناك بار يختفي بعد 3 ثوانٍ (العملية سريعة عادةً).
+      final deltaSync = AppwriteDeltaSync.instance;
+      final bool isFullPull = deltaSync.isInitialized
+          ? await deltaSync.isFullPullNeeded
+          : true; // افتراضي: سحب كامل (آمن)
+
       if (mounted) {
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
@@ -168,20 +176,30 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text('⬇️ جاري سحب التغييرات من السيرفر...'),
+                  child: Text(
+                    isFullPull
+                        ? '⬇️ جاري السحب الكامل من السيرفر... (قد يستغرق دقائق)'
+                        : '⬇️ جاري سحب التغييرات من السيرفر...',
+                  ),
                 ),
               ],
             ),
             backgroundColor: Colors.blue,
-            duration: Duration(seconds: 3),
+            // ✅ السحب الكامل: السناك بار يبقى طوال العملية (Duration(days: 1)
+            //    + dismissDirection.none لمنع الإغلاق بالسحب).
+            // ✅ السحب التفاضلي: يختفي تلقائياً بعد 3 ثوانٍ (العملية سريعة).
+            duration: isFullPull
+                ? const Duration(days: 1)
+                : const Duration(seconds: 3),
+            dismissDirection:
+                isFullPull ? DismissDirection.none : DismissDirection.down,
           ),
         );
       }
 
       int pulledCount = 0;
-      final deltaSync = AppwriteDeltaSync.instance;
       if (deltaSync.isInitialized) {
         // 1️⃣ سحب عبر DeltaSync
         final pullResult = await deltaSync.pullDeltaChanges();
@@ -227,6 +245,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
         setState(() {
           _lastSyncTime = DateTime.now();
         });
+        // ✅ إخفاء سناك بار "جاري السحب" قبل عرض سناك بار النجاح.
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -252,7 +273,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
               ],
             ),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
+            // ✅ 10 ثوانٍ لتسمح للمستخدم بقراءة النتيجة قبل الاختفاء التلقائي.
+            duration: const Duration(seconds: 10),
           ),
         );
       }
@@ -272,6 +294,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
       );
 
       if (mounted) {
+        // ✅ إخفاء سناك بار "جاري السحب" قبل عرض سناك بار الفشل.
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -285,11 +310,23 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
               ],
             ),
             backgroundColor: Colors.red,
+            // ✅ 10 ثوانٍ للسماح بقراءة الخطأ قبل الاختفاء التلقائي.
+            duration: const Duration(seconds: 10),
+            action: SnackBarAction(
+              label: 'إعادة',
+              textColor: Colors.white,
+              onPressed: () => _pullChanges(context),
+            ),
           ),
         );
       }
     } finally {
       if (mounted) {
+        // ⚠️ ملاحظة: لا نُخفي السناك بار هنا لأنه قد يكون سناك بار
+        // النجاح/الفشل الذي عُرض في كتلة try/catch. إخفاؤه هنا سيُلغي
+        // رسالة النتيجة قبل أن يراها المستخدم.
+        // سناك بار "جاري السحب" تم إخفاؤه بالفعل عبر hideCurrentSnackBar
+        // قبل عرض سناك بار النجاح/الفشل.
         setState(() => _isPulling = false);
       }
     }

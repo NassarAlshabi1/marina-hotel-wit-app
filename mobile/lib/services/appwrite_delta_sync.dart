@@ -1778,6 +1778,23 @@ class AppwriteDeltaSync {
         prefs.getInt(_prefsLastDeltaSyncKey) ?? 0;
   }
 
+  /// ✅ يكشف ما إذا كان السحب القادم سيكون "سحباً كاملاً" (first pull).
+  ///
+  /// السحب الكامل = أول سحب بعد تثبيت التطبيق (أو بعد مسح البيانات)، حيث
+  /// يكون lastPullTs == 0. في هذه الحالة، pullDeltaChanges() سيجلب كل
+  /// المستندات من Cloud (قد تكون آلاف السجلات وتستغرق دقائق).
+  ///
+  /// السحب التفاضلي (delta sync) = السحب اللاحق، حيث lastPullTs > 0،
+  /// ويجلب فقط التغييرات منذ آخر سحب (عادةً سجلات قليلة وسريع).
+  ///
+  /// يُستخدم هذا الـ getter في dashboard_sync_button.dart لتحديد سلوك
+  /// سناك بار "جاري المزامنة":
+  /// - سحب كامل: السناك بار يبقى طوال العملية (Duration(days: 1) +
+  ///   hideCurrentSnackBar عند الانتهاء).
+  /// - سحب تفاضلي: السناك بار يختفي بعد فترة قصيرة (Duration(seconds: 3))
+  ///   لأن العملية سريعة عادةً.
+  Future<bool> get isFullPullNeeded async => (await _getLastPullSyncTimestamp()) == 0;
+
   Future<void> _updateLastPullSyncTimestamp() async {
     final prefs = getSharedPrefs();
     await prefs.setInt(_prefsLastPullSyncKey, Time.nowEpoch());
