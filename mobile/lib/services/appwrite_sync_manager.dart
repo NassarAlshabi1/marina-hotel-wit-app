@@ -2151,10 +2151,22 @@ class AppwriteSyncManager {
           return false;
       }
     } catch (error, stackTrace) {
+      final context = 'push:${entry.entity}:${entry.op}';
       final parsed = _errorHandler.handleError(
         error,
-        context: 'push:${entry.entity}:${entry.op}',
+        context: context,
         stackTrace: stackTrace,
+      );
+      // ✅ تسجيل إضافي بـ tag محدد للجدول، لتظهر الأخطاء في فلتر "أخطاء المزامنة"
+      // لكل جدول على حدة في شاشة AppwriteLogsScreen (rooms/bookings/payments/...).
+      // نُسجّل مرتين: مرة بـ tag عام SYNC_PUSH للفلترة الشاملة، ومرة يُسجّلها
+      // _errorHandler بـ tag ERROR_HANDLER تلقائياً.
+      _logger.error(
+        '❌ فشل دفع ${entry.entity}/${entry.localUuid.substring(0, 8)}... '
+        '(${entry.op}): ${parsed.message} [context: $context]',
+        error: error,
+        stackTrace: stackTrace,
+        tag: 'SYNC_PUSH:${entry.entity}',
       );
       await outboxDao.setError(entry.id, parsed.message, entry.attempts + 1);
       await outboxDao.markFailed([entry.id]);

@@ -21,6 +21,61 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   String _searchQuery = '';
   Timer? _debounceTimer;
 
+  // ✅ فلترة أخطاء المزامنة لكل جدول (null = عرض الكل).
+  // القيم المحتملة: null (الكل)، 'SYNC_ERRORS_ALL' (كل أخطاء المزامنة)،
+  // أو اسم جدول محدد: 'rooms'، 'bookings'، 'payments'، 'debts'،
+  // 'employees'، 'expenses'، 'guest_infos'، 'salary_withdrawals'،
+  // 'salary_payments'، 'salary_cycles'، 'cash_transactions'، 'shift_notes'،
+  // 'booking_notes'، 'booking_nights'، 'booking_price_adjustments'،
+  // 'price_adjustments'، 'audit_logs'، 'payment_voids'، 'blacklist'.
+  String? _filterEntity;
+
+  /// قائمة الجداول المتاحة للفلترة (مرتبة حسب الأولوية).
+  static const List<String> _syncEntities = [
+    'rooms',
+    'bookings',
+    'payments',
+    'debts',
+    'employees',
+    'expenses',
+    'guest_infos',
+    'cash_transactions',
+    'booking_notes',
+    'booking_nights',
+    'booking_price_adjustments',
+    'price_adjustments',
+    'salary_cycles',
+    'salary_payments',
+    'salary_withdrawals',
+    'shift_notes',
+    'audit_logs',
+    'payment_voids',
+    'blacklist',
+  ];
+
+  /// أسماء عربية للجداول لعرضها في الـ chips.
+  static const Map<String, String> _entityArabicNames = {
+    'rooms': 'الغرف',
+    'bookings': 'الحجوزات',
+    'payments': 'المدفوعات',
+    'debts': 'الديون',
+    'employees': 'الموظفون',
+    'expenses': 'المصروفات',
+    'guest_infos': 'بيانات الضيوف',
+    'cash_transactions': 'المعاملات النقدية',
+    'booking_notes': 'ملاحظات الحجز',
+    'booking_nights': 'ليالي الحجز',
+    'booking_price_adjustments': 'تعديلات أسعار الحجز',
+    'price_adjustments': 'تعديلات الأسعار',
+    'salary_cycles': 'دورات الرواتب',
+    'salary_payments': 'مدفوعات الرواتب',
+    'salary_withdrawals': 'سحوبات الرواتب',
+    'shift_notes': 'ملاحظات الوردية',
+    'audit_logs': 'سجلات التدقيق',
+    'payment_voids': 'إلغاء المدفوعات',
+    'blacklist': 'القائمة السوداء',
+  };
+
   @override
   void dispose() {
     _debounceTimer?.cancel();
@@ -43,6 +98,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                 unawaited(_exportLogs());
               case 'share':
                 unawaited(_shareLogs(filteredLogs));
+              case 'copy_errors':
+                unawaited(_copyErrorsToClipboard(filteredLogs));
+              case 'copy_errors_only':
+                unawaited(_copyErrorsOnlyToClipboard(filteredLogs));
               case 'clear':
                 unawaited(_clearLogs());
             }
@@ -68,6 +127,28 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                 ],
               ),
             ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(
+              value: 'copy_errors',
+              child: Row(
+                children: [
+                  Icon(Icons.copy, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text('نسخ السجلات المعروضة'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'copy_errors_only',
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('نسخ الأخطاء فقط (Error/Critical)'),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
             const PopupMenuItem(
               value: 'clear',
               child: Row(
@@ -152,6 +233,32 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 8),
+
+                // ✅ فلترة حسب الجدول (entity) لأخطاء المزامنة
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildEntityChip('كل السجلات', null, logs.length),
+                      const SizedBox(width: 8),
+                      _buildEntityChip(
+                        '⚠️ أخطاء المزامنة',
+                        'SYNC_ERRORS_ALL',
+                        _countSyncErrors(logs),
+                      ),
+                      const SizedBox(width: 8),
+                      ..._syncEntities.map((entity) => Padding(
+                            padding: const EdgeInsetsDirectional.only(end: 8),
+                            child: _buildEntityChip(
+                              _entityArabicNames[entity] ?? entity,
+                              entity,
+                              _countEntityErrors(logs, entity),
+                            ),
+                          )),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -213,6 +320,68 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
     );
+  }
+
+  /// ✅ chip لفلترة حسب الجدول (entity). null = عرض الكل.
+  Widget _buildEntityChip(String label, String? entity, int count) {
+    final isSelected = _filterEntity == entity;
+    final color = entity == null
+        ? Colors.blueGrey
+        : (entity == 'SYNC_ERRORS_ALL' ? Colors.orange : Colors.indigo);
+
+    return FilterChip(
+      label: Text('$label ($count)'),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() {
+          // النقر على chip نشط = إلغاء الفلتر (رجوع للكل).
+          // النقر على chip آخر = تفعيل فلتره.
+          _filterEntity = selected ? entity : null;
+        });
+      },
+      backgroundColor: Colors.white,
+      selectedColor: color.withValues(alpha: 0.2),
+      checkmarkColor: color,
+      labelStyle: TextStyle(
+        color: isSelected ? color : Colors.black87,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        fontSize: 12,
+      ),
+    );
+  }
+
+  /// عدّ أخطاء المزامنة الإجمالية (push + pull + ERROR_HANDLER).
+  int _countSyncErrors(List<LogEntry> logs) {
+    return logs.where((log) {
+      final tag = log.tag;
+      final msg = log.message.toLowerCase();
+      return tag.startsWith('SYNC_PUSH:') ||
+          (tag == 'ERROR_HANDLER' &&
+              (msg.contains('push:') ||
+                  msg.contains('فشل سحب') ||
+                  msg.contains('فشل دفع'))) ||
+          (tag == 'SYNC' &&
+              (msg.contains('فشل سحب') || msg.contains('فشل دفع')));
+    }).length;
+  }
+
+  /// عدّ أخطاء المزامنة لجدول محدد.
+  int _countEntityErrors(List<LogEntry> logs, String entity) {
+    return logs.where((log) {
+      final tag = log.tag;
+      final msg = log.message.toLowerCase();
+      if (tag == 'SYNC_PUSH:$entity') {
+        return true;
+      }
+      if ((tag == 'SYNC' || tag == 'ERROR_HANDLER') &&
+          msg.contains(entity)) {
+        return true;
+      }
+      if (tag == 'ERROR_HANDLER' && msg.contains('push:$entity:')) {
+        return true;
+      }
+      return false;
+    }).length;
   }
 
   Widget _buildLogEntry(LogEntry log) {
@@ -356,6 +525,48 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
     // فلترة حسب المستوى
     if (_filterLevel != null) {
       filtered = filtered.where((log) => log.level == _filterLevel).toList();
+    }
+
+    // ✅ فلترة حسب الجدول (entity) لأخطاء المزامنة.
+    // نمط الـ tag المستخدم في _processOutboxEntry: 'SYNC_PUSH:<entity>'
+    // نمط الـ tag المستخدم في _syncXxx (أخطاء السحب): 'SYNC' + رسالة تحتوي اسم الجدول
+    // نمط الـ tag المستخدم في _errorHandler: 'ERROR_HANDLER' + context يحوي 'push:<entity>:...'
+    if (_filterEntity != null) {
+      if (_filterEntity == 'SYNC_ERRORS_ALL') {
+        // عرض كل أخطاء المزامنة (push + pull + ERROR_HANDLER)
+        filtered = filtered.where((log) {
+          final tag = log.tag;
+          final msg = log.message.toLowerCase();
+          return tag.startsWith('SYNC_PUSH:') ||
+              tag == 'ERROR_HANDLER' &&
+                  (msg.contains('push:') ||
+                      msg.contains('فشل سحب') ||
+                      msg.contains('فشل دفع')) ||
+              (tag == 'SYNC' &&
+                  (msg.contains('فشل سحب') || msg.contains('فشل دفع')));
+        }).toList();
+      } else {
+        // عرض أخطاء جدول محدد فقط
+        final entity = _filterEntity!;
+        filtered = filtered.where((log) {
+          final tag = log.tag;
+          final msg = log.message.toLowerCase();
+          // push errors: tag = 'SYNC_PUSH:<entity>'
+          if (tag == 'SYNC_PUSH:$entity') {
+            return true;
+          }
+          // pull errors: tag = 'SYNC' أو 'ERROR_HANDLER' + رسالة تذكر اسم الجدول
+          if ((tag == 'SYNC' || tag == 'ERROR_HANDLER') &&
+              msg.contains(entity)) {
+            return true;
+          }
+          // context 'push:<entity>:' في رسائل ERROR_HANDLER
+          if (tag == 'ERROR_HANDLER' && msg.contains('push:$entity:')) {
+            return true;
+          }
+          return false;
+        }).toList();
+      }
     }
 
     // فلترة حسب البحث
@@ -522,6 +733,108 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       subject:
           'Appwrite Logs - ${DateFormat('yyyy-MM-dd').format(DateTime.now())}',
     );
+  }
+
+  /// ✅ نسخ جميع السجلات المعروضة حالياً (بعد الفلترة) إلى الحافظة.
+  /// مفيد للمشاركة السريعة في رسالة واتساب/تيليجرام/بريد.
+  Future<void> _copyErrorsToClipboard(List<LogEntry> logs) async {
+    if (logs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا توجد سجلات لنسخها')),
+      );
+      return;
+    }
+
+    final buffer = StringBuffer();
+    buffer.writeln('Appwrite Logs (المسجلات المعروضة)');
+    buffer.writeln('═' * 50);
+    buffer.writeln(
+      'Generated: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}',
+    );
+    buffer.writeln('Total: ${logs.length} | Filter: ${_filterEntity ?? "الكل"} | Level: ${_filterLevel?.name ?? "الكل"}');
+    buffer.writeln('═' * 50);
+    buffer.writeln();
+
+    for (final log in logs) {
+      buffer.writeln(log.toFormattedString());
+      buffer.writeln('─' * 50);
+    }
+
+    await Clipboard.setData(ClipboardData(text: buffer.toString()));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم نسخ ${logs.length} سجل إلى الحافظة'),
+          backgroundColor: Colors.green,
+          action: SnackBarAction(
+            label: 'مشاركة',
+            textColor: Colors.white,
+            onPressed: () {
+              Share.share(
+                buffer.toString(),
+                subject: 'Appwrite Logs - ${DateFormat('yyyy-MM-dd').format(DateTime.now())}',
+              );
+            },
+          ),
+        ),
+      );
+    }
+  }
+
+  /// ✅ نسخ الأخطاء فقط (Error + Critical) من السجلات المعروضة حالياً.
+  /// مفيد للإبلاغ عن المشاكل بسرعة دون تشويش بـ Info/Debug.
+  Future<void> _copyErrorsOnlyToClipboard(List<LogEntry> logs) async {
+    final errorsOnly = logs
+        .where(
+          (l) => l.level == LogLevel.error || l.level == LogLevel.critical,
+        )
+        .toList();
+
+    if (errorsOnly.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا توجد أخطاء (Error/Critical) لنسخها'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      return;
+    }
+
+    final buffer = StringBuffer();
+    buffer.writeln('Appwrite Errors Only (الأخطاء فقط)');
+    buffer.writeln('═' * 50);
+    buffer.writeln(
+      'Generated: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}',
+    );
+    buffer.writeln('Errors: ${errorsOnly.length}');
+    buffer.writeln('═' * 50);
+    buffer.writeln();
+
+    for (final log in errorsOnly) {
+      buffer.writeln(log.toFormattedString());
+      buffer.writeln('─' * 50);
+    }
+
+    await Clipboard.setData(ClipboardData(text: buffer.toString()));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم نسخ ${errorsOnly.length} خطأ إلى الحافظة'),
+          backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'مشاركة',
+            textColor: Colors.white,
+            onPressed: () {
+              Share.share(
+                buffer.toString(),
+                subject:
+                    'Appwrite Errors - ${DateFormat('yyyy-MM-dd').format(DateTime.now())}',
+              );
+            },
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _clearLogs() async {
