@@ -158,9 +158,9 @@ class AppwriteSyncManager {
       final isMillis = value != null && value > 10000000000;
       _remoteEpochIsMillis = isMillis;
       return isMillis;
-    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
+    } catch (e) {
       _remoteEpochIsMillis = false;
-      _logger.warning('⚠️ Failed to parse remote epoch', tag: 'SYNC');
+      _logger.warning('⚠️ Failed to parse remote epoch: $e', tag: 'SYNC');
       return false;
     }
   }
@@ -2010,8 +2010,9 @@ class AppwriteSyncManager {
         _logger.warning('⚠️ لا يوجد اتصال بالإنترنت - تم تأجيل الرفع', tag: 'SYNC');
         return 0;
       }
-    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
+    } catch (e) {
       // تجاهل خطأ فحص الاتصال ونحاول الرفع
+      _logger.debug('Connectivity check failed, will attempt push anyway: $e', tag: 'SYNC');
     }
 
     // تهيئة حجم الدفعة التكيفي
@@ -2046,8 +2047,8 @@ class AppwriteSyncManager {
                 data: payload,
                 operation: entry.op == 'delete' ? 'delete' : 'update',
               ));
-            } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-              _logger.warning('⚠️ فشل تحليل payload للنسخ الاحتياطي', tag: 'BACKUP');
+            } catch (e) {
+              _logger.warning('⚠️ فشل تحليل payload للنسخ الاحتياطي: $e', tag: 'BACKUP');
             }
           } else {
             failedInBatch++;
@@ -2074,8 +2075,8 @@ class AppwriteSyncManager {
       if (backupOps.isNotEmpty) {
         try {
           await backupService.pushBatchToBackups(operations: backupOps);
-        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-          _logger.warning('⚠️ فشل النسخ الاحتياطي — لم يمنع المزامنة الرئيسية', tag: 'BACKUP');
+        } catch (e) {
+          _logger.warning('⚠️ فشل النسخ الاحتياطي — لم يمنع المزامنة الرئيسية: $e', tag: 'BACKUP');
         }
       }
 
@@ -2843,8 +2844,8 @@ class AppwriteSyncManager {
               .write(EmployeesCompanion(
             serverId: drift.Value(remoteDoc.$id.hashCode),
           ));
-        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-          _logger.warning('⚠️ فشل جلب المستند البعيد للموظف — نتجاوز', tag: 'SYNC');
+        } catch (e) {
+          _logger.warning('⚠️ فشل جلب المستند البعيد للموظف — نتجاوز: $e', tag: 'SYNC');
         }
       } catch (e) {
         _logger.warning(
@@ -3358,8 +3359,8 @@ class AppwriteSyncManager {
         default:
           return null;
       }
-    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-      _logger.warning('⚠️ فشل جلب deletedAt المحلي', tag: 'SYNC');
+    } catch (e) {
+      _logger.warning('⚠️ فشل جلب deletedAt المحلي: $e', tag: 'SYNC');
       return null;
     }
   }
@@ -3630,8 +3631,8 @@ class AppwriteSyncManager {
         return ts ~/ 1000;
       }
       return ts;
-    } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-      _logger.warning('Failed to read lastPullTs, using 0', tag: 'SYNC');
+    } catch (e) {
+      _logger.warning('Failed to read lastPullTs, using 0: $e', tag: 'SYNC');
       return 0;
     }
   }
@@ -3991,8 +3992,8 @@ class AppwriteSyncManager {
         }
         // تشغيل فحص السلامة الشامل مع الإصلاح التلقائي
         await _performPostSyncIntegrityCheck();
-      } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-        _logger.warning('⚠️ فشل فحص السلامة بعد المزامنة', tag: 'SYNC');
+      } catch (e) {
+        _logger.warning('⚠️ فشل فحص السلامة بعد المزامنة: $e', tag: 'SYNC');
       }
     }
   }
@@ -5055,15 +5056,15 @@ class AppwriteSyncManager {
         int? createdAtEpoch;
         try {
           createdAtEpoch = DateTime.parse(createdAtIso).millisecondsSinceEpoch ~/ 1000;
-        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-          _logger.warning('⚠️ فشل تحويل createdAtIso في القائمة السوداء', tag: 'SYNC');
+        } catch (e) {
+          _logger.warning('⚠️ فشل تحويل createdAtIso في القائمة السوداء: $e', tag: 'SYNC');
           createdAtEpoch = Time.nowEpoch();
         }
         int? updatedAtEpoch;
         try {
           updatedAtEpoch = DateTime.parse(updatedAtIso).millisecondsSinceEpoch ~/ 1000;
-        } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-          _logger.warning('⚠️ فشل تحويل updatedAtIso في القائمة السوداء', tag: 'SYNC');
+        } catch (e) {
+          _logger.warning('⚠️ فشل تحويل updatedAtIso في القائمة السوداء: $e', tag: 'SYNC');
           updatedAtEpoch = Time.nowEpoch();
         }
 
@@ -5078,8 +5079,8 @@ class AppwriteSyncManager {
           if (deletedAtStr != null && deletedAtStr.isNotEmpty) {
             try {
               deletedAtEpoch = DateTime.parse(deletedAtStr).millisecondsSinceEpoch ~/ 1000;
-            } catch (e) { AppLogger.warning('⚠️ silent catch', tag: 'SYNC', error: e);
-              _logger.warning('⚠️ فشل تحويل deletedAtIso في القائمة السوداء', tag: 'SYNC');
+            } catch (e) {
+              _logger.warning('⚠️ فشل تحويل deletedAtIso في القائمة السوداء: $e', tag: 'SYNC');
               deletedAtEpoch = _asIntNullable(deletedAtVal);
             }
           } else {
