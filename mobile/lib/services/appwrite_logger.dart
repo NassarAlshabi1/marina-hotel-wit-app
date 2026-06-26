@@ -10,7 +10,13 @@ import 'logging/log_models.dart';
 export 'logging/log_models.dart';
 
 /// نظام التسجيل المتقدم
-class AppwriteLogger {
+///
+/// ⚠️ صار ChangeNotifier منذ 2026-06-26 لتمكين Riverpod من إعادة بناء
+/// الشاشات التي تُراقب السجلات (مثل AppwriteLogsScreen) فوراً عند
+/// مسحها. قبل هذا التغيير، clearLogs() كان يُفرّغ _logs لكن logsProvider
+/// لا يُعاد حسابه لأن appwriteLoggerProvider يُرجع نفس الـ singleton
+/// بدون إشعار التغيير — فتبقى السجلات القديمة معروضة حتى خروج التطبيق.
+class AppwriteLogger extends ChangeNotifier {
   factory AppwriteLogger() => _instance;
   AppwriteLogger._internal();
   static final AppwriteLogger _instance = AppwriteLogger._internal();
@@ -90,6 +96,10 @@ class AppwriteLogger {
     if (_enableFile && _logFile != null) {
       _writeToFile(entry);
     }
+
+    // ✅ إشعار المستمعين (Riverpod + الشاشات) لإعادة البناء فوراً.
+    // هذا يحل مشكلة "السجلات لا تُمسح فوراً من الـ UI".
+    notifyListeners();
   }
 
   /// طباعة إلى Console
@@ -201,8 +211,13 @@ class AppwriteLogger {
   }
 
   /// مسح السجلات
+  ///
+  /// ✅ يُشعر المستمعين (notifyListeners) فوراً بعد المسح، فيعيد Riverpod
+  /// بناء logsProvider وكل الشاشات التي تُراقبه. هذا يحل مشكلة بقاء
+  /// السجلات القديمة معروضة بعد المسح حتى خروج التطبيق.
   void clearLogs() {
     _logs.clear();
+    notifyListeners();
   }
 
   /// تصدير السجلات

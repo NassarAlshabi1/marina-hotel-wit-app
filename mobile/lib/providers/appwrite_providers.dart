@@ -62,8 +62,17 @@ final appwriteCacheManagerProvider = Provider.autoDispose<AppwriteCacheManager>(
 });
 
 /// مزود المسجل
-final appwriteLoggerProvider = Provider.autoDispose<AppwriteLogger>((ref) {
-  return AppwriteLogger();
+///
+/// ⚠️ صار ChangeNotifierProvider منذ 2026-06-26 لتمكين إعادة بناء
+/// الشاشات فوراً عند مسح السجلات (clearLogs() → notifyListeners()).
+/// لا نستخدم autoDispose لأن AppwriteLogger singleton — لا يجب أن
+/// يُدمّر عند مغادرة شاشة (سيقطع مستمعي السجلات في الخلفية).
+final appwriteLoggerProvider =
+    ChangeNotifierProvider<AppwriteLogger>((ref) {
+  final logger = AppwriteLogger();
+  // تنظيف المستمعين عند إتلاف المزود (يحدث فقط عند إغلاق التطبيق)
+  ref.onDispose(logger.dispose);
+  return logger;
 });
 
 /// مزود معالج الأخطاء
