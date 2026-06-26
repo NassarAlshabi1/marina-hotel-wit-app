@@ -1,3 +1,26 @@
+## ✅ تصحيح مهم - SyncFields
+
+> **ملاحظة:** هذا التقرير السابق ذكر بعض الحقول كـ "مفقودة".
+> **✅ تم التصحيح: جميع حقول SyncFields موجودة في Appwrite Cloud!**
+
+### حقول SyncFields:
+
+| الحقل | النوع | الوصف |
+|-------|------|-------|
+| `createdAt` | integer | تاريخ الإنشاء |
+| `updatedAt` | integer | تاريخ التحديث |
+| `deletedAt` | integer? | تاريخ الحذف |
+| `lastModified` | integer | آخر تعديل |
+| `createdAtIso` | string? | تاريخ ISO |
+| `updatedAtIso` | string? | تحديث ISO |
+| `createdAtEpoch` | integer? | epoch الإنشاء |
+| `lastModifiedEpoch` | integer? | epoch التعديل |
+| `version` | integer? | الإصدار |
+| `origin` | string? | المصدر |
+| `vectorClock` | string? | ساعة المتجهات |
+| `deviceId` | string? | معرف الجهاز |
+
+---
 # 📋 تقرير مزامنة جدول Guest Infos - الكود المحلي
 
 **تاريخ التقرير:** 2026-06-26  
