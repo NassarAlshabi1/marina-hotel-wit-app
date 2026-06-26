@@ -228,6 +228,15 @@ COLLECTIONS = {
             "vendor": {"type": "string", "size": 200, "required": False, "description": "المورد"},
             "notes": {"type": "string", "size": 500, "required": False, "description": "ملاحظات"},
             "receiptNumber": {"type": "string", "size": 100, "required": False, "description": "رقم الإيصال"},
+            # Status
+            "status": {"type": "string", "size": 50, "required": False, "description": "الحالة"},
+            "isApproved": {"type": "boolean", "required": False, "description": "موافق عليه"},
+            "approvedBy": {"type": "string", "size": 100, "required": False, "description": "موافق من"},
+            "approvedAt": {"type": "integer", "required": False, "description": "وقت الموافقة"},
+            # Payment
+            "paymentMethod": {"type": "string", "size": 50, "required": False, "description": "طريقة الدفع"},
+            "isPaid": {"type": "boolean", "required": False, "description": "مدفوع"},
+            "paidAt": {"type": "integer", "required": False, "description": "وقت الدفع"},
             # Hotel Day
             "hotelDayKey": {"type": "string", "size": 50, "required": False, "description": "يوم الفندق"},
             "shiftId": {"type": "integer", "required": False, "description": "معرف الوردية"},
@@ -242,6 +251,7 @@ COLLECTIONS = {
             {"attribute": "localUuid", "type": "unique"},
             {"attribute": "category", "type": "key"},
             {"attribute": "expenseDate", "type": "key"},
+            {"attribute": "hotelDayKey", "type": "key"},
         ],
     },
 
@@ -297,13 +307,22 @@ COLLECTIONS = {
             "email": {"type": "string", "size": 200, "required": False, "description": "البريد الإلكتروني"},
             "address": {"type": "string", "size": 500, "required": False, "description": "العنوان"},
             "hireDate": {"type": "string", "size": 50, "required": False, "description": "تاريخ التعيين"},
+            "terminationDate": {"type": "string", "size": 50, "required": False, "description": "تاريخ الإنهاء"},
             "status": {"type": "string", "size": 50, "required": True, "description": "الحالة"},
             "notes": {"type": "string", "size": 500, "required": False, "description": "ملاحظات"},
+            # Personal Info
+            "dateOfBirth": {"type": "string", "size": 50, "required": False, "description": "تاريخ الميلاد"},
+            "nationality": {"type": "string", "size": 100, "required": False, "description": "الجنسية"},
+            "idNumber": {"type": "string", "size": 50, "required": False, "description": "رقم الهوية"},
+            "emergencyContact": {"type": "string", "size": 200, "required": False, "description": "جهة اتصال طارئة"},
             # Financial
             "totalPaid": {"type": "double", "required": False, "description": "إجمالي المدفوع"},
             "remainingSalary": {"type": "double", "required": False, "description": "الراتب المتبقي"},
             "allowances": {"type": "double", "required": False, "description": "البدلات"},
             "deductions": {"type": "double", "required": False, "description": "الخصومات"},
+            # Work Schedule
+            "workShift": {"type": "string", "size": 50, "required": False, "description": "الوردية"},
+            "workDays": {"type": "string", "size": 50, "required": False, "description": "أيام العمل"},
             # Server
             "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
             # Sync Fields (included)
@@ -312,6 +331,7 @@ COLLECTIONS = {
             {"attribute": "localUuid", "type": "unique"},
             {"attribute": "phone", "type": "unique"},
             {"attribute": "status", "type": "key"},
+            {"attribute": "position", "type": "key"},
         ],
     },
 
@@ -373,6 +393,9 @@ COLLECTIONS = {
             "guestName": {"type": "string", "size": 200, "required": False, "description": "اسم المدين"},
             "guestPhone": {"type": "string", "size": 20, "required": False, "description": "هاتف المدين"},
             "guestNationality": {"type": "string", "size": 100, "required": False, "description": "جنسية المدين"},
+            # Guest ID
+            "guestIdType": {"type": "string", "size": 100, "required": False, "description": "نوع هوية المدين"},
+            "guestIdNumber": {"type": "string", "size": 50, "required": False, "description": "رقم هوية المدين"},
             # Debt Info
             "originalAmount": {"type": "double", "required": True, "description": "المبلغ الأصلي"},
             "remainingAmount": {"type": "double", "required": True, "description": "المبلغ المتبقي"},
@@ -387,14 +410,19 @@ COLLECTIONS = {
             # Payment Tracking
             "lastPaymentDate": {"type": "string", "size": 50, "required": False, "description": "آخر تاريخ دفع"},
             "paymentCount": {"type": "integer", "required": False, "description": "عدد الدفعات"},
-            # Server
+            # Payment Reference
+            "lastPaymentAmount": {"type": "double", "required": False, "description": "آخر مبلغ مدفوع"},
+            "lastPaymentMethod": {"type": "string", "size": 50, "required": False, "description": "آخر طريقة دفع"},
+            # Server IDs
             "serverId": {"type": "integer", "required": False, "description": "معرف السيرفر"},
+            "serverBookingId": {"type": "integer", "required": False, "description": "معرف الحجز على السيرفر"},
             # Sync Fields (included)
         },
         "indexes": [
             {"attribute": "localUuid", "type": "unique"},
             {"attribute": "bookingUuid", "type": "key"},
             {"attribute": "status", "type": "key"},
+            {"attribute": "guestPhone", "type": "key"},
         ],
     },
 
