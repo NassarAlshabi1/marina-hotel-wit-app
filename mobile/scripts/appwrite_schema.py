@@ -64,7 +64,7 @@ COLLECTIONS = {
         "collection_id": "rooms",
         "name": "Rooms",
         "description": "إدارة الغرف الفندقية",
-        "cloud_fields": 24,
+        "cloud_fields": 25,
         "fields": {
             # Basic Fields
             "localUuid": {"type": "string", "size": 100, "required": True, "description": "UUID فريد"},
@@ -79,6 +79,8 @@ COLLECTIONS = {
             "notes": {"type": "string", "size": 500, "required": False, "description": "ملاحظات"},
             "lastCleanedAt": {"type": "string", "size": 50, "required": False, "description": "آخر تنظيف"},
             "cleaningStatus": {"type": "string", "size": 50, "required": False, "description": "حالة التنظيف"},
+            # Sync Fields
+            "idempotencyKey": {"type": "string", "size": 255, "required": False, "description": "مفتاح idempotency للمزامنة"},
             # Maintenance
             "needsMaintenance": {"type": "boolean", "required": False, "description": "تحتاج صيانة"},
             "maintenanceReason": {"type": "string", "size": 255, "required": False, "description": "سبب الصيانة"},
