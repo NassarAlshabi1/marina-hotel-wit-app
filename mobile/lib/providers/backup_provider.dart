@@ -194,6 +194,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   final SmartSyncManager _smartSyncManager;
   bool _mounted = true;
 
+  /// تحديث حالة النسخ الاحتياطي
+  void setStatus(BackupStatus status, String? message) {
+    if (_mounted) {
+      state = state.copyWith(status: status, message: message);
+    }
+  }
+
   Future<void> _initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();

@@ -9,7 +9,9 @@ import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:workmanager/workmanager.dart';
 
 import '../utils/debug_logs.dart';
@@ -25,6 +27,7 @@ import 'google_drive_logger.dart';
 import 'google_drive_sign_in_manager.dart';
 import 'local_db.dart';
 import 'restore_fix_service.dart';
+import 'sqlite_backup_restore.dart';
 
 enum BackupFormat { json, sqlite }
 
@@ -56,12 +59,21 @@ class DriveBackupFile {
   Map<String, String> get appProperties =>
       metadata?.map((k, v) => MapEntry(k, v.toString())) ?? {};
 
+  /// تحديد صيغة النسخة من اسم الملف أو metadata
   BackupFormat get format {
     final raw = metadata?['format'] as String?;
-    return BackupFormat.values.firstWhere(
-      (f) => f.name == raw,
-      orElse: () => BackupFormat.json,
-    );
+    
+    // التحقق من اسم الملف أولاً (للتوافق مع النسخ القديمة)
+    if (fileName.endsWith('.db') || fileName.startsWith('db_backup_')) {
+      return BackupFormat.sqlite;
+    }
+    
+    // التحقق من metadata
+    if (raw == 'sqlite' || raw == 'db') {
+      return BackupFormat.sqlite;
+    }
+    
+    return BackupFormat.json;
   }
 }
 
@@ -79,8 +91,10 @@ class BackupMetadata {
 
   factory BackupMetadata.fromJson(Map<String, dynamic> json) {
     final rawFormat = json['format'] as String?;
+    // Handle 'db' format as sqlite
+    final formatName = rawFormat == 'db' ? 'sqlite' : rawFormat;
     final format = BackupFormat.values.firstWhere(
-      (value) => value.name == rawFormat,
+      (value) => value.name == formatName,
       orElse: () => BackupFormat.json,
     );
     return BackupMetadata(
@@ -892,6 +906,122 @@ class GoogleDriveBackupService {
 
       _log('✅ تم تنزيل النسخة الاحتياطية: $fileId');
       return backupData;
+    });
+  }
+
+  /// رفع نسخة احتياطية بصيغة .db
+  Future<String> uploadDbBackup({
+    String? customFileName,
+  }) async {
+    return _runWithAuth<String>(() async {
+      try {
+        final folderId = await getOrCreateBackupFolder();
+
+        // إنشاء نسخة SQLite
+        final dbPath = p.join(
+          await sqflite.getDatabasesPath(),
+          SqliteBackupRestore.kDefaultDbFileName,
+        );
+
+        final dbFile = File(dbPath);
+        if (!dbFile.existsSync()) {
+          throw Exception('Database file not found');
+        }
+
+        final timestamp = DateTime.now();
+        final fileName = customFileName ??
+            'db_backup_${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.db';
+
+        // قراءة ملف قاعدة البيانات
+        final bytes = await dbFile.readAsBytes();
+
+        final driveFile = drive.File()
+          ..name = fileName
+          ..parents = [folderId]
+          ..appProperties = {
+            'type': 'sqlite_backup',
+            'backup_date': timestamp.toIso8601String(),
+            'format': 'db',
+          };
+
+        final media = drive.Media(
+          Stream.value(bytes),
+          bytes.length,
+        );
+
+        _log(
+          '📤 رفع نسخة .db: $fileName (${(bytes.length / 1024 / 1024).toStringAsFixed(2)} MB)',
+        );
+
+        final uploadedFile = await _driveApi!.files.create(
+          driveFile,
+          uploadMedia: media,
+        );
+
+        _log('✅ تم رفع نسخة .db: ${uploadedFile.id}');
+        return uploadedFile.id!;
+      } catch (e) {
+        _log('❌ خطأ في رفع نسخة .db: $e');
+        rethrow;
+      }
+    });
+  }
+
+  /// تنزيل واستعادة نسخة .db
+  Future<void> restoreDbBackup(String fileId) async {
+    return _runWithAuth<void>(() async {
+      try {
+        final media =
+            await _driveApi!.files.get(
+                  fileId,
+                  downloadOptions: drive.DownloadOptions.fullMedia,
+                )
+                as drive.Media;
+
+        // إنشاء مجلد مؤقت
+        final tempDir = await getTemporaryDirectory();
+        final fileName = 'restore_${DateTime.now().millisecondsSinceEpoch}.db';
+        final tempFile = File(p.join(tempDir.path, fileName));
+
+        // كتابة البيانات إلى الملف المؤقت
+        final List<int> dataStore = [];
+        await media.stream.forEach(dataStore.addAll);
+        await tempFile.writeAsBytes(dataStore);
+
+        _log(
+          '📥 تنزيل نسخة .db: ${(dataStore.length / 1024 / 1024).toStringAsFixed(2)} MB',
+        );
+
+        // استعادة قاعدة البيانات
+        await SqliteBackupRestore.restoreDatabase(tempFile.path);
+
+        // حذف الملف المؤقت
+        await tempFile.delete();
+
+        _log('✅ تم استعادة نسخة .db بنجاح');
+      } catch (e) {
+        _log('❌ خطأ في استعادة نسخة .db: $e');
+        rethrow;
+      }
+    });
+  }
+
+  /// الحصول على قائمة النسخ .db من Google Drive
+  Future<List<DriveBackupFile>> listDbBackups() async {
+    return _runWithAuth<List<DriveBackupFile>>(() async {
+      final folderId = await getOrCreateBackupFolder();
+
+      final result = await _driveApi!.files.list(
+        q: "'$folderId' in parents and name contains 'db_backup' and name contains '.db' and trashed = false",
+        $orderBy: 'createdTime desc',
+        $pageSize: 50,
+      );
+
+      final files = result.files ?? [];
+      return files
+          .where((f) => f.id != null && f.name != null)
+          .map((f) => DriveBackupFile.fromDriveFile(f))
+          .toList();
     });
   }
 
