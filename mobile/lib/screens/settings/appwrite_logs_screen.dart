@@ -73,43 +73,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
     _currentLogs = filteredLogs;
 
     return AppScaffold(
-      title: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('سجلات Appwrite'),
-          const SizedBox(width: 8),
-          // مؤشر الحية
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: Colors.green,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'LIVE',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.green.shade700,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      title: 'سجلات Appwrite',
       actions: [
         // زر تحديث يدوي
         IconButton(
