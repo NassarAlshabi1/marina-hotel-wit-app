@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import 'package:appwrite/appwrite.dart' show AppwriteException;
+
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 
@@ -136,36 +139,44 @@ class AppwriteNetworkHelper {
   }
 
   /// التحقق من أن الخطأ قابل لإعادة المحاولة
+  ///
+  /// ✅ إصلاح حرج (2026-06-26): الفحص القديم كان يعتمد على errorStr.contains('timeout')
+  /// مما يُطابق stack trace الذي يحوي "withTimeout" و "TimeoutException" دائماً!
+  /// النتيجة: 404 من Appwrite كان يُعتبر retriable فيُعاد 3 مرات بلا فائدة.
+  ///
+  /// الآن نفحص AppwriteException.code مباشرة (int) بدلاً من البحث في النص.
+  /// فقط 5xx و 429 قابلة لإعادة المحاولة. 4xx (بما فيها 404) غير قابلة.
   bool _isRetriableError(dynamic error) {
+    // ✅ فحص AppwriteException مباشرة عبر code (int)
+    // هذا يتجنب مطابقة stack trace العشوائية.
+    if (error is AppwriteException) {
+      final code = error.code;
+      // 429 = Too Many Requests (قابل لإعادة المحاولة)
+      if (code == 429) return true;
+      // 5xx = أخطاء الخادم (قابلة لإعادة المحاولة)
+      if (code != null && code >= 500 && code < 600) return true;
+      // باقي أخطاء Appwrite (4xx بما فيها 400/401/403/404/409) غير قابلة
+      return false;
+    }
+
+    // ✅ TimeoutException الحقيقية (من Dart، وليست stack trace)
+    if (error is TimeoutException) {
+      return true;
+    }
+
+    // ✅ أخطاء الشبكة (نصية فقط بعد استبعاد AppwriteException)
     final errorStr = error.toString().toLowerCase();
-
-    // أخطاء الشبكة القابلة لإعادة المحاولة
-    if (errorStr.contains('network') ||
-        errorStr.contains('connection') ||
-        errorStr.contains('socket') ||
-        errorStr.contains('timeout') ||
-        errorStr.contains('failed host lookup')) {
+    if (errorStr.contains('socketexception') ||
+        errorStr.contains('handshakeexception') ||
+        errorStr.contains('connection refused') ||
+        errorStr.contains('connection reset') ||
+        errorStr.contains('network is unreachable') ||
+        errorStr.contains('failed host lookup') ||
+        errorStr.contains('connection timed out')) {
       return true;
     }
 
-    // أخطاء HTTP القابلة لإعادة المحاولة
-    if (errorStr.contains('500') || // Internal Server Error
-        errorStr.contains('502') || // Bad Gateway
-        errorStr.contains('503') || // Service Unavailable
-        errorStr.contains('504') || // Gateway Timeout
-        errorStr.contains('429')) {
-      // Too Many Requests
-      return true;
-    }
-
-    // أخطاء Appwrite المؤقتة
-    if (errorStr.contains('rate limit') ||
-        errorStr.contains('server_error') ||
-        errorStr.contains('service_unavailable')) {
-      return true;
-    }
-
-    // باقي الأخطاء غير قابلة لإعادة المحاولة (مثل 401, 403, 404)
+    // باقي الأخطاء غير قابلة لإعادة المحاولة
     return false;
   }
 
