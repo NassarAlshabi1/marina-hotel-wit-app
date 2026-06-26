@@ -10,6 +10,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:workmanager/workmanager.dart';
@@ -1013,8 +1014,8 @@ class GoogleDriveBackupService {
 
       final result = await _driveApi!.files.list(
         q: "'$folderId' in parents and name contains 'db_backup' and name contains '.db' and trashed = false",
-        $orderBy: 'createdTime desc',
-        $pageSize: 50,
+        orderBy: 'createdTime desc',
+        pageSize: 50,
       );
 
       final files = result.files ?? [];
