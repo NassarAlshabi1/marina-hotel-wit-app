@@ -273,8 +273,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
               ],
             ),
             backgroundColor: Colors.green,
-            // ✅ 10 ثوانٍ لتسمح للمستخدم بقراءة النتيجة قبل الاختفاء التلقائي.
-            duration: const Duration(seconds: 10),
+            // ✅ رسالة النجاح تختفي تلقائياً بعد ثانيتين (نتيجة سريعة).
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -589,6 +589,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> {
                 ],
               ),
               backgroundColor: Colors.green,
+              // ✅ رسالة النجاح تختفي تلقائياً بعد ثانيتين (نتيجة سريعة).
+              duration: const Duration(seconds: 2),
             ),
           );
         } else if (successTargets.isEmpty) {
