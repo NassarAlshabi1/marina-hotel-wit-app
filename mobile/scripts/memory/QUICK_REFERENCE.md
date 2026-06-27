@@ -1,6 +1,7 @@
 # ⚡ مرجع سريع - Marina Hotel Mobile
 
 > **للوصول السريع عند الحاجة — التفاصيل في `PROJECT_MEMORY.md`**
+> **سجل الجلسة الشاملة (2026-06-28):** `SESSION_LOG_2026-06-28.md`
 
 ---
 
@@ -22,10 +23,16 @@ Dart:        3.9.2
 | الملف | الوظيفة |
 |------|--------|
 | `lib/services/appwrite_sync_utils.dart` | `validFieldsPerCollection` ← مصدر الحقيقة للحقول |
-| `lib/services/appwrite_sync_manager.dart` | مدير المزامنة الرئيسي |
-| `lib/services/appwrite_service.dart` | عميل Appwrite + Failover |
-| `lib/services/daos/outbox_dao.dart` | إدارة outbox (dual-delivery) |
-| `lib/services/local_db.dart` | تعريف قاعدة البيانات (schema v44) |
+| `lib/services/appwrite_sync_manager.dart` | مدير المزامنة الرئيسي (VC + SmartConflictResolver) |
+| `lib/services/appwrite_service.dart` | عميل Appwrite + Failover + upsert retry |
+| `lib/services/daos/outbox_dao.dart` | إدارة outbox (parameterized queries) |
+| `lib/services/local_db.dart` | تعريف قاعدة البيانات (schema v45) |
+| `lib/services/vector_clock_service.dart` | ✅ التنفيذ الكنزي الوحيد لـ VectorClock |
+| `lib/services/vector_clock_helper.dart` | ✅ أداة زيادة VC بعد الكتابة المحلية |
+| `lib/services/password_hasher.dart` | ✅ تشفير PBKDF2 لكلمات المرور |
+| `lib/services/sync_core/conflict_detector.dart` | ✅ كاشف التعارضات (7 أنواع) |
+| `lib/services/sync_core/smart_conflict_resolver.dart` | ✅ محلّل التعارضات (18 سياسة كيان) |
+| `lib/services/daos/ancestor_cache_dao.dart` | ✅ ancestor cache لـ 3-way merge |
 | `lib/services/secondary_sync_manager.dart` | مدير المزامنة الثانوية |
 | `lib/services/appwrite_health_checker.dart` | فحص صحة الوجهتين |
 

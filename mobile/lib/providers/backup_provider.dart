@@ -53,7 +53,10 @@ class AutoBackupSettings { // تنسيق النسخ الاحتياطي المس�
     this.backupType = BackupType.both,
     this.enableLocalBackup = true,
     this.enableGoogleDriveBackup = true,
-    this.backupFormat = BackupFormat.json,
+    // ✅ إصلاح (2026-06-28): افتراضي SQLite .db بدلاً من JSON
+    // المستخدم يفضّل النسخة السريعة الخام (.db) على JSON.
+    // .db أسرع في الإنشاء والاستعادة (نسخ ملف بدلاً من serialize/deserialize).
+    this.backupFormat = BackupFormat.sqlite,
   });
   final bool isEnabled;
   final String frequency; // daily, weekly, monthly

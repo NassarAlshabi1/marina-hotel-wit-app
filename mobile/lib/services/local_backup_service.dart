@@ -17,6 +17,7 @@ import '../utils/app_logger.dart';
 import 'backup_serializers.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
+import 'sqlite_backup_restore.dart';
 
 export 'google_drive_backup_service.dart' show BackupFormat;
 
@@ -763,18 +764,38 @@ class LocalBackupService {
       }
     }
 
-    final dbPath = await _getDatabaseFilePath();
-    debugPrint('🗃️ مسار قاعدة البيانات الحالي: $dbPath');
+    // ✅ إصلاح (2026-06-28): استخدام SqliteBackupRestore.restoreDatabase
+    // بدلاً من deleteDatabase + copy المباشر.
+    // الأسباب:
+    //   1. restoreDatabase يُغلق اتصال Drift أولاً (يمنع file locks)
+    //   2. يستبدل ذرياً عبر temp file + rename
+    //   3. يحتفظ بنسخة .pre_restore للأمان
+    //   4. يُعيد فتح DB بعد الاستعادة
+    // المنطق القديم كان يُسبب فقدان بيانات إذا فشل copy بعد deleteDatabase.
+    debugPrint('🗃️ استعادة نسخة SQLite عبر SqliteBackupRestore...');
 
+    // التحقق من سلامة الملف قبل الاستعادة (basic integrity check)
     try {
-      await deleteDatabase(dbPath);
+      final bytes = await file.readAsBytes();
+      // SQLite header: "SQLite format 3\0" (16 bytes)
+      if (bytes.length < 16 ||
+          bytes[0] != 0x53 || // 'S'
+          bytes[1] != 0x51 || // 'Q'
+          bytes[2] != 0x4c || // 'L'
+          bytes[3] != 0x69) { // 'i'
+        throw Exception(
+          'الملف ليس قاعدة بيانات SQLite صالحة (header غير مطابق)',
+        );
+      }
+      debugPrint(
+        '✅ تم التحقق من header SQLite (${bytes.length} بايت)',
+      );
     } catch (e) {
-      debugPrint('⚠️ تعذر حذف قاعدة البيانات الحالية: $e');
+      debugPrint('❌ فشل التحقق من سلامة ملف SQLite: $e');
+      rethrow;
     }
 
-    await _deleteSidecarFiles(dbPath);
-    await File(filePath).copy(dbPath);
-    await _deleteSidecarFiles(dbPath);
+    await SqliteBackupRestore.restoreDatabase(filePath);
 
     if (metadata != null) {
       final prefs = await SharedPreferences.getInstance();
@@ -792,18 +813,9 @@ class LocalBackupService {
     }
   }
 
-  Future<void> _deleteSidecarFiles(String dbPath) async {
-    for (final suffix in ['-wal', '-shm']) {
-      final file = File('$dbPath$suffix');
-      if (file.existsSync()) {
-        try {
-          await file.delete();
-        } catch (e) {
-          debugPrint('⚠️ تعذر حذف الملف المساعد $suffix: $e');
-        }
-      }
-    }
-  }
+  // ✅ تمت إزالة _deleteSidecarFiles (2026-06-28) — غير مستخدم بعد
+  // التحويل إلى SqliteBackupRestore.restoreDatabase الذي يتعامل مع
+  // الملفات المساعدة (-wal, -shm) داخلياً.
 
   /// مشاركة نسخة احتياطية
   Future<void> shareBackup(String filePath) async {
