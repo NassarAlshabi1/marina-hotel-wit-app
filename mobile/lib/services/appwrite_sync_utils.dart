@@ -32,6 +32,27 @@ class AppwriteSyncUtils {
       'requiresMaintenance', 'roomNumber', 'roomType', 'serverId',
       'status', 'type', 'updatedAt', 'updatedAtIso', 'vectorClock', 'version',
     },
+    'payments': {
+      // ✅ حقول مدفوعات موجودة على Appwrite Cloud (مُحدّث 2026-06-27)
+      // الحقول الأساسية
+      'amount', 'paymentDate', 'paymentMethod', 'revenueType',
+      'localUuid', 'serverPaymentId', 'bookingLocalId', 'serverBookingId',
+      'roomNumber', 'notes', 'cashTransactionLocalId', 'cashTransactionServerId',
+      'referenceNumber', 'hotelDayKey', 'isPendingBalance', 'linkedDebtUuid',
+      'bookingUuidCache',
+      // حقول الإلغاء (Void)
+      'isVoided', 'voidedAt', 'voidedBy', 'voidReason',
+      // حقول الخصم
+      'discountAmount', 'discountStartDate',
+      // حقول التجميد
+      'isImmutable',
+      // SyncFields
+      'serverId', 'createdAt', 'updatedAt', 'deletedAt', 'lastModified',
+      'origin', 'lastModifiedEpoch', 'vectorClock', 'version',
+      'syncTimestamp', 'deviceId', 'sync_version', 'sync_vector_clock',
+      'sync_origin', 'id', 'createdAtIso', 'updatedAtIso', 'deletedAtIso',
+      'createdAtEpoch', 'idempotencyKey',
+    },
     'bookings': {
       'actualCheckout', 'checkinDate', 'checkoutDate', 'guestAddress',
       'guestEmail', 'guestIdIssueDate', 'guestIdIssuePlace', 'guestIdNumber',

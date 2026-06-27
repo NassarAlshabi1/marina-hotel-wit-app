@@ -2936,6 +2936,13 @@ class AppwriteSyncManager {
     _putIfNotNull(data, 'lastModifiedEpoch', payment.lastModifiedEpoch);
     data['vectorClock'] = payment.vectorClock;
     data['deviceId'] = payment.deviceId;
+    // ✅ إصلاح (2026-06-27): حقول إضافية موجودة على Appwrite Cloud
+    // ملاحظة: isImmutable و voidReason موجودان على Cloud لكن ليسا في النموذج
+    // المحلي بعد — يُمكن إضافتهما لاحقاً عند الحاجة
+    _putIfStringNotEmpty(data, 'createdAtIso', payment.createdAtIso);
+    _putIfStringNotEmpty(data, 'updatedAtIso', payment.updatedAtIso);
+    _putIfNotNull(data, 'syncTimestamp', payment.lastModified);
+    _putIfStringNotEmpty(data, 'sync_origin', payment.origin);
     return AppwriteSyncUtils.sanitizePayload('payments', data, collectionId: AppwriteConfig.paymentsCollectionId);
   }
 

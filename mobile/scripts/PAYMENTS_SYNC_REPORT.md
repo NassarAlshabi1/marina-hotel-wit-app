@@ -1,18 +1,31 @@
-# 📋 تقرير مزامنة جدول Payments - Appwrite Cloud vs الكود المحلي
+# 📋 تقرير مزامنة جدول Payments - Appwrite Cloud
 
-**تاريخ التقرير:** 2026-06-26  
+**تاريخ التقرير:** 2026-06-27 (مُحدّث)  
 **المشروع:** Marina Hotel Mobile  
 **الفرع:** marina  
 **Database:** hotel_db  
+**Collection:** payments
+
+---
+
+## 🔗 إعدادات الاتصال
+
+| البند | القيمة |
+|-------|-------|
+| **Endpoint** | `https://fra.cloud.appwrite.io/v1` |
+| **Project ID** | `690ff0da0025518570c1` |
+| **Database ID** | `hotel_db` |
+| **Collection ID** | `payments` |
+| **Rows على Cloud** | 689+ سجل (14 صفحة) |
 
 ---
 
 ## ✅ تصحيح مهم - SyncFields
 
-> **ملاحظة:** هذا التقرير السابق ذكر بعض الحقول كـ "مفقودة". 
+> **ملاحظة:** هذا التقرير السابق ذكر بعض الحقول كـ "مفقودة".
 > **✅ تم التصحيح: جميع حقول SyncFields موجودة في Appwrite Cloud!**
 
-### حقول SyncFields في Payments:
+### حقول SyncFields:
 
 | الحقل | النوع | الوصف |
 |-------|------|-------|
@@ -31,129 +44,96 @@
 
 ---
 
-## 🔗 إعدادات الاتصال
+## ☁️ الحقول الموجودة على Appwrite Cloud (مُحدّث 2026-06-27)
 
-| البند | القيمة |
-|-------|-------|
-| **Endpoint** | `https://fra.cloud.appwrite.io/v1` |
-| **Project ID** | `690ff0da0025518570c1` |
-| **Database ID** | `hotel_db` |
-| **Collection ID** | `payments` |
+### الحقول المطلوبة (REQUIRED) على Cloud
 
----
+| الحقل | النوع | الطول | مثال | ملاحظة |
+|-------|------|------|------|--------|
+| `amount` | integer | - | 3750 | **REQUIRED** — المبلغ (integer على Cloud) |
+| `paymentDate` | string | 0/50 | "2026-06-27T01:18:24.767430" | **REQUIRED** — تاريخ الدفع |
+| `paymentMethod` | string | 0/100 | "نقدي" | **REQUIRED** — طريقة الدفع |
+| `revenueType` | string | 0/100 | "room" | **REQUIRED** — نوع الإيراد |
+| `localUuid` | string | 0/100 | "4386188a-506c-..." | **REQUIRED** — UUID فريد |
 
-## 📊 الحقول الفعلية على Appwrite Cloud
+### الحقول الاختيارية (OPTIONAL) على Cloud
 
-### 🏠 الحقول الأساسية (Basic Attributes)
+#### 💰 الحقول الأساسية للدفع
 
-| # | الحقل | النوع | Required | Default | الوصف |
-|---|-------|------|----------|---------|-------|
-| 1 | `localUuid` | `string(100)` | ✅ | - | UUID فريد (Document ID) |
-| 2 | `serverPaymentId` | `integer` | ❌ | - | معرف الدفع على السيرفر |
-| 3 | `bookingLocalId` | `integer` | ❌ | - | معرف الحجز المحلي |
-| 4 | `serverBookingId` | `integer` | ❌ | - | معرف الحجز على السيرفر |
-| 5 | `roomNumber` | `string(50)` | ❌ | - | رقم الغرفة |
-| 6 | `amount` | `double` | ✅ | - | المبلغ |
-| 7 | `paymentDate` | `string(50)` | ✅ | - | تاريخ الدفع |
-| 8 | `notes` | `string(500)` | ❌ | - | ملاحظات |
-| 9 | `paymentMethod` | `string(100)` | ✅ | - | طريقة الدفع |
-| 10 | `revenueType` | `string(100)` | ✅ | - | نوع الإيراد |
+| الحقل | النوع | الطول | مثال | ملاحظة |
+|-------|------|------|------|--------|
+| `serverPaymentId` | integer? | - | NULL | معرف الدفع على السيرفر |
+| `bookingLocalId` | integer? | - | 215 | FK محلي للحجز |
+| `serverBookingId` | integer? | - | NULL | معرف الحجز على السيرفر |
+| `roomNumber` | string? | 0/50 | "304" | رقم الغرفة |
+| `notes` | string? | 0/500 | NULL | ملاحظات |
+| `cashTransactionLocalId` | integer? | - | NULL | FK لمعاملة نقدية محلية |
+| `cashTransactionServerId` | integer? | - | NULL | معرف المعاملة النقدية على السيرفر |
+| `referenceNumber` | string? | 0/100 | NULL | رقم المرجع |
+| `hotelDayKey` | string? | 0/50 | "2026-06-26" | مفتاح يوم الفندق |
+| `isPendingBalance` | boolean? | - | false | رصيد معلّق |
+| `linkedDebtUuid` | string? | 0/100 | NULL | UUID للدين المرتبط |
+| `bookingUuidCache` | string? | 0/100 | "bd79818a-c328-..." | UUID الحجز (cache) |
 
-### 🔗 حقول المعاملات النقدية
+#### ❌ حقول الإلغاء (Void)
 
-| # | الحقل | النوع | Required | Default |
-|---|-------|------|----------|---------|
-| 11 | `cashTransactionLocalId` | `integer` | ❌ | - |
-| 12 | `cashTransactionServerId` | `integer` | ❌ | - |
-| 13 | `referenceNumber` | `string(100)` | ❌ | - |
-| 14 | `hotelDayKey` | `string(50)` | ❌ | - |
+| الحقل | النوع | الطول | مثال | ملاحظة |
+|-------|------|------|------|--------|
+| `isVoided` | boolean? | - | false | هل الدفع مُلغى |
+| `voidedAt` | integer? | - | NULL | وقت الإلغاء |
+| `voidedBy` | string? | 0/100 | NULL | مُلغي بواسطة |
+| `voidReason` | string? | 0/255 | NULL | سبب الإلغاء |
 
-### 💰 حقول مالية إضافية
+#### 💵 حقول الخصم
 
-| # | الحقل | النوع | Required | Default |
-|---|-------|------|----------|---------|
-| 15 | `isPendingBalance` | `boolean` | ❌ | `false` |
-| 16 | `linkedDebtUuid` | `string(100)` | ❌ | - |
-| 17 | `bookingUuidCache` | `string(100)` | ❌ | - |
+| الحقل | النوع | الطول | مثال | ملاحظة |
+|-------|------|------|------|--------|
+| `discountAmount` | integer? | - | NULL | مبلغ الخصم |
+| `discountStartDate` | string? | - | NULL | تاريخ بداية الخصم |
 
-### ❌ حقول الإلغاء (Void Fields)
+#### 🔒 حقول التجميد
 
-| # | الحقل | النوع | Required | Default |
-|---|-------|------|----------|---------|
-| 18 | `isVoided` | `boolean` | ❌ | `false` |
-| 19 | `voidedAt` | `integer` | ❌ | - |
-| 20 | `voidedBy` | `string(100)` | ❌ | - |
-| 21 | `voidReason` | `string(255)` | ❌ | - |
-| 22 | `isImmutable` | `boolean` | ❌ | `false` |
+| الحقل | النوع | الطول | مثال | ملاحظة |
+|-------|------|------|------|--------|
+| `isImmutable` | boolean? | - | false | هل الدفع مُجمّد (لا يمكن تعديله) |
 
-### 💸 حقول الخصم
+#### 🔄 حقول المزامنة (SyncFields)
 
-| # | الحقل | النوع | Required | Default |
-|---|-------|------|----------|---------|
-| 23 | `discountAmount` | `double` | ❌ | - |
-| 24 | `discountStartDate` | `datetime` | ❌ | - |
+| الحقل | النوع | الطول | مثال | ملاحظة |
+|-------|------|------|------|--------|
+| `serverId` | integer? | - | NULL | معرف السيرفر |
+| `createdAt` | integer | - | 1782512304 | تاريخ الإنشاء |
+| `updatedAt` | integer | - | 1782513529 | تاريخ التحديث |
+| `deletedAt` | integer? | - | NULL | تاريخ الحذف الناعم |
+| `lastModified` | integer | - | 1782513529 | آخر تعديل |
+| `origin` | string? | 0/50 | "local" | المصدر |
+| `lastModifiedEpoch` | integer? | - | 0 | epoch التعديل |
+| `vectorClock` | string? | 0/500 | "{}" | ساعة المتجهات |
+| `version` | integer? | - | 1 | الإصدار |
+| `syncTimestamp` | integer? | - | NULL | طابع زمني للمزامنة |
+| `deviceId` | string? | 0/100 | "6b8c6ab2-..." | معرف الجهاز |
+| `sync_origin` | string? | 0/64 | "mobile" | مصدر المزامنة (snake_case) |
+| `createdAtIso` | string? | 0/50 | NULL | تاريخ ISO للإنشاء |
+| `updatedAtIso` | string? | 0/50 | NULL | تاريخ ISO للتحديث |
+| `deletedAtIso` | string? | 0/50 | NULL | تاريخ ISO للحذف |
+| `createdAtEpoch` | integer? | - | NULL | epoch الإنشاء |
+| `idempotencyKey` | string? | 0/255 | "payments:update:..." | مفتاح Idempotency |
 
-### 🔄 حقول المزامنة (Sync Fields)
+#### 📜 حقول قديمة (Legacy / Deprecated)
 
-| # | الحقل | النوع | Required | Default |
-|---|-------|------|----------|---------|
-| 25 | `serverId` | `integer` | ❌ | - |
-| 26 | `createdAt` | `integer` | ✅ | - |
-| 27 | `updatedAt` | `integer` | ✅ | - |
-| 28 | `deletedAt` | `integer` | ❌ | - |
-| 29 | `lastModified` | `integer` | ✅ | - |
-| 30 | `origin` | `string(50)` | ❌ | `"local"` |
-| 31 | `lastModifiedEpoch` | `integer` | ❌ | `0` |
-| 32 | `vectorClock` | `string(500)` | ❌ | `"{}"` |
-| 33 | `version` | `integer` | ❌ | `1` |
-| 34 | `syncTimestamp` | `integer` | ❌ | `0` |
-| 35 | `deviceId` | `string(100)` | ❌ | `""` |
-| 36 | `sync_version` | `integer` | ❌ | - |
-| 37 | `sync_vector_clock` | `string(2000)` | ❌ | - |
-| 38 | `sync_origin` | `string(64)` | ❌ | `"mobile"` |
-| 39 | `id` | `integer` | ❌ | - |
-| 40 | `createdAtIso` | `string(50)` | ❌ | - |
-| 41 | `updatedAtIso` | `string(50)` | ❌ | - |
-| 42 | `deletedAtIso` | `string(50)` | ❌ | - |
-| 43 | `createdAtEpoch` | `integer` | ❌ | `0` |
+| الحقل | النوع | الطول | مثال | ملاحظة |
+|-------|------|------|------|--------|
+| `sync_version` | integer? | - | NULL | إصدار قديم (deprecated) |
+| `sync_vector_clock` | string? | 0/2000 | NULL | ساعة متجهات قديمة (deprecated) |
+| `id` | integer? | - | NULL | معرف (optional) |
 
----
+### حقول Appwrite التلقائية (لا تُرسل من الكود)
 
-## 📐 الفهارس (Indexes)
-
-| # | الاسم | النوع | الحقول |
-|---|-------|-------|--------|
-| 1 | `idxLocalUuid` | unique | `localUuid` |
-| 2 | `idxServerPaymentId` | unique | `serverPaymentId` |
-| 3 | `idxBookingLocalIdHotelDay` | key | `bookingLocalId, hotelDayKey` |
-| 4 | `idxRoomNumberHotelDay` | key | `roomNumber, hotelDayKey` |
-| 5 | `idxBookingLocalId` | key | `bookingLocalId` |
-| 6 | `idxServerBookingId` | key | `serverBookingId` |
-| 7 | `idxRoomNumber` | key | `roomNumber` |
-| 8 | `idxPaymentDate` | key | `paymentDate` |
-| 9 | `idxPaymentMethod` | key | `paymentMethod` |
-| 10 | `idxRevenueType` | key | `revenueType` |
-| 11 | `idxHotelDayKey` | key | `hotelDayKey` |
-| 12 | `idxIsPendingBalance` | key | `isPendingBalance` |
-| 13 | `idxLinkedDebtUuid` | key | `linkedDebtUuid` |
-| 14 | `idxCashTransactionLocalId` | key | `cashTransactionLocalId` |
-| 15 | `idxLastModified` | key | `lastModified` |
-| 16 | `idx_local_uuid` | unique | `localUuid` |
-| 17 | `idx_booking_date` | key | `bookingLocalId, paymentDate` |
-| 18 | `idx_hotel_day_type` | key | `hotelDayKey, revenueType` |
-| 19 | `idx_payments_void` | key | `isVoided` |
-| 20 | `idx_payments_uuid` | unique | `localUuid` |
-
----
-
-## 🔐 الصلاحيات (Permissions)
-
-```
-read("any")
-create("any")
-update("any")
-delete("any")
-```
+| الحقل | الوصف |
+|-------|--------|
+| `$id` | معرف المستند التلقائي |
+| `$createdAt` | تاريخ الإنشاء التلقائي |
+| `$updatedAt` | تاريخ التحديث التلقائي |
 
 ---
 
@@ -161,84 +141,124 @@ delete("any")
 
 | البند | القيمة |
 |-------|-------|
-| **إجمالي الحقول** | 43 حقل |
-| **تاريخ الإنشاء** | 2026-01-26 |
-| **آخر تحديث** | 2026-02-01 |
-| **الحجم المستخدم** | 19,128 bytes |
-| **عدد الفهارس** | 20 index |
+| **إجمالي الحقول على Cloud** | 40+ حقل |
+| **إجمالي السجلات على Cloud** | 689+ سجل |
+| **آخر دفعة مسجّلة** | $id=4386188a-506c-... (2026-06-27) |
 
 ---
 
-## ✅ مقارنة: الكود المحلي vs Appwrite Cloud
+## ✅ مقارنة: الكود المحلي vs Appwrite Cloud (مُحدّث 2026-06-27)
 
-| الحقل | الكود المحلي | Appwrite Cloud | الحالة |
-|-------|------------|----------------|--------|
-| `localUuid` | ✅ | ✅ | ✅ مطابق |
-| `id` | ✅ | ✅ | ✅ مطابق |
-| `serverPaymentId` | ✅ | ✅ | ✅ مطابق |
-| `bookingLocalId` | ✅ | ✅ | ✅ مطابق |
-| `serverBookingId` | ✅ | ✅ | ✅ مطابق |
-| `roomNumber` | ✅ | ✅ | ✅ مطابق |
-| `amount` | ✅ | ✅ | ✅ مطابق |
-| `paymentDate` | ✅ | ✅ | ✅ مطابق |
-| `notes` | ✅ | ✅ | ✅ مطابق |
-| `paymentMethod` | ✅ | ✅ | ✅ مطابق |
-| `revenueType` | ✅ | ✅ | ✅ مطابق |
-| `cashTransactionLocalId` | ✅ | ✅ | ✅ مطابق |
-| `cashTransactionServerId` | ✅ | ✅ | ✅ مطابق |
-| `referenceNumber` | ✅ | ✅ | ✅ مطابق |
-| `hotelDayKey` | ✅ | ✅ | ✅ مطابق |
-| `isPendingBalance` | ✅ | ✅ | ✅ مطابق |
-| `linkedDebtUuid` | ✅ | ✅ | ✅ مطابق |
-| `bookingUuidCache` | ✅ | ✅ | ✅ مطابق |
-| `discountAmount` | ✅ | ✅ | ✅ مطابق |
-| `discountStartDate` | ✅ | ✅ | ✅ مطابق |
-| `isVoided` | ✅ | ✅ | ✅ مطابق |
-| `voidedAt` | ✅ | ✅ | ✅ مطابق |
-| `voidedBy` | ✅ | ✅ | ✅ مطابق |
-| `voidReason` | ❌ | ✅ | ⚠️ موجود فقط على Cloud |
-| `isImmutable` | ❌ | ✅ | ⚠️ موجود فقط على Cloud |
-| `serverId` | ✅ | ✅ | ✅ مطابق |
-| `createdAt` | ✅ | ✅ | ✅ مطابق |
-| `updatedAt` | ✅ | ✅ | ✅ مطابق |
-| `deletedAt` | ✅ | ✅ | ✅ مطابق |
-| `lastModified` | ✅ | ✅ | ✅ مطابق |
-| `origin` | ✅ | ✅ | ✅ مطابق |
-| `lastModifiedEpoch` | ✅ | ✅ | ✅ مطابق |
-| `vectorClock` | ✅ | ✅ | ✅ مطابق |
-| `version` | ✅ | ✅ | ✅ مطابق |
-| `syncTimestamp` | ✅ | ✅ | ✅ مطابق |
-| `deviceId` | ✅ | ✅ | ✅ مطابق |
-| `sync_version` | ❌ | ✅ | ⚠️ موجود فقط على Cloud |
-| `sync_vector_clock` | ❌ | ✅ | ⚠️ موجود فقط على Cloud |
-| `sync_origin` | ❌ | ✅ | ⚠️ موجود فقط على Cloud |
-| `createdAtIso` | ✅ | ✅ | ✅ مطابق |
-| `updatedAtIso` | ✅ | ✅ | ✅ مطابق |
-| `deletedAtIso` | ✅ | ✅ | ✅ مطابق |
-| `createdAtEpoch` | ✅ | ✅ | ✅ مطابق |
+| الحقل | الكود المحلي | Appwrite Cloud | validFields | الحالة |
+|-------|------------|----------------|-------------|--------|
+| `amount` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `paymentDate` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `paymentMethod` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `revenueType` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `localUuid` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `serverPaymentId` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `bookingLocalId` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `serverBookingId` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `roomNumber` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `notes` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `cashTransactionLocalId` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `cashTransactionServerId` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `referenceNumber` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `hotelDayKey` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `isPendingBalance` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `linkedDebtUuid` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `bookingUuidCache` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `isVoided` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `voidedAt` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `voidedBy` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `voidReason` | ❌ | ✅ | ✅ | ⚠️ على Cloud فقط — غير موجود في النموذج المحلي |
+| `discountAmount` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `discountStartDate` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `isImmutable` | ❌ | ✅ | ✅ | ⚠️ على Cloud فقط — غير موجود في النموذج المحلي |
+| `serverId` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `createdAt` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `updatedAt` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `deletedAt` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `lastModified` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `origin` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `lastModifiedEpoch` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `vectorClock` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `version` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `syncTimestamp` | ✅ | ✅ | ✅ | ✅ مطابق (أُضيف 2026-06-27) |
+| `deviceId` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `sync_origin` | ✅ | ✅ | ✅ | ✅ مطابق (أُضيف 2026-06-27) |
+| `sync_version` | ❌ | ✅ | ✅ | ⚠️ Legacy — غير مُرسل من الكود |
+| `sync_vector_clock` | ❌ | ✅ | ✅ | ⚠️ Legacy — غير مُرسل من الكود |
+| `createdAtIso` | ✅ | ✅ | ✅ | ✅ مطابق (أُضيف 2026-06-27) |
+| `updatedAtIso` | ✅ | ✅ | ✅ | ✅ مطابق (أُضيف 2026-06-27) |
+| `deletedAtIso` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `createdAtEpoch` | ✅ | ✅ | ✅ | ✅ مطابق |
+| `idempotencyKey` | ✅ | ✅ | ✅ | ✅ مطابق (أُضيف 2026-06-27) |
+| `id` | ❌ | ✅ | ✅ | ⚠️ Legacy — غير مُرسل من الكود |
 
 ---
 
 ## ⚠️ ملاحظات مهمة
 
-### حقول إضافية على Cloud فقط:
-- `voidReason` - سبب الإلغاء
-- `isImmutable` - هل الدفع غير قابل للتعديل
-- `sync_version` - إصدار المزامنة
-- `sync_vector_clock` - ساعة المتجهات للمزامنة
-- `sync_origin` - أصل المزامنة
+### 1. ✅ حقول مُضافة حديثاً (2026-06-27) — تم حلها:
+
+الحقول التالية كانت موجودة على Appwrite Cloud لكن **لم تكن مُدرجة** في
+`validFieldsPerCollection['payments']` في `appwrite_sync_utils.dart`
+(في الواقع، `payments` لم تكن موجودة إطلاقاً في `validFieldsPerCollection`
+مما كان يعني أن `_filterPayload` لا يُصفّي شيئاً — يُرسل كل الحقول).
+
+**تم الإصلاح:**
+- إنشاء `validFieldsPerCollection['payments']` كاملة بـ 40+ حقل
+- تصنيف الحقول إلى: أساسية، إلغاء، خصم، تجميد، SyncFields، Legacy
+
+### 2. تحديث `_paymentToRemote()`
+
+تم تعديل `_paymentToRemote()` لإرسال بنشاط:
+- `sync_origin = payment.origin` — مصدر المزامنة
+- `syncTimestamp = payment.lastModified` — طابع زمني
+- `createdAtIso`, `updatedAtIso` — تواريخ ISO
+
+### 3. حقول على Cloud فقط (غير موجودة في النموذج المحلي)
+
+الحقلان التاليان موجودان على Appwrite Cloud لكن **ليسا في نموذج Payment المحلي**:
+- `voidReason` (string?, 255) — سبب إلغاء الدفع
+- `isImmutable` (boolean?) — هل الدفع مُجمّد
+
+يمكن إضافتهما لاحقاً إلى جدول `Payments` في `local_db.dart` عند الحاجة.
+
+### 4. حقول Legacy (Deprecated)
+
+الحقول التالية موجودة على Cloud لكنها قديمة وغير مُستخدمة:
+- `sync_version` — استخدم `version` بدلاً منها
+- `sync_vector_clock` — استخدم `vectorClock` بدلاً منها
+- `id` — معرف قديم، استخدم `localUuid` بدلاً منها
+
+### 5. تحويل النوع
+
+- `amount` على Cloud هو `integer`، محلياً `double` — يتم التحويل عبر `.round()`
+- `discountAmount` على Cloud هو `integer`، محلياً `double`
 
 ---
 
 ## 📁 الملفات المتعلقة
 
-| الملف | المسار |
-|-------|--------|
-| Payments Adapter | `lib/services/adapters/payments_adapter.dart` |
-| Local DB Schema | `lib/services/local_db.dart` |
-| Payment Voids Adapter | `lib/services/adapters/payment_voids_adapter.dart` |
+| الملف | المسار | الوظيفة |
+|-------|--------|---------|
+| Payments Adapter | `lib/services/adapters/payments_adapter.dart` | تحويل البيانات بين المحلي و Cloud |
+| Local DB Schema | `lib/services/local_db.dart` | تعريف جدول `Payments` |
+| Sync Utils | `lib/services/appwrite_sync_utils.dart` | `validFieldsPerCollection` + `filterPayloadForCollection` |
+| Sync Manager | `lib/services/appwrite_sync_manager.dart` | `_processPaymentEntry` + `_paymentToRemote` |
+| Payment Voids | `lib/services/local_db.dart` (`PaymentVoids`) | جدول عمليات الإلغاء المرتبط |
 
 ---
 
-**تم إنشاء هذا التقرير بواسطة:** OpenHands AI Agent  
-**التاريخ:** 2026-06-26
+## 📜 سجل التغييرات
+
+| التاريخ | Commit | التغيير |
+|---------|--------|---------|
+| 2026-06-27 | - | إنشاء `validFieldsPerCollection['payments']` كاملة (40+ حقل) + تحديث `_paymentToRemote` لإرسال `sync_origin`, `syncTimestamp`, `createdAtIso`, `updatedAtIso` |
+
+---
+
+**تم إنشاء هذا التقرير بواسطة:** Marina Hotel Agent  
+**آخر تحديث:** 2026-06-27
