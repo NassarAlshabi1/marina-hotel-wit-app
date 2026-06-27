@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart' as d;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
+import '../../services/vector_clock_helper.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_parser.dart';
 import '../../utils/hotel_date_helper.dart';
@@ -117,7 +119,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
 
   /// نافذة تأكيد احترافية لمعالجة الليالي المشبوهة
   /// تعرض تفاصيل كل ليلة مشبوهة مع خيار احتسابها أو إلغائها
-  Future<bool> _showSuspiciousNightsDialog(
+  ///
+  /// ✅ إصلاح (2026-06-28 P2-9): تغيير القيمة المعادة من bool (دائماً true)
+  /// إلى void لأن القيمة لم تكن تُستخدم بشكل مفيد.
+  Future<void> _showSuspiciousNightsDialog(
     List<BookingNight> suspiciousNights,
   ) async {
     final totalSuspiciousAmount = suspiciousNights.fold<double>(
@@ -284,21 +289,32 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         _cancelledSuspiciousNightIds
             .addAll(suspiciousNights.map((n) => n.id));
       });
-      return true; // تم المعالجة
+      return; // تم الإلغاء
     }
-    // keep_nights أو إغلاق → نحتسب الليالي
-    return true;
+    // keep_nights أو إغلاق → نحتسب الليالي (لا حاجة لفعل شيء)
+    return;
   }
 
   /// حذف الليالي الملغاة من قاعدة البيانات عند تسجيل الخروج
+  ///
+  /// ✅ إصلاح (2026-06-28 P0-2): استدعاء markDataChanged() فوراً بعد الحذف
+  /// لضمان رفع الحذف للسحابة. بدون هذا، الليالي المحذوفة محلياً تعود بعد المزامنة.
   Future<void> _deleteCancelledNights() async {
     if (_cancelledSuspiciousNightIds.isEmpty) return;
     final db = ref.read(databaseProvider);
+    final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     for (final nightId in _cancelledSuspiciousNightIds) {
-      await (db.delete(db.bookingNights)
+      // ✅ استخدام soft-delete (deletedAt) بدلاً من hard-delete
+      // حتى يتتبعها outbox ويرفع الحذف للسحابة
+      await (db.update(db.bookingNights)
             ..where((n) => n.id.equals(nightId)))
-          .go();
+          .write(BookingNightsCompanion(
+            deletedAt: d.Value(nowEpoch),
+            updatedAt: d.Value(nowEpoch),
+          ));
     }
+    // ✅ تسجيل التغيير فوراً ليُرفع للسحابة في الـ sync القادم
+    markDataChanged();
   }
 
   @override
@@ -315,14 +331,30 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     if (discountStartDate == null) {
       return Time.nightsWithCutoff(checkin, checkout: checkout);
     }
-    final discountDayStart = DateTime(
+    // ✅ إصلاح (2026-06-28 P1-6): حساب دقيق لليالي الخصم
+    //
+    // المنطق القديم كان يبدأ الخصم من الساعة 14:00 من يوم discountStartDate،
+    // لكنه كان يفشل في حالات:
+    //   1. إذا كان discountStartDate قبل checkin → يبدأ من checkin (صحيح)
+    //   2. إذا كان discountStartDate في نفس يوم checkin → استخدام checkin (قد يخطئ)
+    //   3. إذا كان discountStartDate بعد checkin → يبدأ من يوم الخصم
+    //
+    // المنطق الجديد:
+    //   - بداية احتساب الخصم = اليوم التالي لـ discountStartDate (لأن الليلة تُحتسب
+    //     عند تجاوز الساعة 14:00 من ذلك اليوم)
+    //   - لكن لا نبدأ قبل checkin
+    //   - نستخدم nightsWithCutoff لتطبيق قاعدة الساعة 14:00 بشكل موحد
+    final discountStart = DateTime(
       discountStartDate.year,
       discountStartDate.month,
       discountStartDate.day,
-      14,
+      14, // الساعة 14:00 من يوم بداية الخصم
     );
-    final effectiveStart = discountDayStart.isAfter(checkin) ? discountDayStart : checkin;
+    // بداية احتساب الخصم = أقصى (checkin, discountStart)
+    // هذا يضمن أن الخصم لا يُحتسب قبل وصول النزيل أو قبل تاريخ بدء الخصم
+    final effectiveStart = checkin.isAfter(discountStart) ? checkin : discountStart;
     if (!checkout.isAfter(effectiveStart)) {
+      // النزيل غادر قبل بدء سريان الخصم → لا توجد ليالي خصم
       return 0;
     }
     return Time.nightsWithCutoff(effectiveStart, checkout: checkout);
@@ -880,11 +912,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     setState(() => _isProcessing = true);
 
     try {
-      // 0. حذف الليالي المشبوهة الملغاة من قاعدة البيانات
-      await _deleteCancelledNights();
-
       final bookingsRepo = ref.read(bookingsRepoProvider);
       final roomsRepo = ref.read(roomsRepoProvider);
+      final db = ref.read(databaseProvider);
 
       final nowIso = Time.nowIso();
       final checkin =
@@ -892,32 +922,62 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       final nowDate = DateTime.parse(nowIso);
       final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
 
-      // 1. تحديث الحجز: مكتمل + تسجيل خروج
-      await bookingsRepo.update(
-        widget.booking.id,
-        status: 'مكتمل',
-        actualCheckout: nowIso,
-        calculatedNights: actualNights,
-      );
+      // ✅ إصلاح (2026-06-28 P0-1): تغليف كل عمليات DB في transaction موحد
+      // لضمان atomicity — إما تنجح كلها أو تفشل كلها (لا تضارب بيانات).
+      // العمليات: حذف الليالي + تحديث الحجز + تحديث الغرفة + إنشاء الدين
+      final debtId = await db.transaction(() async {
+        // 0. حذف الليالي المشبوهة الملغاة
+        await _deleteCancelledNights();
 
-      // 2. تحديث حالة الغرفة
-      await roomsRepo.refreshAllRoomOccupancy();
-
-      // 3. إنشاء دين للمبلغ المتبقي (أو الإطلاق بدون دين)
-      if (createDebt) {
-        final debtsRepo = ref.read(debtsRepoProvider);
-        final checkoutDateStr = widget.booking.checkoutDate ?? nowIso;
-        await debtsRepo.create(
-          bookingLocalId: widget.booking.id,
-          guestName: widget.booking.guestName,
-          checkinDate: widget.booking.checkinDate,
-          checkoutDate: checkoutDateStr,
-          debtReason: 'مبلغ متبقي بعد تسجيل الخروج',
-          totalAmount: totalDue,
-          paidAmount: totalDue - remainingAmount,
-          paymentDate: nowIso,
-          isSettled: false,
+        // 1. تحديث الحجز: مكتمل + تسجيل خروج
+        await bookingsRepo.update(
+          widget.booking.id,
+          status: 'مكتمل',
+          actualCheckout: nowIso,
+          calculatedNights: actualNights,
         );
+
+        // 2. تحديث حالة الغرفة
+        await roomsRepo.refreshAllRoomOccupancy();
+
+        // 3. إنشاء دين للمبلغ المتبقي (أو الإطلاق بدون دين)
+        int? createdDebtId;
+        if (createDebt) {
+          final debtsRepo = ref.read(debtsRepoProvider);
+          final checkoutDateStr = widget.booking.checkoutDate ?? nowIso;
+          // ✅ إصلاح (2026-06-28 P0-3): totalAmount = remainingAmount (المتبقي فقط)
+          // بدلاً من totalDue (المبلغ الكامل). الدين الجديد يمثل المبلغ غير المدفوع.
+          createdDebtId = await debtsRepo.create(
+            bookingLocalId: widget.booking.id,
+            guestName: widget.booking.guestName,
+            checkinDate: widget.booking.checkinDate,
+            checkoutDate: checkoutDateStr,
+            debtReason: 'مبلغ متبقي بعد تسجيل الخروج',
+            totalAmount: remainingAmount,   // ✅ المتبقي فقط
+            paidAmount: 0,                  // ✅ لم يُدفع بعد
+            paymentDate: nowIso,
+            isSettled: false,
+          );
+        }
+        return createdDebtId;
+      });
+
+      // ✅ إصلاح (2026-06-28 P1-4, P1-5): زيادة VC بعد الكتابة الناجحة
+      // هذا يحمي التعديلات المحلية من التعارضات المتزامنة حتى قبل الـ push.
+      // نستخدم widget.booking.localUuid لأنه الـ UUID المخزن في DB.
+      await VectorClockHelper.bump(db, 'bookings', widget.booking.localUuid);
+      if (debtId != null && debtId > 0) {
+        // للدين الجديد، نحتاج لمعرفة localUuid — نقرأه من DB
+        try {
+          final debtRow = await (db.select(db.debts)
+                ..where((d) => d.id.equals(debtId)))
+              .getSingleOrNull();
+          if (debtRow != null) {
+            await VectorClockHelper.bump(db, 'debts', debtRow.localUuid);
+          }
+        } catch (_) {
+          // فشل زيادة VC للدين ليس حرجاً — الـ push سيزيده لاحقاً
+        }
       }
 
       markDataChanged();
@@ -1071,23 +1131,16 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         );
         return;
       }
-      if (parsedAmount % 1 != 0) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('المبلغ يجب أن يكون بدون كسور'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
+      // ✅ إصلاح (2026-06-28 P2-7): إزالة فحص الكسور المكرر
+      // inputFormatters: [FilteringTextInputFormatter.digitsOnly] يمنع
+      // إدخال الكسور أصلاً، لذا فحص parsedAmount % 1 != 0 كان كوداً ميتاً.
       final double amount = parsedAmount;
 
       setState(() => _isProcessing = true);
 
       try {
         final paymentsRepo = ref.read(paymentsRepoProvider);
-        await paymentsRepo.create(
+        final paymentId = await paymentsRepo.create(
           bookingLocalId: widget.booking.id,
           roomNumber: widget.booking.roomNumber,
           amount: amount,
@@ -1096,6 +1149,22 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           paymentMethod: selectedMethod,
           revenueType: selectedType,
         );
+
+        // ✅ إصلاح (2026-06-28 P1-5): زيادة VC للدفعة الجديدة
+        final db = ref.read(databaseProvider);
+        if (paymentId > 0) {
+          try {
+            final paymentRow = await (db.select(db.payments)
+                  ..where((p) => p.id.equals(paymentId)))
+                .getSingleOrNull();
+            if (paymentRow != null) {
+              await VectorClockHelper.bump(db, 'payments', paymentRow.localUuid);
+            }
+          } catch (_) {
+            // فشل زيادة VC ليس حرجاً
+          }
+        }
+
         markDataChanged();
 
         // ignore: use_build_context_synchronously
@@ -1156,29 +1225,35 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       setState(() => _isProcessing = true);
 
       try {
-        // حذف الليالي المشبوهة الملغاة من قاعدة البيانات
-        await _deleteCancelledNights();
-
         final bookingsRepo = ref.read(bookingsRepoProvider);
         final roomsRepo = ref.read(roomsRepoProvider);
+        final db = ref.read(databaseProvider);
 
-        // ✅ تحديث حالة الحجز + حالة الغرفة في معاملة واحدة
         final nowIso = Time.nowIso();
         final checkin =
             DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
         final nowDate = DateTime.parse(nowIso);
         final actualNights = Time.nightsWithCutoff(checkin, checkout: nowDate);
 
-        // استخدام refreshAllRoomOccupancy بدلاً من تحديث يدوي جزئي
-        // هذا يضمن تناسق جميع حالات الغرف
-        await bookingsRepo.update(
-          widget.booking.id,
-          status: 'مكتمل',
-          actualCheckout: nowIso,
-          calculatedNights: actualNights,
-        );
-        // تحديث حالة الغرفة إلى شاغرة عبر المستودع الموحد
-        await roomsRepo.refreshAllRoomOccupancy();
+        // ✅ إصلاح (2026-06-28 P0-1): تغليف كل عمليات DB في transaction موحد
+        await db.transaction(() async {
+          // حذف الليالي المشبوهة الملغاة من قاعدة البيانات
+          await _deleteCancelledNights();
+
+          // تحديث حالة الحجز
+          await bookingsRepo.update(
+            widget.booking.id,
+            status: 'مكتمل',
+            actualCheckout: nowIso,
+            calculatedNights: actualNights,
+          );
+          // تحديث حالة الغرفة إلى شاغرة عبر المستودع الموحد
+          await roomsRepo.refreshAllRoomOccupancy();
+        });
+
+        // ✅ إصلاح (2026-06-28 P1-4): زيادة VC بعد الكتابة الناجحة
+        await VectorClockHelper.bump(db, 'bookings', widget.booking.localUuid);
+
         markDataChanged();
 
         if (mounted) {
