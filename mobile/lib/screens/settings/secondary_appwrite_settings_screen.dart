@@ -277,33 +277,56 @@ class _SecondaryAppwriteSettingsScreenState
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // ── بطاقة التاريخ ──
+          Card(
+            elevation: 1,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(Icons.event, color: Colors.indigo.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'تاريخ الإعداد: 2026-06-20',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
           // ── بطاقة معلوماتية ──
           Card(
             color: Colors.blue.shade50,
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.info, color: Colors.blue.shade700),
-                      const SizedBox(width: 8),
+                      Icon(Icons.info, color: Colors.blue.shade700, size: 18),
+                      const SizedBox(width: 6),
                       const Text(
                         'كيف تعمل المزامنة الثانوية؟',
                         style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                            fontSize: 13, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   const Text(
                     '• outbox المحلي يُسلّم للوجهتين بالتوازي\n'
                     '• السجل يُحذف فقط بعد نجاح كلا الوجهتين\n'
                     '• الرفع (Push): أحداث أول بأول لـ Secondary\n'
                     '• السحب (Pull): Failover تلقائي عند تعطل Primary\n'
                     '• لا فقدان بيانات، لا تكرار، لا سباق بيانات',
-                    style: TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: 11),
                   ),
                 ],
               ),
