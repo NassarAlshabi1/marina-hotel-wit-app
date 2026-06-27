@@ -286,11 +286,12 @@ class AppwriteSyncUtils {
       'lastModifiedEpoch', 'createdAtIso', 'updatedAtIso', 'deletedAtIso',
       'syncTimestamp',
     },
-    'outbox': {
-      'createdAt', 'deletedAt', 'isRead', 'lastModified', 'localUuid',
-      'message', 'origin', 'recipient', 'sentAt', 'serverId', 'updatedAt',
-      'version',
-    },
+    // ❌ outbox — جدول محلي فقط، لا يُزامن مع Appwrite Cloud أبداً
+    // لا يوجد collection باسم 'outbox' على Cloud
+    // جدول outbox الفعلي يحتوي على: entity, op, localUuid, payload, clientTs,
+    // attempts, lastError, idempotencyKey, processingStatus, processingStartedAt,
+    // processingWorker, source, deliveredToPrimary, deliveredToSecondary
+    // هذه الحقول كلها محلية ولا تُرسل لأي وجهة سحابية
     'sync_state': {
       'createdAt', 'deletedAt', 'isSyncing', 'lastModified', 'lastSyncTime',
       'localUuid', 'origin', 'serverId', 'sync_origin', 'updatedAt', 'version',
