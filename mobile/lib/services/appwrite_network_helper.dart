@@ -78,10 +78,13 @@ class AppwriteNetworkHelper {
   /// [operation] - الدالة المراد تنفيذها
   /// [timeout] - المدة القصوى للانتظار
   /// [operationName] - اسم العملية للتسجيل
+  /// [suppressErrorLog] - إذا true، لا يُسجّل الخطأ كـ ERROR (للأخطاء المتوقعة
+  ///   مثل 404 في upsert probe). الخطأ يُعاد رميه لكن بدون تسجيل مزعج.
   Future<T> withTimeout<T>({
     required Future<T> Function() operation,
     Duration? timeout,
     String? operationName,
+    bool suppressErrorLog = false,
   }) async {
     final maxDuration = timeout ?? AppwriteConfig.defaultTimeout;
     final opName = operationName ?? 'Operation';
@@ -108,7 +111,14 @@ class AppwriteNetworkHelper {
       if (e is TimeoutException) {
         rethrow;
       }
-      _logger.error('$opName - Failed: $e', error: e, tag: 'TIMEOUT');
+      // ✅ إصلاح (2026-06-28): كتم أخطاء 404 المتوقعة في upsert probe
+      // 404 من updateDocument متوقع تماماً للسجلات الجديدة التي لم تُرفع
+      // للسحابة بعد. تسجيله كـ ERROR يُسبب ضوضاء كبيرة في السجلات.
+      if (!suppressErrorLog) {
+        _logger.error('$opName - Failed: $e', error: e, tag: 'TIMEOUT');
+      } else {
+        _logger.debug('$opName - Expected error (suppressed): $e', tag: 'TIMEOUT');
+      }
       rethrow;
     }
   }
@@ -119,17 +129,20 @@ class AppwriteNetworkHelper {
   /// [maxRetries] - عدد المحاولات القصوى
   /// [timeout] - المدة القصوى للانتظار لكل محاولة
   /// [operationName] - اسم العملية للتسجيل
+  /// [suppressErrorLog] - إذا true، لا يُسجّل الخطأ كـ ERROR (للأخطاء المتوقعة)
   Future<T> withRetryAndTimeout<T>({
     required Future<T> Function() operation,
     int? maxRetries,
     Duration? timeout,
     String? operationName,
+    bool suppressErrorLog = false,
   }) async {
     return withRetry(
       operation: () => withTimeout(
         operation: operation,
         timeout: timeout,
         operationName: operationName,
+        suppressErrorLog: suppressErrorLog,
       ),
       maxRetries: maxRetries,
       operationName: operationName,

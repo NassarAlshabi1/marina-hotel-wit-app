@@ -423,7 +423,10 @@ class AppwriteService {
         e.toString().contains('document_already_exists');
 
     // مساعد لتنفيذ updateDocument مع retry/timeout
-    Future<models.Document> doUpdate() async {
+    // ✅ إصلاح (2026-06-28): suppressErrorLog=true لكتم 404 المتوقع
+    // في المحاولة الأولى (upsert probe). 404 يعني "السجل جديد، لم يُرفع للسحابة بعد"
+    // وهو سلوك طبيعي وليس خطأ. تسجيله كـ ERROR يُسبب ضوضاء في السجلات.
+    Future<models.Document> doUpdate({bool suppressErrorLog = false}) async {
       return _networkHelper.withRetryAndTimeout(
         // ignore: deprecated_member_use
         operation: () => _databases.updateDocument(
@@ -433,6 +436,7 @@ class AppwriteService {
           data: data,
         ),
         operationName: 'updateDocument',
+        suppressErrorLog: suppressErrorLog,
       );
     }
 
@@ -451,13 +455,19 @@ class AppwriteService {
     }
 
     // ─── الخطوة 1: محاولة updateDocument (Optimistic) ───
+    // ✅ suppressErrorLog=true: 404 متوقع للسجلات الجديدة، لا نسجّله كـ ERROR
     try {
-      return await doUpdate();
+      return await doUpdate(suppressErrorLog: true);
     } on AppwriteException catch (updateError) {
       // إذا فشل updateDocument بـ 404 → المستند غير موجود، ننتقل إلى createDocument
       if (!isNotFound(updateError)) {
         // ─── الخطوة 4 (نادر): update فشل بـ 409 → نحاول createDocument ───
         if (isAlreadyExists(updateError)) {
+          _logger.debug(
+            'upsert: updateDocument(409) → trying createDocument. '
+            'collection=$collectionId, docId=$documentId',
+            tag: 'UPSERT',
+          );
           try {
             return await doCreate();
           } on AppwriteException catch (createError2) {
@@ -484,6 +494,12 @@ class AppwriteService {
         // خطأ آخر غير 404/409 → نرميه للأعلى
         rethrow;
       }
+      // 404 متوقع — نسجّل كمعلومة DEBUG وننتقل إلى createDocument
+      _logger.debug(
+        'upsert: updateDocument(404) → record is new, creating. '
+        'collection=$collectionId, docId=$documentId',
+        tag: 'UPSERT',
+      );
       // المتابعة إلى createDocument (الحالة 404)
     }
 
