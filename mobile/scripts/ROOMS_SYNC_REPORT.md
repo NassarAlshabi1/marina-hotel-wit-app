@@ -170,16 +170,87 @@ delete("any")
 
 ---
 
-## 📁 الملفات المتعلقة
+## ☁️ الحقول الموجودة على Appwrite Cloud (مُحدّث 2026-06-27)
 
-| الملف | المسار |
-|-------|--------|
-| Rooms Adapter | `lib/services/adapters/rooms_adapter.dart` |
-| Local DB Schema | `lib/services/local_db.dart` |
-| Appwrite Config | `lib/services/appwrite_config.dart` |
-| Delta Sync Service | `lib/services/delta_sync_service.dart` |
+### الحقول المطلوبة (REQUIRED) على Cloud
+
+| الحقل | النوع | الطول | مثال | ملاحظة |
+|-------|------|------|------|--------|
+| `roomNumber` | string | 3/50 | "104" | **REQUIRED** — رقم الغرفة |
+| `type` | string | 9/100 | "سرير فردي" | **REQUIRED** — نوع الغرفة |
+| `price` | integer | - | 15000 | **REQUIRED** — السعر |
+| `status` | string | 5/50 | "شاغرة" | **REQUIRED** — الحالة |
+| `localUuid` | string | 32/100 | "3205842c508e..." | **REQUIRED** — UUID فريد |
+| `createdAt` | integer | - | 1773812679000 | **REQUIRED** — تاريخ الإنشاء |
+| `updatedAt` | integer | - | 1782504378 | **REQUIRED** — تاريخ التحديث |
+| `lastModified` | integer | - | 1782504378 | **REQUIRED** — آخر تعديل |
+
+### الحقول الاختيارية (OPTIONAL) على Cloud
+
+| الحقل | النوع | الطول | مثال | ملاحظة |
+|-------|------|------|------|--------|
+| `imageUrl` | string? | 0/500 | NULL | صورة الغرفة |
+| `cleaningStatus` | string? | 5/50 | "clean" | حالة التنظيف |
+| `lastCleanedHotelDay` | string? | 0/50 | NULL | آخر يوم تنظيف |
+| `lastOccupiedHotelDay` | string? | 10/50 | "2026-06-14" | آخر يوم إشغال |
+| `requiresMaintenance` | boolean? | - | false | يتطلب صيانة |
+| `serverId` | integer? | - | NULL | معرف السيرفر |
+| `deletedAt` | integer? | - | NULL | تاريخ الحذف الناعم |
+| `createdAtIso` | string? | 0/50 | NULL | تاريخ ISO للإنشاء |
+| `updatedAtIso` | string? | 27/50 | "2026-06-16T17:38:22..." | تاريخ ISO للتحديث |
+| `deletedAtIso` | string? | 0/50 | NULL | تاريخ ISO للحذف |
+| `createdAtEpoch` | integer? | - | 0 | epoch الإنشاء |
+| `lastModifiedEpoch` | integer? | - | 1781631502 | epoch التعديل |
+| `vectorClock` | string? | 2/500 | "{}" | ساعة المتجهات |
+| `version` | integer? | - | 1000026 | الإصدار |
+| `origin` | string? | 6/50 | "server" | المصدر |
+| `deviceId` | string? | 36/100 | "da2c98b9-..." | معرف الجهاز |
+| `id` | integer? | - | NULL | ✅ معرف (أُضيف 2026-06-27) |
+| `roomType` | string? | 9/255 | "سرير فردي" | نوع الغرفة (مكرر مع type) |
+| `syncTimestamp` | integer? | - | 0 | ✅ طابع زمني (أُضيف 2026-06-27) |
+| `sync_origin` | string? | 6/64 | "mobile" | ✅ مصدر المزامنة (أُضيف 2026-06-27) |
+| `idempotencyKey` | string? | - | NULL | مفتاح Idempotency |
 
 ---
 
-**تم إنشاء هذا التقرير بواسطة:** OpenHands AI Agent  
-**التاريخ:** 2026-06-26
+## ⚠️ ملاحظات مهمة
+
+### 1. ✅ حقول مُضافة حديثاً (2026-06-27) — تم حلها:
+
+الحقول التالية كانت موجودة على Appwrite Cloud لكن **لم تكن مُدرجة** في
+`validFieldsPerCollection['rooms']`:
+- `id` — معرف (integer?, optional على Cloud)
+- `syncTimestamp` — طابع زمني للمزامنة
+- `sync_origin` — مصدر المزامنة (string?, 64)
+
+### 2. ملاحظات عامة
+
+- جدول `rooms` يُستخدم لتخزين **بيانات الغرف**
+- `type` و `roomType` مكرران (نفس البيانات) — `roomType` للتوافق مع Legacy
+- `price` على Cloud هو `integer`، محلياً `double` — يتم التحويل عبر `.round()`
+- `status` يمكن أن يكون: "شاغرة"، "محجوزة"، "صيانة"
+
+---
+
+## 📁 الملفات المتعلقة
+
+| الملف | المسار | الوظيفة |
+|-------|--------|---------|
+| Rooms Adapter | `lib/services/adapters/rooms_adapter.dart` | تحويل البيانات |
+| Local DB Schema | `lib/services/local_db.dart` | تعريف جدول `Rooms` |
+| Appwrite Config | `lib/services/appwrite_config.dart` | إعدادات المجموعات |
+| Delta Sync Service | `lib/services/delta_sync_service.dart` | مزامنة تفاضلية |
+| Sync Utils | `lib/services/appwrite_sync_utils.dart` | `validFieldsPerCollection` |
+
+---
+
+## 📜 سجل التغييرات
+
+| التاريخ | Commit | التغيير |
+|---------|--------|---------|
+| 2026-06-27 | - | إضافة `id`, `syncTimestamp`, `sync_origin` إلى `validFieldsPerCollection['rooms']` |
+
+---
+
+**تم إنشاء هذا التقرير بواسطة:** Marina Hotel Agent  
+**آخر تحديث:** 2026-06-27

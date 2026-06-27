@@ -174,8 +174,6 @@
 | `deviceId` | string? (100) | "6b8c6ab2-..." | معرف الجهاز |
 | `syncTimestamp` | integer? | 0 | ✅ طابع زمني (أُضيف 2026-06-27) |
 | `sync_origin` | string? (50) | NULL | ✅ مصدر المزامنة (أُضيف 2026-06-27) |
-| `sync_version` | integer? | NULL | ✅ Legacy (أُضيف 2026-06-27) |
-| `sync_vector_clock` | string? (2000) | NULL | ✅ Legacy (أُضيف 2026-06-27) |
 | `guestPhone` | string? (20) | NULL | ✅ هاتف النزيل (أُضيف 2026-06-27) |
 | `description` | string? (500) | NULL | ✅ وصف إضافي (أُضيف 2026-06-27) |
 | `status` | string? (50) | NULL | ✅ الحالة (أُضيف 2026-06-27) |
@@ -195,8 +193,6 @@
 `validFieldsPerCollection['debts']`:
 - `syncTimestamp` — طابع زمني للمزامنة
 - `sync_origin` — مصدر المزامنة
-- `sync_version` — إصدار قديم (Legacy)
-- `sync_vector_clock` — ساعة متجهات قديمة (Legacy)
 - `guestPhone` — هاتف النزيل
 - `description` — وصف إضافي
 - `status` — الحالة
@@ -204,13 +200,20 @@
 - `amount` — المبلغ
 - `id` — معرف
 
-### 2. تحديث `_debtToRemote()`
+### 2. ❌ حقول محذوفة من validFields (2026-06-27):
+
+الحقول التالية كانت مُدرجة سابقاً لكنها **مكررة** — تم حذفها لأنها
+تكرر `version` و `vectorClock`:
+- `sync_version` — استخدم `version` بدلاً منها
+- `sync_vector_clock` — استخدم `vectorClock` بدلاً منها
+
+### 3. تحديث `_debtToRemote()`
 
 تم تعديل `_debtToRemote()` لإرسال بنشاط:
 - `sync_origin = debt.origin`
 - `syncTimestamp = debt.lastModified`
 
-### 3. تحويل النوع
+### 4. تحويل النوع
 
 - `totalAmount`, `paidAmount`, `amount`, `remainingAmount` على Cloud هي `integer`، محلياً `double` — يتم التحويل عبر `.round()`
 
@@ -231,7 +234,7 @@
 
 | التاريخ | Commit | التغيير |
 |---------|--------|---------|
-| 2026-06-27 | - | إضافة 10 حقول مفقودة إلى `validFieldsPerCollection['debts']` + تحديث `_debtToRemote` لإرسال `sync_origin` و `syncTimestamp` |
+| 2026-06-27 | - | إضافة 8 حقول مفقودة + إزالة `sync_version` و `sync_vector_clock` (مكررة) من `validFieldsPerCollection['debts']` + تحديث `_debtToRemote` لإرسال `sync_origin` و `syncTimestamp` |
 
 ---
 
