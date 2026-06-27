@@ -6,10 +6,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
+import '../providers/secondary_sync_provider.dart';
 import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
+import '../services/secondary_appwrite_config.dart';
+import '../services/secondary_sync_manager.dart';
 import '../services/sync_core/conflict_resolver.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
@@ -501,6 +504,34 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             'error': e.toString(),
           };
           debugPrint('❌ خطأ في رفع التغييرات إلى Google Drive: $e');
+        }
+      }
+
+      // ✅ رفع إلى Appwrite الثانوي (إذا مُفعّل)
+      // يستخدم نفس outbox الرئيسي — لا يسبب فقدان بيانات أو تكرار.
+      // السجل يُحذف من outbox فقط بعد نجاح كلا الوجهتين.
+      if (SecondaryAppwriteConfig.isEnabled &&
+          SecondaryAppwriteConfig.isPushEnabled) {
+        try {
+          final secondaryResult =
+              await SecondarySyncManager.instance.pushLocalChanges();
+          results['Appwrite الثانوي'] = {
+            'success': secondaryResult,
+            'pushed': _pendingChangesCount,
+          };
+          if (secondaryResult) {
+            ref
+                .read(secondarySyncProvider.notifier)
+                .updateLastSync(DateTime.now());
+          }
+          debugPrint('🔵 [Dashboard] Secondary sync push: $secondaryResult');
+        } catch (e) {
+          results['Appwrite الثانوي'] = {
+            'success': false,
+            'pushed': 0,
+            'error': e.toString(),
+          };
+          debugPrint('❌ خطأ في رفع التغييرات إلى Appwrite الثانوي: $e');
         }
       }
 

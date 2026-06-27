@@ -52,6 +52,8 @@ import 'services/hotel_day_key_fix_service.dart';
 import 'services/local_db.dart';
 import 'services/logging/log_models.dart';
 import 'services/remote_config_service.dart';
+import 'services/secondary_appwrite_config.dart';
+import 'services/secondary_sync_manager.dart';
 import 'services/seed.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/sync_conflict_event_bus.dart';
@@ -82,6 +84,9 @@ Future<void> main() async {
 
   // ─── Crashlytics: تهيئة قبل كل شيء ───
   await CrashlyticsService.instance.initialize();
+
+  // ─── SecondaryAppwriteConfig: تهيئة SharedPreferences قبل أي وصول للإعدادات ───
+  await SecondaryAppwriteConfig.ensureInitialized();
 
   // ─── Remote Config: تهيئة مبكراً ───
   await RemoteConfigService.instance.initialize();
@@ -142,6 +147,26 @@ Future<void> main() async {
   );
 
   unawaited(_initializeFullyAutomatedSyncSystem());
+
+  // ✅ تهيئة المزامنة الثانوية (إذا كانت مُفعّلة من إعدادات سابقة)
+  unawaited(_initializeSecondarySync());
+}
+
+/// تهيئة المزامنة الثانوية عند بدء التطبيق.
+/// إذا كان Secondary مُفعّلاً من قبل المستخدم، نبدأ المزامنة التلقائية.
+Future<void> _initializeSecondarySync() async {
+  try {
+    await SecondaryAppwriteConfig.ensureInitialized();
+    if (SecondaryAppwriteConfig.isEnabled &&
+        SecondaryAppwriteConfig.isConfigured) {
+      SecondarySyncManager.instance.startAutoSync();
+      debugPrint('🔵 [Main] Secondary sync auto-started');
+    } else {
+      debugPrint('🔵 [Main] Secondary sync disabled or not configured');
+    }
+  } catch (e) {
+    debugPrint('⚠️ [Main] Secondary sync init failed: $e');
+  }
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {

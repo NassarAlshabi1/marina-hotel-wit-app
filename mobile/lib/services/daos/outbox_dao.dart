@@ -162,6 +162,11 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         ? ' AND source IN (${sources.map((s) => "'$s'").join(',')})'
         : '';
 
+    // ✅ Dual-delivery: نأخذ فقط السجلات غير المُسلّمة للرئيسي.
+    // السجلات المُسلّمة للرئيسي فقط (وليس للثانوي) تُترك لـ SecondarySyncManager.
+    // السجلات المُسلّمة لكلا الوجهتين تُحذف تلقائياً بواسطة markDelivered*.
+    const primaryCondition = ' AND delivered_to_primary = 0';
+
     // ✅ تحديث ذري: حدّت الحالة مباشرة في استعلام واحد لمنع المعالجة المكررة
     // بدلاً من SELECT ثم UPDATE المنفصلين اللذين يسمحان بسباق البيانات
     const priorityCase = "CASE WHEN entity = 'rooms' THEN 1 "
@@ -177,7 +182,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final claimed = await customSelect(
       'UPDATE outbox SET processing_status = ?, processing_started_at = ?, processing_worker = ? '
       'WHERE id IN ('
-      '  SELECT id FROM outbox WHERE processing_status = ?$sourceCondition ORDER BY $priorityCase ASC, client_ts ASC LIMIT ? '
+      '  SELECT id FROM outbox WHERE processing_status = ?$primaryCondition$sourceCondition ORDER BY $priorityCase ASC, client_ts ASC LIMIT ? '
       ') RETURNING *',
       variables: [
         const Variable<String>('processing'),
@@ -202,6 +207,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       attempts: row.read<int>('attempts'),
       idempotencyKey: row.read<String?>('idempotency_key'),
       source: row.read<String>('source'),
+      deliveredToPrimary: row.read<bool>('delivered_to_primary'),
+      deliveredToSecondary: row.read<bool>('delivered_to_secondary'),
     ),).get();
 
     return claimed;
@@ -274,6 +281,109 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         processingStatus: Value('completed'),
         processingStartedAt: Value(null),
         processingWorker: Value(null),
+      ),
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // ✅ تتبع التسليم لكل وجهة (Dual-Delivery Tracking)
+  // ════════════════════════════════════════════════════════════════════
+  //
+  // بدلاً من حذف السجل بعد نجاح الرفع للرئيسي فقط، نستخدم علامتين
+  // منفصلتين:
+  //
+  //   - delivered_to_primary: هل تم تسليم السجل لـ Appwrite الرئيسي؟
+  //   - delivered_to_secondary: هل تم تسليم السجل لـ Appwrite الثانوي؟
+  //
+  // السجل يُحذف فقط بعد نجاح كلا الوجهتين. هذا يمنع فقدان البيانات
+  // عند فشل إحدى الوجهتين، ويمنع تكرار العمليات بسبب سباق البيانات.
+
+  /// يضع علامة "تم التسليم للرئيسي" على السجل.
+  /// إذا كان السجل قد سُلّم للثانوي أيضاً، يتم حذفه تلقائياً.
+  Future<void> markDeliveredToPrimary(int id) async {
+    await _markDelivered(id, toPrimary: true);
+  }
+
+  /// يضع علامة "تم التسليم للثانوي" على السجل.
+  /// إذا كان السجل قد سُلّم للرئيسي أيضاً، يتم حذفه تلقائياً.
+  Future<void> markDeliveredToSecondary(int id) async {
+    await _markDelivered(id, toPrimary: false);
+  }
+
+  /// المنطق الموحد لـ markDelivered:
+  /// 1) نضع علامة التسليم المناسبة
+  /// 2) نُعيد الحالة إلى pending (ليتمكن الـ sync الآخر من معالجتها)
+  /// 3) إذا كانت كلتا العلامتين true، نحذف السجل
+  Future<void> _markDelivered(int id, {required bool toPrimary}) async {
+    await transaction(() async {
+      // قراءة الحالة الحالية
+      final record = await (select(outbox)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (record == null) return; // السجل محذوف بالفعل
+
+      // تحديث العلامة المناسبة
+      final companion = toPrimary
+          ? const OutboxCompanion(
+              deliveredToPrimary: Value(true),
+              processingStatus: Value('pending'),
+              processingStartedAt: Value(null),
+              processingWorker: Value(null),
+            )
+          : const OutboxCompanion(
+              deliveredToSecondary: Value(true),
+              processingStatus: Value('pending'),
+              processingStartedAt: Value(null),
+              processingWorker: Value(null),
+            );
+
+      await (update(outbox)..where((t) => t.id.equals(id))).write(companion);
+
+      // إعادة القراءة بعد التحديث للحصول على القيم الجديدة
+      final updated = await (select(outbox)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (updated == null) return;
+
+      // ✅ حذف السجل فقط إذا تم تسليمه لكلا الوجهتين
+      if (updated.deliveredToPrimary && updated.deliveredToSecondary) {
+        await (delete(outbox)..where((t) => t.id.equals(id))).go();
+      }
+    });
+  }
+
+  /// عدد السجلات غير المُسلّمة للرئيسي
+  Future<int> countPendingForPrimary() async {
+    final result = await customSelect(
+      "SELECT COUNT(*) AS cnt FROM outbox WHERE delivered_to_primary = 0 AND source = 'local'",
+      readsFrom: {outbox},
+    ).getSingle();
+    return result.read<int>('cnt');
+  }
+
+  /// عدد السجلات غير المُسلّمة للثانوي
+  Future<int> countPendingForSecondary() async {
+    final result = await customSelect(
+      "SELECT COUNT(*) AS cnt FROM outbox WHERE delivered_to_secondary = 0 AND source = 'local'",
+      readsFrom: {outbox},
+    ).getSingle();
+    return result.read<int>('cnt');
+  }
+
+  /// يضع علامة "غير مُسلّم للثانوي" على جميع السجلات المحلية القادمة.
+  /// تُستدعى عند تفعيل Secondary لأول مرة — نريد إرسال كل السجلات القادمة.
+  Future<int> markAllLocalAsUndeliveredToSecondary() async {
+    return (update(outbox)..where((t) => t.source.equals('local'))).write(
+      const OutboxCompanion(
+        deliveredToSecondary: Value(false),
+      ),
+    );
+  }
+
+  /// يضع علامة "مُسلّم للثانوي" على جميع السجلات المحلية.
+  /// تُستدعى عند تعطيل Secondary — لا نريد إرسال أي شيء للثانوي.
+  Future<int> markAllLocalAsDeliveredToSecondary() async {
+    return (update(outbox)..where((t) => t.source.equals('local'))).write(
+      const OutboxCompanion(
+        deliveredToSecondary: Value(true),
       ),
     );
   }

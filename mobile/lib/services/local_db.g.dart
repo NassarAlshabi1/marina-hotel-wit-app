@@ -21852,6 +21852,34 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
     requiredDuringInsert: false,
     defaultValue: const Constant('local'),
   );
+  static const VerificationMeta _deliveredToPrimaryMeta =
+      const VerificationMeta('deliveredToPrimary');
+  @override
+  late final GeneratedColumn<bool> deliveredToPrimary = GeneratedColumn<bool>(
+    'delivered_to_primary',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("delivered_to_primary" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _deliveredToSecondaryMeta =
+      const VerificationMeta('deliveredToSecondary');
+  @override
+  late final GeneratedColumn<bool> deliveredToSecondary = GeneratedColumn<bool>(
+    'delivered_to_secondary',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("delivered_to_secondary" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -21868,6 +21896,8 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
     processingStartedAt,
     processingWorker,
     source,
+    deliveredToPrimary,
+    deliveredToSecondary,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -21981,6 +22011,24 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
       );
     }
+    if (data.containsKey('delivered_to_primary')) {
+      context.handle(
+        _deliveredToPrimaryMeta,
+        deliveredToPrimary.isAcceptableOrUnknown(
+          data['delivered_to_primary']!,
+          _deliveredToPrimaryMeta,
+        ),
+      );
+    }
+    if (data.containsKey('delivered_to_secondary')) {
+      context.handle(
+        _deliveredToSecondaryMeta,
+        deliveredToSecondary.isAcceptableOrUnknown(
+          data['delivered_to_secondary']!,
+          _deliveredToSecondaryMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -22046,6 +22094,14 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         DriftSqlType.string,
         data['${effectivePrefix}source'],
       )!,
+      deliveredToPrimary: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}delivered_to_primary'],
+      )!,
+      deliveredToSecondary: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}delivered_to_secondary'],
+      )!,
     );
   }
 
@@ -22073,6 +22129,20 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
   /// مصدر عنصر outbox: 'local' = تغيير محلي (مستخدم)، 'restore' = استعادة من نسخة احتياطية
   /// هذا يفصل بين تتبع التغييرات المحلية وعمليات الاستعادة/المزامنة البعيدة
   final String source;
+
+  /// ✅ تتبع التسليم لكل وجهة (dual-delivery tracking)
+  ///
+  /// بدلاً من حذف السجل بعد نجاح الرفع للرئيسي فقط، نحتفظ بالسجل حتى يتم
+  /// تسليمه لـ Primary و Secondary معاً. هذا يمنع فقدان البيانات من
+  /// الوجهة الثانوية عند فشل الرفع لها، ويمنع تكرار العمليات في الوجهة
+  /// الواحدة بسبب سباق البيانات بين مزامنتين متوازيتين.
+  ///
+  /// القيم الافتراضية:
+  ///   - delivered_to_primary = false (لم يُسلّم للرئيسي بعد)
+  ///   - delivered_to_secondary = true (افتراضياً مُسلّم: تجنّب حجب السجلات
+  ///     عندما Secondary غير مُفعّل — فقط SecondarySyncManager يضبطها على false)
+  final bool deliveredToPrimary;
+  final bool deliveredToSecondary;
   const OutboxData({
     required this.id,
     required this.entity,
@@ -22088,6 +22158,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     this.processingStartedAt,
     this.processingWorker,
     required this.source,
+    required this.deliveredToPrimary,
+    required this.deliveredToSecondary,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -22116,6 +22188,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       map['processing_worker'] = Variable<String>(processingWorker);
     }
     map['source'] = Variable<String>(source);
+    map['delivered_to_primary'] = Variable<bool>(deliveredToPrimary);
+    map['delivered_to_secondary'] = Variable<bool>(deliveredToSecondary);
     return map;
   }
 
@@ -22145,6 +22219,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           ? const Value.absent()
           : Value(processingWorker),
       source: Value(source),
+      deliveredToPrimary: Value(deliveredToPrimary),
+      deliveredToSecondary: Value(deliveredToSecondary),
     );
   }
 
@@ -22170,6 +22246,10 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       ),
       processingWorker: serializer.fromJson<String?>(json['processingWorker']),
       source: serializer.fromJson<String>(json['source']),
+      deliveredToPrimary: serializer.fromJson<bool>(json['deliveredToPrimary']),
+      deliveredToSecondary: serializer.fromJson<bool>(
+        json['deliveredToSecondary'],
+      ),
     );
   }
   @override
@@ -22190,6 +22270,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       'processingStartedAt': serializer.toJson<int?>(processingStartedAt),
       'processingWorker': serializer.toJson<String?>(processingWorker),
       'source': serializer.toJson<String>(source),
+      'deliveredToPrimary': serializer.toJson<bool>(deliveredToPrimary),
+      'deliveredToSecondary': serializer.toJson<bool>(deliveredToSecondary),
     };
   }
 
@@ -22208,6 +22290,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     Value<int?> processingStartedAt = const Value.absent(),
     Value<String?> processingWorker = const Value.absent(),
     String? source,
+    bool? deliveredToPrimary,
+    bool? deliveredToSecondary,
   }) => OutboxData(
     id: id ?? this.id,
     entity: entity ?? this.entity,
@@ -22229,6 +22313,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
         ? processingWorker.value
         : this.processingWorker,
     source: source ?? this.source,
+    deliveredToPrimary: deliveredToPrimary ?? this.deliveredToPrimary,
+    deliveredToSecondary: deliveredToSecondary ?? this.deliveredToSecondary,
   );
   OutboxData copyWithCompanion(OutboxCompanion data) {
     return OutboxData(
@@ -22254,6 +22340,12 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           ? data.processingWorker.value
           : this.processingWorker,
       source: data.source.present ? data.source.value : this.source,
+      deliveredToPrimary: data.deliveredToPrimary.present
+          ? data.deliveredToPrimary.value
+          : this.deliveredToPrimary,
+      deliveredToSecondary: data.deliveredToSecondary.present
+          ? data.deliveredToSecondary.value
+          : this.deliveredToSecondary,
     );
   }
 
@@ -22273,7 +22365,9 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           ..write('processingStatus: $processingStatus, ')
           ..write('processingStartedAt: $processingStartedAt, ')
           ..write('processingWorker: $processingWorker, ')
-          ..write('source: $source')
+          ..write('source: $source, ')
+          ..write('deliveredToPrimary: $deliveredToPrimary, ')
+          ..write('deliveredToSecondary: $deliveredToSecondary')
           ..write(')'))
         .toString();
   }
@@ -22294,6 +22388,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     processingStartedAt,
     processingWorker,
     source,
+    deliveredToPrimary,
+    deliveredToSecondary,
   );
   @override
   bool operator ==(Object other) =>
@@ -22312,7 +22408,9 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           other.processingStatus == this.processingStatus &&
           other.processingStartedAt == this.processingStartedAt &&
           other.processingWorker == this.processingWorker &&
-          other.source == this.source);
+          other.source == this.source &&
+          other.deliveredToPrimary == this.deliveredToPrimary &&
+          other.deliveredToSecondary == this.deliveredToSecondary);
 }
 
 class OutboxCompanion extends UpdateCompanion<OutboxData> {
@@ -22330,6 +22428,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
   final Value<int?> processingStartedAt;
   final Value<String?> processingWorker;
   final Value<String> source;
+  final Value<bool> deliveredToPrimary;
+  final Value<bool> deliveredToSecondary;
   const OutboxCompanion({
     this.id = const Value.absent(),
     this.entity = const Value.absent(),
@@ -22345,6 +22445,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     this.processingStartedAt = const Value.absent(),
     this.processingWorker = const Value.absent(),
     this.source = const Value.absent(),
+    this.deliveredToPrimary = const Value.absent(),
+    this.deliveredToSecondary = const Value.absent(),
   });
   OutboxCompanion.insert({
     this.id = const Value.absent(),
@@ -22361,6 +22463,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     this.processingStartedAt = const Value.absent(),
     this.processingWorker = const Value.absent(),
     this.source = const Value.absent(),
+    this.deliveredToPrimary = const Value.absent(),
+    this.deliveredToSecondary = const Value.absent(),
   }) : entity = Value(entity),
        op = Value(op),
        localUuid = Value(localUuid),
@@ -22381,6 +22485,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     Expression<int>? processingStartedAt,
     Expression<String>? processingWorker,
     Expression<String>? source,
+    Expression<bool>? deliveredToPrimary,
+    Expression<bool>? deliveredToSecondary,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -22398,6 +22504,10 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
         'processing_started_at': processingStartedAt,
       if (processingWorker != null) 'processing_worker': processingWorker,
       if (source != null) 'source': source,
+      if (deliveredToPrimary != null)
+        'delivered_to_primary': deliveredToPrimary,
+      if (deliveredToSecondary != null)
+        'delivered_to_secondary': deliveredToSecondary,
     });
   }
 
@@ -22416,6 +22526,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     Value<int?>? processingStartedAt,
     Value<String?>? processingWorker,
     Value<String>? source,
+    Value<bool>? deliveredToPrimary,
+    Value<bool>? deliveredToSecondary,
   }) {
     return OutboxCompanion(
       id: id ?? this.id,
@@ -22432,6 +22544,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
       processingStartedAt: processingStartedAt ?? this.processingStartedAt,
       processingWorker: processingWorker ?? this.processingWorker,
       source: source ?? this.source,
+      deliveredToPrimary: deliveredToPrimary ?? this.deliveredToPrimary,
+      deliveredToSecondary: deliveredToSecondary ?? this.deliveredToSecondary,
     );
   }
 
@@ -22480,6 +22594,14 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     if (source.present) {
       map['source'] = Variable<String>(source.value);
     }
+    if (deliveredToPrimary.present) {
+      map['delivered_to_primary'] = Variable<bool>(deliveredToPrimary.value);
+    }
+    if (deliveredToSecondary.present) {
+      map['delivered_to_secondary'] = Variable<bool>(
+        deliveredToSecondary.value,
+      );
+    }
     return map;
   }
 
@@ -22499,7 +22621,9 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
           ..write('processingStatus: $processingStatus, ')
           ..write('processingStartedAt: $processingStartedAt, ')
           ..write('processingWorker: $processingWorker, ')
-          ..write('source: $source')
+          ..write('source: $source, ')
+          ..write('deliveredToPrimary: $deliveredToPrimary, ')
+          ..write('deliveredToSecondary: $deliveredToSecondary')
           ..write(')'))
         .toString();
   }
@@ -46564,6 +46688,8 @@ typedef $$OutboxTableCreateCompanionBuilder =
       Value<int?> processingStartedAt,
       Value<String?> processingWorker,
       Value<String> source,
+      Value<bool> deliveredToPrimary,
+      Value<bool> deliveredToSecondary,
     });
 typedef $$OutboxTableUpdateCompanionBuilder =
     OutboxCompanion Function({
@@ -46581,6 +46707,8 @@ typedef $$OutboxTableUpdateCompanionBuilder =
       Value<int?> processingStartedAt,
       Value<String?> processingWorker,
       Value<String> source,
+      Value<bool> deliveredToPrimary,
+      Value<bool> deliveredToSecondary,
     });
 
 class $$OutboxTableFilterComposer
@@ -46659,6 +46787,16 @@ class $$OutboxTableFilterComposer
 
   ColumnFilters<String> get source => $composableBuilder(
     column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deliveredToPrimary => $composableBuilder(
+    column: $table.deliveredToPrimary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deliveredToSecondary => $composableBuilder(
+    column: $table.deliveredToSecondary,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -46741,6 +46879,16 @@ class $$OutboxTableOrderingComposer
     column: $table.source,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get deliveredToPrimary => $composableBuilder(
+    column: $table.deliveredToPrimary,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deliveredToSecondary => $composableBuilder(
+    column: $table.deliveredToSecondary,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OutboxTableAnnotationComposer
@@ -46801,6 +46949,16 @@ class $$OutboxTableAnnotationComposer
 
   GeneratedColumn<String> get source =>
       $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<bool> get deliveredToPrimary => $composableBuilder(
+    column: $table.deliveredToPrimary,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get deliveredToSecondary => $composableBuilder(
+    column: $table.deliveredToSecondary,
+    builder: (column) => column,
+  );
 }
 
 class $$OutboxTableTableManager
@@ -46845,6 +47003,8 @@ class $$OutboxTableTableManager
                 Value<int?> processingStartedAt = const Value.absent(),
                 Value<String?> processingWorker = const Value.absent(),
                 Value<String> source = const Value.absent(),
+                Value<bool> deliveredToPrimary = const Value.absent(),
+                Value<bool> deliveredToSecondary = const Value.absent(),
               }) => OutboxCompanion(
                 id: id,
                 entity: entity,
@@ -46860,6 +47020,8 @@ class $$OutboxTableTableManager
                 processingStartedAt: processingStartedAt,
                 processingWorker: processingWorker,
                 source: source,
+                deliveredToPrimary: deliveredToPrimary,
+                deliveredToSecondary: deliveredToSecondary,
               ),
           createCompanionCallback:
               ({
@@ -46877,6 +47039,8 @@ class $$OutboxTableTableManager
                 Value<int?> processingStartedAt = const Value.absent(),
                 Value<String?> processingWorker = const Value.absent(),
                 Value<String> source = const Value.absent(),
+                Value<bool> deliveredToPrimary = const Value.absent(),
+                Value<bool> deliveredToSecondary = const Value.absent(),
               }) => OutboxCompanion.insert(
                 id: id,
                 entity: entity,
@@ -46892,6 +47056,8 @@ class $$OutboxTableTableManager
                 processingStartedAt: processingStartedAt,
                 processingWorker: processingWorker,
                 source: source,
+                deliveredToPrimary: deliveredToPrimary,
+                deliveredToSecondary: deliveredToSecondary,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

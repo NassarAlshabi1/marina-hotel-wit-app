@@ -681,6 +681,22 @@ class Outbox extends Table {
   /// هذا يفصل بين تتبع التغييرات المحلية وعمليات الاستعادة/المزامنة البعيدة
   TextColumn get source => text().withDefault(const Constant('local'))();
 
+  /// ✅ تتبع التسليم لكل وجهة (dual-delivery tracking)
+  ///
+  /// بدلاً من حذف السجل بعد نجاح الرفع للرئيسي فقط، نحتفظ بالسجل حتى يتم
+  /// تسليمه لـ Primary و Secondary معاً. هذا يمنع فقدان البيانات من
+  /// الوجهة الثانوية عند فشل الرفع لها، ويمنع تكرار العمليات في الوجهة
+  /// الواحدة بسبب سباق البيانات بين مزامنتين متوازيتين.
+  ///
+  /// القيم الافتراضية:
+  ///   - delivered_to_primary = false (لم يُسلّم للرئيسي بعد)
+  ///   - delivered_to_secondary = true (افتراضياً مُسلّم: تجنّب حجب السجلات
+  ///     عندما Secondary غير مُفعّل — فقط SecondarySyncManager يضبطها على false)
+  BoolColumn get deliveredToPrimary =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get deliveredToSecondary =>
+      boolean().withDefault(const Constant(true))();
+
   List<Index> get indexes => [
     Index(
       'idx_outbox_status',
@@ -705,6 +721,15 @@ class Outbox extends Table {
     Index(
       'idx_outbox_source_status',
       'CREATE INDEX idx_outbox_source_status ON outbox (source, processing_status)',
+    ),
+    // ✅ فهرس مركّب لتسريع استعلامات "ما الذي لم يُسلّم بعد لكل وجهة"
+    Index(
+      'idx_outbox_delivery_primary',
+      'CREATE INDEX idx_outbox_delivery_primary ON outbox (delivered_to_primary, processing_status)',
+    ),
+    Index(
+      'idx_outbox_delivery_secondary',
+      'CREATE INDEX idx_outbox_delivery_secondary ON outbox (delivered_to_secondary, processing_status)',
     ),
   ];
 }
@@ -810,7 +835,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 43;
+  int get schemaVersion => 44;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2083,6 +2108,56 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 43: salary_carry_over_logs already exists: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 44) {
+        // ✅ إضافة عمودي تتبع التسليم لكل وجهة (Primary / Secondary)
+        // يسمح بمشاركة outbox بين مزامنتين متوازيتين بدون فقدان بيانات
+        // أو سباق race condition. السجل يُحذف فقط بعد نجاح كلا الوجهتين.
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE outbox ADD COLUMN delivered_to_primary INTEGER NOT NULL DEFAULT 0',
+          );
+          developer.log(
+            'Migration 44: added outbox.delivered_to_primary column',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 44: delivered_to_primary already exists: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE outbox ADD COLUMN delivered_to_secondary INTEGER NOT NULL DEFAULT 1',
+          );
+          developer.log(
+            'Migration 44: added outbox.delivered_to_secondary column',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 44: delivered_to_secondary already exists: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_outbox_delivery_primary ON outbox (delivered_to_primary, processing_status)',
+          );
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_outbox_delivery_secondary ON outbox (delivered_to_secondary, processing_status)',
+          );
+          developer.log(
+            'Migration 44: created delivery tracking indexes',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 44: indexes already exist: $e',
             name: 'db.migration',
           );
         }

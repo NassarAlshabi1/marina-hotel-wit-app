@@ -47,6 +47,39 @@ class AppwriteConfig {
   // جدول إعدادات التطبيق (واتساب، وغيرها)
   static const String appSettingsCollectionId = 'app_settings';
 
+  /// خرائط أسماء الكيانات إلى collection IDs.
+  /// تستخدم لتحويل اسم الكيان في outbox (مثل 'bookings') إلى collection ID
+  /// في Appwrite (مثل 'bookings'). حالياً الاسم واحد، لكن هذه الخريطة
+  /// تسمح بتغيير الأسماء مستقبلاً دون تعديل كل الاستدعاءات.
+  static const Map<String, String> _entityToCollection = {
+    'rooms': roomsCollectionId,
+    'bookings': bookingsCollectionId,
+    'payments': paymentsCollectionId,
+    'expenses': expensesCollectionId,
+    'employees': employeesCollectionId,
+    'debts': debtsCollectionId,
+    'booking_notes': bookingNotesCollectionId,
+    'shift_notes': shiftNotesCollectionId,
+    'cash_transactions': cashTransactionsCollectionId,
+    'booking_nights': bookingNightsCollectionId,
+    'salary_cycles': salaryCyclesCollectionId,
+    'salary_payments': salaryPaymentsCollectionId,
+    'salary_withdrawals': salaryWithdrawalsCollectionId,
+    'salary_carry_over_logs': 'salary_carry_over_logs',
+    'blacklist': blacklistCollectionId,
+    'price_adjustments': priceAdjustmentsCollectionId,
+    'booking_price_adjustments': bookingPriceAdjustmentsCollectionId,
+    'audit_logs': auditLogsCollectionId,
+    'payment_voids': paymentVoidsCollectionId,
+    'guest_infos': guestInfosCollectionId,
+  };
+
+  /// يحوّل اسم الكيان إلى collection ID في Appwrite.
+  /// يُرجع null إذا لم يكن الكيان معروفاً (مثل 'hotel_day_ledger' المحلي فقط).
+  static String? collectionIdFor(String entity) {
+    return _entityToCollection[entity];
+  }
+
   // إعدادات المزامنة
   static const Duration syncInterval = Duration(minutes: 15);
   static const Duration cacheExpiry = Duration(hours: 6);

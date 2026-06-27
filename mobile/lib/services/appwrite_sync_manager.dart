@@ -2033,7 +2033,9 @@ class AppwriteSyncManager {
           final success = await _processOutboxEntry(entry)
               .timeout(const Duration(seconds: timeoutSeconds));
           if (success) {
-            await outboxDao.removeById(entry.id);
+            // ✅ Dual-delivery: نضع علامة "مُسلّم للرئيسي" بدلاً من الحذف.
+            // السجل يُحذف تلقائياً فقط إذا كان مُسلّماً للثانوي أيضاً.
+            await outboxDao.markDeliveredToPrimary(entry.id);
             processedInBatch++;
           }
         } catch (e) {

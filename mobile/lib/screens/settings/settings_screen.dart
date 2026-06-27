@@ -18,6 +18,7 @@ import 'google_drive_backup_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
 import 'php_api_settings_screen.dart';
 import 'remote_config_settings_screen.dart';
+import 'secondary_appwrite_settings_screen.dart';
 import 'settings_custom_lists.dart';
 import 'settings_employees.dart';
 import 'settings_guests.dart';
@@ -244,6 +245,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: () => Navigator.push<void>(
               context,
               MaterialPageRoute<void>(builder: (context) => const AppwriteSettingsScreen()),
+            ),
+          ),
+          // ✅ جديد: Appwrite الثانوي (نسخة احتياطية)
+          _SettingsItem(
+            title: 'Appwrite الثانوي',
+            subtitle: 'نسخة احتياطية للوجهة الثانوية',
+            icon: Icons.cloud_queue,
+            color: Colors.deepPurple,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const SecondaryAppwriteSettingsScreen()),
             ),
           ),
           // ✅ جديد: زر حالة المزامنة
