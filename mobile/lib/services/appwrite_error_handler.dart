@@ -43,14 +43,54 @@ class AppwriteErrorHandler {
       _errorHistory.removeRange(0, _errorHistory.length - _maxHistorySize);
     }
 
-    _logger.error(
-      '${appwriteError.message} (Context: $context)',
-      error: error,
-      stackTrace: stackTrace,
-      tag: 'ERROR_HANDLER',
-    );
+    // ✅ إصلاح (2026-06-28): كتم أخطاء 404 المتوقعة في تدفق upsert
+    // 404 من updateDocument متوقع تماماً للسجلات الجديدة. upsert يلتقطه
+    // داخلياً وينتقل إلى createDocument. لكن إذا تسرب الخطأ للـ catch
+    // الخارجي (نادر)، لا نسجّله كـ ERROR لأنه يُسبب ضوضاء كبيرة.
+    // نسجّله كـ DEBUG بدلاً من ذلك.
+    final isExpected404 = _isExpectedNotFound(error, context);
+    if (isExpected404) {
+      _logger.debug(
+        '${appwriteError.message} (Context: $context) — expected 404, suppressed',
+        tag: 'ERROR_HANDLER',
+      );
+    } else {
+      _logger.error(
+        '${appwriteError.message} (Context: $context)',
+        error: error,
+        stackTrace: stackTrace,
+        tag: 'ERROR_HANDLER',
+      );
+    }
 
     return appwriteError;
+  }
+
+  /// ✅ تحقق إذا كان الخطأ 404 متوقعاً في سياق upsert (push)
+  /// في سياق push، 404 يعني أن السجل لم يُرفع للسحابة بعد — متوقع.
+  bool _isExpectedNotFound(dynamic error, String context) {
+    // سياقات push حيث upsert يُنتج 404 متوقع
+    if (!context.startsWith('push:')) {
+      return false;
+    }
+
+    // تحقق من نوع الخطأ
+    if (error is AppwriteException) {
+      final code = error.code;
+      final type = (error.type ?? '').toLowerCase();
+      if (code == 404 || type.contains('document_not_found') || type.contains('not_found')) {
+        return true;
+      }
+    }
+
+    final msg = error.toString().toLowerCase();
+    if (msg.contains('404') ||
+        msg.contains('document_not_found') ||
+        msg.contains('not found')) {
+      return true;
+    }
+
+    return false;
   }
 
   AppwriteError _parseError(dynamic error, String context) {

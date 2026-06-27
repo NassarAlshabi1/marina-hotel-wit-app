@@ -210,26 +210,41 @@ Future<bool> _processOutboxEntry(OutboxData entry) async {
       context: 'push:${entry.entity}:${entry.op}',
       stackTrace: stackTrace,
     );
-    
-    // تسجيل مفصل للخطأ
-    _logger.log(
-      '❌ فشل رفع ${entry.entity}',
-      level: LogLevel.error,
-      tag: 'PUSH_ERROR',
-      error: error,
-      stackTrace: stackTrace,
-    );
-    _logger.log(
-      '   العملية: ${entry.op}',
-      level: LogLevel.error,
-      tag: 'PUSH_ERROR',
-    );
-    _logger.log(
-      '   Local UUID: ${entry.localUuid}',
-      level: LogLevel.error,
-      tag: 'PUSH_ERROR',
-    );
-    
+
+    // ✅ إصلاح (2026-06-28): كتم تسجيل PUSH_ERROR لأخطاء 404 المتوقعة
+    // 404 في سياق push يعني أن upsert حاول update ثم سينتقل لـ create.
+    // إذا تسرب الخطأ هنا (نادر)، لا نسجّله كـ ERROR لأنه يُسبب ضوضاء.
+    final errorMsg = error.toString().toLowerCase();
+    final isExpected404 = errorMsg.contains('404') ||
+        errorMsg.contains('document_not_found') ||
+        errorMsg.contains('not found');
+
+    if (isExpected404) {
+      _logger.debug(
+        'upsert 404 for ${entry.entity}/${entry.localUuid} — will retry as create',
+        tag: 'PUSH_ERROR',
+      );
+    } else {
+      // تسجيل مفصل للخطأ الحقيقي فقط
+      _logger.log(
+        '❌ فشل رفع ${entry.entity}',
+        level: LogLevel.error,
+        tag: 'PUSH_ERROR',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _logger.log(
+        '   العملية: ${entry.op}',
+        level: LogLevel.error,
+        tag: 'PUSH_ERROR',
+      );
+      _logger.log(
+        '   Local UUID: ${entry.localUuid}',
+        level: LogLevel.error,
+        tag: 'PUSH_ERROR',
+      );
+    }
+
     await outboxDao.setError(entry.id, parsed.message, entry.attempts + 1);
     await outboxDao.markFailed([entry.id]);
     return false;
