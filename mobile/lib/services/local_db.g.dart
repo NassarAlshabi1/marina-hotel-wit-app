@@ -34966,6 +34966,363 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
   }
 }
 
+class $AncestorCacheTable extends AncestorCache
+    with TableInfo<$AncestorCacheTable, AncestorCacheData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AncestorCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _entityMeta = const VerificationMeta('entity');
+  @override
+  late final GeneratedColumn<String> entity = GeneratedColumn<String>(
+    'entity',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _localUuidMeta = const VerificationMeta(
+    'localUuid',
+  );
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+    'local_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dataJsonMeta = const VerificationMeta(
+    'dataJson',
+  );
+  @override
+  late final GeneratedColumn<String> dataJson = GeneratedColumn<String>(
+    'data_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _capturedAtMeta = const VerificationMeta(
+    'capturedAt',
+  );
+  @override
+  late final GeneratedColumn<int> capturedAt = GeneratedColumn<int>(
+    'captured_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    entity,
+    localUuid,
+    dataJson,
+    capturedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ancestor_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AncestorCacheData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('entity')) {
+      context.handle(
+        _entityMeta,
+        entity.isAcceptableOrUnknown(data['entity']!, _entityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityMeta);
+    }
+    if (data.containsKey('local_uuid')) {
+      context.handle(
+        _localUuidMeta,
+        localUuid.isAcceptableOrUnknown(data['local_uuid']!, _localUuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('data_json')) {
+      context.handle(
+        _dataJsonMeta,
+        dataJson.isAcceptableOrUnknown(data['data_json']!, _dataJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dataJsonMeta);
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+        _capturedAtMeta,
+        capturedAt.isAcceptableOrUnknown(data['captured_at']!, _capturedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_capturedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {entity, localUuid},
+  ];
+  @override
+  AncestorCacheData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AncestorCacheData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      entity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity'],
+      )!,
+      localUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_uuid'],
+      )!,
+      dataJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data_json'],
+      )!,
+      capturedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}captured_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AncestorCacheTable createAlias(String alias) {
+    return $AncestorCacheTable(attachedDatabase, alias);
+  }
+}
+
+class AncestorCacheData extends DataClass
+    implements Insertable<AncestorCacheData> {
+  final int id;
+  final String entity;
+  final String localUuid;
+  final String dataJson;
+  final int capturedAt;
+  const AncestorCacheData({
+    required this.id,
+    required this.entity,
+    required this.localUuid,
+    required this.dataJson,
+    required this.capturedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['entity'] = Variable<String>(entity);
+    map['local_uuid'] = Variable<String>(localUuid);
+    map['data_json'] = Variable<String>(dataJson);
+    map['captured_at'] = Variable<int>(capturedAt);
+    return map;
+  }
+
+  AncestorCacheCompanion toCompanion(bool nullToAbsent) {
+    return AncestorCacheCompanion(
+      id: Value(id),
+      entity: Value(entity),
+      localUuid: Value(localUuid),
+      dataJson: Value(dataJson),
+      capturedAt: Value(capturedAt),
+    );
+  }
+
+  factory AncestorCacheData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AncestorCacheData(
+      id: serializer.fromJson<int>(json['id']),
+      entity: serializer.fromJson<String>(json['entity']),
+      localUuid: serializer.fromJson<String>(json['localUuid']),
+      dataJson: serializer.fromJson<String>(json['dataJson']),
+      capturedAt: serializer.fromJson<int>(json['capturedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'entity': serializer.toJson<String>(entity),
+      'localUuid': serializer.toJson<String>(localUuid),
+      'dataJson': serializer.toJson<String>(dataJson),
+      'capturedAt': serializer.toJson<int>(capturedAt),
+    };
+  }
+
+  AncestorCacheData copyWith({
+    int? id,
+    String? entity,
+    String? localUuid,
+    String? dataJson,
+    int? capturedAt,
+  }) => AncestorCacheData(
+    id: id ?? this.id,
+    entity: entity ?? this.entity,
+    localUuid: localUuid ?? this.localUuid,
+    dataJson: dataJson ?? this.dataJson,
+    capturedAt: capturedAt ?? this.capturedAt,
+  );
+  AncestorCacheData copyWithCompanion(AncestorCacheCompanion data) {
+    return AncestorCacheData(
+      id: data.id.present ? data.id.value : this.id,
+      entity: data.entity.present ? data.entity.value : this.entity,
+      localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      dataJson: data.dataJson.present ? data.dataJson.value : this.dataJson,
+      capturedAt: data.capturedAt.present
+          ? data.capturedAt.value
+          : this.capturedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AncestorCacheData(')
+          ..write('id: $id, ')
+          ..write('entity: $entity, ')
+          ..write('localUuid: $localUuid, ')
+          ..write('dataJson: $dataJson, ')
+          ..write('capturedAt: $capturedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, entity, localUuid, dataJson, capturedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AncestorCacheData &&
+          other.id == this.id &&
+          other.entity == this.entity &&
+          other.localUuid == this.localUuid &&
+          other.dataJson == this.dataJson &&
+          other.capturedAt == this.capturedAt);
+}
+
+class AncestorCacheCompanion extends UpdateCompanion<AncestorCacheData> {
+  final Value<int> id;
+  final Value<String> entity;
+  final Value<String> localUuid;
+  final Value<String> dataJson;
+  final Value<int> capturedAt;
+  const AncestorCacheCompanion({
+    this.id = const Value.absent(),
+    this.entity = const Value.absent(),
+    this.localUuid = const Value.absent(),
+    this.dataJson = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+  });
+  AncestorCacheCompanion.insert({
+    this.id = const Value.absent(),
+    required String entity,
+    required String localUuid,
+    required String dataJson,
+    required int capturedAt,
+  }) : entity = Value(entity),
+       localUuid = Value(localUuid),
+       dataJson = Value(dataJson),
+       capturedAt = Value(capturedAt);
+  static Insertable<AncestorCacheData> custom({
+    Expression<int>? id,
+    Expression<String>? entity,
+    Expression<String>? localUuid,
+    Expression<String>? dataJson,
+    Expression<int>? capturedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entity != null) 'entity': entity,
+      if (localUuid != null) 'local_uuid': localUuid,
+      if (dataJson != null) 'data_json': dataJson,
+      if (capturedAt != null) 'captured_at': capturedAt,
+    });
+  }
+
+  AncestorCacheCompanion copyWith({
+    Value<int>? id,
+    Value<String>? entity,
+    Value<String>? localUuid,
+    Value<String>? dataJson,
+    Value<int>? capturedAt,
+  }) {
+    return AncestorCacheCompanion(
+      id: id ?? this.id,
+      entity: entity ?? this.entity,
+      localUuid: localUuid ?? this.localUuid,
+      dataJson: dataJson ?? this.dataJson,
+      capturedAt: capturedAt ?? this.capturedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (entity.present) {
+      map['entity'] = Variable<String>(entity.value);
+    }
+    if (localUuid.present) {
+      map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (dataJson.present) {
+      map['data_json'] = Variable<String>(dataJson.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<int>(capturedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AncestorCacheCompanion(')
+          ..write('id: $id, ')
+          ..write('entity: $entity, ')
+          ..write('localUuid: $localUuid, ')
+          ..write('dataJson: $dataJson, ')
+          ..write('capturedAt: $capturedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -35006,6 +35363,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $SalaryWithdrawalsTable(this);
   late final $SalaryCarryOverLogsTable salaryCarryOverLogs =
       $SalaryCarryOverLogsTable(this);
+  late final $AncestorCacheTable ancestorCache = $AncestorCacheTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -35040,6 +35398,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     guestInfos,
     salaryWithdrawals,
     salaryCarryOverLogs,
+    ancestorCache,
   ];
 }
 
@@ -53357,6 +53716,206 @@ typedef $$SalaryCarryOverLogsTableProcessedTableManager =
       SalaryCarryOverLog,
       PrefetchHooks Function({bool employeeId})
     >;
+typedef $$AncestorCacheTableCreateCompanionBuilder =
+    AncestorCacheCompanion Function({
+      Value<int> id,
+      required String entity,
+      required String localUuid,
+      required String dataJson,
+      required int capturedAt,
+    });
+typedef $$AncestorCacheTableUpdateCompanionBuilder =
+    AncestorCacheCompanion Function({
+      Value<int> id,
+      Value<String> entity,
+      Value<String> localUuid,
+      Value<String> dataJson,
+      Value<int> capturedAt,
+    });
+
+class $$AncestorCacheTableFilterComposer
+    extends Composer<_$AppDatabase, $AncestorCacheTable> {
+  $$AncestorCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entity => $composableBuilder(
+    column: $table.entity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dataJson => $composableBuilder(
+    column: $table.dataJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AncestorCacheTableOrderingComposer
+    extends Composer<_$AppDatabase, $AncestorCacheTable> {
+  $$AncestorCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entity => $composableBuilder(
+    column: $table.entity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dataJson => $composableBuilder(
+    column: $table.dataJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AncestorCacheTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AncestorCacheTable> {
+  $$AncestorCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entity =>
+      $composableBuilder(column: $table.entity, builder: (column) => column);
+
+  GeneratedColumn<String> get localUuid =>
+      $composableBuilder(column: $table.localUuid, builder: (column) => column);
+
+  GeneratedColumn<String> get dataJson =>
+      $composableBuilder(column: $table.dataJson, builder: (column) => column);
+
+  GeneratedColumn<int> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$AncestorCacheTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AncestorCacheTable,
+          AncestorCacheData,
+          $$AncestorCacheTableFilterComposer,
+          $$AncestorCacheTableOrderingComposer,
+          $$AncestorCacheTableAnnotationComposer,
+          $$AncestorCacheTableCreateCompanionBuilder,
+          $$AncestorCacheTableUpdateCompanionBuilder,
+          (
+            AncestorCacheData,
+            BaseReferences<
+              _$AppDatabase,
+              $AncestorCacheTable,
+              AncestorCacheData
+            >,
+          ),
+          AncestorCacheData,
+          PrefetchHooks Function()
+        > {
+  $$AncestorCacheTableTableManager(_$AppDatabase db, $AncestorCacheTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AncestorCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AncestorCacheTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AncestorCacheTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> entity = const Value.absent(),
+                Value<String> localUuid = const Value.absent(),
+                Value<String> dataJson = const Value.absent(),
+                Value<int> capturedAt = const Value.absent(),
+              }) => AncestorCacheCompanion(
+                id: id,
+                entity: entity,
+                localUuid: localUuid,
+                dataJson: dataJson,
+                capturedAt: capturedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String entity,
+                required String localUuid,
+                required String dataJson,
+                required int capturedAt,
+              }) => AncestorCacheCompanion.insert(
+                id: id,
+                entity: entity,
+                localUuid: localUuid,
+                dataJson: dataJson,
+                capturedAt: capturedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AncestorCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AncestorCacheTable,
+      AncestorCacheData,
+      $$AncestorCacheTableFilterComposer,
+      $$AncestorCacheTableOrderingComposer,
+      $$AncestorCacheTableAnnotationComposer,
+      $$AncestorCacheTableCreateCompanionBuilder,
+      $$AncestorCacheTableUpdateCompanionBuilder,
+      (
+        AncestorCacheData,
+        BaseReferences<_$AppDatabase, $AncestorCacheTable, AncestorCacheData>,
+      ),
+      AncestorCacheData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -53422,4 +53981,6 @@ class $AppDatabaseManager {
       $$SalaryWithdrawalsTableTableManager(_db, _db.salaryWithdrawals);
   $$SalaryCarryOverLogsTableTableManager get salaryCarryOverLogs =>
       $$SalaryCarryOverLogsTableTableManager(_db, _db.salaryCarryOverLogs);
+  $$AncestorCacheTableTableManager get ancestorCache =>
+      $$AncestorCacheTableTableManager(_db, _db.ancestorCache);
 }

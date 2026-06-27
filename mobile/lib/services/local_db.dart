@@ -795,6 +795,24 @@ class SyncConflicts extends Table {
   TextColumn get createdAt => text()();
 }
 
+/// ✅ جدول AncestorCache — يخزّن آخر نسخة معروفة مشتركة (common ancestor)
+/// لكل سجل، ويُستخدم في الدمج ثلاثي الأطراف (3-way merge) لحل التعارضات.
+///
+/// عند كل سحب ناجح من Cloud، نحفظ نسخة من البيانات البعيدة هنا.
+/// عند المزامنة التالية، نستخدمها كـ "common ancestor" لمقارنة التغييرات.
+class AncestorCache extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get entity => text()();
+  TextColumn get localUuid => text()();
+  TextColumn get dataJson => text()();
+  IntColumn get capturedAt => integer()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {entity, localUuid},
+      ];
+}
+
 @DriftDatabase(
   tables: [
     Rooms,
@@ -826,6 +844,7 @@ class SyncConflicts extends Table {
     GuestInfos,
     SalaryWithdrawals,
     SalaryCarryOverLogs,
+    AncestorCache,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -835,7 +854,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 44;
+  int get schemaVersion => 45;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2158,6 +2177,30 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 44: indexes already exist: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 45) {
+        // ✅ إنشاء جدول AncestorCache للدمج ثلاثي الأطراف (3-way merge)
+        try {
+          await m.database.customStatement('''
+            CREATE TABLE IF NOT EXISTS ancestor_cache (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              entity TEXT NOT NULL,
+              local_uuid TEXT NOT NULL,
+              data_json TEXT NOT NULL,
+              captured_at INTEGER NOT NULL,
+              UNIQUE(entity, local_uuid)
+            )
+          ''');
+          developer.log(
+            'Migration 45: created ancestor_cache table',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 45: ancestor_cache already exists: $e',
             name: 'db.migration',
           );
         }
