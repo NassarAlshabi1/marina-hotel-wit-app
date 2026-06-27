@@ -936,6 +936,10 @@ class GoogleDriveBackupService {
         // قراءة ملف قاعدة البيانات
         final bytes = await dbFile.readAsBytes();
 
+        // ✅ إصلاح (2026-06-28): حساب SHA-256 للملف الخام للتحقق من السلامة
+        // بدون هذا، أي تلف أثناء النقل/التخزين يمر دون اكتشاف.
+        final fileHash = sha256.convert(bytes).toString();
+
         final driveFile = drive.File()
           ..name = fileName
           ..parents = [folderId]
@@ -943,6 +947,8 @@ class GoogleDriveBackupService {
             'type': 'sqlite_backup',
             'backup_date': timestamp.toIso8601String(),
             'format': 'db',
+            'data_hash': fileHash,
+            'file_size': '${bytes.length}',
           };
 
         final media = drive.Media(
@@ -951,13 +957,25 @@ class GoogleDriveBackupService {
         );
 
         _log(
-          '📤 رفع نسخة .db: $fileName (${(bytes.length / 1024 / 1024).toStringAsFixed(2)} MB)',
+          '📤 رفع نسخة .db: $fileName (${(bytes.length / 1024 / 1024).toStringAsFixed(2)} MB, hash=${fileHash.substring(0, 8)}...)',
         );
 
         final uploadedFile = await _driveApi!.files.create(
           driveFile,
           uploadMedia: media,
         );
+
+        // ✅ التحقق من اكتمال الرفع (مثل JSON backups)
+        final verifyResult = await _verifyUploadedBackup(
+          uploadedFile.id!,
+          bytes.length,
+        );
+        if (!(verifyResult['is_complete'] as bool? ?? false)) {
+          await deleteBackupFile(uploadedFile.id!);
+          throw Exception(
+            'فشل في رفع نسخة .db بشكل كامل: ${verifyResult['message']}',
+          );
+        }
 
         _log('✅ تم رفع نسخة .db: ${uploadedFile.id}');
         return uploadedFile.id!;
@@ -972,6 +990,18 @@ class GoogleDriveBackupService {
   Future<void> restoreDbBackup(String fileId) async {
     return _runWithAuth<void>(() async {
       try {
+        // ✅ إصلاح (2026-06-28): جلب appProperties للتحقق من الـ checksum
+        // قبل تنزيل المحتوى الكامل (تحسين الأداء + كشف التلف مبكراً)
+        final metaResult = await _driveApi!.files.get(
+          fileId,
+          $fields: 'id,name,size,appProperties',
+        ) as drive.File;
+        final appProps = metaResult.appProperties ?? <String, String?>{};
+        final expectedHash = appProps['data_hash'];
+        final expectedSizeStr = appProps['file_size'];
+        final expectedSize =
+            expectedSizeStr != null ? int.tryParse(expectedSizeStr) : null;
+
         final media =
             await _driveApi!.files.get(
                   fileId,
@@ -993,6 +1023,37 @@ class GoogleDriveBackupService {
           '📥 تنزيل نسخة .db: ${(dataStore.length / 1024 / 1024).toStringAsFixed(2)} MB',
         );
 
+        // ✅ التحقق من الحجم
+        if (expectedSize != null && dataStore.length != expectedSize) {
+          await tempFile.delete();
+          throw Exception(
+            'حجم الملف المنزّل (${dataStore.length} بايت) لا يطابق المتوقع ($expectedSize بايت). '
+            'النسخة قد تكون تالفة أو غير مكتملة.',
+          );
+        }
+
+        // ✅ التحقق من SHA-256 hash
+        if (expectedHash != null && expectedHash.isNotEmpty) {
+          final actualHash = sha256.convert(dataStore).toString();
+          if (actualHash != expectedHash) {
+            await tempFile.delete();
+            _logger.error(
+              '❌ فشل التحقق من تجزئة نسخة .db: متوقع=$expectedHash، فعلي=$actualHash',
+              tag: 'RESTORE',
+            );
+            throw Exception(
+              'النسخة الاحتياطية .db تالفة: تجزئة البيانات غير مطابقة. '
+              'لا يمكن الاستعادة من ملف تالف.',
+            );
+          }
+          _logger.info('✅ تم التحقق من سلامة نسخة .db', tag: 'RESTORE');
+        } else {
+          _logger.warning(
+            '⚠️ نسخة .db قديمة بدون data_hash — التحقق من السلامة متخطّى',
+            tag: 'RESTORE',
+          );
+        }
+
         // استعادة قاعدة البيانات
         await SqliteBackupRestore.restoreDatabase(tempFile.path);
 
@@ -1008,18 +1069,31 @@ class GoogleDriveBackupService {
   }
 
   /// الحصول على قائمة النسخ .db من Google Drive
+  ///
+  /// ✅ إصلاح (2026-06-28): إضافة pagination loop
+  /// المنطق القديم كان يطلب pageSize: 50 بدون تابع nextPageToken،
+  /// مما يُسكت العدد الزائد عن 50 نسخة. الآن نجلب كل الصفحات.
   Future<List<DriveBackupFile>> listDbBackups() async {
     return _runWithAuth<List<DriveBackupFile>>(() async {
       final folderId = await getOrCreateBackupFolder();
 
-      final result = await _driveApi!.files.list(
-        q: "'$folderId' in parents and name contains 'db_backup' and name contains '.db' and trashed = false",
-        orderBy: 'createdTime desc',
-        pageSize: 50,
-      );
+      final allFiles = <drive.File>[];
+      String? pageToken;
+      do {
+        final result = await _driveApi!.files.list(
+          q: "'$folderId' in parents and name contains 'db_backup' and name contains '.db' and trashed = false",
+          orderBy: 'createdTime desc',
+          pageSize: 100,
+          pageToken: pageToken,
+          $fields: 'nextPageToken,files(id,name,createdTime,size,appProperties)',
+        );
+        if (result.files != null) {
+          allFiles.addAll(result.files!);
+        }
+        pageToken = result.nextPageToken;
+      } while (pageToken != null);
 
-      final files = result.files ?? [];
-      return files
+      return allFiles
           .where((f) => f.id != null && f.name != null)
           .map(DriveBackupFile.fromDriveFile)
           .toList();
@@ -1051,6 +1125,22 @@ class GoogleDriveBackupService {
         );
         return;
       }
+
+      // ✅ إصلاح (2026-06-28): التحقق من سلامة البيانات قبل الاستعادة
+      // verifyBackupChecksum كان موجوداً لكنه لم يُستدعى. الآن نتحقق
+      // من SHA-256 hash قبل أي عملية تدميرية (حذف الجداول).
+      // نسخ قديمة بدون data_hash تُتجاوز التحقق (ترجع true).
+      if (!verifyBackupChecksum(backupData)) {
+        _logger.error(
+          '❌ فشل التحقق من سلامة النسخة الاحتياطية — البيانات تالفة',
+          tag: 'RESTORE',
+        );
+        throw Exception(
+          'النسخة الاحتياطية تالفة: تجزئة البيانات غير مطابقة. '
+          'قد يكون الملف تعرّض للفساد أثناء النقل أو التخزين.',
+        );
+      }
+      _logger.info('✅ تم التحقق من سلامة النسخة الاحتياطية', tag: 'RESTORE');
 
       final metadataJson = backupData['metadata'];
       if (metadataJson is! Map) {
