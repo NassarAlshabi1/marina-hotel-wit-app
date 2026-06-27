@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:appwrite/appwrite.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 
@@ -138,6 +139,35 @@ class AppwriteNetworkHelper {
   /// التحقق من أن الخطأ قابل لإعادة المحاولة
   bool _isRetriableError(dynamic error) {
     final errorStr = error.toString().toLowerCase();
+
+    // ✅ إصلاح جذري: أخطاء العميل (4xx) التي لا يمكن حلها بإعادة المحاولة
+    // يجب استثناؤها صراحةً حتى لو تطابقت مع أنماط شبكية أعلاه.
+    // هذا يمنع إهدار المحاولات على أخطاء مثل:
+    //   - 409 document_already_exists (تضارب — يجب حلها بـ updateDocument، ليس retry)
+    //   - 400 bad_request, 401 unauthorized, 403 forbidden, 404 not_found
+    //   - 422 unprocessable_entity
+    //
+    // ملاحظة: 429 (rate_limit) مستثنى من هذا الفلتر لأنه قابل للحل بالانتظار.
+    if (error is AppwriteException) {
+      final code = error.code;
+      if (code != null &&
+          code >= 400 &&
+          code < 500 &&
+          code != 408 &&
+          code != 429) {
+        return false;
+      }
+      // فحص نوع الخطأ لأنواع Appwrite المعروفة غير القابلة لإعادة المحاولة
+      final type = (error.type ?? '').toLowerCase();
+      if (type.contains('document_already_exists') ||
+          type.contains('document_not_found') ||
+          type.contains('user_not_found') ||
+          type.contains('user_already_exists') ||
+          type.contains('invalid_argument') ||
+          type.contains('validation_failed')) {
+        return false;
+      }
+    }
 
     // أخطاء الشبكة القابلة لإعادة المحاولة
     if (errorStr.contains('network') ||
