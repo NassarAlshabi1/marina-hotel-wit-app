@@ -398,27 +398,19 @@ class AppwriteService {
   }) async {
     final dbId = AppwriteConfigManager.databaseId;
 
-    // ✅ إصلاح جذري: منطق upsert متين ضد جميع حالات السباق (race conditions)
+    // ✅ إصلاح جذري (2026-06-28): منطق upsert متين ضد جميع حالات السباق
+    // وضد TimeoutException وغيرها من الأخطاء غير AppwriteException.
     //
-    // المنطق القديم كان يعاني من مشكلة جذرية:
-    //   1) updateDocument (بدون retry) → إذا فشل بـ 404 ننتقل إلى createDocument
-    //   2) createDocument (مع retry) → إذا فشل بـ 409 نعود إلى updateDocument
-    //   3) لكن إذا فشل updateDocument بـ 409 (المستند موجود بالفعل) كان يُعاد رميه
-    //      مباشرةً بدون محاولة createDocument، مما يُسبب فقدان العملية.
+    // المنطق الجديد يضيف طبقة دفاع إضافية:
+    //   1) محاولة updateDocument (مع retry/timeout)
+    //   2) إذا فشل بـ 404 → createDocument (مع retry/timeout)
+    //   3) إذا فشل createDocument بـ 409 → updateDocument أخيراً (مع retry/timeout)
+    //   4) أي خطأ غير قابل للاسترداد → تسجيل مفصّل + rethrow
     //
-    // المشكلة الأخرى: createError.code قد يكون null في بعض الحالات (لفّ TimeoutException)
-    // والفحص createError.toString().contains('document_already_exists') قد يفشل
-    // إذا تم لف الخطأ في طبقات أخرى.
-    //
-    // المنطق الجديد:
-    //   1) نحاول updateDocument أولاً (Optimistic — الغالبية العظمى من العمليات update)
-    //   2) إذا فشل بـ 404 → المستند غير موجود → نحاول createDocument
-    //   3) إذا فشل createDocument بـ 409 → المستند أُنشئ بين لحظة 404 و create
-    //      (race condition) → نعيد updateDocument مرة أخيرة (الآن موجود بالتأكيد)
-    //   4) إذا فشل updateDocument بـ 409 (يحدث في حالات نادرة) → نحاول createDocument
-    //   5) أي خطأ آخر → rethrow للطبقة العليا
-    //
-    // دالة مساعد للتحقق من نوع الخطأ بشكل موثوق (تتعامل مع code == null):
+    // كل استدعاءات updateDocument/createDocument الآن مُلفوفة بـ withRetryAndTimeout
+    // لمنع TimeoutException من تمرير خطأ "createDocument failed" بدلاً من السماح
+    // للمنطق بالتعافي عبر updateDocument.
+
     bool isNotFound(AppwriteException e) =>
         e.code == 404 ||
         (e.type ?? '').contains('document_not_found') ||
@@ -430,41 +422,61 @@ class AppwriteService {
         (e.type ?? '').contains('conflict') ||
         e.toString().contains('document_already_exists');
 
+    // مساعد لتنفيذ updateDocument مع retry/timeout
+    Future<models.Document> doUpdate() async {
+      return _networkHelper.withRetryAndTimeout(
+        // ignore: deprecated_member_use
+        operation: () => _databases.updateDocument(
+          databaseId: dbId,
+          collectionId: collectionId,
+          documentId: documentId,
+          data: data,
+        ),
+        operationName: 'updateDocument',
+      );
+    }
+
+    // مساعد لتنفيذ createDocument مع retry/timeout
+    Future<models.Document> doCreate() async {
+      return _networkHelper.withRetryAndTimeout(
+        // ignore: deprecated_member_use
+        operation: () => _databases.createDocument(
+          databaseId: dbId,
+          collectionId: collectionId,
+          documentId: documentId,
+          data: data,
+        ),
+        operationName: 'createDocument',
+      );
+    }
+
     // ─── الخطوة 1: محاولة updateDocument (Optimistic) ───
     try {
-      // ignore: deprecated_member_use
-      return await _databases.updateDocument(
-        databaseId: dbId,
-        collectionId: collectionId,
-        documentId: documentId,
-        data: data,
-      );
+      return await doUpdate();
     } on AppwriteException catch (updateError) {
-      // إذا كان الخطأ 404 → المستند غير موجود، ننتقل إلى createDocument
+      // إذا فشل updateDocument بـ 404 → المستند غير موجود، ننتقل إلى createDocument
       if (!isNotFound(updateError)) {
-        // ─── الخطوة 4 (fallback نادر): update فشل بـ 409 → نحاول create ───
+        // ─── الخطوة 4 (نادر): update فشل بـ 409 → نحاول createDocument ───
         if (isAlreadyExists(updateError)) {
           try {
-            return _networkHelper.withRetryAndTimeout(
-              // ignore: deprecated_member_use
-              operation: () => _databases.createDocument(
-                databaseId: dbId,
-                collectionId: collectionId,
-                documentId: documentId,
-                data: data,
-              ),
-              operationName: 'createDocument',
-            );
+            return await doCreate();
           } on AppwriteException catch (createError2) {
-            // إذا فشل create أيضاً بـ 409 → سباق بيانات، نعيد update أخيراً
+            // فشل createDocument أيضاً بـ 409 → سباق بيانات، نعيد updateDocument
             if (isAlreadyExists(createError2)) {
-              // ignore: deprecated_member_use
-              return _databases.updateDocument(
-                databaseId: dbId,
-                collectionId: collectionId,
-                documentId: documentId,
-                data: data,
-              );
+              // ✅ إصلاح: wrap في retry/timeout + try-catch
+              try {
+                return await doUpdate();
+              } catch (finalErr) {
+                // سجلّ مفصّل لتشخيص السباق
+                AppwriteLogger().error(
+                  'upsert: Step 5 updateDocument failed after '
+                  'createDocument(409) after updateDocument(409). '
+                  'collection=$collectionId, docId=$documentId. '
+                  'Error: $finalErr',
+                  tag: 'UPSERT',
+                );
+                rethrow;
+              }
             }
             rethrow;
           }
@@ -477,26 +489,22 @@ class AppwriteService {
 
     // ─── الخطوة 2: updateDocument فشل بـ 404 → محاولة createDocument ───
     try {
-      return _networkHelper.withRetryAndTimeout(
-        // ignore: deprecated_member_use
-        operation: () => _databases.createDocument(
-          databaseId: dbId,
-          collectionId: collectionId,
-          documentId: documentId,
-          data: data,
-        ),
-        operationName: 'createDocument',
-      );
+      return await doCreate();
     } on AppwriteException catch (createError) {
-      // ─── الخطوة 3: create فشل بـ 409 → سباق بيانات → نعيد update ───
+      // ─── الخطوة 3: create فشل بـ 409 → سباق بيانات → نعيد updateDocument ───
       if (isAlreadyExists(createError)) {
-        // ignore: deprecated_member_use
-        return _databases.updateDocument(
-          databaseId: dbId,
-          collectionId: collectionId,
-          documentId: documentId,
-          data: data,
-        );
+        // ✅ إصلاح: wrap في retry/timeout + try-catch
+        try {
+          return await doUpdate();
+        } catch (finalErr) {
+          AppwriteLogger().error(
+            'upsert: Step 3 updateDocument failed after createDocument(409) '
+            'after updateDocument(404). collection=$collectionId, '
+            'docId=$documentId. Error: $finalErr',
+            tag: 'UPSERT',
+          );
+          rethrow;
+        }
       }
       rethrow;
     }

@@ -153,13 +153,38 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// جلب دفعة من عناصر outbox للمعالجة
   /// [sources] — إذا حُدد، يقتصر الجلب على هذه المصادر فقط (مثلاً ['local'] فقط)
   /// [workerId] — معرف العامل الذي يعالج الدفعة
+  ///
+  /// ✅ إصلاح أمني (2026-06-28): استخدام parameterized query بدلاً من
+  /// string concatenation لمنع SQL injection عبر معامل `sources`.
+  /// حتى حالياً كل الاستدعاءات تمرر `const ['local']` (compile-time constant)،
+  /// هذا النمط يشكّل ثغرة محتملة إذا أُضيفت ميزة مستقبلية تمرّر مدخلات ديناميكية.
+  /// Parameterized queries تفصل بنية SQL عن البيانات، مما يجعل الحقن مستحيلاً.
   Future<List<OutboxData>> takeBatch(int limit, {String? workerId, List<String>? sources}) async {
     final worker = workerId ?? _uuid.v4();
     final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-    // بناء شرط source إذا حُدد
-    final sourceCondition = (sources != null && sources.isNotEmpty)
-        ? ' AND source IN (${sources.map((s) => "'$s'").join(',')})'
+    // ✅ Validation على المصادر (طبقة دفاع أولى)
+    // حتى مع parameterized queries، نرفض القيم غير الصالحة مبكراً
+    final hasSources = sources != null && sources.isNotEmpty;
+    final safeSources = hasSources ? sources : const <String>[];
+    if (hasSources) {
+      for (final s in safeSources) {
+        if (s.isEmpty || s.length > 50) {
+          throw ArgumentError('Invalid source length: ${s.length}');
+        }
+        // السماح فقط بأحرف أبجدية رقمية + شرطة سفلية + شرطة طويلة
+        if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(s)) {
+          throw ArgumentError('Invalid source characters: $s');
+        }
+      }
+    }
+
+    // ✅ بناء placeholders ديناميكياً (?, ?, ...) بدلاً من تمرير القيم مباشرة في SQL
+    final sourcePlaceholders = hasSources
+        ? safeSources.map((_) => '?').join(',')
+        : '';
+    final sourceCondition = hasSources
+        ? ' AND source IN ($sourcePlaceholders)'
         : '';
 
     // ✅ Dual-delivery: نأخذ فقط السجلات غير المُسلّمة للرئيسي.
@@ -179,18 +204,23 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         "WHEN entity = 'shift_notes' THEN 8 "
         "WHEN entity = 'cash_transactions' THEN 9 "
         'ELSE 10 END';
+
+    // ✅ بناء قائمة المتغيرات بالترتيب الصحيح: status→ts→worker→pending→[sources]→limit
+    final variables = <Variable>[
+      const Variable<String>('processing'),
+      Variable<int>(nowEpoch),
+      Variable<String>(worker),
+      const Variable<String>('pending'),
+      if (hasSources) ...safeSources.map(Variable<String>.new),
+      Variable<int>(limit),
+    ];
+
     final claimed = await customSelect(
       'UPDATE outbox SET processing_status = ?, processing_started_at = ?, processing_worker = ? '
       'WHERE id IN ('
       '  SELECT id FROM outbox WHERE processing_status = ?$primaryCondition$sourceCondition ORDER BY $priorityCase ASC, client_ts ASC LIMIT ? '
       ') RETURNING *',
-      variables: [
-        const Variable<String>('processing'),
-        Variable<int>(nowEpoch),
-        Variable<String>(worker),
-        const Variable<String>('pending'),
-        Variable<int>(limit),
-      ],
+      variables: variables,
       readsFrom: {outbox},
     ).map((row) => OutboxData(
       id: row.read<int>('id'),
