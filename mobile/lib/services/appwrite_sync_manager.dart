@@ -1,4 +1,4 @@
-// ignore_for_file: unused_field, use_late_for_private_fields_and_variables, duplicate_ignore
+// ignore_for_file: unused_field, use_late_for_private_fields_and_variables, duplicate_ignore, avoid_redundant_argument_values
 
 import 'dart:async';
 import 'dart:convert';
@@ -29,11 +29,13 @@ import 'appwrite_service.dart';
 import 'appwrite_sync_utils.dart';
 import 'booking_derived_fields_service.dart';
 import 'crashlytics_service.dart';
+import 'daos/ancestor_cache_dao.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
 import 'sync_constants.dart';
+import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_error_service.dart';
 import 'sync_core/sync_metrics.dart';
 import 'sync_core/sync_pull_service.dart';
@@ -70,6 +72,29 @@ class SyncResult {
   bool get hasConflicts => conflicts > 0;
 }
 
+/// ✅ نتيجة فحص _isRemoteDataNewer (2026-06-28 P0-3)
+/// قد تحتوي على بيانات مدمجة إذا تم حل التعارض المتزامن تلقائياً.
+class _RemoteNewerResult {
+  const _RemoteNewerResult({
+    this.shouldApplyRemote = false,
+    this.mergedData,
+    this.pushedToRemote = false,
+  });
+
+  /// هل يجب تطبيق البيانات البعيدة؟
+  final bool shouldApplyRemote;
+
+  /// بيانات مدمجة (إذا تم حل التعارض عبر 3-way merge)
+  /// إذا كانت غير null، يجب تطبيقها بدلاً من البيانات البعيدة
+  final Map<String, dynamic>? mergedData;
+
+  /// هل يجب رفع النتيجة المدمجة للسحابة؟
+  final bool pushedToRemote;
+
+  /// هل يوجد دمج تلقائي؟
+  bool get hasMerge => mergedData != null;
+}
+
 
 
 /// مدير المزامنة الثنائية
@@ -93,6 +118,7 @@ class AppwriteSyncManager {
     _adapterRegistry = AdapterRegistry(database);
     _bookingsRepository = BookingsRepository(database);
     _roomsRepository = RoomsRepository(database);
+    _ancestorCacheDao = AncestorCacheDao(database);
     _pushService = SyncPushService(
       appwriteService: appwriteService,
       database: database,
@@ -117,6 +143,8 @@ class AppwriteSyncManager {
   final AppwriteService appwriteService;
   final AppDatabase database;
   final OutboxDao outboxDao;
+  // ✅ P0-4 (2026-06-28): DAO لتخزين الـ ancestor المُشترك لحل التعارضات ثلاثي الأطراف
+  late final AncestorCacheDao _ancestorCacheDao;
   late final BookingsRepository _bookingsRepository;
   late final RoomsRepository _roomsRepository;
   late final AdapterRegistry _adapterRegistry;
@@ -1448,11 +1476,15 @@ class AppwriteSyncManager {
   /// 3. إذا كانا متساويين → لا حاجة للتحديث
   /// 4. إذا كانا متزامنين (concurrent) → ⚠️ تعارض حقيقي!
   ///    → نُسجّل التعارض في sync_conflicts
-  ///    → نطبّق LWW (آخر تعديل زمنياً يفوز) كحل احتياطي آمن
+  ///    → نحاول الحل الذكي عبر SmartConflictResolver (3-way merge)
+  ///    → إذا فشل الحل التلقائي، نطبّق LWW كحل احتياطي آمن
   ///
   /// Vector Clock يكتشف التعارضات المتزامنة حتى لو كانت ساعات الأجهزة
   /// متطابقة أو متزامنة، لأنه يعتمد على العلاقة السببية وليس الزمن الفيزيائي.
-  bool _isRemoteDataNewer(
+  ///
+  /// ✅ إصلاح (2026-06-28 P0-3): تكامل SmartConflictResolver في فرع concurrent.
+  /// النتيجة تحتوي على mergedData إذا تم الدمج التلقائي بنجاح.
+  Future<_RemoteNewerResult> _isRemoteDataNewer(
     Map<String, dynamic> remoteData,
     int? localLastModified, {
     int? localDeletedAt,
@@ -1460,20 +1492,20 @@ class AppwriteSyncManager {
     String? localVectorClock,
     String? entityName,
     String? localUuid,
-  }) {
+    Map<String, dynamic>? localData,
+  }) async {
     // ✅ حماية الحذف المحلي (soft delete) — له أولوية أعلى
     if (localDeletedAt != null) {
       final remoteDeletedAt = _asIntNullable(remoteData['deletedAt']) ??
           _asIntNullable(remoteData['deleted_at']);
       if (remoteDeletedAt != null) {
-        return true; // كلاهما محذوف — نسمح بالتحديث
+        return const _RemoteNewerResult(shouldApplyRemote: true); // كلاهما محذوف
       }
-      return false; // المحلي محذوف، البعيد ليس كذلك — نحمي الحذف
+      return const _RemoteNewerResult(shouldApplyRemote: false); // نحمي الحذف
     }
 
     if (localLastModified == null) {
-      // لا يوجد سجل محلي — البيانات البعيدة جديدة
-      return true;
+      return const _RemoteNewerResult(shouldApplyRemote: true); // جديد
     }
 
     final remoteLastModified = _asIntNullable(remoteData['lastModified']) ??
@@ -1489,7 +1521,7 @@ class AppwriteSyncManager {
         'لمنع فقدان التحديثات. localUuid=${remoteData['localUuid']}',
         tag: 'SYNC',
       );
-      return false;
+      return const _RemoteNewerResult(shouldApplyRemote: false);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -1502,7 +1534,9 @@ class AppwriteSyncManager {
     // إذا كانت كلتا الساعتين فارغتين (جديد أو قديم بدون VC) → نستخدم LWW
     if ((localVectorClock == null || localVectorClock.isEmpty || localVectorClock == '{}') &&
         (remoteVcStr.isEmpty || remoteVcStr == '{}')) {
-      return effectiveRemoteTs > localLastModified;
+      return _RemoteNewerResult(
+        shouldApplyRemote: effectiveRemoteTs > localLastModified,
+      );
     }
 
     // مقارنة Vector Clock
@@ -1512,52 +1546,113 @@ class AppwriteSyncManager {
 
     switch (comparison) {
       case VectorClockComparison.equal:
-        // نفس الساعة — لا حاجة للتحديث
-        return false;
+        return const _RemoteNewerResult(shouldApplyRemote: false);
 
       case VectorClockComparison.remoteNewer:
-        // البعيد أحدث سببياً — طبّقه
-        return true;
+        return const _RemoteNewerResult(shouldApplyRemote: true);
 
       case VectorClockComparison.localNewer:
-        // المحلي أحدث سببياً — احتفظ به
-        return false;
+        return const _RemoteNewerResult(shouldApplyRemote: false);
 
       case VectorClockComparison.concurrent:
         // ⚠️ تعارض متزامن! كلا الجهازين عدّلا نفس السجل بشكل مستقل.
-        // نسجّل التعارض ثم نطبّق LWW كحل احتياطي آمن.
         _logger.warning(
           '⚠️ CONCURRENT CONFLICT detected! '
           'entity=$entityName, uuid=$localUuid, '
           'localVc=$localVectorClock, remoteVc=$remoteVcStr, '
-          'localLastModified=$localLastModified, remoteLastModified=$effectiveRemoteTs. '
-          'Applying LWW fallback (remote=$effectiveRemoteTs vs local=$localLastModified).',
+          'localLastModified=$localLastModified, remoteLastModified=$effectiveRemoteTs.',
           tag: 'CONFLICT',
         );
-        // تسجيل التعارض في sync_conflicts للمراجعة اللاحقة
-        _logConcurrentConflict(
+
+        // ✅ P0-3: محاولة الحل الذكي عبر SmartConflictResolver (3-way merge)
+        if (entityName != null && localUuid != null && localData != null) {
+          try {
+            final ancestor = await _ancestorCacheDao.getAncestor(
+              entityName,
+              localUuid,
+            );
+            final resolution = SmartConflictResolver.resolve(
+              entity: entityName,
+              localData: localData,
+              remoteData: remoteData,
+              commonAncestor: ancestor,
+            );
+
+            if (resolution.strategy == ResolutionStrategy.fieldLevelMerge) {
+              _logger.info(
+                '✅ Concurrent conflict auto-resolved via 3-way merge: '
+                'entity=$entityName, uuid=$localUuid, '
+                'warnings=${resolution.warnings.length}',
+                tag: 'CONFLICT',
+              );
+              return _RemoteNewerResult(
+                shouldApplyRemote: false,
+                mergedData: resolution.mergedData,
+                pushedToRemote: resolution.pushedToRemote,
+              );
+            }
+
+            if (resolution.strategy == ResolutionStrategy.manualEscalation) {
+              _logger.warning(
+                '⚠️ Concurrent conflict escalated to manual: '
+                'entity=$entityName, uuid=$localUuid. '
+                'Warnings: ${resolution.warnings.join("; ")}',
+                tag: 'CONFLICT',
+              );
+              await _logConcurrentConflict(
+                entity: entityName,
+                uuid: localUuid,
+                localVc: localVectorClock ?? '{}',
+                remoteVc: remoteVcStr,
+                localLastModified: localLastModified,
+                remoteLastModified: effectiveRemoteTs,
+                localData: localData,
+                remoteData: remoteData,
+              );
+              return const _RemoteNewerResult(shouldApplyRemote: false);
+            }
+          } catch (e) {
+            _logger.warning(
+              '⚠️ SmartConflictResolver failed, falling back to LWW: $e',
+              tag: 'CONFLICT',
+            );
+          }
+        }
+
+        // تسجيل التعارض في sync_conflicts (LWW fallback)
+        await _logConcurrentConflict(
           entity: entityName ?? 'unknown',
           uuid: localUuid ?? remoteData['localUuid']?.toString() ?? '',
           localVc: localVectorClock ?? '{}',
           remoteVc: remoteVcStr,
           localLastModified: localLastModified,
           remoteLastModified: effectiveRemoteTs,
+          localData: localData,
+          remoteData: remoteData,
         );
-        // LWW fallback: البعيد يفوز إذا كان lastModified أحدث
-        return effectiveRemoteTs > localLastModified;
+        // LWW fallback
+        return _RemoteNewerResult(
+          shouldApplyRemote: effectiveRemoteTs > localLastModified,
+        );
     }
   }
 
   /// تسجيل تعارض متزامن (concurrent conflict) في جدول sync_conflicts
   /// للمراجعة والتدقيق اللاحق.
-  void _logConcurrentConflict({
+  ///
+  /// ✅ إصلاح (2026-06-28 P1-9): التسجيل الفعلي في جدول sync_conflicts
+  /// بدلاً من developer.log فقط. نُنشئ سجل SyncLog أولاً (للحصول على logId)
+  /// ثم نُدرج سجل SyncConflict مرتبط به.
+  Future<void> _logConcurrentConflict({
     required String entity,
     required String uuid,
     required String localVc,
     required String remoteVc,
     required int localLastModified,
     required int remoteLastModified,
-  }) {
+    Map<String, dynamic>? localData,
+    Map<String, dynamic>? remoteData,
+  }) async {
     try {
       final conflictData = {
         'entity': entity,
@@ -1570,15 +1665,45 @@ class AppwriteSyncManager {
         'resolution': 'LWW (remote=${remoteLastModified > localLastModified ? "wins" : "loses"})',
         'timestamp': DateTime.now().toIso8601String(),
       };
-      // تسجيل في السجلات للتشخيص
+      // تسجيل في السجلات للتشخيص الفوري
       developer.log(
         '⚠️ Concurrent conflict logged: ${jsonEncode(conflictData)}',
         name: 'SYNC.CONFLICT',
       );
-      // ملاحظة: التسجيل في جدول sync_conflicts يتطلب logId مرجعي
-      // ولأن sync_conflicts يحتاج FK إلى sync_log، نكتفي بالتسجيل في
-      // developer.log و AppwriteLogger. يمكن إضافة سجل sync_conflicts
-      // كامل لاحقاً عند توفّر syncLogId.
+      _logger.warning(
+        '⚠️ Concurrent conflict: entity=$entity, uuid=$uuid, '
+        'localVc=$localVc, remoteVc=$remoteVc, '
+        'localTs=$localLastModified, remoteTs=$remoteLastModified',
+        tag: 'CONFLICT',
+      );
+
+      // ✅ التسجيل في جدول sync_conflicts للمراجعة اللاحقة
+      // نُنشئ سجل SyncLog أولاً (FK مطلوب)، ثم سجل SyncConflict
+      final createdAt = DateTime.now().toUtc().toIso8601String();
+      final logId = await database.into(database.syncLog).insert(
+            SyncLogCompanion.insert(
+              syncId: 'conflict_${uuid}_${DateTime.now().millisecondsSinceEpoch}',
+              direction: 'pull',
+              deviceId: _currentDeviceId ?? 'unknown',
+              metadata: jsonEncode(conflictData),
+              operations: const drift.Value('[]'),
+              checksumMatched: const drift.Value(0),
+              createdAt: createdAt,
+              completedAt: drift.Value(createdAt),
+            ),
+          );
+
+      await database.into(database.syncConflicts).insert(
+            SyncConflictsCompanion.insert(
+              logId: logId,
+              targetTable: entity,
+              uuid: uuid,
+              resolution: 'LWW (remote=${remoteLastModified > localLastModified ? "wins" : "loses"})',
+              localPayload: jsonEncode(localData ?? conflictData),
+              remotePayload: jsonEncode(remoteData ?? conflictData),
+              createdAt: createdAt,
+            ),
+          );
     } catch (e) {
       // تجاهل أخطاء التسجيل — لا نريد أن نُعطل المزامنة بسببها
       developer.log('Failed to log concurrent conflict: $e',
@@ -1601,7 +1726,7 @@ class AppwriteSyncManager {
               ..limit(1))
             .getSingleOrNull();
 
-        if (!_isRemoteDataNewer(data, existingRoom?.lastModified, localDeletedAt: existingRoom?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existingRoom?.vectorClock, entityName: 'rooms', localUuid: localUuid)) {
+        if (!(await _isRemoteDataNewer(data, existingRoom?.lastModified, localDeletedAt: existingRoom?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existingRoom?.vectorClock, entityName: 'rooms', localUuid: localUuid)).shouldApplyRemote) {
           continue; // البيانات مطابقة أو السجل محذوف محلياً
         }
 
@@ -1633,7 +1758,7 @@ class AppwriteSyncManager {
         final oldRoomNumber = existingBooking?.roomNumber;
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
-        if (!_isRemoteDataNewer(data, existingBooking?.lastModified, localDeletedAt: existingBooking?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existingBooking?.vectorClock, entityName: 'bookings', localUuid: localUuid)) {
+        if (!(await _isRemoteDataNewer(data, existingBooking?.lastModified, localDeletedAt: existingBooking?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existingBooking?.vectorClock, entityName: 'bookings', localUuid: localUuid)).shouldApplyRemote) {
           continue; // البيانات مطابقة أو السجل محذوف محلياً
         }
 
@@ -1821,7 +1946,7 @@ class AppwriteSyncManager {
               ..where((e) => e.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existing?.vectorClock, entityName: 'employees', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 
@@ -1860,7 +1985,7 @@ class AppwriteSyncManager {
               ..where((e) => e.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existing?.vectorClock, entityName: 'expenses', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 
@@ -2586,7 +2711,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existing?.vectorClock, entityName: 'guest_infos', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 
@@ -2655,7 +2780,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existing?.vectorClock, entityName: 'salary_withdrawals', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 
@@ -4866,12 +4991,15 @@ class AppwriteSyncManager {
         final existingForCheck = await (database.select(database.shiftNotes)
               ..where((t) => t.localUuid.equals(localUuid)))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(
+        if (!(await _isRemoteDataNewer(
           data,
           existingForCheck?.lastModified,
           localDeletedAt: existingForCheck?.deletedAt,
           remoteUpdatedAtSec: _extractUpdatedAtSec(doc),
-        )) {
+          localVectorClock: existingForCheck?.vectorClock,
+          entityName: 'blacklist',
+          localUuid: localUuid,
+        )).shouldApplyRemote) {
           _logger.debug(
             'Skipping blacklist ${doc.$id}: local is newer or equal '
             '(local=${existingForCheck?.lastModified}, remote=$lastModified)',
@@ -5205,7 +5333,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existing?.vectorClock, entityName: 'shift_notes', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 
@@ -5238,7 +5366,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existing?.vectorClock, entityName: 'booking_notes', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 
@@ -5274,7 +5402,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existing?.vectorClock, entityName: 'booking_nights', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 
@@ -5347,7 +5475,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existing?.vectorClock, entityName: 'cash_transactions', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 
@@ -5382,7 +5510,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existing?.vectorClock, entityName: 'salary_cycles', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 
@@ -5500,7 +5628,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existing?.vectorClock, entityName: 'salary_payments', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 
@@ -5585,7 +5713,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existing?.vectorClock, entityName: 'booking_price_adjustments', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 
@@ -5683,7 +5811,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existing?.vectorClock, entityName: 'price_adjustments', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 
@@ -5760,7 +5888,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.timestamp, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.timestamp, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: null, entityName: 'audit_logs', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 
@@ -5935,7 +6063,7 @@ class AppwriteSyncManager {
               ..where((t) => t.localUuid.equals(localUuid))
               ..limit(1))
             .getSingleOrNull();
-        if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!(await _isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existing?.vectorClock, entityName: 'payment_voids', localUuid: localUuid)).shouldApplyRemote) {
           continue;
         }
 

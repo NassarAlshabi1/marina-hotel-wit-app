@@ -288,9 +288,15 @@ class SmartConflictResolver {
     mergedVc.merge(remoteVc);
     merged['vectorClock'] = mergedVc.toString();
 
-    // تحديث lastModified + version
-    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    merged['lastModified'] = now;
+    // ✅ إصلاح (2026-06-28): استخدام max(localTs, remoteTs) بدلاً من DateTime.now()
+    // المنطق القديم كان يكسر idempotency: كل دمج يُنتج timestamp جديد
+    // بوقت جهاز الدمج، مما يُسبب رفض التحديث من أجهزة أخرى ذات توقيت مختلف.
+    // الحل: استخدام آخر تعديل معروف بين الطرفين (max) — هذا يحافظ على
+    // الترتيب السبكي ويضمن قبول النتيجة من جميع الأجهزة.
+    final localTs = _extractTs(localData);
+    final remoteTs = _extractTs(remoteData);
+    final mergedTs = localTs > remoteTs ? localTs : remoteTs;
+    merged['lastModified'] = mergedTs;
     merged['version'] = ((merged['version'] as int?) ?? 0) + 1;
 
     return ResolutionResult(
@@ -349,8 +355,14 @@ class SmartConflictResolver {
         final l = localVal?.toString() ?? '';
         final r = remoteVal?.toString() ?? '';
         if (l == r) return _FieldResolution(value: l);
+        // ✅ إصلاح (2026-06-28): إضافة deduplication قبل الـ concat.
+        // المنطق القديم كان يُضخّم النصوص بعد عدة عمليات دمج متتالية
+        // (ملاحظة A\n---\nملاحظة A\n---\nملاحظة B\n---\nملاحظة A...).
+        // الحل: تقسيم النصين على \n---\n، دمج الأجزاء، إزالة التكرارات
+        // مع الحفاظ على الترتيب (أول ظهور يُحتفظ به).
+        final mergedValue = _concatWithDedup(l, r);
         return _FieldResolution(
-          value: '$l\n---\n$r',
+          value: mergedValue,
           warning: 'concat merge: $field',
         );
 
@@ -390,6 +402,31 @@ class SmartConflictResolver {
         (data['last_modified'] as int?) ??
         (data['lastModifiedEpoch'] as int?) ??
         0;
+  }
+
+  /// ✅ دمج نصّي مع إزالة التكرار (deduplication)
+  /// يُقسّم كل نص على الفاصل '\n---\n'، يدمج الأجزاء، ويُزيل التكرارات
+  /// مع الحفاظ على ترتيب أول ظهور لكل جزء.
+  /// مثال: 'A\n---\nB' + 'A\n---\nC' → 'A\n---\nB\n---\nC'
+  static String _concatWithDedup(String local, String remote) {
+    const separator = '\n---\n';
+    final localParts = local.split(separator);
+    final remoteParts = remote.split(separator);
+
+    // دمج القائمتين مع إزالة التكرارات (الترتيب: local أولاً ثم remote)
+    final seen = <String>{};
+    final merged = <String>[];
+    for (final part in [...localParts, ...remoteParts]) {
+      final trimmed = part.trim();
+      if (trimmed.isEmpty) continue;
+      if (seen.add(trimmed)) {
+        merged.add(part);
+      }
+    }
+
+    if (merged.isEmpty) return '';
+    if (merged.length == 1) return merged.first;
+    return merged.join(separator);
   }
 }
 

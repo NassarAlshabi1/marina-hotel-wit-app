@@ -80,11 +80,15 @@ class ConflictDetector {
   const ConflictDetector._();
 
   /// الحقول المالية الحرجة — لا تُدمج تلقائياً أبداً
+  // ✅ إصلاح (2026-06-28): إزالة 'status' من القائمة الحرجة لأن سياسات
+  // بعض الكيانات (مثل bookings) تسمح بحل status عبر newerWins.
+  // بقاء 'status' هنا كان يُسبب تصعيداً يدوياً لكل تعارض على status
+  // حتى لو كانت سياسة الكيان تقول newerWins — تناقض منطقي.
+  // الحقول المتبقية كلها مالية/محاسبية بحتة ولا يجوز دمجها أبداً.
   static const _criticalFields = {
     'amount', 'paidAmount', 'totalAmount', 'remainingAmount',
     'price', 'basicSalary',
     'isVoided', 'voidedAmount',
-    'status',
     'discount', 'discountAmount',
   };
 
@@ -226,8 +230,18 @@ class ConflictDetector {
     final changed = <String>{};
     for (final key in current.keys) {
       if (key.startsWith('\$')) continue; // تخطّي metadata
-      if (key == 'lastModified' || key == 'updatedAt' || key == 'version') {
-        continue; // تخطّي حقول النظام
+      if (key == 'lastModified' ||
+          key == 'updatedAt' ||
+          key == 'version' ||
+          // ✅ إصلاح (2026-06-28): استثناء vectorClock من حساب الحقول المتغيرة.
+          // بعد أي دمج، ستتغير قيمة vectorClock (لأنها merged VC)،
+          // مما سيُسجّلها كحقل متغيّر ويُسبب تعارضات وهمية في المزامنات اللاحقة.
+          key == 'vectorClock' ||
+          key == 'vector_clock' ||
+          key == 'last_modified' ||
+          key == 'last_modified_epoch' ||
+          key == 'updated_at') {
+        continue; // تخطّي حقول النظام والـ VC
       }
       if (ancestor[key] != current[key]) {
         changed.add(key);

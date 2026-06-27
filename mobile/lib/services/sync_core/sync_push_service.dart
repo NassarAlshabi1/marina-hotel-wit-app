@@ -12,6 +12,7 @@ import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../repositories/bookings_repository.dart';
 import '../repositories/rooms_repository.dart';
+import '../vector_clock_service.dart';
 import 'sync_error_service.dart';
 import 'dart:convert';
 import '../appwrite_config.dart';
@@ -151,6 +152,15 @@ Future<int> _pushAllEntities() async {
 
 Future<bool> _processOutboxEntry(OutboxData entry) async {
   try {
+    // ✅ P0-1 إصلاح (2026-06-28): زيادة Vector Clock قبل كل عملية push
+    // غير ذلك، الساعة تبقى دائماً '{}' على كل الأجهزة، مما يُعطل كشف
+    // التعارضات المتزامنة تماماً (يصبح النظام LWW فقط رغم وجود VC).
+    // نزيد العداد للجهاز الحالي، نكتبه في قاعدة البيانات المحلية،
+    // ثم يقرأه _processXxxEntry عند بناء الـ payload.
+    if (entry.op != 'delete') {
+      await _bumpVectorClockBeforePush(entry.entity, entry.localUuid);
+    }
+
     switch (entry.entity) {
       case 'rooms':
         return await _processRoomEntry(entry);
@@ -1356,6 +1366,113 @@ Future<BookingPriceAdjustment?> _getBookingPriceAdjustmentByLocalUuid(String uui
         ..where((t) => t.localUuid.equals(uuid))
         ..limit(1))
       .getSingleOrNull();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ✅ Vector Clock Bumping (P0-1 إصلاح 2026-06-28)
+// ════════════════════════════════════════════════════════════════════
+//
+// قبل رفع كل سجل للسحابة، نزيد عداد Vector Clock للجهاز الحالي
+// ونكتبه في قاعدة البيانات المحلية. هذا يضمن:
+//   1. كل عملية push تُنتج VC فريد ومتزايد سببياً
+//   2. عند السحب لاحقاً، يمكن لكاشف التعارضات تحديد ما إذا كان
+//      التحديث البعيد سبق أم تزامن مع التحديث المحلي
+//   3. بدون هذا الـ bump، يبقى VC='{}' دائماً والنظام يتحول لـ LWW
+//
+// الجهاز المُحدِّد: نقرأه من SharedPreferences (نفس مفتاح AppwriteDeltaSync)
+
+/// خريطة أسماء الكيانات إلى أسماء الجداول في SQLite
+/// (الكيان في outbox.entity يستخدم صيغة snake_case مطابقة لاسم الجدول)
+static const _entityToTable = {
+  'rooms': 'rooms',
+  'bookings': 'bookings',
+  'expenses': 'expenses',
+  'payments': 'payments',
+  'salary_payments': 'salary_payments',
+  'cash_transactions': 'cash_transactions',
+  'shift_notes': 'shift_notes',
+  'debts': 'debts',
+  'employees': 'employees',
+  'booking_notes': 'booking_notes',
+  'booking_nights': 'booking_nights',
+  'salary_cycles': 'salary_cycles',
+  'booking_price_adjustments': 'booking_price_adjustments',
+  'guest_infos': 'guest_infos',
+  'salary_withdrawals': 'salary_withdrawals',
+  'blacklist': 'blacklist',
+  'price_adjustments': 'price_adjustments',
+  'payment_voids': 'payment_voids',
+  'audit_logs': 'audit_logs',
+  'app_settings': 'app_settings',
+};
+
+/// يقرأ معرّف الجهاز من SharedPreferences (نفس المفتاح المستخدم في AppwriteDeltaSync)
+Future<String?> _getDeviceId() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('appwrite_delta_device_id');
+  } catch (e) {
+    _logger.warning('فشل قراءة deviceId من SharedPreferences: $e', tag: 'VC');
+    return null;
+  }
+}
+
+/// يزيد Vector Clock للسجل المحلي قبل رفعه للسحابة
+/// يقرأ VC الحالي، يزيد عداد الجهاز، يكتبه مرة أخرى في DB
+Future<void> _bumpVectorClockBeforePush(String entity, String localUuid) async {
+  final tableName = _entityToTable[entity];
+  if (tableName == null) {
+    // كيان غير معروف — لا نستطيع زيادة VC، نتجاهل بصمت
+    return;
+  }
+
+  final deviceId = await _getDeviceId();
+  if (deviceId == null || deviceId.isEmpty) {
+    _logger.warning(
+      '⚠️ لا يمكن زيادة Vector Clock: deviceId غير متوفر. '
+      'entity=$entity, uuid=$localUuid',
+      tag: 'VC',
+    );
+    return;
+  }
+
+  try {
+    // قراعة VC الحالي من قاعدة البيانات عبر customSelect
+    // (نستخدم customStatement لتفادي تعقيدات readsFrom مع أسماء الجداول الديناميكية)
+    final rows = await database.customSelect(
+      'SELECT vector_clock AS vc FROM $tableName WHERE local_uuid = ? LIMIT 1',
+      variables: [drift.Variable<String>(localUuid)],
+    ).get();
+
+    if (rows.isEmpty) {
+      // السجل غير موجود محلياً — لا شيء لنزيده
+      return;
+    }
+
+    final currentVcStr = (rows.first.data['vc'] as String?) ?? '{}';
+    final vc = VectorClock.fromString(currentVcStr);
+    vc.increment(deviceId);
+    final newVcStr = vc.toString();
+
+    // كتابة VC الجديد مرة أخرى
+    await database.customStatement(
+      'UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?',
+      [newVcStr, localUuid],
+    );
+
+    _logger.debug(
+      '⏫ VC bumped: entity=$entity, uuid=${localUuid.substring(0, 8)}..., '
+      'old=$currentVcStr, new=$newVcStr',
+      tag: 'VC',
+    );
+  } catch (e) {
+    // فشل زيادة VC ليس خطأ قاتلاً — نتابع الـ push بـ VC القديم
+    _logger.warning(
+      '⚠️ فشل زيادة Vector Clock لـ $entity/$localUuid: $e — '
+      'المتابعة بـ VC الحالي',
+      tag: 'VC',
+    );
+  }
 }
 
 /// تحميل جميع البيانات من الخادم
