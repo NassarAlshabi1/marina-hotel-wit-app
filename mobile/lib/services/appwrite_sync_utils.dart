@@ -136,10 +136,12 @@ class AppwriteSyncUtils {
     },
     'salary_withdrawals': {
       'action', 'amount', 'createdAt', 'createdAtEpoch', 'createdAtIso',
-      'date', 'deletedAt', 'deletedAtIso', 'deviceId', 'employeeId',
-      'expenseId', 'id', 'idempotencyKey', 'lastModified',
-      'lastModifiedEpoch', 'localUuid', 'name', 'note', 'origin', 'serverId',
-      'syncTimestamp', 'updatedAt', 'updatedAtIso', 'vectorClock', 'version',
+      'date', 'deletedAt', 'deletedAtIso', 'description', 'deviceId',
+      'employeeId', 'expenseId', 'hotelDayKey', 'id', 'idempotencyKey',
+      'lastModified', 'lastModifiedEpoch', 'localUuid', 'name', 'note',
+      'origin', 'reason', 'serverId', 'syncTimestamp', 'updatedAt',
+      'updatedAtIso', 'vectorClock', 'version', 'withdrawDate',
+      'withdrawalType',
     },
     'salary_carry_over_logs': {
       'amount', 'carriedAt', 'createdAt', 'createdAtEpoch', 'createdAtIso',
