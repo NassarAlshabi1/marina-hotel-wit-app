@@ -219,34 +219,55 @@ delete("any")
 
 ## ⚠️ ملاحظات مهمة
 
-### 1. حقول مفقودة على Appwrite Cloud:
-- `expectedNights` - عدد الليالي المتوقعة
-- `calculatedNights` - عدد الليالي المحسوب
-- `totalNightsCached` - إجمالي الليالي (cache)
-- `totalDueCached` - إجمالي المستحق (cache)
-- `totalPaidCached` - إجمالي المدفوع (cache)
-- `remainingBalanceCached` - الرصيد المتبقي (cache)
+### 1. ✅ حقول مُضافة حديثاً (2026-06-27) — تم حلها:
 
-### 2. حقول إضافية على Cloud فقط:
-- `financialFrozenAt` - تجميد مالي
-- `financialHash` - تجزئة مالية
-- `sync_origin` - أصل المزامنة
-- `syncTimestamp` - طابع زمني للمزامنة
+الحقول التالية كانت موجودة على Appwrite Cloud لكن **لم تكن مُدرجة** في
+`validFieldsPerCollection['bookings']` في `appwrite_sync_utils.dart`.
+هذا كان يسبب حذفها بواسطة `filterPayloadForCollection` قبل الرفع،
+مما يُفقد البيانات الحساسة (مثل التتبّع المالي والمصدر).
 
-### 3. ملاحظة:
-الحقول المحسوبة (`*Cached`) لا تُزامن لأنها تُحسب محلياً عبر `BookingDerivedFieldsService`
+**تم الإصلاح في Commit `751774b0`:**
+- `financialFrozenAt` — تجميد مالي (integer?)
+- `financialHash` — تجزئة مالية (string?, 64)
+- `sync_origin` — أصل المزامنة (string?, 64, snake_case)
+- `syncTimestamp` — طابع زمني للمزامنة (integer?)
+- `idempotencyKey` — مفتاح Idempotency (string?, 255)
+- `id` — معرف (integer?, optional على Cloud)
+
+### 2. الحقول المحسوبة (`*Cached`)
+
+الحقول التالية تُحسب محلياً عبر `BookingDerivedFieldsService` وتُزامن
+مع Cloud (لكنها تُعاد حسابها محلياً عند السحب):
+- `expectedNights`, `calculatedNights`, `totalNightsCached`
+- `totalDueCached`, `totalPaidCached`, `remainingBalanceCached`
+
+### 3. تحديث `_bookingToRemote()`
+
+في Commit `751774b0`، تم تعديل `_bookingToRemote()` لتُرسل بنشاط:
+- `sync_origin = booking.origin` — مصدر المزامنة
+- `syncTimestamp = booking.lastModified` — طابع زمني
 
 ---
 
 ## 📁 الملفات المتعلقة
 
-| الملف | المسار |
-|-------|--------|
-| Bookings Adapter | `lib/services/adapters/bookings_adapter.dart` |
-| Local DB Schema | `lib/services/local_db.dart` |
-| Booking Derived Fields Service | `lib/services/booking_derived_fields_service.dart` |
+| الملف | المسار | الوظيفة |
+|-------|--------|---------|
+| Bookings Adapter | `lib/services/adapters/bookings_adapter.dart` | تحويل البيانات بين المحلي و Cloud |
+| Local DB Schema | `lib/services/local_db.dart` | تعريف جدول `Bookings` |
+| Booking Derived Fields Service | `lib/services/booking_derived_fields_service.dart` | حساب الحقول المحسوبة |
+| Sync Utils | `lib/services/appwrite_sync_utils.dart` | `validFieldsPerCollection` + `filterPayloadForCollection` |
+| Sync Manager | `lib/services/appwrite_sync_manager.dart` | `_processBookingEntry` + `_bookingToRemote` |
+
+---
+
+## 📜 سجل التغييرات
+
+| التاريخ | Commit | التغيير |
+|---------|--------|---------|
+| 2026-06-27 | `751774b0` | إضافة `financialFrozenAt`, `financialHash`, `syncTimestamp`, `sync_origin`, `idempotencyKey`, `id` إلى `validFieldsPerCollection['bookings']` + تحديث `_bookingToRemote` لإرسال `sync_origin` و `syncTimestamp` |
 
 ---
 
 **تم إنشاء هذا التقرير بواسطة:** OpenHands AI Agent  
-**التاريخ:** 2026-06-26
+**آخر تحديث:** 2026-06-27
