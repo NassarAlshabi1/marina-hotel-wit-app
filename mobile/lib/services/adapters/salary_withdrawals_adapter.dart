@@ -176,13 +176,19 @@ class SalaryWithdrawalsAdapter
       expenseId = int.tryParse(model.reason!.substring(4));
     }
 
+    // ✅ ضمان أن withdrawDate له قيمة دائماً (Appwrite Cloud يطلبه REQUIRED)
+    // إذا كان فارغاً (سجل قديم)، نستخدم تاريخ اليوم كاحتياطي
+    final effectiveWithdrawDate = (model.withdrawDate.isEmpty)
+        ? DateTime.now().toIso8601String().split('T').first // YYYY-MM-DD
+        : model.withdrawDate;
+
     final map = <String, dynamic>{
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
       _k(src, 'amount', 'amount'): model.amount.round(), // Appwrite: integer
-      _k(src, 'withdrawDate', 'withdraw_date'): model.withdrawDate,
+      _k(src, 'withdrawDate', 'withdraw_date'): effectiveWithdrawDate,
       _k(src, 'reason', 'reason'): model.reason,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
       _k(src, 'withdrawalType', 'withdrawal_type'): model.withdrawalType,
@@ -202,14 +208,18 @@ class SalaryWithdrawalsAdapter
       'deviceId': model.deviceId,
     };
 
-    // حقول إضافية مطلوبة من Appwrite Schema
-    // الحقول date و action مطلوبة (REQUIRED) في Appwrite
-    if (src == Source.appwrite) {
-      map['date'] = model.withdrawDate;
-      map['action'] = model.withdrawalType;
-      map['note'] = model.description;
-      map['expenseId'] = expenseId;
-    }
+    // ✅ حقول احتياطية (legacy) — تُرسل دائماً لضمان التوافق مع جميع إصدارات
+    // مخطط Appwrite Cloud (القديم والجديد).
+    //
+    // 'date' يُرسل دائماً كاحتياطي لـ 'withdrawDate' — بعض إصدارات المخطط
+    // تطلب 'date' كـ REQUIRED بدلاً من 'withdrawDate'.
+    //
+    // نُرسلها لكل المصادر (Source.appwrite, Source.drive, Source.local)
+    // لأن Appwrite Cloud هو الوجهة النهائية في النهاية.
+    map['date'] = effectiveWithdrawDate;
+    map['action'] = model.withdrawalType ?? 'withdrawal';
+    map['note'] = model.description ?? '';
+    map['expenseId'] = expenseId;
 
     return map;
   }
