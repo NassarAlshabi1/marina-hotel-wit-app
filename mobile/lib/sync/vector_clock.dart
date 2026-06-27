@@ -1,3 +1,22 @@
+/// ⚠️ DEPRECATED (2026-06-28): تنفيذ Vector Clock القديم لمحرك delta sync
+/// المهمل في lib/sync/. لم يعد متصلاً بمسار الإنتاج.
+///
+/// ✅ التنفيذ الكنسي (الرسمي) موجود في:
+///    `lib/services/vector_clock_service.dart`
+///
+/// الفروقات الجوهرية بين التنفيذين:
+/// | الجانب              | التنفيذ الكنسي            | هذا التنفيذ (مهمل)         |
+/// |---------------------|---------------------------|----------------------------|
+/// | increment/merge     | mutating (void)           | pure (يرجع VectorClock جديد) |
+/// | fromString          | ✅ factory                 | ❌ (يستخدم fromJson)        |
+/// | compare             | VectorClockComparator     | instance method            |
+/// | toString            | JSON string               | 'VectorClock({...})'       |
+/// | VectorClockManager  | ❌                         | ✅                          |
+///
+/// لا يُسمح باستخدام هذا الملف في كود جديد.
+/// لإزالته بالكامل، يجب أولاً ترحيل lib/sync/ بالكامل إلى التنفيذ الكنزي
+/// أو حذف lib/sync/ (كلها بنية تحتية مهملة غير متصلة بالإنتاج).
+
 /// Vector Clock Implementation
 /// للتعرف على الترتيب الزمني الحقيقي بين الأجهزة المتعددة
 /// واكتشاف التعارضات بشكل دقيق

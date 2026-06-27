@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
 import 'appwrite_service.dart';
+import 'password_hasher.dart';
 
 enum AuthType { local }
 
@@ -203,8 +204,23 @@ class AuthLocalStore {
       return null;
     }
     final storedPassword = account['password']?.toString() ?? '';
-    if (storedPassword != password) {
+
+    // ✅ تشفير كلمات المرور (2026-06-28 P2):
+    // نستخدم PasswordHasher.verify للتحقق من كلمات المرور المشفّرة بـ PBKDF2.
+    // للتوافق مع الإصدارات السابقة، يدعم verify أيضاً كلمات المرور بالنص الصريح.
+    if (!PasswordHasher.verify(password, storedPassword)) {
       return null;
+    }
+
+    // ✅ ترحيل تلقائي: إذا كانت كلمة المرور المخزّنة نصاً صريحاً (legacy)،
+    // نُعيد تشفيرها بـ PBKDF2 ونُحدّث التخزين والسحابة.
+    if (!PasswordHasher.isHashed(storedPassword) && storedPassword.isNotEmpty) {
+      AppLogger.info(
+        '🔄 Migrating plaintext password to PBKDF2 for user: $normalized',
+        tag: 'AUTH',
+      );
+      final hashedPassword = PasswordHasher.hash(password);
+      await _migratePasswordToHashed(normalized, account, hashedPassword);
     }
 
     // تحميل الصلاحيات: admin = all, cloud = من JSON, local = من SharedPreferences
@@ -283,8 +299,10 @@ class AuthLocalStore {
       throw Exception('اسم المستخدم موجود مسبقاً');
     }
     final id = _nextUserId(accounts);
+    // ✅ تشفير كلمة المرور قبل التخزين المحلي
+    final hashedPassword = PasswordHasher.hash(password);
     accounts[normalized] = {
-      'password': password,
+      'password': hashedPassword,
       'full_name': fullName,
       'user_type': userType,
       'id': id,
@@ -292,10 +310,10 @@ class AuthLocalStore {
     await _saveCustomAccounts(accounts);
     await setPermissions(normalized, permissions);
 
-    // رفع المستخدم إلى Appwrite Cloud
+    // رفع المستخدم إلى Appwrite Cloud (كلمة المرور تُشفّر داخل _pushUserToCloud)
     await _pushUserToCloud(
       username: normalized,
-      password: password,
+      password: password, // يُمرّر كنص صريح، يُشفّر داخل _pushUserToCloud
       fullName: fullName,
       userType: userType,
       permissions: permissions,
@@ -314,12 +332,14 @@ class AuthLocalStore {
       final appwrite = AppwriteService();
       await appwrite.initialize();
       final docId = 'user_$username';
+      // ✅ تشفير كلمة المرور قبل الرفع للسحابة
+      final hashedPassword = PasswordHasher.hash(password);
       await appwrite.upsertDocument(
         collectionId: 'app_users',
         documentId: docId,
         data: {
           'username': username,
-          'password': password,
+          'password': hashedPassword,
           'full_name': fullName,
           'user_type': userType,
           'permissions': jsonEncode(permissions),
@@ -328,12 +348,57 @@ class AuthLocalStore {
           'credentials_version': 1,
         },
       );
-      AppLogger.debug('User $username pushed to cloud', tag: 'AUTH');
+      AppLogger.debug('User $username pushed to cloud (password hashed)', tag: 'AUTH');
     } catch (e) {
       AppLogger.warning(
         'Failed to push user $username to cloud',
         tag: 'AUTH',
         error: e,
+      );
+    }
+  }
+
+  /// ✅ ترحيل كلمة مرور من نص صريح إلى PBKDF2 hash
+  /// يُحدّث التخزين المحلي (custom accounts) والسحابة (إذا كان حساباً سحابياً)
+  Future<void> _migratePasswordToHashed(
+    String username,
+    Map<String, dynamic> account,
+    String hashedPassword,
+  ) async {
+    try {
+      // 1️⃣ تحديث الحسابات المحلية المخصصة (custom)
+      final accounts = await _loadCustomAccounts();
+      if (accounts.containsKey(username)) {
+        final custom = accounts[username] as Map<String, dynamic>;
+        custom['password'] = hashedPassword;
+        await _saveCustomAccounts(accounts);
+        AppLogger.debug('Local password migrated for $username', tag: 'AUTH');
+      }
+
+      // 2️⃣ تحديث السحابة (إذا كان حساباً سحابياً)
+      if (account['is_cloud'] == true) {
+        final docId = account['doc_id'] as String?;
+        if (docId != null && docId.isNotEmpty) {
+          final appwrite = AppwriteService();
+          await appwrite.initialize();
+          await appwrite.updateDocument(
+            collectionId: 'app_users',
+            documentId: docId,
+            data: {
+              'password': hashedPassword,
+            },
+          );
+          AppLogger.debug('Cloud password migrated for $username', tag: 'AUTH');
+        }
+      }
+    } catch (e, st) {
+      // فشل الترحيل ليس خطأ قاتلاً — المستخدم يسجّل الدخول بنجاح
+      // سنحاول الترحيل مرة أخرى في تسجيل الدخول التالي
+      AppLogger.warning(
+        'Password migration failed for $username (will retry next login)',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
       );
     }
   }
@@ -365,7 +430,10 @@ class AuthLocalStore {
         'credentials_version': nextVersion,
       };
 
-      if (newPassword != null) data['password'] = newPassword;
+      // ✅ تشفير كلمة المرور الجديدة قبل رفعها للسحابة
+      if (newPassword != null && newPassword.isNotEmpty) {
+        data['password'] = PasswordHasher.hash(newPassword);
+      }
       if (newFullName != null) data['full_name'] = newFullName;
       if (newUserType != null) data['user_type'] = newUserType;
       if (newPermissions != null) data['permissions'] = jsonEncode(newPermissions);

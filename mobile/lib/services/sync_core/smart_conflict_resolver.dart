@@ -172,6 +172,179 @@ class SmartConflictResolver {
           'isActive': FieldResolutionRule(FieldStrategy.newerWins),
         },
       ),
+
+      // ════════════════════════════════════════════════════════════════
+      // ✅ سياسات إضافية (2026-06-28): تغطية كل الكيانات الـ 17 المتزامنة
+      // ════════════════════════════════════════════════════════════════
+
+      // سحوبات الرواتب: مبلغ تصعيد، وصف دمج، تاريخ آخر تعديل
+      'salary_withdrawals': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+        rules: {
+          'amount': FieldResolutionRule(FieldStrategy.manual,
+              reason: 'مبلغ السحب حرج مالياً'),
+          'description': FieldResolutionRule(FieldStrategy.concat),
+          'notes': FieldResolutionRule(FieldStrategy.concat),
+          'withdrawDate': FieldResolutionRule(FieldStrategy.newerWins),
+          'withdraw_date': FieldResolutionRule(FieldStrategy.newerWins),
+        },
+      ),
+
+      // دفعات الرواتب: مبلغ تصعيد، حالة آخر تعديل، ملاحظات دمج
+      'salary_payments': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+        rules: {
+          'amount': FieldResolutionRule(FieldStrategy.manual,
+              reason: 'مبلغ الراتب حرج مالياً'),
+          'basicSalary': FieldResolutionRule(FieldStrategy.manual),
+          'deductions': FieldResolutionRule(FieldStrategy.manual),
+          'bonuses': FieldResolutionRule(FieldStrategy.manual),
+          'netSalary': FieldResolutionRule(FieldStrategy.manual),
+          'status': FieldResolutionRule(FieldStrategy.newerWins),
+          'notes': FieldResolutionRule(FieldStrategy.concat),
+          'paidAt': FieldResolutionRule(FieldStrategy.newerWins),
+        },
+      ),
+
+      // الحركات النقدية: مبلغ ونوع تصعيد، وصف دمج
+      'cash_transactions': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+        rules: {
+          'amount': FieldResolutionRule(FieldStrategy.manual,
+              reason: 'المبلغ النقدي حرج مالياً'),
+          'type': FieldResolutionRule(FieldStrategy.manual,
+              reason: 'نوع الحركة النقدية لا يُدمج تلقائياً'),
+          'transactionType': FieldResolutionRule(FieldStrategy.manual),
+          'description': FieldResolutionRule(FieldStrategy.concat),
+          'notes': FieldResolutionRule(FieldStrategy.concat),
+          'timestamp': FieldResolutionRule(FieldStrategy.newerWins),
+        },
+      ),
+
+      // ملاحظات الورديات: عنوان ومحتوى، حالة آخر تعديل
+      'shift_notes': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+        rules: {
+          'title': FieldResolutionRule(FieldStrategy.newerWins),
+          'content': FieldResolutionRule(FieldStrategy.concat),
+          'noteText': FieldResolutionRule(FieldStrategy.concat),
+          'shiftDate': FieldResolutionRule(FieldStrategy.newerWins),
+          'isActive': FieldResolutionRule(FieldStrategy.newerWins),
+          'status': FieldResolutionRule(FieldStrategy.newerWins),
+        },
+      ),
+
+      // معلومات النزلاء: بيانات شخصية، رقم الهوية تصعيد
+      'guest_infos': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+        rules: {
+          'name': FieldResolutionRule(FieldStrategy.newerWins),
+          'guestName': FieldResolutionRule(FieldStrategy.newerWins),
+          'phone': FieldResolutionRule(FieldStrategy.newerWins),
+          'guestPhone': FieldResolutionRule(FieldStrategy.newerWins),
+          'idNumber': FieldResolutionRule(FieldStrategy.manual,
+              reason: 'رقم الهوية حساس ولا يُدمج تلقائياً'),
+          'guestIdNumber': FieldResolutionRule(FieldStrategy.manual),
+          'idType': FieldResolutionRule(FieldStrategy.newerWins),
+          'guestIdType': FieldResolutionRule(FieldStrategy.newerWins),
+          'nationality': FieldResolutionRule(FieldStrategy.newerWins),
+          'email': FieldResolutionRule(FieldStrategy.newerWins),
+          'address': FieldResolutionRule(FieldStrategy.concat),
+        },
+      ),
+
+      // ليالي الحجز: قيم محسوبة، آخر تعديل يفوز
+      'booking_nights': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+        rules: {
+          'calculatedNights': FieldResolutionRule(FieldStrategy.newerWins),
+          'actualNights': FieldResolutionRule(FieldStrategy.newerWins),
+          'expectedNights': FieldResolutionRule(FieldStrategy.newerWins),
+          'nightDate': FieldResolutionRule(FieldStrategy.newerWins),
+          'price': FieldResolutionRule(FieldStrategy.manual),
+          'amount': FieldResolutionRule(FieldStrategy.manual),
+        },
+      ),
+
+      // دورات الرواتب: مبلغ تصعيد، حالة وتاريخ الإغلاق آخر تعديل
+      'salary_cycles': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+        rules: {
+          'totalAmount': FieldResolutionRule(FieldStrategy.manual,
+              reason: 'إجمالي الراتب حرج مالياً'),
+          'totalPaid': FieldResolutionRule(FieldStrategy.manual),
+          'totalDeductions': FieldResolutionRule(FieldStrategy.manual),
+          'status': FieldResolutionRule(FieldStrategy.newerWins),
+          'closedAt': FieldResolutionRule(FieldStrategy.newerWins),
+          'startDate': FieldResolutionRule(FieldStrategy.newerWins),
+          'endDate': FieldResolutionRule(FieldStrategy.newerWins),
+        },
+      ),
+
+      // تعديلات أسعار الحجز: مبلغ تصعيد، سبب دمج
+      'booking_price_adjustments': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+        rules: {
+          'amount': FieldResolutionRule(FieldStrategy.manual,
+              reason: 'مبلغ التعديل حرج مالياً'),
+          'reason': FieldResolutionRule(FieldStrategy.concat),
+          'type': FieldResolutionRule(FieldStrategy.newerWins),
+          'adjustmentType': FieldResolutionRule(FieldStrategy.newerWins),
+          'appliedAt': FieldResolutionRule(FieldStrategy.newerWins),
+        },
+      ),
+
+      // القائمة السوداء: سبب دمج، حالة آخر تعديل
+      'blacklist': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+        rules: {
+          'reason': FieldResolutionRule(FieldStrategy.concat),
+          'notes': FieldResolutionRule(FieldStrategy.concat),
+          'isActive': FieldResolutionRule(FieldStrategy.newerWins),
+          'guestName': FieldResolutionRule(FieldStrategy.newerWins),
+          'guestPhone': FieldResolutionRule(FieldStrategy.newerWins),
+          'idNumber': FieldResolutionRule(FieldStrategy.manual),
+        },
+      ),
+
+      // تعديلات الأسعار العامة: مبلغ تصعيد، سبب دمج
+      'price_adjustments': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+        rules: {
+          'amount': FieldResolutionRule(FieldStrategy.manual,
+              reason: 'مبلغ التعديل حرج مالياً'),
+          'reason': FieldResolutionRule(FieldStrategy.concat),
+          'description': FieldResolutionRule(FieldStrategy.concat),
+          'targetType': FieldResolutionRule(FieldStrategy.newerWins),
+          'appliedAt': FieldResolutionRule(FieldStrategy.newerWins),
+        },
+      ),
+
+      // إلغاء الدفعات: كله تصعيد يدوي (مالي حرج جداً)
+      'payment_voids': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.manual,
+            reason: 'إلغاء الدفعات حرج مالياً ولا يُدمج تلقائياً'),
+        rules: {
+          'originalPaymentUuid': FieldResolutionRule(FieldStrategy.manual),
+          'voidedAmount': FieldResolutionRule(FieldStrategy.manual),
+          'voided_at': FieldResolutionRule(FieldStrategy.newerWins),
+          'voidedAt': FieldResolutionRule(FieldStrategy.newerWins),
+          'reason': FieldResolutionRule(FieldStrategy.concat),
+          'isVoided': FieldResolutionRule(FieldStrategy.manual),
+        },
+      ),
+
+      // سجلات التدقيق: آخر تعديل يفوز (لا حقول مالية)
+      'audit_logs': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+        rules: {
+          'action': FieldResolutionRule(FieldStrategy.newerWins),
+          'entityType': FieldResolutionRule(FieldStrategy.newerWins),
+          'entityUuid': FieldResolutionRule(FieldStrategy.newerWins),
+          'details': FieldResolutionRule(FieldStrategy.concat),
+          'timestamp': FieldResolutionRule(FieldStrategy.newerWins),
+        },
+      ),
   };
 
   static const _defaultPolicy = EntityResolutionPolicy(
