@@ -4,6 +4,7 @@ import 'package:appwrite/appwrite.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'appwrite_config.dart';
+import 'appwrite_sync_utils.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'secondary_appwrite_config.dart';
@@ -108,7 +109,7 @@ class SecondarySyncManager {
     _isSyncing = true;
 
     try {
-      final db = AppDatabase();
+      final db = DatabaseManager.instance;
       final outboxDao = OutboxDao(db);
       final service = SecondaryAppwriteService.instance;
 
@@ -186,6 +187,12 @@ class SecondarySyncManager {
   /// نستخدم atomic UPDATE...RETURNING لمنع سباق البيانات. السجلات تُؤخذ
   /// بشكل مستقل عن Primary (الذي يأخذ سجلاته الخاصة بناءً على
   /// delivered_to_primary).
+  ///
+  /// ✅ إصلاح (2026-06-28 P1-3): فحص 'pending' و 'failed'
+  /// المنطق القديم كان يفحص فقط 'pending'، مما يعني أن السجلات التي فشل
+  /// Primary في رفعها (status='failed') لن يأخذها Secondary أبداً — مخالف
+  /// للفلسفة "Secondary يرفع بشكل مستقل عن Primary".
+  /// الآن نفحص كلا الحالتين لنضمن استقلالية Secondary.
   Future<List<OutboxData>> _takeUndeliveredBatch(
     AppDatabase db, {
     required int batchSize,
@@ -197,18 +204,21 @@ class SecondarySyncManager {
     // ولا نأخذ 'restore' (استعادة من نسخة احتياطية لا تحتاج secondary)
     const sourceCondition = " AND source = 'local'";
 
+    // ✅ فحص 'pending' و 'failed' لضمان استقلالية Secondary عن Primary
+    const statusCondition =
+        " AND processing_status IN ('pending', 'failed')";
+
     // ✅ Atomic claim: ضع علامة processing على السجلات غير المُسلّمة للثانوي
     final claimed = await db.customSelect(
       'UPDATE outbox SET processing_status = ?, processing_started_at = ?, processing_worker = ? '
       'WHERE id IN ('
-      '  SELECT id FROM outbox WHERE delivered_to_secondary = 0 AND processing_status = ?$sourceCondition '
+      '  SELECT id FROM outbox WHERE delivered_to_secondary = 0$statusCondition$sourceCondition '
       '  ORDER BY client_ts ASC LIMIT ? '
       ') RETURNING *',
       variables: [
         const drift.Variable<String>('processing'),
         drift.Variable<int>(nowEpoch),
         drift.Variable<String>('secondary_$worker'),
-        const drift.Variable<String>('pending'),
         drift.Variable<int>(batchSize),
       ],
       readsFrom: {db.outbox},
@@ -253,6 +263,15 @@ class SecondarySyncManager {
       payload['idempotencyKey'] = entry.idempotencyKey;
     }
 
+    // ✅ إصلاح (2026-06-28 P0-1): تصفية payload قبل الإرسال
+    // Secondary يستخدم endpoint مختلف (يدوي) قد يكون مخططه مختلفاً عن Primary.
+    // بدون تصفية، حقول غير موجودة في مخطط Secondary تُسبب attribute_not_found.
+    // نستخدم نفس validFieldsPerCollection المستخدم في Primary لضمان التوافق.
+    final filteredPayload = AppwriteSyncUtils.filterPayloadForCollection(
+      collectionId,
+      payload,
+    );
+
     try {
       if (entry.op == 'delete') {
         await service.deleteDocument(
@@ -266,7 +285,7 @@ class SecondarySyncManager {
       await service.upsertDocument(
         collectionId: collectionId,
         documentId: entry.localUuid,
-        data: payload,
+        data: filteredPayload,  // ✅ حمولة مُصفّاة
       );
       return true;
     } on AppwriteException catch (e) {
