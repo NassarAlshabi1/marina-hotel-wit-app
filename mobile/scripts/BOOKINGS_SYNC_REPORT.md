@@ -52,63 +52,63 @@
 | 2 | `roomNumber` | `string(50)` | ✅ | - | رقم الغرفة |
 | 3 | `guestName` | `string(200)` | ✅ | - | اسم النزيل |
 | 4 | `guestPhone` | `string(20)` | ✅ | - | هاتف النزيل |
-| 5 | `guestIdType` | `string(100)` | ❌ | `"بطاقة شخصية"` | نوع الهوية |
-| 6 | `guestIdNumber` | `string(50)` | ❌ | `""` | رقم الهوية |
-| 7 | `guestIdIssueDate` | `string(50)` | ❌ | - | تاريخ إصدار الهوية |
-| 8 | `guestIdIssuePlace` | `string(200)` | ❌ | - | مكان إصدار الهوية |
+| 5 | `guestIdType` | `string(100)` | ✓ | `"بطاقة شخصية"` | نوع الهوية |
+| 6 | `guestIdNumber` | `string(50)` | ✓ | `""` | رقم الهوية |
+| 7 | `guestIdIssueDate` | `string(50)` | ✓ | - | تاريخ إصدار الهوية |
+| 8 | `guestIdIssuePlace` | `string(200)` | ✓ | - | مكان إصدار الهوية |
 | 9 | `guestNationality` | `string(100)` | ✅ | - | الجنسية |
-| 10 | `guestEmail` | `string(200)` | ❌ | - | البريد الإلكتروني |
-| 11 | `guestAddress` | `string(500)` | ❌ | - | العنوان |
+| 10 | `guestEmail` | `string(200)` | ✓ | - | البريد الإلكتروني |
+| 11 | `guestAddress` | `string(500)` | ✓ | - | العنوان |
 | 12 | `checkinDate` | `string(50)` | ✅ | - | تاريخ تسجيل الدخول |
-| 13 | `checkoutDate` | `string(50)` | ❌ | - | تاريخ تسجيل الخروج المتوقع |
-| 14 | `actualCheckout` | `string(50)` | ❌ | - | تاريخ الخروج الفعلي |
+| 13 | `checkoutDate` | `string(50)` | ✓ | - | تاريخ تسجيل الخروج المتوقع |
+| 14 | `actualCheckout` | `string(50)` | ✓ | - | تاريخ الخروج الفعلي |
 | 15 | `status` | `string(50)` | ✅ | - | الحالة |
-| 16 | `notes` | `string(1000)` | ❌ | - | ملاحظات |
-| 17 | `stayDurationIso` | `string(50)` | ❌ | - | مدة الإقامة ISO |
-| 18 | `lastNightEpoch` | `integer` | ❌ | - | آخر ليلة |
-| 19 | `isOverdue` | `boolean` | ❌ | `false` | متأخر |
-| 20 | `needsCheckoutReview` | `boolean` | ❌ | `false` | يحتاج مراجعة خروج |
-| 21 | `isFullyPaid` | `boolean` | ❌ | `false` | مكتمل الدفع |
-| 22 | `hotelDayCheckin` | `string(50)` | ❌ | - | يوم الفندق للدخول |
-| 23 | `hotelDayCheckout` | `string(50)` | ❌ | - | يوم الفندق للخروج |
-| 24 | `serverBookingId` | `integer` | ❌ | - | معرف الحجز على السيرفر |
+| 16 | `notes` | `string(1000)` | ✓ | - | ملاحظات |
+| 17 | `stayDurationIso` | `string(50)` | ✓ | - | مدة الإقامة ISO |
+| 18 | `lastNightEpoch` | `integer` | ✓ | - | آخر ليلة |
+| 19 | `isOverdue` | `boolean` | ✓ | `false` | متأخر |
+| 20 | `needsCheckoutReview` | `boolean` | ✓ | `false` | يحتاج مراجعة خروج |
+| 21 | `isFullyPaid` | `boolean` | ✓ | `false` | مكتمل الدفع |
+| 22 | `hotelDayCheckin` | `string(50)` | ✓ | - | يوم الفندق للدخول |
+| 23 | `hotelDayCheckout` | `string(50)` | ✓ | - | يوم الفندق للخروج |
+| 24 | `serverBookingId` | `integer` | ✓ | - | معرف الحجز على السيرفر |
 
 ### 💰 حقول الخصم (Discount Fields)
 
 | # | الحقل | النوع | Required | Default |
 |---|-------|------|----------|---------|
-| 25 | `discount` | `double` | ❌ | `0` |
-| 26 | `discountType` | `string(20)` | ❌ | `""` |
-| 27 | `discountStartDate` | `string(255)` | ❌ | - |
+| 25 | `discount` | `double` | ✓ | `0` |
+| 26 | `discountType` | `string(20)` | ✓ | `""` |
+| 27 | `discountStartDate` | `string(255)` | ✓ | - |
 
 ### 💵 حقول مالية (Financial Fields)
 
 | # | الحقل | النوع | Required | Default |
 |---|-------|------|----------|---------|
-| 28 | `financialFrozenAt` | `integer` | ❌ | - |
-| 29 | `financialHash` | `string(64)` | ❌ | - |
+| 28 | `financialFrozenAt` | `integer` | ✓ | - |
+| 29 | `financialHash` | `string(64)` | ✓ | - |
 
 ### 🔄 حقول المزامنة (Sync Fields)
 
 | # | الحقل | النوع | Required | Default |
 |---|-------|------|----------|---------|
-| 30 | `serverId` | `integer` | ❌ | - |
+| 30 | `serverId` | `integer` | ✓ | - |
 | 31 | `createdAt` | `integer` | ✅ | - |
 | 32 | `updatedAt` | `integer` | ✅ | - |
-| 33 | `deletedAt` | `integer` | ❌ | - |
+| 33 | `deletedAt` | `integer` | ✓ | - |
 | 34 | `lastModified` | `integer` | ✅ | - |
-| 35 | `origin` | `string(50)` | ❌ | `"local"` |
-| 36 | `createdAtIso` | `string(50)` | ❌ | - |
-| 37 | `updatedAtIso` | `string(50)` | ❌ | - |
-| 38 | `deletedAtIso` | `string(50)` | ❌ | - |
-| 39 | `createdAtEpoch` | `integer` | ❌ | `0` |
-| 40 | `lastModifiedEpoch` | `integer` | ❌ | `0` |
-| 41 | `vectorClock` | `string(500)` | ❌ | `"{}"` |
-| 42 | `version` | `integer` | ❌ | `1` |
-| 43 | `deviceId` | `string(100)` | ❌ | `""` |
-| 44 | `id` | `integer` | ❌ | - |
-| 45 | `syncTimestamp` | `integer` | ❌ | `0` |
-| 46 | `sync_origin` | `string(64)` | ❌ | `"mobile"` |
+| 35 | `origin` | `string(50)` | ✓ | `"local"` |
+| 36 | `createdAtIso` | `string(50)` | ✓ | - |
+| 37 | `updatedAtIso` | `string(50)` | ✓ | - |
+| 38 | `deletedAtIso` | `string(50)` | ✓ | - |
+| 39 | `createdAtEpoch` | `integer` | ✓ | `0` |
+| 40 | `lastModifiedEpoch` | `integer` | ✓ | `0` |
+| 41 | `vectorClock` | `string(500)` | ✓ | `"{}"` |
+| 42 | `version` | `integer` | ✓ | `1` |
+| 43 | `deviceId` | `string(100)` | ✓ | `""` |
+| 44 | `id` | `integer` | ✓ | - |
+| 45 | `syncTimestamp` | `integer` | ✓ | `0` |
+| 46 | `sync_origin` | `string(64)` | ✓ | `"mobile"` |
 
 ---
 
@@ -195,16 +195,16 @@ delete("any")
 | `discount` | ✅ | ✅ | ✅ مطابق |
 | `discountType` | ✅ | ✅ | ✅ مطابق |
 | `discountStartDate` | ✅ | ✅ | ✅ مطابق |
-| `expectedNights` | ✅ | ❌ | ⚠️ مفقود على Cloud |
-| `calculatedNights` | ✅ | ❌ | ⚠️ مفقود على Cloud |
-| `totalNightsCached` | ✅ | ❌ | ⚠️ مفقود على Cloud |
-| `totalDueCached` | ✅ | ❌ | ⚠️ مفقود على Cloud |
-| `totalPaidCached` | ✅ | ❌ | ⚠️ مفقود على Cloud |
-| `remainingBalanceCached` | ✅ | ❌ | ⚠️ مفقود على Cloud |
-| `financialFrozenAt` | ❌ | ✅ | ⚠️ موجود فقط على Cloud |
-| `financialHash` | ❌ | ✅ | ⚠️ موجود فقط على Cloud |
-| `sync_origin` | ❌ | ✅ | ⚠️ موجود فقط على Cloud |
-| `syncTimestamp` | ❌ | ✅ | ⚠️ موجود فقط على Cloud |
+| `expectedNights` | ✅ | ✓ | موجودة على cloud  |
+| `calculatedNights` | ✅ | ✓ | موجودة على cloud  |
+| `totalNightsCached` | ✅ | ✓ | موجودة على cloud  |
+| `totalDueCached` | ✅ | ✓ | موجودة على cloud  |
+| `totalPaidCached` | ✅ | ✓ | موجودة على cloud  |
+| `remainingBalanceCached` | ✅ | ✓ | موجودة على cloud  |
+| `financialFrozenAt` | ✓ | ✅ | موجودة على cloud |
+| `financialHash` | ✓ | ✅ | موجود فقط على Cloud |
+| `sync_origin` | ✓ | ✅ | موجود فقط على Cloud |
+| `syncTimestamp` | ✓ | ✅ | موجود فقط على Cloud |
 | `serverId` | ✅ | ✅ | ✅ مطابق |
 | `createdAt` | ✅ | ✅ | ✅ مطابق |
 | `updatedAt` | ✅ | ✅ | ✅ مطابق |
