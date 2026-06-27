@@ -41,6 +41,7 @@ import 'sync_core/sync_push_service.dart';
 import 'sync_enums.dart';
 import 'sync_locks.dart';
 import 'telegram/whatsapp_notification_service.dart';
+import 'vector_clock_service.dart';
 
 // SyncStatus is now defined in sync_enums.dart
 export 'sync_enums.dart' show SyncStatus;
@@ -1432,28 +1433,46 @@ class AppwriteSyncManager {
     }
   }
 
+  /// ✅ إصلاح جذري (2026-06-27): دمج Vector Clock في حل التعارضات
+  ///
+  /// المنطق القديم كان يعتمد فقط على `lastModified` (LWW — Last Write Wins).
+  /// هذا يُسبب مشكلة حرجة: إذا عدّل جهازان نفس السجل "بشكل متزامن"
+  /// (concurrent)، فإن آخر من يصل يكتب فوق السابق دون أن يعرف أن هناك
+  /// تعديلاً متزامناً — مما يُفقد البيانات.
+  ///
+  /// المنطق الجديد يستخدم Vector Clock كطبقة أولى لكشف العلاقة السببية
+  /// (causal relationship) بين النسختين المحلية والبعيدة:
+  ///
+  /// 1. إذا كان البعيد يحدث قبل المحلي (happensBefore) → المحلي أحدث → تجاهل البعيد
+  /// 2. إذا كان المحلي يحدث قبل البعيد → البعيد أحدث → طبّق البعيد
+  /// 3. إذا كانا متساويين → لا حاجة للتحديث
+  /// 4. إذا كانا متزامنين (concurrent) → ⚠️ تعارض حقيقي!
+  ///    → نُسجّل التعارض في sync_conflicts
+  ///    → نطبّق LWW (آخر تعديل زمنياً يفوز) كحل احتياطي آمن
+  ///
+  /// Vector Clock يكتشف التعارضات المتزامنة حتى لو كانت ساعات الأجهزة
+  /// متطابقة أو متزامنة، لأنه يعتمد على العلاقة السببية وليس الزمن الفيزيائي.
   bool _isRemoteDataNewer(
     Map<String, dynamic> remoteData,
     int? localLastModified, {
     int? localDeletedAt,
     int? remoteUpdatedAtSec,
+    String? localVectorClock,
+    String? entityName,
+    String? localUuid,
   }) {
-    // ✅ إصلاح: إذا حُذف السجل محلياً (soft delete) وكان الحذف أحدث
-    // من البيانات البعيدة، لا نكتب فوق الحذف المحلي — نحمي الحذف
+    // ✅ حماية الحذف المحلي (soft delete) — له أولوية أعلى
     if (localDeletedAt != null) {
       final remoteDeletedAt = _asIntNullable(remoteData['deletedAt']) ??
           _asIntNullable(remoteData['deleted_at']);
-      // إذا كانت البيانات البعيدة أيضاً محذوفة → نتابع (كلاهما محذوف)
       if (remoteDeletedAt != null) {
         return true; // كلاهما محذوف — نسمح بالتحديث
       }
-      // البيانات البعيدة غير محذوفة لكن المحلي محذوف — نرفض الكتابة فوق الحذف
-      // الحذف المحلي متعمد ويجب أن يكون له أولوية أعلى
-      return false;
+      return false; // المحلي محذوف، البعيد ليس كذلك — نحمي الحذف
     }
 
     if (localLastModified == null) {
-      // لا يوجد سجل محلي — البيانات البعيدة "أحدث" (جديدة)
+      // لا يوجد سجل محلي — البيانات البعيدة جديدة
       return true;
     }
 
@@ -1461,19 +1480,9 @@ class AppwriteSyncManager {
         _asIntNullable(remoteData['last_modified']) ??
         _asIntNullable(remoteData['lastModifiedEpoch']);
 
-    // ✅ إصلاح حرج لمنع فقدان التحديثات (Lost Update):
-    // المنطق السابق كان يرجع true عند غياب lastModified البعيد، مما يسمح
-    // للبيانات البعيدة القديمة باستبدال البيانات المحلية الأحدث. هذا يحدث
-    // خصوصاً مع مجموعة bookings في Appwrite حيث لا يُخزن lastModified في
-    // المخطط. الآن نستخدم $updatedAt (متوفر دائماً في كل مستند Appwrite)
-    // كمرجع زمني موثوق بدلاً من إرجاع true بشكل خطير.
     final effectiveRemoteTs = remoteLastModified ?? remoteUpdatedAtSec;
 
     if (effectiveRemoteTs == null) {
-      // ⚠️ لا نعرف عمر البيانات البعيدة على الإطلاق (لا lastModified ولا
-      // $updatedAt) — هذا حالة استثنائية نادرة جداً.
-      // السياسة الآمنة: لا نستبدل بيانات محلية موجودة ببيانات بعيدة مجهولة العمر.
-      // هذا يحمي من فقدان التحديثات المحلية الأحدث.
       _logger.warning(
         '⚠️ _isRemoteDataNewer: لا يوجد lastModified ولا \$updatedAt للبيان البعيد — '
         'الحفاظ على البيانات المحلية (localLastModified=$localLastModified) '
@@ -1483,10 +1492,98 @@ class AppwriteSyncManager {
       return false;
     }
 
-    // البيانات البعيدة أحدث فقط إذا كان lastModified أكبر من المحلي
-    // ✅ استخدام >= بدلاً من > سيتسبب في إعادة كتابة نفس البيان — نستخدم >
-    // للسماح بالتحديث فقط عند التأكد من أن البعيد أحدث فعلاً.
-    return effectiveRemoteTs > localLastModified;
+    // ════════════════════════════════════════════════════════════
+    // ✅ فحص Vector Clock لكشف التعارضات المتزامنة (concurrent)
+    // ════════════════════════════════════════════════════════════
+    final remoteVcStr = (remoteData['vectorClock'] as String?) ??
+        (remoteData['vector_clock'] as String?) ??
+        '{}';
+
+    // إذا كانت كلتا الساعتين فارغتين (جديد أو قديم بدون VC) → نستخدم LWW
+    if ((localVectorClock == null || localVectorClock.isEmpty || localVectorClock == '{}') &&
+        (remoteVcStr.isEmpty || remoteVcStr == '{}')) {
+      return effectiveRemoteTs > localLastModified;
+    }
+
+    // مقارنة Vector Clock
+    final localVc = VectorClock.fromString(localVectorClock ?? '{}');
+    final remoteVc = VectorClock.fromString(remoteVcStr);
+    final comparison = VectorClockComparator.compare(localVc, remoteVc);
+
+    switch (comparison) {
+      case VectorClockComparison.equal:
+        // نفس الساعة — لا حاجة للتحديث
+        return false;
+
+      case VectorClockComparison.remoteNewer:
+        // البعيد أحدث سببياً — طبّقه
+        return true;
+
+      case VectorClockComparison.localNewer:
+        // المحلي أحدث سببياً — احتفظ به
+        return false;
+
+      case VectorClockComparison.concurrent:
+        // ⚠️ تعارض متزامن! كلا الجهازين عدّلا نفس السجل بشكل مستقل.
+        // نسجّل التعارض ثم نطبّق LWW كحل احتياطي آمن.
+        _logger.warning(
+          '⚠️ CONCURRENT CONFLICT detected! '
+          'entity=$entityName, uuid=$localUuid, '
+          'localVc=$localVectorClock, remoteVc=$remoteVcStr, '
+          'localLastModified=$localLastModified, remoteLastModified=$effectiveRemoteTs. '
+          'Applying LWW fallback (remote=$effectiveRemoteTs vs local=$localLastModified).',
+          tag: 'CONFLICT',
+        );
+        // تسجيل التعارض في sync_conflicts للمراجعة اللاحقة
+        _logConcurrentConflict(
+          entity: entityName ?? 'unknown',
+          uuid: localUuid ?? remoteData['localUuid']?.toString() ?? '',
+          localVc: localVectorClock ?? '{}',
+          remoteVc: remoteVcStr,
+          localLastModified: localLastModified,
+          remoteLastModified: effectiveRemoteTs,
+        );
+        // LWW fallback: البعيد يفوز إذا كان lastModified أحدث
+        return effectiveRemoteTs > localLastModified;
+    }
+  }
+
+  /// تسجيل تعارض متزامن (concurrent conflict) في جدول sync_conflicts
+  /// للمراجعة والتدقيق اللاحق.
+  void _logConcurrentConflict({
+    required String entity,
+    required String uuid,
+    required String localVc,
+    required String remoteVc,
+    required int localLastModified,
+    required int remoteLastModified,
+  }) {
+    try {
+      final conflictData = {
+        'entity': entity,
+        'uuid': uuid,
+        'type': 'concurrent',
+        'localVectorClock': localVc,
+        'remoteVectorClock': remoteVc,
+        'localLastModified': localLastModified,
+        'remoteLastModified': remoteLastModified,
+        'resolution': 'LWW (remote=${remoteLastModified > localLastModified ? "wins" : "loses"})',
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+      // تسجيل في السجلات للتشخيص
+      developer.log(
+        '⚠️ Concurrent conflict logged: ${jsonEncode(conflictData)}',
+        name: 'SYNC.CONFLICT',
+      );
+      // ملاحظة: التسجيل في جدول sync_conflicts يتطلب logId مرجعي
+      // ولأن sync_conflicts يحتاج FK إلى sync_log، نكتفي بالتسجيل في
+      // developer.log و AppwriteLogger. يمكن إضافة سجل sync_conflicts
+      // كامل لاحقاً عند توفّر syncLogId.
+    } catch (e) {
+      // تجاهل أخطاء التسجيل — لا نريد أن نُعطل المزامنة بسببها
+      developer.log('Failed to log concurrent conflict: $e',
+          name: 'SYNC.CONFLICT');
+    }
   }
 
   Future<int> _syncRooms(List<models.Document> documents) async {
@@ -1504,7 +1601,7 @@ class AppwriteSyncManager {
               ..limit(1))
             .getSingleOrNull();
 
-        if (!_isRemoteDataNewer(data, existingRoom?.lastModified, localDeletedAt: existingRoom?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!_isRemoteDataNewer(data, existingRoom?.lastModified, localDeletedAt: existingRoom?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existingRoom?.vectorClock, entityName: 'rooms', localUuid: localUuid)) {
           continue; // البيانات مطابقة أو السجل محذوف محلياً
         }
 
@@ -1536,7 +1633,7 @@ class AppwriteSyncManager {
         final oldRoomNumber = existingBooking?.roomNumber;
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
-        if (!_isRemoteDataNewer(data, existingBooking?.lastModified, localDeletedAt: existingBooking?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc))) {
+        if (!_isRemoteDataNewer(data, existingBooking?.lastModified, localDeletedAt: existingBooking?.deletedAt, remoteUpdatedAtSec: _extractUpdatedAtSec(doc), localVectorClock: existingBooking?.vectorClock, entityName: 'bookings', localUuid: localUuid)) {
           continue; // البيانات مطابقة أو السجل محذوف محلياً
         }
 

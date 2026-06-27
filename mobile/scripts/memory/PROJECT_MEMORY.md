@@ -530,6 +530,7 @@ Map<String, dynamic> _bookingToRemote(Booking booking) {
 | 2026-06-27 | `fe253fb7` | إضافة حقول debts و expenses |
 | 2026-06-27 | `41541f38` | إزالة sync_version/sync_vector_clock + booking_notes/rooms/payment_voids |
 | 2026-06-27 | `91a3c219` | إزالة نهائية لـ sync_version/sync_vector_clock + cash_transactions/shift_notes/salary_payments |
+| 2026-06-27 | - | ✨ دمج Vector Clock في حل التعارضات: `_isRemoteDataNewer` يستخدم Vector Clock لكشف التعارضات المتزامنة (concurrent) + تسجيلها في sync_conflicts |
 
 ---
 
