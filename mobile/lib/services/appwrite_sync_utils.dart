@@ -61,6 +61,14 @@ class AppwriteSyncUtils {
       'calculatedNights', 'expectedNights', 'totalNightsCached',
       'totalDueCached', 'totalPaidCached', 'remainingBalanceCached',
       'discount', 'discountType', 'discountStartDate',
+      // ✅ إصلاح (2026-06-27): حقول موجودة على Appwrite Cloud لكن لم تكن مُدرجة
+      // — كانت تُحذف بواسطة filterPayloadForCollection قبل الرفع
+      'financialFrozenAt',   // integer? — تاريخ تجميد الحسابات المالية
+      'financialHash',       // string? (64) — هاش للحالة المالية
+      'syncTimestamp',       // integer? — طابع زمني للمزامنة
+      'sync_origin',         // string? (64) — مصدر المزامنة (snake_case)
+      'idempotencyKey',      // string? (255) — مفتاح Idempotency
+      'id',                  // integer? — معرف (optional على Cloud)
     },
     'expenses': {
       'amount', 'cashFlowUuid', 'cashTransactionId', 'categoryUuid',

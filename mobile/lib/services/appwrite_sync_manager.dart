@@ -2854,6 +2854,10 @@ class AppwriteSyncManager {
     _putIfStringNotEmpty(data, 'deletedAtIso', booking.deletedAtIso);
     _putIfNotNull(data, 'createdAtEpoch', booking.createdAtEpoch);
     _putIfNotNull(data, 'lastModifiedEpoch', booking.lastModifiedEpoch);
+    // ✅ إصلاح (2026-06-27): حقول موجودة على Appwrite Cloud يجب إرسالها
+    // — كانت تُحذف بواسطة filterPayloadForCollection لأنها غير مُدرجة
+    _putIfStringNotEmpty(data, 'sync_origin', booking.origin);
+    _putIfNotNull(data, 'syncTimestamp', booking.lastModified);
     return AppwriteSyncUtils.sanitizePayload('bookings', data, collectionId: AppwriteConfig.bookingsCollectionId);
   }
 
