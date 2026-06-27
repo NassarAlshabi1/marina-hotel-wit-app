@@ -89,7 +89,7 @@ class _AppwriteConnectionSettingsScreenState
           SnackBar(
             content: const Text('تم حفظ الإعدادات بنجاح'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'إغلاق',
               textColor: Colors.white,
@@ -178,7 +178,7 @@ class _AppwriteConnectionSettingsScreenState
         SnackBar(
           content: const Text('تم إعادة تعيين الإعدادات'),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 3),
           action: SnackBarAction(
             label: 'إغلاق',
             textColor: Colors.white,
@@ -205,7 +205,7 @@ class _AppwriteConnectionSettingsScreenState
               'اختبار الاتصال: يرجى حفظ الإعدادات أولاً ثم إعادة تشغيل التطبيق',
             ),
             backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'إغلاق',
               textColor: Colors.white,

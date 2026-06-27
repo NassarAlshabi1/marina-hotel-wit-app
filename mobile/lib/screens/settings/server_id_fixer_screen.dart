@@ -88,7 +88,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
             const SnackBar(
               content: Text('❌ خطأ: عمود serverId غير موجود في قاعدة البيانات'),
               backgroundColor: Colors.red,
-              duration: Duration(seconds: 5),
+              duration: Duration(seconds: 3),
             ),
           );
         }

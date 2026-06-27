@@ -505,7 +505,7 @@ class SyncNotificationManager {
           ],
         ),
         backgroundColor: Colors.orange.shade800,
-        duration: const Duration(seconds: 5),
+        duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

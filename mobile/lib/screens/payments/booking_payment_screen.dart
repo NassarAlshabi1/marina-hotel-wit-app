@@ -818,14 +818,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           Row(
             children: [
               CircleAvatar(
-                radius: 20,
+                radius: 18,
                 backgroundColor: Colors.blue,
                 child: Text(
                   widget.booking.roomNumber,
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -837,35 +837,35 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     Text(
                       widget.booking.guestName,
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
                       'غرفة ${widget.booking.roomNumber}${hasPhone ? ' • $_currentGuestPhone' : ''}',
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: Colors.grey,
                       ),
                     ),
                     Text(
                       identityLine,
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                     Text(
                       'الجنسية: ${widget.booking.guestNationality}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                     Text(
                       'الوصول: $checkinText',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                     if (plannedText != null)
                       Text(
                         'المغادرة المخطط: $plannedText',
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: Colors.grey,
                         ),
                       ),
@@ -886,14 +886,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                           : '';
                       return Text(
                         'المغادرة التلقائية: $autoStr (${balanceResult.totalPaidNights} ليلة مدفوعة)$extra',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(fontSize: 11, color: Colors.grey),
                       );
                     },),
                     if (actualText != null)
                       Text(
                         'المغادرة الفعلي: $actualText',
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: Colors.green,
                         ),
                       ),
@@ -901,7 +901,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: summary.isFullyPaid
                       ? Colors.green.withValues(alpha: 0.2)
@@ -914,7 +914,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 child: Text(
                   summary.isFullyPaid ? 'مكتمل الدفع' : 'دفع جزئي',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                     color: summary.isFullyPaid ? Colors.green : Colors.orange,
                   ),
@@ -1122,15 +1122,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 'رصيد تراكمي للنزيل',
                 true,
               ),
-              icon: const Icon(Icons.account_balance_wallet, size: 14),
+              icon: const Icon(Icons.account_balance_wallet, size: 12),
               label: const Text(
                 'إضافة دفعة رصيد تراكمي',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 9),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.indigo,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: 3),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -1144,7 +1144,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   Widget _buildAmountChip(String label, double amount, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
@@ -1155,14 +1155,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           Text(
             _currencyFmt.format(amount),
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.8)),
+            style: TextStyle(fontSize: 9, color: color.withValues(alpha: 0.8)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -1179,7 +1179,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }) {
     final chipColor = color ?? Theme.of(context).colorScheme.primary;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
         color: chipColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(6),
@@ -1188,18 +1188,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: chipColor),
+          Icon(icon, size: 12, color: chipColor),
           const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
               color: chipColor,
               fontWeight: FontWeight.bold,
-              fontSize: 11,
+              fontSize: 10,
             ),
           ),
           const SizedBox(width: 2),
-          Text(value, style: TextStyle(color: chipColor, fontSize: 11)),
+          Text(value, style: TextStyle(color: chipColor, fontSize: 10)),
         ],
       ),
     );
@@ -2102,7 +2102,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           'تم تسجيل دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية - ${_currencyFmt.format(amount)}',
         ),
         backgroundColor: Colors.green,
-        duration: const Duration(seconds: 5),
+        duration: const Duration(seconds: 3),
         action: SnackBarAction(
           label: 'إغلاق',
           textColor: Colors.white,
@@ -2470,7 +2470,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       messenger.showSnackBar(
         SnackBar(
           content: Text('تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}'),
-          duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 3),
           action: SnackBarAction(
             label: 'إغلاق',
             onPressed: messenger.hideCurrentSnackBar,
@@ -3011,7 +3011,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             'تم تسجيل مغادرة مبكرة — المردود: ${_currencyFmt.format(refundAmount)} ($unusedNights ${unusedNights == 1 ? 'ليلة' : 'ليالي'})',
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 6),
+          duration: const Duration(seconds: 3),
           action: SnackBarAction(
             label: 'إغلاق',
             textColor: Colors.white,
@@ -3026,7 +3026,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           SnackBar(
             content: Text('فشل تسجيل المغادرة المبكرة: $e'),
             backgroundColor: Colors.red.shade900,
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -3234,7 +3234,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         SnackBar(
           content: const Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 3),
           action: SnackBarAction(
             label: 'إغلاق',
             textColor: Colors.white,
@@ -3250,7 +3250,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           SnackBar(
             content: Text('فشل تسجيل المغادرة: $e'),
             backgroundColor: Colors.red.shade900,
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -3441,7 +3441,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             'تم إلغاء ${paymentsToCancel.length} دفعة بنجاح',
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 3),
           action: SnackBarAction(
             label: 'إغلاق',
             textColor: Colors.white,
@@ -3456,7 +3456,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           SnackBar(
             content: Text('فشل إلغاء الدفعات: $e'),
             backgroundColor: Colors.red.shade900,
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -4091,7 +4091,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             'تم تمديد الإقامة $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'} وتسجيل الدفعة',
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 3),
           action: SnackBarAction(
             label: 'إغلاق',
             textColor: Colors.white,
@@ -4106,7 +4106,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           SnackBar(
             content: Text('فشل تمديد الإقامة: $e'),
             backgroundColor: Colors.red.shade900,
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 3),
           ),
         );
       }

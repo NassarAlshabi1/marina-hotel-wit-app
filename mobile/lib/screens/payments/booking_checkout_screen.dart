@@ -991,7 +991,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           SnackBar(
             content: Text(message),
             backgroundColor: createDebt ? Colors.orange : Colors.grey,
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'إغلاق',
               textColor: Colors.white,
@@ -1172,7 +1172,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           SnackBar(
             content: const Text('تم إضافة الدفعة بنجاح'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'إغلاق',
               textColor: Colors.white,
@@ -1262,7 +1262,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             SnackBar(
               content: const Text('تم إتمام الحجز بنجاح'),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 5),
+              duration: const Duration(seconds: 3),
               action: SnackBarAction(
                 label: 'إغلاق',
                 textColor: Colors.white,

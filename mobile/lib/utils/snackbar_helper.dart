@@ -11,7 +11,7 @@ class SnackBarHelper {
       SnackBar(
         content: Text(message),
         backgroundColor: isError ? Colors.red : backgroundColor,
-        duration: const Duration(seconds: 5),
+        duration: const Duration(seconds: 3),
         action: SnackBarAction(
           label: 'إغلاق',
           textColor: Colors.white,

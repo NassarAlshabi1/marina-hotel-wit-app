@@ -222,7 +222,7 @@ class RoomsDashboard extends ConsumerWidget {
         SnackBar(
           content: Text('خطأ في تحميل الحجز: $e'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 3),
           action: SnackBarAction(
             label: 'إغلاق',
             textColor: Colors.white,

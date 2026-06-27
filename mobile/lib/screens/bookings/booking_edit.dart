@@ -775,7 +775,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             SnackBar(
                               content: Text(e.message),
                               backgroundColor: Colors.red.shade900,
-                              duration: const Duration(seconds: 5),
+                              duration: const Duration(seconds: 3),
                             ),
                           );
                         }
@@ -787,7 +787,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             SnackBar(
                               content: Text('فشل حفظ الحجز: $e'),
                               backgroundColor: Colors.red.shade900,
-                              duration: const Duration(seconds: 5),
+                              duration: const Duration(seconds: 3),
                             ),
                           );
                         }

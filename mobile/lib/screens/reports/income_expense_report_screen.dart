@@ -1856,7 +1856,7 @@ class _IncomeExpenseReportScreenState
         messenger.showSnackBar(
           SnackBar(
             content: Text('تم حفظ الملف: ${file.path}'),
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'إغلاق',
               onPressed: messenger.hideCurrentSnackBar,
@@ -1869,7 +1869,7 @@ class _IncomeExpenseReportScreenState
         messenger.showSnackBar(
           SnackBar(
             content: Text('خطأ في الحفظ: $e'),
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'إغلاق',
               onPressed: messenger.hideCurrentSnackBar,
@@ -1943,7 +1943,7 @@ class _IncomeExpenseReportScreenState
         messenger.showSnackBar(
           SnackBar(
             content: Text('خطأ في تصدير CSV: $e'),
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
