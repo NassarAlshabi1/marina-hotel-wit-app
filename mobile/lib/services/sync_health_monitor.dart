@@ -177,7 +177,6 @@ class SyncHealthMonitor {
       try {
         final result = await db.customSelect(
           'SELECT COUNT(*) AS cnt FROM $table',
-          readsFrom: const {},
         ).getSingle();
         sizes[table] = result.read<int>('cnt');
       } catch (_) {
@@ -191,7 +190,6 @@ class SyncHealthMonitor {
     try {
       final result = await db.customSelect(
         'PRAGMA foreign_key_check',
-        readsFrom: const {},
       ).get();
       return result.length;
     } catch (_) {

@@ -220,14 +220,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   Future<void> setError(int id, String message, int attempts) async {
     // الحصول على معلومات السجل قبل التحديث
-    String? entityType;
-    String? operationType;
     try {
       final record = await (select(outbox)..where((t) => t.id.equals(id))).getSingleOrNull();
       if (record != null) {
-        entityType = record.entity;
-        operationType = record.op;
-        
         // تسجيل الخطأ في AppwriteLogger
         AppwriteLogger().log(
           '❌ فشل في Outbox',
@@ -235,20 +230,20 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           tag: 'OUTBOX_ERROR',
           error: message,
         );
-        
+
         // تفاصيل أكثر
         AppwriteLogger().log(
           '   الجدول: ${record.entity}',
           level: LogLevel.error,
           tag: 'OUTBOX_ERROR',
         );
-        
+
         AppwriteLogger().log(
           '   العملية: ${record.op}',
           level: LogLevel.error,
           tag: 'OUTBOX_ERROR',
         );
-        
+
         AppwriteLogger().log(
           '   عدد المحاولات: $attempts',
           level: LogLevel.error,

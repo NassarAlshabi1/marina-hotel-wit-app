@@ -1144,7 +1144,7 @@ class AppwriteDeltaSync {
       localUuid: d.Value(_asString(data['localUuid']) ?? localUuid),
       serverId: _nullableValue<int>(_asInt(data['serverId'])),
       employeeId: d.Value(resolvedEmployeeId),
-      amount: d.Value(_asDouble(data['amount']) ?? 0),
+      amount: d.Value(_asDouble(data['amount'])),
       previousCycleStart: d.Value(
           _asString(data['previousCycleStart']) ??
           _asString(data['previous_cycle_start']) ?? ''),

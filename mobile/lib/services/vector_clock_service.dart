@@ -28,8 +28,6 @@ import 'dart:convert';
 class VectorClock {
   VectorClock(Map<String, int>? counters) : _counters = counters ?? {};
 
-  final Map<String, int> _counters;
-
   /// إنشاء من JSON string (المخزن في DB)
   factory VectorClock.fromString(String json) {
     if (json.isEmpty || json == '{}') return VectorClock({});
@@ -48,6 +46,8 @@ class VectorClock {
 
   /// إنشاء ساعة فارغة
   factory VectorClock.empty() => VectorClock({});
+
+  final Map<String, int> _counters;
 
   /// الحصول على قيمة جهاز معين
   int get(String deviceId) => _counters[deviceId] ?? 0;

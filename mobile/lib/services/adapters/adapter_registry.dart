@@ -15,10 +15,10 @@ import 'payment_voids_adapter.dart';
 import 'payments_adapter.dart';
 import 'price_adjustments_adapter.dart';
 import 'rooms_adapter.dart';
+import 'salary_carry_over_logs_adapter.dart';
 import 'salary_cycles_adapter.dart';
 import 'salary_payments_adapter.dart';
 import 'salary_withdrawals_adapter.dart';
-import 'salary_carry_over_logs_adapter.dart';
 import 'shift_notes_adapter.dart';
 
 class AdapterRegistry {

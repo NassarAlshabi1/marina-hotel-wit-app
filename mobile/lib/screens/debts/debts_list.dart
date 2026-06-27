@@ -526,7 +526,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        'رهن: ${debt.pledge}${debt.pledgeType?.isNotEmpty == true ? ' (${debt.pledgeType})' : ''}',
+                        'رهن: ${debt.pledge}${(debt.pledgeType?.isNotEmpty ?? false) ? ' (${debt.pledgeType})' : ''}',
                         style: TextStyle(
                           fontSize: 9,
                           color: Colors.blue.shade700,

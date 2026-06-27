@@ -28,7 +28,7 @@ class SalaryCarryOverLogsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    return ResolveResult();
+    return ResolveResult.empty;
   }
 
   @override
@@ -45,7 +45,7 @@ class SalaryCarryOverLogsAdapter
             _asString(json, 'local_uuid', src) ??
             IdGen.uuid(),
       ),
-      employeeId: _vInt(json, 'employeeId', src, altKey: 'employee_id')!,
+      employeeId: _vInt(json, 'employeeId', src, altKey: 'employee_id'),
       amount: d.Value(_asDouble(json, 'amount', src) ?? 0),
       previousCycleStart: d.Value(
           _asString(json, 'previousCycleStart', src) ??

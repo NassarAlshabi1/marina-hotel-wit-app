@@ -188,7 +188,7 @@ class _SalaryEntitlementsScreenState
         childrenPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         title: Text(
           ent.employee.name,
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
           'المتبقي: ${CurrencyFormatter.formatAmount(ent.netEntitlement)}',
@@ -376,7 +376,7 @@ class _SalaryEntitlementsScreenState
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      '${cycle.monthLabel}',
+                      cycle.monthLabel,
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -425,7 +425,7 @@ class _SalaryEntitlementsScreenState
                       Expanded(
                         child: Text(
                           'تجاوز ${CurrencyFormatter.formatAmount(cycle.carryOverToNext)} → يُرحّل',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 8,
                             fontWeight: FontWeight.bold,
                             color: Colors.red,

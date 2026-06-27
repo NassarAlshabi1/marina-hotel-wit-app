@@ -26,7 +26,7 @@ class SyncHealthScreen extends ConsumerStatefulWidget {
 }
 
 class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
-  SyncHealthReport? _report;
+  late SyncHealthReport _report;
   bool _isLoading = true;
   String? _error;
   Timer? _refreshTimer;
@@ -97,7 +97,7 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
                       _buildFkViolationsCard(),
                       const SizedBox(height: 32),
                       Text(
-                        'آخر تحديث: ${_report!.timestamp.toIso8601String()}',
+                        'آخر تحديث: ${_report.timestamp.toIso8601String()}',
                         style: Theme.of(context).textTheme.bodySmall,
                         textAlign: TextAlign.center,
                       ),
@@ -139,7 +139,7 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
   }
 
   Widget _buildOverallStatusCard() {
-    final status = _report!.status;
+    final status = _report.status;
     return Card(
       color: _statusColor(status).withValues(alpha: 0.1),
       child: Padding(
@@ -169,7 +169,7 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
   }
 
   Widget _buildOutboxStatsCard() {
-    final r = _report!;
+    final r = _report;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -213,7 +213,7 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
   }
 
   Widget _buildEntityBreakdownCard() {
-    final breakdown = _report!.entityBreakdown;
+    final breakdown = _report.entityBreakdown;
     if (breakdown.isEmpty) {
       return Card(
         child: Padding(
@@ -287,7 +287,7 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
   }
 
   Widget _buildTableSizesCard() {
-    final sizes = _report!.tableSizes;
+    final sizes = _report.tableSizes;
     final sorted = sizes.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     return Card(
@@ -329,7 +329,7 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
   }
 
   Widget _buildFkViolationsCard() {
-    final violations = _report!.fkViolations;
+    final violations = _report.fkViolations;
     return Card(
       color: violations > 0
           ? Colors.red.withValues(alpha: 0.1)

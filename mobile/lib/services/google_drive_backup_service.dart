@@ -1021,7 +1021,7 @@ class GoogleDriveBackupService {
       final files = result.files ?? [];
       return files
           .where((f) => f.id != null && f.name != null)
-          .map((f) => DriveBackupFile.fromDriveFile(f))
+          .map(DriveBackupFile.fromDriveFile)
           .toList();
     });
   }

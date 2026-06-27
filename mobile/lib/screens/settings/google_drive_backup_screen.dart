@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -404,7 +405,7 @@ class _GoogleDriveBackupContentState
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       try {
         final service = GoogleDriveBackupService();
         await service.uploadDbBackup();
@@ -415,7 +416,9 @@ class _GoogleDriveBackupContentState
               backgroundColor: Colors.green,
             ),
           );
-          ref.read(backupStatusProvider.notifier).refreshBackupsList();
+          // تجاهل الفيوتشر لأن الـ Provider يُدير دورة حياته داخلياً
+          // (refreshBackupsList يطلق تحديث الحالة بدون الحاجة لـ await هنا).
+          unawaited(ref.read(backupStatusProvider.notifier).refreshBackupsList());
         }
       } catch (e) {
         if (mounted) {

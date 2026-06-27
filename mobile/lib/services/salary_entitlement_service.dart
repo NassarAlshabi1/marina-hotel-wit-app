@@ -466,7 +466,7 @@ class SalaryEntitlementService {
   }
 
   DateTime _getCycleStart(DateTime hireDate, DateTime referenceDate) {
-    int day = hireDate.day;
+    final int day = hireDate.day;
     int year = referenceDate.year;
     int month = referenceDate.month;
     if (referenceDate.day < day) {
