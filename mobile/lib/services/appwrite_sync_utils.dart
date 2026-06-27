@@ -225,17 +225,37 @@ class AppwriteSyncUtils {
       'timestamp', 'updatedAt', 'updatedAtIso', 'vectorClock', 'version',
     },
     'app_settings': {
-      'appwrite_sync_interval', 'dark_mode', 'hotel_cutoff_hour',
-      'key', 'value',
-      'hotel_name', 'lark_app_id', 'lark_app_secret',
-      'lark_daily_report_chat_id', 'lark_daily_report_enabled',
-      'lark_daily_report_time', 'lark_enabled', 'lark_webhook_url',
-      'telegram_bot_token', 'telegram_chat_id',
-      'telegram_daily_report_enabled', 'telegram_daily_report_time',
-      'telegram_enabled', 'telegram_notifications_enabled',
-      'wa_api_base_url', 'wa_api_instance_id', 'wa_api_token',
-      'wa_api_type', 'wa_custom_url_template', 'wa_sendzen_api_key',
-      'wa_sendzen_from_number', 'wa_template',
+      // واتساب
+      'wa_api_type', 'wa_api_base_url', 'wa_api_instance_id', 'wa_api_token',
+      'wa_custom_url_template', 'wa_sendzen_api_key', 'wa_sendzen_from_number',
+      'wa_template',
+      // تيليجرام
+      'telegram_enabled', 'telegram_bot_token', 'telegram_chat_id',
+      'telegram_notifications_enabled', 'telegram_daily_report_enabled',
+      'telegram_daily_report_time',
+      // إعدادات الفندق
+      'hotel_name', 'hotel_cutoff_hour', 'dark_mode',
+      // لارك (Lark)
+      'lark_enabled', 'lark_app_id', 'lark_app_secret', 'lark_webhook_url',
+      'lark_daily_report_enabled', 'lark_daily_report_time',
+      'lark_daily_report_chat_id', 'lark_notifications_enabled',
+      // إعدادات المزامنة
+      'appwrite_sync_interval', 'appwrite_auto_sync_on_connect',
+      'appwrite_log_level', 'appwrite_log_file', 'appwrite_log_console',
+      'conflict_strategy', 'sync_performance_profile', 'wifi_only_sync',
+      'sync_origin',
+      // النسخ الاحتياطي التلقائي
+      'auto_backup_time', 'auto_backup_frequency', 'scheduled_backup_enabled',
+      // إعدادات الوجهة الثانوية (secondary_appwrite_config مخزن كـ JSON string)
+      'secondary_appwrite_config', 'enabled', 'endpoint', 'project_id',
+      'database_id', 'api_key', 'push_enabled', 'pull_enabled',
+      // مفاتيح عامة
+      'key', 'value', 'createdAt', 'updatedAt',
+      // SyncFields
+      'localUuid', 'serverId', 'deletedAt', 'lastModified', 'version',
+      'origin', 'vectorClock', 'deviceId', 'createdAtEpoch',
+      'lastModifiedEpoch', 'createdAtIso', 'updatedAtIso', 'deletedAtIso',
+      'syncTimestamp',
     },
     'outbox': {
       'createdAt', 'deletedAt', 'isRead', 'lastModified', 'localUuid',
