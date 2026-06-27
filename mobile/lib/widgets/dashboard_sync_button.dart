@@ -8,6 +8,7 @@ import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/secondary_sync_provider.dart';
 import '../services/appwrite_delta_sync.dart';
+import '../services/appwrite_health_checker.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
@@ -1177,6 +1178,42 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                             );
                           },
                         ),
+                      // ✅ مؤشر حالة Failover (Primary معطّل → قراءة من Secondary)
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final health = ref.watch(appwriteHealthProvider);
+                          if (!health.shouldFailover) {
+                            return const SizedBox.shrink();
+                          }
+                          return Container(
+                            margin: const EdgeInsets.only(top: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade100,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: Colors.orange.shade400, width: 0.5),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.warning_amber,
+                                    size: 10, color: Colors.orange.shade800),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'وضع طوارئ: قراءة من الثانوي',
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    color: Colors.orange.shade900,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ],

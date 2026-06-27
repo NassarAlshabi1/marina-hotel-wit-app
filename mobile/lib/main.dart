@@ -32,6 +32,7 @@ import 'services/alarm_backup.dart';
 import 'services/api_config_service.dart';
 import 'services/app_session_manager.dart';
 import 'services/appwrite_config_manager.dart';
+import 'services/appwrite_health_checker.dart';
 import 'services/appwrite_realtime_service.dart';
 import 'services/appwrite_realtime_sync.dart';
 import 'services/appwrite_sync_manager.dart';
@@ -150,6 +151,23 @@ Future<void> main() async {
 
   // ✅ تهيئة المزامنة الثانوية (إذا كانت مُفعّلة من إعدادات سابقة)
   unawaited(_initializeSecondarySync());
+
+  // ✅ بدء فحص صحة الوجهتين بشكل دوري (Failover detection)
+  _startHealthChecker();
+}
+
+/// بدء فحص صحة Primary و Secondary كل 30 ثانية.
+/// عند تعطل Primary، يتحول Failover تلقائياً لقراءة البيانات من Secondary.
+void _startHealthChecker() {
+  try {
+    // نستخدم AppwriteHealthStatus.instance مباشرة لأنه singleton
+    // الـ Riverpod provider سيُستخدم في الـ UI لعرض الحالة
+    final notifier = AppwriteHealthNotifier();
+    notifier.startPeriodicCheck();
+    debugPrint('🏥 [Main] Health checker started (30s interval)');
+  } catch (e) {
+    debugPrint('⚠️ [Main] Health checker init failed: $e');
+  }
 }
 
 /// تهيئة المزامنة الثانوية عند بدء التطبيق.

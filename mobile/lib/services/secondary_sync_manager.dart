@@ -52,9 +52,16 @@ class SecondarySyncManager {
   bool get isAutoSyncEnabled => _syncTimer != null;
 
   /// بدء المزامنة التلقائية
+  ///
+  /// تعمل فقط إذا كان Secondary مُفعّلاً والرفع (Push) مُفعّلاً.
+  /// إذا كان Push معطّلاً، لا فائدة من الجدولة لأن sync() سيرفض العملية.
   void startAutoSync({Duration interval = const Duration(minutes: 15)}) {
     if (!SecondaryAppwriteConfig.isEnabled) {
       debugPrint('🔵 [SecondarySync] Disabled - enable first');
+      return;
+    }
+    if (!SecondaryAppwriteConfig.isPushEnabled) {
+      debugPrint('🔵 [SecondarySync] Push disabled - no auto-sync');
       return;
     }
 

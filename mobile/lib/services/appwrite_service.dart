@@ -1,12 +1,15 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
+import 'package:flutter/foundation.dart';
 
 import 'appwrite_cache_manager.dart';
 import 'appwrite_config.dart';
 import 'appwrite_config_manager.dart';
 import 'appwrite_error_handler.dart';
+import 'appwrite_health_checker.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
+import 'secondary_appwrite_config.dart';
 
 /// خدمة Appwrite الأساسية - CRUD Operations
 class AppwriteService {
@@ -105,46 +108,74 @@ class AppwriteService {
     int pageOffset = 0;
     const pageSize = AppwriteConfig.maxPageSize;
 
-    while (true) {
-      final pagedQueries = _applyPagingQueries(
-        queries,
-        limit: pageSize,
-        offset: pageOffset,
-      );
-
-      Future<List<models.Document>> performOperation() async {
-        // ignore: deprecated_member_use
-        final documentList = await _databases.listDocuments(
-          databaseId: AppwriteConfigManager.databaseId,
-          collectionId: collectionId,
-          queries: pagedQueries,
+    try {
+      while (true) {
+        final pagedQueries = _applyPagingQueries(
+          queries,
+          limit: pageSize,
+          offset: pageOffset,
         );
-        return documentList.documents;
+
+        Future<List<models.Document>> performOperation() async {
+          // ignore: deprecated_member_use
+          final documentList = await _databases.listDocuments(
+            databaseId: AppwriteConfigManager.databaseId,
+            collectionId: collectionId,
+            queries: pagedQueries,
+          );
+          return documentList.documents;
+        }
+
+        final pageDocs = useRetry
+            ? await _networkHelper.withRetryAndTimeout(
+                operation: performOperation,
+                operationName: 'listDocuments($collectionId)',
+                timeout: AppwriteConfig.longTimeout,
+              )
+            : await _networkHelper.withTimeout(
+                operation: performOperation,
+                operationName: 'listDocuments($collectionId)',
+                timeout: AppwriteConfig.longTimeout,
+              );
+
+        if (pageDocs.isEmpty) {
+          break;
+        }
+
+        allDocuments.addAll(pageDocs);
+
+        if (pageDocs.length < pageSize) {
+          break;
+        }
+
+        pageOffset += pageSize;
       }
-
-      final pageDocs = useRetry
-          ? await _networkHelper.withRetryAndTimeout(
-              operation: performOperation,
-              operationName: 'listDocuments($collectionId)',
-              timeout: AppwriteConfig.longTimeout,
-            )
-          : await _networkHelper.withTimeout(
-              operation: performOperation,
-              operationName: 'listDocuments($collectionId)',
-              timeout: AppwriteConfig.longTimeout,
-            );
-
-      if (pageDocs.isEmpty) {
-        break;
+    } catch (primaryError) {
+      // ✅ Failover: إذا فشل Primary و Secondary مُفعّل للسحب (Pull)، نقرأ منه
+      if (SecondaryAppwriteConfig.isEnabled &&
+          SecondaryAppwriteConfig.isPullEnabled &&
+          SecondaryAppwriteConfig.isConfigured) {
+        debugPrint(
+            '🔄 [Failover] Primary listDocuments failed ($primaryError), '
+            'falling back to Secondary for $collectionId');
+        try {
+          final secondaryDocs = await _listFromSecondary(
+            collectionId,
+            queries,
+          );
+          // نضع النتيجة في الكاش لتفادي إعادة Failover المتكرر
+          if (useCache) {
+            _cache.set(cacheKey, secondaryDocs, ttl: AppwriteConfig.cacheExpiry);
+          }
+          return secondaryDocs;
+        } catch (secondaryError) {
+          debugPrint(
+              '❌ [Failover] Secondary also failed for $collectionId: $secondaryError');
+          // نرمي خطأ Primary الأصلي لأنه المصدر الرئيسي
+          rethrow;
+        }
       }
-
-      allDocuments.addAll(pageDocs);
-
-      if (pageDocs.length < pageSize) {
-        break;
-      }
-
-      pageOffset += pageSize;
+      rethrow;
     }
 
     if (useCache) {
@@ -156,6 +187,150 @@ class AppwriteService {
       tag: 'CRUD',
     );
     return allDocuments;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // ✅ Failover: قراءة من Secondary عند فشل Primary
+  // ════════════════════════════════════════════════════════════════════
+  //
+  // عند تعطل Primary (شبكة/خادم)، نقرأ تلقائياً من Secondary (إذا كان
+  // متاحاً). هذا يضمن استمرارية عمل التطبيق حتى أثناء انقطاع Primary.
+  //
+  // الكتابة (push) تظل تعمل عبر outbox — السجلات تُحفظ محلياً وتُرفع
+  // للوجهتين عند توفّرهما. لا حاجة لـ failover في الكتابة.
+
+  /// يقرأ مستندات من Primary، وإذا فشل يقرأ من Secondary (Failover)
+  ///
+  /// [collectionId] — معرف الـ collection
+  /// [queries] — استعلامات Appwrite
+  /// [useCache] — استخدام الكاش (يفضّل تعطيله عند الحاجة لبيانات حديثة)
+  /// [healthState] — حالة الوجهتين (إن وُجدت) لتخطّي Primary إذا كان معطّلاً
+  Future<List<models.Document>> listDocumentsWithFailover({
+    required String collectionId,
+    required List<String> queries,
+    bool useCache = true,
+    AppwriteHealthState? healthState,
+  }) async {
+    // إذا كانت حالة Primary معروفة بأنها معطّلة و Secondary متاح، نقرأ مباشرة من Secondary
+    if (healthState != null &&
+        healthState.shouldFailover &&
+        SecondaryAppwriteConfig.isEnabled &&
+        SecondaryAppwriteConfig.isConfigured) {
+      debugPrint(
+          '🔄 [Failover] Reading from Secondary (Primary known unreachable)');
+      return _listFromSecondary(collectionId, queries);
+    }
+
+    // محاولة Primary أولاً
+    try {
+      return await _listAllDocumentsInternal(
+        collectionId: collectionId,
+        queries: queries,
+        useCache: useCache,
+      );
+    } catch (e) {
+      // إذا فشل Primary و Secondary متاح، نقرأ منه
+      if (SecondaryAppwriteConfig.isEnabled &&
+          SecondaryAppwriteConfig.isConfigured) {
+        debugPrint(
+            '⚠️ [Failover] Primary failed ($e), falling back to Secondary');
+        return _listFromSecondary(collectionId, queries);
+      }
+      rethrow;
+    }
+  }
+
+  /// يقرأ مستند واحد من Primary، وإذا فشل يقرأ من Secondary
+  Future<models.Document> getDocumentWithFailover({
+    required String collectionId,
+    required String documentId,
+    AppwriteHealthState? healthState,
+  }) async {
+    await _ensureInitialized();
+
+    // إذا كانت حالة Primary معروفة بأنها معطّلة، نقرأ مباشرة من Secondary
+    if (healthState != null &&
+        healthState.shouldFailover &&
+        SecondaryAppwriteConfig.isEnabled &&
+        SecondaryAppwriteConfig.isConfigured) {
+      return _getFromSecondary(collectionId, documentId);
+    }
+
+    try {
+      // ignore: deprecated_member_use
+      return await _databases.getDocument(
+        databaseId: AppwriteConfigManager.databaseId,
+        collectionId: collectionId,
+        documentId: documentId,
+      );
+    } catch (e) {
+      if (SecondaryAppwriteConfig.isEnabled &&
+          SecondaryAppwriteConfig.isConfigured) {
+        debugPrint(
+            '⚠️ [Failover] getDocument Primary failed ($e), falling back to Secondary');
+        return _getFromSecondary(collectionId, documentId);
+      }
+      rethrow;
+    }
+  }
+
+  /// قراءة مستندات من Secondary مباشرة
+  Future<List<models.Document>> _listFromSecondary(
+    String collectionId,
+    List<String> queries,
+  ) async {
+    final client = Client()
+        .setEndpoint(SecondaryAppwriteConfig.endpoint)
+        .setProject(SecondaryAppwriteConfig.projectId);
+    final apiKey = SecondaryAppwriteConfig.apiKey;
+    if (apiKey.isNotEmpty) {
+      client.addHeader('X-Appwrite-Key', apiKey);
+    }
+    final db = Databases(client);
+
+    final allDocuments = <models.Document>[];
+    int pageOffset = 0;
+    const pageSize = AppwriteConfig.maxPageSize;
+
+    while (true) {
+      final pagedQueries = _applyPagingQueries(
+        queries,
+        limit: pageSize,
+        offset: pageOffset,
+      );
+      // ignore: deprecated_member_use
+      final result = await db.listDocuments(
+        databaseId: SecondaryAppwriteConfig.databaseId,
+        collectionId: collectionId,
+        queries: pagedQueries,
+      ).timeout(const Duration(seconds: 30));
+      if (result.documents.isEmpty) break;
+      allDocuments.addAll(result.documents);
+      if (result.documents.length < pageSize) break;
+      pageOffset += pageSize;
+    }
+    return allDocuments;
+  }
+
+  /// قراءة مستند واحد من Secondary مباشرة
+  Future<models.Document> _getFromSecondary(
+    String collectionId,
+    String documentId,
+  ) async {
+    final client = Client()
+        .setEndpoint(SecondaryAppwriteConfig.endpoint)
+        .setProject(SecondaryAppwriteConfig.projectId);
+    final apiKey = SecondaryAppwriteConfig.apiKey;
+    if (apiKey.isNotEmpty) {
+      client.addHeader('X-Appwrite-Key', apiKey);
+    }
+    final db = Databases(client);
+    // ignore: deprecated_member_use
+    return db.getDocument(
+      databaseId: SecondaryAppwriteConfig.databaseId,
+      collectionId: collectionId,
+      documentId: documentId,
+    );
   }
 
   Future<int> deleteAllDocuments({

@@ -5,12 +5,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../providers/repository_providers.dart';
 import '../../providers/secondary_sync_provider.dart';
+import '../../services/daos/outbox_dao.dart';
 import '../../services/secondary_appwrite_config.dart';
 import '../../services/secondary_appwrite_service.dart';
 import '../../services/secondary_sync_manager.dart';
 
 /// شاشة إعدادات الوجهة الثانوية لـ Appwrite
+///
+/// تتحكم في:
+/// - تفعيل/تعطيل Secondary بالكامل
+/// - تفعيل/تعطيل **الرفع (Push)** عبر outbox — رفع الأحداث أول بأول
+/// - تفعيل/تعطيل **السحب (Pull)** — Failover للقراءة عند تعطل Primary
 class SecondaryAppwriteSettingsScreen extends ConsumerStatefulWidget {
   const SecondaryAppwriteSettingsScreen({super.key});
 
@@ -82,6 +89,16 @@ class _SecondaryAppwriteSettingsScreenState
     }
   }
 
+  /// تفعيل/تعطيل Secondary بالكامل
+  ///
+  /// عند التفعيل:
+  ///   - نبدأ المزامنة التلقائية للرفع (Push) كل 15 دقيقة
+  ///   - نُعلّم جميع سجلات outbox المحلية كـ "غير مُسلّمة للثانوي"
+  ///     ليتم رفعها للثانوي في الدورة القادمة
+  ///
+  /// عند التعطيل:
+  ///   - نوقف المزامنة التلقائية
+  ///   - نُعلّم جميع السجلات كـ "مُسلّمة للثانوي" (للسماح بحذفها بعد نجاح Primary)
   Future<void> _toggleSync(bool value) async {
     await SecondaryAppwriteConfig.saveConfig(
       enabled: value,
@@ -93,13 +110,22 @@ class _SecondaryAppwriteSettingsScreenState
       pullEnabled: SecondaryAppwriteConfig.isPullEnabled,
     );
 
-    // تحديث Provider
     ref.read(secondarySyncProvider.notifier).refresh();
 
-    // التحكم بالتزامن التلقائي
+    // ✅ تحديث علامات التسليم في outbox
+    final db = ref.read(databaseProvider);
+    final outboxDao = OutboxDao(db);
     if (value) {
-      SecondarySyncManager.instance.startAutoSync();
+      // تفعيل: نُعلّم كل السجلات كـ "غير مُسلّمة للثانوي" ليتم رفعها
+      final count = await outboxDao.markAllLocalAsUndeliveredToSecondary();
+      debugPrint('🔵 [Secondary] Marked $count records as undelivered to secondary');
+      if (SecondaryAppwriteConfig.isPushEnabled) {
+        SecondarySyncManager.instance.startAutoSync();
+      }
     } else {
+      // تعطيل: نُعلّم كل السجلات كـ "مُسلّمة للثانوي" لمنع حجبها
+      final count = await outboxDao.markAllLocalAsDeliveredToSecondary();
+      debugPrint('🔵 [Secondary] Marked $count records as delivered to secondary (disabled)');
       SecondarySyncManager.instance.stopAutoSync();
     }
 
@@ -107,6 +133,11 @@ class _SecondaryAppwriteSettingsScreenState
     _showMessage(true, value ? '✅ المزامنة مُفعّلة' : '⏹️ المزامنة معطّلة');
   }
 
+  /// تفعيل/تعطيل الرفع (Push) لـ Secondary عبر outbox
+  ///
+  /// عند التفعيل: نبدأ المزامنة التلقائية للرفع
+  /// عند التعطيل: نوقف المزامنة التلقائية، لكن السجلات المُعلّمة كـ
+  ///   "غير مُسلّمة للثانوي" تبقى في outbox حتى يُعاد تفعيل الرفع
   Future<void> _togglePush(bool value) async {
     await SecondaryAppwriteConfig.saveConfig(
       enabled: SecondaryAppwriteConfig.isEnabled,
@@ -118,9 +149,23 @@ class _SecondaryAppwriteSettingsScreenState
       pullEnabled: SecondaryAppwriteConfig.isPullEnabled,
     );
     ref.read(secondarySyncProvider.notifier).refresh();
+
+    // إعادة تشغيل/إيقاف المزامنة التلقائية حسب الحالة
+    if (value && SecondaryAppwriteConfig.isEnabled) {
+      SecondarySyncManager.instance.startAutoSync();
+    } else {
+      SecondarySyncManager.instance.stopAutoSync();
+    }
+
     setState(() {});
+    _showMessage(
+        true, value ? '✅ الرفع (Push) مُفعّل' : '⏹️ الرفع (Push) معطّل');
   }
 
+  /// تفعيل/تعطيل السحب (Pull) من Secondary — أي Failover للقراءة
+  ///
+  /// عند التفعيل: عند فشل Primary، تُقرأ البيانات تلقائياً من Secondary
+  /// عند التعطيل: عند فشل Primary، يفشل التطبيق في القراءة (لا Failover)
   Future<void> _togglePull(bool value) async {
     await SecondaryAppwriteConfig.saveConfig(
       enabled: SecondaryAppwriteConfig.isEnabled,
@@ -133,6 +178,8 @@ class _SecondaryAppwriteSettingsScreenState
     );
     ref.read(secondarySyncProvider.notifier).refresh();
     setState(() {});
+    _showMessage(
+        true, value ? '✅ السحب (Pull/Failover) مُفعّل' : '⏹️ السحب (Pull/Failover) معطّل');
   }
 
   Future<void> _testConnection() async {
@@ -222,6 +269,8 @@ class _SecondaryAppwriteSettingsScreenState
   Widget build(BuildContext context) {
     final enabled = SecondaryAppwriteConfig.isEnabled;
     final isConfigured = SecondaryAppwriteConfig.isConfigured;
+    final pushEnabled = SecondaryAppwriteConfig.isPushEnabled;
+    final pullEnabled = SecondaryAppwriteConfig.isPullEnabled;
 
     return AppScaffold(
       title: 'Appwrite الثانوي',
@@ -249,11 +298,11 @@ class _SecondaryAppwriteSettingsScreenState
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    '• الـ outbox المحلي يُسلّم للوجهتين بالتوازي\n'
+                    '• outbox المحلي يُسلّم للوجهتين بالتوازي\n'
                     '• السجل يُحذف فقط بعد نجاح كلا الوجهتين\n'
-                    '• لا فقدان بيانات عند فشل إحدى الوجهتين\n'
-                    '• لا تكرار بسبب سباق البيانات\n'
-                    '• تستخدم نفس collection IDs مثل Primary',
+                    '• الرفع (Push): أحداث أول بأول لـ Secondary\n'
+                    '• السحب (Pull): Failover تلقائي عند تعطل Primary\n'
+                    '• لا فقدان بيانات، لا تكرار، لا سباق بيانات',
                     style: TextStyle(fontSize: 13),
                   ),
                 ],
@@ -353,7 +402,7 @@ class _SecondaryAppwriteSettingsScreenState
           ),
           const SizedBox(height: 16),
 
-          // ── إعدادات المزامنة ──
+          // ── إعدادات المزامنة (الأهم) ──
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -370,46 +419,129 @@ class _SecondaryAppwriteSettingsScreenState
                     ],
                   ),
                   const Divider(height: 24),
+
+                  // ── المفتاح الرئيسي: تفعيل/تعطيل Secondary بالكامل ──
                   SwitchListTile(
-                    title: const Text('تفعيل المزامنة'),
+                    title: const Text(
+                      'تفعيل المزامنة الثانوية',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     subtitle: Text(enabled ? 'مُفعّلة' : 'معطّلة'),
                     value: enabled,
                     onChanged: _toggleSync,
+                    activeThumbColor: Colors.green,
                   ),
                   if (enabled) ...[
-                    SwitchListTile(
-                      title: const Text('Push (رفع البيانات)'),
-                      subtitle: const Text('رفع التغييرات المحلية للثانوي'),
-                      value: SecondaryAppwriteConfig.isPushEnabled,
-                      onChanged: _togglePush,
-                    ),
-                    SwitchListTile(
-                      title: const Text('Pull (سحب البيانات)'),
-                      subtitle: const Text('سحب التغييرات من الثانوي — غير مُدعوم في هذه النسخة'),
-                      value: SecondaryAppwriteConfig.isPullEnabled,
-                      onChanged: _togglePull,
-                    ),
-                    const Divider(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _syncing ? null : _syncNow,
-                        icon: _syncing
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white))
-                            : const Icon(Icons.sync),
-                        label: Text(_syncing ? 'جاري...' : 'مزامنة الآن'),
+                    const Divider(height: 16),
+
+                    // ── خيار الرفع (Push) ──
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: pushEnabled
+                            ? Colors.green.shade50
+                            : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: pushEnabled
+                              ? Colors.green.shade300
+                              : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: SwitchListTile(
+                        title: Row(
+                          children: [
+                            Icon(Icons.cloud_upload,
+                                color: pushEnabled
+                                    ? Colors.green
+                                    : Colors.grey,
+                                size: 20),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'الرفع (Push)',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        subtitle: Text(
+                          pushEnabled
+                              ? 'رفع الأحداث أول بأول لـ Secondary عبر outbox'
+                              : 'معطّل — الأحداث تُرفع فقط للرئيسي',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        value: pushEnabled,
+                        onChanged: _togglePush,
+                        activeThumbColor: Colors.green,
                       ),
                     ),
-                    if (_lastSync != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'آخر مزامنة: ${_formatDateTime(_lastSync!)}',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    const SizedBox(height: 12),
+
+                    // ── خيار السحب (Pull / Failover) ──
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: pullEnabled
+                            ? Colors.blue.shade50
+                            : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: pullEnabled
+                              ? Colors.blue.shade300
+                              : Colors.grey.shade300,
+                        ),
                       ),
+                      child: SwitchListTile(
+                        title: Row(
+                          children: [
+                            Icon(Icons.cloud_download,
+                                color: pullEnabled
+                                    ? Colors.blue
+                                    : Colors.grey,
+                                size: 20),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'السحب (Pull / Failover)',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        subtitle: Text(
+                          pullEnabled
+                              ? 'عند تعطل Primary، تُقرأ البيانات تلقائياً من Secondary'
+                              : 'معطّل — لا Failover للقراءة عند تعطل Primary',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        value: pullEnabled,
+                        onChanged: _togglePull,
+                        activeThumbColor: Colors.blue,
+                      ),
+                    ),
+
+                    if (pushEnabled) ...[
+                      const SizedBox(height: 16),
+                      const Divider(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _syncing ? null : _syncNow,
+                          icon: _syncing
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.sync),
+                          label: Text(_syncing ? 'جاري...' : 'مزامنة الآن'),
+                        ),
+                      ),
+                      if (_lastSync != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'آخر مزامنة: ${_formatDateTime(_lastSync!)}',
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
                     ],
                   ],
                 ],
