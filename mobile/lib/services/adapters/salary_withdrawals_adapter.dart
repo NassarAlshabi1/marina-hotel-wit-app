@@ -214,12 +214,18 @@ class SalaryWithdrawalsAdapter
     // 'date' يُرسل دائماً كاحتياطي لـ 'withdrawDate' — بعض إصدارات المخطط
     // تطلب 'date' كـ REQUIRED بدلاً من 'withdrawDate'.
     //
+    // 'note' = ملاحظة المستخدم فقط (من description) — لا تخلطه مع reason.
+    // 'reason' = سبب السحب (مثل "exp_629" للربط مع المصروف) — مستقل.
+    //
     // نُرسلها لكل المصادر (Source.appwrite, Source.drive, Source.local)
     // لأن Appwrite Cloud هو الوجهة النهائية في النهاية.
     map['date'] = effectiveWithdrawDate;
     map['action'] = model.withdrawalType ?? 'withdrawal';
+    // ✅ note = ملاحظة المستخدم فقط (من description)
     map['note'] = model.description ?? '';
     map['expenseId'] = expenseId;
+    // ✅ إضافة name فارغ (optional لكن بعض إصدارات المخطط تتوقعه)
+    map['name'] = '';
 
     return map;
   }

@@ -2757,6 +2757,8 @@ class AppwriteSyncManager {
     // ✅ إضافة employeeUuid لربط السلف بالموضف عبر الأجهزة
     payload['employeeUuid'] = employee.localUuid;
     payload['employeeLocalUuid'] = employee.localUuid;
+    // ✅ إضافة sync_origin للتوافق مع مخطط Appwrite Cloud
+    payload['sync_origin'] = withdrawal.origin;
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
       documentId: withdrawal.localUuid,
