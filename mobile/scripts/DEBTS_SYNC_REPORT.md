@@ -128,14 +128,112 @@
 
 ---
 
-## 📁 الملفات المتعلقة
+## ☁️ الحقول الموجودة على Appwrite Cloud (مُحدّث 2026-06-27)
 
-| الملف | المسار |
-|-------|--------|
-| Debts Adapter | `lib/services/adapters/debts_adapter.dart` |
-| Local DB Schema | `lib/services/local_db.dart` |
+### الحقول المطلوبة (REQUIRED) على Cloud
+
+| الحقل | النوع | مثال | ملاحظة |
+|-------|------|------|--------|
+| `guestName` | string (200) | "jamal" | **REQUIRED** — اسم النزيل |
+| `checkinDate` | string (50) | "2026-06-27 01:02:39" | **REQUIRED** — تاريخ تسجيل الدخول |
+| `totalAmount` | integer | 15000 | **REQUIRED** — إجمالي المبلغ |
+| `paidAmount` | integer | 0 | **REQUIRED** — المبلغ المدفوع |
+| `localUuid` | string (100) | "c4c94231-db39-..." | **REQUIRED** — UUID فريد |
+| `createdAt` | integer | 1782513533 | **REQUIRED** — تاريخ الإنشاء |
+| `updatedAt` | integer | 1782513823 | **REQUIRED** — تاريخ التحديث |
+| `lastModified` | integer | 1782513823 | **REQUIRED** — آخر تعديل |
+
+### الحقول الاختيارية (OPTIONAL) على Cloud
+
+| الحقل | النوع | مثال | ملاحظة |
+|-------|------|------|--------|
+| `bookingLocalId` | integer? | 215 | معرف الحجز المحلي |
+| `checkoutDate` | string? (50) | "2026-06-27T01:38:53..." | تاريخ الخروج |
+| `dateRecorded` | string? (50) | NULL | تاريخ التسجيل |
+| `debtReason` | string? (200) | "مبلغ متبقي من إقامة - غرفة 304" | سبب الدين |
+| `paymentDate` | string? (50) | "2026-06-27T01:38:53..." | تاريخ الدفع |
+| `isSettled` | boolean? | false | هل تم التسوية |
+| `pledge` | string? (200) | NULL | الرهن |
+| `pledgeType` | string? (100) | NULL | نوع الرهن |
+| `note` | string? (500) | "تم إنشاء هذا الدين تلقائياً..." | ملاحظات |
+| `debtUuid` | string? (100) | NULL | UUID الدين |
+| `hotelDayOpened` | string? (50) | NULL | يوم فتح الدين |
+| `hotelDayClosed` | string? (50) | NULL | يوم إغلاق الدين |
+| `isFromAutoFix` | boolean? | false | من AutoFix |
+| `settlementConfirmed` | boolean? | false | تأكيد التسوية |
+| `serverId` | integer? | NULL | معرف السيرفر |
+| `deletedAt` | integer? | NULL | تاريخ الحذف الناعم |
+| `createdAtIso` | string? (50) | NULL | تاريخ ISO للإنشاء |
+| `updatedAtIso` | string? (50) | NULL | تاريخ ISO للتحديث |
+| `deletedAtIso` | string? (50) | NULL | تاريخ ISO للحذف |
+| `createdAtEpoch` | integer? | 0 | epoch الإنشاء |
+| `lastModifiedEpoch` | integer? | 0 | epoch التعديل |
+| `version` | integer? | 1 | الإصدار |
+| `origin` | string? (50) | "local" | المصدر |
+| `vectorClock` | string? (500) | "{}" | ساعة المتجهات |
+| `deviceId` | string? (100) | "6b8c6ab2-..." | معرف الجهاز |
+| `syncTimestamp` | integer? | 0 | ✅ طابع زمني (أُضيف 2026-06-27) |
+| `sync_origin` | string? (50) | NULL | ✅ مصدر المزامنة (أُضيف 2026-06-27) |
+| `sync_version` | integer? | NULL | ✅ Legacy (أُضيف 2026-06-27) |
+| `sync_vector_clock` | string? (2000) | NULL | ✅ Legacy (أُضيف 2026-06-27) |
+| `guestPhone` | string? (20) | NULL | ✅ هاتف النزيل (أُضيف 2026-06-27) |
+| `description` | string? (500) | NULL | ✅ وصف إضافي (أُضيف 2026-06-27) |
+| `status` | string? (50) | NULL | ✅ الحالة (أُضيف 2026-06-27) |
+| `date` | string? (50) | NULL | ✅ التاريخ (أُضيف 2026-06-27) |
+| `amount` | integer? | NULL | ✅ المبلغ (أُضيف 2026-06-27) |
+| `remainingAmount` | integer? | 15000 | المبلغ المتبقي |
+| `id` | integer? | NULL | ✅ معرف (أُضيف 2026-06-27) |
+| `idempotencyKey` | string? (255) | "debts:update:..." | مفتاح Idempotency |
 
 ---
 
-**تم إنشاء هذا التقرير بواسطة:** OpenHands AI Agent  
-**التاريخ:** 2026-06-26
+## ⚠️ ملاحظات مهمة
+
+### 1. ✅ حقول مُضافة حديثاً (2026-06-27) — تم حلها:
+
+الحقول التالية كانت موجودة على Appwrite Cloud لكن **لم تكن مُدرجة** في
+`validFieldsPerCollection['debts']`:
+- `syncTimestamp` — طابع زمني للمزامنة
+- `sync_origin` — مصدر المزامنة
+- `sync_version` — إصدار قديم (Legacy)
+- `sync_vector_clock` — ساعة متجهات قديمة (Legacy)
+- `guestPhone` — هاتف النزيل
+- `description` — وصف إضافي
+- `status` — الحالة
+- `date` — التاريخ
+- `amount` — المبلغ
+- `id` — معرف
+
+### 2. تحديث `_debtToRemote()`
+
+تم تعديل `_debtToRemote()` لإرسال بنشاط:
+- `sync_origin = debt.origin`
+- `syncTimestamp = debt.lastModified`
+
+### 3. تحويل النوع
+
+- `totalAmount`, `paidAmount`, `amount`, `remainingAmount` على Cloud هي `integer`، محلياً `double` — يتم التحويل عبر `.round()`
+
+---
+
+## 📁 الملفات المتعلقة
+
+| الملف | المسار | الوظيفة |
+|-------|--------|---------|
+| Debts Adapter | `lib/services/adapters/debts_adapter.dart` | تحويل البيانات |
+| Local DB Schema | `lib/services/local_db.dart` | تعريف جدول `Debts` |
+| Sync Utils | `lib/services/appwrite_sync_utils.dart` | `validFieldsPerCollection` |
+| Sync Manager | `lib/services/appwrite_sync_manager.dart` | `_processDebtEntry` + `_debtToRemote` |
+
+---
+
+## 📜 سجل التغييرات
+
+| التاريخ | Commit | التغيير |
+|---------|--------|---------|
+| 2026-06-27 | - | إضافة 10 حقول مفقودة إلى `validFieldsPerCollection['debts']` + تحديث `_debtToRemote` لإرسال `sync_origin` و `syncTimestamp` |
+
+---
+
+**تم إنشاء هذا التقرير بواسطة:** Marina Hotel Agent  
+**آخر تحديث:** 2026-06-27
