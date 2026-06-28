@@ -5932,6 +5932,8 @@ class AppwriteSyncManager {
   Future<int> _syncPriceAdjustments(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ P1-13 إصلاح: تم نقل إنشاء الخدمة خارج الحلقة
+    final derivedFieldsService = BookingDerivedFieldsService(database);
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -5980,7 +5982,7 @@ class AppwriteSyncManager {
                     ..where((b) => b.actualCheckout.isNull()))
                   .get();
               for (final booking in activeBookings) {
-                await BookingDerivedFieldsService(database)
+                await derivedFieldsService
                     .refreshForBookingId(booking.id, forceRebuild: true);
               }
             }
@@ -6045,10 +6047,13 @@ class AppwriteSyncManager {
   Future<bool> _pushAppSettingsToCloud() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final deviceId = await _getDeviceIdForPrefs();
+      final encryptionKey = SecureStorage.getEncryptionKey(deviceId);
 
       // ⚠️ حقول app_settings الفعلية في Appwrite Cloud (25 حقل فقط — الحد الأقصى)
       // تم تدقيق كل حقل مقابل المخطط الفعلي في 2026-06-14
       // ❌ لا ترسل حقولاً غير موجودة — يسبب "Unknown attribute" خطأ 400
+      // ✅ P0-7 إصلاح: تشفير الحقول الحساسة قبل الإرسال للسحابة
       final data = <String, dynamic>{
         'key': 'whatsapp_settings',
         'value': '',
@@ -6061,14 +6066,14 @@ class AppwriteSyncManager {
         'wa_api_type': prefs.getString('wa_api_type') ?? 'greenapi',
         'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
         'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',
-        'wa_api_token': prefs.getString('wa_api_token') ?? '',
+        'wa_api_token': SecureStorage.encryptValue(prefs.getString('wa_api_token') ?? '', encryptionKey),
         'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
         'wa_sendzen_api_key': prefs.getString('wa_sendzen_api_key') ?? '',
         'wa_sendzen_from_number': prefs.getString('wa_sendzen_from_number') ?? '',
         'wa_template': prefs.getString('whatsapp_template') ?? '',
         // ── Telegram ──
         'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
-        'telegram_bot_token': prefs.getString('telegram_bot_token') ?? '',
+        'telegram_bot_token': SecureStorage.encryptValue(prefs.getString('telegram_bot_token') ?? '', encryptionKey),
         'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '',
         'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
         'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
@@ -6076,7 +6081,7 @@ class AppwriteSyncManager {
         // ── Lark ──
         'lark_enabled': prefs.getBool('lark_enabled') ?? false,
         'lark_app_id': prefs.getString('lark_app_id') ?? '',
-        'lark_app_secret': prefs.getString('lark_app_secret') ?? '',
+        'lark_app_secret': SecureStorage.encryptValue(prefs.getString('lark_app_secret') ?? '', encryptionKey),
         'lark_webhook_url': prefs.getString('lark_webhook_url') ?? '',
         'lark_daily_report_enabled': prefs.getBool('lark_daily_report_enabled') ?? false,
         'lark_daily_report_time': prefs.getString('lark_daily_report_time') ?? '08:00',
