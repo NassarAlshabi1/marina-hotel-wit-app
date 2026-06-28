@@ -1,4 +1,4 @@
-// ignore_for_file: unused_field, use_late_for_private_fields_and_variables, duplicate_ignore, avoid_redundant_argument_values
+// ignore_for_file: unused_field, use_late_for_private_fields_and_variables, duplicate_ignore, avoid_redundant_argument_values, no_leading_underscores_for_local_identifiers, unused_local_variable
 
 import 'dart:async';
 import 'dart:convert';

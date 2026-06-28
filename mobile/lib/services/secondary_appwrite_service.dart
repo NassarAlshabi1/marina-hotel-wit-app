@@ -1,3 +1,4 @@
+// ignore_for_file: unused_element, prefer_final_locals, unnecessary_lambdas, curly_braces_in_flow_control_structures
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:flutter/foundation.dart';
@@ -101,33 +102,32 @@ class SecondaryAppwriteService {
     final collectionList = await _getAllCollections(db);
 
     stats.totalCollections = collectionList.length;
-    for (final coll in collectionList) {
+for (final coll in collectionList) {
       int successCount = 0;
       int failureCount = 0;
-      final details = <Map<String, dynamic>>[];
       int total = coll.records.length;
       int current = 0;
 
       for (final record in coll.records) {
         current++;
         onProgress(coll.name, current, total);
-try {
-           await upsertDocument(
-             collectionId: coll.collectionId,
-             documentId: record['localUuid'] as String? ?? '',
-             data: record,
-           );
-           successCount++;
-         } catch (e) {
-           failureCount++;
-           final reason = e.toString();
-           stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(
-             FullBackupFailure(documentId: record['localUuid']?.toString(), reason: reason, collectionName: coll.name),
-           );
-           // ✅ إحصائيات الأخطاء حسب السبب
-           final reasonShort = reason.length > 100 ? reason.substring(0, 100) : reason;
-           stats.errorsByReason[reasonShort] = (stats.errorsByReason[reasonShort] ?? 0) + 1;
-         }
+        try {
+          await upsertDocument(
+            collectionId: coll.collectionId,
+            documentId: record['localUuid'] as String? ?? '',
+            data: record,
+          );
+          successCount++;
+        } catch (e) {
+          failureCount++;
+          final reason = e.toString();
+          stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(
+            FullBackupFailure(documentId: record['localUuid']?.toString(), reason: reason, collectionName: coll.name),
+          );
+          // ✅ إحصائيات الأخطاء حسب السبب
+          final reasonShort = reason.length > 100 ? reason.substring(0, 100) : reason;
+          stats.errorsByReason[reasonShort] = (stats.errorsByReason[reasonShort] ?? 0) + 1;
+        }
       }
 
       onCollectionComplete(coll.name, successCount, failureCount);
@@ -140,8 +140,11 @@ try {
       });
       stats.successCount += successCount;
       stats.failureCount += failureCount;
-      if (failureCount == 0) stats.fullySuccessfulCollections++;
-      else stats.failedCollections++;
+      if (failureCount == 0) {
+        stats.fullySuccessfulCollections++;
+      } else {
+        stats.failedCollections++;
+      }
       stats.collectionNames.add(coll.name);
     }
 

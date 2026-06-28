@@ -1,4 +1,4 @@
-// ignore_for_file: unused_field, unused_element, deprecated_member_use, directives_ordering, sort_constructors_first, prefer_const_declarations
+// ignore_for_file: unused_field, unused_element, deprecated_member_use, directives_ordering, sort_constructors_first, prefer_const_declarations, no_leading_underscores_for_local_identifiers, unused_local_variable
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
