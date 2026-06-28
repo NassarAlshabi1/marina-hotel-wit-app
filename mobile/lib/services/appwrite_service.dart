@@ -398,19 +398,6 @@ class AppwriteService {
   }) async {
     final dbId = AppwriteConfigManager.databaseId;
 
-    // ✅ إصلاح جذري (2026-06-28): منطق upsert متين ضد جميع حالات السباق
-    // وضد TimeoutException وغيرها من الأخطاء غير AppwriteException.
-    //
-    // المنطق الجديد يضيف طبقة دفاع إضافية:
-    //   1) محاولة updateDocument (مع retry/timeout)
-    //   2) إذا فشل بـ 404 → createDocument (مع retry/timeout)
-    //   3) إذا فشل createDocument بـ 409 → updateDocument أخيراً (مع retry/timeout)
-    //   4) أي خطأ غير قابل للاسترداد → تسجيل مفصّل + rethrow
-    //
-    // كل استدعاءات updateDocument/createDocument الآن مُلفوفة بـ withRetryAndTimeout
-    // لمنع TimeoutException من تمرير خطأ "createDocument failed" بدلاً من السماح
-    // للمنطق بالتعافي عبر updateDocument.
-
     bool isNotFound(AppwriteException e) =>
         e.code == 404 ||
         (e.type ?? '').contains('document_not_found') ||
@@ -422,17 +409,33 @@ class AppwriteService {
         (e.type ?? '').contains('conflict') ||
         e.toString().contains('document_already_exists');
 
-    // مساعد لتنفيذ updateDocument مع retry/timeout
-    // ✅ إصلاح (2026-06-28): suppressErrorLog=true لكتم 404 المتوقع
-    // في المحاولة الأولى (upsert probe). 404 يعني "السجل جديد، لم يُرفع للسحابة بعد"
-    // وهو سلوك طبيعي وليس خطأ. تسجيله كـ ERROR يُسبب ضوضاء في السجلات.
-    Future<models.Document> doUpdate({bool suppressErrorLog = false}) async {
+    // ✅ إصلاح حرج (2026-06-28): معالجة مستندات بـ ID بدون شرطات
+    //
+    // بعض المستندات القديمة خُزّنت في Appwrite بـ ID بدون شرطات:
+    //   0ac7942fd83e4081934815e60752b560  (32 حرف متصل)
+    // بينما التطبيق يرسل:
+    //   0ac7942f-d83e-4081-9348-15e60752b560  (UUID قياسي بشرطات)
+    //
+    // النتيجة:
+    //   updateDocument(with-dashes) → 404
+    //   createDocument(with-dashes) → 409 (ID محجوز!)
+    //
+    // الحل: نولّد الصيغة البديلة للـ ID ونجرّبها إذا فشلت الأولى.
+    final altDocumentId = documentId.contains('-')
+        ? documentId.replaceAll('-', '')  // إزالة الشرطات
+        : '';  // ID أصلاً بدون شرطات — لا بديل
+
+    // مساعد لتنفيذ updateDocument بـ ID محدد
+    Future<models.Document> doUpdate(
+      String id, {
+      bool suppressErrorLog = false,
+    }) async {
       return _networkHelper.withRetryAndTimeout(
         // ignore: deprecated_member_use
         operation: () => _databases.updateDocument(
           databaseId: dbId,
           collectionId: collectionId,
-          documentId: documentId,
+          documentId: id,
           data: data,
         ),
         operationName: 'updateDocument',
@@ -440,7 +443,7 @@ class AppwriteService {
       );
     }
 
-    // مساعد لتنفيذ createDocument مع retry/timeout
+    // مساعد لتنفيذ createDocument
     Future<models.Document> doCreate() async {
       return _networkHelper.withRetryAndTimeout(
         // ignore: deprecated_member_use
@@ -451,114 +454,77 @@ class AppwriteService {
           data: data,
         ),
         operationName: 'createDocument',
+        suppressErrorLog: true,
       );
     }
 
-    // ─── الخطوة 1: محاولة updateDocument (Optimistic) ───
-    // ✅ suppressErrorLog=true: 404 متوقع للسجلات الجديدة، لا نسجّله كـ ERROR
+    // ─── الخطوة 1: updateDocument بالـ ID الأصلي (بالشرطات) ───
     try {
-      return await doUpdate(suppressErrorLog: true);
+      return await doUpdate(documentId, suppressErrorLog: true);
     } on AppwriteException catch (updateError) {
-      // إذا فشل updateDocument بـ 404 → المستند غير موجود، ننتقل إلى createDocument
       if (!isNotFound(updateError)) {
-        // ─── الخطوة 4 (نادر): update فشل بـ 409 → نحاول createDocument ───
+        // 409 على update → نادر، نحاول create
         if (isAlreadyExists(updateError)) {
-          _logger.debug(
-            'upsert: updateDocument(409) → trying createDocument. '
-            'collection=$collectionId, docId=$documentId',
-            tag: 'UPSERT',
-          );
-          try {
-            return await doCreate();
-          } on AppwriteException catch (createError2) {
-            // فشل createDocument أيضاً بـ 409 → سباق بيانات، نعيد updateDocument
-            if (isAlreadyExists(createError2)) {
-              // ✅ إصلاح: wrap في retry/timeout + try-catch
-              try {
-                return await doUpdate();
-              } catch (finalErr) {
-                // سجلّ مفصّل لتشخيص السباق
-                AppwriteLogger().error(
-                  'upsert: Step 5 updateDocument failed after '
-                  'createDocument(409) after updateDocument(409). '
-                  'collection=$collectionId, docId=$documentId. '
-                  'Error: $finalErr',
-                  tag: 'UPSERT',
-                );
-                rethrow;
-              }
+          try { return await doCreate(); }
+          on AppwriteException catch (e2) {
+            if (isAlreadyExists(e2)) {
+              try { return await doUpdate(documentId); }
+              catch (e3) { rethrow; }
             }
             rethrow;
           }
         }
-        // خطأ آخر غير 404/409 → نرميه للأعلى
         rethrow;
       }
-      // 404 متوقع — نسجّل كمعلومة DEBUG وننتقل إلى createDocument
-      _logger.debug(
-        'upsert: updateDocument(404) → record is new, creating. '
-        'collection=$collectionId, docId=$documentId',
-        tag: 'UPSERT',
-      );
-      // المتابعة إلى createDocument (الحالة 404)
+      // 404 — متوقع للسجلات الجديدة أو المستندات بدون شرطات
     }
 
-    // ─── الخطوة 2: updateDocument فشل بـ 404 → محاولة createDocument ───
-    // ✅ suppressErrorLog=true: 409 من create متوقع في حالات سباق البيانات
+    // ─── الخطوة 2: createDocument ───
     try {
-      return await _networkHelper.withRetryAndTimeout(
-        // ignore: deprecated_member_use
-        operation: () => _databases.createDocument(
-          databaseId: dbId,
-          collectionId: collectionId,
-          documentId: documentId,
-          data: data,
-        ),
-        operationName: 'createDocument',
-        suppressErrorLog: true,
-      );
+      return await doCreate();
     } on AppwriteException catch (createError) {
-      // ─── الخطوة 3: create فشل بـ 409 → المستند موجود لكن update قال 404 ───
       if (isAlreadyExists(createError)) {
-        // ✅ نمط 404 → 409 → 404 = المستند موجود لكن API key لا يملك صلاحية تحديث
+        // ─── الخطوة 3: create فشل بـ 409 → المستند موجود بصيغة مختلفة ───
         //
-        // هذا يعني: البيانات الموجودة في السحابة هي نسخة قديمة، وبياناتنا
-        // الجديدة لم تُكتب. لا يمكننا اعتبار هذا نجاحاً — البيانات مفقودة.
-        //
-        // الإجراء: نحاول updateDocument مرة أخيرة (قد تنجح في حالات نادرة).
-        // إذا فشلت بـ 404، نرمي الاستثناء ليتم معالجته بواسطة setError.
-        // السجل يبقى في outbox للتحقيق — لا فقدان بيانات صامت.
-        try {
-          return await doUpdate(suppressErrorLog: true);
-        } on AppwriteException catch (finalErr) {
-          if (isNotFound(finalErr)) {
-            // ✅ نمط 404→409→404 مؤكد: المستند موجود لكن لا صلاحية تحديث
-            // لا نعتبره نجاحاً — البيانات الجديدة لم تصل للسحابة
-            _logger.warning(
-              '⚠️ upsert: 404→409→404 pattern — document exists in cloud '
-              'but API key cannot update it (permissions issue). '
-              'New data was NOT written. Record will retry. '
-              'Fix: check collection permissions in Appwrite Console. '
-              'collection=$collectionId, docId=$documentId',
+        // نمط 404 → 409 يعني المستند موجود لكن بـ ID مختلف.
+        // نجرب updateDocument بالـ ID البديل (بدون شرطات).
+
+        // 3أ: تجربة ID البديل (بدون شرطات)
+        if (altDocumentId.isNotEmpty) {
+          try {
+            _logger.debug(
+              'upsert: trying alt ID (no dashes): $altDocumentId',
               tag: 'UPSERT',
             );
-            // رمي الاستثناء ليتم معالجته بواسطة setError في _processOutboxEntry
-            // السجل يُوضع في 'failed' ويُعاد المحاولة لاحقاً مع backoff
-            rethrow;
+            return await doUpdate(altDocumentId, suppressErrorLog: true);
+          } on AppwriteException catch (altError) {
+            if (!isNotFound(altError)) {
+              rethrow; // خطأ آخر غير 404
+            }
+            // 404 على ID البديل أيضاً — المستند موجود بصيغة ثالثة؟
           }
-          // خطأ آخر (وليس 404) — نسجّل ونعيد رميه
-          AppwriteLogger().error(
-            'upsert: Step 3 updateDocument failed after createDocument(409) '
-            'after updateDocument(404). collection=$collectionId, '
-            'docId=$documentId. Error: $finalErr',
-            tag: 'UPSERT',
-          );
+        }
+
+        // 3ب: محالة أخيرة updateDocument بالـ ID الأصلي
+        try {
+          return await doUpdate(documentId, suppressErrorLog: true);
+        } on AppwriteException catch (finalErr) {
+          if (isNotFound(finalErr)) {
+            // نمط 404 → 409 → 404 → 404: المستند موجود (409) لكن لا يمكن
+            // تحديثه بأي صيغة ID. هذا يشير لمشكلة في قاعدة البيانات نفسها.
+            _logger.warning(
+              '⚠️ upsert: document exists (409) but unreachable by any ID format. '
+              'collection=$collectionId, docId=$documentId. '
+              'The document may be in a corrupted state in Appwrite.',
+              tag: 'UPSERT',
+            );
+          }
           rethrow;
         }
       }
-      // create فشل بخطأ آخر (وليس 409) — نعيد رميه
+      // create فشل بخطأ آخر (وليس 409)
       _logger.error(
-        'upsert: createDocument failed with non-409 error. '
+        'upsert: createDocument failed. '
         'collection=$collectionId, docId=$documentId. Error: $createError',
         tag: 'UPSERT',
       );

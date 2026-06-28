@@ -78,12 +78,7 @@ class SecondaryAppwriteService {
     }
   }
 
-  /// Upsert مستند في Secondary — المنطق:
-  /// 1) نحاول updateDocument أولاً (Optimistic — الغالبية تحديثات)
-  /// 2) إذا فشل بـ 404 → المستند غير موجود → createDocument
-  /// 3) إذا فشل createDocument بـ 409 (race) → نعيد updateDocument
-  ///
-  /// ✅ إصلاح (2026-06-28): نفس منطق Primary مع retry/timeout + كتم 404
+  /// Upsert مستند في Secondary — معالجة ID بدون شرطات (مثل Primary)
   Future<models.Document> upsertDocument({
     required String collectionId,
     required String documentId,
@@ -103,15 +98,21 @@ class SecondaryAppwriteService {
         (e.type ?? '').contains('conflict') ||
         e.toString().contains('document_already_exists');
 
-    // ✅ مساعد لتنفيذ updateDocument مع retry/timeout
-    // suppressErrorLog=true لكتم 404 المتوقع في المحاولة الأولى
-    Future<models.Document> doUpdate({bool suppressErrorLog = false}) async {
+    // ✅ معالجة ID بدون شرطات (نفس Primary)
+    final altDocumentId = documentId.contains('-')
+        ? documentId.replaceAll('-', '')
+        : '';
+
+    Future<models.Document> doUpdate(
+      String id, {
+      bool suppressErrorLog = false,
+    }) async {
       return _networkHelper.withRetryAndTimeout(
         // ignore: deprecated_member_use
         operation: () => _databases!.updateDocument(
           databaseId: dbId,
           collectionId: collectionId,
-          documentId: documentId,
+          documentId: id,
           data: data,
         ),
         operationName: 'secondary_updateDocument',
@@ -119,7 +120,6 @@ class SecondaryAppwriteService {
       );
     }
 
-    // ✅ مساعد لتنفيذ createDocument مع retry/timeout
     Future<models.Document> doCreate() async {
       return _networkHelper.withRetryAndTimeout(
         // ignore: deprecated_member_use
@@ -130,84 +130,53 @@ class SecondaryAppwriteService {
           data: data,
         ),
         operationName: 'secondary_createDocument',
+        suppressErrorLog: true,
       );
     }
 
-    // الخطوة 1: محاولة updateDocument (كتم 404 المتوقع)
+    // الخطوة 1: updateDocument بالـ ID الأصلي
     try {
-      return await doUpdate(suppressErrorLog: true);
+      return await doUpdate(documentId, suppressErrorLog: true);
     } on AppwriteException catch (updateError) {
       if (!isNotFound(updateError)) {
         if (isAlreadyExists(updateError)) {
-          _logger.debug(
-            'secondary upsert: updateDocument(409) → trying createDocument. '
-            'collection=$collectionId, docId=$documentId',
-            tag: 'SECONDARY_UPSERT',
-          );
-          try {
-            return await doCreate();
-          } on AppwriteException catch (createError2) {
-            if (isAlreadyExists(createError2)) {
-              try {
-                return await doUpdate();
-              } catch (finalErr) {
-                _logger.error(
-                  'secondary upsert: Step 5 updateDocument failed. '
-                  'collection=$collectionId, docId=$documentId. Error: $finalErr',
-                  tag: 'SECONDARY_UPSERT',
-                );
-                rethrow;
-              }
+          try { return await doCreate(); }
+          on AppwriteException catch (e2) {
+            if (isAlreadyExists(e2)) {
+              try { return await doUpdate(documentId); }
+              catch (e3) { rethrow; }
             }
             rethrow;
           }
         }
         rethrow;
       }
-      // 404 متوقع — نسجّل كمعلومة DEBUG
-      _logger.debug(
-        'secondary upsert: updateDocument(404) → record is new, creating. '
-        'collection=$collectionId, docId=$documentId',
-        tag: 'SECONDARY_UPSERT',
-      );
     }
 
-    // الخطوة 2: update فشل بـ 404 → createDocument
-    // ✅ suppressErrorLog=true: 409 متوقع في سباق البيانات
+    // الخطوة 2: createDocument
     try {
-      return await _networkHelper.withRetryAndTimeout(
-        // ignore: deprecated_member_use
-        operation: () => _databases!.createDocument(
-          databaseId: dbId,
-          collectionId: collectionId,
-          documentId: documentId,
-          data: data,
-        ),
-        operationName: 'secondary_createDocument',
-        suppressErrorLog: true,
-      );
+      return await doCreate();
     } on AppwriteException catch (createError) {
-      // الخطوة 3: create فشل بـ 409 → المستند موجود لكن update قال 404
       if (isAlreadyExists(createError)) {
-        // ✅ نمط 404 → 409 → 404 = صلاحيات
-        // لا نعتبره نجاحاً — البيانات الجديدة لم تصل للسحابة
+        // الخطوة 3: 409 → تجربة ID البديل (بدون شرطات)
+        if (altDocumentId.isNotEmpty) {
+          try {
+            return await doUpdate(altDocumentId, suppressErrorLog: true);
+          } on AppwriteException catch (altError) {
+            if (!isNotFound(altError)) { rethrow; }
+          }
+        }
+        // محاولة أخيرة
         try {
-          return await doUpdate(suppressErrorLog: true);
+          return await doUpdate(documentId, suppressErrorLog: true);
         } on AppwriteException catch (finalErr) {
           if (isNotFound(finalErr)) {
             _logger.warning(
-              '⚠️ secondary upsert: 404→409→404 — document exists but '
-              'cannot update (permissions). New data NOT written. '
+              '⚠️ secondary upsert: document exists (409) but unreachable. '
               'collection=$collectionId, docId=$documentId',
               tag: 'SECONDARY_UPSERT',
             );
-            rethrow;
           }
-          _logger.error(
-            'secondary upsert: Step 3 updateDocument failed. '
-            'collection=$collectionId, docId=$documentId. Error: $finalErr',
-            tag: 'SECONDARY_UPSERT',
-          );
           rethrow;
         }
       }
