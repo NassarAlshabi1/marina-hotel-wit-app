@@ -1694,6 +1694,12 @@ class GoogleDriveBackupService {
           await fixService.runAutoFixAfterRestore(
             backupTimestamp: metadata.backupTimestamp,
           );
+
+          // ✅ إصلاح حرج (2026-06-28): إعادة ربط المدفوعات والديون بالحجوزات
+          // بعد استعادة نسخة من جهاز آخر، bookingLocalId (auto-increment) يختلف.
+          // هذه الخطوة تربط المدفوعات بالحجوزات باستخدام bookingUuidCache/localUuid.
+          await _relinkPaymentsToBookings(db);
+          await _relinkDebtsToBookings(db);
         }); // نهاية db.transaction
       } finally {
         // ✅ إعادة تفعيل FOREIGN KEYS خارج المعاملة
@@ -1717,6 +1723,10 @@ class GoogleDriveBackupService {
           _log('⚠️ تعذر التحقق من سلامة FK: $e');
         }
       }
+
+      // ✅ إصلاح (2026-06-28): إعادة ربط خارج transaction أيضاً (احتياطي)
+      await _relinkPaymentsToBookings(db);
+      await _relinkDebtsToBookings(db);
 
       // مزامنة البيانات المستعادة مع Appwrite
       try {
@@ -2175,5 +2185,95 @@ class GoogleDriveBackupService {
   void dispose() {
     _driveApi = null;
     _backupFolderId = null;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // ✅ إعادة ربط المدفوعات والديون بالحجوزات بعد الاستعادة (2026-06-28)
+  // ════════════════════════════════════════════════════════════════════
+  //
+  // المشكلة: عند استعادة نسخة من جهاز آخر، bookingLocalId (auto-increment)
+  // يختلف بين الأجهزة. المدفوعات تُستعادة لكن bookingLocalId لا يتطابق
+  // مع id الحجز الجديد → المدفوعات لا تظهر.
+  //
+  // الحل: نربط المدفوعات بالحجوزات باستخدام bookingUuidCache (UUID)
+  // الذي يتطابق عبر الأجهزة.
+
+  /// إعادة ربط المدفوعات بالحجوزات باستخدام UUID
+  Future<void> _relinkPaymentsToBookings(AppDatabase db) async {
+    try {
+      // جلب كل الحجوزات مع UUID → id
+      final bookings = await db.select(db.bookings).get();
+      final bookingByUuid = <String, int>{};
+      for (final b in bookings) {
+        bookingByUuid[b.localUuid] = b.id;
+      }
+
+      // جلب كل المدفوعات
+      final payments = await db.select(db.payments).get();
+      int relinked = 0;
+
+      for (final p in payments) {
+        // إذا bookingLocalId уже مضبوط بشكل صحيح، تخطّي
+        if (p.bookingLocalId != null && bookingByUuid.containsValue(p.bookingLocalId)) {
+          continue;
+        }
+
+        // ابحث عن الحجز بـ UUID
+        final uuid = p.bookingUuidCache;
+        if (uuid != null && uuid.isNotEmpty && bookingByUuid.containsKey(uuid)) {
+          final correctBookingId = bookingByUuid[uuid]!;
+          await (db.update(db.payments)
+                ..where((t) => t.id.equals(p.id)))
+              .write(PaymentsCompanion(bookingLocalId: Value(correctBookingId)));
+          relinked++;
+        }
+      }
+
+      if (relinked > 0) {
+        _log('🔗 تم إعادة ربط $relinked دفعة بالحجوزات بنجاح');
+      }
+    } catch (e) {
+      _log('⚠️ فشل إعادة ربط المدفوعات: $e');
+    }
+  }
+
+  /// إعادة ربط الديون بالحجوزات باستخدام UUID
+  Future<void> _relinkDebtsToBookings(AppDatabase db) async {
+    try {
+      final bookings = await db.select(db.bookings).get();
+      final bookingByUuid = <String, int>{};
+      for (final b in bookings) {
+        bookingByUuid[b.localUuid] = b.id;
+      }
+
+      final debts = await db.select(db.debts).get();
+      int relinked = 0;
+
+      for (final d in debts) {
+        if (d.bookingLocalId != null && bookingByUuid.containsValue(d.bookingLocalId)) {
+          continue;
+        }
+
+        // الديون لا تحتوي على bookingUuidCache — نحاول المطابقة بـ guestName + checkinDate
+        // كحل أخير: نبحث عن حجز بنفس اسم النزيل وتاريخ الدخول
+        if (d.guestName.isNotEmpty && d.checkinDate.isNotEmpty) {
+          final matchingBooking = bookings.where((b) =>
+              b.guestName == d.guestName && b.checkinDate == d.checkinDate
+          ).firstOrNull;
+          if (matchingBooking != null) {
+            await (db.update(db.debts)
+                  ..where((t) => t.id.equals(d.id)))
+                .write(DebtsCompanion(bookingLocalId: Value(matchingBooking.id)));
+            relinked++;
+          }
+        }
+      }
+
+      if (relinked > 0) {
+        _log('🔗 تم إعادة ربط $relinked دين بالحجوزات بنجاح');
+      }
+    } catch (e) {
+      _log('⚠️ فشل إعادة ربط الديون: $e');
+    }
   }
 }
