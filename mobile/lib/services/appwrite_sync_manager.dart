@@ -16,6 +16,7 @@ import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 import '../utils/app_logger.dart';
 import '../utils/id.dart';
+import '../utils/secure_storage.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'adapters/adapter_registry.dart';
@@ -2278,8 +2279,15 @@ class AppwriteSyncManager {
 
     int totalProcessed = 0;
     int consecutiveFailures = 0;
+    const int maxIterations = 500;
+    int iterations = 0;
 
     while (true) {
+      iterations++;
+      if (iterations > maxIterations) {
+        _logger.error('Max iterations exceeded in _pushAllEntities', tag: 'SYNC');
+        break;
+      }
       final batchSize = _adaptiveBatchSize.round();
       final entries = await outboxDao.takeBatch(batchSize, sources: const ['local']);
       if (entries.isEmpty) {

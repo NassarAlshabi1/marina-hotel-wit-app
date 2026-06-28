@@ -18,6 +18,7 @@ import 'dart:convert';
 import '../appwrite_config.dart';
 import '../appwrite_sync_utils.dart';
 import '../../utils/time.dart';
+import '../../utils/secure_storage.dart';
 import '../appwrite_logger.dart';
 import '../appwrite_error_handler.dart';
 
@@ -90,64 +91,68 @@ int? _asIntSafe(Map<String, dynamic> data, String key) {
 
 
 Future<int> _pushAllEntities() async {
-  // ✅ فحص الاتصال أولاً
-  try {
-    final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity.contains(ConnectivityResult.none)) {
-      _logger.warning('⚠️ لا يوجد اتصال بالإنترنت - تم تأجيل الرفع', tag: 'SYNC');
-      return 0;
-    }
-  } catch (_) {}
+   // ✅ فحص الاتصال أولاً
+   try {
+     final connectivity = await Connectivity().checkConnectivity();
+     if (connectivity.contains(ConnectivityResult.none)) {
+       _logger.warning('⚠️ لا يوجد اتصال بالإنترنت - تم تأجيل الرفع', tag: 'SYNC');
+       return 0;
+     }
+   } catch (_) {}
 
-  int totalProcessed = 0;
-  int consecutiveFailures = 0;
+   int totalProcessed = 0;
+   int consecutiveFailures = 0;
+   // ✅ P1-10 إصلاح: حد أعلى صارم للحلقة لمنع الاستهلاك اللانهائي
+   const maxBatches = 1000;
+   var batchCount = 0;
 
-  while (true) {
-    final batchSize = _adaptiveBatchSize.round();
-    final entries = await outboxDao.takeBatch(batchSize, sources: const ['local']);
-    if (entries.isEmpty) {
-      break;
-    }
+   while (batchCount < maxBatches) {
+     final batchSize = _adaptiveBatchSize.round();
+     final entries = await outboxDao.takeBatch(batchSize, sources: const ['local']);
+     if (entries.isEmpty) {
+       break;
+     }
 
-    int processedInBatch = 0;
-    for (final entry in entries) {
-      try {
-        final timeoutSeconds = 30;
-        final success = await _processOutboxEntry(entry)
-            .timeout(Duration(seconds: timeoutSeconds));
-        if (success) {
-          await outboxDao.removeById(entry.id);
-          processedInBatch++;
-        }
-      } catch (e) {
-        if (e is TimeoutException) {
-          _logger.warning('⏱️ Timeout processing entry ${entry.id}', tag: 'SYNC');
-        }
-      }
-    }
+     int processedInBatch = 0;
+     for (final entry in entries) {
+       try {
+         final timeoutSeconds = 30;
+         final success = await _processOutboxEntry(entry)
+             .timeout(Duration(seconds: timeoutSeconds));
+         if (success) {
+           await outboxDao.removeById(entry.id);
+           processedInBatch++;
+         }
+       } catch (e) {
+         if (e is TimeoutException) {
+           _logger.warning('⏱️ Timeout processing entry ${entry.id}', tag: 'SYNC');
+         }
+       }
+     }
 
-    // Adaptive batch size
-    if (processedInBatch == entries.length) {
-      _adaptiveBatchSize = (_adaptiveBatchSize * 1.3).clamp(10, 200);
-      consecutiveFailures = 0;
-    } else {
-      _adaptiveBatchSize = (_adaptiveBatchSize * 0.6).clamp(5, 100);
-      consecutiveFailures++;
-    }
+     // Adaptive batch size
+     if (processedInBatch == entries.length) {
+       _adaptiveBatchSize = (_adaptiveBatchSize * 1.3).clamp(10, 200);
+       consecutiveFailures = 0;
+     } else {
+       _adaptiveBatchSize = (_adaptiveBatchSize * 0.6).clamp(5, 100);
+       consecutiveFailures++;
+     }
 
-    totalProcessed += processedInBatch;
+     totalProcessed += processedInBatch;
+     batchCount++;
 
-    if (consecutiveFailures >= 3) {
-      _logger.warning('⛔ 3 دفعات فاشلة متتالية - إيقاف المزامنة', tag: 'SYNC');
-      break;
-    }
+     if (consecutiveFailures >= 3) {
+       _logger.warning('⛔ 3 دفعات فاشلة متتالية - إيقاف المزامنة', tag: 'SYNC');
+       break;
+     }
 
-    if (entries.length < batchSize) {
-      break;
-    }
-  }
-  return totalProcessed;
-}
+     if (entries.length < batchSize) {
+       break;
+     }
+   }
+   return totalProcessed;
+ }
 
 
 Future<bool> _processOutboxEntry(OutboxData entry) async {
@@ -1196,6 +1201,8 @@ Future<bool> _processBookingPriceAdjustmentEntry(OutboxData entry) async {
 Future<bool> _pushAppSettingsToCloud() async {
   try {
     final prefs = await SharedPreferences.getInstance();
+    final deviceId = await _getDeviceId();
+    final encryptionKey = SecureStorage.getEncryptionKey(deviceId);
 
     // ⚠️ حقول app_settings الفعلية في Appwrite Cloud (25 حقل فقط — الحد الأقصى)
     // تم تدقيق كل حقل مقابل المخطط الفعلي في 2026-06-14
@@ -1212,14 +1219,14 @@ Future<bool> _pushAppSettingsToCloud() async {
       'wa_api_type': prefs.getString('wa_api_type') ?? 'greenapi',
       'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
       'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',
-      'wa_api_token': prefs.getString('wa_api_token') ?? '',
+      'wa_api_token': SecureStorage.encryptValue(prefs.getString('wa_api_token') ?? '', encryptionKey),
       'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
       'wa_sendzen_api_key': prefs.getString('wa_sendzen_api_key') ?? '',
       'wa_sendzen_from_number': prefs.getString('wa_sendzen_from_number') ?? '',
       'wa_template': prefs.getString('whatsapp_template') ?? '',
       // ── Telegram ──
       'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
-      'telegram_bot_token': prefs.getString('telegram_bot_token') ?? '',
+      'telegram_bot_token': SecureStorage.encryptValue(prefs.getString('telegram_bot_token') ?? '', encryptionKey),
       'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '',
       'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
       'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
@@ -1227,7 +1234,7 @@ Future<bool> _pushAppSettingsToCloud() async {
       // ── Lark ──
       'lark_enabled': prefs.getBool('lark_enabled') ?? false,
       'lark_app_id': prefs.getString('lark_app_id') ?? '',
-      'lark_app_secret': prefs.getString('lark_app_secret') ?? '',
+      'lark_app_secret': SecureStorage.encryptValue(prefs.getString('lark_app_secret') ?? '', encryptionKey),
       'lark_webhook_url': prefs.getString('lark_webhook_url') ?? '',
       'lark_daily_report_enabled': prefs.getBool('lark_daily_report_enabled') ?? false,
       'lark_daily_report_time': prefs.getString('lark_daily_report_time') ?? '08:00',
