@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, unawaited_futures
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -121,6 +121,20 @@ class _SecondaryAppwriteSettingsScreenState
       debugPrint('🔵 [Secondary] Marked $count records as undelivered to secondary');
       if (SecondaryAppwriteConfig.isPushEnabled) {
         SecondarySyncManager.instance.startAutoSync();
+
+        // ✅ إصلاح (2026-06-28): مزامنة فورية للسجلات المتراكمة
+        // لا ننتظر 15 دقيقة — ارفع فوراً
+       
+        SecondarySyncManager.instance.sync().then((result) {
+          if (mounted && result.pushed > 0) {
+            _showMessage(true, '✅ تم رفع ${result.pushed} سجل للوجهة الثانوية');
+            setState(() => _lastSync = DateTime.now());
+          }
+        }).catchError((Object e) {
+          if (mounted) {
+            _showMessage(false, '⚠️ فشل الرفع الفوري: $e — سيُعاد تلقائياً');
+          }
+        });
       }
     } else {
       // تعطيل: نُعلّم كل السجلات كـ "مُسلّمة للثانوي" لمنع حجبها
@@ -135,7 +149,7 @@ class _SecondaryAppwriteSettingsScreenState
 
   /// تفعيل/تعطيل الرفع (Push) لـ Secondary عبر outbox
   ///
-  /// عند التفعيل: نبدأ المزامنة التلقائية للرفع
+  /// عند التفعيل: نبدأ المزامنة التلقائية + مزامنة فورية للسجلات المتراكمة
   /// عند التعطيل: نوقف المزامنة التلقائية، لكن السجلات المُعلّمة كـ
   ///   "غير مُسلّمة للثانوي" تبقى في outbox حتى يُعاد تفعيل الرفع
   Future<void> _togglePush(bool value) async {
@@ -150,16 +164,37 @@ class _SecondaryAppwriteSettingsScreenState
     );
     ref.read(secondarySyncProvider.notifier).refresh();
 
-    // إعادة تشغيل/إيقاف المزامنة التلقائية حسب الحالة
     if (value && SecondaryAppwriteConfig.isEnabled) {
+      // ✅ بدء المزامنة التلقائية
       SecondarySyncManager.instance.startAutoSync();
+
+      // ✅ إصلاح (2026-06-28): مزامنة فورية للسجلات المتراكمة في outbox
+      // عندما كان Push معطلاً، السجلات تُكتب في outbox لكن لا تُرفع.
+      // عند إعادة التفعيل، يجب رفعها فوراً — لا الانتظار 15 دقيقة.
+      _showMessage(true, '✅ الرفع (Push) مُفعّل — جاري رفع السجلات المتراكمة...');
+
+     
+      SecondarySyncManager.instance.sync().then((result) {
+        if (mounted) {
+          if (result.success) {
+            _showMessage(true, '✅ تم رفع ${result.pushed} سجل للوجهة الثانوية');
+            setState(() => _lastSync = DateTime.now());
+          } else if (result.pushed > 0) {
+            _showMessage(true, '⚠️ تم رفع ${result.pushed} سجل، فشل ${result.failed}');
+            setState(() => _lastSync = DateTime.now());
+          }
+        }
+      }).catchError((Object e) {
+        if (mounted) {
+          _showMessage(false, '⚠️ فشل الرفع الفوري: $e — سيُعاد المحاولة تلقائياً');
+        }
+      });
     } else {
       SecondarySyncManager.instance.stopAutoSync();
+      _showMessage(true, '⏹️ الرفع (Push) معطّل');
     }
 
     setState(() {});
-    _showMessage(
-        true, value ? '✅ الرفع (Push) مُفعّل' : '⏹️ الرفع (Push) معطّل');
   }
 
   /// تفعيل/تعطيل السحب (Pull) من Secondary — أي Failover للقراءة
