@@ -188,9 +188,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           children: [
             _buildHeader(),
             const SizedBox(height: 16),
-            // ✅ إصلاح أداء (2026-06-28): RepaintBoundary لعزل بطاقات الإحصائيات
-            // بطاقات الإحصائيات تتغير بشكل مستقل عن قسم الغرف — فصل إعادة الرسم
-            RepaintBoundary(child: _buildStatisticsCards()),
+            _buildStatisticsCards(),
             const SizedBox(height: 20),
             _buildRoomsSection(),
             const SizedBox(height: 12),
@@ -236,79 +234,112 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildStatisticsCards() {
-    // ✅ إصلاح أداء (2026-06-28): توحيد ref.watch في Consumer واحد
-    // المنطق القديم كان يشاهد todayPaymentsProvider و todayExpensesProvider
-    // مرتين لكل منهما (في بطاقتين منفصلتين)، مما يُضاعف إعادة البناء.
-    // الآن نراقب المزودَين مرة واحدة في Consumer أعلى الصف،
-    // ونبني البطاقات الثلاث من القيم المحسوبة.
     final currencyFmt = NumberFormat('#,##0', 'en_US');
-    return Consumer(
-      builder: (context, ref, _) {
-        final incomeAsync = ref.watch(todayPaymentsProvider);
-        final expensesAsync = ref.watch(todayExpensesProvider);
+    return Row(
+      children: [
+        Expanded(
+          child: Consumer(
+            builder: (context, ref, _) {
+              final incomeAsync = ref.watch(todayPaymentsProvider);
+              final expensesAsync = ref.watch(todayExpensesProvider);
 
-        // بطاقة المتبقي (تحتاج كلا المزودَين)
-        final isLoading = incomeAsync.isLoading || expensesAsync.isLoading;
-        final hasError = incomeAsync.hasError || expensesAsync.hasError;
-        final income = incomeAsync.valueOrNull ?? 0.0;
-        final expenses = expensesAsync.valueOrNull ?? 0.0;
-        final balance = income - expenses;
+              // التعامل مع حالة التحميل
+              final isLoading = incomeAsync.isLoading || expensesAsync.isLoading;
+              final hasError = incomeAsync.hasError || expensesAsync.hasError;
 
-        final balanceCard = isLoading
-            ? _buildStatCard('المتبقي', '...', Icons.savings, Colors.indigo)
-            : hasError
-                ? _buildStatCard('المتبقي', '--', Icons.savings, Colors.indigo)
-                : _buildStatCard(
-                    balance >= 0 ? 'المتبقي' : 'عجز',
-                    currencyFmt.format(balance.abs()),
-                    balance >= 0 ? Icons.savings : Icons.warning_amber_rounded,
-                    balance >= 0 ? Colors.indigo : Colors.orange,
-                  );
+              if (isLoading) {
+                return _buildStatCard(
+                  'المتبقي',
+                  '...',
+                  Icons.savings,
+                  Colors.indigo,
+                );
+              }
 
-        // بطاقة مدفوعات اليوم
-        final paymentsCard = incomeAsync.when(
-          loading: () => _buildStatCard(
-              'مدفوعات اليوم', '...', Icons.payments_rounded, Colors.green),
-          error: (e, _) => _buildStatCard(
-              'مدفوعات اليوم', '--', Icons.payments_rounded, Colors.green),
-          data: (total) => _buildStatCard(
-            'مدفوعات اليوم',
-            currencyFmt.format(total),
-            Icons.payments_rounded,
-            Colors.green,
+              if (hasError) {
+                return _buildStatCard(
+                  'المتبقي',
+                  '--',
+                  Icons.savings,
+                  Colors.indigo,
+                );
+              }
+
+              final income = incomeAsync.valueOrNull ?? 0.0;
+              final expenses = expensesAsync.valueOrNull ?? 0.0;
+              final balance = income - expenses;
+
+              return _buildStatCard(
+                balance >= 0 ? 'المتبقي' : 'عجز',
+                currencyFmt.format(balance.abs()),
+                balance >= 0 ? Icons.savings : Icons.warning_amber_rounded,
+                balance >= 0 ? Colors.indigo : Colors.orange,
+              );
+            },
           ),
-        );
-
-        // بطاقة المصروفات
-        final expensesCard = expensesAsync.when(
-          loading: () => _buildStatCard(
-              'المصروفات', '...', Icons.money_off_rounded, Colors.red),
-          error: (e, _) => _buildStatCard(
-              'المصروفات', '--', Icons.money_off_rounded, Colors.red),
-          data: (total) => _buildStatCard(
-            'المصروفات',
-            currencyFmt.format(total),
-            Icons.money_off_rounded,
-            Colors.red,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => const ExpensesReportScreen(),
-              ),
-            ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Consumer(
+            builder: (context, ref, _) {
+              final paymentsAsync = ref.watch(todayPaymentsProvider);
+              return paymentsAsync.when(
+                loading: () => _buildStatCard(
+                  'مدفوعات اليوم',
+                  '...',
+                  Icons.payments_rounded,
+                  Colors.green,
+                ),
+                error: (e, _) => _buildStatCard(
+                  'مدفوعات اليوم',
+                  '--',
+                  Icons.payments_rounded,
+                  Colors.green,
+                ),
+                data: (total) => _buildStatCard(
+                  'مدفوعات اليوم',
+                  currencyFmt.format(total),
+                  Icons.payments_rounded,
+                  Colors.green,
+                ),
+              );
+            },
           ),
-        );
-
-        return Row(
-          children: [
-            Expanded(child: balanceCard),
-            const SizedBox(width: 10),
-            Expanded(child: paymentsCard),
-            const SizedBox(width: 10),
-            Expanded(child: expensesCard),
-          ],
-        );
-      },
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Consumer(
+            builder: (context, ref, _) {
+              final expensesAsync = ref.watch(todayExpensesProvider);
+              return expensesAsync.when(
+                loading: () => _buildStatCard(
+                  'المصروفات',
+                  '...',
+                  Icons.money_off_rounded,
+                  Colors.red,
+                ),
+                error: (e, _) => _buildStatCard(
+                  'المصروفات',
+                  '--',
+                  Icons.money_off_rounded,
+                  Colors.red,
+                ),
+                data: (total) => _buildStatCard(
+                  'المصروفات',
+                  currencyFmt.format(total),
+                  Icons.money_off_rounded,
+                  Colors.red,
+                  onTap: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(builder: (_) => const ExpensesReportScreen(),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -407,26 +438,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          // ✅ إصلاح أداء (2026-06-28): RepaintBoundary لعزل إعادة الرسم
-          // شبكة الغرف تحتوي على رسوم متحركة (flutter_animate) للغرف المتأخرة.
-          // بدون RepaintBoundary، كل إطار حركة يُعاد رسمه في كل الشجرة.
-          RepaintBoundary(
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 1.2,
-              ),
-              itemCount: _dashboardRoomNumbers.length,
-              itemBuilder: (context, index) {
-                final roomNumber = _dashboardRoomNumbers[index];
-                final rws = roomsMap[roomNumber];
-                return _buildRoomButton(context, roomNumber, rws);
-              },
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.2,
             ),
+            itemCount: _dashboardRoomNumbers.length,
+            itemBuilder: (context, index) {
+              final roomNumber = _dashboardRoomNumbers[index];
+              final rws = roomsMap[roomNumber];
+              return _buildRoomButton(context, roomNumber, rws);
+            },
           ),
         ],
       ),
