@@ -2312,6 +2312,15 @@ class AppwriteSyncManager {
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {
+    // ✅ إصلاح حرج (2026-06-28): زيادة Vector Clock قبل الرفع
+    // بدون هذا، يبقى vectorClock دائماً '{}' على Appwrite Cloud
+    // مما يُعطل كشف التعارضات المتزامنة تماماً (يصبح النظام LWW فقط).
+    String? _oldVcStr;
+    if (entry.op != 'delete' && _currentDeviceId != null && _currentDeviceId!.isNotEmpty) {
+      _oldVcStr = await _readVectorClock(entry.entity, entry.localUuid);
+      await _bumpVectorClockBeforePush(entry.entity, entry.localUuid, _currentDeviceId!);
+    }
+
     try {
       switch (entry.entity) {
         case 'rooms':
@@ -2355,10 +2364,18 @@ class AppwriteSyncManager {
             'Unknown outbox entity: ${entry.entity}',
             tag: 'SYNC',
           );
-          // لا نحذف الإدخال — نُبقيه للتحقيق ونعيد false ليبقى في الطابور
           return false;
       }
     } catch (error, stackTrace) {
+      // ✅ استعادة VC القديم إذا فشل الرفع
+      if (_oldVcStr != null && entry.op != 'delete') {
+        try {
+          await _writeVectorClock(entry.entity, entry.localUuid, _oldVcStr);
+        } catch (_) {
+          // فشل استعادة VC ليس خطأ قاتلاً
+        }
+      }
+
       final parsed = _errorHandler.handleError(
         error,
         context: 'push:${entry.entity}:${entry.op}',
@@ -3586,6 +3603,73 @@ class AppwriteSyncManager {
         return 'payment_voids';
       default:
         return null;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // ✅ Vector Clock Bumping (2026-06-28) — يضمن أن VC يُرسل للـ Cloud
+  // ════════════════════════════════════════════════════════════════════
+
+  /// قراءة Vector Clock الحالي من قاعدة البيانات
+  Future<String?> _readVectorClock(String entity, String localUuid) async {
+    final tableName = _entityToTableName(entity);
+    if (tableName == null) return null;
+    try {
+      final rows = await database.customSelect(
+        'SELECT vector_clock AS vc FROM $tableName WHERE local_uuid = ? LIMIT 1',
+        variables: [drift.Variable<String>(localUuid)],
+      ).get();
+      if (rows.isEmpty) return '{}';
+      return (rows.first.data['vc'] as String?) ?? '{}';
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// كتابة Vector Clock إلى قاعدة البيانات (للاستعادة بعد فشل الرفع)
+  Future<void> _writeVectorClock(String entity, String localUuid, String vc) async {
+    final tableName = _entityToTableName(entity);
+    if (tableName == null) return;
+    await database.customStatement(
+      'UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?',
+      [vc, localUuid],
+    );
+  }
+
+  /// زيادة Vector Clock للجهاز الحالي قبل رفعه للسحابة
+  Future<void> _bumpVectorClockBeforePush(String entity, String localUuid, String deviceId) async {
+    final tableName = _entityToTableName(entity);
+    if (tableName == null) return;
+
+    try {
+      final rows = await database.customSelect(
+        'SELECT vector_clock AS vc FROM $tableName WHERE local_uuid = ? LIMIT 1',
+        variables: [drift.Variable<String>(localUuid)],
+      ).get();
+
+      if (rows.isEmpty) return;
+
+      final currentVcStr = (rows.first.data['vc'] as String?) ?? '{}';
+      final vc = VectorClock.fromString(currentVcStr);
+      vc.increment(deviceId);
+      final newVcStr = vc.toString();
+
+      await database.customStatement(
+        'UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?',
+        [newVcStr, localUuid],
+      );
+
+      _logger.debug(
+        '⏫ VC bumped: entity=$entity, uuid=${localUuid.substring(0, 8)}..., '
+        'old=$currentVcStr, new=$newVcStr',
+        tag: 'VC',
+      );
+    } catch (e) {
+      _logger.warning(
+        '⚠️ فشل زيادة Vector Clock لـ $entity/$localUuid: $e — '
+        'المتابعة بـ VC الحالي',
+        tag: 'VC',
+      );
     }
   }
 

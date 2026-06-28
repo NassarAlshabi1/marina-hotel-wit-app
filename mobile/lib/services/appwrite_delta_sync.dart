@@ -16,6 +16,7 @@ import 'delta_sync_service.dart';
 import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
 import 'sync_locks.dart';
+import 'vector_clock_service.dart';
 
 class AppwriteDeltaSyncResult {
 
@@ -208,13 +209,21 @@ class AppwriteDeltaSync {
       return;
     }
 
+    // ✅ إصلاح حرج (2026-06-28): زيادة Vector Clock قبل الرفع
+    // بدون هذا، يبقى vectorClock دائماً '{}' على Appwrite Cloud
+    // مما يُعطل كشف التعارضات المتزامنة تماماً.
+    String? newVc;
+    if (change.operation != 'delete' && _deviceId != null && _deviceId!.isNotEmpty) {
+      newVc = await _bumpVectorClock(change.entity, change.localUuid, _deviceId!);
+    }
+
     final payload = Map<String, dynamic>.from(change.data);
     payload['deviceId'] = _deviceId;
     payload['syncTimestamp'] = Time.nowEpoch();
-    // ⚠️ لا نضيف sync_origin أو sync_vector_clock هنا —
-    // sanitizePayload + filterPayloadForCollection يتكفلان بالتصفية
-    // sync_origin موجود فقط في: booking_notes, sync_state, app_users
-    // sync_vector_clock غير موجود في أي مجموعة — لا يُرسل أبداً
+    // ✅ تحديث vectorClock في payload بالقيمة الجديدة بعد الـ bump
+    if (newVc != null) {
+      payload['vectorClock'] = newVc;
+    }
 
     switch (change.operation) {
       case 'insert':
@@ -1622,6 +1631,87 @@ class AppwriteDeltaSync {
         return 'salary_carry_over_logs';
       default:
         return null;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // ✅ Vector Clock Bumping (2026-06-28) — يضمن أن VC يُرسل للـ Cloud
+  // ════════════════════════════════════════════════════════════════════
+
+  /// زيادة Vector Clock للجهاز الحالي قبل رفعه للسحابة
+  /// تُعيد القيمة الجديدة لـ vectorClock ليتم تضمينها في الـ payload
+  Future<String?> _bumpVectorClock(String entity, String localUuid, String deviceId) async {
+    final tableName = _getTableName(entity);
+    if (tableName == null) return null;
+
+    try {
+      final rows = await _database.customSelect(
+        'SELECT vector_clock AS vc FROM $tableName WHERE local_uuid = ? LIMIT 1',
+        variables: [d.Variable<String>(localUuid)],
+        readsFrom: {_getDriftTable(tableName)},
+      ).get();
+
+      if (rows.isEmpty) return null;
+
+      final currentVcStr = (rows.first.data['vc'] as String?) ?? '{}';
+      final vc = VectorClock.fromString(currentVcStr);
+      vc.increment(deviceId);
+      final newVcStr = vc.toString();
+
+      await _database.customStatement(
+        'UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?',
+        [newVcStr, localUuid],
+      );
+
+      _logger.debug(
+        '⏫ VC bumped: entity=$entity, uuid=${localUuid.length > 8 ? localUuid.substring(0, 8) : localUuid}..., '
+        'old=$currentVcStr, new=$newVcStr',
+        tag: 'VC',
+      );
+      return newVcStr;
+    } catch (e) {
+      _logger.warning(
+        '⚠️ فشل زيادة Vector Clock لـ $entity/$localUuid: $e — '
+        'المتابعة بـ VC الحالي',
+        tag: 'VC',
+      );
+      return null;
+    }
+  }
+
+  /// تحويل اسم الكيان إلى اسم الجدول في قاعدة البيانات
+  String? _getTableName(String entity) {
+    switch (entity) {
+      case 'rooms': return 'rooms';
+      case 'bookings': return 'bookings';
+      case 'booking_notes': return 'booking_notes';
+      case 'booking_nights': return 'booking_nights';
+      case 'payments': return 'payments';
+      case 'expenses': return 'expenses';
+      case 'cash_transactions': return 'cash_transactions';
+      case 'debts': return 'debts';
+      case 'employees': return 'employees';
+      case 'salary_cycles': return 'salary_cycles';
+      case 'salary_payments': return 'salary_payments';
+      case 'shift_notes': return 'shift_notes';
+      case 'blacklist': return 'shift_notes'; // blacklist مخزّن في shift_notes
+      case 'price_adjustments': return 'price_adjustments';
+      case 'booking_price_adjustments': return 'booking_price_adjustments';
+      case 'audit_logs': return 'audit_logs';
+      case 'payment_voids': return 'payment_voids';
+      case 'guest_infos': return 'guest_infos';
+      case 'salary_withdrawals': return 'salary_withdrawals';
+      case 'salary_carry_over_logs': return 'salary_carry_over_logs';
+      default: return null;
+    }
+  }
+
+  /// تحويل اسم الجدول إلى Drift table reference لاستخدامه في readsFrom
+  ResultSetImplementation<dynamic, dynamic> _getDriftTable(String tableName) {
+    switch (tableName) {
+      case 'rooms': return _database.rooms;
+      case 'bookings': return _database.bookings;
+      default: return _database.rooms; // fallback safe
     }
   }
 
