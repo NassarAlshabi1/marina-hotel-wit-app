@@ -22,6 +22,7 @@ import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
 import 'sync_locks.dart';
 import 'vector_clock_service.dart';
+import 'package:drift/drift.dart' show TableInfo;
 
 class AppwriteDeltaSyncResult {
 
@@ -1726,7 +1727,7 @@ class AppwriteDeltaSync {
   }
 
   /// تحويل اسم الجدول إلى Drift table reference لاستخدامه في readsFrom
-  ResultSetImplementation<dynamic, dynamic> _getDriftTable(String tableName) {
+  TableInfo<_Database, dynamic> _getDriftTable(String tableName) {
     switch (tableName) {
       case 'rooms': return _database.rooms;
       case 'bookings': return _database.bookings;

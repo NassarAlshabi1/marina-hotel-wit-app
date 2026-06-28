@@ -1620,9 +1620,9 @@ class AppwriteSyncManager {
               remoteData.addAll(resolution.mergedData);
               // تخزين ancestor المدمج للمرات القادمة
               await _ancestorCacheDao.saveAncestor(
-                entityName,
-                localUuid,
-                resolution.mergedData,
+                entity: entityName,
+                localUuid: localUuid,
+                data: resolution.mergedData,
               );
               return _RemoteNewerResult(
                 shouldApplyRemote: true,
