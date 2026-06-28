@@ -520,43 +520,31 @@ class AppwriteService {
     } on AppwriteException catch (createError) {
       // ─── الخطوة 3: create فشل بـ 409 → المستند موجود لكن update قال 404 ───
       if (isAlreadyExists(createError)) {
-        // ✅ إصلاح حرج (2026-06-28): نمط 404 → 409 → 404
+        // ✅ نمط 404 → 409 → 404 = المستند موجود لكن API key لا يملك صلاحية تحديث
         //
-        // هذا النمط يحدث عندما:
-        //   1. updateDocument → 404 (المستند غير موجود أو لا صلاحية قراءة)
-        //   2. createDocument → 409 (المستند موجود فعلاً — فحص ID لا يحترم الصلاحيات)
-        //   3. updateDocument → 404 (لا يزال يقول غير موجود)
+        // هذا يعني: البيانات الموجودة في السحابة هي نسخة قديمة، وبياناتنا
+        // الجديدة لم تُكتب. لا يمكننا اعتبار هذا نجاحاً — البيانات مفقودة.
         //
-        // السبب: المستند موجود في Appwrite لكن API key الحالي لا يملك صلاحية
-        // قراءة/تحديث عليه. Appwrite يرجع 404 (لا يكشف عن الوجود لأسباب أمنية)
-        // لكن createDocument يرجع 409 (فحص تصادم ID لا يحترم الصلاحيات).
-        //
-        // الحل: المستند موجود في السحابة — البيانات ليست مفقودة.
-        // نعتبر العملية ناجحة ونعيد مستنداً وهمياً بدلاً من رمي خطأ لا نهائي.
+        // الإجراء: نحاول updateDocument مرة أخيرة (قد تنجح في حالات نادرة).
+        // إذا فشلت بـ 404، نرمي الاستثناء ليتم معالجته بواسطة setError.
+        // السجل يبقى في outbox للتحقيق — لا فقدان بيانات صامت.
         try {
           return await doUpdate(suppressErrorLog: true);
         } on AppwriteException catch (finalErr) {
           if (isNotFound(finalErr)) {
-            // ✅ المستند موجود (create قال 409) لكن لا يمكن تحديثه (update قال 404)
-            // هذا يعني: البيانات موجودة في السحابة لكن صلاحيات API key محدودة.
-            // نعتبر العملية ناجحة — لا فقدان بيانات.
+            // ✅ نمط 404→409→404 مؤكد: المستند موجود لكن لا صلاحية تحديث
+            // لا نعتبره نجاحاً — البيانات الجديدة لم تصل للسحابة
             _logger.warning(
-              'upsert: document exists (create 409) but update returns 404 — '
-              'likely a permissions issue. Treating as success. '
+              '⚠️ upsert: 404→409→404 pattern — document exists in cloud '
+              'but API key cannot update it (permissions issue). '
+              'New data was NOT written. Record will retry. '
+              'Fix: check collection permissions in Appwrite Console. '
               'collection=$collectionId, docId=$documentId',
               tag: 'UPSERT',
             );
-            // إرجاع مستند وهمي — البيانات موجودة في السحابة
-            return models.Document(
-              $id: documentId,
-              $sequence: 0,
-              $collectionId: collectionId,
-              $databaseId: dbId,
-              $createdAt: DateTime.now().toUtc().toIso8601String(),
-              $updatedAt: DateTime.now().toUtc().toIso8601String(),
-              $permissions: const [],
-              data: data,
-            );
+            // رمي الاستثناء ليتم معالجته بواسطة setError في _processOutboxEntry
+            // السجل يُوضع في 'failed' ويُعاد المحاولة لاحقاً مع backoff
+            rethrow;
           }
           // خطأ آخر (وليس 404) — نسجّل ونعيد رميه
           AppwriteLogger().error(

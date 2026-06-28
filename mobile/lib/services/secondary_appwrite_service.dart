@@ -189,29 +189,19 @@ class SecondaryAppwriteService {
     } on AppwriteException catch (createError) {
       // الخطوة 3: create فشل بـ 409 → المستند موجود لكن update قال 404
       if (isAlreadyExists(createError)) {
-        // ✅ إصلاح (2026-06-28): نمط 404 → 409 → 404 = صلاحيات
+        // ✅ نمط 404 → 409 → 404 = صلاحيات
+        // لا نعتبره نجاحاً — البيانات الجديدة لم تصل للسحابة
         try {
           return await doUpdate(suppressErrorLog: true);
         } on AppwriteException catch (finalErr) {
           if (isNotFound(finalErr)) {
-            // المستند موجود (create 409) لكن لا يمكن تحديثه (update 404)
-            // البيانات موجودة في السحابة — نعتبرها نجاحاً
             _logger.warning(
-              'secondary upsert: document exists (create 409) but update 404 — '
-              'permissions issue. Treating as success. '
+              '⚠️ secondary upsert: 404→409→404 — document exists but '
+              'cannot update (permissions). New data NOT written. '
               'collection=$collectionId, docId=$documentId',
               tag: 'SECONDARY_UPSERT',
             );
-            return models.Document(
-              $id: documentId,
-              $sequence: 0,
-              $collectionId: collectionId,
-              $databaseId: dbId,
-              $createdAt: DateTime.now().toUtc().toIso8601String(),
-              $updatedAt: DateTime.now().toUtc().toIso8601String(),
-              $permissions: const [],
-              data: data,
-            );
+            rethrow;
           }
           _logger.error(
             'secondary upsert: Step 3 updateDocument failed. '
