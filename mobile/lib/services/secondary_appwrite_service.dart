@@ -111,19 +111,23 @@ class SecondaryAppwriteService {
       for (final record in coll.records) {
         current++;
         onProgress(coll.name, current, total);
-        try {
-          await upsertDocument(
-            collectionId: coll.collectionId,
-            documentId: record['localUuid'] as String? ?? '',
-            data: record,
-          );
-          successCount++;
-        } catch (e) {
-          failureCount++;
-          stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(
-            FullBackupFailure(documentId: record['localUuid']?.toString(), reason: e.toString()),
-          );
-        }
+try {
+           await upsertDocument(
+             collectionId: coll.collectionId,
+             documentId: record['localUuid'] as String? ?? '',
+             data: record,
+           );
+           successCount++;
+         } catch (e) {
+           failureCount++;
+           final reason = e.toString();
+           stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(
+             FullBackupFailure(documentId: record['localUuid']?.toString(), reason: reason, collectionName: coll.name),
+           );
+           // ✅ إحصائيات الأخطاء حسب السبب
+           final reasonShort = reason.length > 100 ? reason.substring(0, 100) : reason;
+           stats.errorsByReason[reasonShort] = (stats.errorsByReason[reasonShort] ?? 0) + 1;
+         }
       }
 
       onCollectionComplete(coll.name, successCount, failureCount);
@@ -718,9 +722,10 @@ class FullBackupStats {
 
 /// خطأ في رفع سجل واحد
 class FullBackupFailure {
-  FullBackupFailure({this.documentId, required this.reason});
+  FullBackupFailure({this.documentId, required this.reason, this.collectionName});
   final String? documentId;
   final String reason;
+  final String? collectionName;
 }
 
 /// بيانات جدول للرفع الشامل
