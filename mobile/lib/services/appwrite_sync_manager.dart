@@ -1592,8 +1592,22 @@ class AppwriteSyncManager {
                 'warnings=${resolution.warnings.length}',
                 tag: 'CONFLICT',
               );
+              // ✅ P0-2 إصلاح (2026-06-28): كتابة البيانات المدمجة في remoteData
+              // في المكان (in-place) ليتم تطبيقها من المُتصل. المُتصل يستخدم نفس
+              // كائن Map كـ `data` وبعد الـ check يمرره مباشرة إلى
+              // adapter.upsertFromJson(data, ...). بتعديل remoteData مباشرة،
+              // نضمن أن المُتصل يُطبق نتيجة الدمج بدلاً من البيانات البعيدة الخام.
+              // ⚠️ آمن: remoteData هو نسخة محلية Map.from(doc.data) وليس كائن Appwrite الأصلي.
+              remoteData.clear();
+              remoteData.addAll(resolution.mergedData);
+              // تخزين ancestor المدمج للمرات القادمة
+              await _ancestorCacheDao.setAncestor(
+                entityName,
+                localUuid,
+                resolution.mergedData,
+              );
               return _RemoteNewerResult(
-                shouldApplyRemote: false,
+                shouldApplyRemote: true,
                 mergedData: resolution.mergedData,
                 pushedToRemote: resolution.pushedToRemote,
               );
@@ -2955,7 +2969,9 @@ class AppwriteSyncManager {
           await (database.update(database.employees)
                 ..where((e) => e.id.equals(employee.id)))
               .write(EmployeesCompanion(
-            serverId: drift.Value(remoteDoc.$id.hashCode),
+            // ✅ إصلاح P0 (2026-06-28): استخدام employee.id بدل hashCode
+            // hashCode غير ثابت عبر العمليات — employee.id هو المعرف المحلي الصحيح
+            serverId: drift.Value(employee.id),
           ));
         } catch (_) {
           // فشل جلب المستند البعيد — نتجاوز، الأهم أن الموظف رُفع بنجاح

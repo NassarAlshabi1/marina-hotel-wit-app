@@ -151,15 +151,16 @@ Future<int> _pushAllEntities() async {
 
 
 Future<bool> _processOutboxEntry(OutboxData entry) async {
+  // ✅ P0-5 إصلاح (2026-06-28): حفظ VC القديم قبل الزيادة للتراجع عند الفشل.
+  // بدون هذا، إذا فشل الرفع يبقى VC مرتفعاً → فجوات في الساعة السببية
+  // وتضخيم غير حقيقي لعداد الجهاز.
+  String? _oldVcStr;
+  if (entry.op != 'delete') {
+    _oldVcStr = await _readVectorClock(entry.entity, entry.localUuid);
+    await _bumpVectorClockBeforePush(entry.entity, entry.localUuid);
+  }
+
   try {
-    // ✅ P0-1 إصلاح (2026-06-28): زيادة Vector Clock قبل كل عملية push
-    // غير ذلك، الساعة تبقى دائماً '{}' على كل الأجهزة، مما يُعطل كشف
-    // التعارضات المتزامنة تماماً (يصبح النظام LWW فقط رغم وجود VC).
-    // نزيد العداد للجهاز الحالي، نكتبه في قاعدة البيانات المحلية،
-    // ثم يقرأه _processXxxEntry عند بناء الـ payload.
-    if (entry.op != 'delete') {
-      await _bumpVectorClockBeforePush(entry.entity, entry.localUuid);
-    }
 
     switch (entry.entity) {
       case 'rooms':
@@ -205,6 +206,16 @@ Future<bool> _processOutboxEntry(OutboxData entry) async {
         return false;
     }
   } catch (error, stackTrace) {
+    // ✅ P0-5 (2026-06-28): استعادة VC القديم إذا فشل الرفع
+    // منعاً للفجوات في الساعة السببية وتضخيم عداد الجهاز.
+    if (_oldVcStr != null && entry.op != 'delete') {
+      try {
+        await _writeVectorClock(entry.entity, entry.localUuid, _oldVcStr);
+      } catch (_) {
+        // فشل استعادة VC ليس خطأ قاتلاً
+      }
+    }
+
     final parsed = _errorHandler.handleError(
       error,
       context: 'push:${entry.entity}:${entry.op}',
@@ -470,7 +481,15 @@ Map<String, dynamic> _addIdempotencyKey(
 
   Map<String, dynamic> _blacklistToRemote(ShiftNote item) {
     Map<String, dynamic> extra = {};
-    try { extra = jsonDecode(item.content) as Map<String, dynamic>; } catch (_) {}
+    try {
+      extra = jsonDecode(item.content) as Map<String, dynamic>;
+    } catch (e) {
+      _logger.warning(
+        '⚠️ تالف JSON في blacklist item ${item.localUuid}: $e — '
+        'سيتم الإرسال بدون بيانات إضافية (سيتم فقدان nationality/phone/etc)',
+        tag: 'PUSH',
+      );
+    }
 
     final now = Time.nowEpoch();
     final createdAtIso = item.createdAtIso ??
@@ -824,7 +843,9 @@ Future<bool> _processSalaryWithdrawalEntry(OutboxData entry) async {
         await (database.update(database.employees)
               ..where((e) => e.id.equals(employee.id)))
             .write(EmployeesCompanion(
-          serverId: drift.Value(remoteDoc.$id.hashCode),
+          // ✅ إصلاح P0 (2026-06-28): استخدام employee.id بدل hashCode
+          // hashCode غير ثابت عبر العمليات — employee.id هو المعرف المحلي الصحيح
+          serverId: drift.Value(employee.id),
         ));
       } catch (_) {
         // فشل جلب المستند البعيد — نتجاوز، الأهم أن الموظف رُفع بنجاح
@@ -1430,6 +1451,33 @@ Future<String?> _getDeviceId() async {
     _logger.warning('فشل قراءة deviceId من SharedPreferences: $e', tag: 'VC');
     return null;
   }
+}
+
+/// ✅ P0-5 (2026-06-28): قراءة Vector Clock قبل الزيادة
+/// يُستخدم لحفظ القيمة القديمة للتراجع عند فشل الرفع
+Future<String?> _readVectorClock(String entity, String localUuid) async {
+  final tableName = _entityToTable[entity];
+  if (tableName == null) return null;
+  try {
+    final rows = await database.customSelect(
+      'SELECT vector_clock AS vc FROM $tableName WHERE local_uuid = ? LIMIT 1',
+      variables: [drift.Variable<String>(localUuid)],
+    ).get();
+    if (rows.isEmpty) return '{}';
+    return (rows.first.data['vc'] as String?) ?? '{}';
+  } catch (_) {
+    return null;
+  }
+}
+
+/// ✅ P0-5 (2026-06-28): كتابة Vector Clock (للاستعادة بعد فشل الرفع)
+Future<void> _writeVectorClock(String entity, String localUuid, String vc) async {
+  final tableName = _entityToTable[entity];
+  if (tableName == null) return;
+  await database.customStatement(
+    'UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?',
+    [vc, localUuid],
+  );
 }
 
 /// يزيد Vector Clock للسجل المحلي قبل رفعه للسحابة
