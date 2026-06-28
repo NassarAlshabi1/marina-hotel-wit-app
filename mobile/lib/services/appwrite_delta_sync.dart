@@ -8,7 +8,6 @@ import 'package:drift/drift.dart' as d;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'adapters/adapter_registry.dart';
-import 'adapters/source.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
@@ -22,7 +21,6 @@ import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
 import 'sync_locks.dart';
 import 'vector_clock_service.dart';
-import 'package:drift/drift.dart' show TableInfo;
 
 class AppwriteDeltaSyncResult {
 
@@ -1668,7 +1666,6 @@ class AppwriteDeltaSync {
       final rows = await _database.customSelect(
         'SELECT vector_clock AS vc FROM $tableName WHERE local_uuid = ? LIMIT 1',
         variables: [d.Variable<String>(localUuid)],
-        readsFrom: {_getDriftTable(tableName)},
       ).get();
 
       if (rows.isEmpty) return null;
@@ -1723,15 +1720,6 @@ class AppwriteDeltaSync {
       case 'salary_withdrawals': return 'salary_withdrawals';
       case 'salary_carry_over_logs': return 'salary_carry_over_logs';
       default: return null;
-    }
-  }
-
-  /// تحويل اسم الجدول إلى Drift table reference لاستخدامه في readsFrom
-  TableInfo<_Database, dynamic> _getDriftTable(String tableName) {
-    switch (tableName) {
-      case 'rooms': return _database.rooms;
-      case 'bookings': return _database.bookings;
-      default: return _database.rooms; // fallback safe
     }
   }
 
