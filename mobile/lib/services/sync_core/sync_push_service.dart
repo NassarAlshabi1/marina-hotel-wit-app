@@ -126,6 +126,7 @@ Future<int> _pushAllEntities() async {
        } catch (e) {
          if (e is TimeoutException) {
            _logger.warning('⏱️ Timeout processing entry ${entry.id}', tag: 'SYNC');
+            await outboxDao.markFailed([entry.id]);
          }
        }
      }
@@ -484,16 +485,17 @@ Map<String, dynamic> _addIdempotencyKey(
     return AppwriteSyncUtils.sanitizePayload('debts', data, collectionId: AppwriteConfig.debtsCollectionId);
   }
 
-  Map<String, dynamic> _blacklistToRemote(ShiftNote item) {
+  Map<String, dynamic>? _blacklistToRemote(ShiftNote item) {
     Map<String, dynamic> extra = {};
     try {
       extra = jsonDecode(item.content) as Map<String, dynamic>;
     } catch (e) {
       _logger.warning(
         '⚠️ تالف JSON في blacklist item ${item.localUuid}: $e — '
-        'سيتم الإرسال بدون بيانات إضافية (سيتم فقدان nationality/phone/etc)',
+        'تخطي الرفع لتجنب مسح البيانات على السحابة',
         tag: 'PUSH',
       );
+      return null;
     }
 
     final now = Time.nowEpoch();
@@ -988,6 +990,10 @@ Future<bool> _processBlacklistEntry(OutboxData entry) async {
   }
 
   final payload = _blacklistToRemote(item);
+  if (payload == null) {
+    _logger.warning('تخطي رفع blacklist بسبب JSON تالف');
+    return false;
+  }
   await appwriteService.upsertBlacklist(
     item.localUuid,
     _filterPayload('blacklist', _addIdempotencyKey(payload, entry)),

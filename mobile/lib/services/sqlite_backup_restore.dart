@@ -172,7 +172,17 @@ class SqliteBackupRestore {
       }
       
       // إعادة تسمية الملف المؤقت إلى اسم DB
-      await tmpFile.rename(dstPath);
+      // BUG-4 FIX: rollback to pre_restore backup on failure
+      try {
+        await tmpFile.rename(dstPath);
+      } catch (renameError) {
+        final backupFile = File('$dstPath.pre_restore');
+        if (backupFile.existsSync()) {
+          await backupFile.rename(dstPath);
+          debugPrint('⚠️ تم استعادة DB الأصلي بعد فشل الاستعادة: $renameError');
+        }
+        rethrow;
+      }
 
       // Reopen the database so the app can continue working
       if (reopenCallback != null) {
