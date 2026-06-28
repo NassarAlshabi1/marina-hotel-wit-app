@@ -7,8 +7,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../adapters/adapter_registry.dart';
-import '../adapters/source.dart';
+import 'adapters/adapter_registry.dart';
+import 'adapters/source.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';

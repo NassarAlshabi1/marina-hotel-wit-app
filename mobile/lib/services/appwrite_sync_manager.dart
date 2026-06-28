@@ -1619,7 +1619,7 @@ class AppwriteSyncManager {
               remoteData.clear();
               remoteData.addAll(resolution.mergedData);
               // تخزين ancestor المدمج للمرات القادمة
-              await _ancestorCacheDao.setAncestor(
+              await _ancestorCacheDao.saveAncestor(
                 entityName,
                 localUuid,
                 resolution.mergedData,
@@ -6113,6 +6113,11 @@ class AppwriteSyncManager {
       _logger.warning('Failed to push app_settings: $e', tag: 'SYNC');
       return false;
     }
+  }
+
+  Future<String> _getDeviceIdForPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('appwrite_delta_device_id') ?? 'default';
   }
 
   /// مزامنة إعدادات المراسلة (واتساب + تلجرام) من Appwrite → SharedPreferences

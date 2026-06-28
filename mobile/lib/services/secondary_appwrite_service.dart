@@ -424,6 +424,7 @@ try {
         'amount': p.amount,
         'paymentDate': p.paymentDate,
         'paymentMethod': p.paymentMethod,
+        'revenueType': p.revenueType,
         'createdAt': p.createdAt,
         'updatedAt': p.updatedAt,
         'deletedAt': p.deletedAt,
@@ -435,7 +436,6 @@ try {
         'origin': p.origin,
         'deviceId': p.deviceId,
         'vectorClock': p.vectorClock,
-        'status': p.status,
       };
 
   Map<String, dynamic> _expenseToMap(Expense e) => {
@@ -496,7 +496,8 @@ try {
 
   Map<String, dynamic> _bookingNoteToMap(BookingNote n) => {
         'localUuid': n.localUuid,
-        'content': n.content,
+        'noteText': n.noteText,
+        'bookingId': n.bookingId,
         'createdAt': n.createdAt,
         'updatedAt': n.updatedAt,
         'deletedAt': n.deletedAt,
@@ -512,8 +513,11 @@ try {
 
   Map<String, dynamic> _nightToMap(BookingNight n) => {
         'localUuid': n.localUuid,
-        'date': n.date,
+        'nightStart': n.nightStart,
+        'nightEnd': n.nightEnd,
         'nightlyRate': n.nightlyRate,
+        'bookingLocalId': n.bookingLocalId,
+        'hotelDayKey': n.hotelDayKey,
         'createdAt': n.createdAt,
         'updatedAt': n.updatedAt,
         'deletedAt': n.deletedAt,
@@ -530,7 +534,7 @@ try {
   Map<String, dynamic> _cashTransactionToMap(CashTransaction c) => {
         'localUuid': c.localUuid,
         'amount': c.amount,
-        'type': c.type,
+        'transactionType': c.transactionType,
         'createdAt': c.createdAt,
         'updatedAt': c.updatedAt,
         'deletedAt': c.deletedAt,
@@ -546,8 +550,13 @@ try {
 
   Map<String, dynamic> _salaryCycleToMap(SalaryCycle s) => {
         'localUuid': s.localUuid,
-        'periodStart': s.periodStart,
-        'periodEnd': s.periodEnd,
+        'cycleKey': s.cycleKey,
+        'hotelDayStart': s.hotelDayStart,
+        'hotelDayEnd': s.hotelDayEnd,
+        'expectedAmount': s.expectedAmount,
+        'actualPaid': s.actualPaid,
+        'remainingAmount': s.remainingAmount,
+        'status': s.status,
         'createdAt': s.createdAt,
         'updatedAt': s.updatedAt,
         'deletedAt': s.deletedAt,
@@ -563,8 +572,10 @@ try {
 
   Map<String, dynamic> _salaryPaymentToMap(SalaryPayment s) => {
         'localUuid': s.localUuid,
-        'paymentDate': s.paymentDate,
+        'paymentDateIso': s.paymentDateIso,
         'amount': s.amount,
+        'cycleId': s.cycleId,
+        'method': s.method,
         'createdAt': s.createdAt,
         'updatedAt': s.updatedAt,
         'deletedAt': s.deletedAt,
