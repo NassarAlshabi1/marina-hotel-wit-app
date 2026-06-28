@@ -5,7 +5,6 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../adapters/adapter_registry.dart';
-import '../appwrite_config.dart';
 import '../appwrite_logger.dart';
 import '../local_db.dart';
 import '../secondary_appwrite_config.dart';
