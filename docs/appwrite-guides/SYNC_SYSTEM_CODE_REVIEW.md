@@ -1,7 +1,7 @@
-# مراجعة شاملة لكود نظام المزامنة — Appwrite Sync
+# مراجعة شاملة لكود نظام المزامنة — Appwrite Sync (v2)
 
 **تاريخ المراجعة:** 2026-06-28  
-**النطاق:** جميع ملفات المزامنة في `mobile/lib/services/sync_core/` + الملفات المرتبطة
+**النطاق:** جميع ملفات المزامنة — `sync_core/` + `daos/` + `delta_sync` + `appwrite_sync_manager`
 
 ---
 
@@ -15,221 +15,331 @@
 | حجم appwrite_sync_manager.dart | ~6300 سطر |
 | حجم sync_pull_service.dart | ~2524 سطر |
 | حجم sync_push_service.dart | ~1495 سطر |
+| عدد المشاكل الحرجة (P0) | 8 |
+| عدد المشاكل المهمة (P1) | 5 |
+| عدد المشاكل التحسينية (P2) | 7 |
 
 ---
 
-## 🏗️ البنية المعمارية (Architecture)
-
-### الطبقات
+## 🏗️ البنية المعمارية
 
 ```
-┌─────────────────────────────────────────────┐
-│         AppwriteSyncManager (6300 سطر)      │  ← المنسق الرئيسي
-├─────────────────────────────────────────────┤
-│  SyncPullService  │  SyncPushService        │  ← خدمات السحب والدفع
-├─────────────────────────────────────────────┤
-│  ConflictDetector │ SmartConflictResolver   │  ← كشف وحل التعارضات
-├─────────────────────────────────────────────┤
-│  VectorClock      │ OptimisticLockHelper    │  ← السببية والقفل التفاؤلي
-├─────────────────────────────────────────────┤
-│  CircuitBreaker   │ RetryStrategy           │  ← المرونة والהתאוששות
-├─────────────────────────────────────────────┤
-│  OutboxDao        │ AncestorCacheDao        │  ← التخزين المؤقت
-├─────────────────────────────────────────────┤
-│  AdapterRegistry  │ AppwriteService         │  ← المحولات والتواصل
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│       AppwriteSyncManager (6300 سطر)         │ ← المنسق الرئيسي
+├──────────────────────────────────────────────┤
+│  SyncPullService  │  SyncPushService         │ ← خدمات السحب والدفع
+├──────────────────────────────────────────────┤
+│  AppwriteDeltaSync │  DeltaSyncService       │ ← مزامنة تفاضلية
+├──────────────────────────────────────────────┤
+│  ConflictDetector │ SmartConflictResolver    │ ← كشف وحل التعارضات
+├──────────────────────────────────────────────┤
+│  VectorClock      │ OptimisticLockHelper     │ ← السببية والقفل التفاؤلي
+├──────────────────────────────────────────────┤
+│  CircuitBreaker   │ RetryStrategy            │ ← المرونة والاستشفاء
+├──────────────────────────────────────────────┤
+│  OutboxDao        │ AncestorCacheDao         │ ← التخزين المؤقت
+├──────────────────────────────────────────────┤
+│  SyncLocks        │ SyncConstants            │ ← الأقفال والإعدادات
+└──────────────────────────────────────────────┘
 ```
-
-### أنماط التصميم المستخدمة
-
-| النمط | التطبيق | التقييم |
-|-------|---------|---------|
-| **Outbox Pattern** | `OutboxDao` — تغييرات محلية تُكتب أولاً ثم تُدفع للسحابة | ✅ ممتاز |
-| **Delta Sync** | `AppwriteDeltaSync` — سحب التغييرات فقط عبر `lastPullTs` | ✅ جيد |
-| **Vector Clocks** | `VectorClockService` — تحديد السببية بدلاً من LWW | ✅ ممتاز |
-| **3-Way Merge** | `SmartConflictResolver` + `AncestorCacheDao` | ✅ ممتاز |
-| **Circuit Breaker** | `CircuitBreaker` — حماية من انهيار الخدمة | ✅ جيد |
-| **Optimistic Locking** | `OptimisticLockDaoMixin` — منع الكتابة المتزامنة | ✅ جيد |
-| **Adapter Pattern** | `AdapterRegistry` — محولات لكل كيان | ✅ ممتاز |
 
 ---
 
-## ✅ نقاط القوة
+## 🔴 P0 — مشاكل حرجة (يجب إصلاحها فوراً)
 
-### 1. نظام كشف التعارضات المتطور (`conflict_detector.dart`)
-- **7 أنواع تعارض** مُعرّفة بدلاً من الثنائي البسيط
-- استخدام `VectorClock` لتحديد السببية بدلاً من الاعتماد على timestamps
-- كشف على مستوى الحقل (field-level) وليس السجل فقط
-- فصل الحقول المالية الحرجة (`amount`, `price`, `isVoided`) التي لا تُدمج تلقائياً
+### 1. `serverId` يستخدم `hashCode` — انتهاك لسلامة البيانات
+```
+الملف: appwrite_sync_manager.dart:2958 و sync_push_service.dart:827
+المشكلة: serverId: drift.Value(remoteDoc.$id.hashCode)
+التأثير: Object.hashCode غير ثابت عبر العمليات — قيم مختلفة لنفس المستند
+         على أجهزة مختلفة، مما يسبب فشل حل FK عبر الأجهزة.
+الحل: تخزين الـ $id النصي مباشرة (String) بدلاً من hashCode
+```
 
-### 2. حل التعارضات الذكي (`smart_conflict_resolver.dart`)
-- **17 سياسة كيان** مُعرّفة (كل كيان له قواعد خاصة)
-- **7 استراتيجيات حل**: `newerWins`, `localWins`, `remoteWins`, `maxValue`, `minValue`, `sum`, `concat`, `manual`
-- دمج نصي مع **deduplication** (`_concatWithDedup`) لمنع تضخم الملاحظات
-- استخدام `max(localTs, remoteTs)` بدلاً من `DateTime.now()` في الدمج (إصلاح idempotency)
-- تصعيد يدوي للحقول المالية الحرجة
+### 2. `_RemoteNewerResult.mergedData` لا يُستهلك أبداً
+```
+الملف: appwrite_sync_manager.dart:80-96 و sync loop
+المشكلة: SmartConflictResolver يُنتج بيانات مدمجة عبر 3-way merge
+         لكن الكود لا يطبق mergedData على قاعدة البيانات المحلية.
+         يتحقق فقط من shouldApplyRemote ويطبق remoteData الأصلي.
+التأثير: نتائج الدمج التلقائي تُفقد — التعارضات تُحل في الذاكرة فقط ولا تُحفظ.
+الحل: إذا hasMerge == true، طبق mergedData بدلاً من remoteData.
+```
 
-### 3. حماية البيانات المالية
-- الحقول المالية (`amount`, `paidAmount`, `totalAmount`) تُصعد دائماً للمراجعة اليدوية
-- `Financial immutability` في Pull: إذا كان السجل المحلي أحدث، لا يُكتب فوقه
-- منع إحياء السجلات المحذوفة softly من السحابة
+### 3. تكرار كود بنسبة ~80% بين ملفين ضخمين
+```
+الملف: sync_pull_service.dart (2524 سطر) و appwrite_sync_manager.dart (6307 سطر)
+المشكلة: 
+  - _syncRooms, _syncBookings, _syncEmployees... موجودة في الملفين
+  - _getXxxByLocalUuid و _getLocalXxxLastModified (+30 دالة) مكررة
+  - _asInt, _asIntNullable, _asIntSafe مكررة في 4 ملفات
+  - _performPostSyncIntegrityCheck مكرر
+التأثير: أي إصلاح bug يجب تطبيقه في مكانين — خطأ بشري محتمل
+الحل: دمج SyncPullService ككائن موحد يُستخدم من AppwriteSyncManager
+```
 
-### 4. التعامل مع Foreign Keys
-- **حل FK بثلاث مستويات**: UUID → id → serverId
-- تأجيل السجلات ذات FK المفقودة (`deferred` list) وإعادة المحاولة لاحقاً
-- رفع الكيانات الأب قبل الأبناء (employees قبل salary_withdrawals)
-- فحص سلامة البيانات بعد المزامنة (`_performPostSyncIntegrityCheck`)
+### 4. `outbox_dao.dart` — واجهة حل التعارضات اليدوية معطلة
+```
+الملف: outbox_dao.dart:604-615
+المشكلة: getConflicts() تعيد remotePayload = localPayload
+         مع تعليق // TODO: Fetch actual remote data
+التأثير: شاشة حل التعارضات اليدوية تظهر بيانات متطابقة للجهتين
+         — لا يمكن للمستخدم اتخاذ قرار صحيح.
+```
 
-### 5. نظام Vector Clock
-- تنظيف `vectorClock` من حساب الحقول المتغيرة (منع التعارضات الوهمية)
-- **bump VC قبل كل push** (`_bumpVectorClockBeforePush`) — إصلاح P0-1
-- دمج VC بعد كل عملية merge
+### 5. `_bumpVectorClockBeforePush` يزيد العداد حتى لو فشل الرفع
+```
+الملف: sync_push_service.dart:153-161
+المشكلة: يتم bump VC قبل الرفع. إذا فشل الرفع، العداد ارتفع محلياً
+         لكن السحابة لم تستلم البيانات.
+         المحاولة التالية تزيد مرة أخرى → فجوات في الساعة المنطقية.
+الحل: زيادة VC بعد نجاح الرفع، أو حفظ قيمة VC الأصلية للتراجع عند الفشل.
+```
 
-### 6. المرونة والاستشفاء
-- `CircuitBreaker` مع 3 حالات (closed/open/halfOpen)
-- `RetryStrategy` مع 3 أنماط (linear/exponential/fibonacci) + jitter
-- Adaptive batch size في Push (يزيد/ينقص بناءً على نسبة النجاح)
-- تنظيف stuck entries في Outbox عند التهيئة
+### 6. `_blacklistToRemote` يبتلع أخطاء JSON بصمت
+```
+الملف: sync_push_service.dart:473
+المشكلة: jsonDecode(item.content) as Map<String, dynamic> + catch (_) {}
+         إذا كان item.content يحتوي JSON تالف، ينتج {} فارغ
+         ويفقد جميع بيانات القائمة السوداء دون أي تحذير.
+الحل: تسجيل الخطأ مع LOG warning وعدم رفع بيانات فارغة.
+```
+
+### 7. إرسال كلمات المرور كنص صريح إلى Appwrite
+```
+الملف: sync_push_service.dart:1182-1241
+المشكلة: wa_api_token, telegram_bot_token, lark_app_secret
+         تُرسل مباشرة في _pushAppSettingsToCloud بدون تشفير.
+         مخزنة في Appwrite Cloud كنص صريح مقروء.
+التأثير: خرق أمني — أي شخص لديه وصول لقاعدة Appwrite
+         يمكنه قراءة جميع كلمات المرور والرموز.
+الحل: تشفير القيم الحساسة قبل الإرسال والتخزين.
+```
+
+### 8. `sync_pull_service.dart` — خطأ محتمل في `rowid` vs `id`
+```
+الملف: sync_pull_service.dart:1966-2024
+المشكلة: _performPostSyncIntegrityCheck يستخدم rowid من PRAGMA
+         ثم يبحث بـ t.id.equals(rowId as int). إذا كان الجدول
+         يستخدم WITHOUT ROWID أو id ليس alias لـ rowid،
+         فسيتم حذف السجل الخطأ.
+الحل: استخدام اسم العمود الصحيح من PRAGMA output أو البحث بـ localUuid.
+```
 
 ---
 
-## ⚠️ مشاكل وتحذيرات
+## 🟡 P1 — مشاكل مهمة
 
-### P0 — حرج
-
-#### 1. `appwrite_sync_manager.dart` ضخم جداً (~6300 سطر)
+### 9. `ConflictDetector._findChangedFields` — مقارنة سطحية
 ```
-المشكلة: ملف واحد يحتوي على معظم منطق المزامنة
-التأثير: صعوبة الصيانة والاختبار والتعاون
-الحل: تقسيم إلى:
-  - sync_orchestrator.dart (التنسيق)
-  - sync_device_manager.dart (إدارة الأجهزة)
-  - sync_entity_handlers.dart (معالجات الكيانات)
+الملف: conflict_detector.dart:231-250
+المشكلة: ancestor[key] != current[key] لا تدعم Map/List المتداخلة
+         مثلاً content = {"a": 1} vs {"a": 1} قد تُعتبر مختلفة
+         بسبب اختلاف مراجع الكائنات.
+الحل: استخدام DeepCollectionEquality من package:collection للمقارنة.
 ```
 
-#### 2. تكرار كود `_asInt` / `_asIntNullable` / `_asIntSafe`
+### 10. `sync_push_service.dart` — حلقة لا نهائية محتملة
 ```
-المشكلة: نفس الدوال مكررة في 4+ ملفات
-الملفات: sync_pull_service.dart, sync_push_service.dart, appwrite_sync_manager.dart, appwrite_delta_sync.dart
-الحل: نقل إلى ملف مشترك مثل sync_helpers.dart
-```
-
-#### 3. تكرار lookup functions (`_getXxxByLocalUuid`)
-```
-المشكلة: كل ملف يُعرّف نسخته الخاصة
-الحل: إنشاء SyncLookupService موحد أو استخدام AdapterRegistry
+الملف: sync_push_service.dart:92-150
+المشكلة: while(true) في _pushAllEntities ليس له حد أعلى صارم.
+         إذا استمرت إضافة عناصر outbox أثناء الدفع، قد تستمر للأبد.
+الحل: إضافة maxIterations أو maxDuration إجباري.
 ```
 
-### P1 — مهم
-
-#### 4. `_syncBlacklist` يكتب في `shiftNotes` table
+### 11. `appwrite_delta_sync.dart` — تكرار منطق Pull
 ```
+الملف: appwrite_delta_sync.dart
+المشكلة: AppwriteDeltaSync يكتب Companions مباشرة (insertOnConflictUpdate)
+         بينما SyncPullService يستخدم AdapterRegistry.upsertFromJson.
+         منطقان مختلفان لنفس العملية — صعوبة الصيانة.
+الحل: توحيد Pull logic لاستخدام AdapterRegistry في كل الحالات.
+```
+
+### 12. `_syncBlacklist` — ازدواجية تخزين
+```
+الملف: sync_pull_service.dart:1069-1184 و sync_push_service.dart:471-503
 المشكلة: blacklist يُخزّن في جدول shift_notes مع createdBy='blacklist'
-التأثير: ازدواجية في البيانات، صعوبة الاستعلام
-الحل: إنشاء جدول blacklist منفصل أو توضيح السبب بالتعليقات
+         بدلاً من جدول منفصل. 
+التأثير: ازدواجية، استعلامات معقدة، صعوبة فصل المنطق.
+الحل: إنشاء جدول blacklist منفصل أو استخدام حقل type بدلاً من createdBy.
 ```
 
-#### 5. `appwrite_delta_sync.dart` يحتوي على `insertOnConflictUpdate` مباشرة
+### 13. `_syncPriceAdjustments` — إنشاء service جديد لكل حلقة
 ```
-المشكلة: Pull في DeltaSync لا يستخدم AdapterRegistry (يكتب Companion مباشرة)
-بينما Pull في SyncPullService يستخدم AdapterRegistry
-التأثير: تكرار منطق التحويل وصعوبة الحفاظ على اتساق
-```
-
-#### 6. `sync_push_service.dart` لا يتحقق من نجاح الرفع
-```
-المشكلة: بعد upsertRoom/upsertBooking لا يتم التحقق من حفظ البيانات
-(ملاحظة: تم إضافة _verifyPushedBooking للحجوزات فقط)
-الحل: إضافة تحقق مشابه للكيانات المالية الحرجة
-```
-
-### P2 — تحسين
-
-#### 7. `_cleanupOutboxAfterPull` يفحص كل كيان بشكل منفصل
-```
-المشكلة: N استعلامات DB لكل كيان (17 كيان × M عناصر)
-التحسين: دمج الاستعلامات أو استخدام batch query
-```
-
-#### 8. `ConflictDetector._findChangedFields` لا يتعامل مع القيم المعقدة
-```
-المشكلة: المقارنة تستخدم `!=` مباشرة — لا تدعم Map/List嵌套
-التحسين: استخدام deep equality للمقارنة
-```
-
-#### 9. `SmartConflictResolver._applyRule` لـ `newerWins` يقارن timestamps فقط
-```
-المشكلة: لا يستخدم VectorClock لتحديد "الأحدث"
-يستخدم lastModified (الذي قد يكون متأثراً بـ clock skew)
-التحسين: دمج VectorClock في القرار
-```
-
-#### 10. `_pushAppSettingsToCloud` يرسل كلمات مرور كنص صريح
-```
-المشكلة: wa_api_token, telegram_bot_token, lark_app_secret تُرسل كما هي
-التحسين: تشفير القيم الحساسة قبل الإرسال
+الملف: sync_pull_service.dart:1681-1744
+المشكلة: BookingDerivedFieldsService(database) يُنشأ جديداً
+         لكل حجز نشط داخل الحلقة (~1717).
+الحل: إنشاء instance واحد وإعادة استخدامه.
 ```
 
 ---
 
-## 📋 تقييم كل ملف
+## 🟢 P2 — تحسينات مقترحة
 
-| الملف | الأسطر | التقييم | ملاحظات |
-|-------|--------|---------|---------|
-| `sync_pull_service.dart` | 2524 | ⭐⭐⭐⭐ | قوي، لكن يحتاج تقسيم |
-| `sync_push_service.dart` | 1495 | ⭐⭐⭐⭐ | جيد، VC bump ممتاز |
-| `conflict_detector.dart` | 260 | ⭐⭐⭐⭐⭐ | ممتاز ومُنظّم |
-| `smart_conflict_resolver.dart` | 611 | ⭐⭐⭐⭐⭐ | تصميم احترافي |
-| `vector_clock_service.dart` | 217 | ⭐⭐⭐⭐⭐ | نظيف ومكتمل |
-| `circuit_breaker.dart` | 203 | ⭐⭐⭐⭐ | جيد |
-| `retry_strategy.dart` | 159 | ⭐⭐⭐⭐ | جيد، fibonacci مبتكر |
-| `sync_metrics.dart` | 268 | ⭐⭐⭐⭐ | مفيد للمراقبة |
-| `sync_validator.dart` | 148 | ⭐⭐⭐ | بسيط، يحتاج توسيع |
-| `sync_error_handler.dart` | 231 | ⭐⭐⭐⭐ | تصنيف أخطاء جيد |
-| `sync_error_service.dart` | 110 | ⭐⭐⭐⭐ | توحيد ممتاز |
-| `optimistic_lock_helper.dart` | 70 | ⭐⭐⭐⭐ | نظيف |
-| `conflict_resolver.dart` | 204 | ⭐⭐⭐ | بسيط مقارنة بـ SmartConflictResolver |
-| `appwrite_delta_sync.dart` | 1200+ | ⭐⭐⭐⭐ | جيد لكن يكرر منطق Pull |
-| `appwrite_sync_manager.dart` | 6307 | ⭐⭐⭐ | يشتغل لكن ضخم جداً |
+### 14. `_cleanupOutboxAfterPull` — أداء
+```
+المشكلة: فحص كل كيان باستعلامات منفصلة (17 كيان × M عناصر)
+الحل: دمج الاستعلامات أو استخدام batch operations.
+```
+
+### 15. `SmartConflictResolver._applyRule` — newerWins لا يستخدم VectorClock
+```
+المشكلة: newerWins يقارن lastModified timestamps فقط
+         التي قد تتأثر بـ clock skew بين الأجهزة.
+الحل: استخدام VectorClock لتحديد "الأحدث" سببياً.
+```
+
+### 16. `outbox_dao.dart` — خطأ صامت في secondary delivery
+```
+الملف: outbox_dao.dart:110-115
+المشكلة: merge() يحاول الوصول لـ SharedPreferences في try-catch
+         وإذا فشل (مثلاً SharedPreferences not ready)،
+         يُعلم deliveredToSecondary = true خطأً.
+```
+
+### 17. `sync_enums.dart` و `sync_constants.dart` — أرقام سحرية
+```
+المشكلة: tableOrder في sync_constants لا يتحقق تلقائياً من اتساقه
+         مع مخطط قاعدة البيانات الفعلي.
+الحل: إضافة فحص في وقت التهيئة أو إنشاء الترتيب تلقائياً من Drift schema.
+```
+
+### 18. `central_sync_coordinator.dart` — نمط Singleton غير مكتمل
+```
+المشكلة: factory constructor يأخذ معاملات لكن يتجاهلها بعد أول إنشاء.
+         المتصل الثاني يحصل على instance الأول بدون تحذير.
+```
+
+### 19. `AppwriteSyncManager.sync()` — دالة ضخمة جداً
+```
+المشكلة: sync() بطول ~680 سطر مع try/catch متداخلة عميقاً.
+         صعوبة الاختبار والتصحيح.
+الحل: استخراج كل _doSyncXxx إلى كلاس منفصل أو استخدام Chain of Responsibility.
+```
+
+### 20. `appwrite_sync_manager.dart:1284` — TimeoutException لا يمكن حدوثه
+```
+المشكلة: catch على TimeoutException حول SyncLocks.appwriteSyncLock.synchronized()
+         لكن synchronized() من package:synchronized لا يرمي TimeoutException.
+         كتلة catch هذه لا يمكن الوصول إليها أبداً.
+```
 
 ---
 
-## 🔧 توصيات التحسين
+## ✅ نقاط القوة المعمارية
 
-### عاجل (قبل الإنتاج)
-1. ✅ **تم بالفعل** — Vector Clock bumping قبل Push (P0-1)
-2. ✅ **تم بالفعل** — منع إحياء السجلات المحذوفة softly
-3. ✅ **تم بالفعل** — فحص سلامة البيانات بعد المزامنة
-4. ✅ **تم بالفعل** — حل FK بثلاث مستويات
-
-### مهم (المرحلة 2)
-5. تقسيم `appwrite_sync_manager.dart` إلى ملفات أصغر
-6. نقل `_asInt` و `_getXxxByLocalUuid` إلى ملف مشترك
-7. توحيد Pull logic بين DeltaSync و SyncPullService
-8. إضافة تحقق بعد الرفع للكيانات المالية
-
-### تحسينات (المرحلة 3)
-9. تحسين `_cleanupOutboxAfterPull` بأداء أفضل
-10. دمج VectorClock في قرارات newerWins
-11. تشفير البيانات الحساسة في app_settings
-12. إضافة اختبارات unit test للكشف والحل
+| # | الميزة | التفاصيل |
+|---|--------|----------|
+| 1 | **7 أنواع تعارض** | `conflict_detector.dart` — يتجاوز ثنائية "تحديث/تجاهل" البسيطة |
+| 2 | **17 سياسة كيان × 8 استراتيجيات حل** | `smart_conflict_resolver.dart` — تخصيص كامل لكل جدول |
+| 3 | **Vector Clock حقيقي** | `vector_clock_service.dart` — تحديد سبببية بدلاً من LWW |
+| 4 | **3-Way Merge مع AncestorCache** | حل التعارضات المتزامنة تلقائياً عبر مقارنة مع ancestor |
+| 5 | **Outbox Pattern مزدوج التسليم** | تتبع delivery إلى primary + secondary Appwrite instances |
+| 6 | **Delta Sync مع Mirror Snapshots** | SHA-1 hashing للكشف عن التغييرات بكفاءة |
+| 7 | **Adaptive Batch Size** | 1.3x عند النجاح، 0.6x عند الفشل (10-200) |
+| 8 | **حل FK ثلاثي المستويات** | UUID → localId → serverId |
+| 9 | **تأجيل وإعادة محاولة** | Deferred retry للسجلات ذات FK المفقودة |
+| 10 | **فحص سلامة البيانات** | `PRAGMA foreign_key_check` + إصلاح تلقائي للسجلات اليتيمة |
+| 11 | **Circuit Breaker** | 3 حالات (closed/open/halfOpen) + إعادة تعيين تلقائية |
+| 12 | **RetryStrategy متعدد الأنماط** | linear + exponential + fibonacci مع jitter |
+| 13 | **Financial Immutability** | منع الكتابة فوق البيانات المالية المحلية الأحدث |
+| 14 | **منع إحياء السجلات المحذوفة** | Soft delete له أولوية على التحديثات البعيدة |
+| 15 | **Idempotency Keys** | `entity:op:localUuid:outboxId` مع graceful fallback |
 
 ---
 
-## 🎯 الخلاصة
+## 📋 تقييم كل ملف (محدث)
 
-نظام المزامنة **قوي واحترافي** بشكل عام. البنية المعمارية سليمة وتتبع أفضل الممارسات:
-- Outbox Pattern للدفع
-- Delta Sync للسحب
-- Vector Clocks للسببية
-- 3-Way Merge للتعارضات
-- Circuit Breaker للمرونة
+| الملف | الأسطر | التقييم | أهم مشكلة |
+|-------|--------|---------|-----------|
+| `conflict_detector.dart` | 260 | ⭐⭐⭐⭐⭐ | مقارنة سطحية للقيم المتداخلة |
+| `smart_conflict_resolver.dart` | 611 | ⭐⭐⭐⭐⭐ | newerWins لا يستخدم VC |
+| `vector_clock_service.dart` | 217 | ⭐⭐⭐⭐⭐ | — |
+| `conflict_resolver.dart` | 204 | ⭐⭐⭐ | بسيط، لا يستخدم VC |
+| `circuit_breaker.dart` | 203 | ⭐⭐⭐⭐ | — |
+| `retry_strategy.dart` | 159 | ⭐⭐⭐⭐ | — |
+| `optimistic_lock_helper.dart` | 70 | ⭐⭐⭐⭐ | — |
+| `sync_validator.dart` | 148 | ⭐⭐⭐ | بسيط جداً |
+| `sync_error_handler.dart` | 231 | ⭐⭐⭐⭐ | — |
+| `sync_error_service.dart` | 110 | ⭐⭐⭐⭐ | — |
+| `sync_metrics.dart` | 268 | ⭐⭐⭐⭐ | — |
+| `sync_push_service.dart` | 1495 | ⭐⭐⭐ | **serverId=hashCode** + VC bump قبل الرفع |
+| `sync_pull_service.dart` | 2524 | ⭐⭐⭐ | **تكرار 80%** مع sync_manager |
+| `appwrite_delta_sync.dart` | 1200+ | ⭐⭐⭐ | يكرر Pull logic |
+| `delta_sync_service.dart` | 600+ | ⭐⭐⭐⭐ | timestamp normalization edge cases |
+| `appwrite_sync_manager.dart` | 6307 | ⭐⭐ | **ضخم + mergedData لا يُستهلك + serverId=hashCode** |
+| `outbox_dao.dart` | 700+ | ⭐⭐⭐ | **getConflicts() معطل** + secondary delivery صامت |
+| `sync_locks.dart` | 12 | ⭐⭐⭐⭐ | بعض الأقفال غير مستخدمة |
+| `sync_constants.dart` | 51 | ⭐⭐⭐⭐ | tableOrder لا يتحقق تلقائياً |
+| `central_sync_coordinator.dart` | صغير | ⭐⭐⭐ | Singleton تجاهل معاملات |
 
-**أبرز الإصلاحات التي تمت مؤخراً** (2026-06-28):
-- P0-1: Vector Clock bumping قبل Push
-- P0-2: منع إحياء السجلات المحذوفة
-- P0-3: فحص _isRemoteDataNewer مع SmartConflictResolver
-- P0-4: AncestorCacheDao لتخزين الـ ancestor
-- P0-5: إزالة `status` من الحقول الحرجة (للسماح بـ newerWins)
+---
 
-**أكبر تحدٍ**: حجم الملفات — `appwrite_sync_manager.dart` بـ 6300 سطر يحتاج تقسيم عاجل.
+## 📊 إحصاءات كمية
+
+| النوع | العدد |
+|-------|-------|
+| تكرار دوال `_asInt` | 3 ملفات × 3 دوال = 9 تكرارات |
+| تكرار `_getXxxByLocalUuid` | ملفين × 15 دالة = 30 تكراراً |
+| تكرار `_syncXxx` methods | ملفين × 20 method = 40 تكراراً |
+| تكرار `_getLocalXxxLastModified` | ملفين × 17 دالة = 34 تكراراً |
+| كيانات متزامنة | 17 كيان |
+| استراتيجيات حل التعارض | 8 استراتيجيات |
+| سياسات كيانات للحل | 17 سياسة |
+| أنماط retry backoff | 3 أنماط |
+| حالات Circuit Breaker | 3 حالات |
+| مستويات حل FK | 3 مستويات |
+| أنواع التعارضات | 7 أنواع |
+
+---
+
+## 🔧 خارطة طريق الإصلاح
+
+### المرحلة 1 — إصلاح فوري (هذا الأسبوع)
+
+| # | المشكلة | الأولوية | التقدير |
+|---|---------|----------|---------|
+| 1 | `serverId: hashCode` → تخزين string | P0 🔴 | ساعة |
+| 2 | استهلاك `mergedData` في _RemoteNewerResult | P0 🔴 | 3 ساعات |
+| 3 | `outbox_dao.getConflicts()` — جلب بيانات بعيدة حقيقية | P0 🔴 | 4 ساعات |
+| 4 | تشفير القيم الحساسة في app_settings | P0 🔴 | ساعتين |
+| 5 | إصلاح `_blacklistToRemote` — تسجيل خطأ JSON | P0 🔴 | 30 دقيقة |
+| 6 | إصلاح `rowid` vs `id` في فحص السلامة | P0 🔴 | ساعة |
+
+### المرحلة 2 — دمج وتنظيف (الأسبوع القادم)
+
+| # | المهمة | التقدير |
+|---|--------|---------|
+| 7 | دمج `sync_pull_service` + `appwrite_sync_manager` (إزالة التكرار) | 3 أيام |
+| 8 | نقل `_asInt` و lookup functions إلى `sync_helpers.dart` | يوم |
+| 9 | توحيد Pull logic بين DeltaSync و SyncPullService | يومين |
+| 10 | نقل bump VC إلى ما بعد نجاح الرفع | 3 ساعات |
+| 11 | إضافة maxIterations لحلقة `_pushAllEntities` | 30 دقيقة |
+
+### المرحلة 3 — تحسينات (لاحقاً)
+
+| # | المهمة | التقدير |
+|---|--------|---------|
+| 12 | تقسيم `appwrite_sync_manager.dart` إلى 4-5 ملفات | 5 أيام |
+| 13 | إضافة deep equality في ConflictDetector | 3 ساعات |
+| 14 | دمج VectorClock في newerWins | 4 ساعات |
+| 15 | تحسين أداء `_cleanupOutboxAfterPull` | 3 ساعات |
+| 16 | فصل جدول blacklist عن shift_notes | يومين |
+| 17 | إضافة unit tests للكشف والحل | 3 أيام |
+
+---
+
+## 🎯 الخلاصة النهائية
+
+نظام المزامنة **احترافي وقوي** في تصميمه المعماري:
+- Outbox Pattern + Delta Sync + Vector Clocks + 3-Way Merge
+- 17 كياناً متزامناً مع سياسات حل مخصصة لكل منها
+- Circuit Breaker + Adaptive Batch + Deferred Retry للمرونة
+
+**لكن** حجم الملفات وتكرار الكود يشكلان خطراً على الصيانة. أبرز المشاكل:
+
+1. 🔴 **3 Bugs حرجة في سلامة البيانات** (`serverId=hashCode`, `mergedData` لا يُستهلك, `getConflicts()` معطل)
+2. 🔴 **80% تكرار كود** بين ملفين — أي fix يجب تطبيقه مرتين
+3. 🔴 **كلمات مرور كنص صريح** في Appwrite Cloud
+4. 🔴 **حجم `appwrite_sync_manager.dart`** = 6300 سطر في ملف واحد
