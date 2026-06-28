@@ -34,6 +34,7 @@ import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
+import 'secondary_appwrite_config.dart';
 import 'sync_constants.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_error_service.dart';
@@ -139,6 +140,22 @@ class AppwriteSyncManager {
     );
   }
   static AppwriteSyncManager? _instance;
+
+  /// الوصول المباشر للـ instance (يُستخدم من شاشات الإعدادات)
+  static AppwriteSyncManager? get instance => _instance;
+
+  /// إعادة تهيئة المزامنة بعد تغيير إعدادات Secondary
+  Future<void> reinitializeAfterConfigChange() async {
+    try {
+      // إعادة تحميل الإعدادات
+      await _loadSettings();
+      // إعادة تهيئة Secondary Appwrite
+      await SecondaryAppwriteConfig.ensureInitialized();
+      _logger.info('🔄 Reinitialized after config change', tag: 'SYNC');
+    } catch (e) {
+      _logger.warning('Failed to reinitialize after config change: $e', tag: 'SYNC');
+    }
+  }
 
   final AppwriteService appwriteService;
   final AppDatabase database;

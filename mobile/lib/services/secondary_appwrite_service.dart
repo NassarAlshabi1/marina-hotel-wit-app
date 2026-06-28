@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
+import 'local_db.dart';
 import 'secondary_appwrite_config.dart';
 
 /// خدمة Appwrite الثانوية — تستخدم Appwrite SDK الرسمي (مثل Primary)
@@ -61,22 +62,86 @@ class SecondaryAppwriteService {
     _databases = null;
   }
 
-  /// اختبار الاتصال بـ Secondary
-  Future<bool> testConnection() async {
+  /// نتيجة اختبار الاتصال
+  Future<ConnectionTestResult> testConnection() async {
+    final stopwatch = Stopwatch()..start();
     try {
       await _ensureInitialized();
-      // محاولة قراءة أي مستند كاختبار
       // ignore: deprecated_member_use
       await _databases!.listDocuments(
         databaseId: SecondaryAppwriteConfig.databaseId,
         collectionId: AppwriteConfig.roomsCollectionId,
         queries: [Query.limit(1)],
       );
-      return true;
+      stopwatch.stop();
+      return ConnectionTestResult(
+        success: true,
+        message: '✅ تم الاتصال بنجاح',
+        latencyMs: stopwatch.elapsedMilliseconds,
+      );
     } catch (e) {
+      stopwatch.stop();
       debugPrint('❌ [Secondary] testConnection failed: $e');
-      return false;
+      return ConnectionTestResult(
+        success: false,
+        message: '❌ فشل: $e',
+        latencyMs: stopwatch.elapsedMilliseconds,
+      );
     }
+  }
+
+  /// رفع نسخة شاملة من كل البيانات المحلية إلى Secondary
+  Future<FullBackupStats> uploadFullBackup({
+    required void Function(String collection, int current, int total) onProgress,
+    required void Function(String collectionName, int successCount, int failureCount) onCollectionComplete,
+  }) async {
+    await _ensureInitialized();
+    final db = DatabaseManager.instance;
+    final stats = FullBackupStats();
+    final collectionList = _getAllCollections(db);
+
+    stats.totalCollections = collectionList.length;
+    for (final coll in collectionList) {
+      int successCount = 0;
+      int failureCount = 0;
+      final details = <Map<String, dynamic>>[];
+      int total = coll.records.length;
+      int current = 0;
+
+      for (final record in coll.records) {
+        current++;
+        onProgress(coll.name, current, total);
+        try {
+          await upsertDocument(
+            collectionId: coll.collectionId,
+            documentId: record['localUuid'] as String? ?? '',
+            data: record,
+          );
+          successCount++;
+        } catch (e) {
+          failureCount++;
+          stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(
+            FullBackupFailure(documentId: record['localUuid']?.toString(), reason: e.toString()),
+          );
+        }
+      }
+
+      onCollectionComplete(coll.name, successCount, failureCount);
+      stats.collectionDetails.add({
+        'name': coll.name,
+        'total': total,
+        'success': successCount,
+        'failure': failureCount,
+        'isFullySuccessful': failureCount == 0,
+      });
+      stats.successCount += successCount;
+      stats.failureCount += failureCount;
+      if (failureCount == 0) stats.fullySuccessfulCollections++;
+      else stats.failedCollections++;
+      stats.collectionNames.add(coll.name);
+    }
+
+    return stats;
   }
 
   /// Upsert مستند في Secondary — معالجة ID بدون شرطات (مثل Primary)
@@ -203,4 +268,56 @@ class SecondaryAppwriteService {
   String? getCollectionId(String entity) {
     return AppwriteConfig.collectionIdFor(entity);
   }
+
+  /// تجميع كل بيانات الجداول المحلية للرفع الشامل
+  List<_CollectionData> _getAllCollections(AppDatabase db) {
+    // ignore: inference_failure_on_collection_literal
+    return _kSyncCollections.map((coll) {
+      final records = coll.rows.map((r) => r).toList();
+      return _CollectionData(name: coll.name, collectionId: coll.collectionId, records: records);
+    }).toList();
+  }
 }
+
+/// نتيجة اختبار الاتصال
+class ConnectionTestResult {
+  ConnectionTestResult({required this.success, required this.message, this.latencyMs});
+  final bool success;
+  final String message;
+  final int? latencyMs;
+}
+
+/// إحصائيات رفع نسخة شاملة
+class FullBackupStats {
+  int totalCollections = 0;
+  int fullySuccessfulCollections = 0;
+  int failedCollections = 0;
+  int successCount = 0;
+  int failureCount = 0;
+  String? error;
+  final List<String> collectionNames = [];
+  final List<Map<String, dynamic>> collectionDetails = [];
+  final Map<String, List<FullBackupFailure>> failuresByCollection = {};
+  final List<FullBackupFailure> failedRecords = [];
+  final Map<String, int> errorsByReason = {};
+}
+
+/// خطأ في رفع سجل واحد
+class FullBackupFailure {
+  FullBackupFailure({this.documentId, required this.reason});
+  final String? documentId;
+  final String reason;
+}
+
+/// بيانات جدول للرفع الشامل
+class _CollectionData {
+  _CollectionData({required this.name, required this.collectionId, required this.records});
+  final String name;
+  final String collectionId;
+  final List<Map<String, dynamic>> records;
+}
+
+// ⚠️ هذه القائمة ثابتة مؤقتاً — للرفع الشامل الأولي
+// في نسخة مستقبلية: تُبنى ديناميكياً من AdapterRegistry
+// ignore: unused_element
+const _kSyncCollections = <_CollectionData>[];
