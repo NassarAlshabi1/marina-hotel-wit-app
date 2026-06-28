@@ -12,6 +12,9 @@ on:
       - '.github/workflows/pwa-deploy.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-pwa:
     runs-on: ubuntu-latest
