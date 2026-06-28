@@ -1817,7 +1817,7 @@ Future<int> _syncAppSettings(List<models.Document> documents) async {
       // ✅ P0-7 إصلاح: فك تشفير wa_api_token قبل الحفظ
       final waToken = data['wa_api_token']?.toString();
       if (waToken != null && waToken.isNotEmpty) {
-        final key = SecureStorage.getEncryptionKey(deviceId);
+        final key = SecureStorage.getEncryptionKey(null);
         final decryptedToken = SecureStorage.decryptValue(waToken, key);
         await prefs.setString('wa_api_token', decryptedToken);
       }
@@ -1844,7 +1844,7 @@ Future<int> _syncAppSettings(List<models.Document> documents) async {
       // ✅ P0-7 إصلاح: فك تشفير telegram_bot_token قبل الحفظ
       final tgToken = data['telegram_bot_token']?.toString();
       if (tgToken != null && tgToken.isNotEmpty) {
-        final key = SecureStorage.getEncryptionKey(deviceId);
+        final key = SecureStorage.getEncryptionKey(null);
         final decryptedToken = SecureStorage.decryptValue(tgToken, key);
         await prefs.setString('telegram_bot_token', decryptedToken);
       }
@@ -1880,7 +1880,7 @@ Future<int> _syncAppSettings(List<models.Document> documents) async {
       // ✅ P0-7 إصلاح: فك تشفير lark_app_secret قبل الحفظ
       final larkSecret = data['lark_app_secret']?.toString();
       if (larkSecret != null && larkSecret.isNotEmpty) {
-        final key = SecureStorage.getEncryptionKey(deviceId);
+        final key = SecureStorage.getEncryptionKey(null);
         final decryptedSecret = SecureStorage.decryptValue(larkSecret, key);
         await prefs.setString('lark_app_secret', decryptedSecret);
       }

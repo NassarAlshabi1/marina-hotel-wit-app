@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/secondary_appwrite_config.dart';
+import '../../services/daos/outbox_dao.dart';
+import '../../services/local_db.dart';
+import '../../services/secondary_sync_manager.dart';
+
 import '../../services/secondary_appwrite_service.dart';
 import '../../services/appwrite_sync_manager.dart';
 
@@ -739,6 +743,25 @@ class _SecondaryAppwriteSettingsScreenState
                   pullEnabled: pullEnabled,
                 );
                 SecondaryAppwriteService().invalidate();
+                
+                // ✅ تحديث علامات التسليم في outbox
+                if (v) {
+                  // تفعيل: نُعلّم كل السجلات كـ "غير مُسلّمة للثانوي" ليتم رفعها
+                  final db = DatabaseManager.instance;
+                  final outboxDao = OutboxDao(db);
+                  final count = await outboxDao.markAllLocalAsUndeliveredToSecondary();
+                  debugPrint('🔵 [Secondary] Marked $count records as undelivered to secondary');
+                  if (SecondaryAppwriteConfig.isPushEnabled) {
+                    SecondarySyncManager.instance.startAutoSync();
+                  }
+                } else {
+                  // تعطيل: نُعلّم كل السجلات كـ "مُسلّمة للثانوي" لمنع حجبها
+                  final db = DatabaseManager.instance;
+                  final outboxDao = OutboxDao(db);
+                  final count = await outboxDao.markAllLocalAsDeliveredToSecondary();
+                  debugPrint('🔵 [Secondary] Marked $count records as delivered to secondary (disabled)');
+                  SecondarySyncManager.instance.stopAutoSync();
+                }
                 setState(() {});
               },
             ),

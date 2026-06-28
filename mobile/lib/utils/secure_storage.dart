@@ -5,9 +5,9 @@ class SecureStorage {
   static const _prefix = 'ENC:';
 
   static String getEncryptionKey(String? deviceId) {
-    final id = deviceId ?? 'default_device';
-    final combined = '$id|$_staticSecret';
-    final bytes = utf8.encode(combined);
+    // For shared settings synced across devices, use constant key
+    // SECURITY: XOR is obfuscation only - use encrypt package for production
+    final bytes = utf8.encode(_staticSecret);
     final keyBytes = <int>[];
     for (var i = 0; i < bytes.length; i++) {
       keyBytes.add((bytes[i] * 7 + i * 13) % 256);

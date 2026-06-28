@@ -1208,7 +1208,7 @@ Future<bool> _pushAppSettingsToCloud() async {
   try {
     final prefs = await SharedPreferences.getInstance();
     final deviceId = await _getDeviceId();
-    final encryptionKey = SecureStorage.getEncryptionKey(deviceId);
+    final encryptionKey = SecureStorage.getEncryptionKey(null);
 
     // ⚠️ حقول app_settings الفعلية في Appwrite Cloud (25 حقل فقط — الحد الأقصى)
     // تم تدقيق كل حقل مقابل المخطط الفعلي في 2026-06-14

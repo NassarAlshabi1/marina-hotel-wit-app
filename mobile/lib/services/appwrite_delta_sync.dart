@@ -90,10 +90,10 @@ class AppwriteDeltaSync {
         final deviceInfo = DeviceInfoPlugin();
         if (Platform.isAndroid) {
           final info = await deviceInfo.androidInfo;
-          model = info.model.replaceAll(' ', '_');
+          model = info.model.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
         } else if (Platform.isIOS) {
           final info = await deviceInfo.iosInfo;
-          model = info.model.replaceAll(' ', '_');
+          model = info.model.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
         }
       } catch (_) {}
       _deviceId = 'marina_${model}_${IdGen.shortId()}';
