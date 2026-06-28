@@ -1505,6 +1505,9 @@ class AppwriteSyncManager {
     }
 
     if (localLastModified == null) {
+      // ✅ إصلاح (2026-06-28): السجل غير موجود محلياً → يجب إضافته دائماً
+      // حتى لو لم يكن لدى المستند البعيد lastModified ولا $updatedAt.
+      // المنطق القديم كان يتجاوز السجل إذا لم يكن لديه timestamp → فقدان غرف.
       return const _RemoteNewerResult(shouldApplyRemote: true); // جديد
     }
 
@@ -1515,13 +1518,17 @@ class AppwriteSyncManager {
     final effectiveRemoteTs = remoteLastModified ?? remoteUpdatedAtSec;
 
     if (effectiveRemoteTs == null) {
-      _logger.warning(
-        '⚠️ _isRemoteDataNewer: لا يوجد lastModified ولا \$updatedAt للبيان البعيد — '
-        'الحفاظ على البيانات المحلية (localLastModified=$localLastModified) '
-        'لمنع فقدان التحديثات. localUuid=${remoteData['localUuid']}',
+      // ✅ إصلاح (2026-06-28): السجل المحلي موجود لكن البعيد ليس لديه timestamp.
+      // المنطق القديم كان يتجاوز التحديث (shouldApplyRemote: false) → الغرف لا تُحدّث.
+      // الآن: نقارن بـ $updatedAt من Appwrite (متوفر دائماً).
+      // إذا لم يتوفر أي timestamp، نُطبّق البيانات البعيدة كحل آمن
+      // (السحابة هي مصدر الحقيقة عند عدم وجود معلومات كافية).
+      _logger.debug(
+        '_isRemoteDataNewer: no remote timestamp — applying remote data '
+        'as safe default. localUuid=$localUuid',
         tag: 'SYNC',
       );
-      return const _RemoteNewerResult(shouldApplyRemote: false);
+      return const _RemoteNewerResult(shouldApplyRemote: true);
     }
 
     // ════════════════════════════════════════════════════════════
