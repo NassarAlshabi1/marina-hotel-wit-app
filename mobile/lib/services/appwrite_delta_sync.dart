@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:drift/drift.dart' as d;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -80,17 +81,20 @@ class AppwriteDeltaSync {
     final prefs = await SharedPreferences.getInstance();
     _deviceId = prefs.getString(_prefsDeviceIdKey);
     if (_deviceId == null) {
-      // ✅ إصلاح (2026-06-28): توليد deviceId مقروء بدلاً من UUID عشوائي
-      // لتسهيل تتبع التغييرات على Appwrite Cloud ومعرفة أي جهاز أجرى التعديل.
-      String modelName = 'Unknown';
+      // ✅ إصلاح (2026-06-28): استخدام اسم موديل الجهاز الحقيقي
+      // ليظهر deviceId مقروءاً على Appwrite Cloud مثل marina_SM-G991B_ab12
+      String model = 'Unknown';
       try {
+        final deviceInfo = DeviceInfoPlugin();
         if (Platform.isAndroid) {
-          modelName = Platform.operatingSystemVersion;
+          final info = await deviceInfo.androidInfo;
+          model = info.model.replaceAll(' ', '_');
         } else if (Platform.isIOS) {
-          modelName = 'iOS';
+          final info = await deviceInfo.iosInfo;
+          model = info.model.replaceAll(' ', '_');
         }
       } catch (_) {}
-      _deviceId = 'marina_mobile_${IdGen.shortId()}';
+      _deviceId = 'marina_${model}_${IdGen.shortId()}';
       await prefs.setString(_prefsDeviceIdKey, _deviceId!);
     }
   }

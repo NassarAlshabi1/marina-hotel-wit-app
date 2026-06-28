@@ -361,7 +361,7 @@ class AppwriteSyncManager {
       final nowIso = Time.nowIso();
       final nowEpoch = Time.nowEpoch();
 
-      _deviceLocalUuid ??= 'marina_device_${IdGen.shortId()}';
+      _deviceLocalUuid ??= 'marina_${finalDeviceModel.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')}_${IdGen.shortId()}';
       _deviceCreatedAtEpoch ??= nowEpoch;
 
       if (_currentDeviceId != null) {
