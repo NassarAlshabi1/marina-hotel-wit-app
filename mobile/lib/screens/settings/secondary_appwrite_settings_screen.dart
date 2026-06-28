@@ -190,8 +190,14 @@ class _SecondaryAppwriteSettingsScreenState
         }
       });
     } else {
+      // ✅ تعطيل Push: نوقف المزامنة + نُعلّم السجلات كـ "مُسلّمة للثانوي"
+      // هذا يمنع انتظار السجلات في outbox — لا حاجة للانتظار إذا كان Push معطّل
       SecondarySyncManager.instance.stopAutoSync();
-      _showMessage(true, '⏹️ الرفع (Push) معطّل');
+      final db = ref.read(databaseProvider);
+      final outboxDao = OutboxDao(db);
+      final count = await outboxDao.markAllLocalAsDeliveredToSecondary();
+      debugPrint('🔵 [Secondary] Push disabled — marked $count records as delivered');
+      _showMessage(true, '⏹️ الرفع (Push) معطّل — السجلات لن تنتظر في outbox');
     }
 
     setState(() {});
