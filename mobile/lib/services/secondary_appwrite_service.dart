@@ -27,6 +27,7 @@ class SecondaryAppwriteService {
   static SecondaryAppwriteService get instance => SecondaryAppwriteService();
 
   final _networkHelper = AppwriteNetworkHelper();
+  // ignore: unused_field
   final _logger = AppwriteLogger();
 
   Client? _client;
@@ -158,49 +159,12 @@ class SecondaryAppwriteService {
       return await doCreate();
     } on AppwriteException catch (createError) {
       if (isAlreadyExists(createError)) {
-        // ✅ الترحيل الذاتي (نفس Primary): update → delete → create
+        // ✅ تجربة ID البديل فقط — بلا حذف/ترحيل (نفس Primary)
         if (altDocumentId.isNotEmpty) {
-          // 3أ: تحديث المستند القديم
           try {
-            await doUpdate(altDocumentId, suppressErrorLog: true);
+            return await doUpdate(altDocumentId, suppressErrorLog: true);
           } on AppwriteException catch (altError) {
-            if (isNotFound(altError)) { rethrow; }
-            rethrow;
-          }
-          // 3ب: حذف المستند القديم
-          try {
-            // ignore: deprecated_member_use
-            await _databases!.deleteDocument(
-              databaseId: dbId,
-              collectionId: collectionId,
-              documentId: altDocumentId,
-            );
-          } on AppwriteException catch (e) {
-            if (e.code != 404) { rethrow; }
-          }
-          // 3ج: إنشاء بالـ ID الصحيح
-          try {
-            final migrated = await _networkHelper.withRetryAndTimeout(
-              // ignore: deprecated_member_use
-              operation: () => _databases!.createDocument(
-                databaseId: dbId,
-                collectionId: collectionId,
-                documentId: documentId,
-                data: data,
-              ),
-              operationName: 'secondary_createDocument(migration)',
-              suppressErrorLog: true,
-            );
-            _logger.info(
-              '✅ secondary: migrated $altDocumentId → $documentId',
-              tag: 'SECONDARY_UPSERT',
-            );
-            return migrated;
-          } on AppwriteException catch (e) {
-            if (isAlreadyExists(e)) {
-              return doUpdate(documentId);
-            }
-            rethrow;
+            if (!isNotFound(altError)) { rethrow; }
           }
         }
         // محاولة أخيرة

@@ -839,9 +839,10 @@ class GoogleDriveBackupService {
     return _runWithAuth<List<DriveBackupFile>>(() async {
       final folderId = await getOrCreateBackupFolder();
 
-      // البحث عن جميع أنواع النسخ الاحتياطية (الشاملة والتلقائية والتفاضلية)
+      // ✅ إصلاح (2026-06-28): إضافة بادئة نسخ .db للبحث
+      // نسخ .db تُرفع باسم 'db_backup_...' لكن listBackups لم يكن يبحث عنها.
       final query =
-          "parents in '$folderId' and (name contains '$fullBackupPrefix' or name contains '$autoSyncPrefix' or name contains '$deltaSyncPrefix' or name contains '$_backupFilePrefix') and trashed=false";
+          "parents in '$folderId' and (name contains '$fullBackupPrefix' or name contains '$autoSyncPrefix' or name contains '$deltaSyncPrefix' or name contains '$_backupFilePrefix' or name contains 'db_backup_') and trashed=false";
       final allFiles = <drive.File>[];
       String? pageToken;
       do {
