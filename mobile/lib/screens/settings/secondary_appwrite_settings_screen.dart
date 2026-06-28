@@ -165,15 +165,21 @@ class _SecondaryAppwriteSettingsScreenState
     ref.read(secondarySyncProvider.notifier).refresh();
 
     if (value && SecondaryAppwriteConfig.isEnabled) {
+      // ✅ إصلاح P0-2 (2026-06-28): إعادة تعليم السجلات كـ "غير مُسلّمة"
+      // السجلات التي أُنشئت أثناء تعطيل Push لها delivered_to_secondary=true
+      // (افتراضي أو من markAllLocalAsDeliveredToSecondary). يجب إعادة تعليمها
+      // لتكون false ليتمكن Secondary من رفعها.
+      final db = ref.read(databaseProvider);
+      final outboxDao = OutboxDao(db);
+      final undeliveredCount = await outboxDao.markAllLocalAsUndeliveredToSecondary();
+      debugPrint('🔵 [Secondary] Push enabled — marked $undeliveredCount records as undelivered');
+
       // ✅ بدء المزامنة التلقائية
       SecondarySyncManager.instance.startAutoSync();
 
-      // ✅ إصلاح (2026-06-28): مزامنة فورية للسجلات المتراكمة في outbox
-      // عندما كان Push معطلاً، السجلات تُكتب في outbox لكن لا تُرفع.
-      // عند إعادة التفعيل، يجب رفعها فوراً — لا الانتظار 15 دقيقة.
+      // ✅ مزامنة فورية للسجلات المتراكمة
       _showMessage(true, '✅ الرفع (Push) مُفعّل — جاري رفع السجلات المتراكمة...');
 
-     
       SecondarySyncManager.instance.sync().then((result) {
         if (mounted) {
           if (result.success) {

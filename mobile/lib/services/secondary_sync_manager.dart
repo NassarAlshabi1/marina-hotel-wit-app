@@ -289,13 +289,24 @@ class SecondarySyncManager {
       );
       return true;
     } on AppwriteException catch (e) {
-      // أخطاء غير قابلة لإعادة المحاولة — نسجلها ولا نعيد المحاولة
+      // ✅ إصلاح P0-3 (2026-06-28): معالجة صحيحة للأخطاء الدائمة
+      // الكود القديم كان return false — هذا يترك السجل في processing_status='processing'
+      // (من الـ claim) دون معالجة، مما يسبب حلقة stuck-retry-stuck لا نهائية.
+      // الآن نستدعي setError لوضع السجل في 'failed' مع attempts عالية
+      // لمنع إعادة المحاولة التلقائية (retryFailedWithBackoff يتخطى attempts > 5).
       if (e.code == 400 || e.code == 401 || e.code == 403) {
         debugPrint(
             '❌ [SecondarySync] Permanent error for ${entry.entity}/${entry.localUuid}: ${e.code} ${e.message}');
-        // نضع علامة "مُسلّم" لتجنب إعادة المحاولة لأبد — السجل معطوب
-        // لكن نحتفظ به للتحقيق
-        return false;
+        // setError يضع processing_status='failed' + attempts=999
+        // هذا يمنع إعادة المحاولة التلقائية ويُبقي السجل للتحقيق
+        final db = DatabaseManager.instance;
+        final outboxDao = OutboxDao(db);
+        await outboxDao.setError(
+          entry.id,
+          'Permanent (${e.code}): ${e.message}',
+          999, // attempts عالية = لا إعادة محاولة
+        );
+        return false; // يُعلم sync() أن السجل فشل (failed++)
       }
       rethrow;
     }

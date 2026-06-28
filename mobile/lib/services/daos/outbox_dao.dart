@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../adapters/adapter_registry.dart';
 import '../appwrite_logger.dart';
 import '../local_db.dart';
+import '../secondary_appwrite_config.dart';
 
 part 'outbox_dao.g.dart';
 
@@ -101,6 +102,19 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final payloadJson = jsonEncode(payload);
     final idempKey = '$entity:$op:$localUuid:$clientTs';
 
+    // ✅ إصلاح P0-1 (2026-06-28): احسب delivered_to_secondary ديناميكياً
+    // القيمة الافتراضية في schema هي true (لمنع الحجب عند تعطيل Secondary).
+    // لكن عندما Secondary + Push مُفعّلان، يجب أن تكون false ليتمكن Secondary
+    // من معالجة السجل قبل حذفه. بدون هذا، Primary يحذف السجل (كلاهما true)
+    // قبل أن يراه Secondary → فقدان بيانات.
+    bool deliveredToSecondary = true;
+    try {
+      deliveredToSecondary = !SecondaryAppwriteConfig.isEnabled ||
+          !SecondaryAppwriteConfig.isPushEnabled;
+    } catch (_) {
+      // إذا فشل الوصول للإعدادات (SharedPreferences غير مهيأ)، نستخدم true (آمن)
+    }
+
     return transaction(() async {
       // ✅ البحث عن أي سجل موجود لنفس الكيان والـ UUID بغض النظر عن حالته
       // ('pending' أو 'processing') — هذا يمنع إنشاء سجل مكرر
@@ -121,6 +135,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
             idempotencyKey: Value(idempKey),
             serverId: Value(serverId),
             source: Value(source),
+            // ✅ إصلاح P0-1: تحديث delivered_to_secondary للسجل الموجود أيضاً
+            deliveredToSecondary: Value(deliveredToSecondary),
             // ✅ إذا كان السجل في حالة 'processing'، نعيده لـ 'pending'
             // لأن البيانات تغيرت والسجل القديم لم يُعالج بعد
             processingStatus: existing.processingStatus == 'processing'
@@ -146,6 +162,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         clientTs: clientTs,
         idempotencyKey: Value(idempKey),
         source: Value(source),
+        // ✅ إصلاح P0-1: ضبط delivered_to_secondary ديناميكياً
+        deliveredToSecondary: Value(deliveredToSecondary),
       ),);
     });
   }
@@ -401,21 +419,39 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// يضع علامة "غير مُسلّم للثانوي" على جميع السجلات المحلية القادمة.
   /// تُستدعى عند تفعيل Secondary لأول مرة — نريد إرسال كل السجلات القادمة.
   Future<int> markAllLocalAsUndeliveredToSecondary() async {
-    return (update(outbox)..where((t) => t.source.equals('local'))).write(
+    final count = await (update(outbox)..where((t) => t.source.equals('local'))).write(
       const OutboxCompanion(
         deliveredToSecondary: Value(false),
       ),
     );
+    // ✅ إصلاح P1-2 (2026-06-28): تنظيف السجلات المُكتملة لكلا الوجهتين
+    // بعد تحديث العلم، قد تكون هناك سجلات بـ delivered_to_primary=true
+    // و delivered_to_secondary=true الآن — يجب حذفها لمنع التراكم.
+    await _cleanupFullyDeliveredRecords();
+    return count;
   }
 
   /// يضع علامة "مُسلّم للثانوي" على جميع السجلات المحلية.
   /// تُستدعى عند تعطيل Secondary — لا نريد إرسال أي شيء للثانوي.
   Future<int> markAllLocalAsDeliveredToSecondary() async {
-    return (update(outbox)..where((t) => t.source.equals('local'))).write(
+    final count = await (update(outbox)..where((t) => t.source.equals('local'))).write(
       const OutboxCompanion(
         deliveredToSecondary: Value(true),
       ),
     );
+    // ✅ إصلاح P1-2 (2026-06-28): تنظيف السجلات المُكتملة لكلا الوجهتين
+    await _cleanupFullyDeliveredRecords();
+    return count;
+  }
+
+  /// ✅ حذف السجلات التي تم تسليمها لكلا الوجهتين (Primary + Secondary)
+  /// تُستدعى بعد bulk flag operations لمنع تراكم السجلات المُكتملة.
+  Future<int> _cleanupFullyDeliveredRecords() async {
+    return (delete(outbox)
+          ..where((t) =>
+              t.deliveredToPrimary.equals(true) &
+              t.deliveredToSecondary.equals(true)))
+        .go();
   }
 
   Future<void> markFailed(List<int> ids) async {
