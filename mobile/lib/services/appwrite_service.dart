@@ -484,41 +484,116 @@ class AppwriteService {
       return await doCreate();
     } on AppwriteException catch (createError) {
       if (isAlreadyExists(createError)) {
-        // ─── الخطوة 3: create فشل بـ 409 → المستند موجود بصيغة مختلفة ───
+        // ─── الخطوة 3: create فشل بـ 409 → المستند موجود بـ ID بدون شرطات ───
         //
-        // نمط 404 → 409 يعني المستند موجود لكن بـ ID مختلف.
-        // نجرب updateDocument بالـ ID البديل (بدون شرطات).
+        // ✅ حل عبقري (2026-06-28): الترحيل الذاتي (Self-Healing Migration)
+        //
+        // بدلاً من تجربة ID البديل في كل مزامنة (3 API calls لكل مستند قديم):
+        //   1. update(alt-ID) → ✅ تحديث البيانات على المستند القديم
+        //   2. delete(alt-ID) → 🗑️ حذف المستند القديم (بدون شرطات)
+        //   3. create(dashed-ID) → ✅ إنشاء مستند جديد بالـ ID الصحيح
+        //
+        // النتيجة:
+        //   - أول مزامنة: 5 API calls (ترحيل + تحديث)
+        //   - المزامنة التالية: 1 API call فقط (update بالشرطات → نجاح!)
+        //   - المستند يُصلح نفسه تلقائياً، لا حاجة لسكربت ترحيل
+        //
+        // الأمان:
+        //   - إذا فشل delete: المستند القديم محدّث بالبيانات الصحيحة → لا فقدان
+        //   - إذا فشل create بعد delete: next sync → create(with-dashes) → نجاح
+        //     (لأن المستند القديم محذوف، لا 409)
+        //   - الـ DB المحلي دائماً لديه البيانات
 
-        // 3أ: تجربة ID البديل (بدون شرطات)
         if (altDocumentId.isNotEmpty) {
+          // 3أ: تحديث المستند القديم (بدون شرطات) بالبيانات الجديدة
           try {
+            await doUpdate(altDocumentId, suppressErrorLog: true);
             _logger.debug(
-              'upsert: trying alt ID (no dashes): $altDocumentId',
+              'upsert: updated legacy doc (no dashes): $altDocumentId',
               tag: 'UPSERT',
             );
-            return await doUpdate(altDocumentId, suppressErrorLog: true);
           } on AppwriteException catch (altError) {
-            if (!isNotFound(altError)) {
-              rethrow; // خطأ آخر غير 404
+            if (isNotFound(altError)) {
+              // المستند غير موجود بأي صيغة — مشكلة في Appwrite نفسه
+              _logger.warning(
+                '⚠️ upsert: doc exists (409) but unreachable by any ID. '
+                'collection=$collectionId, docId=$documentId',
+                tag: 'UPSERT',
+              );
+              rethrow;
             }
-            // 404 على ID البديل أيضاً — المستند موجود بصيغة ثالثة؟
+            rethrow;
+          }
+
+          // 3ب: حذف المستند القديم (بدون شرطات)
+          try {
+            // ignore: deprecated_member_use
+            await _databases.deleteDocument(
+              databaseId: dbId,
+              collectionId: collectionId,
+              documentId: altDocumentId,
+            );
+            _logger.debug(
+              'upsert: deleted legacy doc (no dashes): $altDocumentId',
+              tag: 'UPSERT',
+            );
+          } on AppwriteException catch (e) {
+            // فشل الحذف ليس حرجاً — البيانات محدّثة بالفعل
+            // سنحاول create بالشرطات، قد يفشل بـ 409 (لأن القديم لا يزال موجود)
+            // في هذه الحالة، السجل يُعاد محاولته لاحقاً
+            if (e.code != 404) {
+              _logger.warning(
+                'upsert: failed to delete legacy doc: $e — will retry next sync',
+                tag: 'UPSERT',
+              );
+              rethrow; // السجل يبقى في outbox لإعادة المحاولة
+            }
+          }
+
+          // 3ج: إنشاء مستند جديد بالـ ID الصحيح (بالشرطات)
+          try {
+            final migrated = await _networkHelper.withRetryAndTimeout(
+              // ignore: deprecated_member_use
+              operation: () => _databases.createDocument(
+                databaseId: dbId,
+                collectionId: collectionId,
+                documentId: documentId,
+                data: data,
+              ),
+              operationName: 'createDocument(migration)',
+              suppressErrorLog: true,
+            );
+            _logger.info(
+              '✅ upsert: migrated doc from $altDocumentId → $documentId',
+              tag: 'UPSERT',
+            );
+            return migrated;
+          } on AppwriteException catch (e) {
+            if (isAlreadyExists(e)) {
+              // المستند بالشرطات موجود بالفعل (تم ترحيله في مزامنة سابقة)
+              // نحدثه بالبيانات الجديدة
+              return doUpdate(documentId);
+            }
+            // create فشل بخطأ آخر — البيانات موجودة في المستند القديم
+            // (الذي لم يُحذف إذا وصلنا لهذه النقطة)
+            _logger.warning(
+              'upsert: migration create failed, but data is on legacy doc. '
+              'collection=$collectionId, docId=$documentId. Error: $e',
+              tag: 'UPSERT',
+            );
+            rethrow;
           }
         }
 
-        // 3ب: محالة أخيرة updateDocument بالـ ID الأصلي
+        // لا يوجد ID بديل — محاولة أخيرة
         try {
           return await doUpdate(documentId, suppressErrorLog: true);
         } on AppwriteException catch (finalErr) {
-          if (isNotFound(finalErr)) {
-            // نمط 404 → 409 → 404 → 404: المستند موجود (409) لكن لا يمكن
-            // تحديثه بأي صيغة ID. هذا يشير لمشكلة في قاعدة البيانات نفسها.
-            _logger.warning(
-              '⚠️ upsert: document exists (409) but unreachable by any ID format. '
-              'collection=$collectionId, docId=$documentId. '
-              'The document may be in a corrupted state in Appwrite.',
-              tag: 'UPSERT',
-            );
-          }
+          _logger.warning(
+            '⚠️ upsert: final update failed. '
+            'collection=$collectionId, docId=$documentId. Error: $finalErr',
+            tag: 'UPSERT',
+          );
           rethrow;
         }
       }

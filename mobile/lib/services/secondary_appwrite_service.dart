@@ -158,27 +158,54 @@ class SecondaryAppwriteService {
       return await doCreate();
     } on AppwriteException catch (createError) {
       if (isAlreadyExists(createError)) {
-        // الخطوة 3: 409 → تجربة ID البديل (بدون شرطات)
+        // ✅ الترحيل الذاتي (نفس Primary): update → delete → create
         if (altDocumentId.isNotEmpty) {
+          // 3أ: تحديث المستند القديم
           try {
-            return await doUpdate(altDocumentId, suppressErrorLog: true);
+            await doUpdate(altDocumentId, suppressErrorLog: true);
           } on AppwriteException catch (altError) {
-            if (!isNotFound(altError)) { rethrow; }
+            if (isNotFound(altError)) { rethrow; }
+            rethrow;
+          }
+          // 3ب: حذف المستند القديم
+          try {
+            // ignore: deprecated_member_use
+            await _databases!.deleteDocument(
+              databaseId: dbId,
+              collectionId: collectionId,
+              documentId: altDocumentId,
+            );
+          } on AppwriteException catch (e) {
+            if (e.code != 404) { rethrow; }
+          }
+          // 3ج: إنشاء بالـ ID الصحيح
+          try {
+            final migrated = await _networkHelper.withRetryAndTimeout(
+              // ignore: deprecated_member_use
+              operation: () => _databases!.createDocument(
+                databaseId: dbId,
+                collectionId: collectionId,
+                documentId: documentId,
+                data: data,
+              ),
+              operationName: 'secondary_createDocument(migration)',
+              suppressErrorLog: true,
+            );
+            _logger.info(
+              '✅ secondary: migrated $altDocumentId → $documentId',
+              tag: 'SECONDARY_UPSERT',
+            );
+            return migrated;
+          } on AppwriteException catch (e) {
+            if (isAlreadyExists(e)) {
+              return doUpdate(documentId);
+            }
+            rethrow;
           }
         }
         // محاولة أخيرة
-        try {
-          return await doUpdate(documentId, suppressErrorLog: true);
-        } on AppwriteException catch (finalErr) {
-          if (isNotFound(finalErr)) {
-            _logger.warning(
-              '⚠️ secondary upsert: document exists (409) but unreachable. '
-              'collection=$collectionId, docId=$documentId',
-              tag: 'SECONDARY_UPSERT',
-            );
-          }
-          rethrow;
-        }
+        try { return doUpdate(documentId, suppressErrorLog: true); }
+        catch (_) { rethrow; }
       }
       rethrow;
     }
