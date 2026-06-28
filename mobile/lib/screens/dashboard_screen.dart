@@ -394,8 +394,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       builder: (context, ref, _) {
         final roomsWithStatusAsync = ref.watch(roomsWithPaymentStatusProvider);
         return roomsWithStatusAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, st) => Center(child: Text('خطأ: $e')),
+          loading: () => const Padding(
+            padding: EdgeInsets.all(40),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (e, st) {
+            debugPrint('❌ Dashboard rooms error: $e');
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red.shade400, size: 40),
+                  const SizedBox(height: 8),
+                  Text(
+                    'تعذر تحميل الغرف',
+                    style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$e',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          },
           data: _buildRoomsCard,
         );
       },
