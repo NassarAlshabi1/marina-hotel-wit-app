@@ -1,4 +1,6 @@
 // ignore_for_file: unused_field
+import 'dart:io';
+
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:drift/drift.dart' as d;
@@ -78,7 +80,17 @@ class AppwriteDeltaSync {
     final prefs = await SharedPreferences.getInstance();
     _deviceId = prefs.getString(_prefsDeviceIdKey);
     if (_deviceId == null) {
-      _deviceId = IdGen.uuid();
+      // ✅ إصلاح (2026-06-28): توليد deviceId مقروء بدلاً من UUID عشوائي
+      // لتسهيل تتبع التغييرات على Appwrite Cloud ومعرفة أي جهاز أجرى التعديل.
+      String modelName = 'Unknown';
+      try {
+        if (Platform.isAndroid) {
+          modelName = Platform.operatingSystemVersion;
+        } else if (Platform.isIOS) {
+          modelName = 'iOS';
+        }
+      } catch (_) {}
+      _deviceId = 'marina_mobile_${IdGen.shortId()}';
       await prefs.setString(_prefsDeviceIdKey, _deviceId!);
     }
   }
