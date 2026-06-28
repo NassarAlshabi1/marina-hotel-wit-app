@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../adapters/adapter_registry.dart';
+import '../appwrite_config.dart';
 import '../appwrite_logger.dart';
 import '../local_db.dart';
 import '../secondary_appwrite_config.dart';
@@ -593,7 +594,15 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   /// جلب التعارضات من Outbox (السجلات التي فشلت بسبب تعارض)
-  Future<List<ConflictRecord>> getConflicts() async {
+  ///
+  /// ✅ P0-3 إصلاح (2026-06-28): دعم جلب البيانات البعيدة الحقيقية
+  /// عبر [fetchRemote]. المُتصل يمرر دالة غير متزامنة تستلم
+  /// (entity, localUuid) وتُعيد خريطة البيانات البعيدة أو null.
+  /// إذا لم تُمرر الدالة أو فشل الجلب، يُستخدم payload المحلي
+  /// كبديل (السلوك القديم مع تحذير).
+  Future<List<ConflictRecord>> getConflicts({
+    Future<Map<String, dynamic>?> Function(String entity, String localUuid)? fetchRemote,
+  }) async {
     final failed = await (select(outbox)
           ..where((t) =>
               t.processingStatus.equals('failed') &
@@ -601,18 +610,29 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           ..orderBy([(t) => OrderingTerm.desc(t.clientTs)]))
         .get();
 
-    return failed.map((entry) {
+    final results = <ConflictRecord>[];
+    for (final entry in failed) {
       final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
-      return ConflictRecord(
+      Map<String, dynamic>? remote = payload; // fallback = local data
+      if (fetchRemote != null) {
+        try {
+          remote = await fetchRemote(entry.entity, entry.localUuid);
+        } catch (_) {
+          // فشل جلب البيانات البعيدة — نستخدم fallback
+        }
+      }
+      remote ??= payload;
+      results.add(ConflictRecord(
         id: entry.id,
         uuid: entry.localUuid,
         targetTable: entry.entity,
         localPayload: payload,
-        remotePayload: payload, // TODO: Fetch actual remote data
+        remotePayload: remote,
         lastError: entry.lastError ?? 'Unknown conflict',
         timestamp: DateTime.fromMillisecondsSinceEpoch(entry.clientTs * 1000),
-      );
-    }).toList();
+      ));
+    }
+    return results;
   }
 
   /// حل تعارض محدد — يُعيد العنصر إلى pending لرفعه فعلياً لاحقاً
