@@ -2060,9 +2060,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       revenueType: 'room', // رسوم غرفة للليالي الإضافية
     );
 
-    if (mounted) {
-      Navigator.pop(context);
-    }
+    // ignore: use_build_context_synchronously
+    Navigator.pop(context);
 
     // حساب المتبقي الجديد
     final roomsRepo = ref.read(roomsRepoProvider);
@@ -2282,29 +2281,28 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         final double rmRate = room?.price ?? 0;
 
         if (rmRate <= 0) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('لا يمكن حساب الليالي الإضافية — سعر الغرفة غير محدد'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('لا يمكن حساب الليالي الإضافية — سعر الغرفة غير محدد'),
+              backgroundColor: Colors.red,
+            ),
+          );
           return;
         }
 
         extraNights = (surplus / rmRate).ceil();
         if (extraNights <= 0) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('لا يمكن حساب الليالي الإضافية')),
-            );
-          }
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('لا يمكن حساب الليالي الإضافية')),
+          );
           return;
         }
 
         // تأكيد التمديد من المستخدم
         final confirmed = await showDialog<bool>(
+          // ignore: use_build_context_synchronously
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Row(
