@@ -291,99 +291,83 @@ for (final coll in collectionList) {
     return AppwriteConfig.collectionIdFor(entity);
   }
 
+  /// مصدر الحقيقة الوحيد لجداول الرفع الشامل.
+  ///
+  /// كل مدخلة تربط اسم الكيان بدالة تجلب صفوفه من Drift وتحوّلها إلى خرائط.
+  /// إضافة/إزالة جدول من النسخة الشاملة = تعديل سطر واحد هنا فقط.
+  /// (سابقاً كانت قائمة `entities` و`switch` منفصلين يتباعدان مع الوقت،
+  /// مما أدى لإسقاط `salary_carry_over_logs` صامتاً من النسخة "الشاملة".)
+  Map<String, Future<List<Map<String, dynamic>>> Function()> _backupFetchers(
+    AppDatabase db,
+  ) {
+    return {
+      'rooms': () async =>
+          (await db.select(db.rooms).get()).map(_roomToMap).toList(),
+      'bookings': () async =>
+          (await db.select(db.bookings).get()).map(_bookingToMap).toList(),
+      'payments': () async =>
+          (await db.select(db.payments).get()).map(_paymentToMap).toList(),
+      'expenses': () async =>
+          (await db.select(db.expenses).get()).map(_expenseToMap).toList(),
+      'debts': () async =>
+          (await db.select(db.debts).get()).map(_debtToMap).toList(),
+      'employees': () async =>
+          (await db.select(db.employees).get()).map(_employeeToMap).toList(),
+      'booking_notes': () async =>
+          (await db.select(db.bookingNotes).get()).map(_bookingNoteToMap).toList(),
+      'booking_nights': () async =>
+          (await db.select(db.bookingNights).get()).map(_nightToMap).toList(),
+      'cash_transactions': () async => (await db.select(db.cashTransactions).get())
+          .map(_cashTransactionToMap)
+          .toList(),
+      'salary_cycles': () async =>
+          (await db.select(db.salaryCycles).get()).map(_salaryCycleToMap).toList(),
+      'salary_payments': () async => (await db.select(db.salaryPayments).get())
+          .map(_salaryPaymentToMap)
+          .toList(),
+      'salary_withdrawals': () async =>
+          (await db.select(db.salaryWithdrawals).get())
+              .map(_salaryWithdrawalToMap)
+              .toList(),
+      'salary_carry_over_logs': () async =>
+          (await db.select(db.salaryCarryOverLogs).get())
+              .map(_salaryCarryOverLogToMap)
+              .toList(),
+      'shift_notes': () async =>
+          (await db.select(db.shiftNotes).get()).map(_shiftNoteToMap).toList(),
+      'price_adjustments': () async => (await db.select(db.priceAdjustments).get())
+          .map(_priceAdjustmentToMap)
+          .toList(),
+      'booking_price_adjustments': () async =>
+          (await db.select(db.bookingPriceAdjustments).get())
+              .map(_bookingPriceAdjustmentToMap)
+              .toList(),
+      'audit_logs': () async =>
+          (await db.select(db.auditLogs).get()).map(_auditLogToMap).toList(),
+      'payment_voids': () async =>
+          (await db.select(db.paymentVoids).get()).map(_paymentVoidToMap).toList(),
+      'guest_infos': () async =>
+          (await db.select(db.guestInfos).get()).map(_guestInfoToMap).toList(),
+    };
+  }
+
   /// تجميع كل بيانات الجداول المحلية للرفع الشامل
   /// ✅ P0-3 إصلاح: استخدام اجراءات Drift الفعلية بدلاً من قائمة ثابتة فارغة
+  /// ✅ يُبنى من `_backupFetchers` (مصدر حقيقة واحد) بدل قائمة + switch منفصلين.
   Future<List<_CollectionData>> _getAllCollections(AppDatabase db) async {
-    const entities = [
-      'rooms',
-      'bookings',
-      'payments',
-      'expenses',
-      'debts',
-      'employees',
-      'booking_notes',
-      'booking_nights',
-      'cash_transactions',
-      'salary_cycles',
-      'salary_payments',
-      'salary_withdrawals',
-      'salary_carry_over_logs',
-      'shift_notes',
-      'price_adjustments',
-      'booking_price_adjustments',
-      'audit_logs',
-      'payment_voids',
-      'guest_infos',
-    ];
-
+    final fetchers = _backupFetchers(db);
     final result = <_CollectionData>[];
 
-    for (final entity in entities) {
+    for (final entry in fetchers.entries) {
+      final entity = entry.key;
       final collectionId = AppwriteConfig.collectionIdFor(entity);
-      if (collectionId == null) continue;
-
-      List<Map<String, dynamic>> records = [];
-
-      switch (entity) {
-        case 'rooms':
-          final rows = await db.select(db.rooms).get();
-          records = rows.map((r) => _roomToMap(r)).toList();
-        case 'bookings':
-          final rows = await db.select(db.bookings).get();
-          records = rows.map((r) => _bookingToMap(r)).toList();
-        case 'payments':
-          final rows = await db.select(db.payments).get();
-          records = rows.map((r) => _paymentToMap(r)).toList();
-        case 'expenses':
-          final rows = await db.select(db.expenses).get();
-          records = rows.map((r) => _expenseToMap(r)).toList();
-        case 'debts':
-          final rows = await db.select(db.debts).get();
-          records = rows.map((r) => _debtToMap(r)).toList();
-        case 'employees':
-          final rows = await db.select(db.employees).get();
-          records = rows.map((r) => _employeeToMap(r)).toList();
-        case 'booking_notes':
-          final rows = await db.select(db.bookingNotes).get();
-          records = rows.map((r) => _bookingNoteToMap(r)).toList();
-        case 'booking_nights':
-          final rows = await db.select(db.bookingNights).get();
-          records = rows.map((r) => _nightToMap(r)).toList();
-        case 'cash_transactions':
-          final rows = await db.select(db.cashTransactions).get();
-          records = rows.map((r) => _cashTransactionToMap(r)).toList();
-        case 'salary_cycles':
-          final rows = await db.select(db.salaryCycles).get();
-          records = rows.map((r) => _salaryCycleToMap(r)).toList();
-        case 'salary_payments':
-          final rows = await db.select(db.salaryPayments).get();
-          records = rows.map((r) => _salaryPaymentToMap(r)).toList();
-        case 'salary_withdrawals':
-          final rows = await db.select(db.salaryWithdrawals).get();
-          records = rows.map((r) => _salaryWithdrawalToMap(r)).toList();
-        case 'salary_carry_over_logs':
-          final rows = await db.select(db.salaryCarryOverLogs).get();
-          records = rows.map((r) => _salaryCarryOverLogToMap(r)).toList();
-        case 'shift_notes':
-          final rows = await db.select(db.shiftNotes).get();
-          records = rows.map((r) => _shiftNoteToMap(r)).toList();
-        case 'price_adjustments':
-          final rows = await db.select(db.priceAdjustments).get();
-          records = rows.map((r) => _priceAdjustmentToMap(r)).toList();
-        case 'booking_price_adjustments':
-          final rows = await db.select(db.bookingPriceAdjustments).get();
-          records = rows.map((r) => _bookingPriceAdjustmentToMap(r)).toList();
-        case 'audit_logs':
-          final rows = await db.select(db.auditLogs).get();
-          records = rows.map((r) => _auditLogToMap(r)).toList();
-        case 'payment_voids':
-          final rows = await db.select(db.paymentVoids).get();
-          records = rows.map((r) => _paymentVoidToMap(r)).toList();
-        case 'guest_infos':
-          final rows = await db.select(db.guestInfos).get();
-          records = rows.map((r) => _guestInfoToMap(r)).toList();
+      if (collectionId == null) {
+        // كيان بلا collectionId مُعرّف — لا يمكن رفعه؛ نتخطّاه صراحةً مع تنبيه.
+        debugPrint('⚠️ [Secondary] تخطّي "$entity": لا يوجد collectionId مطابق');
+        continue;
       }
 
+      final records = await entry.value();
       result.add(_CollectionData(
         name: entity,
         collectionId: collectionId,
