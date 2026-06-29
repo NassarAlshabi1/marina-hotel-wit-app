@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
+import 'appwrite_sync_utils.dart';
 import 'local_db.dart';
 import 'secondary_appwrite_config.dart';
 
@@ -127,10 +128,14 @@ for (final coll in collectionList) {
         }
 
         try {
+          final filteredData = AppwriteSyncUtils.filterPayloadForCollection(
+            coll.collectionId,
+            record,
+          );
           await upsertDocument(
             collectionId: coll.collectionId,
             documentId: documentId,
-            data: record,
+            data: filteredData,
           );
           successCount++;
         } catch (e) {
