@@ -199,7 +199,7 @@ class AppwriteService {
   // الكتابة (push) تظل تعمل عبر outbox — السجلات تُحفظ محلياً وتُرفع
   // للوجهتين عند توفّرهما. لا حاجة لـ failover في الكتابة.
 
-  /// يقرأ مستندات من Primary، وإذا فشل يقرأ من Secondary (Failover)
+/// يقرأ مستندات من Primary، وإذا فشل يقرأ من Secondary (Failover)
   ///
   /// [collectionId] — معرف الـ collection
   /// [queries] — استعلامات Appwrite
@@ -211,6 +211,16 @@ class AppwriteService {
     bool useCache = true,
     AppwriteHealthState? healthState,
   }) async {
+    // ✅ إذا كان المستخدم قد فعل Failover يدوياً، نقرأ مباشرة من Secondary
+    if (SecondaryAppwriteConfig.isFailoverActive &&
+        SecondaryAppwriteConfig.isPullEnabled &&
+        SecondaryAppwriteConfig.isEnabled &&
+        SecondaryAppwriteConfig.isConfigured) {
+      debugPrint(
+          '🔄 [Failover] Manual failover active — reading from Secondary for all reads');
+      return _listFromSecondary(collectionId, queries);
+    }
+
     // إذا كانت حالة Primary معروفة بأنها معطّلة و Secondary متاح، نقرأ مباشرة من Secondary
     if (healthState != null &&
         healthState.shouldFailover &&
@@ -246,9 +256,17 @@ class AppwriteService {
     required String documentId,
     AppwriteHealthState? healthState,
   }) async {
-    await _ensureInitialized();
+    // ✅ إذا كان المستخدم قد فعل Failover يدوياً، نقرأ مباشرة من Secondary
+    if (SecondaryAppwriteConfig.isFailoverActive &&
+        SecondaryAppwriteConfig.isPullEnabled &&
+        SecondaryAppwriteConfig.isEnabled &&
+        SecondaryAppwriteConfig.isConfigured) {
+      debugPrint(
+          '🔄 [Failover] Manual failover active — reading from Secondary for getDocument');
+      return _getFromSecondary(collectionId, documentId);
+    }
 
-    // إذا كانت حالة Primary معروفة بأنها معطّلة، نقرأ مباشرة من Secondary
+    // إذا كانت حالة Primary معروفة بأنها معطّلة، نقرأ مباشتاً من Secondary
     if (healthState != null &&
         healthState.shouldFailover &&
         SecondaryAppwriteConfig.isEnabled &&
