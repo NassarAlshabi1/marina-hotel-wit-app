@@ -95,6 +95,17 @@ class AppwriteService {
     bool useCache = true,
     bool useRetry = true,
   }) async {
+    // ✅ Manual failover: if active, read from Secondary instead of Primary
+    // This covers all entity reads (listRooms, listBookings, listPayments, etc.)
+    if (SecondaryAppwriteConfig.isFailoverActive &&
+        SecondaryAppwriteConfig.isPullEnabled &&
+        SecondaryAppwriteConfig.isEnabled &&
+        SecondaryAppwriteConfig.isConfigured) {
+      debugPrint(
+          '🔄 [Failover] Manual failover active — reading from Secondary');
+      return _listFromSecondary(collectionId, queries);
+    }
+
     final cacheKey = '${collectionId}_${queries.join('_')}_all';
     if (useCache) {
       final cached = _cache.get<List<models.Document>>(cacheKey);
@@ -199,7 +210,7 @@ class AppwriteService {
   // الكتابة (push) تظل تعمل عبر outbox — السجلات تُحفظ محلياً وتُرفع
   // للوجهتين عند توفّرهما. لا حاجة لـ failover في الكتابة.
 
-  /// يقرأ مستندات من Primary، وإذا فشل يقرأ من Secondary (Failover)
+/// يقرأ مستندات من Primary، وإذا فشل يقرأ من Secondary (Failover)
   ///
   /// [collectionId] — معرف الـ collection
   /// [queries] — استعلامات Appwrite
@@ -211,17 +222,7 @@ class AppwriteService {
     bool useCache = true,
     AppwriteHealthState? healthState,
   }) async {
-    // إذا كانت حالة Primary معروفة بأنها معطّلة و Secondary متاح، نقرأ مباشرة من Secondary
-    if (healthState != null &&
-        healthState.shouldFailover &&
-        SecondaryAppwriteConfig.isEnabled &&
-        SecondaryAppwriteConfig.isConfigured) {
-      debugPrint(
-          '🔄 [Failover] Reading from Secondary (Primary known unreachable)');
-      return _listFromSecondary(collectionId, queries);
-    }
-
-    // محاولة Primary أولاً
+    // ✅ الفحص يتم في _listAllDocumentsInternal مسبقاً
     try {
       return await _listAllDocumentsInternal(
         collectionId: collectionId,
@@ -248,7 +249,17 @@ class AppwriteService {
   }) async {
     await _ensureInitialized();
 
-    // إذا كانت حالة Primary معروفة بأنها معطّلة، نقرأ مباشرة من Secondary
+    // ✅ إذا كان المستخدم قد فعل Failover يدوياً، نقرأ مباشرة من Secondary
+    if (SecondaryAppwriteConfig.isFailoverActive &&
+        SecondaryAppwriteConfig.isPullEnabled &&
+        SecondaryAppwriteConfig.isEnabled &&
+        SecondaryAppwriteConfig.isConfigured) {
+      debugPrint(
+          '🔄 [Failover] Manual failover active — reading from Secondary for getDocument');
+      return _getFromSecondary(collectionId, documentId);
+    }
+
+    // إذا كانت حالة Primary معروفة بأنها معطّلة، نقرأ مباشتاً من Secondary
     if (healthState != null &&
         healthState.shouldFailover &&
         SecondaryAppwriteConfig.isEnabled &&
@@ -1223,6 +1234,15 @@ class AppwriteService {
     required String documentId,
   }) async {
     await _ensureInitialized();
+    // ✅ Manual failover: if active, read from Secondary instead
+    if (SecondaryAppwriteConfig.isFailoverActive &&
+        SecondaryAppwriteConfig.isPullEnabled &&
+        SecondaryAppwriteConfig.isEnabled &&
+        SecondaryAppwriteConfig.isConfigured) {
+      debugPrint(
+          '🔄 [Failover] Manual failover active — reading document from Secondary');
+      return _getFromSecondary(collectionId, documentId);
+    }
     return _networkHelper.withTimeout(
       // ignore: deprecated_member_use
       operation: () => _databases.getDocument(
