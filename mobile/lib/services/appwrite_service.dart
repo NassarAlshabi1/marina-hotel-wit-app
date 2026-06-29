@@ -95,6 +95,16 @@ class AppwriteService {
     bool useCache = true,
     bool useRetry = true,
   }) async {
+    // ✅ Manual failover: if active, read from Secondary instead of Primary
+    if (SecondaryAppwriteConfig.isFailoverActive &&
+        SecondaryAppwriteConfig.isPullEnabled &&
+        SecondaryAppwriteConfig.isEnabled &&
+        SecondaryAppwriteConfig.isConfigured) {
+      debugPrint(
+          '🔄 [Failover] Manual failover active — reading all docs from Secondary');
+      return _listFromSecondary(collectionId, queries);
+    }
+
     final cacheKey = '${collectionId}_${queries.join('_')}_all';
     if (useCache) {
       final cached = _cache.get<List<models.Document>>(cacheKey);
@@ -1243,6 +1253,15 @@ class AppwriteService {
     required String documentId,
   }) async {
     await _ensureInitialized();
+    // ✅ Manual failover: if active, read from Secondary instead
+    if (SecondaryAppwriteConfig.isFailoverActive &&
+        SecondaryAppwriteConfig.isPullEnabled &&
+        SecondaryAppwriteConfig.isEnabled &&
+        SecondaryAppwriteConfig.isConfigured) {
+      debugPrint(
+          '🔄 [Failover] Manual failover active — reading document from Secondary');
+      return _getFromSecondary(collectionId, documentId);
+    }
     return _networkHelper.withTimeout(
       // ignore: deprecated_member_use
       operation: () => _databases.getDocument(
