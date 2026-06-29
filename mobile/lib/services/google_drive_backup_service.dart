@@ -1605,17 +1605,11 @@ class GoogleDriveBackupService {
             }
           }
 
-          if (backupData.containsKey('sync_state') &&
-              backupData['sync_state'] is Map &&
-              (backupData['sync_state'] as Map).isNotEmpty) {
-            final syncStateJson = Map<String, dynamic>.from(
-              backupData['sync_state'] as Map,
-            );
-            final data = SyncStateData.fromJson(
-              syncStateJson,
-              serializer: lenientValueSerializer,
-            );
-            await db.into(db.syncState).insertOnConflictUpdate(data);
+          // BUG-3 FIX: Don't restore sync_state - new device should sync from scratch
+          // sync_state contains lastPullTs/deviceId from source device
+          if (backupData.containsKey('sync_state')) {
+            await db.delete(db.syncState).go();
+            _log('🔄 تم مسح sync_state — الجهاز الجديد سيبدأ مزامنة كاملة');
           }
 
           // استعادة وتطبيق الإعدادات العامة إذا وجدت

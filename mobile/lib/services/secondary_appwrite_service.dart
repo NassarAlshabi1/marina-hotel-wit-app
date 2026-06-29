@@ -1,9 +1,11 @@
+// ignore_for_file: unused_element, prefer_final_locals, unnecessary_lambdas, curly_braces_in_flow_control_structures
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:flutter/foundation.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
+import 'local_db.dart';
 import 'secondary_appwrite_config.dart';
 
 /// خدمة Appwrite الثانوية — تستخدم Appwrite SDK الرسمي (مثل Primary)
@@ -61,22 +63,92 @@ class SecondaryAppwriteService {
     _databases = null;
   }
 
-  /// اختبار الاتصال بـ Secondary
-  Future<bool> testConnection() async {
+  /// نتيجة اختبار الاتصال
+  Future<ConnectionTestResult> testConnection() async {
+    final stopwatch = Stopwatch()..start();
     try {
       await _ensureInitialized();
-      // محاولة قراءة أي مستند كاختبار
       // ignore: deprecated_member_use
       await _databases!.listDocuments(
         databaseId: SecondaryAppwriteConfig.databaseId,
         collectionId: AppwriteConfig.roomsCollectionId,
         queries: [Query.limit(1)],
       );
-      return true;
+      stopwatch.stop();
+      return ConnectionTestResult(
+        success: true,
+        message: '✅ تم الاتصال بنجاح',
+        latencyMs: stopwatch.elapsedMilliseconds,
+      );
     } catch (e) {
+      stopwatch.stop();
       debugPrint('❌ [Secondary] testConnection failed: $e');
-      return false;
+      return ConnectionTestResult(
+        success: false,
+        message: '❌ فشل: $e',
+        latencyMs: stopwatch.elapsedMilliseconds,
+      );
     }
+  }
+
+  /// رفع نسخة شاملة من كل البيانات المحلية إلى Secondary
+  Future<FullBackupStats> uploadFullBackup({
+    required void Function(String collection, int current, int total) onProgress,
+    required void Function(String collectionName, int successCount, int failureCount) onCollectionComplete,
+  }) async {
+    await _ensureInitialized();
+    final db = DatabaseManager.instance;
+    final stats = FullBackupStats();
+    final collectionList = await _getAllCollections(db);
+
+    stats.totalCollections = collectionList.length;
+for (final coll in collectionList) {
+      int successCount = 0;
+      int failureCount = 0;
+      int total = coll.records.length;
+      int current = 0;
+
+      for (final record in coll.records) {
+        current++;
+        onProgress(coll.name, current, total);
+        try {
+          await upsertDocument(
+            collectionId: coll.collectionId,
+            documentId: record['localUuid'] as String? ?? '',
+            data: record,
+          );
+          successCount++;
+        } catch (e) {
+          failureCount++;
+          final reason = e.toString();
+          stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(
+            FullBackupFailure(documentId: record['localUuid']?.toString(), reason: reason, collectionName: coll.name),
+          );
+          // ✅ إحصائيات الأخطاء حسب السبب
+          final reasonShort = reason.length > 100 ? reason.substring(0, 100) : reason;
+          stats.errorsByReason[reasonShort] = (stats.errorsByReason[reasonShort] ?? 0) + 1;
+        }
+      }
+
+      onCollectionComplete(coll.name, successCount, failureCount);
+      stats.collectionDetails.add({
+        'name': coll.name,
+        'total': total,
+        'success': successCount,
+        'failure': failureCount,
+        'isFullySuccessful': failureCount == 0,
+      });
+      stats.successCount += successCount;
+      stats.failureCount += failureCount;
+      if (failureCount == 0) {
+        stats.fullySuccessfulCollections++;
+      } else {
+        stats.failedCollections++;
+      }
+      stats.collectionNames.add(coll.name);
+    }
+
+    return stats;
   }
 
   /// Upsert مستند في Secondary — معالجة ID بدون شرطات (مثل Primary)
@@ -203,4 +275,485 @@ class SecondaryAppwriteService {
   String? getCollectionId(String entity) {
     return AppwriteConfig.collectionIdFor(entity);
   }
+
+  /// تجميع كل بيانات الجداول المحلية للرفع الشامل
+  /// ✅ P0-3 إصلاح: استخدام اجراءات Drift الفعلية بدلاً من قائمة ثابتة فارغة
+  Future<List<_CollectionData>> _getAllCollections(AppDatabase db) async {
+    const entities = [
+      'rooms',
+      'bookings',
+      'payments',
+      'expenses',
+      'debts',
+      'employees',
+      'booking_notes',
+      'booking_nights',
+      'cash_transactions',
+      'salary_cycles',
+      'salary_payments',
+      'salary_withdrawals',
+      'shift_notes',
+      'price_adjustments',
+      'booking_price_adjustments',
+      'audit_logs',
+      'payment_voids',
+      'guest_infos',
+    ];
+
+    final result = <_CollectionData>[];
+
+    for (final entity in entities) {
+      final collectionId = AppwriteConfig.collectionIdFor(entity);
+      if (collectionId == null) continue;
+
+      List<Map<String, dynamic>> records = [];
+
+      switch (entity) {
+        case 'rooms':
+          final rows = await db.select(db.rooms).get();
+          records = rows.map((r) => _roomToMap(r)).toList();
+        case 'bookings':
+          final rows = await db.select(db.bookings).get();
+          records = rows.map((r) => _bookingToMap(r)).toList();
+        case 'payments':
+          final rows = await db.select(db.payments).get();
+          records = rows.map((r) => _paymentToMap(r)).toList();
+        case 'expenses':
+          final rows = await db.select(db.expenses).get();
+          records = rows.map((r) => _expenseToMap(r)).toList();
+        case 'debts':
+          final rows = await db.select(db.debts).get();
+          records = rows.map((r) => _debtToMap(r)).toList();
+        case 'employees':
+          final rows = await db.select(db.employees).get();
+          records = rows.map((r) => _employeeToMap(r)).toList();
+        case 'booking_notes':
+          final rows = await db.select(db.bookingNotes).get();
+          records = rows.map((r) => _bookingNoteToMap(r)).toList();
+        case 'booking_nights':
+          final rows = await db.select(db.bookingNights).get();
+          records = rows.map((r) => _nightToMap(r)).toList();
+        case 'cash_transactions':
+          final rows = await db.select(db.cashTransactions).get();
+          records = rows.map((r) => _cashTransactionToMap(r)).toList();
+        case 'salary_cycles':
+          final rows = await db.select(db.salaryCycles).get();
+          records = rows.map((r) => _salaryCycleToMap(r)).toList();
+        case 'salary_payments':
+          final rows = await db.select(db.salaryPayments).get();
+          records = rows.map((r) => _salaryPaymentToMap(r)).toList();
+        case 'salary_withdrawals':
+          final rows = await db.select(db.salaryWithdrawals).get();
+          records = rows.map((r) => _salaryWithdrawalToMap(r)).toList();
+        case 'shift_notes':
+          final rows = await db.select(db.shiftNotes).get();
+          records = rows.map((r) => _shiftNoteToMap(r)).toList();
+        case 'price_adjustments':
+          final rows = await db.select(db.priceAdjustments).get();
+          records = rows.map((r) => _priceAdjustmentToMap(r)).toList();
+        case 'booking_price_adjustments':
+          final rows = await db.select(db.bookingPriceAdjustments).get();
+          records = rows.map((r) => _bookingPriceAdjustmentToMap(r)).toList();
+        case 'audit_logs':
+          final rows = await db.select(db.auditLogs).get();
+          records = rows.map((r) => _auditLogToMap(r)).toList();
+        case 'payment_voids':
+          final rows = await db.select(db.paymentVoids).get();
+          records = rows.map((r) => _paymentVoidToMap(r)).toList();
+        case 'guest_infos':
+          final rows = await db.select(db.guestInfos).get();
+          records = rows.map((r) => _guestInfoToMap(r)).toList();
+      }
+
+      result.add(_CollectionData(
+        name: entity,
+        collectionId: collectionId,
+        records: records,
+      ));
+    }
+
+    return result;
+  }
+
+  // ── Entity to Map converters ──
+  Map<String, dynamic> _roomToMap(Room r) => {
+        'localUuid': r.localUuid,
+        'roomNumber': r.roomNumber,
+        'type': r.type,
+        'price': r.price,
+        'status': r.status,
+        'imageUrl': r.imageUrl,
+        'cleaningStatus': r.cleaningStatus,
+        'lastCleanedHotelDay': r.lastCleanedHotelDay,
+        'lastOccupiedHotelDay': r.lastOccupiedHotelDay,
+        'requiresMaintenance': r.requiresMaintenance ? 1 : 0,
+        'createdAt': r.createdAt,
+        'updatedAt': r.updatedAt,
+        'deletedAt': r.deletedAt,
+        'lastModified': r.lastModified,
+        'createdAtIso': r.createdAtIso,
+        'updatedAtIso': r.updatedAtIso,
+        'deletedAtIso': r.deletedAtIso,
+        'version': r.version,
+        'origin': r.origin,
+        'deviceId': r.deviceId,
+        'vectorClock': r.vectorClock,
+      };
+
+  Map<String, dynamic> _bookingToMap(Booking b) => {
+        'localUuid': b.localUuid,
+        'roomNumber': b.roomNumber,
+        'guestName': b.guestName,
+        'guestPhone': b.guestPhone,
+        'status': b.status,
+        'createdAt': b.createdAt,
+        'updatedAt': b.updatedAt,
+        'deletedAt': b.deletedAt,
+        'lastModified': b.lastModified,
+        'createdAtIso': b.createdAtIso,
+        'updatedAtIso': b.updatedAtIso,
+        'deletedAtIso': b.deletedAtIso,
+        'version': b.version,
+        'origin': b.origin,
+        'deviceId': b.deviceId,
+        'vectorClock': b.vectorClock,
+        'actualCheckout': b.actualCheckout,
+        'checkinDate': b.checkinDate,
+        'checkoutDate': b.checkoutDate,
+      };
+
+  Map<String, dynamic> _paymentToMap(Payment p) => {
+        'localUuid': p.localUuid,
+        'amount': p.amount,
+        'paymentDate': p.paymentDate,
+        'paymentMethod': p.paymentMethod,
+        'revenueType': p.revenueType,
+        'createdAt': p.createdAt,
+        'updatedAt': p.updatedAt,
+        'deletedAt': p.deletedAt,
+        'lastModified': p.lastModified,
+        'createdAtIso': p.createdAtIso,
+        'updatedAtIso': p.updatedAtIso,
+        'deletedAtIso': p.deletedAtIso,
+        'version': p.version,
+        'origin': p.origin,
+        'deviceId': p.deviceId,
+        'vectorClock': p.vectorClock,
+      };
+
+  Map<String, dynamic> _expenseToMap(Expense e) => {
+        'localUuid': e.localUuid,
+        'expenseType': e.expenseType,
+        'amount': e.amount,
+        'date': e.date,
+        'description': e.description,
+        'createdAt': e.createdAt,
+        'updatedAt': e.updatedAt,
+        'deletedAt': e.deletedAt,
+        'lastModified': e.lastModified,
+        'createdAtIso': e.createdAtIso,
+        'updatedAtIso': e.updatedAtIso,
+        'deletedAtIso': e.deletedAtIso,
+        'version': e.version,
+        'origin': e.origin,
+        'deviceId': e.deviceId,
+        'vectorClock': e.vectorClock,
+      };
+
+  Map<String, dynamic> _debtToMap(Debt d) => {
+        'localUuid': d.localUuid,
+        'guestName': d.guestName,
+        'totalAmount': d.totalAmount,
+        'remainingAmount': d.remainingAmount,
+        'createdAt': d.createdAt,
+        'updatedAt': d.updatedAt,
+        'deletedAt': d.deletedAt,
+        'lastModified': d.lastModified,
+        'createdAtIso': d.createdAtIso,
+        'updatedAtIso': d.updatedAtIso,
+        'deletedAtIso': d.deletedAtIso,
+        'version': d.version,
+        'origin': d.origin,
+        'deviceId': d.deviceId,
+        'vectorClock': d.vectorClock,
+      };
+
+  Map<String, dynamic> _employeeToMap(Employee e) => {
+        'localUuid': e.localUuid,
+        'name': e.name,
+        'basicSalary': e.basicSalary,
+        'position': e.position,
+        'phone': e.phone,
+        'createdAt': e.createdAt,
+        'updatedAt': e.updatedAt,
+        'deletedAt': e.deletedAt,
+        'lastModified': e.lastModified,
+        'createdAtIso': e.createdAtIso,
+        'updatedAtIso': e.updatedAtIso,
+        'deletedAtIso': e.deletedAtIso,
+        'version': e.version,
+        'origin': e.origin,
+        'deviceId': e.deviceId,
+        'vectorClock': e.vectorClock,
+      };
+
+  Map<String, dynamic> _bookingNoteToMap(BookingNote n) => {
+        'localUuid': n.localUuid,
+        'noteText': n.noteText,
+        'bookingId': n.bookingId,
+        'createdAt': n.createdAt,
+        'updatedAt': n.updatedAt,
+        'deletedAt': n.deletedAt,
+        'lastModified': n.lastModified,
+        'createdAtIso': n.createdAtIso,
+        'updatedAtIso': n.updatedAtIso,
+        'deletedAtIso': n.deletedAtIso,
+        'version': n.version,
+        'origin': n.origin,
+        'deviceId': n.deviceId,
+        'vectorClock': n.vectorClock,
+      };
+
+  Map<String, dynamic> _nightToMap(BookingNight n) => {
+        'localUuid': n.localUuid,
+        'nightStart': n.nightStart,
+        'nightEnd': n.nightEnd,
+        'nightlyRate': n.nightlyRate,
+        'bookingLocalId': n.bookingLocalId,
+        'hotelDayKey': n.hotelDayKey,
+        'createdAt': n.createdAt,
+        'updatedAt': n.updatedAt,
+        'deletedAt': n.deletedAt,
+        'lastModified': n.lastModified,
+        'createdAtIso': n.createdAtIso,
+        'updatedAtIso': n.updatedAtIso,
+        'deletedAtIso': n.deletedAtIso,
+        'version': n.version,
+        'origin': n.origin,
+        'deviceId': n.deviceId,
+        'vectorClock': n.vectorClock,
+      };
+
+  Map<String, dynamic> _cashTransactionToMap(CashTransaction c) => {
+        'localUuid': c.localUuid,
+        'amount': c.amount,
+        'transactionType': c.transactionType,
+        'createdAt': c.createdAt,
+        'updatedAt': c.updatedAt,
+        'deletedAt': c.deletedAt,
+        'lastModified': c.lastModified,
+        'createdAtIso': c.createdAtIso,
+        'updatedAtIso': c.updatedAtIso,
+        'deletedAtIso': c.deletedAtIso,
+        'version': c.version,
+        'origin': c.origin,
+        'deviceId': c.deviceId,
+        'vectorClock': c.vectorClock,
+      };
+
+  Map<String, dynamic> _salaryCycleToMap(SalaryCycle s) => {
+        'localUuid': s.localUuid,
+        'cycleKey': s.cycleKey,
+        'hotelDayStart': s.hotelDayStart,
+        'hotelDayEnd': s.hotelDayEnd,
+        'expectedAmount': s.expectedAmount,
+        'actualPaid': s.actualPaid,
+        'remainingAmount': s.remainingAmount,
+        'status': s.status,
+        'createdAt': s.createdAt,
+        'updatedAt': s.updatedAt,
+        'deletedAt': s.deletedAt,
+        'lastModified': s.lastModified,
+        'createdAtIso': s.createdAtIso,
+        'updatedAtIso': s.updatedAtIso,
+        'deletedAtIso': s.deletedAtIso,
+        'version': s.version,
+        'origin': s.origin,
+        'deviceId': s.deviceId,
+        'vectorClock': s.vectorClock,
+      };
+
+  Map<String, dynamic> _salaryPaymentToMap(SalaryPayment s) => {
+        'localUuid': s.localUuid,
+        'paymentDateIso': s.paymentDateIso,
+        'amount': s.amount,
+        'cycleId': s.cycleId,
+        'method': s.method,
+        'createdAt': s.createdAt,
+        'updatedAt': s.updatedAt,
+        'deletedAt': s.deletedAt,
+        'lastModified': s.lastModified,
+        'createdAtIso': s.createdAtIso,
+        'updatedAtIso': s.updatedAtIso,
+        'deletedAtIso': s.deletedAtIso,
+        'version': s.version,
+        'origin': s.origin,
+        'deviceId': s.deviceId,
+        'vectorClock': s.vectorClock,
+      };
+
+  Map<String, dynamic> _salaryWithdrawalToMap(SalaryWithdrawal s) => {
+        'localUuid': s.localUuid,
+        'amount': s.amount,
+        'withdrawDate': s.withdrawDate,
+        'createdAt': s.createdAt,
+        'updatedAt': s.updatedAt,
+        'deletedAt': s.deletedAt,
+        'lastModified': s.lastModified,
+        'createdAtIso': s.createdAtIso,
+        'updatedAtIso': s.updatedAtIso,
+        'deletedAtIso': s.deletedAtIso,
+        'version': s.version,
+        'origin': s.origin,
+        'deviceId': s.deviceId,
+        'vectorClock': s.vectorClock,
+      };
+
+  Map<String, dynamic> _shiftNoteToMap(ShiftNote s) => {
+        'localUuid': s.localUuid,
+        'title': s.title,
+        'content': s.content,
+        'createdAt': s.createdAt,
+        'updatedAt': s.updatedAt,
+        'deletedAt': s.deletedAt,
+        'lastModified': s.lastModified,
+        'createdAtIso': s.createdAtIso,
+        'updatedAtIso': s.updatedAtIso,
+        'deletedAtIso': s.deletedAtIso,
+        'version': s.version,
+        'origin': s.origin,
+        'deviceId': s.deviceId,
+        'vectorClock': s.vectorClock,
+      };
+
+  Map<String, dynamic> _priceAdjustmentToMap(PriceAdjustment p) => {
+        'localUuid': p.localUuid,
+        'targetType': p.targetType,
+        'targetUuid': p.targetUuid,
+        'adjustmentType': p.adjustmentType,
+        'previousValue': p.previousValue,
+        'newValue': p.newValue,
+        'effectiveDate': p.effectiveDate,
+        'createdAt': p.createdAt,
+        'updatedAt': p.updatedAt,
+        'deletedAt': p.deletedAt,
+        'lastModified': p.lastModified,
+        'createdAtIso': p.createdAtIso,
+        'updatedAtIso': p.updatedAtIso,
+        'deletedAtIso': p.deletedAtIso,
+        'version': p.version,
+        'origin': p.origin,
+        'deviceId': p.deviceId,
+        'vectorClock': p.vectorClock,
+      };
+
+  Map<String, dynamic> _bookingPriceAdjustmentToMap(BookingPriceAdjustment b) => {
+        'localUuid': b.localUuid,
+        'amount': b.amount,
+        'reason': b.reason,
+        'createdAt': b.createdAt,
+        'updatedAt': b.updatedAt,
+        'deletedAt': b.deletedAt,
+        'lastModified': b.lastModified,
+        'createdAtIso': b.createdAtIso,
+        'updatedAtIso': b.updatedAtIso,
+        'deletedAtIso': b.deletedAtIso,
+        'version': b.version,
+        'origin': b.origin,
+        'deviceId': b.deviceId,
+        'vectorClock': b.vectorClock,
+      };
+
+  Map<String, dynamic> _auditLogToMap(AuditLog a) => {
+        'localUuid': a.localUuid,
+        'operationType': a.operationType,
+        'entityType': a.entityType,
+        'performedBy': a.performedBy,
+        'timestamp': a.timestamp,
+        'createdAt': a.createdAt,
+        'deviceId': a.deviceId,
+      };
+
+  Map<String, dynamic> _paymentVoidToMap(PaymentVoid p) => {
+        'localUuid': p.localUuid,
+        'voidReason': p.voidReason,
+        'voidedAt': p.voidedAt,
+        'createdAt': p.createdAt,
+        'updatedAt': p.updatedAt,
+        'deletedAt': p.deletedAt,
+        'lastModified': p.lastModified,
+        'createdAtIso': p.createdAtIso,
+        'updatedAtIso': p.updatedAtIso,
+        'deletedAtIso': p.deletedAtIso,
+        'version': p.version,
+        'origin': p.origin,
+        'deviceId': p.deviceId,
+        'vectorClock': p.vectorClock,
+      };
+
+  Map<String, dynamic> _guestInfoToMap(GuestInfo g) => {
+        'localUuid': g.localUuid,
+        'guestName': g.guestName,
+        'roomNumber': g.roomNumber,
+        'nationality': g.nationality,
+        'idNumber': g.idNumber,
+        'createdAt': g.createdAt,
+        'updatedAt': g.updatedAt,
+        'deletedAt': g.deletedAt,
+        'lastModified': g.lastModified,
+        'createdAtIso': g.createdAtIso,
+        'updatedAtIso': g.updatedAtIso,
+        'deletedAtIso': g.deletedAtIso,
+        'version': g.version,
+        'origin': g.origin,
+        'deviceId': g.deviceId,
+        'vectorClock': g.vectorClock,
+      };
+}
+
+/// نتيجة اختبار الاتصال
+class ConnectionTestResult {
+  ConnectionTestResult({required this.success, required this.message, this.latencyMs});
+  final bool success;
+  final String message;
+  final int? latencyMs;
+}
+
+/// إحصائيات رفع نسخة شاملة
+class FullBackupStats {
+  int totalCollections = 0;
+  int fullySuccessfulCollections = 0;
+  int failedCollections = 0;
+  int successCount = 0;
+  int failureCount = 0;
+  String? error;
+  final List<String> collectionNames = [];
+  final List<Map<String, dynamic>> collectionDetails = [];
+  final Map<String, List<FullBackupFailure>> failuresByCollection = {};
+  final List<FullBackupFailure> failedRecords = [];
+  final Map<String, int> errorsByReason = {};
+}
+
+/// خطأ في رفع سجل واحد
+class FullBackupFailure {
+  FullBackupFailure({this.documentId, required this.reason, this.collectionName});
+  final String? documentId;
+  final String reason;
+  final String? collectionName;
+}
+
+/// بيانات جدول للرفع الشامل
+class _CollectionData {
+  _CollectionData({required this.name, required this.collectionId, required this.records});
+  final String name;
+  final String collectionId;
+  final List<Map<String, dynamic>> records;
+}
+
+/// خطأ في رفع سجل واحد (للإحصائيات)
+final class FullBackupRecordError {
+  FullBackupRecordError({required this.documentId, required this.reason, required this.collectionName});
+  final String? documentId;
+  final String reason;
+  final String collectionName;
 }

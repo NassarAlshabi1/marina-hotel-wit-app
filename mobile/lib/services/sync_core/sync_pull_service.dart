@@ -1,4 +1,4 @@
-// ignore_for_file: unused_field, unused_element, deprecated_member_use, directives_ordering, prefer_final_fields, close_sinks, sort_constructors_first
+// ignore_for_file: unused_field, unused_element, deprecated_member_use, directives_ordering, prefer_final_fields, close_sinks, sort_constructors_first, unused_local_variable
 import 'dart:async';
 import 'dart:convert';
 
@@ -8,6 +8,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../utils/time.dart';
+import '../../utils/secure_storage.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 import '../appwrite_logger.dart';
@@ -1670,78 +1671,80 @@ Future<int> _syncBookingPriceAdjustments(
 
 
 Future<int> _syncPriceAdjustments(List<models.Document> documents) async {
-  if (documents.isEmpty) return 0;
-  var processed = 0;
-  for (final doc in documents) {
-    try {
-      final data = Map<String, dynamic>.from(doc.data);
-      data['localUuid'] ??= doc.$id;
+   if (documents.isEmpty) return 0;
+   var processed = 0;
+   // ✅ P1-13 إصلاح: تم نقل إنشاء الخدمة خارج الحلقة
+   final derivedFieldsService = BookingDerivedFieldsService(database);
+   for (final doc in documents) {
+     try {
+       final data = Map<String, dynamic>.from(doc.data);
+       data['localUuid'] ??= doc.$id;
 
-      // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
-      final localUuid = (data['localUuid'] as String?) ?? '';
-      final existing = await (database.select(database.priceAdjustments)
-            ..where((t) => t.localUuid.equals(localUuid))
-            ..limit(1))
-          .getSingleOrNull();
-      if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
-        continue;
-      }
+       // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+       final localUuid = (data['localUuid'] as String?) ?? '';
+       final existing = await (database.select(database.priceAdjustments)
+             ..where((t) => t.localUuid.equals(localUuid))
+             ..limit(1))
+           .getSingleOrNull();
+       if (!_isRemoteDataNewer(data, existing?.lastModified, localDeletedAt: existing?.deletedAt)) {
+         continue;
+       }
 
-      await _adapterRegistry.priceAdjustments.upsertFromJson(
-        data,
-        src: Source.appwrite,
-      );
+       await _adapterRegistry.priceAdjustments.upsertFromJson(
+         data,
+         src: Source.appwrite,
+       );
 
-      // ✅ إعادة حساب الحجوزات المتأثرة بعد سحب تغيير سعر الغرفة
-      final targetType = data['targetType'] as String? ?? '';
-      final targetUuid = data['targetUuid'] as String? ?? '';
-      if (targetType == 'room' && targetUuid.isNotEmpty) {
-        try {
-          // تحديث سعر الغرفة المحلي
-          final room = await (database.select(database.rooms)
-                ..where((r) => r.localUuid.equals(targetUuid))
-                ..limit(1))
-              .getSingleOrNull();
-          if (room != null) {
-            final newValue = data['newValue'];
-            if (newValue != null) {
-              await (database.update(database.rooms)
-                    ..where((r) => r.localUuid.equals(targetUuid)))
-                  .write(RoomsCompanion(
-                    price: drift.Value((newValue as num).toDouble()),
-                    updatedAt: drift.Value(Time.nowEpoch()),
-                    lastModified: drift.Value(Time.nowEpoch()),
-                  ),);
-            }
-            // إعادة حساب الحجوزات النشطة للغرفة
-            final activeBookings = await (database.select(database.bookings)
-                  ..where((b) => b.roomNumber.equals(room.roomNumber))
-                  ..where((b) => b.deletedAt.isNull())
-                  ..where((b) => b.actualCheckout.isNull()))
-                .get();
-            for (final booking in activeBookings) {
-              await BookingDerivedFieldsService(database)
-                  .refreshForBookingId(booking.id, forceRebuild: true);
-            }
-          }
-        } catch (e) {
-          _logger.warning(
-            'فشل إعادة حساب الحجوزات بعد سحب price_adjustment $localUuid: $e',
-            tag: 'SYNC',
-          );
-        }
-      }
+       // ✅ إعادة حساب الحجوزات المتأثرة بعد سحب تغيير سعر الغرفة
+       final targetType = data['targetType'] as String? ?? '';
+       final targetUuid = data['targetUuid'] as String? ?? '';
+       if (targetType == 'room' && targetUuid.isNotEmpty) {
+         try {
+           // تحديث سعر الغرفة المحلي
+           final room = await (database.select(database.rooms)
+                 ..where((r) => r.localUuid.equals(targetUuid))
+                 ..limit(1))
+               .getSingleOrNull();
+           if (room != null) {
+             final newValue = data['newValue'];
+             if (newValue != null) {
+               await (database.update(database.rooms)
+                     ..where((r) => r.localUuid.equals(targetUuid)))
+                   .write(RoomsCompanion(
+                     price: drift.Value((newValue as num).toDouble()),
+                     updatedAt: drift.Value(Time.nowEpoch()),
+                     lastModified: drift.Value(Time.nowEpoch()),
+                   ),);
+             }
+             // إعادة حساب الحجوزات النشطة للغرفة
+             final activeBookings = await (database.select(database.bookings)
+                   ..where((b) => b.roomNumber.equals(room.roomNumber))
+                   ..where((b) => b.deletedAt.isNull())
+                   ..where((b) => b.actualCheckout.isNull()))
+                 .get();
+             for (final booking in activeBookings) {
+               await derivedFieldsService
+                   .refreshForBookingId(booking.id, forceRebuild: true);
+             }
+           }
+         } catch (e) {
+           _logger.warning(
+             'فشل إعادة حساب الحجوزات بعد سحب price_adjustment $localUuid: $e',
+             tag: 'SYNC',
+           );
+         }
+       }
 
-      processed++;
-    } catch (e) {
-      _logger.warning(
-        'Failed to sync price adjustment ${doc.$id}: $e',
-        tag: 'SYNC',
-      );
-    }
-  }
-  return processed;
-}
+       processed++;
+     } catch (e) {
+       _logger.warning(
+         'Failed to sync price adjustment ${doc.$id}: $e',
+         tag: 'SYNC',
+       );
+     }
+   }
+   return processed;
+ }
 
 // ─── AuditLogs ────────────────────────────────────────────────────────
 
@@ -1788,6 +1791,7 @@ Future<int> _syncAppSettings(List<models.Document> documents) async {
   if (documents.isEmpty) return 0;
   var processed = 0;
   final prefs = await SharedPreferences.getInstance();
+  final deviceId = await _getDeviceIdForPrefs();
 
   for (final doc in documents) {
     try {
@@ -1798,8 +1802,9 @@ Future<int> _syncAppSettings(List<models.Document> documents) async {
         'wa_api_type': 'wa_api_type',
         'wa_api_base_url': 'wa_api_base_url',
         'wa_api_instance_id': 'wa_api_instance_id',
-        'wa_api_token': 'wa_api_token',
         'wa_custom_url_template': 'wa_custom_url_template',
+        'wa_sendzen_api_key': 'wa_sendzen_api_key',
+        'wa_sendzen_from_number': 'wa_sendzen_from_number',
       };
 
       for (final entry in waStringFields.entries) {
@@ -1807,6 +1812,14 @@ Future<int> _syncAppSettings(List<models.Document> documents) async {
         if (value != null && value.toString().isNotEmpty) {
           await prefs.setString(entry.value, value.toString());
         }
+      }
+
+      // ✅ P0-7 إصلاح: فك تشفير wa_api_token قبل الحفظ
+      final waToken = data['wa_api_token']?.toString();
+      if (waToken != null && waToken.isNotEmpty) {
+        final key = SecureStorage.getEncryptionKey(null);
+        final decryptedToken = SecureStorage.decryptValue(waToken, key);
+        await prefs.setString('wa_api_token', decryptedToken);
       }
 
       // wa_template → whatsapp_template (مفتاح مختلف في prefs)
@@ -1817,7 +1830,6 @@ Future<int> _syncAppSettings(List<models.Document> documents) async {
 
       // ── Telegram fields ──
       const tgStringFields = {
-        'telegram_bot_token': 'telegram_bot_token',
         'telegram_chat_id': 'telegram_chat_id',
         'telegram_daily_report_time': 'telegram_daily_report_time',
       };
@@ -1829,6 +1841,14 @@ Future<int> _syncAppSettings(List<models.Document> documents) async {
         }
       }
 
+      // ✅ P0-7 إصلاح: فك تشفير telegram_bot_token قبل الحفظ
+      final tgToken = data['telegram_bot_token']?.toString();
+      if (tgToken != null && tgToken.isNotEmpty) {
+        final key = SecureStorage.getEncryptionKey(null);
+        final decryptedToken = SecureStorage.decryptValue(tgToken, key);
+        await prefs.setString('telegram_bot_token', decryptedToken);
+      }
+
       const tgBoolFields = {
         'telegram_enabled': 'telegram_enabled',
         'telegram_notifications_enabled': 'telegram_notifications_enabled',
@@ -1836,6 +1856,41 @@ Future<int> _syncAppSettings(List<models.Document> documents) async {
       };
 
       for (final entry in tgBoolFields.entries) {
+        final value = data[entry.key];
+        if (value != null) {
+          await prefs.setBool(entry.value, value as bool);
+        }
+      }
+
+      // ── Lark fields (non-sensitive) ──
+      const larkStringFields = {
+        'lark_app_id': 'lark_app_id',
+        'lark_webhook_url': 'lark_webhook_url',
+        'lark_daily_report_time': 'lark_daily_report_time',
+        'lark_daily_report_chat_id': 'lark_daily_report_chat_id',
+      };
+
+      for (final entry in larkStringFields.entries) {
+        final value = data[entry.key];
+        if (value != null && value.toString().isNotEmpty) {
+          await prefs.setString(entry.value, value.toString());
+        }
+      }
+
+      // ✅ P0-7 إصلاح: فك تشفير lark_app_secret قبل الحفظ
+      final larkSecret = data['lark_app_secret']?.toString();
+      if (larkSecret != null && larkSecret.isNotEmpty) {
+        final key = SecureStorage.getEncryptionKey(null);
+        final decryptedSecret = SecureStorage.decryptValue(larkSecret, key);
+        await prefs.setString('lark_app_secret', decryptedSecret);
+      }
+
+      const larkBoolFields = {
+        'lark_enabled': 'lark_enabled',
+        'lark_daily_report_enabled': 'lark_daily_report_enabled',
+      };
+
+      for (final entry in larkBoolFields.entries) {
         final value = data[entry.key];
         if (value != null) {
           await prefs.setBool(entry.value, value as bool);
@@ -1852,6 +1907,11 @@ Future<int> _syncAppSettings(List<models.Document> documents) async {
     }
   }
   return processed;
+}
+
+Future<String> _getDeviceIdForPrefs() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString('appwrite_delta_device_id') ?? 'default';
 }
 
 

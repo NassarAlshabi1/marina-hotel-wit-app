@@ -20,6 +20,7 @@ class SecondaryAppwriteConfig {
   static const String _keyPullEnabled = 'secondary_appwrite_pull_enabled';
   static const String _keyLastSync = 'secondary_appwrite_last_sync';
   static const String _keySyncStatus = 'secondary_appwrite_sync_status';
+  static const String _keyFailoverActive = 'secondary_appwrite_failover_active';
 
   static SharedPreferences? _prefs;
 
@@ -88,6 +89,18 @@ class SecondaryAppwriteConfig {
     return _prefs!.getString(_keySyncStatus) ?? 'never';
   }
 
+  /// هل تجاوز الفشل (Failover) مُفعّل؟
+  static bool get isFailoverActive {
+    ensureInitializedSync();
+    return _prefs!.getBool(_keyFailoverActive) ?? false;
+  }
+
+  /// تفعيل/تعطيل تجاوز الفشل
+  static Future<void> setFailoverActive(bool active) async {
+    await ensureInitialized();
+    await _prefs!.setBool(_keyFailoverActive, active);
+  }
+
   // ── Setters ──
 
   static Future<void> saveConfig({
@@ -139,6 +152,7 @@ class SecondaryAppwriteConfig {
       _prefs!.remove(_keyPullEnabled),
       _prefs!.remove(_keyLastSync),
       _prefs!.remove(_keySyncStatus),
+      _prefs!.remove(_keyFailoverActive),
     ]);
   }
 

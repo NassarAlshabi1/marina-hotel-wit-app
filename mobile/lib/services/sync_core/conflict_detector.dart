@@ -11,6 +11,8 @@
 // 6. deleteVsUpdate — حذف محلي + تعديل بعيد
 // 7. deleteVsDelete — كلاهما محذوف
 
+import 'package:collection/collection.dart';
+
 import '../vector_clock_service.dart';
 
 /// أنواع التعارضات المُكتشفة
@@ -243,7 +245,7 @@ class ConflictDetector {
           key == 'updated_at') {
         continue; // تخطّي حقول النظام والـ VC
       }
-      if (ancestor[key] != current[key]) {
+      if (!const DeepCollectionEquality().equals(ancestor[key], current[key])) {
         changed.add(key);
       }
     }

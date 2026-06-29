@@ -1,4 +1,4 @@
-// ignore_for_file: unused_field, use_late_for_private_fields_and_variables, duplicate_ignore, avoid_redundant_argument_values
+// ignore_for_file: unused_field, use_late_for_private_fields_and_variables, duplicate_ignore, avoid_redundant_argument_values, no_leading_underscores_for_local_identifiers, unused_local_variable
 
 import 'dart:async';
 import 'dart:convert';
@@ -16,6 +16,7 @@ import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 import '../utils/app_logger.dart';
 import '../utils/id.dart';
+import '../utils/secure_storage.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'adapters/adapter_registry.dart';
@@ -34,6 +35,7 @@ import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
+import 'secondary_appwrite_config.dart';
 import 'sync_constants.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_error_service.dart';
@@ -139,6 +141,22 @@ class AppwriteSyncManager {
     );
   }
   static AppwriteSyncManager? _instance;
+
+  /// الوصول المباشر للـ instance (يُستخدم من شاشات الإعدادات)
+  static AppwriteSyncManager? get instance => _instance;
+
+  /// إعادة تهيئة المزامنة بعد تغيير إعدادات Secondary
+  Future<void> reinitializeAfterConfigChange() async {
+    try {
+      // إعادة تحميل الإعدادات
+      await _loadSettings();
+      // إعادة تهيئة Secondary Appwrite
+      await SecondaryAppwriteConfig.ensureInitialized();
+      _logger.info('🔄 Reinitialized after config change', tag: 'SYNC');
+    } catch (e) {
+      _logger.warning('Failed to reinitialize after config change: $e', tag: 'SYNC');
+    }
+  }
 
   final AppwriteService appwriteService;
   final AppDatabase database;
@@ -361,7 +379,7 @@ class AppwriteSyncManager {
       final nowIso = Time.nowIso();
       final nowEpoch = Time.nowEpoch();
 
-      _deviceLocalUuid ??= IdGen.uuid();
+      _deviceLocalUuid ??= 'marina_${finalDeviceModel.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')}_${IdGen.shortId()}';
       _deviceCreatedAtEpoch ??= nowEpoch;
 
       if (_currentDeviceId != null) {
@@ -1592,8 +1610,22 @@ class AppwriteSyncManager {
                 'warnings=${resolution.warnings.length}',
                 tag: 'CONFLICT',
               );
+              // ✅ P0-2 إصلاح (2026-06-28): كتابة البيانات المدمجة في remoteData
+              // في المكان (in-place) ليتم تطبيقها من المُتصل. المُتصل يستخدم نفس
+              // كائن Map كـ `data` وبعد الـ check يمرره مباشرة إلى
+              // adapter.upsertFromJson(data, ...). بتعديل remoteData مباشرة،
+              // نضمن أن المُتصل يُطبق نتيجة الدمج بدلاً من البيانات البعيدة الخام.
+              // ⚠️ آمن: remoteData هو نسخة محلية Map.from(doc.data) وليس كائن Appwrite الأصلي.
+              remoteData.clear();
+              remoteData.addAll(resolution.mergedData);
+              // تخزين ancestor المدمج للمرات القادمة
+              await _ancestorCacheDao.saveAncestor(
+                entity: entityName,
+                localUuid: localUuid,
+                data: resolution.mergedData,
+              );
               return _RemoteNewerResult(
-                shouldApplyRemote: false,
+                shouldApplyRemote: true,
                 mergedData: resolution.mergedData,
                 pushedToRemote: resolution.pushedToRemote,
               );
@@ -2247,8 +2279,15 @@ class AppwriteSyncManager {
 
     int totalProcessed = 0;
     int consecutiveFailures = 0;
+    const int maxIterations = 500;
+    int iterations = 0;
 
     while (true) {
+      iterations++;
+      if (iterations > maxIterations) {
+        _logger.error('Max iterations exceeded in _pushAllEntities', tag: 'SYNC');
+        break;
+      }
       final batchSize = _adaptiveBatchSize.round();
       final entries = await outboxDao.takeBatch(batchSize, sources: const ['local']);
       if (entries.isEmpty) {
@@ -2298,6 +2337,15 @@ class AppwriteSyncManager {
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {
+    // ✅ إصلاح حرج (2026-06-28): زيادة Vector Clock قبل الرفع
+    // بدون هذا، يبقى vectorClock دائماً '{}' على Appwrite Cloud
+    // مما يُعطل كشف التعارضات المتزامنة تماماً (يصبح النظام LWW فقط).
+    String? _oldVcStr;
+    if (entry.op != 'delete' && _currentDeviceId != null && _currentDeviceId!.isNotEmpty) {
+      _oldVcStr = await _readVectorClock(entry.entity, entry.localUuid);
+      await _bumpVectorClockBeforePush(entry.entity, entry.localUuid, _currentDeviceId!);
+    }
+
     try {
       switch (entry.entity) {
         case 'rooms':
@@ -2341,10 +2389,18 @@ class AppwriteSyncManager {
             'Unknown outbox entity: ${entry.entity}',
             tag: 'SYNC',
           );
-          // لا نحذف الإدخال — نُبقيه للتحقيق ونعيد false ليبقى في الطابور
           return false;
       }
     } catch (error, stackTrace) {
+      // ✅ استعادة VC القديم إذا فشل الرفع
+      if (_oldVcStr != null && entry.op != 'delete') {
+        try {
+          await _writeVectorClock(entry.entity, entry.localUuid, _oldVcStr);
+        } catch (_) {
+          // فشل استعادة VC ليس خطأ قاتلاً
+        }
+      }
+
       final parsed = _errorHandler.handleError(
         error,
         context: 'push:${entry.entity}:${entry.op}',
@@ -2955,7 +3011,9 @@ class AppwriteSyncManager {
           await (database.update(database.employees)
                 ..where((e) => e.id.equals(employee.id)))
               .write(EmployeesCompanion(
-            serverId: drift.Value(remoteDoc.$id.hashCode),
+            // ✅ إصلاح P0 (2026-06-28): استخدام employee.id بدل hashCode
+            // hashCode غير ثابت عبر العمليات — employee.id هو المعرف المحلي الصحيح
+            serverId: drift.Value(employee.id),
           ));
         } catch (_) {
           // فشل جلب المستند البعيد — نتجاوز، الأهم أن الموظف رُفع بنجاح
@@ -3570,6 +3628,73 @@ class AppwriteSyncManager {
         return 'payment_voids';
       default:
         return null;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // ✅ Vector Clock Bumping (2026-06-28) — يضمن أن VC يُرسل للـ Cloud
+  // ════════════════════════════════════════════════════════════════════
+
+  /// قراءة Vector Clock الحالي من قاعدة البيانات
+  Future<String?> _readVectorClock(String entity, String localUuid) async {
+    final tableName = _entityToTableName(entity);
+    if (tableName == null) return null;
+    try {
+      final rows = await database.customSelect(
+        'SELECT vector_clock AS vc FROM $tableName WHERE local_uuid = ? LIMIT 1',
+        variables: [drift.Variable<String>(localUuid)],
+      ).get();
+      if (rows.isEmpty) return '{}';
+      return (rows.first.data['vc'] as String?) ?? '{}';
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// كتابة Vector Clock إلى قاعدة البيانات (للاستعادة بعد فشل الرفع)
+  Future<void> _writeVectorClock(String entity, String localUuid, String vc) async {
+    final tableName = _entityToTableName(entity);
+    if (tableName == null) return;
+    await database.customStatement(
+      'UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?',
+      [vc, localUuid],
+    );
+  }
+
+  /// زيادة Vector Clock للجهاز الحالي قبل رفعه للسحابة
+  Future<void> _bumpVectorClockBeforePush(String entity, String localUuid, String deviceId) async {
+    final tableName = _entityToTableName(entity);
+    if (tableName == null) return;
+
+    try {
+      final rows = await database.customSelect(
+        'SELECT vector_clock AS vc FROM $tableName WHERE local_uuid = ? LIMIT 1',
+        variables: [drift.Variable<String>(localUuid)],
+      ).get();
+
+      if (rows.isEmpty) return;
+
+      final currentVcStr = (rows.first.data['vc'] as String?) ?? '{}';
+      final vc = VectorClock.fromString(currentVcStr);
+      vc.increment(deviceId);
+      final newVcStr = vc.toString();
+
+      await database.customStatement(
+        'UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?',
+        [newVcStr, localUuid],
+      );
+
+      _logger.debug(
+        '⏫ VC bumped: entity=$entity, uuid=${localUuid.substring(0, 8)}..., '
+        'old=$currentVcStr, new=$newVcStr',
+        tag: 'VC',
+      );
+    } catch (e) {
+      _logger.warning(
+        '⚠️ فشل زيادة Vector Clock لـ $entity/$localUuid: $e — '
+        'المتابعة بـ VC الحالي',
+        tag: 'VC',
+      );
     }
   }
 
@@ -5807,6 +5932,8 @@ class AppwriteSyncManager {
   Future<int> _syncPriceAdjustments(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ P1-13 إصلاح: تم نقل إنشاء الخدمة خارج الحلقة
+    final derivedFieldsService = BookingDerivedFieldsService(database);
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -5855,7 +5982,7 @@ class AppwriteSyncManager {
                     ..where((b) => b.actualCheckout.isNull()))
                   .get();
               for (final booking in activeBookings) {
-                await BookingDerivedFieldsService(database)
+                await derivedFieldsService
                     .refreshForBookingId(booking.id, forceRebuild: true);
               }
             }
@@ -5920,10 +6047,13 @@ class AppwriteSyncManager {
   Future<bool> _pushAppSettingsToCloud() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final deviceId = await _getDeviceIdForPrefs();
+      final encryptionKey = SecureStorage.getEncryptionKey(null);
 
       // ⚠️ حقول app_settings الفعلية في Appwrite Cloud (25 حقل فقط — الحد الأقصى)
       // تم تدقيق كل حقل مقابل المخطط الفعلي في 2026-06-14
       // ❌ لا ترسل حقولاً غير موجودة — يسبب "Unknown attribute" خطأ 400
+      // ✅ P0-7 إصلاح: تشفير الحقول الحساسة قبل الإرسال للسحابة
       final data = <String, dynamic>{
         'key': 'whatsapp_settings',
         'value': '',
@@ -5936,14 +6066,14 @@ class AppwriteSyncManager {
         'wa_api_type': prefs.getString('wa_api_type') ?? 'greenapi',
         'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
         'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',
-        'wa_api_token': prefs.getString('wa_api_token') ?? '',
+        'wa_api_token': SecureStorage.encryptValue(prefs.getString('wa_api_token') ?? '', encryptionKey),
         'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
         'wa_sendzen_api_key': prefs.getString('wa_sendzen_api_key') ?? '',
         'wa_sendzen_from_number': prefs.getString('wa_sendzen_from_number') ?? '',
         'wa_template': prefs.getString('whatsapp_template') ?? '',
         // ── Telegram ──
         'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
-        'telegram_bot_token': prefs.getString('telegram_bot_token') ?? '',
+        'telegram_bot_token': SecureStorage.encryptValue(prefs.getString('telegram_bot_token') ?? '', encryptionKey),
         'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '',
         'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
         'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
@@ -5951,7 +6081,7 @@ class AppwriteSyncManager {
         // ── Lark ──
         'lark_enabled': prefs.getBool('lark_enabled') ?? false,
         'lark_app_id': prefs.getString('lark_app_id') ?? '',
-        'lark_app_secret': prefs.getString('lark_app_secret') ?? '',
+        'lark_app_secret': SecureStorage.encryptValue(prefs.getString('lark_app_secret') ?? '', encryptionKey),
         'lark_webhook_url': prefs.getString('lark_webhook_url') ?? '',
         'lark_daily_report_enabled': prefs.getBool('lark_daily_report_enabled') ?? false,
         'lark_daily_report_time': prefs.getString('lark_daily_report_time') ?? '08:00',
@@ -5983,6 +6113,11 @@ class AppwriteSyncManager {
       _logger.warning('Failed to push app_settings: $e', tag: 'SYNC');
       return false;
     }
+  }
+
+  Future<String> _getDeviceIdForPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('appwrite_delta_device_id') ?? 'default';
   }
 
   /// مزامنة إعدادات المراسلة (واتساب + تلجرام) من Appwrite → SharedPreferences

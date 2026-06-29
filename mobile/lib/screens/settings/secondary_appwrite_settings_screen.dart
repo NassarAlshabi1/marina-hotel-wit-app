@@ -1,23 +1,17 @@
-// ignore_for_file: use_build_context_synchronously, unawaited_futures
-
+// ignore_for_file: directives_ordering, prefer_const_constructors, use_if_null_to_convert_nulls_to_bools, unawaited_futures, use_build_context_synchronously, unused_field
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
-import '../../components/app_scaffold.dart';
-import '../../providers/repository_providers.dart';
-import '../../providers/secondary_sync_provider.dart';
-import '../../services/daos/outbox_dao.dart';
 import '../../services/secondary_appwrite_config.dart';
-import '../../services/secondary_appwrite_service.dart';
+import '../../services/daos/outbox_dao.dart';
+import '../../services/local_db.dart';
 import '../../services/secondary_sync_manager.dart';
 
+import '../../services/secondary_appwrite_service.dart';
+import '../../services/appwrite_sync_manager.dart';
+
 /// شاشة إعدادات الوجهة الثانوية لـ Appwrite
-///
-/// تتحكم في:
-/// - تفعيل/تعطيل Secondary بالكامل
-/// - تفعيل/تعطيل **الرفع (Push)** عبر outbox — رفع الأحداث أول بأول
-/// - تفعيل/تعطيل **السحب (Pull)** — Failover للقراءة عند تعطل Primary
+/// تتيح: تفعيل/تعطيل + إدخال بيانات الاتصال + خيارات push/pull منفصلة + failover
 class SecondaryAppwriteSettingsScreen extends ConsumerStatefulWidget {
   const SecondaryAppwriteSettingsScreen({super.key});
 
@@ -32,14 +26,24 @@ class _SecondaryAppwriteSettingsScreenState
   final _projectIdCtrl = TextEditingController();
   final _databaseIdCtrl = TextEditingController();
   final _apiKeyCtrl = TextEditingController();
-
   bool _obscureApiKey = true;
+  bool _testingConnection = false;
+  String? _testResult;
+  bool? _testSuccess;
+  int? _testLatency;
   bool _saving = false;
-  bool _testing = false;
-  bool _syncing = false;
-  String? _message;
-  bool? _success;
-  DateTime? _lastSync;
+  bool _switchingFailover = false;
+  bool _uploadingFullBackup = false;
+  String _fullBackupResult = '';
+  bool? _fullBackupSuccess;
+  int _totalCollectionsToUpload = 0;
+  int _completedCollections = 0;
+  int _totalRecordsToUpload = 0;
+  int _completedRecords = 0;
+  String _currentCollectionName = '';
+  DateTime? _uploadStartTime;
+  int _currentCollectionRecords = 0;
+  int _currentCollectionDone = 0;
 
   @override
   void initState() {
@@ -48,14 +52,11 @@ class _SecondaryAppwriteSettingsScreenState
   }
 
   Future<void> _loadConfig() async {
-    await SecondaryAppwriteConfig.ensureInitialized();
-    setState(() {
-      _endpointCtrl.text = SecondaryAppwriteConfig.endpoint;
-      _projectIdCtrl.text = SecondaryAppwriteConfig.projectId;
-      _databaseIdCtrl.text = SecondaryAppwriteConfig.databaseId;
-      _apiKeyCtrl.text = SecondaryAppwriteConfig.apiKey;
-      _lastSync = SecondaryAppwriteConfig.lastSyncTime;
-    });
+    _endpointCtrl.text = SecondaryAppwriteConfig.endpoint;
+    _projectIdCtrl.text = SecondaryAppwriteConfig.projectId;
+    _databaseIdCtrl.text = SecondaryAppwriteConfig.databaseId;
+    _apiKeyCtrl.text = SecondaryAppwriteConfig.apiKey;
+    setState(() {});
   }
 
   @override
@@ -79,689 +80,1058 @@ class _SecondaryAppwriteSettingsScreenState
         pushEnabled: SecondaryAppwriteConfig.isPushEnabled,
         pullEnabled: SecondaryAppwriteConfig.isPullEnabled,
       );
-      SecondaryAppwriteService.instance.invalidate();
-      ref.read(secondarySyncProvider.notifier).refresh();
-      _showMessage(true, '✅ تم الحفظ');
-    } catch (e) {
-      _showMessage(false, '❌ فشل: $e');
-    } finally {
-      setState(() => _saving = false);
-    }
-  }
+      // إجبار SecondaryAppwriteService على إعادة التهيئة
+      SecondaryAppwriteService().invalidate();
 
-  /// تفعيل/تعطيل Secondary بالكامل
-  ///
-  /// عند التفعيل:
-  ///   - نبدأ المزامنة التلقائية للرفع (Push) كل 15 دقيقة
-  ///   - نُعلّم جميع سجلات outbox المحلية كـ "غير مُسلّمة للثانوي"
-  ///     ليتم رفعها للثانوي في الدورة القادمة
-  ///
-  /// عند التعطيل:
-  ///   - نوقف المزامنة التلقائية
-  ///   - نُعلّم جميع السجلات كـ "مُسلّمة للثانوي" (للسماح بحذفها بعد نجاح Primary)
-  Future<void> _toggleSync(bool value) async {
-    await SecondaryAppwriteConfig.saveConfig(
-      enabled: value,
-      endpoint: _endpointCtrl.text.trim(),
-      projectId: _projectIdCtrl.text.trim(),
-      databaseId: _databaseIdCtrl.text.trim(),
-      apiKey: _apiKeyCtrl.text.trim(),
-      pushEnabled: SecondaryAppwriteConfig.isPushEnabled,
-      pullEnabled: SecondaryAppwriteConfig.isPullEnabled,
-    );
-
-    ref.read(secondarySyncProvider.notifier).refresh();
-
-    // ✅ تحديث علامات التسليم في outbox
-    final db = ref.read(databaseProvider);
-    final outboxDao = OutboxDao(db);
-    if (value) {
-      // تفعيل: نُعلّم كل السجلات كـ "غير مُسلّمة للثانوي" ليتم رفعها
-      final count = await outboxDao.markAllLocalAsUndeliveredToSecondary();
-      debugPrint('🔵 [Secondary] Marked $count records as undelivered to secondary');
-      if (SecondaryAppwriteConfig.isPushEnabled) {
-        SecondarySyncManager.instance.startAutoSync();
-
-        // ✅ إصلاح (2026-06-28): مزامنة فورية للسجلات المتراكمة
-        // لا ننتظر 15 دقيقة — ارفع فوراً
-       
-        SecondarySyncManager.instance.sync().then((result) {
-          if (mounted && result.pushed > 0) {
-            _showMessage(true, '✅ تم رفع ${result.pushed} سجل للوجهة الثانوية');
-            setState(() => _lastSync = DateTime.now());
-          }
-        }).catchError((Object e) {
-          if (mounted) {
-            _showMessage(false, '⚠️ فشل الرفع الفوري: $e — سيُعاد تلقائياً');
-          }
-        });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ تم حفظ الإعدادات'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
-    } else {
-      // تعطيل: نُعلّم كل السجلات كـ "مُسلّمة للثانوي" لمنع حجبها
-      final count = await outboxDao.markAllLocalAsDeliveredToSecondary();
-      debugPrint('🔵 [Secondary] Marked $count records as delivered to secondary (disabled)');
-      SecondarySyncManager.instance.stopAutoSync();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ فشل الحفظ: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-
-    setState(() {});
-    _showMessage(true, value ? '✅ المزامنة مُفعّلة' : '⏹️ المزامنة معطّلة');
-  }
-
-  /// تفعيل/تعطيل الرفع (Push) لـ Secondary عبر outbox
-  ///
-  /// عند التفعيل: نبدأ المزامنة التلقائية + مزامنة فورية للسجلات المتراكمة
-  /// عند التعطيل: نوقف المزامنة التلقائية، لكن السجلات المُعلّمة كـ
-  ///   "غير مُسلّمة للثانوي" تبقى في outbox حتى يُعاد تفعيل الرفع
-  Future<void> _togglePush(bool value) async {
-    await SecondaryAppwriteConfig.saveConfig(
-      enabled: SecondaryAppwriteConfig.isEnabled,
-      endpoint: _endpointCtrl.text.trim(),
-      projectId: _projectIdCtrl.text.trim(),
-      databaseId: _databaseIdCtrl.text.trim(),
-      apiKey: _apiKeyCtrl.text.trim(),
-      pushEnabled: value,
-      pullEnabled: SecondaryAppwriteConfig.isPullEnabled,
-    );
-    ref.read(secondarySyncProvider.notifier).refresh();
-
-    if (value && SecondaryAppwriteConfig.isEnabled) {
-      // ✅ إصلاح P0-2 (2026-06-28): إعادة تعليم السجلات كـ "غير مُسلّمة"
-      // السجلات التي أُنشئت أثناء تعطيل Push لها delivered_to_secondary=true
-      // (افتراضي أو من markAllLocalAsDeliveredToSecondary). يجب إعادة تعليمها
-      // لتكون false ليتمكن Secondary من رفعها.
-      final db = ref.read(databaseProvider);
-      final outboxDao = OutboxDao(db);
-      final undeliveredCount = await outboxDao.markAllLocalAsUndeliveredToSecondary();
-      debugPrint('🔵 [Secondary] Push enabled — marked $undeliveredCount records as undelivered');
-
-      // ✅ بدء المزامنة التلقائية
-      SecondarySyncManager.instance.startAutoSync();
-
-      // ✅ مزامنة فورية للسجلات المتراكمة
-      _showMessage(true, '✅ الرفع (Push) مُفعّل — جاري رفع السجلات المتراكمة...');
-
-      SecondarySyncManager.instance.sync().then((result) {
-        if (mounted) {
-          if (result.success) {
-            _showMessage(true, '✅ تم رفع ${result.pushed} سجل للوجهة الثانوية');
-            setState(() => _lastSync = DateTime.now());
-          } else if (result.pushed > 0) {
-            _showMessage(true, '⚠️ تم رفع ${result.pushed} سجل، فشل ${result.failed}');
-            setState(() => _lastSync = DateTime.now());
-          }
-        }
-      }).catchError((Object e) {
-        if (mounted) {
-          _showMessage(false, '⚠️ فشل الرفع الفوري: $e — سيُعاد المحاولة تلقائياً');
-        }
-      });
-    } else {
-      // ✅ تعطيل Push: نوقف المزامنة + نُعلّم السجلات كـ "مُسلّمة للثانوي"
-      // هذا يمنع انتظار السجلات في outbox — لا حاجة للانتظار إذا كان Push معطّل
-      SecondarySyncManager.instance.stopAutoSync();
-      final db = ref.read(databaseProvider);
-      final outboxDao = OutboxDao(db);
-      final count = await outboxDao.markAllLocalAsDeliveredToSecondary();
-      debugPrint('🔵 [Secondary] Push disabled — marked $count records as delivered');
-      _showMessage(true, '⏹️ الرفع (Push) معطّل — السجلات لن تنتظر في outbox');
-    }
-
-    setState(() {});
-  }
-
-  /// تفعيل/تعطيل السحب (Pull) من Secondary — أي Failover للقراءة
-  ///
-  /// عند التفعيل: عند فشل Primary، تُقرأ البيانات تلقائياً من Secondary
-  /// عند التعطيل: عند فشل Primary، يفشل التطبيق في القراءة (لا Failover)
-  Future<void> _togglePull(bool value) async {
-    await SecondaryAppwriteConfig.saveConfig(
-      enabled: SecondaryAppwriteConfig.isEnabled,
-      endpoint: _endpointCtrl.text.trim(),
-      projectId: _projectIdCtrl.text.trim(),
-      databaseId: _databaseIdCtrl.text.trim(),
-      apiKey: _apiKeyCtrl.text.trim(),
-      pushEnabled: SecondaryAppwriteConfig.isPushEnabled,
-      pullEnabled: value,
-    );
-    ref.read(secondarySyncProvider.notifier).refresh();
-    setState(() {});
-    _showMessage(
-        true, value ? '✅ السحب (Pull/Failover) مُفعّل' : '⏹️ السحب (Pull/Failover) معطّل');
   }
 
   Future<void> _testConnection() async {
     setState(() {
-      _testing = true;
-      _message = null;
+      _testingConnection = true;
+      _testResult = null;
+      _testSuccess = null;
+      _testLatency = null;
     });
     try {
       await _save();
-      final result = await SecondaryAppwriteService.instance.testConnection();
-      _showMessage(result, result ? '✅ الاتصال ناجح' : '❌ الاتصال فشل');
+      final result = await SecondaryAppwriteService().testConnection();
+      setState(() {
+        _testSuccess = result.success;
+        _testResult = result.message;
+        _testLatency = result.latencyMs;
+      });
     } catch (e) {
-      _showMessage(false, '❌ خطأ: $e');
+      setState(() {
+        _testSuccess = false;
+        _testResult = 'خطأ غير متوقع: $e';
+      });
     } finally {
-      setState(() => _testing = false);
+      if (mounted) setState(() => _testingConnection = false);
     }
   }
 
-  Future<void> _syncNow() async {
-    setState(() {
-      _syncing = true;
-      _message = null;
-    });
-    try {
-      final result = await SecondarySyncManager.instance.sync();
-      _showMessage(result.success, result.message);
-      if (result.success) {
-        setState(() => _lastSync = DateTime.now());
-        ref.read(secondarySyncProvider.notifier).updateLastSync(DateTime.now());
-      }
-    } catch (e) {
-      _showMessage(false, '❌ خطأ: $e');
-    } finally {
-      setState(() => _syncing = false);
-    }
-  }
-
-  Future<void> _clear() async {
+  Future<void> _uploadFullBackup() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('تأكيد المسح'),
-        content: const Text('هل تريد مسح إعدادات الوجهة الثانوية؟'),
+      builder: (context) => AlertDialog(
+        title: const Text('تأكيد رفع النسخة الشاملة'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('سيتم رفع جميع البيانات المحلية إلى الوجهة الثانوية.'),
+            SizedBox(height: 8),
+            Text('• الغرف، الحجوزات، المدفوعات، الديون'),
+            Text('• الموظفون، المصروفات، المعاملات النقدية'),
+            Text('• ملاحظات الحجز، الليالي، النوبة'),
+            Text('• دورات الرواتب، الدفعات، السحوبات'),
+            SizedBox(height: 8),
+            Text('⚠️ قد يستغرق وقتاً طويلاً حسب حجم البيانات'),
+            Text('⚠️ يُفضل توفر اتصال مستقر بالإنترنت'),
+          ],
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('إلغاء')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('مسح', style: TextStyle(color: Colors.red)),
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop<bool>(context, true),
+            child: const Text('بدء الرفع'),
           ),
         ],
       ),
     );
+
     if (confirmed != true) return;
 
-    await SecondaryAppwriteConfig.clear();
-    SecondaryAppwriteService.instance.invalidate();
-    SecondarySyncManager.instance.stopAutoSync();
-    await _loadConfig();
-    ref.read(secondarySyncProvider.notifier).refresh();
-    _showMessage(true, '🧹 تم المسح');
+    setState(() {
+      _uploadingFullBackup = true;
+      _fullBackupResult = '';
+      _fullBackupSuccess = null;
+      _totalCollectionsToUpload = 0;
+      _completedCollections = 0;
+      _totalRecordsToUpload = 0;
+      _completedRecords = 0;
+      _currentCollectionName = '';
+      _uploadStartTime = DateTime.now();
+      _currentCollectionRecords = 0;
+      _currentCollectionDone = 0;
+    });
+
+    try {
+      final stats = await SecondaryAppwriteService().uploadFullBackup(
+        onProgress: (collection, current, total) {
+          if (mounted) {
+            setState(() {
+              _currentCollectionName = collection;
+              _currentCollectionRecords = total;
+              _currentCollectionDone = current;
+              _completedRecords++;
+              if (current == 1) {
+                _totalRecordsToUpload += total;
+              }
+            });
+          }
+        },
+        onCollectionComplete: (collectionName, successCount, failureCount) {
+          if (mounted) {
+            setState(() {
+              _completedCollections++;
+            });
+          }
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _uploadingFullBackup = false;
+          if (stats.error != null) {
+            _fullBackupSuccess = false;
+            _fullBackupResult = '❌ ${stats.error}';
+          } else if (stats.failureCount == 0) {
+            _fullBackupSuccess = true;
+            _fullBackupResult =
+                '✅ تم رفع ${stats.successCount} سجل بنجاح في ${stats.totalCollections} جدول';
+          } else {
+            _fullBackupSuccess = stats.successCount > 0;
+            _fullBackupResult =
+                '⚠️ نجح: ${stats.successCount} سجل، فشل: ${stats.failureCount} سجل'
+                '\n📊 الجداول: ${stats.fullySuccessfulCollections} مكتمل، ${stats.failedCollections} فاشل';
+          }
+        });
+
+        if (mounted) {
+          _showCollectionDetailsDialog(stats);
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_fullBackupResult),
+            backgroundColor: _fullBackupSuccess == true
+                ? Colors.green
+                : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _uploadingFullBackup = false;
+          _fullBackupSuccess = false;
+          _fullBackupResult = '❌ فشل غير متوقع: $e';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل الرفع: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
-  void _showMessage(bool success, String msg) {
-    setState(() {
-      _success = success;
-      _message = msg;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(success ? Icons.check_circle : Icons.error,
-                color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(child: Text(msg)),
-          ],
+  void _showCollectionDetailsDialog(FullBackupStats stats) {
+    final details = stats.collectionDetails;
+    if (details.isEmpty) return;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تفاصيل رفع الجداول'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: stats.failedCollections == 0
+                      ? Colors.green.shade50
+                      : Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildSummaryChip(
+                      'إجمالي الجداول',
+                      '${stats.totalCollections}',
+                      Colors.blue,
+                    ),
+                    _buildSummaryChip(
+                      'مكتمل',
+                      '${stats.fullySuccessfulCollections}',
+                      Colors.green,
+                    ),
+                    _buildSummaryChip(
+                      'فاشل',
+                      '${stats.failedCollections}',
+                      stats.failedCollections > 0
+                          ? Colors.red
+                          : Colors.grey,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              if (stats.failedRecords.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.error_outline,
+                              size: 16, color: Colors.red),
+                          const SizedBox(width: 6),
+                          Text(
+                            'أسباب الفشل (${stats.failedRecords.length} سجل):',
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ...stats.errorsByReason.entries.map((entry) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 3),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.arrow_left,
+                                  size: 12, color: Colors.red),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  entry.key,
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.red.shade700,
+                                      fontFamily: 'monospace'),
+                                ),
+                              ),
+                              Text(
+                                '×${entry.value}',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red.shade700),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              const Text(
+                'تفاصيل كل جدول:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: details.length,
+                  itemBuilder: (context, index) {
+                    final d = details[index];
+                    final isOk = d['isFullySuccessful'] as bool;
+                    final name = d['name'] as String;
+                    final collectionFailures =
+                        stats.failuresByCollection[name] ?? [];
+                    return ExpansionTile(
+                      dense: true,
+                      tilePadding: EdgeInsets.zero,
+                      leading: Icon(
+                        isOk ? Icons.check_circle : Icons.error,
+                        color: isOk ? Colors.green : Colors.red,
+                        size: 20,
+                      ),
+                      title: Text(
+                        name,
+                        style: const TextStyle(
+                            fontSize: 12, fontFamily: 'monospace'),
+                      ),
+                      subtitle: Text(
+                        'نجح: ${d['success']} / فشل: ${d['failure']} / إجمالي: ${d['total']}',
+                        style: TextStyle(
+                            fontSize: 10, color: Colors.grey.shade600),
+                      ),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isOk
+                              ? Colors.green.shade50
+                              : Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          isOk ? '✓' : '✗',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isOk ? Colors.green : Colors.red,
+                          ),
+                        ),
+                      ),
+                      children: [
+                        if (collectionFailures.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                left: 32, right: 8, bottom: 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: collectionFailures
+                                  .take(5)
+                                  .map((f) => Padding(
+                                        padding: const EdgeInsets.only(
+                                            bottom: 2),
+                                        child: Text(
+                                          '• ${f.documentId ?? '?'}: ${f.reason}',
+                                          style: TextStyle(
+                                              fontSize: 9,
+                                              color: Colors.red.shade600,
+                                              fontFamily: 'monospace'),
+                                        ),
+                                      ))
+                                  .toList(),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
-        backgroundColor: success ? Colors.green : Colors.red,
-        duration: const Duration(seconds: 3),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إغلاق'),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildSummaryChip(String label, String value, Color color) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(value,
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+        Text(label,
+            style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
+      ],
+    );
+  }
+
+  Widget _buildCountdownCard() {
+    final remainingCollections =
+        _totalCollectionsToUpload - _completedCollections;
+    final collectionProgress = _totalCollectionsToUpload > 0
+        ? _completedCollections / _totalCollectionsToUpload
+        : 0.0;
+
+    String elapsedStr = '';
+    String etaStr = '';
+    if (_uploadStartTime != null) {
+      final elapsed = DateTime.now().difference(_uploadStartTime!);
+      elapsedStr = '${elapsed.inMinutes}د ${elapsed.inSeconds % 60}ث';
+
+      if (_completedCollections > 0 && _totalCollectionsToUpload > 0) {
+        final avgPerCollection = elapsed.inSeconds / _completedCollections;
+        final remainingSeconds =
+            (remainingCollections * avgPerCollection).round();
+        final etaMin = remainingSeconds ~/ 60;
+        final etaSec = remainingSeconds % 60;
+        etaStr = '$etaMinد $etaSecث';
+      }
+    }
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'جاري رفع البيانات...',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                Text(
+                  elapsedStr,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Text(
+                  'الجداول: ',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+                Text(
+                  '$_completedCollections / $_totalCollectionsToUpload',
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '(متبقي: $remainingCollections)',
+                  style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            LinearProgressIndicator(
+              value: collectionProgress,
+              minHeight: 8,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.deepPurple),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            const SizedBox(height: 12),
+
+            if (_currentCollectionName.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.deepPurple.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.deepPurple.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.table_chart,
+                        size: 14, color: Colors.deepPurple.shade700),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _currentCollectionName,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'monospace',
+                          color: Colors.deepPurple.shade700,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '$_currentCollectionDone / $_currentCollectionRecords',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.deepPurple.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: _currentCollectionRecords > 0
+                    ? _currentCollectionDone / _currentCollectionRecords
+                    : 0,
+                minHeight: 4,
+                backgroundColor: Colors.grey.shade200,
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(Colors.deepPurple.shade300),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ],
+
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildCountdownStat(
+                  'منقضي',
+                  elapsedStr,
+                  Icons.timer,
+                  Colors.blue,
+                ),
+                _buildCountdownStat(
+                  'متبقي',
+                  etaStr.isEmpty ? '—' : etaStr,
+                  Icons.hourglass_top,
+                  Colors.orange,
+                ),
+                _buildCountdownStat(
+                  'سجلات',
+                  '$_completedRecords',
+                  Icons.list,
+                  Colors.green,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCountdownStat(
+      String label, String value, IconData icon, Color color) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(height: 4),
+        Text(value,
+            style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+        Text(label,
+            style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
+      ],
+    );
+  }
+
+
+  Future<void> _toggleFailover(bool active) async {
+    if (active && !SecondaryAppwriteConfig.isConfigured) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ يجب إدخال بيانات الاتصال أولاً وحفظها'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    setState(() => _switchingFailover = true);
+    try {
+      await SecondaryAppwriteConfig.setFailoverActive(active);
+      try {
+        await AppwriteSyncManager.instance?.reinitializeAfterConfigChange();
+      } catch (_) {}
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              active
+                  ? '⚠️ تم تفعيل تجاوز الفشل — التطبيق يعمل الآن على الوجهة الثانوية'
+                  : '✅ تم تعطيل تجاوز الفشل — العودة للوجهة الأساسية',
+            ),
+            backgroundColor: active ? Colors.orange : Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ فشل التبديل: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _switchingFailover = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final enabled = SecondaryAppwriteConfig.isEnabled;
-    final isConfigured = SecondaryAppwriteConfig.isConfigured;
     final pushEnabled = SecondaryAppwriteConfig.isPushEnabled;
     final pullEnabled = SecondaryAppwriteConfig.isPullEnabled;
+    final failoverActive = SecondaryAppwriteConfig.isFailoverActive;
+    final isConfigured = SecondaryAppwriteConfig.isConfigured;
 
-    return AppScaffold(
-      title: 'Appwrite الثانوي',
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('وجهة Appwrite الثانوية'),
+        actions: [
+          IconButton(
+            onPressed: _saving ? null : _save,
+            icon: _saving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save),
+            tooltip: 'حفظ',
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ── بطاقة التاريخ ──
-          Card(
-            elevation: 1,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Icon(Icons.event, color: Colors.indigo.shade700, size: 20),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'تاريخ الإعداد: 2026-06-20',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          _InfoCard(
+            icon: Icons.cloud_sync,
+            color: Colors.blue,
+            title: 'ما هي الوجهة الثانوية؟',
+            body: 'نسخة احتياطية سحابية على حساب Appwrite آخر (أو region مختلف). '
+                'تُرسل البيانات تلقائياً للوجهتين. عند تعطل الأساسية، يمكنك تفعيل '
+                '"تجاوز الفشل" للعمل على الثانوية.',
           ),
-          const SizedBox(height: 12),
 
-          // ── بطاقة معلوماتية ──
-          Card(
-            color: Colors.blue.shade50,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info, color: Colors.blue.shade700, size: 18),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'كيف تعمل المزامنة الثانوية؟',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    '• outbox المحلي يُسلّم للوجهتين بالتوازي\n'
-                    '• السجل يُحذف فقط بعد نجاح كلا الوجهتين\n'
-                    '• الرفع (Push): أحداث أول بأول لـ Secondary\n'
-                    '• السحب (Pull): Failover تلقائي عند تعطل Primary\n'
-                    '• لا فقدان بيانات، لا تكرار، لا سباق بيانات',
-                    style: TextStyle(fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-          ),
           const SizedBox(height: 16),
 
-          // ── حالة الاتصال ──
           Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.cloud, color: Colors.blue, size: 24),
-                      SizedBox(width: 8),
-                      Text('حالة الاتصال',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const Divider(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: !enabled
-                          ? Colors.grey.shade50
-                          : !isConfigured
-                              ? Colors.orange.shade50
-                              : Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: !enabled
-                            ? Colors.grey
-                            : !isConfigured
-                                ? Colors.orange
-                                : Colors.green,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          !enabled
-                              ? Icons.power_off
-                              : !isConfigured
-                                  ? Icons.warning
-                                  : Icons.check_circle,
-                          color: !enabled
-                              ? Colors.grey
-                              : !isConfigured
-                                  ? Colors.orange
-                                  : Colors.green,
-                          size: 32,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            !enabled
-                                ? 'معطّل'
-                                : !isConfigured
-                                    ? 'غير مُعدّ'
-                                    : 'جاهز',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: !enabled
-                                  ? Colors.grey
-                                  : !isConfigured
-                                      ? Colors.orange
-                                      : Colors.green,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _testing ? null : _testConnection,
-                      icon: _testing
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.refresh),
-                      label: Text(_testing ? 'جاري...' : 'اختبار الاتصال'),
-                    ),
-                  ),
-                ],
+            child: SwitchListTile(
+              title: const Text(
+                'تفعيل الوجهة الثانوية',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
+              subtitle: Text(
+                enabled ? 'مفعّل' : 'معطّل',
+                style: TextStyle(
+                  color: enabled ? Colors.green : Colors.grey,
+                ),
+              ),
+              value: enabled,
+              onChanged: (v) async {
+                await SecondaryAppwriteConfig.saveConfig(
+                  enabled: v,
+                  endpoint: _endpointCtrl.text.trim(),
+                  projectId: _projectIdCtrl.text.trim(),
+                  databaseId: _databaseIdCtrl.text.trim(),
+                  apiKey: _apiKeyCtrl.text.trim(),
+                  pushEnabled: pushEnabled,
+                  pullEnabled: pullEnabled,
+                );
+                SecondaryAppwriteService().invalidate();
+                
+                // ✅ تحديث علامات التسليم في outbox
+                if (v) {
+                  // تفعيل: نُعلّم كل السجلات كـ "غير مُسلّمة للثانوي" ليتم رفعها
+                  final db = DatabaseManager.instance;
+                  final outboxDao = OutboxDao(db);
+                  final count = await outboxDao.markAllLocalAsUndeliveredToSecondary();
+                  debugPrint('🔵 [Secondary] Marked $count records as undelivered to secondary');
+                  if (SecondaryAppwriteConfig.isPushEnabled) {
+                    SecondarySyncManager.instance.startAutoSync();
+                  }
+                } else {
+                  // تعطيل: نُعلّم كل السجلات كـ "مُسلّمة للثانوي" لمنع حجبها
+                  final db = DatabaseManager.instance;
+                  final outboxDao = OutboxDao(db);
+                  final count = await outboxDao.markAllLocalAsDeliveredToSecondary();
+                  debugPrint('🔵 [Secondary] Marked $count records as delivered to secondary (disabled)');
+                  SecondarySyncManager.instance.stopAutoSync();
+                }
+                setState(() {});
+              },
             ),
           ),
-          const SizedBox(height: 16),
 
-          // ── إعدادات المزامنة (الأهم) ──
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.sync, color: Colors.cyan, size: 24),
-                      SizedBox(width: 8),
-                      Text('إعدادات المزامنة',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const Divider(height: 24),
-
-                  // ── المفتاح الرئيسي: تفعيل/تعطيل Secondary بالكامل ──
-                  SwitchListTile(
-                    title: const Text(
-                      'تفعيل المزامنة الثانوية',
+          if (enabled && isConfigured) ...[
+            const SizedBox(height: 8),
+            Card(
+              color: failoverActive
+                  ? Colors.orange.shade50
+                  : null,
+              child: SwitchListTile(
+                title: Row(
+                  children: [
+                    Icon(
+                      failoverActive ? Icons.warning : Icons.swap_horiz,
+                      color: failoverActive ? Colors.orange : Colors.blue,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'تجاوز الفشل (Failover)',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    subtitle: Text(enabled ? 'مُفعّلة' : 'معطّلة'),
-                    value: enabled,
-                    onChanged: _toggleSync,
-                    activeThumbColor: Colors.green,
-                  ),
-                  if (enabled) ...[
-                    const Divider(height: 16),
-
-                    // ── خيار الرفع (Push) ──
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: pushEnabled
-                            ? Colors.green.shade50
-                            : Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: pushEnabled
-                              ? Colors.green.shade300
-                              : Colors.grey.shade300,
-                        ),
-                      ),
-                      child: SwitchListTile(
-                        title: Row(
-                          children: [
-                            Icon(Icons.cloud_upload,
-                                color: pushEnabled
-                                    ? Colors.green
-                                    : Colors.grey,
-                                size: 20),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'الرفع (Push)',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        subtitle: Text(
-                          pushEnabled
-                              ? 'رفع الأحداث أول بأول لـ Secondary عبر outbox'
-                              : 'معطّل — الأحداث تُرفع فقط للرئيسي',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        value: pushEnabled,
-                        onChanged: _togglePush,
-                        activeThumbColor: Colors.green,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // ── خيار السحب (Pull / Failover) ──
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: pullEnabled
-                            ? Colors.blue.shade50
-                            : Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: pullEnabled
-                              ? Colors.blue.shade300
-                              : Colors.grey.shade300,
-                        ),
-                      ),
-                      child: SwitchListTile(
-                        title: Row(
-                          children: [
-                            Icon(Icons.cloud_download,
-                                color: pullEnabled
-                                    ? Colors.blue
-                                    : Colors.grey,
-                                size: 20),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'السحب (Pull / Failover)',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        subtitle: Text(
-                          pullEnabled
-                              ? 'عند تعطل Primary، تُقرأ البيانات تلقائياً من Secondary'
-                              : 'معطّل — لا Failover للقراءة عند تعطل Primary',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        value: pullEnabled,
-                        onChanged: _togglePull,
-                        activeThumbColor: Colors.blue,
-                      ),
-                    ),
-
-                    if (pushEnabled) ...[
-                      const SizedBox(height: 16),
-                      const Divider(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _syncing ? null : _syncNow,
-                          icon: _syncing
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.sync),
-                          label: Text(_syncing ? 'جاري...' : 'مزامنة الآن'),
-                        ),
-                      ),
-                      if (_lastSync != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'آخر مزامنة: ${_formatDateTime(_lastSync!)}',
-                          style:
-                              const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
-                    ],
                   ],
-                ],
+                ),
+                subtitle: Text(
+                  failoverActive
+                      ? '⚠️ نشط — كل العمليات تتم على الوجهة الثانوية'
+                      : 'عند التفعيل: استخدم الثانوية كوجهة أساسية مؤقتاً',
+                  style: TextStyle(
+                    color: failoverActive ? Colors.orange : Colors.grey,
+                  ),
+                ),
+                value: failoverActive,
+                onChanged: _switchingFailover ? null : _toggleFailover,
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-
-          // ── إعدادات الاتصال ──
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.settings, color: Colors.grey, size: 24),
-                      SizedBox(width: 8),
-                      Text('إعدادات الاتصال',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const Divider(height: 24),
-                  TextField(
-                    controller: _endpointCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Endpoint',
-                      hintText: 'https://example.appwrite.io/v1',
-                      prefixIcon: Icon(Icons.link),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _projectIdCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Project ID',
-                      hintText: 'معرف المشروع',
-                      prefixIcon: Icon(Icons.folder),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _databaseIdCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Database ID',
-                      hintText: 'معرف قاعدة البيانات',
-                      prefixIcon: Icon(Icons.storage),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _apiKeyCtrl,
-                    obscureText: _obscureApiKey,
-                    decoration: InputDecoration(
-                      labelText: 'API Key',
-                      prefixIcon: const Icon(Icons.key),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscureApiKey
-                            ? Icons.visibility
-                            : Icons.visibility_off),
-                        onPressed: () =>
-                            setState(() => _obscureApiKey = !_obscureApiKey),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _saving ? null : _save,
-                      icon: _saving
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.save),
-                      label: Text(_saving ? 'جاري...' : 'حفظ'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          if (_message != null) ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: (_success ?? false)
-                    ? Colors.green.shade50
-                    : Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    (_success ?? false) ? Icons.check_circle : Icons.error,
-                    color: (_success ?? false) ? Colors.green : Colors.red,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(_message!)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
           ],
 
-          // ── مسح ──
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.warning, color: Colors.red, size: 24),
-                      SizedBox(width: 8),
-                      Text('إدارة البيانات',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                    ],
+          const SizedBox(height: 16),
+
+          if (enabled) ...[
+            const Text(
+              'بيانات الاتصال',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _endpointCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Endpoint *',
+                hintText: 'https://fra.cloud.appwrite.io/v1',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.link),
+              ),
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _projectIdCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Project ID *',
+                hintText: '690ff0da0025518570c1',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.folder),
+              ),
+              autocorrect: false,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _databaseIdCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Database ID *',
+                hintText: 'hotel_db',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.storage),
+              ),
+              autocorrect: false,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _apiKeyCtrl,
+              obscureText: _obscureApiKey,
+              decoration: InputDecoration(
+                labelText: 'API Key',
+                hintText: 'standard_...',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.key),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureApiKey
+                        ? Icons.visibility
+                        : Icons.visibility_off,
                   ),
-                  const Divider(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton.icon(
-                      onPressed: _clear,
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      label: const Text('مسح الإعدادات',
-                          style: TextStyle(color: Colors.red)),
+                  onPressed: () => setState(
+                      () => _obscureApiKey = !_obscureApiKey),
+                ),
+              ),
+              autocorrect: false,
+            ),
+
+            const SizedBox(height: 16),
+
+            const Text(
+              'العمليات المفعّلة',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('Push (رفع البيانات)'),
+                    subtitle: const Text(
+                      'نسخ التغييرات من هذا الجهاز إلى الوجهة الثانوية',
                     ),
+                    value: pushEnabled,
+                    onChanged: (v) async {
+                      await SecondaryAppwriteConfig.saveConfig(
+                        enabled: enabled,
+                        endpoint: _endpointCtrl.text.trim(),
+                        projectId: _projectIdCtrl.text.trim(),
+                        databaseId: _databaseIdCtrl.text.trim(),
+                        apiKey: _apiKeyCtrl.text.trim(),
+                        pushEnabled: v,
+                        pullEnabled: pullEnabled,
+                      );
+                      setState(() {});
+                    },
+                  ),
+                  const Divider(height: 1),
+                  SwitchListTile(
+                    title: const Text('Pull (سحب البيانات)'),
+                    subtitle: const Text(
+                      'عند تفعيل Failover: السحب من الوجهة الثانوية',
+                    ),
+                    value: pullEnabled,
+                    onChanged: (v) async {
+                      await SecondaryAppwriteConfig.saveConfig(
+                        enabled: enabled,
+                        endpoint: _endpointCtrl.text.trim(),
+                        projectId: _projectIdCtrl.text.trim(),
+                        databaseId: _databaseIdCtrl.text.trim(),
+                        apiKey: _apiKeyCtrl.text.trim(),
+                        pushEnabled: pushEnabled,
+                        pullEnabled: v,
+                      );
+                      setState(() {});
+                    },
                   ),
                 ],
               ),
             ),
-          ),
+
+            const SizedBox(height: 16),
+
+            if (enabled && isConfigured) ...[
+              if (_uploadingFullBackup) ...[
+                _buildCountdownCard(),
+                const SizedBox(height: 12),
+              ],
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _uploadingFullBackup ? null : _uploadFullBackup,
+                      icon: _uploadingFullBackup
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.backup),
+                      label: Text(_uploadingFullBackup
+                          ? 'جاري الرفع...'
+                          : 'رفع نسخة شاملة'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (_fullBackupResult.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _fullBackupSuccess == true
+                        ? Colors.green.shade50
+                        : Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _fullBackupSuccess == true
+                          ? Colors.green.shade200
+                          : Colors.red.shade200,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _fullBackupSuccess == true
+                            ? Icons.check_circle
+                            : Icons.error,
+                        color: _fullBackupSuccess == true
+                            ? Colors.green
+                            : Colors.red,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(_fullBackupResult),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+            ],
+
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _testingConnection ? null : _testConnection,
+                    icon: _testingConnection
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.wifi_tethering),
+                    label: const Text('اختبار الاتصال'),
+                  ),
+                ),
+              ],
+            ),
+            if (_testResult != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _testSuccess == true
+                      ? Colors.green.shade50
+                      : Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _testSuccess == true
+                        ? Colors.green.shade200
+                        : Colors.red.shade200,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _testSuccess == true ? Icons.check_circle : Icons.error,
+                      color: _testSuccess == true
+                          ? Colors.green
+                          : Colors.red,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '$_testResult'
+                        '${_testLatency != null ? " (latency: ${_testLatency}ms)" : ""}',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 24),
+
+            TextButton.icon(
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('تأكيد المسح'),
+                    content: const Text(
+                      'سيتم مسح كل إعدادات الوجهة الثانوية. '
+                      'هل أنت متأكد؟',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('إلغاء'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('مسح'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true) return;
+                await SecondaryAppwriteConfig.clear();
+                SecondaryAppwriteService().invalidate();
+                _loadConfig();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('🧹 تم مسح الإعدادات'),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              label: const Text(
+                'مسح الإعدادات',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 40),
         ],
       ),
     );
   }
+}
 
-  String _formatDateTime(DateTime dt) {
-    return DateFormat('yyyy-MM-dd HH:mm').format(dt);
+/// بطاقة معلومات بسيطة
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    body,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
