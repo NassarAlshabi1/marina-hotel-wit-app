@@ -1,21 +1,4 @@
 {
-  "mcp": {
-    "googlesheets": {
-      "type": "remote",
-      "url": "https://api.smithery.ai/connect/upstream-ef01d709/chat-cmqy16owh000004i8s3mjvixn-googlesheets/mcp",
-      "headers": {
-        "Authorization": "Bearer 24d398a7-8924-4025-ae80-b1e6c0a514a5"
-      },
-      "enabled": true
-    },
-    "github-github": {
-      "type": "remote",
-      "url": "https://api.githubcopilot.com/mcp/",
-      "headers": {
-        "Authorization": "Bearer ghs_dB72saNb1hNyNe8mn6QIMmbjLQNjuh2rgeF2"
-      },
-      "enabled": true
-    }
-  },
+  "mcp": {},
   "$schema": "https://opencode.ai/config.json"
 }

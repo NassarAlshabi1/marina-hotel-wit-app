@@ -3,19 +3,10 @@ import '../utils/hotel_date_helper.dart';
 /// فئة أدوات موحدة لمعالجة البيانات قبل إرسالها أو بعد سحبها من Appwrite
 class AppwriteSyncUtils {
   /// الحقول التي يجب تحويلها إلى أعداد صحيحة (بناءً على قيود Appwrite الحالية)
-  /// ⚠️ تم التحديث بناءً على فحص Appwrite Cloud الفعلي (2026-05-15)
-  /// - cash_transactions.amount: integer على Cloud ✓
-  /// - salary_withdrawals.amount: integer على Cloud ✓
-  /// - payment_voids.voidedAmount: integer على Cloud ✓
-  /// - booking_price_adjustments.amount: integer على Cloud ✓ (أُضيف 2026-05-15)
-  /// - debts.remainingAmount: integer على Cloud ✓ (أُضيف 2026-05-15)
-  /// - debts.totalAmount/paidAmount: double على Cloud (لا تحتاج تحويل)
+  /// ⚠️ تم التحديث بناءً على الجداول الفعلية (remainingAmount وسواها أصبحت double)
+  /// - payment_voids.voidedAmount: integer على Cloud ✓ (المتبقي الوحيد)
   static const Map<String, Set<String>> _intAmountFields = {
-    'cash_transactions': {'amount'},
-    'salary_withdrawals': {'amount'},
     'payment_voids': {'voidedAmount'},
-    'booking_price_adjustments': {'amount'},
-    'debts': {'remainingAmount'},
   };
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -871,6 +862,140 @@ class AppwriteSyncUtils {
     },
   };
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // مخطط Appwrite Cloud الفعلي — خريطة (حقل → نوع)
+  // ⚠️ هذا هو المصدر الوحيد للحقيقة — لا تخمن حقولاً!
+  // أي حقل غير موجود هنا سيُزال تلقائياً قبل الإرسال لمنع "Unknown attribute"
+  // ══════════════════════════════════════════════════════════════════════════
+  static const Map<String, Map<String, String>> collectionSchema = {
+    'rooms': {
+      'localUuid': 'string',
+      'roomNumber': 'string',
+      'type': 'string',
+      'price': 'double',
+      'status': 'string',
+      'imageUrl': 'string',
+      'cleaningStatus': 'string',
+      'lastCleanedHotelDay': 'string',
+      'lastOccupiedHotelDay': 'string',
+      'requiresMaintenance': 'boolean',
+      'serverId': 'integer',
+      'createdAt': 'integer',
+      'updatedAt': 'integer',
+      'deletedAt': 'integer',
+      'lastModified': 'integer',
+      'createdAtIso': 'string',
+      'updatedAtIso': 'string',
+      'deletedAtIso': 'string',
+      'createdAtEpoch': 'integer',
+      'lastModifiedEpoch': 'integer',
+      'syncTimestamp': 'integer',
+      'deviceId': 'string',
+      'version': 'integer',
+      'origin': 'string',
+      'vectorClock': 'string',
+      'sync_origin': 'string',
+      'idempotencyKey': 'string',
+    },
+    'bookings': {
+      'localUuid': 'string',
+      'serverBookingId': 'integer',
+      'roomNumber': 'string',
+      'guestName': 'string',
+      'guestPhone': 'string',
+      'guestIdType': 'string',
+      'guestIdNumber': 'string',
+      'guestIdIssueDate': 'string',
+      'guestIdIssuePlace': 'string',
+      'guestNationality': 'string',
+      'guestEmail': 'string',
+      'guestAddress': 'string',
+      'checkinDate': 'string',
+      'checkoutDate': 'string',
+      'actualCheckout': 'string',
+      'status': 'string',
+      'notes': 'string',
+      'expectedNights': 'integer',
+      'calculatedNights': 'integer',
+      'totalNightsCached': 'integer',
+      'stayDurationIso': 'string',
+      'lastNightEpoch': 'integer',
+      'isOverdue': 'boolean',
+      'needsCheckoutReview': 'boolean',
+      'totalDueCached': 'double',
+      'totalPaidCached': 'double',
+      'remainingBalanceCached': 'double',
+      'isFullyPaid': 'boolean',
+      'discount': 'double',
+      'discountType': 'string',
+      'discountStartDate': 'string',
+      'hotelDayCheckin': 'string',
+      'hotelDayCheckout': 'string',
+      'financialFrozenAt': 'integer',
+      'financialHash': 'string',
+      'serverId': 'integer',
+      'createdAt': 'integer',
+      'updatedAt': 'integer',
+      'deletedAt': 'integer',
+      'lastModified': 'integer',
+      'createdAtIso': 'string',
+      'updatedAtIso': 'string',
+      'deletedAtIso': 'string',
+      'createdAtEpoch': 'integer',
+      'lastModifiedEpoch': 'integer',
+      'syncTimestamp': 'integer',
+      'deviceId': 'string',
+      'version': 'integer',
+      'origin': 'string',
+      'vectorClock': 'string',
+      'sync_origin': 'string',
+      'idempotencyKey': 'string',
+    },
+    'payments': {
+      'localUuid': 'string',
+      'serverPaymentId': 'integer',
+      'bookingLocalId': 'integer',
+      'serverBookingId': 'integer',
+      'roomNumber': 'string',
+      'amount': 'double',
+      'paymentDate': 'string',
+      'notes': 'string',
+      'paymentMethod': 'string',
+      'revenueType': 'string',
+      'cashTransactionLocalId': 'integer',
+      'cashTransactionServerId': 'integer',
+      'referenceNumber': 'string',
+      'hotelDayKey': 'string',
+      'isPendingBalance': 'boolean',
+      'linkedDebtUuid': 'string',
+      'bookingUuidCache': 'string',
+      'isVoided': 'boolean',
+      'voidedAt': 'integer',
+      'voidedBy': 'string',
+      'voidReason': 'string',
+      'isImmutable': 'boolean',
+      'discountAmount': 'double',
+      'discountStartDate': 'string',
+      'serverId': 'integer',
+      'createdAt': 'integer',
+      'updatedAt': 'integer',
+      'deletedAt': 'integer',
+      'lastModified': 'integer',
+      'createdAtIso': 'string',
+      'updatedAtIso': 'string',
+      'deletedAtIso': 'string',
+      'createdAtEpoch': 'integer',
+      'lastModifiedEpoch': 'integer',
+      'syncTimestamp': 'integer',
+      'deviceId': 'string',
+      'version': 'integer',
+      'origin': 'string',
+      'vectorClock': 'string',
+      'sync_origin': 'string',
+      'idempotencyKey': 'string',
+    },
+  };
+
   /// تصفية الحمولة — إبقاء فقط الحقول الموجودة في مخطط Appwrite الفعلي
   /// ⚠️ هذا يمنع خطأ "Unknown attribute" نهائياً
   /// إذا لم يكن المجموعة معروفة، يتم إرجاع الحمولة كما هي (بدون تصفية)
@@ -878,16 +1003,71 @@ class AppwriteSyncUtils {
     String collectionId,
     Map<String, dynamic> payload,
   ) {
-    final validFields = validFieldsPerCollection[collectionId];
-    if (validFields == null) return payload; // مجموعة غير معروفة — لا نصفي
+    final schema = collectionSchema[collectionId];
+    if (schema == null) {
+      // fallback to old behavior for backward compatibility
+      final validFields = validFieldsPerCollection[collectionId];
+      if (validFields == null) return payload;
+      final result = <String, dynamic>{};
+      for (final entry in payload.entries) {
+        if (validFields.contains(entry.key)) {
+          result[entry.key] = entry.value;
+        }
+      }
+      return result;
+    }
 
     final result = <String, dynamic>{};
     for (final entry in payload.entries) {
-      if (validFields.contains(entry.key)) {
-        result[entry.key] = entry.value;
+      final fieldSchema = schema[entry.key];
+      if (fieldSchema != null) {
+        result[entry.key] = _coerceToType(entry.value, fieldSchema);
       }
     }
     return result;
+  }
+
+  /// تحوير القيم إلى الأنواع المناسبة لمخطط Appwrite
+  /// - integer: bool, num, String → int
+  /// - double: يبقى كما هو أو يُقرَب
+  /// - boolean: bool, num, String ("true", "1", "false", "0") → bool
+  /// - string: أي قيمة → toString()
+  static dynamic _coerceToType(dynamic value, String type) {
+    if (value == null) return null;
+
+    switch (type) {
+      case 'integer':
+        if (value is int) return value;
+        if (value is num) return value.toInt();
+        if (value is bool) return value ? 1 : 0;
+        if (value is String) {
+          final parsed = int.tryParse(value);
+          return parsed ?? 0;
+        }
+        return 0;
+      case 'double':
+        if (value is double) return value;
+        if (value is num) return value.toDouble();
+        if (value is bool) return value ? 1.0 : 0.0;
+        if (value is String) {
+          final parsed = double.tryParse(value);
+          return parsed ?? 0.0;
+        }
+        return 0.0;
+      case 'boolean':
+        if (value is bool) return value;
+        if (value is num) return value != 0;
+        if (value is String) {
+          final lower = value.toLowerCase();
+          if (lower == 'true' || lower == '1') return true;
+          if (lower == 'false' || lower == '0') return false;
+        }
+        return false;
+      case 'string':
+        return value.toString();
+      default:
+        return value;
+    }
   }
 
   /// تطهير البيانات وإزالة الحقول غير المدعومة أو المحسوبة
