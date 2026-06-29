@@ -256,6 +256,8 @@ class AppwriteService {
     required String documentId,
     AppwriteHealthState? healthState,
   }) async {
+    await _ensureInitialized();
+
     // ✅ إذا كان المستخدم قد فعل Failover يدوياً، نقرأ مباشرة من Secondary
     if (SecondaryAppwriteConfig.isFailoverActive &&
         SecondaryAppwriteConfig.isPullEnabled &&
