@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
@@ -80,6 +81,19 @@ class _AppwriteSettingsScreenState
       syncManager.startAutoSync(interval: Duration(minutes: _syncInterval));
     } else {
       syncManager.stopAutoSync();
+    }
+  }
+
+  Future<void> _copyToClipboard(String text) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('📋 تم النسخ إلى الحافظة'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 1),
+        ),
+      );
     }
   }
 
@@ -200,12 +214,25 @@ class _AppwriteSettingsScreenState
                         ),
                         if (state.errorMessage != null) ...[
                           const SizedBox(height: 4),
-                          Text(
-                            state.errorMessage!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.red.shade700,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  state.errorMessage!,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.red.shade700,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () => _copyToClipboard(state.errorMessage!),
+                                icon: const Icon(Icons.copy, size: 16),
+                                tooltip: 'نسخ الخطأ',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
                           ),
                         ],
                       ],
