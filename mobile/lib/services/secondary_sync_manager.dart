@@ -255,18 +255,27 @@ class SecondarySyncManager {
       return false;
     }
 
-    final payload = _parsePayload(entry.payload);
-    payload['localUuid'] = entry.localUuid;
-
-    // إضافة idempotencyKey إذا كان موجوداً
-    if (entry.idempotencyKey != null && entry.idempotencyKey!.isNotEmpty) {
-      payload['idempotencyKey'] = entry.idempotencyKey;
+    // ✅ إصلاح (2026-06-28 P0-2): إعادة بناء الحمولة من DB المحلي
+    // الحمولة المخزنة في outbox تستخدم snake_case، بينما Appwrite يتطلب camelCase.
+    // نحاول أولاً إعادة البناء من DB المحلي للحصول على مفاتيح camelCase صحيحة.
+    Map<String, dynamic> payload;
+    try {
+      payload = await _rebuildPayloadFromLocalDb(entry.entity, entry.localUuid);
+      payload['localUuid'] = entry.localUuid;
+      if (entry.idempotencyKey != null && entry.idempotencyKey!.isNotEmpty) {
+        payload['idempotencyKey'] = entry.idempotencyKey;
+      }
+    } catch (e) {
+      // في حالة الفشل، نستخدم الحمولة المخزنة كاحتياط
+      debugPrint('⚠️ [SecondarySync] Failed to rebuild payload locally, using stored payload: $e');
+      payload = _parsePayload(entry.payload);
+      payload['localUuid'] = entry.localUuid;
+      if (entry.idempotencyKey != null && entry.idempotencyKey!.isNotEmpty) {
+        payload['idempotencyKey'] = entry.idempotencyKey;
+      }
     }
 
     // ✅ إصلاح (2026-06-28 P0-1): تصفية payload قبل الإرسال
-    // Secondary يستخدم endpoint مختلف (يدوي) قد يكون مخططه مختلفاً عن Primary.
-    // بدون تصفية، حقول غير موجودة في مخطط Secondary تُسبب attribute_not_found.
-    // نستخدم نفس validFieldsPerCollection المستخدم في Primary لضمان التوافق.
     final filteredPayload = AppwriteSyncUtils.filterPayloadForCollection(
       collectionId,
       payload,
@@ -290,15 +299,9 @@ class SecondarySyncManager {
       return true;
     } on AppwriteException catch (e) {
       // ✅ إصلاح P0-3 (2026-06-28): معالجة صحيحة للأخطاء الدائمة
-      // الكود القديم كان return false — هذا يترك السجل في processing_status='processing'
-      // (من الـ claim) دون معالجة، مما يسبب حلقة stuck-retry-stuck لا نهائية.
-      // الآن نستدعي setError لوضع السجل في 'failed' مع attempts عالية
-      // لمنع إعادة المحاولة التلقائية (retryFailedWithBackoff يتخطى attempts > 5).
       if (e.code == 400 || e.code == 401 || e.code == 403) {
         debugPrint(
             '❌ [SecondarySync] Permanent error for ${entry.entity}/${entry.localUuid}: ${e.code} ${e.message}');
-        // setError يضع processing_status='failed' + attempts=999
-        // هذا يمنع إعادة المحاولة التلقائية ويُبقي السجل للتحقيق
         final db = DatabaseManager.instance;
         final outboxDao = OutboxDao(db);
         await outboxDao.setError(
@@ -309,6 +312,83 @@ class SecondarySyncManager {
         return false; // يُعلم sync() أن السجل فشل (failed++)
       }
       rethrow;
+    }
+  }
+
+  /// إعادة بناء الحمولة من قاعدة البيانات المحلية
+  /// يُستخدم للحصول على مفاتيح camelCase الصحيحة للـ Secondary
+  Future<Map<String, dynamic>> _rebuildPayloadFromLocalDb(
+    String entity,
+    String localUuid,
+  ) async {
+    // حالياً نعيد البناء يدوياً لكل كيان
+    // يجب توصيل AdapterRegistry لاحقاً لتوسيع الدعم
+    final db = DatabaseManager.instance;
+
+    switch (entity) {
+      case 'rooms':
+        final row = await (db.select(db.rooms)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return {
+          'roomNumber': row.roomNumber,
+          'type': row.type,
+          'price': row.price,
+          'status': row.status,
+          'imageUrl': row.imageUrl,
+          'cleaningStatus': row.cleaningStatus,
+          'lastCleanedHotelDay': row.lastCleanedHotelDay,
+          'lastOccupiedHotelDay': row.lastOccupiedHotelDay,
+          'requiresMaintenance': row.requiresMaintenance,
+          'serverId': row.serverId,
+          'createdAt': row.createdAt,
+          'updatedAt': row.updatedAt,
+          'lastModified': row.lastModified,
+          'version': row.version,
+          'origin': row.origin,
+          'deviceId': row.deviceId,
+          'deletedAt': row.deletedAt,
+        };
+      case 'debts':
+        final row = await (db.select(db.debts)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return {
+          'guestName': row.guestName,
+          'checkinDate': row.checkinDate,
+          'checkoutDate': row.checkoutDate,
+          'totalAmount': row.totalAmount,
+          'paidAmount': row.paidAmount,
+          'remainingAmount': row.remainingAmount,
+          'bookingLocalId': row.bookingLocalId,
+          'paymentDate': row.paymentDate,
+          'isSettled': row.isSettled,
+          'debtReason': row.debtReason,
+          'note': row.note,
+          'debtUuid': row.debtUuid,
+          'pledge': row.pledge,
+          'pledgeType': row.pledgeType,
+          'isFromAutoFix': row.isFromAutoFix,
+          'settlementConfirmed': row.settlementConfirmed,
+          'createdAt': row.createdAt,
+          'updatedAt': row.updatedAt,
+          'lastModified': row.lastModified,
+          'version': row.version,
+          'origin': row.origin,
+          'serverId': row.serverId,
+          'deletedAt': row.deletedAt,
+          'deletedAtIso': row.deletedAtIso,
+          'hotelDayOpened': row.hotelDayOpened,
+          'hotelDayClosed': row.hotelDayClosed,
+          'vectorClock': row.vectorClock,
+          'deviceId': row.deviceId,
+          'createdAtEpoch': row.createdAtEpoch,
+          'lastModifiedEpoch': row.lastModifiedEpoch,
+        };
+      default:
+        rethrow; // لا دعم كامل يدوياً، استخدم الحمولة المخزنة
     }
   }
 
