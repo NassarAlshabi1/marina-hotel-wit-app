@@ -96,12 +96,13 @@ class AppwriteService {
     bool useRetry = true,
   }) async {
     // ✅ Manual failover: if active, read from Secondary instead of Primary
+    // This covers all entity reads (listRooms, listBookings, listPayments, etc.)
     if (SecondaryAppwriteConfig.isFailoverActive &&
         SecondaryAppwriteConfig.isPullEnabled &&
         SecondaryAppwriteConfig.isEnabled &&
         SecondaryAppwriteConfig.isConfigured) {
       debugPrint(
-          '🔄 [Failover] Manual failover active — reading all docs from Secondary');
+          '🔄 [Failover] Manual failover active — reading from Secondary');
       return _listFromSecondary(collectionId, queries);
     }
 
@@ -221,27 +222,7 @@ class AppwriteService {
     bool useCache = true,
     AppwriteHealthState? healthState,
   }) async {
-    // ✅ إذا كان المستخدم قد فعل Failover يدوياً، نقرأ مباشرة من Secondary
-    if (SecondaryAppwriteConfig.isFailoverActive &&
-        SecondaryAppwriteConfig.isPullEnabled &&
-        SecondaryAppwriteConfig.isEnabled &&
-        SecondaryAppwriteConfig.isConfigured) {
-      debugPrint(
-          '🔄 [Failover] Manual failover active — reading from Secondary for all reads');
-      return _listFromSecondary(collectionId, queries);
-    }
-
-    // إذا كانت حالة Primary معروفة بأنها معطّلة و Secondary متاح، نقرأ مباشرة من Secondary
-    if (healthState != null &&
-        healthState.shouldFailover &&
-        SecondaryAppwriteConfig.isEnabled &&
-        SecondaryAppwriteConfig.isConfigured) {
-      debugPrint(
-          '🔄 [Failover] Reading from Secondary (Primary known unreachable)');
-      return _listFromSecondary(collectionId, queries);
-    }
-
-    // محاولة Primary أولاً
+    // ✅ الفحص يتم في _listAllDocumentsInternal مسبقاً
     try {
       return await _listAllDocumentsInternal(
         collectionId: collectionId,
