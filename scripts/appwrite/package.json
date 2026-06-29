@@ -14,6 +14,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "node-appwrite": "^20.3.0"
+    "node-appwrite": "^20.3.0",
+    "sqlite3": "^6.0.1"
   }
 }

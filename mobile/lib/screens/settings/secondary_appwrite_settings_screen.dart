@@ -1,5 +1,6 @@
 // ignore_for_file: directives_ordering, prefer_const_constructors, use_if_null_to_convert_nulls_to_bools, unawaited_futures, use_build_context_synchronously, unused_field
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/secondary_appwrite_config.dart';
@@ -66,6 +67,19 @@ class _SecondaryAppwriteSettingsScreenState
     _databaseIdCtrl.dispose();
     _apiKeyCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _copyToClipboard(String text) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('📋 تم النسخ إلى الحافظة'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
   }
 
   Future<void> _save() async {
@@ -348,6 +362,13 @@ class _SecondaryAppwriteSettingsScreenState
                                     fontWeight: FontWeight.bold,
                                     color: Colors.red.shade700),
                               ),
+                              IconButton(
+                                onPressed: () => _copyToClipboard(entry.key),
+                                icon: const Icon(Icons.copy, size: 12),
+                                tooltip: 'نسخ الخطأ',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
                             ],
                           ),
                         );
@@ -421,12 +442,27 @@ class _SecondaryAppwriteSettingsScreenState
                                   .map((f) => Padding(
                                         padding: const EdgeInsets.only(
                                             bottom: 2),
-                                        child: Text(
-                                          '• ${f.documentId ?? '?'}: ${f.reason}',
-                                          style: TextStyle(
-                                              fontSize: 9,
-                                              color: Colors.red.shade600,
-                                              fontFamily: 'monospace'),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                '• ${f.documentId ?? '?'}: ${f.reason}',
+                                                style: TextStyle(
+                                                    fontSize: 9,
+                                                    color: Colors.red.shade600,
+                                                    fontFamily: 'monospace'),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              onPressed: () => _copyToClipboard(
+                                                '${f.documentId ?? '?'}: ${f.reason}',
+                                              ),
+                                              icon: const Icon(Icons.copy, size: 12),
+                                              tooltip: 'نسخ الخطأ',
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                            ),
+                                          ],
                                         ),
                                       ))
                                   .toList(),
@@ -947,39 +983,44 @@ class _SecondaryAppwriteSettingsScreenState
                   ),
                 ],
               ),
-              if (_fullBackupResult.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _fullBackupSuccess == true
-                        ? Colors.green.shade50
-                        : Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _fullBackupSuccess == true
-                          ? Colors.green.shade200
-                          : Colors.red.shade200,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _fullBackupSuccess == true
-                            ? Icons.check_circle
-                            : Icons.error,
-                        color: _fullBackupSuccess == true
-                            ? Colors.green
-                            : Colors.red,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(_fullBackupResult),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+               if (_fullBackupResult.isNotEmpty) ...[
+                 const SizedBox(height: 8),
+                 Container(
+                   padding: const EdgeInsets.all(12),
+                   decoration: BoxDecoration(
+                     color: _fullBackupSuccess == true
+                         ? Colors.green.shade50
+                         : Colors.red.shade50,
+                     borderRadius: BorderRadius.circular(8),
+                     border: Border.all(
+                       color: _fullBackupSuccess == true
+                           ? Colors.green.shade200
+                           : Colors.red.shade200,
+                     ),
+                   ),
+                   child: Row(
+                     children: [
+                       Icon(
+                         _fullBackupSuccess == true
+                             ? Icons.check_circle
+                             : Icons.error,
+                         color: _fullBackupSuccess == true
+                             ? Colors.green
+                             : Colors.red,
+                       ),
+                       const SizedBox(width: 8),
+                       Expanded(
+                         child: Text(_fullBackupResult),
+                       ),
+                       IconButton(
+                         onPressed: () => _copyToClipboard(_fullBackupResult),
+                         icon: const Icon(Icons.copy, size: 18),
+                         tooltip: 'نسخ النص',
+                       ),
+                     ],
+                   ),
+                 ),
+               ],
               const SizedBox(height: 16),
             ],
 
@@ -1029,6 +1070,14 @@ class _SecondaryAppwriteSettingsScreenState
                         '$_testResult'
                         '${_testLatency != null ? " (latency: ${_testLatency}ms)" : ""}',
                       ),
+                    ),
+                    IconButton(
+                      onPressed: () => _copyToClipboard(
+                        '$_testResult'
+                        '${_testLatency != null ? " (latency: ${_testLatency}ms)" : ""}',
+                      ),
+                      icon: const Icon(Icons.copy, size: 18),
+                      tooltip: 'نسخ النص',
                     ),
                   ],
                 ),

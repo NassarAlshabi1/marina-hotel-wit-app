@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
@@ -80,6 +81,19 @@ class _AppwriteSettingsScreenState
       syncManager.startAutoSync(interval: Duration(minutes: _syncInterval));
     } else {
       syncManager.stopAutoSync();
+    }
+  }
+
+  Future<void> _copyToClipboard(String text) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('📋 تم النسخ إلى الحافظة'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 1),
+        ),
+      );
     }
   }
 
@@ -200,12 +214,25 @@ class _AppwriteSettingsScreenState
                         ),
                         if (state.errorMessage != null) ...[
                           const SizedBox(height: 4),
-                          Text(
-                            state.errorMessage!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.red.shade700,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  state.errorMessage!,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.red.shade700,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () => _copyToClipboard(state.errorMessage!),
+                                icon: const Icon(Icons.copy, size: 16),
+                                tooltip: 'نسخ الخطأ',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
                           ),
                         ],
                       ],
@@ -349,8 +376,23 @@ class _AppwriteSettingsScreenState
             statsAsync.when(
               data: (stats) => _buildSyncStats(context, stats),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) =>
-                  Text('خطأ: $e', style: const TextStyle(color: Colors.red)),
+              error: (e, _) => Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'خطأ: $e',
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _copyToClipboard('خطأ: $e'),
+                    icon: const Icon(Icons.copy, size: 16),
+                    tooltip: 'نسخ الخطأ',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: 12),
@@ -823,8 +865,23 @@ class _AppwriteSettingsScreenState
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) =>
-                  Text('خطأ: $e', style: const TextStyle(color: Colors.red)),
+              error: (e, _) => Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'خطأ: $e',
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _copyToClipboard('خطأ: $e'),
+                    icon: const Icon(Icons.copy, size: 16),
+                    tooltip: 'نسخ الخطأ',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: 12),
@@ -1136,10 +1193,26 @@ class _AppwriteSettingsScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              result.isSuccess
-                  ? 'تمت المزامنة بنجاح'
-                  : 'فشلت المزامنة: ${result.errorMessage}',
+            content: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    result.isSuccess
+                        ? 'تمت المزامنة بنجاح'
+                        : 'فشلت المزامنة: ${result.errorMessage}',
+                  ),
+                ),
+                if (!result.isSuccess)
+                  IconButton(
+                    onPressed: () => _copyToClipboard(
+                      'فشلت المزامنة: ${result.errorMessage}',
+                    ),
+                    icon: const Icon(Icons.copy, size: 16),
+                    tooltip: 'نسخ الخطأ',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+              ],
             ),
             backgroundColor: result.isSuccess ? Colors.green : Colors.red,
           ),
@@ -1149,7 +1222,23 @@ class _AppwriteSettingsScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Row(
+              children: [
+                Expanded(
+                  child: Text('خطأ: $e', style: const TextStyle(color: Colors.red)),
+                ),
+                IconButton(
+                  onPressed: () => _copyToClipboard('خطأ: $e'),
+                  icon: const Icon(Icons.copy, size: 16),
+                  tooltip: 'نسخ الخطأ',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -1234,7 +1323,23 @@ class _AppwriteSettingsScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Row(
+              children: [
+                Expanded(
+                  child: Text('خطأ: $e', style: const TextStyle(color: Colors.red)),
+                ),
+                IconButton(
+                  onPressed: () => _copyToClipboard('خطأ: $e'),
+                  icon: const Icon(Icons.copy, size: 16),
+                  tooltip: 'نسخ الخطأ',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -1405,7 +1510,23 @@ class _AppwriteSettingsScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل الرفع: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Row(
+              children: [
+                Expanded(
+                  child: Text('فشل الرفع: $e'),
+                ),
+                IconButton(
+                  onPressed: () => _copyToClipboard('فشل الرفع: $e'),
+                  icon: const Icon(Icons.copy, size: 16),
+                  tooltip: 'نسخ الخطأ',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -1466,7 +1587,23 @@ class _AppwriteSettingsScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل السحب: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Row(
+              children: [
+                Expanded(
+                  child: Text('فشل السحب: $e'),
+                ),
+                IconButton(
+                  onPressed: () => _copyToClipboard('فشل السحب: $e'),
+                  icon: const Icon(Icons.copy, size: 16),
+                  tooltip: 'نسخ الخطأ',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {

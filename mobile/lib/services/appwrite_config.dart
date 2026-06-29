@@ -11,6 +11,7 @@ class AppwriteConfig {
   // Database ID - من لوحة تحكم Appwrite
   static const String databaseId = '6a2b030d000445596163';
 
+
   // Collections IDs
   static const String roomsCollectionId = 'rooms';
   static const String bookingsCollectionId = 'bookings';

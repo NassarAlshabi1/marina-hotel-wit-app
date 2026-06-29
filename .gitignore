@@ -17,3 +17,4 @@ build/
 .npm/
 .cache/
 dist/
+scripts/appwrite/backup_splits/
