@@ -6,10 +6,10 @@ class AppwriteConfig {
   static const String endpoint = 'https://fra.cloud.appwrite.io/v1';
 
   // Project ID - من لوحة تحكم Appwrite
-  static const String projectId = '690ff0da0025518570c1';
+  static const String projectId = '6a2b01d0000752ce97e7';
 
   // Database ID - من لوحة تحكم Appwrite
-  static const String databaseId = 'hotel_db';
+  static const String databaseId = '6a2b030d000445596163';
 
   // Collections IDs
   static const String roomsCollectionId = 'rooms';
