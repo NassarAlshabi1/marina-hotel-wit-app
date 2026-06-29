@@ -34,24 +34,19 @@ class AppwriteSyncUtils {
       'updatedAtIso', 'vectorClock', 'version',
     },
     'payments': {
-      // ✅ حقول مدفوعات موجودة على Appwrite Cloud (مُحدّث 2026-06-27)
-      // الحقول الأساسية
       'amount', 'paymentDate', 'paymentMethod', 'revenueType',
       'localUuid', 'serverPaymentId', 'bookingLocalId', 'serverBookingId',
       'roomNumber', 'notes', 'cashTransactionLocalId', 'cashTransactionServerId',
       'referenceNumber', 'hotelDayKey', 'isPendingBalance', 'linkedDebtUuid',
       'bookingUuidCache',
-      // حقول الإلغاء (Void)
-      'isVoided', 'voidedAt', 'voidedBy', 'voidReason',
-      // حقول الخصم
       'discountAmount', 'discountStartDate',
-      // حقول التجميد
+      'isVoided', 'voidedAt', 'voidedBy', 'voidReason',
       'isImmutable',
-      // SyncFields
-      'serverId', 'createdAt', 'updatedAt', 'deletedAt', 'lastModified',
-      'origin', 'lastModifiedEpoch', 'vectorClock', 'version',
-      'syncTimestamp', 'deviceId', 'sync_origin', 'id', 'createdAtIso',
-      'updatedAtIso', 'deletedAtIso', 'createdAtEpoch', 'idempotencyKey',
+      'serverId', 'createdAt', 'updatedAt',
+      'createdAtIso', 'updatedAtIso', 'deletedAtIso',
+      'createdAtEpoch', 'lastModifiedEpoch',
+      'version', 'origin', 'vectorClock', 'deviceId',
+      'syncTimestamp', 'sync_origin', 'idempotencyKey',
     },
     'bookings': {
       'actualCheckout', 'checkinDate', 'checkoutDate', 'guestAddress',
