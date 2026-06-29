@@ -717,7 +717,6 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       );
 
       if (mounted) {
-        // ignore: use_build_context_synchronously
         Navigator.pop(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -737,7 +736,6 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         extra: {'amount': amountText, 'method': method.name},
       );
       if (mounted) {
-        // ignore: use_build_context_synchronously
         Navigator.pop(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
