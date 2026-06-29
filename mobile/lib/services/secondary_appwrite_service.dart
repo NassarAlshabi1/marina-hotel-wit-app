@@ -111,10 +111,25 @@ for (final coll in collectionList) {
       for (final record in coll.records) {
         current++;
         onProgress(coll.name, current, total);
+
+        // ✅ المعرّف يجب أن يأتي من localUuid حقيقي.
+        // لا نرفع بمعرّف فارغ (يفسد النسخة ويُضلّل المستخدم) — بدل ذلك
+        // نتخطّى السجل ونسجّله كخطأ صريح في الإحصائيات (fail fast / skip).
+        final documentId = (record['localUuid'] as String?)?.trim();
+        if (documentId == null || documentId.isEmpty) {
+          failureCount++;
+          const reason = 'تخطّي سجل بلا localUuid صالح (معرّف فارغ)';
+          stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(
+            FullBackupFailure(documentId: null, reason: reason, collectionName: coll.name),
+          );
+          stats.errorsByReason[reason] = (stats.errorsByReason[reason] ?? 0) + 1;
+          continue;
+        }
+
         try {
           await upsertDocument(
             collectionId: coll.collectionId,
-            documentId: record['localUuid'] as String? ?? '',
+            documentId: documentId,
             data: record,
           );
           successCount++;
@@ -122,7 +137,7 @@ for (final coll in collectionList) {
           failureCount++;
           final reason = e.toString();
           stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(
-            FullBackupFailure(documentId: record['localUuid']?.toString(), reason: reason, collectionName: coll.name),
+            FullBackupFailure(documentId: documentId, reason: reason, collectionName: coll.name),
           );
           // ✅ إحصائيات الأخطاء حسب السبب
           final reasonShort = reason.length > 100 ? reason.substring(0, 100) : reason;
@@ -292,6 +307,7 @@ for (final coll in collectionList) {
       'salary_cycles',
       'salary_payments',
       'salary_withdrawals',
+      'salary_carry_over_logs',
       'shift_notes',
       'price_adjustments',
       'booking_price_adjustments',
@@ -345,6 +361,9 @@ for (final coll in collectionList) {
         case 'salary_withdrawals':
           final rows = await db.select(db.salaryWithdrawals).get();
           records = rows.map((r) => _salaryWithdrawalToMap(r)).toList();
+        case 'salary_carry_over_logs':
+          final rows = await db.select(db.salaryCarryOverLogs).get();
+          records = rows.map((r) => _salaryCarryOverLogToMap(r)).toList();
         case 'shift_notes':
           final rows = await db.select(db.shiftNotes).get();
           records = rows.map((r) => _shiftNoteToMap(r)).toList();
@@ -596,6 +615,29 @@ for (final coll in collectionList) {
         'localUuid': s.localUuid,
         'amount': s.amount,
         'withdrawDate': s.withdrawDate,
+        'createdAt': s.createdAt,
+        'updatedAt': s.updatedAt,
+        'deletedAt': s.deletedAt,
+        'lastModified': s.lastModified,
+        'createdAtIso': s.createdAtIso,
+        'updatedAtIso': s.updatedAtIso,
+        'deletedAtIso': s.deletedAtIso,
+        'version': s.version,
+        'origin': s.origin,
+        'deviceId': s.deviceId,
+        'vectorClock': s.vectorClock,
+      };
+
+  Map<String, dynamic> _salaryCarryOverLogToMap(SalaryCarryOverLog s) => {
+        'localUuid': s.localUuid,
+        'employeeId': s.employeeId,
+        'amount': s.amount,
+        'previousCycleStart': s.previousCycleStart,
+        'previousCycleEnd': s.previousCycleEnd,
+        'newCycleStart': s.newCycleStart,
+        'newCycleEnd': s.newCycleEnd,
+        'reason': s.reason,
+        'carriedAt': s.carriedAt,
         'createdAt': s.createdAt,
         'updatedAt': s.updatedAt,
         'deletedAt': s.deletedAt,
