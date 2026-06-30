@@ -1,4 +1,4 @@
-// ignore_for_file: unused_field, use_late_for_private_fields_and_variables, duplicate_ignore, avoid_redundant_argument_values, no_leading_underscores_for_local_identifiers, unused_local_variable
+// ignore_for_file: unused_field, use_late_for_private_fields_and_variables, duplicate_ignore, avoid_redundant_argument_values, no_leading_underscores_for_local_identifiers, unused_local_variable, directives_ordering
 
 import 'dart:async';
 import 'dart:convert';
@@ -37,6 +37,7 @@ import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
 import 'secondary_appwrite_config.dart';
 import 'sync_constants.dart';
+import 'sync/payload_mapper.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_error_service.dart';
 import 'sync_core/sync_metrics.dart';
@@ -44,7 +45,6 @@ import 'sync_core/sync_pull_service.dart';
 import 'sync_core/sync_push_service.dart';
 import 'sync_enums.dart';
 import 'sync_locks.dart';
-import 'sync/payload_mapper.dart';
 import 'telegram/whatsapp_notification_service.dart';
 import 'vector_clock_service.dart';
 
@@ -383,7 +383,7 @@ class AppwriteSyncManager {
       final nowIso = Time.nowIso();
       final nowEpoch = Time.nowEpoch();
 
-      _deviceLocalUuid ??= 'marina_${finalDeviceModel.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')}_${IdGen.shortId()}';
+      _deviceLocalUuid ??= 'marina_${finalDeviceModel.replaceAll(RegExp('[^a-zA-Z0-9_-]'), '_')}_${IdGen.shortId()}';
       _deviceCreatedAtEpoch ??= nowEpoch;
 
       if (_currentDeviceId != null) {
@@ -3078,16 +3078,6 @@ class AppwriteSyncManager {
 
   Map<String, dynamic> _debtToRemote(Debt debt) =>
       _payloadMapper.debtToRemote(debt);
-
-  void _putIfNotNull<T>(Map<String, dynamic> map, String key, T? value) =>
-      _payloadMapper.putIfNotNull(map, key, value);
-
-  void _putIfStringNotEmpty(
-    Map<String, dynamic> map,
-    String key,
-    String? value,
-  ) =>
-      _payloadMapper.putIfStringNotEmpty(map, key, value);
 
   /// هل نوع المصروف مرتبط بالرواتب
   static bool _isSalaryExpenseType(String type) =>
