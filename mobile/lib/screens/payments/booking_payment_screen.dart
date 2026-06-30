@@ -2735,8 +2735,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               backgroundColor: hasRemaining ? Colors.red : Colors.green,
             ),
             child: Text(hasRemaining ? 'متابعة رغم ذلك' : 'تأكيد المغادرة'),
-),
-         ],
+          ),
+        ],
+      ),
       ),
     );
   }
