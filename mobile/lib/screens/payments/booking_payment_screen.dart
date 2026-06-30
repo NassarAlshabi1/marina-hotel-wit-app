@@ -2433,9 +2433,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         await _sendPaymentConfirmation(amount, newRemaining, cleanedPhone);
       }
 
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      // ignore: use_build_context_synchronously
+      Navigator.pop(context);
 
       if (mounted) {
         setState(() {
@@ -2642,11 +2641,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 hasRemaining ? Icons.warning : Icons.check_circle,
                 color: hasRemaining ? Colors.red : Colors.green,
               ),
-              const SizedBox(width: 8),
-              Text(
-                hasRemaining ? 'تحذير!' : 'تأكيد المغادرة',
-                style: TextStyle(color: hasRemaining ? Colors.red : null),
-              ),
+            const SizedBox(width: 8),
+            Text(
+              hasRemaining ? 'تحذير!' : 'تأكيد المغادرة',
+              style: TextStyle(color: hasRemaining ? Colors.red : null),
+            ),
           ],
         ),
         content: Column(
@@ -2736,8 +2735,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               backgroundColor: hasRemaining ? Colors.red : Colors.green,
             ),
             child: Text(hasRemaining ? 'متابعة رغم ذلك' : 'تأكيد المغادرة'),
-          ),
-        ],
+),
+         ],
       ),
     );
   }
