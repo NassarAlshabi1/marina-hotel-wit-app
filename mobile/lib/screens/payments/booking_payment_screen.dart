@@ -2642,11 +2642,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 hasRemaining ? Icons.warning : Icons.check_circle,
                 color: hasRemaining ? Colors.red : Colors.green,
               ),
-            const SizedBox(width: 8),
-            Text(
-              hasRemaining ? 'تحذير!' : 'تأكيد المغادرة',
-              style: TextStyle(color: hasRemaining ? Colors.red : null),
-            ),
+              const SizedBox(width: 8),
+              Text(
+                hasRemaining ? 'تحذير!' : 'تأكيد المغادرة',
+                style: TextStyle(color: hasRemaining ? Colors.red : null),
+              ),
           ],
         ),
         content: Column(
