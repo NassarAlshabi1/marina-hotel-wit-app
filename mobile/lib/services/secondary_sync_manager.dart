@@ -388,7 +388,7 @@ class SecondarySyncManager {
           'lastModifiedEpoch': row.lastModifiedEpoch,
         };
       default:
-        rethrow; // لا دعم كامل يدوياً، استخدم الحمولة المخزنة
+        throw UnsupportedError('Unsupported entity for rebuild: $entity');
     }
   }
 
