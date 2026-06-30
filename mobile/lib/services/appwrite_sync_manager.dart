@@ -42,7 +42,6 @@ import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_error_service.dart';
 import 'sync_core/sync_metrics.dart';
 import 'sync_core/sync_pull_service.dart';
-import 'sync_core/sync_push_service.dart';
 import 'sync_enums.dart';
 import 'sync_locks.dart';
 import 'telegram/whatsapp_notification_service.dart';
@@ -122,15 +121,6 @@ class AppwriteSyncManager {
     _bookingsRepository = BookingsRepository(database);
     _roomsRepository = RoomsRepository(database);
     _ancestorCacheDao = AncestorCacheDao(database);
-    _pushService = SyncPushService(
-      appwriteService: appwriteService,
-      database: database,
-      outboxDao: outboxDao,
-      adapterRegistry: _adapterRegistry,
-      bookingsRepository: _bookingsRepository,
-      roomsRepository: _roomsRepository,
-      errorService: _err,
-    );
     _pullService = SyncPullService(
       appwriteService: appwriteService,
       database: database,
@@ -171,7 +161,6 @@ class AppwriteSyncManager {
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
   final _err = SyncErrorService(tag: 'SYNC');
-  SyncPushService? _pushService;
   SyncPullService? _pullService;
 
   /// PayloadMapper — تم استخراجه من دوال _xxxToRemote لهذا الصنف
@@ -2995,10 +2984,7 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
       try {
-        final empPayload = _adapterRegistry.employees.adapter.toJson(
-          employee,
-          src: Source.appwrite,
-        );
+        final empPayload = _payloadMapper.employeeToRemote(employee);
         await appwriteService.upsertEmployee(
           employee.localUuid,
           _filterPayload('employees', _addIdempotencyKey(empPayload, entry)),
@@ -4239,10 +4225,7 @@ class AppwriteSyncManager {
       for (final adj in adjustments) {
         if (skipDeleted && adj.deletedAt != null) continue;
         try {
-          final payload = _adapterRegistry.bookingPriceAdjustments.adapter.toJson(
-            adj,
-            src: Source.appwrite,
-          );
+          final payload = _payloadMapper.bookingPriceAdjustmentToRemote(adj);
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
             documentId: adj.localUuid,
@@ -4261,10 +4244,7 @@ class AppwriteSyncManager {
       for (final info in guestInfos) {
         if (skipDeleted && info.deletedAt != null) continue;
         try {
-          final payload = _adapterRegistry.guestInfos.adapter.toJson(
-            info,
-            src: Source.appwrite,
-          );
+          final payload = _payloadMapper.guestInfoToRemote(info);
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.guestInfosCollectionId,
             documentId: info.localUuid,
@@ -4283,10 +4263,7 @@ class AppwriteSyncManager {
       for (final withdrawal in salaryWithdrawals) {
         if (skipDeleted && withdrawal.deletedAt != null) continue;
         try {
-          final payload = _adapterRegistry.salaryWithdrawals.adapter.toJson(
-            withdrawal,
-            src: Source.appwrite,
-          );
+          final payload = _payloadMapper.salaryWithdrawalToRemote(withdrawal);
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
             documentId: withdrawal.localUuid,
@@ -4306,10 +4283,7 @@ class AppwriteSyncManager {
       for (final log in carryOverLogs) {
         if (log.deletedAt != null) continue;
         try {
-          final payload = _adapterRegistry.salaryCarryOverLogs.adapter.toJson(
-            log,
-            src: Source.appwrite,
-          );
+          final payload = _payloadMapper.salaryCarryOverLogToRemote(log);
           await appwriteService.upsertDocument(
             collectionId: 'salary_carry_over_logs',
             documentId: log.localUuid,
@@ -4402,10 +4376,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.salaryPayments.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.salaryPaymentToRemote(item);
     await appwriteService.upsertSalaryPayment(
       item.localUuid,
       _filterPayload('salary_payments', _addIdempotencyKey(payload, entry)),
@@ -4435,10 +4406,7 @@ class AppwriteSyncManager {
       return true;
     }
 
-    final payload = outboxDao.adapters.cashTransactions.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.cashTransactionToRemote(item);
 
     await appwriteService.upsertCashTransaction(
       item.localUuid,
@@ -4469,10 +4437,7 @@ class AppwriteSyncManager {
       return true;
     }
 
-    final payload = outboxDao.adapters.shiftNotes.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.shiftNoteToRemote(item);
 
     await appwriteService.upsertShiftNote(
       item.localUuid,
@@ -4514,10 +4479,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = _adapterRegistry.salaryCarryOverLogs.adapter.toJson(
-      log,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.salaryCarryOverLogToRemote(log);
     await appwriteService.upsertDocument(
       collectionId: 'salary_carry_over_logs',
       documentId: entry.localUuid,
@@ -4753,10 +4715,7 @@ class AppwriteSyncManager {
       final item = await _getEmployeeByLocalUuid(entry.localUuid);
       if (item != null && item.deletedAt != null) {
         // ✅ حذف ناعم — إرسال deletedAt إلى Appwrite
-        final payload = outboxDao.adapters.employees.adapter.toJson(
-          item,
-          src: Source.appwrite,
-        );
+        final payload = _payloadMapper.employeeToRemote(item);
         try {
           await appwriteService.upsertEmployee(
             item.localUuid,
@@ -4795,10 +4754,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.employees.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.employeeToRemote(item);
     try {
       await appwriteService.upsertEmployee(
         item.localUuid,
@@ -4846,10 +4802,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.bookingNotes.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.bookingNoteToRemote(item);
     // Note: booking notes often part of booking but if synced separately:
     await appwriteService.upsertBookingNote(
       item.localUuid,
@@ -4879,10 +4832,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.nights.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.bookingNightToRemote(item);
     await appwriteService.upsertBookingNight(
       item.localUuid,
       _filterPayload('booking_nights', _addIdempotencyKey(payload, entry)),
@@ -4911,10 +4861,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.salaryCycles.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.salaryCycleToRemote(item);
     // ✅ إضافة employeeUuid لربط دورة الراتب بالموظف عبر الأجهزة
     final employee = await (database.select(database.employees)
           ..where((e) => e.id.equals(item.employeeId))

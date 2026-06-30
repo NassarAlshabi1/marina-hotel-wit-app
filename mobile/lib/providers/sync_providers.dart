@@ -5,7 +5,6 @@ import '../services/appwrite_sync_manager.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/sync_core/sync_error_service.dart';
 import '../services/sync_core/sync_pull_service.dart';
-import '../services/sync_core/sync_push_service.dart';
 import '../services/sync_mutex.dart';
 import 'repository_providers.dart' show databaseProvider;
 
@@ -27,16 +26,6 @@ final syncMutexProvider = Provider<SyncMutex>((ref) {
 /// توفير SyncErrorService
 final syncErrorServiceProvider = Provider.family<SyncErrorService, String>((ref, tag) {
   return SyncErrorService(tag: tag);
-});
-
-/// توفير SyncPushService
-final syncPushServiceProvider = Provider<SyncPushService>((ref) {
-  return SyncPushService(
-    appwriteService: ref.read(appwriteServiceProvider),
-    database: ref.read(databaseProvider),
-    outboxDao: ref.read(outboxDaoProvider),
-    errorService: ref.read(syncErrorServiceProvider('PUSH')),
-  );
 });
 
 /// توفير SyncPullService

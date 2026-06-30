@@ -666,6 +666,45 @@ class PayloadMapper {
     return data;
   }
 
+  /// يحوّل [SalaryCarryOverLog] محلي إلى payload لـ Appwrite.
+  ///
+  /// سجل ترحيل الراتب من دورة لأخرى — يُستخدم عند إغلاق دورة رواتب
+  /// وفتح دورة جديدة مع ترحيل المتبقي.
+  Map<String, dynamic> salaryCarryOverLogToRemote(SalaryCarryOverLog log) {
+    final now = Time.nowEpoch();
+    final data = <String, dynamic>{
+      // ── Sync fields ──
+      'localUuid': log.localUuid,
+      'createdAt': log.createdAt,
+      'updatedAt': log.updatedAt,
+      'lastModified': log.lastModifiedEpoch > 0 ? log.lastModifiedEpoch : now,
+      'lastModifiedEpoch': log.lastModifiedEpoch,
+      'createdAtEpoch': log.createdAtEpoch,
+      'version': log.version,
+      'origin': log.origin,
+      'sync_origin': log.origin,
+      'syncTimestamp': now,
+      'vectorClock': log.vectorClock,
+      'deviceId': log.deviceId,
+      // ── Business fields ──
+      'id': log.id,
+      'employeeId': log.employeeId,
+      'amount': log.amount,
+      'previousCycleStart': log.previousCycleStart,
+      'previousCycleEnd': log.previousCycleEnd,
+      'newCycleStart': log.newCycleStart,
+      'newCycleEnd': log.newCycleEnd,
+      'reason': log.reason,
+      'carriedAt': log.carriedAt,
+    };
+    putIfNotNull(data, 'serverId', log.serverId);
+    putIfNotNull(data, 'deletedAt', log.deletedAt);
+    putIfStringNotEmpty(data, 'createdAtIso', log.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', log.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', log.deletedAtIso);
+    return data;
+  }
+
   /// هل نوع المصروف مرتبط بالرواتب
   static bool isSalaryExpenseType(String type) {
     const salaryKeywords = [
