@@ -580,9 +580,7 @@ class PayloadMapper {
       'idNumber': info.idNumber,
       'idType': info.idType,
     };
-    
-    // حقول v2 الجديدة
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'guestPhone', info.guestPhone);
+
     // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'idempotencyKey', info.idempotencyKey);
 
     putIfNotNull(data, 'serverId', info.serverId);
