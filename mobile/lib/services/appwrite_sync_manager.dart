@@ -44,6 +44,7 @@ import 'sync_core/sync_pull_service.dart';
 import 'sync_core/sync_push_service.dart';
 import 'sync_enums.dart';
 import 'sync_locks.dart';
+import 'sync/payload_mapper.dart';
 import 'telegram/whatsapp_notification_service.dart';
 import 'vector_clock_service.dart';
 
@@ -172,6 +173,9 @@ class AppwriteSyncManager {
   final _err = SyncErrorService(tag: 'SYNC');
   SyncPushService? _pushService;
   SyncPullService? _pullService;
+
+  /// PayloadMapper — تم استخراجه من دوال _xxxToRemote لهذا الصنف
+  final PayloadMapper _payloadMapper = const PayloadMapper();
 
   Timer? _syncTimer;
   Timer? _debouncePushTimer;
@@ -3060,253 +3064,34 @@ class AppwriteSyncManager {
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
-  Map<String, dynamic> _roomToRemote(Room room) {
-    final data = <String, dynamic>{
-      'roomNumber': room.roomNumber,
-      'type': room.type,
-      'price': room.price,
-      'status': room.status,
-      'localUuid': room.localUuid,
-      'createdAt': room.createdAt,
-      'updatedAt': room.updatedAt,
-      'lastModified': room.lastModified,
-      'version': room.version,
-      'origin': room.origin,
-      'deviceId': room.deviceId,
-      // حقول مطلوبة إضافية من Appwrite schema
-      'roomType': room.type,
-      'basePrice': room.price,
-      'floor': 1,
-      'bedsCount': 1,
-    };
-    _putIfNotNull(data, 'serverId', room.serverId);
-    data['deletedAt'] = room.deletedAt;
-    _putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
-    return AppwriteSyncUtils.sanitizePayload('rooms', data, collectionId: AppwriteConfig.roomsCollectionId);
-  }
+  Map<String, dynamic> _roomToRemote(Room room) =>
+      _payloadMapper.roomToRemote(room);
 
-  Map<String, dynamic> _bookingToRemote(Booking booking) {
-    final data = <String, dynamic>{
-      'roomNumber': booking.roomNumber,
-      'guestName': booking.guestName,
-      'guestPhone': booking.guestPhone,
-      'guestIdType': booking.guestIdType,
-      'guestIdNumber': booking.guestIdNumber,
-      'guestNationality': booking.guestNationality,
-      'checkinDate': booking.checkinDate,
-      'status': booking.status,
-      'expectedNights': booking.expectedNights,
-      'calculatedNights': booking.calculatedNights,
-      'localUuid': booking.localUuid,
-      'createdAt': booking.createdAt,
-      'updatedAt': booking.updatedAt,
-      'lastModified': booking.lastModified,
-      'version': booking.version,
-      'origin': booking.origin,
-    };
-    _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
-    _putIfNotNull(data, 'serverId', booking.serverId);
-    data['deletedAt'] = booking.deletedAt;
-    _putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
-    _putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
-    _putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
-    _putIfStringNotEmpty(data, 'guestAddress', booking.guestAddress);
-    // ✅ إصلاح حرج: checkoutDate و actualCheckout يجب إرسالهما دائماً
-    // حتى لو كانا null — لأن `_putIfStringNotEmpty` يحذف المفتاح إذا كان null،
-    // مما يمنع Appwrite من تحديث الحقل عند تسجيل الخروج.
-    // بدون هذا الإصلاح: إذا رُفع الحجز قبل الخروج (actualCheckout=null)،
-    // ثم رُفع بعد الخروج (actualCheckout='2026-...')، المفتاح يُضاف ✅.
-    // لكن إذا عمل DeltaSync push بينهما ببيانات قديمة، يضبط actualCheckout=null على السيرفر.
-    // الحل: إرسال الحقول دائماً صراحةً لضمان تناسق البيانات.
-    data['checkoutDate'] = booking.checkoutDate;
-    data['actualCheckout'] = booking.actualCheckout;
-    _putIfStringNotEmpty(data, 'notes', booking.notes);
-    // حقول مالية
-    data['discount'] = booking.discount;
-    _putIfStringNotEmpty(data, 'discountType', booking.discountType);
-    _putIfStringNotEmpty(data, 'discountStartDate', booking.discountStartDate);
-    data['totalDueCached'] = booking.totalDueCached;
-    data['totalPaidCached'] = booking.totalPaidCached;
-    data['remainingBalanceCached'] = booking.remainingBalanceCached;
-    // حقول تواريخ ومشتقات
-    data['totalNightsCached'] = booking.totalNightsCached;
-    data['isFullyPaid'] = booking.isFullyPaid;
-    _putIfStringNotEmpty(data, 'hotelDayCheckin', booking.hotelDayCheckin);
-    _putIfStringNotEmpty(data, 'hotelDayCheckout', booking.hotelDayCheckout);
-    _putIfStringNotEmpty(data, 'vectorClock', booking.vectorClock);
-    data['deviceId'] = booking.deviceId;
-    // ✅ حقول SyncFields المضافة حديثاً إلى Appwrite Cloud
-    _putIfStringNotEmpty(data, 'createdAtIso', booking.createdAtIso);
-    _putIfStringNotEmpty(data, 'updatedAtIso', booking.updatedAtIso);
-    _putIfStringNotEmpty(data, 'deletedAtIso', booking.deletedAtIso);
-    _putIfNotNull(data, 'createdAtEpoch', booking.createdAtEpoch);
-    _putIfNotNull(data, 'lastModifiedEpoch', booking.lastModifiedEpoch);
-    // ✅ إصلاح (2026-06-27): حقول موجودة على Appwrite Cloud يجب إرسالها
-    // — كانت تُحذف بواسطة filterPayloadForCollection لأنها غير مُدرجة
-    _putIfStringNotEmpty(data, 'sync_origin', booking.origin);
-    _putIfNotNull(data, 'syncTimestamp', booking.lastModified);
-    return AppwriteSyncUtils.sanitizePayload('bookings', data, collectionId: AppwriteConfig.bookingsCollectionId);
-  }
+  Map<String, dynamic> _bookingToRemote(Booking booking) =>
+      _payloadMapper.bookingToRemote(booking);
 
-  Map<String, dynamic> _expenseToRemote(Expense expense) {
-    final data = <String, dynamic>{
-      'expenseType': expense.expenseType,
-      'description': expense.description,
-      'amount': expense.amount,
-      'date': expense.date,
-      'localUuid': expense.localUuid,
-      'createdAt': expense.createdAt,
-      'updatedAt': expense.updatedAt,
-      'lastModified': expense.lastModified,
-      'version': expense.version,
-      'origin': expense.origin,
-      'vectorClock': expense.vectorClock,
-      'deviceId': expense.deviceId,
-    };
-    _putIfNotNull(data, 'relatedId', expense.relatedId);
-    _putIfNotNull(data, 'cashTransactionId', expense.cashTransactionId);
-    _putIfNotNull(data, 'serverId', expense.serverId);
-    data['deletedAt'] = expense.deletedAt;
-    _putIfStringNotEmpty(data, 'hotelDayKey', expense.hotelDayKey);
-    _putIfStringNotEmpty(data, 'categoryUuid', expense.categoryUuid);
-    _putIfStringNotEmpty(data, 'cashFlowUuid', expense.cashFlowUuid);
-    if (expense.isAutoGenerated) data['isAutoGenerated'] = true;
-    // ✅ إصلاح (2026-06-27): حقول إضافية موجودة على Appwrite Cloud
-    _putIfNotNull(data, 'syncTimestamp', expense.lastModified);
-    _putIfStringNotEmpty(data, 'sync_origin', expense.origin);
-    return AppwriteSyncUtils.sanitizePayload('expenses', data, collectionId: AppwriteConfig.expensesCollectionId);
-  }
+  Map<String, dynamic> _expenseToRemote(Expense expense) =>
+      _payloadMapper.expenseToRemote(expense);
 
-  Map<String, dynamic> _paymentToRemote(Payment payment) {
-    final data = <String, dynamic>{
-      'amount': payment.amount,
-      'paymentDate': payment.paymentDate,
-      'paymentMethod': payment.paymentMethod,
-      'revenueType': payment.revenueType,
-      'localUuid': payment.localUuid,
-      'createdAt': payment.createdAt,
-      'updatedAt': payment.updatedAt,
-      'lastModified': payment.lastModified,
-      'version': payment.version,
-      'origin': payment.origin,
-      // ✅ تم حذف sync_version و sync_vector_clock — حقول مكررة وقديمة
-      // version و vectorClock يُرسلان بأسمائهما الصحيحة
-      'hotelDayKey': payment.hotelDayKey ?? '',
-      'isPendingBalance': payment.isPendingBalance,
-    };
-    _putIfNotNull(data, 'serverPaymentId', payment.serverPaymentId);
-    _putIfNotNull(data, 'bookingLocalId', payment.bookingLocalId);
-    _putIfStringNotEmpty(data, 'bookingUuidCache', payment.bookingUuidCache);
-    _putIfNotNull(data, 'serverBookingId', payment.serverBookingId);
-    _putIfStringNotEmpty(data, 'roomNumber', payment.roomNumber);
-    _putIfStringNotEmpty(data, 'notes', payment.notes);
-    _putIfNotNull(
-      data,
-      'cashTransactionLocalId',
-      payment.cashTransactionLocalId,
-    );
-    _putIfNotNull(
-      data,
-      'cashTransactionServerId',
-      payment.cashTransactionServerId,
-    );
-    _putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
-    _putIfNotNull(data, 'serverId', payment.serverId);
-    data['deletedAt'] = payment.deletedAt;
-    _putIfStringNotEmpty(data, 'deletedAtIso', payment.deletedAtIso);
-    _putIfStringNotEmpty(data, 'linkedDebtUuid', payment.linkedDebtUuid);
-    _putIfNotNull(data, 'discountAmount', payment.discountAmount);
-    _putIfStringNotEmpty(data, 'discountStartDate', payment.discountStartDate);
-    // ✅ إرسال isVoided دائماً (حتى لو false) لضمان المزامنة الصحيحة
-    data['isVoided'] = payment.isVoided;
-    _putIfNotNull(data, 'voidedAt', payment.voidedAt);
-    _putIfStringNotEmpty(data, 'voidedBy', payment.voidedBy);
-    // ✅ إرسال حقول SyncFields الإضافية المتوفرة في Appwrite Cloud
-    _putIfNotNull(data, 'createdAtEpoch', payment.createdAtEpoch);
-    _putIfNotNull(data, 'lastModifiedEpoch', payment.lastModifiedEpoch);
-    data['vectorClock'] = payment.vectorClock;
-    data['deviceId'] = payment.deviceId;
-    // ✅ إصلاح (2026-06-27): حقول إضافية موجودة على Appwrite Cloud
-    // ملاحظة: isImmutable و voidReason موجودان على Cloud لكن ليسا في النموذج
-    // المحلي بعد — يُمكن إضافتهما لاحقاً عند الحاجة
-    _putIfStringNotEmpty(data, 'createdAtIso', payment.createdAtIso);
-    _putIfStringNotEmpty(data, 'updatedAtIso', payment.updatedAtIso);
-    _putIfNotNull(data, 'syncTimestamp', payment.lastModified);
-    _putIfStringNotEmpty(data, 'sync_origin', payment.origin);
-    return AppwriteSyncUtils.sanitizePayload('payments', data, collectionId: AppwriteConfig.paymentsCollectionId);
-  }
+  Map<String, dynamic> _paymentToRemote(Payment payment) =>
+      _payloadMapper.paymentToRemote(payment);
 
-  Map<String, dynamic> _debtToRemote(Debt debt) {
-    final data = <String, dynamic>{
-      // ── Required fields ──
-      'localUuid': debt.localUuid,
-      'guestName': debt.guestName,
-      'checkinDate': debt.checkinDate,
-      'totalAmount': debt.totalAmount,
-      'paidAmount': debt.paidAmount,
-      'remainingAmount': debt.remainingAmount.round(), // ✅ Appwrite: integer
-      // ── Required sync fields ──
-      // ✅ تم حذف vector_clock/sync_vector_clock/sync_version/sync_origin
-      // — حقول مكررة وقديمة، يُرسل vectorClock/version/origin بأسمائهم الصحيحة
-      // ── Business fields ──
-      'bookingLocalId': debt.bookingLocalId,
-      'checkoutDate': debt.checkoutDate,
-      'paymentDate': debt.paymentDate,
-      'isSettled': debt.isSettled,
-      'debtReason': debt.debtReason,
-      'note': debt.note,
-      'debtUuid': debt.debtUuid,
-      'pledge': debt.pledge,
-      'pledgeType': debt.pledgeType,
-      'isFromAutoFix': debt.isFromAutoFix,
-      'settlementConfirmed': debt.settlementConfirmed,
-      // ── Timestamps ──
-      'createdAt': debt.createdAt,
-      'updatedAt': debt.updatedAt,
-      'lastModified': debt.lastModified,
-      'version': debt.version,
-      'origin': debt.origin,
-    };
-    _putIfNotNull(data, 'serverId', debt.serverId);
-    data['deletedAt'] = debt.deletedAt;
-    _putIfStringNotEmpty(data, 'deletedAtIso', debt.deletedAtIso);
-    _putIfStringNotEmpty(data, 'hotelDayOpened', debt.hotelDayOpened);
-    _putIfStringNotEmpty(data, 'hotelDayClosed', debt.hotelDayClosed);
-    // ✅ حقول SyncFields المضافة حديثاً إلى Appwrite Cloud
-    data['vectorClock'] = debt.vectorClock;
-    data['deviceId'] = debt.deviceId;
-    _putIfNotNull(data, 'createdAtEpoch', debt.createdAtEpoch);
-    _putIfNotNull(data, 'lastModifiedEpoch', debt.lastModifiedEpoch);
-    // ✅ إصلاح (2026-06-27): حقول إضافية موجودة على Appwrite Cloud
-    _putIfNotNull(data, 'syncTimestamp', debt.lastModified);
-    _putIfStringNotEmpty(data, 'sync_origin', debt.origin);
-    return AppwriteSyncUtils.sanitizePayload('debts', data, collectionId: AppwriteConfig.debtsCollectionId);
-  }
+  Map<String, dynamic> _debtToRemote(Debt debt) =>
+      _payloadMapper.debtToRemote(debt);
 
-  void _putIfNotNull<T>(Map<String, dynamic> map, String key, T? value) {
-    if (value != null) {
-      map[key] = value;
-    }
-  }
+  void _putIfNotNull<T>(Map<String, dynamic> map, String key, T? value) =>
+      _payloadMapper.putIfNotNull(map, key, value);
 
   void _putIfStringNotEmpty(
     Map<String, dynamic> map,
     String key,
     String? value,
-  ) {
-    if (value != null && value.isNotEmpty) {
-      map[key] = value;
-    }
-  }
+  ) =>
+      _payloadMapper.putIfStringNotEmpty(map, key, value);
 
   /// هل نوع المصروف مرتبط بالرواتب
-  static bool _isSalaryExpenseType(String type) {
-    const salaryKeywords = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'];
-    for (final keyword in salaryKeywords) {
-      if (type.contains(keyword)) return true;
-    }
-    return false;
-  }
+  static bool _isSalaryExpenseType(String type) =>
+      PayloadMapper.isSalaryExpenseType(type);
 
   // ─── Delta Sync ────────────────────────────────────────────────────────
 
@@ -4600,167 +4385,26 @@ class AppwriteSyncManager {
     }
   }
 
-  Map<String, dynamic> _employeeToRemote(Employee employee) {
-    final data = <String, dynamic>{
-      'name': employee.name,
-      'basicSalary': employee.basicSalary,
-      'position': employee.position,
-      'phone': employee.phone,
-      'hireDate': employee.hireDate,
-      'status': employee.status,
-      'localUuid': employee.localUuid,
-      'createdAt': employee.createdAt,
-      'updatedAt': employee.updatedAt,
-      'lastModified': employee.lastModified,
-      'version': employee.version,
-      'origin': employee.origin,
-      'deviceId': employee.deviceId,
-    };
-    _putIfNotNull(data, 'serverId', employee.serverId);
-    data['deletedAt'] = employee.deletedAt;
-    return data;
-  }
+  Map<String, dynamic> _employeeToRemote(Employee employee) =>
+      _payloadMapper.employeeToRemote(employee);
 
-  Map<String, dynamic> _bookingNoteToRemote(BookingNote note) {
-    final data = <String, dynamic>{
-      'bookingId': note.bookingId,
-      'noteText': note.noteText,
-      'alertType': note.alertType,
-      'isActive': note.isActive,
-      'localUuid': note.localUuid,
-      'createdAt': note.createdAt,
-      'updatedAt': note.updatedAt,
-      'lastModified': note.lastModified,
-      'version': note.version,
-      'origin': note.origin,
-      'sync_origin': note.origin,
-      'deviceId': note.deviceId,
-    };
-    _putIfNotNull(data, 'serverId', note.serverId);
-    data['deletedAt'] = note.deletedAt;
-    _putIfStringNotEmpty(data, 'alertUntil', note.alertUntil);
-    return data;
-  }
+  Map<String, dynamic> _bookingNoteToRemote(BookingNote note) =>
+      _payloadMapper.bookingNoteToRemote(note);
 
-  Map<String, dynamic> _bookingNightToRemote(BookingNight night) {
-    final data = <String, dynamic>{
-      'bookingLocalId': night.bookingLocalId,
-      'hotelDayKey': night.hotelDayKey,
-      'nightStart': night.nightStart,
-      'nightEnd': night.nightEnd,
-      'nightlyRate': night.nightlyRate,
-      'sequence': night.sequence,
-      'isProcessedByAutoFix': night.isProcessedByAutoFix,
-      'baseRate': night.baseRate,
-      'adjustment': night.adjustment,
-      'finalRate': night.finalRate,
-      'localUuid': night.localUuid,
-      'createdAt': night.createdAt,
-      'updatedAt': night.updatedAt,
-      'lastModified': night.lastModified,
-      'version': night.version,
-      'origin': night.origin,
-      'vectorClock': night.vectorClock,
-      'deviceId': night.deviceId,
-    };
-    _putIfNotNull(data, 'serverId', night.serverId);
-    data['deletedAt'] = night.deletedAt;
-    _putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
-    _putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
-    return data;
-  }
+  Map<String, dynamic> _bookingNightToRemote(BookingNight night) =>
+      _payloadMapper.bookingNightToRemote(night);
 
-  Map<String, dynamic> _cashTransactionToRemote(CashTransaction transaction) {
-    final data = <String, dynamic>{
-      'transactionType': transaction.transactionType,
-      'amount': transaction.amount.round(), // Appwrite: integer
-      'transactionTime': transaction.transactionTime,
-      'localUuid': transaction.localUuid,
-      'createdAt': transaction.createdAt,
-      'updatedAt': transaction.updatedAt,
-      'lastModified': transaction.lastModified,
-      'version': transaction.version,
-      'origin': transaction.origin,
-      'deviceId': transaction.deviceId,
-    };
-    _putIfNotNull(data, 'registerId', transaction.registerId);
-    _putIfNotNull(data, 'referenceId', transaction.referenceId);
-    _putIfNotNull(data, 'createdBy', transaction.createdBy);
-    _putIfNotNull(data, 'serverId', transaction.serverId);
-    data['deletedAt'] = transaction.deletedAt;
-    _putIfStringNotEmpty(data, 'referenceType', transaction.referenceType);
-    _putIfStringNotEmpty(data, 'description', transaction.description);
-    return data;
-  }
+  Map<String, dynamic> _cashTransactionToRemote(CashTransaction transaction) =>
+      _payloadMapper.cashTransactionToRemote(transaction);
 
-  Map<String, dynamic> _salaryCycleToRemote(SalaryCycle cycle) {
-    final data = <String, dynamic>{
-      'employeeId': cycle.employeeId,
-      'cycleKey': cycle.cycleKey,
-      'expectedAmount': cycle.expectedAmount,
-      'actualPaid': cycle.actualPaid,
-      'remainingAmount': cycle.remainingAmount,
-      'status': cycle.status,
-      'localUuid': cycle.localUuid,
-      'createdAt': cycle.createdAt,
-      'updatedAt': cycle.updatedAt,
-      'lastModified': cycle.lastModified,
-      'version': cycle.version,
-      'origin': cycle.origin,
-      'vectorClock': cycle.vectorClock,
-      'deviceId': cycle.deviceId,
-    };
-    _putIfNotNull(data, 'serverId', cycle.serverId);
-    data['deletedAt'] = cycle.deletedAt;
-    _putIfStringNotEmpty(data, 'hotelDayStart', cycle.hotelDayStart);
-    _putIfStringNotEmpty(data, 'hotelDayEnd', cycle.hotelDayEnd);
-    return data;
-  }
+  Map<String, dynamic> _salaryCycleToRemote(SalaryCycle cycle) =>
+      _payloadMapper.salaryCycleToRemote(cycle);
 
-  Map<String, dynamic> _salaryPaymentToRemote(SalaryPayment payment) {
-    final data = <String, dynamic>{
-      'cycleId': payment.cycleId,
-      'amount': payment.amount,
-      'paymentDateIso': payment.paymentDateIso,
-      'isAutoGenerated': payment.isAutoGenerated,
-      'localUuid': payment.localUuid,
-      'createdAt': payment.createdAt,
-      'updatedAt': payment.updatedAt,
-      'lastModified': payment.lastModified,
-      'version': payment.version,
-      'origin': payment.origin,
-      'deviceId': payment.deviceId,
-    };
-    _putIfNotNull(data, 'serverId', payment.serverId);
-    data['deletedAt'] = payment.deletedAt;
-    _putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
-    _putIfStringNotEmpty(data, 'method', payment.method);
-    return data;
-  }
+  Map<String, dynamic> _salaryPaymentToRemote(SalaryPayment payment) =>
+      _payloadMapper.salaryPaymentToRemote(payment);
 
-  Map<String, dynamic> _shiftNoteToRemote(ShiftNote note) {
-    final createdDate = DateTime.fromMillisecondsSinceEpoch(
-      note.createdAt * 1000,
-    );
-    final shiftDate = createdDate.toIso8601String().substring(0, 10);
-    final data = <String, dynamic>{
-      'localUuid': note.localUuid,
-      'title': note.title,
-      'content': note.content,
-      'priority': note.priority,
-      'shiftType': note.shiftType,
-      'isRead': note.isRead == 1, // Appwrite يتوقع boolean
-      'createdAt': note.createdAt, // Appwrite يتوقع integer epoch
-      'updatedAt': note.updatedAt, // integer epoch — مطلوب
-      'lastModified': note.lastModified, // مطلوب للـ Delta Sync
-      'createdBy': note.createdBy,
-      'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
-      'deviceId': note.deviceId,
-      // ✅ تم حذف حقل 'note' المكرر — Appwrite shift_notes لا يملكه (يستخدم content)
-    };
-    _putIfStringNotEmpty(data, 'expiresAt', note.expiresAt);
-    return data;
-  }
+  Map<String, dynamic> _shiftNoteToRemote(ShiftNote note) =>
+      _payloadMapper.shiftNoteToRemote(note);
 
   Future<bool> _processSalaryPaymentEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
@@ -4971,71 +4615,11 @@ class AppwriteSyncManager {
     return true;
   }
 
-  Map<String, dynamic> _priceAdjustmentToRemote(PriceAdjustment row) {
-    final now = Time.nowEpoch();
-    return {
-      'localUuid': row.localUuid,
-      'targetType': row.targetType,
-      'targetUuid': row.targetUuid,
-      'adjustmentType': row.adjustmentType,
-      'previousValue': row.previousValue,
-      'newValue': row.newValue,
-      'reason': row.reason,
-      'effectiveDate': row.effectiveDate,
-      'appliedBy': row.appliedBy,
-      'hotelDayKey': row.hotelDayKey,
-      'isReversed': row.isReversed,
-      'reversedAt': row.reversedAt,
-      'reversedBy': row.reversedBy,
-      'createdAt': row.createdAt,
-      'updatedAt': now,
-      'lastModified': now,
-      'origin': 'mobile',
-      'syncTimestamp': now,
-      'deviceId': row.deviceId,
-      if (row.serverId != null) 'serverId': row.serverId,
-    };
-  }
+  Map<String, dynamic> _priceAdjustmentToRemote(PriceAdjustment row) =>
+      _payloadMapper.priceAdjustmentToRemote(row);
 
-  Map<String, dynamic> _blacklistToRemote(ShiftNote item) {
-    Map<String, dynamic> extra = {};
-    try {
-      extra = jsonDecode(item.content) as Map<String, dynamic>;
-    } catch (e) { debugPrint('WARN: Failed to parse blacklist content for sync: $e'); }
-
-    final now = Time.nowEpoch();
-    // Appwrite blacklist collection: createdAt/updatedAt/deletedAt are STRING (ISO)
-    final createdAtIso = item.createdAtIso ??
-        DateTime.fromMillisecondsSinceEpoch(item.createdAt * 1000)
-            .toIso8601String();
-    final updatedAtIso = DateTime.fromMillisecondsSinceEpoch(item.updatedAt * 1000)
-        .toIso8601String();
-
-    return {
-      'name': item.title,
-      'nationality': (extra['nationality'] as String?) ?? '',
-      'nationalId': (extra['nationalId'] as String?) ?? '',
-      'phone': (extra['phone'] as String?) ?? '',
-      'reason': (extra['reason'] as String?) ?? '',
-      'notes': (extra['notes'] as String?) ?? '',
-      'reportedBy': (extra['reportedBy'] as String?) ?? 'police',
-      'active': (extra['active'] as bool?) ?? true,
-      'localUuid': item.localUuid,
-      'createdAt': createdAtIso,
-      'createdAtIso': createdAtIso,
-      'updatedAt': updatedAtIso,
-      'updatedAtIso': updatedAtIso,
-      'deletedAt': item.deletedAt != null
-          ? DateTime.fromMillisecondsSinceEpoch(item.deletedAt! * 1000)
-              .toIso8601String()
-          : null,
-      'lastModified': item.lastModified,
-      'origin': 'mobile',
-      'syncTimestamp': now,
-      'deviceId': item.deviceId,
-      if (item.serverId != null) 'serverId': item.serverId,
-    };
-  }
+  Map<String, dynamic> _blacklistToRemote(ShiftNote item) =>
+      _payloadMapper.blacklistToRemote(item);
 
   Future<int> _syncBlacklist(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
