@@ -2811,10 +2811,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = _adapterRegistry.guestInfos.adapter.toJson(
-      info,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.guestInfoToRemote(info);
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.guestInfosCollectionId,
       documentId: info.localUuid,
@@ -3041,15 +3038,10 @@ class AppwriteSyncManager {
       return true;
     }
 
-    final payload = _adapterRegistry.salaryWithdrawals.adapter.toJson(
+    final payload = _payloadMapper.salaryWithdrawalToRemote(
       withdrawal,
-      src: Source.appwrite,
+      employeeUuid: employee.localUuid,
     );
-    // ✅ إضافة employeeUuid لربط السلف بالموضف عبر الأجهزة
-    payload['employeeUuid'] = employee.localUuid;
-    payload['employeeLocalUuid'] = employee.localUuid;
-    // ✅ إضافة sync_origin للتوافق مع مخطط Appwrite Cloud
-    payload['sync_origin'] = withdrawal.origin;
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
       documentId: withdrawal.localUuid,

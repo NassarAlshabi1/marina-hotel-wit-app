@@ -501,6 +501,120 @@ class PayloadMapper {
     };
   }
 
+  /// يحوّل [GuestInfo] محلي إلى payload لـ Appwrite.
+  ///
+  /// مطابق لـ GuestInfosAdapter.toJson(src: Source.appwrite) مع إضافة
+  /// حقول sync الإضافية (syncTimestamp, sync_origin) المطلوبة لـ Appwrite Cloud.
+  Map<String, dynamic> guestInfoToRemote(GuestInfo info) {
+    final now = Time.nowEpoch();
+    final data = <String, dynamic>{
+      // ── Sync fields ──
+      'localUuid': info.localUuid,
+      'createdAt': info.createdAt,
+      'updatedAt': info.updatedAt,
+      'lastModified': info.lastModified,
+      'lastModifiedEpoch': info.lastModifiedEpoch,
+      'createdAtEpoch': info.createdAtEpoch,
+      'version': info.version,
+      'origin': info.origin,
+      'sync_origin': info.origin,
+      'syncTimestamp': now,
+      'vectorClock': info.vectorClock,
+      'deviceId': info.deviceId,
+      // ── Business fields ──
+      'id': info.id,
+      'roomNumber': info.roomNumber,
+      'guestName': info.guestName,
+      'nationality': info.nationality,
+      'idNumber': info.idNumber,
+      'idType': info.idType,
+    };
+    putIfNotNull(data, 'serverId', info.serverId);
+    putIfNotNull(data, 'deletedAt', info.deletedAt);
+    putIfStringNotEmpty(data, 'createdAtIso', info.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', info.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', info.deletedAtIso);
+    putIfStringNotEmpty(data, 'issueDate', info.issueDate);
+    putIfStringNotEmpty(data, 'issuePlace', info.issuePlace);
+    putIfStringNotEmpty(data, 'governorate', info.governorate);
+    putIfStringNotEmpty(data, 'notes', info.notes);
+    return data;
+  }
+
+  /// يحوّل [SalaryWithdrawal] محلي إلى payload لـ Appwrite.
+  ///
+  /// مطابق لـ SalaryWithdrawalsAdapter.toJson(src: Source.appwrite) مع:
+  /// - حقول legacy (date, action, note, name) للتوافق مع كل إصدارات المخطط
+  /// - employeeUuid / employeeLocalUuid (تمرَّر كمعاملات لأنهما يُحلَّان خارج الـ model)
+  /// - sync_origin و syncTimestamp المطلوبة لـ Appwrite Cloud
+  ///
+  /// [employeeUuid] هو localUuid للموظف المرتبط — يُستخدم لربط السلف
+  /// بالموظف عبر الأجهزة. مرّره من AppwriteSyncManager._processSalaryWithdrawalEntry.
+  Map<String, dynamic> salaryWithdrawalToRemote(
+    SalaryWithdrawal withdrawal, {
+    String? employeeUuid,
+  }) {
+    final now = Time.nowEpoch();
+
+    // إذا كان withdrawDate فارغاً (سجل قديم)، نستخدم تاريخ اليوم كاحتياطي
+    final effectiveWithdrawDate = withdrawal.withdrawDate.isEmpty
+        ? DateTime.now().toIso8601String().split('T').first // YYYY-MM-DD
+        : withdrawal.withdrawDate;
+
+    final data = <String, dynamic>{
+      // ── Sync fields ──
+      'localUuid': withdrawal.localUuid,
+      'createdAt': withdrawal.createdAt,
+      'updatedAt': withdrawal.updatedAt,
+      'lastModified': withdrawal.lastModified,
+      'lastModifiedEpoch': withdrawal.lastModifiedEpoch,
+      'createdAtEpoch': withdrawal.createdAtEpoch,
+      'version': withdrawal.version,
+      'origin': withdrawal.origin,
+      'sync_origin': withdrawal.origin,
+      'syncTimestamp': now,
+      'vectorClock': withdrawal.vectorClock,
+      'deviceId': withdrawal.deviceId,
+      // ── Business fields ──
+      'id': withdrawal.id,
+      'employeeId': withdrawal.employeeId,
+      'amount': withdrawal.amount.round(), // Appwrite: integer
+      'withdrawDate': effectiveWithdrawDate,
+    };
+    putIfNotNull(data, 'serverId', withdrawal.serverId);
+    putIfNotNull(data, 'deletedAt', withdrawal.deletedAt);
+    putIfStringNotEmpty(data, 'createdAtIso', withdrawal.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', withdrawal.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', withdrawal.deletedAtIso);
+    putIfStringNotEmpty(data, 'reason', withdrawal.reason);
+    putIfStringNotEmpty(data, 'hotelDayKey', withdrawal.hotelDayKey);
+    putIfStringNotEmpty(data, 'withdrawalType', withdrawal.withdrawalType);
+    putIfStringNotEmpty(data, 'description', withdrawal.description);
+    putIfNotNull(data, 'expenseId', withdrawal.expenseId);
+
+    // ✅ حقول الربط بالموضف عبر الأجهزة
+    if (employeeUuid != null && employeeUuid.isNotEmpty) {
+      data['employeeUuid'] = employeeUuid;
+      data['employeeLocalUuid'] = employeeUuid;
+    }
+
+    // ✅ حقول احتياطية (legacy) — تُرسل دائماً لضمان التوافق مع جميع إصدارات
+    // مخطط Appwrite Cloud (القديم والجديد).
+    //
+    // 'date' يُرسل دائماً كاحتياطي لـ 'withdrawDate' — بعض إصدارات المخطط
+    // تطلب 'date' كـ REQUIRED بدلاً من 'withdrawDate'.
+    //
+    // 'note' = ملاحظة المستخدم فقط (من description) — لا تخلطه مع reason.
+    // 'reason' = سبب السحب (مثل "exp_629" للربط مع المصروف) — مستقل.
+    data['date'] = effectiveWithdrawDate;
+    data['action'] = withdrawal.withdrawalType ?? 'withdrawal';
+    data['note'] = withdrawal.description ?? '';
+    // ✅ إضافة name فارغ (optional لكن بعض إصدارات المخطط تتوقعه)
+    data['name'] = '';
+
+    return data;
+  }
+
   /// هل نوع المصروف مرتبط بالرواتب
   static bool isSalaryExpenseType(String type) {
     const salaryKeywords = [
