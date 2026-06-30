@@ -4958,10 +4958,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.bookingPriceAdjustments.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.bookingPriceAdjustmentToRemote(item);
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
       documentId: item.localUuid,

@@ -615,6 +615,57 @@ class PayloadMapper {
     return data;
   }
 
+  /// يحوّل [BookingPriceAdjustment] محلي إلى payload لـ Appwrite.
+  ///
+  /// هذا الكيان هو **الأساس** لتطبيق التخفيضات والزيادات على الحجوزات.
+  /// كل تعديل سعر (discount, surcharge, override) يُمثَّل كسجل في هذا الجدول
+  /// ويُزامَن عبر هذه الدالة.
+  ///
+  /// مطابق لـ BookingPriceAdjustmentsAdapter.toJson(src: Source.appwrite) مع
+  /// إضافة حقول sync الإضافية (syncTimestamp, sync_origin) المطلوبة لـ Appwrite Cloud.
+  ///
+  /// ملاحظة: amount على Appwrite Cloud هو integer — نُحوّل من double إلى int
+  /// عبر `.round()` عند الإرسال.
+  Map<String, dynamic> bookingPriceAdjustmentToRemote(BookingPriceAdjustment adj) {
+    final now = Time.nowEpoch();
+    final data = <String, dynamic>{
+      // ── Sync fields ──
+      'localUuid': adj.localUuid,
+      'createdAt': adj.createdAt,
+      'updatedAt': adj.updatedAt,
+      'lastModified': adj.lastModified,
+      'lastModifiedEpoch': adj.lastModifiedEpoch,
+      'createdAtEpoch': adj.createdAtEpoch,
+      'version': adj.version,
+      'origin': adj.origin,
+      'sync_origin': adj.origin,
+      'syncTimestamp': now,
+      'vectorClock': adj.vectorClock,
+      'deviceId': adj.deviceId,
+      // ── Business fields (تخفيضات/زيادات الحجوزات) ──
+      'id': adj.id,
+      'bookingLocalUuid': adj.bookingLocalUuid,
+      'adjustmentType': adj.adjustmentType,
+      'adjustmentMode': adj.adjustmentMode,
+      'amount': adj.amount.round(), // Appwrite: integer
+      'effectiveHotelDay': adj.effectiveHotelDay,
+      'isActive': adj.isActive,
+    };
+    putIfNotNull(data, 'serverId', adj.serverId);
+    putIfNotNull(data, 'deletedAt', adj.deletedAt);
+    putIfNotNull(data, 'bookingLocalId', adj.bookingLocalId);
+    putIfStringNotEmpty(data, 'roomNumber', adj.roomNumber);
+    putIfStringNotEmpty(data, 'endHotelDay', adj.endHotelDay);
+    putIfStringNotEmpty(data, 'reason', adj.reason);
+    putIfStringNotEmpty(data, 'appliedBy', adj.appliedBy);
+    putIfStringNotEmpty(data, 'cancelledAt', adj.cancelledAt);
+    putIfStringNotEmpty(data, 'cancelledBy', adj.cancelledBy);
+    putIfStringNotEmpty(data, 'createdAtIso', adj.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', adj.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', adj.deletedAtIso);
+    return data;
+  }
+
   /// هل نوع المصروف مرتبط بالرواتب
   static bool isSalaryExpenseType(String type) {
     const salaryKeywords = [
