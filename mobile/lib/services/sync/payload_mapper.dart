@@ -583,14 +583,6 @@ class PayloadMapper {
     
     // حقول v2 الجديدة
     // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'guestPhone', info.guestPhone);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'guestEmail', info.guestEmail);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'guestOccupation', info.guestOccupation);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'dateOfBirth', info.dateOfBirth);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'gender', info.gender);
-    // TODO: enable when Drift model has this field — putIfNotNull(data, 'totalVisits', info.totalVisits);
-    // TODO: enable when Drift model has this field — putIfNotNull(data, 'totalSpent', info.totalSpent);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'lastVisitDate', info.lastVisitDate);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'vipStatus', info.vipStatus);
     // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'idempotencyKey', info.idempotencyKey);
 
     putIfNotNull(data, 'serverId', info.serverId);
