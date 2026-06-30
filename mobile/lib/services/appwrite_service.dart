@@ -94,6 +94,7 @@ class AppwriteService {
     required List<String> queries,
     bool useCache = true,
     bool useRetry = true,
+    int? maxRecords,
   }) async {
     // ✅ Manual failover: if active, read from Secondary instead of Primary
     // This covers all entity reads (listRooms, listBookings, listPayments, etc.)
@@ -154,6 +155,14 @@ class AppwriteService {
         }
 
         allDocuments.addAll(pageDocs);
+
+        // ✅ قطع عند بلوغ maxRecords (مثلاً السحب الأولي لـ booking_nights)
+        if (maxRecords != null && allDocuments.length >= maxRecords) {
+          if (allDocuments.length > maxRecords) {
+            allDocuments.removeRange(maxRecords, allDocuments.length);
+          }
+          break;
+        }
 
         if (pageDocs.length < pageSize) {
           break;
@@ -839,12 +848,14 @@ class AppwriteService {
   Future<List<models.Document>> listBookingNights({
     List<String>? queries,
     bool useCache = true,
+    int? maxRecords,
   }) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.bookingNightsCollectionId,
       queries: queries ?? [],
       useCache: useCache,
+      maxRecords: maxRecords,
     );
   }
 

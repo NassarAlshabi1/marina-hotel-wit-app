@@ -3804,9 +3804,27 @@ class AppwriteSyncManager {
               nightsPullTs,
               remoteEpochIsMillis: remoteEpochIsMillis,
             );
+            // ✅ عند السحب الأولي (nightsPullTs == 0): تحديد 1000 سجل كحد أقصى
+            // booking_nights قد يحوي عشرات الآلاف من السجلات (ليالية تاريخية)
+            // مما يسبب بطء شديد في التثبيت الأول + استهلاك ذاكرة كبير.
+            // السحب التزايدي اللاحق يجلب التغييرات الجديدة فقط.
+            const int kInitialBookingNightsLimit = 1000;
+            final bool isInitialPull = nightsPullTs == 0;
+            if (isInitialPull) {
+              _logger.info(
+                '📥 السحب الأولي لـ booking_nights — تحديد $kInitialBookingNightsLimit سجل كحد أقصى',
+                tag: 'SYNC',
+              );
+            }
             final bookingNights = await appwriteService.listBookingNights(
               queries: nightsDeltaQ,
               useCache: false,
+              maxRecords: isInitialPull ? kInitialBookingNightsLimit : null,
+            );
+            _logger.info(
+              '📊 تم جلب ${bookingNights.length} سجل booking_nights'
+              '${isInitialPull ? " (حد أولي: $kInitialBookingNightsLimit)" : ""}',
+              tag: 'SYNC',
             );
             recordsPulled += await _syncBookingNights(bookingNights);
             await _updateBookingNightsPullTs(Time.nowEpoch());
