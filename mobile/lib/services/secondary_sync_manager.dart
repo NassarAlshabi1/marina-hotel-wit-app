@@ -387,6 +387,37 @@ class SecondarySyncManager {
           'createdAtEpoch': row.createdAtEpoch,
           'lastModifiedEpoch': row.lastModifiedEpoch,
         };
+      case 'guest_infos':
+        final row = await (db.select(db.guestInfos)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return {
+          'id': row.id,
+          'roomNumber': row.roomNumber,
+          'guestName': row.guestName,
+          'nationality': row.nationality,
+          'idNumber': row.idNumber,
+          'idType': row.idType,
+          'issueDate': row.issueDate,
+          'issuePlace': row.issuePlace,
+          'governorate': row.governorate,
+          'notes': row.notes,
+          'serverId': row.serverId,
+          'createdAt': row.createdAt,
+          'updatedAt': row.updatedAt,
+          'deletedAt': row.deletedAt,
+          'lastModified': row.lastModified,
+          'createdAtIso': row.createdAtIso,
+          'updatedAtIso': row.updatedAtIso,
+          'deletedAtIso': row.deletedAtIso,
+          'createdAtEpoch': row.createdAtEpoch,
+          'lastModifiedEpoch': row.lastModifiedEpoch,
+          'version': row.version,
+          'origin': row.origin,
+          'vectorClock': row.vectorClock,
+          'deviceId': row.deviceId,
+        };
       default:
         throw UnsupportedError('Unsupported entity for rebuild: $entity');
     }
