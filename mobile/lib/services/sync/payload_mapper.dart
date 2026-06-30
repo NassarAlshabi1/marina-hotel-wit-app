@@ -6,14 +6,13 @@ import 'package:flutter/foundation.dart';
 
 import '../../utils/time.dart';
 import '../appwrite_config.dart';
-import '../appwrite_models.dart';
 import '../appwrite_sync_utils.dart';
 import '../local_db.dart';
 
 /// PayloadMapper — يحوّل كيانات Drift المحلية إلى Map<String, dynamic>
 /// جاهزة للإرسال إلى Appwrite Cloud.
 ///
-/// تم استخراج هذا الصنف من [AppwriteSyncManager] (God Class 6,442 سطر)
+/// تم استخراج هذا الصنف من AppwriteSyncManager (God Class 6,442 سطر)
 /// لتقليل حجمه وتسهيل اختبار دوال التحويل بشكل مستقل.
 ///
 /// كل دالة تُرجع Map نظيف بعد تطبيق sanitizePayload لإزالة الحقول غير

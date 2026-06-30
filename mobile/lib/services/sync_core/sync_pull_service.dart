@@ -25,15 +25,6 @@ import 'sync_error_service.dart';
 ///   - getBookingNightsPullTs / updateBookingNightsPullTs
 ///   - getLastPullTs / updateLastPullTs
 class SyncPullService {
-  final AppwriteService appwriteService;
-  final AppDatabase database;
-  final OutboxDao outboxDao;
-  final AppwriteLogger _logger;
-  final AppwriteErrorHandler _errorHandler;
-  final SyncErrorService _err;
-
-  bool? _remoteEpochIsMillis;
-
   SyncPullService({
     required this.appwriteService,
     required this.database,
@@ -44,6 +35,15 @@ class SyncPullService {
   })  : _err = errorService ?? SyncErrorService(tag: 'PULL'),
         _logger = logger ?? AppwriteLogger(),
         _errorHandler = errorHandler ?? AppwriteErrorHandler();
+
+  final AppwriteService appwriteService;
+  final AppDatabase database;
+  final OutboxDao outboxDao;
+  final AppwriteLogger _logger;
+  final AppwriteErrorHandler _errorHandler;
+  final SyncErrorService _err;
+
+  bool? _remoteEpochIsMillis;
 
   // ── Helper Methods ─────────────────────────────────────────────────────
 
