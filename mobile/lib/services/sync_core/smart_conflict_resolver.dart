@@ -345,6 +345,22 @@ class SmartConflictResolver {
           'timestamp': FieldResolutionRule(FieldStrategy.newerWins),
         },
       ),
+
+      // سجلات ترحيل الراتب: مبلغ تصعيد، سبب دمج، تاريخ آخر تعديل
+      'salary_carry_over_logs': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+        rules: {
+          'amount': FieldResolutionRule(FieldStrategy.manual,
+              reason: 'مبلغ الترحيل حرج مالياً'),
+          'reason': FieldResolutionRule(FieldStrategy.concat),
+          'carriedAt': FieldResolutionRule(FieldStrategy.newerWins),
+          'employeeId': FieldResolutionRule(FieldStrategy.manual),
+          'previousCycleStart': FieldResolutionRule(FieldStrategy.newerWins),
+          'previousCycleEnd': FieldResolutionRule(FieldStrategy.newerWins),
+          'newCycleStart': FieldResolutionRule(FieldStrategy.newerWins),
+          'newCycleEnd': FieldResolutionRule(FieldStrategy.newerWins),
+        },
+      ),
   };
 
   static const _defaultPolicy = EntityResolutionPolicy(
