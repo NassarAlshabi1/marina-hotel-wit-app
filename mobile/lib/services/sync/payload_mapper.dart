@@ -755,4 +755,55 @@ class PayloadMapper {
     }
     return false;
   }
+
+  /// يحوّل [PaymentVoid] محلي إلى payload لـ Appwrite.
+  ///
+  /// سجل إلغاء دفع — يُنشأ عند void دفعة موجودة. يحتوي على:
+  /// - مرجع للدفع الأصلي (originalPaymentUuid + originalPaymentId)
+  /// - معرف الحجز المرتبط (bookingUuid)
+  /// - بيانات الإلغاء (voidedAmount, voidReason, voidedBy, voidedAt)
+  /// - الدفع العكسي المرتبط (reversalPaymentUuid) إن وُجد
+  /// - الموافق على الإلغاء (approvedBy)
+  /// - v2: ملاحظة (note)، المبلغ الأصلي (originalAmount)، UUID الدفع (paymentUuid)
+  Map<String, dynamic> paymentVoidToRemote(PaymentVoid voidRecord) {
+    final now = Time.nowEpoch();
+    final data = <String, dynamic>{
+      // ── Sync fields ──
+      'localUuid': voidRecord.localUuid,
+      'createdAt': voidRecord.createdAt,
+      'updatedAt': voidRecord.updatedAt,
+      'lastModified': voidRecord.lastModified,
+      'lastModifiedEpoch': voidRecord.lastModifiedEpoch,
+      'createdAtEpoch': voidRecord.createdAtEpoch,
+      'version': voidRecord.version,
+      'origin': voidRecord.origin,
+      'sync_origin': voidRecord.origin,
+      'syncTimestamp': now,
+      'vectorClock': voidRecord.vectorClock,
+      'deviceId': voidRecord.deviceId,
+      // ── Business fields (إلغاء الدفع) ──
+      'originalPaymentUuid': voidRecord.originalPaymentUuid,
+      'originalPaymentId': voidRecord.originalPaymentId,
+      'bookingUuid': voidRecord.bookingUuid,
+      'voidedAmount': voidRecord.voidedAmount,
+      'voidReason': voidRecord.voidReason,
+      'voidedBy': voidRecord.voidedBy,
+      'voidedAt': voidRecord.voidedAt,
+      'voidedAtIso': voidRecord.voidedAtIso,
+      'hotelDayKey': voidRecord.hotelDayKey,
+    };
+    putIfNotNull(data, 'serverId', voidRecord.serverId);
+    putIfNotNull(data, 'deletedAt', voidRecord.deletedAt);
+    putIfStringNotEmpty(data, 'reversalPaymentUuid', voidRecord.reversalPaymentUuid);
+    putIfStringNotEmpty(data, 'approvedBy', voidRecord.approvedBy);
+    putIfStringNotEmpty(data, 'createdAtIso', voidRecord.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', voidRecord.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', voidRecord.deletedAtIso);
+    putIfStringNotEmpty(data, 'idempotencyKey', voidRecord.idempotencyKey);
+    // ✅ v2: حقول إضافية موجودة على Appwrite Cloud
+    putIfStringNotEmpty(data, 'note', voidRecord.note);
+    putIfNotNull(data, 'originalAmount', voidRecord.originalAmount);
+    putIfStringNotEmpty(data, 'paymentUuid', voidRecord.paymentUuid);
+    return data;
+  }
 }

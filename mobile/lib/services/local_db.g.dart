@@ -30736,6 +30736,37 @@ class $PaymentVoidsTable extends PaymentVoids
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originalAmountMeta = const VerificationMeta(
+    'originalAmount',
+  );
+  @override
+  late final GeneratedColumn<double> originalAmount = GeneratedColumn<double>(
+    'original_amount',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _paymentUuidMeta = const VerificationMeta(
+    'paymentUuid',
+  );
+  @override
+  late final GeneratedColumn<String> paymentUuid = GeneratedColumn<String>(
+    'payment_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -30766,6 +30797,9 @@ class $PaymentVoidsTable extends PaymentVoids
     hotelDayKey,
     reversalPaymentUuid,
     approvedBy,
+    note,
+    originalAmount,
+    paymentUuid,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -31015,6 +31049,30 @@ class $PaymentVoidsTable extends PaymentVoids
         approvedBy.isAcceptableOrUnknown(data['approved_by']!, _approvedByMeta),
       );
     }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('original_amount')) {
+      context.handle(
+        _originalAmountMeta,
+        originalAmount.isAcceptableOrUnknown(
+          data['original_amount']!,
+          _originalAmountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('payment_uuid')) {
+      context.handle(
+        _paymentUuidMeta,
+        paymentUuid.isAcceptableOrUnknown(
+          data['payment_uuid']!,
+          _paymentUuidMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -31136,6 +31194,18 @@ class $PaymentVoidsTable extends PaymentVoids
         DriftSqlType.string,
         data['${effectivePrefix}approved_by'],
       ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      originalAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}original_amount'],
+      ),
+      paymentUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payment_uuid'],
+      ),
     );
   }
 
@@ -31174,6 +31244,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
   final String hotelDayKey;
   final String? reversalPaymentUuid;
   final String? approvedBy;
+  final String? note;
+  final double? originalAmount;
+  final String? paymentUuid;
   const PaymentVoid({
     required this.localUuid,
     this.serverId,
@@ -31203,6 +31276,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     required this.hotelDayKey,
     this.reversalPaymentUuid,
     this.approvedBy,
+    this.note,
+    this.originalAmount,
+    this.paymentUuid,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -31250,6 +31326,15 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     }
     if (!nullToAbsent || approvedBy != null) {
       map['approved_by'] = Variable<String>(approvedBy);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || originalAmount != null) {
+      map['original_amount'] = Variable<double>(originalAmount);
+    }
+    if (!nullToAbsent || paymentUuid != null) {
+      map['payment_uuid'] = Variable<String>(paymentUuid);
     }
     return map;
   }
@@ -31300,6 +31385,13 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       approvedBy: approvedBy == null && nullToAbsent
           ? const Value.absent()
           : Value(approvedBy),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      originalAmount: originalAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalAmount),
+      paymentUuid: paymentUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paymentUuid),
     );
   }
 
@@ -31341,6 +31433,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
         json['reversalPaymentUuid'],
       ),
       approvedBy: serializer.fromJson<String?>(json['approvedBy']),
+      note: serializer.fromJson<String?>(json['note']),
+      originalAmount: serializer.fromJson<double?>(json['originalAmount']),
+      paymentUuid: serializer.fromJson<String?>(json['paymentUuid']),
     );
   }
   @override
@@ -31375,6 +31470,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       'hotelDayKey': serializer.toJson<String>(hotelDayKey),
       'reversalPaymentUuid': serializer.toJson<String?>(reversalPaymentUuid),
       'approvedBy': serializer.toJson<String?>(approvedBy),
+      'note': serializer.toJson<String?>(note),
+      'originalAmount': serializer.toJson<double?>(originalAmount),
+      'paymentUuid': serializer.toJson<String?>(paymentUuid),
     };
   }
 
@@ -31407,6 +31505,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     String? hotelDayKey,
     Value<String?> reversalPaymentUuid = const Value.absent(),
     Value<String?> approvedBy = const Value.absent(),
+    Value<String?> note = const Value.absent(),
+    Value<double?> originalAmount = const Value.absent(),
+    Value<String?> paymentUuid = const Value.absent(),
   }) => PaymentVoid(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -31440,6 +31541,11 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
         ? reversalPaymentUuid.value
         : this.reversalPaymentUuid,
     approvedBy: approvedBy.present ? approvedBy.value : this.approvedBy,
+    note: note.present ? note.value : this.note,
+    originalAmount: originalAmount.present
+        ? originalAmount.value
+        : this.originalAmount,
+    paymentUuid: paymentUuid.present ? paymentUuid.value : this.paymentUuid,
   );
   PaymentVoid copyWithCompanion(PaymentVoidsCompanion data) {
     return PaymentVoid(
@@ -31505,6 +31611,13 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       approvedBy: data.approvedBy.present
           ? data.approvedBy.value
           : this.approvedBy,
+      note: data.note.present ? data.note.value : this.note,
+      originalAmount: data.originalAmount.present
+          ? data.originalAmount.value
+          : this.originalAmount,
+      paymentUuid: data.paymentUuid.present
+          ? data.paymentUuid.value
+          : this.paymentUuid,
     );
   }
 
@@ -31538,7 +31651,10 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
           ..write('voidedAtIso: $voidedAtIso, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('reversalPaymentUuid: $reversalPaymentUuid, ')
-          ..write('approvedBy: $approvedBy')
+          ..write('approvedBy: $approvedBy, ')
+          ..write('note: $note, ')
+          ..write('originalAmount: $originalAmount, ')
+          ..write('paymentUuid: $paymentUuid')
           ..write(')'))
         .toString();
   }
@@ -31573,6 +31689,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     hotelDayKey,
     reversalPaymentUuid,
     approvedBy,
+    note,
+    originalAmount,
+    paymentUuid,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -31605,7 +31724,10 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
           other.voidedAtIso == this.voidedAtIso &&
           other.hotelDayKey == this.hotelDayKey &&
           other.reversalPaymentUuid == this.reversalPaymentUuid &&
-          other.approvedBy == this.approvedBy);
+          other.approvedBy == this.approvedBy &&
+          other.note == this.note &&
+          other.originalAmount == this.originalAmount &&
+          other.paymentUuid == this.paymentUuid);
 }
 
 class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
@@ -31637,6 +31759,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
   final Value<String> hotelDayKey;
   final Value<String?> reversalPaymentUuid;
   final Value<String?> approvedBy;
+  final Value<String?> note;
+  final Value<double?> originalAmount;
+  final Value<String?> paymentUuid;
   const PaymentVoidsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -31666,6 +31791,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     this.hotelDayKey = const Value.absent(),
     this.reversalPaymentUuid = const Value.absent(),
     this.approvedBy = const Value.absent(),
+    this.note = const Value.absent(),
+    this.originalAmount = const Value.absent(),
+    this.paymentUuid = const Value.absent(),
   });
   PaymentVoidsCompanion.insert({
     required String localUuid,
@@ -31696,6 +31824,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     required String hotelDayKey,
     this.reversalPaymentUuid = const Value.absent(),
     this.approvedBy = const Value.absent(),
+    this.note = const Value.absent(),
+    this.originalAmount = const Value.absent(),
+    this.paymentUuid = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -31738,6 +31869,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     Expression<String>? hotelDayKey,
     Expression<String>? reversalPaymentUuid,
     Expression<String>? approvedBy,
+    Expression<String>? note,
+    Expression<double>? originalAmount,
+    Expression<String>? paymentUuid,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -31770,6 +31904,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
       if (reversalPaymentUuid != null)
         'reversal_payment_uuid': reversalPaymentUuid,
       if (approvedBy != null) 'approved_by': approvedBy,
+      if (note != null) 'note': note,
+      if (originalAmount != null) 'original_amount': originalAmount,
+      if (paymentUuid != null) 'payment_uuid': paymentUuid,
     });
   }
 
@@ -31802,6 +31939,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     Value<String>? hotelDayKey,
     Value<String?>? reversalPaymentUuid,
     Value<String?>? approvedBy,
+    Value<String?>? note,
+    Value<double?>? originalAmount,
+    Value<String?>? paymentUuid,
   }) {
     return PaymentVoidsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -31832,6 +31972,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
       reversalPaymentUuid: reversalPaymentUuid ?? this.reversalPaymentUuid,
       approvedBy: approvedBy ?? this.approvedBy,
+      note: note ?? this.note,
+      originalAmount: originalAmount ?? this.originalAmount,
+      paymentUuid: paymentUuid ?? this.paymentUuid,
     );
   }
 
@@ -31926,6 +32069,15 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     if (approvedBy.present) {
       map['approved_by'] = Variable<String>(approvedBy.value);
     }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (originalAmount.present) {
+      map['original_amount'] = Variable<double>(originalAmount.value);
+    }
+    if (paymentUuid.present) {
+      map['payment_uuid'] = Variable<String>(paymentUuid.value);
+    }
     return map;
   }
 
@@ -31959,7 +32111,10 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
           ..write('voidedAtIso: $voidedAtIso, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('reversalPaymentUuid: $reversalPaymentUuid, ')
-          ..write('approvedBy: $approvedBy')
+          ..write('approvedBy: $approvedBy, ')
+          ..write('note: $note, ')
+          ..write('originalAmount: $originalAmount, ')
+          ..write('paymentUuid: $paymentUuid')
           ..write(')'))
         .toString();
   }
@@ -52608,6 +52763,9 @@ typedef $$PaymentVoidsTableCreateCompanionBuilder =
       required String hotelDayKey,
       Value<String?> reversalPaymentUuid,
       Value<String?> approvedBy,
+      Value<String?> note,
+      Value<double?> originalAmount,
+      Value<String?> paymentUuid,
     });
 typedef $$PaymentVoidsTableUpdateCompanionBuilder =
     PaymentVoidsCompanion Function({
@@ -52639,6 +52797,9 @@ typedef $$PaymentVoidsTableUpdateCompanionBuilder =
       Value<String> hotelDayKey,
       Value<String?> reversalPaymentUuid,
       Value<String?> approvedBy,
+      Value<String?> note,
+      Value<double?> originalAmount,
+      Value<String?> paymentUuid,
     });
 
 class $$PaymentVoidsTableFilterComposer
@@ -52787,6 +52948,21 @@ class $$PaymentVoidsTableFilterComposer
 
   ColumnFilters<String> get approvedBy => $composableBuilder(
     column: $table.approvedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get paymentUuid => $composableBuilder(
+    column: $table.paymentUuid,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -52939,6 +53115,21 @@ class $$PaymentVoidsTableOrderingComposer
     column: $table.approvedBy,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get paymentUuid => $composableBuilder(
+    column: $table.paymentUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PaymentVoidsTableAnnotationComposer
@@ -53067,6 +53258,19 @@ class $$PaymentVoidsTableAnnotationComposer
     column: $table.approvedBy,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get paymentUuid => $composableBuilder(
+    column: $table.paymentUuid,
+    builder: (column) => column,
+  );
 }
 
 class $$PaymentVoidsTableTableManager
@@ -53128,6 +53332,9 @@ class $$PaymentVoidsTableTableManager
                 Value<String> hotelDayKey = const Value.absent(),
                 Value<String?> reversalPaymentUuid = const Value.absent(),
                 Value<String?> approvedBy = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<double?> originalAmount = const Value.absent(),
+                Value<String?> paymentUuid = const Value.absent(),
               }) => PaymentVoidsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -53157,6 +53364,9 @@ class $$PaymentVoidsTableTableManager
                 hotelDayKey: hotelDayKey,
                 reversalPaymentUuid: reversalPaymentUuid,
                 approvedBy: approvedBy,
+                note: note,
+                originalAmount: originalAmount,
+                paymentUuid: paymentUuid,
               ),
           createCompanionCallback:
               ({
@@ -53188,6 +53398,9 @@ class $$PaymentVoidsTableTableManager
                 required String hotelDayKey,
                 Value<String?> reversalPaymentUuid = const Value.absent(),
                 Value<String?> approvedBy = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<double?> originalAmount = const Value.absent(),
+                Value<String?> paymentUuid = const Value.absent(),
               }) => PaymentVoidsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -53217,6 +53430,9 @@ class $$PaymentVoidsTableTableManager
                 hotelDayKey: hotelDayKey,
                 reversalPaymentUuid: reversalPaymentUuid,
                 approvedBy: approvedBy,
+                note: note,
+                originalAmount: originalAmount,
+                paymentUuid: paymentUuid,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

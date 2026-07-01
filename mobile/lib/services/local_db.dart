@@ -509,6 +509,10 @@ class PaymentVoids extends Table with SyncFields {
   TextColumn get hotelDayKey => text()();
   TextColumn get reversalPaymentUuid => text().nullable()();
   TextColumn get approvedBy => text().nullable()();
+  // ✅ v2: حقول إضافية موجودة على Appwrite Cloud
+  TextColumn get note => text().nullable()();
+  RealColumn get originalAmount => real().nullable()();
+  TextColumn get paymentUuid => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -860,7 +864,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 46;
+  int get schemaVersion => 47;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2262,6 +2266,37 @@ class AppDatabase extends _$AppDatabase {
         }
         developer.log(
           'Migration 46: added idempotencyKey, employeeID, employeeUuid columns',
+          name: 'db.migration',
+        );
+      }
+      if (from < 47) {
+        // ✅ v2: إضافة حقول payment_voids الإضافية لتطابق Appwrite Cloud
+        // - note: ملاحظة على الإلغاء
+        // - originalAmount: المبلغ الأصلي للدفع قبل الإلغاء
+        // - paymentUuid: UUID الدفع المرتبط (مستقل عن originalPaymentUuid)
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE payment_voids ADD COLUMN note TEXT',
+          );
+        } catch (e) {
+          developer.log('Migration 47: payment_voids.note already exists: $e', name: 'db.migration');
+        }
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE payment_voids ADD COLUMN original_amount REAL',
+          );
+        } catch (e) {
+          developer.log('Migration 47: payment_voids.original_amount already exists: $e', name: 'db.migration');
+        }
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE payment_voids ADD COLUMN payment_uuid TEXT',
+          );
+        } catch (e) {
+          developer.log('Migration 47: payment_voids.payment_uuid already exists: $e', name: 'db.migration');
+        }
+        developer.log(
+          'Migration 47: added note, originalAmount, paymentUuid to payment_voids',
           name: 'db.migration',
         );
       }
