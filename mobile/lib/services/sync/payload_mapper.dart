@@ -55,7 +55,7 @@ class PayloadMapper {
       // تمت إزالة الحقول الزائدة التي لا توجد في المخطط (floor, bedsCount, roomType, basePrice)
     };
     putIfNotNull(data, 'serverId', room.serverId);
-    data['deletedAt'] = room.deletedAt;
+    putIfNotNull(data, 'deletedAt', room.deletedAt);
     putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
     putIfStringNotEmpty(data, 'cleaningStatus', room.cleaningStatus);
     putIfStringNotEmpty(data, 'lastCleanedHotelDay', room.lastCleanedHotelDay);
@@ -93,7 +93,7 @@ class PayloadMapper {
     };
     putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
     putIfNotNull(data, 'serverId', booking.serverId);
-    data['deletedAt'] = booking.deletedAt;
+    putIfNotNull(data, 'deletedAt', booking.deletedAt);
     putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
     putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
     putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
@@ -206,7 +206,7 @@ class PayloadMapper {
     putIfNotNull(data, 'cashTransactionServerId', payment.cashTransactionServerId);
     putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
     putIfNotNull(data, 'serverId', payment.serverId);
-    data['deletedAt'] = payment.deletedAt;
+    putIfNotNull(data, 'deletedAt', payment.deletedAt);
     putIfStringNotEmpty(data, 'deletedAtIso', payment.deletedAtIso);
     putIfStringNotEmpty(data, 'linkedDebtUuid', payment.linkedDebtUuid);
     putIfNotNull(data, 'discountAmount', payment.discountAmount);
@@ -262,7 +262,7 @@ class PayloadMapper {
       'origin': debt.origin,
     };
     putIfNotNull(data, 'serverId', debt.serverId);
-    data['deletedAt'] = debt.deletedAt;
+    putIfNotNull(data, 'deletedAt', debt.deletedAt);
     putIfStringNotEmpty(data, 'deletedAtIso', debt.deletedAtIso);
     putIfStringNotEmpty(data, 'hotelDayOpened', debt.hotelDayOpened);
     putIfStringNotEmpty(data, 'hotelDayClosed', debt.hotelDayClosed);
@@ -342,7 +342,7 @@ class PayloadMapper {
       'deviceId': note.deviceId,
     };
     putIfNotNull(data, 'serverId', note.serverId);
-    data['deletedAt'] = note.deletedAt;
+    putIfNotNull(data, 'deletedAt', note.deletedAt);
     putIfStringNotEmpty(data, 'alertUntil', note.alertUntil);
     putIfStringNotEmpty(data, 'idempotencyKey', note.idempotencyKey);
     return data;
@@ -372,7 +372,7 @@ class PayloadMapper {
       'sync_origin': night.origin,
     };
     putIfNotNull(data, 'serverId', night.serverId);
-    data['deletedAt'] = night.deletedAt;
+    putIfNotNull(data, 'deletedAt', night.deletedAt);
     putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
     putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
     
@@ -403,7 +403,7 @@ class PayloadMapper {
     putIfNotNull(data, 'referenceId', transaction.referenceId);
     putIfNotNull(data, 'createdBy', transaction.createdBy);
     putIfNotNull(data, 'serverId', transaction.serverId);
-    data['deletedAt'] = transaction.deletedAt;
+    putIfNotNull(data, 'deletedAt', transaction.deletedAt);
     putIfStringNotEmpty(data, 'referenceType', transaction.referenceType);
     putIfStringNotEmpty(data, 'description', transaction.description);
     putIfStringNotEmpty(data, 'idempotencyKey', transaction.idempotencyKey);
@@ -430,7 +430,7 @@ class PayloadMapper {
       'sync_origin': cycle.origin,
     };
     putIfNotNull(data, 'serverId', cycle.serverId);
-    data['deletedAt'] = cycle.deletedAt;
+    putIfNotNull(data, 'deletedAt', cycle.deletedAt);
     putIfStringNotEmpty(data, 'hotelDayStart', cycle.hotelDayStart);
     putIfStringNotEmpty(data, 'hotelDayEnd', cycle.hotelDayEnd);
     putIfStringNotEmpty(data, 'idempotencyKey', cycle.idempotencyKey);
@@ -454,7 +454,7 @@ class PayloadMapper {
       'sync_origin': payment.origin,
     };
     putIfNotNull(data, 'serverId', payment.serverId);
-    data['deletedAt'] = payment.deletedAt;
+    putIfNotNull(data, 'deletedAt', payment.deletedAt);
     putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
     putIfStringNotEmpty(data, 'method', payment.method);
     putIfStringNotEmpty(data, 'idempotencyKey', payment.idempotencyKey);

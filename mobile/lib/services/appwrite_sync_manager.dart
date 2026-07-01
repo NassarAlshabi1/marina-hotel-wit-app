@@ -1574,8 +1574,17 @@ class AppwriteSyncManager {
     // إذا كانت كلتا الساعتين فارغتين (جديد أو قديم بدون VC) → نستخدم LWW
     if ((localVectorClock == null || localVectorClock.isEmpty || localVectorClock == '{}') &&
         (remoteVcStr.isEmpty || remoteVcStr == '{}')) {
+      // ✅ P0-2 fix: تطبيع وحدة الزمن قبل المقارنة
+      // localLastModified بالثواني (Time.nowEpoch ~/ 1000)
+      // effectiveRemoteTs قد يكون بالملّي ثانية (إذا جاء من حقل آخر)
+      final normalizedRemoteTs = effectiveRemoteTs > 10000000000
+          ? effectiveRemoteTs ~/ 1000
+          : effectiveRemoteTs;
+      final normalizedLocalTs = localLastModified > 10000000000
+          ? localLastModified ~/ 1000
+          : localLastModified;
       return _RemoteNewerResult(
-        shouldApplyRemote: effectiveRemoteTs > localLastModified,
+        shouldApplyRemote: normalizedRemoteTs > normalizedLocalTs,
       );
     }
 

@@ -129,7 +129,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       if (existing != null) {
         await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
           OutboxCompanion(
-            op: Value(op),
+            // ✅ P0-3 fix: لا نستبدل 'delete' بـ 'update'
+            // delete له أولوية أعلى — إذا كان السجل موجود كـ delete، نتركه
+            op: existing.op == 'delete' ? const Value.absent() : Value(op),
             payload: Value(payloadJson),
             clientTs: Value(clientTs),
             idempotencyKey: Value(idempKey),
