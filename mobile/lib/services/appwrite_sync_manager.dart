@@ -2458,6 +2458,93 @@ class AppwriteSyncManager {
     return AppwriteSyncUtils.filterPayloadForCollection(collectionId, payload);
   }
 
+  /// ✅ P0-5: القفل التفاؤلي (OCC) — فحص النسخة البعيدة قبل الدفع
+  ///
+  /// قبل كل عملية update، نقرأ المستند البعيد ونتحقق:
+  /// 1. إذا لم يكن موجوداً → نتابع الدفع العادي (create)
+  /// 2. إذا كان موجوداً بنفس النسخة → نتابع الدفع العادي (لا تعارض)
+  /// 3. إذا كان موجوداً بنسخة أحدث → تعارض! نُشغّل SmartConflictResolver
+  ///    ونُرجع البيانات المدموجة ليستخدمها المُتصل بدل الحمولة الأصلية
+  ///
+  /// [collectionId] — معرف مجموعة Appwrite
+  /// [documentId] — localUuid للمستند
+  /// [localPayload] — الحمولة المحلية المراد دفعها
+  /// [entity] — اسم الكيان (للـ SmartConflictResolver)
+  ///
+  /// يُرجع: الحمولة النهائية للدفع (الأصلية أو المدموجة)
+  Future<Map<String, dynamic>> _occCheckAndMerge({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> localPayload,
+    required String entity,
+  }) async {
+    try {
+      // 1) قراءة المستند البعيد
+      final remoteDoc = await appwriteService.getDocument(
+        collectionId: collectionId,
+        documentId: documentId,
+      );
+      final remoteData = Map<String, dynamic>.from(remoteDoc.data);
+
+      // 2) استخراج النسخ المحلية والبعيدة
+      final localVersion = (localPayload['version'] as int?) ?? 0;
+      final remoteVersion = (remoteData['version'] as int?) ?? 0;
+
+      // 3) إذا النسخة البعيدة <= المحلية → لا تعارض
+      if (remoteVersion <= localVersion) {
+        return localPayload;
+      }
+
+      // 4) تعارض! النسخة البعيدة أحدث → نُشغّل SmartConflictResolver
+      _logger.warning(
+        '⚠️ OCC conflict detected: entity=$entity, uuid=$documentId, '
+        'localVersion=$localVersion, remoteVersion=$remoteVersion → merging',
+        tag: 'OCC',
+      );
+
+      // محاولة الحصول على ancestor من الـ cache
+      Map<String, dynamic>? ancestor;
+      try {
+        ancestor = await _ancestorCacheDao.getAncestor(entity, documentId);
+      } catch (_) {}
+
+      // تشغيل SmartConflictResolver
+      final resolution = SmartConflictResolver.resolve(
+        entity: entity,
+        localData: localPayload,
+        remoteData: remoteData,
+        commonAncestor: ancestor,
+      );
+
+      if (resolution.strategy == ResolutionStrategy.fieldLevelMerge) {
+        _logger.info(
+          '✅ OCC conflict resolved via 3-way merge: entity=$entity, uuid=$documentId',
+          tag: 'OCC',
+        );
+        // حفظ ancestor المدمج للمرات القادمة
+        try {
+          await _ancestorCacheDao.saveAncestor(
+            entity: entity,
+            localUuid: documentId,
+            data: resolution.mergedData,
+          );
+        } catch (_) {}
+        return resolution.mergedData;
+      }
+
+      // إذا فشل الدمج، نستخدم LWW كـ fallback آمن
+      _logger.warning(
+        '⚠️ OCC merge failed, falling back to LWW: entity=$entity',
+        tag: 'OCC',
+      );
+      return localPayload;
+    } catch (e) {
+      // إذا فشل قراءة المستند البعيد (404 أو شبكة)، نتابع الدفع العادي
+      // 404 يعني أنه جديد → لا تعارض ممكن
+      return localPayload;
+    }
+  }
+
   Future<bool> _processRoomEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
       await _deleteSilently(() => appwriteService.deleteRoom(entry.localUuid));
@@ -2512,20 +2599,27 @@ class AppwriteSyncManager {
     }
     final payload = _bookingToRemote(booking);
 
+    // ✅ P0-5: OCC check — فحص النسخة البعيدة قبل الدفع
+    final occPayload = await _occCheckAndMerge(
+      collectionId: AppwriteConfig.bookingsCollectionId,
+      documentId: booking.localUuid,
+      localPayload: payload,
+      entity: 'bookings',
+    );
+
     // ✅ تسجيل تشخيصي: تسجيل الحقول الحرجة قبل الرفع
     _logger.info(
       '📤 Push booking ${booking.localUuid.substring(0, 8)}... '
       'status=${booking.status} '
       'actualCheckout=${booking.actualCheckout} '
       'calculatedNights=${booking.calculatedNights} '
-      'lastModified=${booking.lastModified}',
+      'lastModified=${booking.lastModified}'
+      '${occPayload != payload ? " [OCC merged]" : ""}',
       tag: 'SYNC',
     );
 
     // ✅ إزالة idempotencyKey إذا لم يكن في مخطط Appwrite
-    // هذا الحقل غير موجود في مخطط Appwrite وقد يسبب فشل صامت في updateDocument
-    // إذا كان التحقق من المخطط مفعّلاً على Appwrite Cloud
-    final cleanPayload = Map<String, dynamic>.from(payload);
+    final cleanPayload = Map<String, dynamic>.from(occPayload);
     // idempotencyKey يُضاف لاحقاً عبر _addIdempotencyKey
 
     final finalPayload = _addIdempotencyKey(cleanPayload, entry);
@@ -2623,10 +2717,17 @@ class AppwriteSyncManager {
         payload['employeeUuid'] = employee.localUuid;
       }
     }
+    // ✅ P0-5: OCC check — فحص النسخة البعيدة قبل الدفع
+    final occPayload = await _occCheckAndMerge(
+      collectionId: AppwriteConfig.expensesCollectionId,
+      documentId: expense.localUuid,
+      localPayload: payload,
+      entity: 'expenses',
+    );
     try {
       await appwriteService.upsertExpense(
         expense.localUuid,
-        _filterPayload('expenses', _addIdempotencyKey(payload, entry)),
+        _filterPayload('expenses', _addIdempotencyKey(occPayload, entry)),
       );
     } catch (e) {
       // ✅ إذا فشل الرفع بسبب حقل idempotencyKey غير موجود، نُعيد المحاولة بدونه
@@ -2665,10 +2766,17 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _paymentToRemote(payment);
+    // ✅ P0-5: OCC check — فحص النسخة البعيدة قبل الدفع
+    final occPayload = await _occCheckAndMerge(
+      collectionId: AppwriteConfig.paymentsCollectionId,
+      documentId: payment.localUuid,
+      localPayload: payload,
+      entity: 'payments',
+    );
     try {
       await appwriteService.upsertPayment(
         payment.localUuid,
-        _filterPayload('payments', _addIdempotencyKey(payload, entry)),
+        _filterPayload('payments', _addIdempotencyKey(occPayload, entry)),
       );
     } catch (e) {
       // ✅ إذا فشل الرفع بسبب حقل idempotencyKey غير موجود، نُعيد المحاولة بدونه
@@ -2703,10 +2811,17 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _debtToRemote(debt);
+    // ✅ P0-5: OCC check — فحص النسخة البعيدة قبل الدفع
+    final occPayload = await _occCheckAndMerge(
+      collectionId: AppwriteConfig.debtsCollectionId,
+      documentId: debt.localUuid,
+      localPayload: payload,
+      entity: 'debts',
+    );
     try {
       await appwriteService.upsertDebt(
         debt.localUuid,
-        _filterPayload('debts', _addIdempotencyKey(payload, entry)),
+        _filterPayload('debts', _addIdempotencyKey(occPayload, entry)),
       );
     } catch (e) {
       // ✅ إذا فشل الرفع بسبب حقل idempotencyKey غير موجود، نُعيد المحاولة بدونه
