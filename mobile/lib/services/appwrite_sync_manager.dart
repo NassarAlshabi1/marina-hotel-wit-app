@@ -2377,6 +2377,8 @@ class AppwriteSyncManager {
           return await _processBlacklistEntry(entry);
         case 'price_adjustments':
           return await _processPriceAdjustmentEntry(entry);
+        case 'payment_voids':
+          return await _processPaymentVoidEntry(entry);
         default:
           _logger.warning(
             'Unknown outbox entity: ${entry.entity}',
@@ -4723,6 +4725,46 @@ class AppwriteSyncManager {
       }
     }
     return processed;
+  }
+
+  /// ✅ معالجة سجل إلغاء دفع (PaymentVoid) من الـ outbox
+  Future<bool> _processPaymentVoidEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.paymentVoidsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final voidRecord = await _getPaymentVoidByLocalUuid(entry.localUuid);
+    if (voidRecord == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.paymentVoidsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final payload = _payloadMapper.paymentVoidToRemote(voidRecord);
+    await appwriteService.upsertDocument(
+      collectionId: AppwriteConfig.paymentVoidsCollectionId,
+      documentId: voidRecord.localUuid,
+      data: _filterPayload(
+        'payment_voids',
+        _addIdempotencyKey(payload, entry),
+      ),
+    );
+    return true;
+  }
+
+  Future<PaymentVoid?> _getPaymentVoidByLocalUuid(String uuid) {
+    return (database.select(database.paymentVoids)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
   }
 
   Future<bool> _processEmployeeEntry(OutboxData entry) async {
