@@ -313,7 +313,8 @@ class _SettingsMaintenanceScreenState
                   IconButton(
                     icon: const Icon(Icons.refresh, size: 18),
                     tooltip: 'تحديث',
-                    onPressed: _loadSystemInfo,
+                    // ✅ P1 fix: تعطيل زر التحديث أثناء العملية
+                    onPressed: _isWorking ? null : _loadSystemInfo,
                   ),
               ],
             ),
@@ -625,7 +626,10 @@ class _SettingsMaintenanceScreenState
                       title: Text(check.tableName as String),
                       subtitle: Text('${check.recordCount} سجل'),
                       trailing: Text(
-                        (check.checksum as String).substring(0, 8),
+                        // ✅ P1 fix: حماية من RangeError إذا كان checksum أقصر من 8 أحرف
+                        (check.checksum as String).length >= 8
+                            ? (check.checksum as String).substring(0, 8)
+                            : (check.checksum as String),
                         style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
                       ),
                     );
@@ -1050,7 +1054,6 @@ class _SettingsMaintenanceScreenState
                   SqliteBackupRestore.kDefaultDbFileName,
                 );
                 await sqflite.deleteDatabase(dbPath);
-                await DatabaseManager.reopen();
 
                 // ✅ إصلاح P0: حذف مختار للمفاتيح بدلاً من prefs.clear()
                 // نحذف فقط المفاتيح المتعلقة بالبيانات، ونحتفظ بالإعدادات الحرجة
@@ -1084,6 +1087,11 @@ class _SettingsMaintenanceScreenState
               } catch (e) {
                 _hideLoading();
                 _showSnack('خطأ في إعادة التعيين: $e', color: Colors.red);
+              } finally {
+                // ✅ P0 fix: ضمان إعادة فتح قاعدة البيانات حتى لو فشل الحذف
+                try {
+                  await DatabaseManager.reopen();
+                } catch (_) {}
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
