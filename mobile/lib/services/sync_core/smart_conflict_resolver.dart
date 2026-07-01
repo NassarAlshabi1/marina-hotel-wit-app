@@ -556,13 +556,17 @@ class SmartConflictResolver {
         );
 
       case FieldStrategy.manual:
-        // ✅ الحل التلقائي: للاستراتيجية اليدوية، نستخدم LWW (آخر تعديل يفوز)
-        // بدلاً من التصعيد اليدوي. هذا يضمن حل كل التعارضات تلقائياً.
+        // ✅ P0-6 fix: الحقول المالية الحرجة — نستخدم newerWins مع تحذير شديد
+        // بدل التصعيد اليدوي (الذي يوقف المزامنة) أو LWW الصامت.
+        // النتيجة: آخر تعديل يفوز + تحذير يُسجّل في sync_conflicts للمراجعة.
         final localTs = _extractTs(localData);
         final remoteTs = _extractTs(remoteData);
+        final remoteWins = remoteTs > localTs;
         return _FieldResolution(
-          value: remoteTs > localTs ? remoteVal : localVal,
-          warning: 'auto-LWW: $field (was manual, now newerWins)',
+          value: remoteWins ? remoteVal : localVal,
+          warning: '⚠️ FINANCIAL: $field → ${remoteWins ? "remote" : "local"} wins '
+              '(local=$localVal, remote=$remoteVal). '
+              'Review in sync_conflicts.',
         );
     }
   }

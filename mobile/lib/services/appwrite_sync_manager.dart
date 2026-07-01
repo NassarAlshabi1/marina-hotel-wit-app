@@ -3835,6 +3835,8 @@ class AppwriteSyncManager {
         _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
 
         int recordsPulled = 0;
+        // ✅ P1-5 fix: تتبّع Collections الفاشلة لمنع تقديم مؤشّر السحب
+        final failedCollections = <String>[];
 
         // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
         final lastPullTs = await _getLastPullTs();
@@ -4042,8 +4044,16 @@ class AppwriteSyncManager {
 
           // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
-          // تحديث lastPullTs بعد محاولة سحب كل الكولكشنات
-          await _updateLastPullTs(Time.nowEpoch());
+          // ✅ P1-5 fix: تحديث lastPullTs فقط إذا نجحت كل الكولكشنات
+          if (failedCollections.isEmpty) {
+            await _updateLastPullTs(Time.nowEpoch());
+          } else {
+            _logger.warning(
+              '⚠️ P1-5: ${failedCollections.length} collections فشلت في pullRemoteChanges: '
+              '${failedCollections.join(", ")} — لن يتم تحديث lastPullTs',
+              tag: 'SYNC',
+            );
+          }
         });
 
         _lastSyncTime = DateTime.now();

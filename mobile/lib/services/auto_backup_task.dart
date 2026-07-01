@@ -9,16 +9,10 @@ class AutoBackupTask {
   static const String taskName = 'autoBackupTask';
   static const String taskId = 'autoBackup';
 
-  /// تهيئة Workmanager
+  /// ✅ P0-7 fix: لا نُهيّئ Workmanager هنا — يُهيّأ من مكان واحد موحّد
   static Future<void> initialize() async {
-    try {
-      await Workmanager().initialize(
-        callbackDispatcher,
-      );
-      debugPrint('✅ تم تهيئة AutoBackupTask');
-    } catch (e) {
-      debugPrint('❌ خطأ في تهيئة AutoBackupTask: $e');
-    }
+    // Workmanager يُهيّأ من BackgroundSyncService فقط
+    debugPrint('✅ AutoBackupTask جاهز (Workmanager يُهيّأ موحّداً)');
   }
 
   /// جدولة النسخ اليومي
