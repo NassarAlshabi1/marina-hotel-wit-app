@@ -678,7 +678,13 @@ class AppwriteSyncManager {
       }
 
       // ✅ استخدام معرف محلي كـ fallback إذا فشل تسجيل الجهاز
-      final effectiveDeviceId = _currentDeviceId ?? await _getLocalDeviceId() ?? 'unknown';
+      String effectiveDeviceId;
+      if (_currentDeviceId != null) {
+        effectiveDeviceId = _currentDeviceId!;
+      } else {
+        final localId = await _getLocalDeviceId();
+        effectiveDeviceId = localId ?? 'unknown';
+      }
 
       // إنشاء سجل مزامنة
       syncLogLocalUuid = IdGen.uuid();
