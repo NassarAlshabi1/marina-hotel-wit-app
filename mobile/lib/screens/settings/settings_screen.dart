@@ -36,14 +36,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final _searchController = TextEditingController();
-  String _searchQuery = '';
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
 
   /// ✅ قراءة رقم الإصدار ديناميكياً من package_info_plus
   Future<String> _getAppVersion() async {
@@ -62,18 +54,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final employeesAsync = ref.watch(employeesListProvider);
     final usersCountAsync = ref.watch(usersCountProvider);
 
-    // ✅ قائمة كل عناصر الإعدادات للبحث
-    final allItems = _getAllSettingsItems(context);
-
-    // ✅ فلترة حسب البحث
-    final filteredItems = _searchQuery.isEmpty
-        ? null
-        : allItems
-            .where((item) =>
-                item.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                item.subtitle.toLowerCase().contains(_searchQuery.toLowerCase()))
-            .toList();
-
     return AppScaffold(
       title: 'الإعدادات',
       // ✅ P0 fix: إزالة زر المزامنة المكرر — AppScaffold يضيف SyncActionButton تلقائياً
@@ -89,59 +69,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             usersCountAsync,
           ),
 
-          // ✅ شريط البحث
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'بحث في الإعدادات...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-              onChanged: (value) => setState(() => _searchQuery = value),
-            ),
-          ),
-
-          // ✅ المحتوى: إما نتائج البحث أو الأقسام
+          // ✅ المحتوى: الأقسام (تمت إزالة شريط البحث)
           Expanded(
-            child: filteredItems != null
-                ? _buildSearchResults(context, filteredItems)
-                : ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      // قسم إدارة البيانات
-                      _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
-                      _buildSettingsGrid(context, _getSectionItems(context, 'data')),
-                      const SizedBox(height: 20),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // قسم إدارة البيانات
+                _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
+                _buildSettingsGrid(context, _getSectionItems(context, 'data')),
+                const SizedBox(height: 20),
 
-                      // قسم المزامنة والنسخ الاحتياطي
-                      _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
-                      _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
-                      const SizedBox(height: 20),
+                // قسم المزامنة والنسخ الاحتياطي
+                _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
+                _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
+                const SizedBox(height: 20),
 
-                      // ✅ قسم واتساب والإشعارات (مقسم من القسم العام)
-                      _buildSectionTitle('واتساب والإشعارات', Icons.notifications),
-                      _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
-                      const SizedBox(height: 20),
+                // ✅ قسم واتساب والإشعارات (مقسم من القسم العام)
+                _buildSectionTitle('واتساب والإشعارات', Icons.notifications),
+                _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
+                const SizedBox(height: 20),
 
-                      // ✅ قسم التطبيق (مقسم من القسم العام)
-                      _buildSectionTitle('التطبيق', Icons.apps),
-                      _buildSettingsGrid(context, _getSectionItems(context, 'app')),
-                    ],
-                  ),
+                // ✅ قسم التطبيق (مقسم من القسم العام)
+                _buildSectionTitle('التطبيق', Icons.apps),
+                _buildSettingsGrid(context, _getSectionItems(context, 'app')),
+              ],
+            ),
           ),
         ],
       ),
@@ -150,6 +102,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   // ─── قوائم العناصر حسب القسم ───
 
+  // ignore: unused_element
   List<_SettingsItem> _getAllSettingsItems(BuildContext context) {
     return [
       ..._getSectionItems(context, 'data'),
@@ -393,37 +346,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       default:
         return [];
     }
-  }
-
-  // ─── نتائج البحث ───
-
-  Widget _buildSearchResults(BuildContext context, List<_SettingsItem> items) {
-    if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.search_off, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              'لا توجد نتائج لـ "$_searchQuery"',
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          'نتائج البحث (${items.length})',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
-        ),
-        const SizedBox(height: 12),
-        _buildSettingsGrid(context, items),
-      ],
-    );
   }
 
   // ─── بطاقة الإحصائيات ───
