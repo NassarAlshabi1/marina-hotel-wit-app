@@ -192,7 +192,6 @@ class PayloadMapper {
       'lastModified': payment.lastModified,
       'version': payment.version,
       'origin': payment.origin,
-      'hotelDayKey': payment.hotelDayKey ?? '',
       'isPendingBalance': payment.isPendingBalance,
       'isVoided': payment.isVoided,
     };
@@ -201,6 +200,7 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'bookingUuidCache', payment.bookingUuidCache);
     putIfNotNull(data, 'serverBookingId', payment.serverBookingId);
     putIfStringNotEmpty(data, 'roomNumber', payment.roomNumber);
+    putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
     putIfStringNotEmpty(data, 'notes', payment.notes);
     putIfNotNull(data, 'cashTransactionLocalId', payment.cashTransactionLocalId);
     putIfNotNull(data, 'cashTransactionServerId', payment.cashTransactionServerId);
@@ -320,7 +320,7 @@ class PayloadMapper {
     // حقول v2 الجديدة
     putIfStringNotEmpty(data, 'terminationDate', employee.terminationDate);
     putIfStringNotEmpty(data, 'terminationReason', employee.terminationReason);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'EmployeeID', employee.EmployeeID);
+    putIfStringNotEmpty(data, 'EmployeeID', employee.employeeID);
     putIfStringNotEmpty(data, 'idempotencyKey', employee.idempotencyKey);
     return data;
   }

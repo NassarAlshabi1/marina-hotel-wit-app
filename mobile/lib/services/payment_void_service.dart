@@ -58,19 +58,45 @@ class PaymentVoidService {
         final nowIso = DateTime.now().toIso8601String();
         final voidUuid = IdGen.uuid();
 
+        // 1.5) حل bookingUuid و hotelDayKey من الدفعة أو من الحجز المرتبط
+        String bookingUuid = payment.bookingUuidCache ?? '';
+        String hotelDayKey = payment.hotelDayKey ?? '';
+
+        // إذا لم يكن bookingUuid متوفراً، نحاول حله من bookingLocalId
+        if (bookingUuid.isEmpty && payment.bookingLocalId != null) {
+          final booking = await (_db.select(_db.bookings)
+                ..where((t) => t.id.equals(payment.bookingLocalId!))
+                ..limit(1))
+              .getSingleOrNull();
+          if (booking != null) {
+            bookingUuid = booking.localUuid;
+          }
+        }
+
+        // إذا لم يكن hotelDayKey متوفراً، نستمده من paymentDate
+        if (hotelDayKey.isEmpty && payment.paymentDate.isNotEmpty) {
+          hotelDayKey = payment.paymentDate;
+        }
+
+        // إذا لم نتمكن من حل bookingUuid، نرفض العملية
+        if (bookingUuid.isEmpty) {
+          debugPrint('⚠️ PaymentVoid: تعذر حل bookingUuid للدفعة $paymentUuid');
+          return false;
+        }
+
         // 2) إنشاء سجل PaymentVoid
         await _db.into(_db.paymentVoids).insert(
               PaymentVoidsCompanion.insert(
                 localUuid: voidUuid,
                 originalPaymentUuid: paymentUuid,
                 originalPaymentId: payment.id,
-                bookingUuid: payment.bookingUuidCache ?? '',
+                bookingUuid: bookingUuid,
                 voidedAmount: payment.amount.round(),
                 voidReason: voidReason,
                 voidedBy: voidedBy,
                 voidedAt: nowEpoch,
                 voidedAtIso: nowIso,
-                hotelDayKey: payment.hotelDayKey ?? '',
+                hotelDayKey: hotelDayKey,
                 createdAt: nowEpoch,
                 updatedAt: nowEpoch,
                 lastModified: nowEpoch,
@@ -101,13 +127,13 @@ class PaymentVoidService {
           payload: {
             'originalPaymentUuid': paymentUuid,
             'originalPaymentId': payment.id,
-            'bookingUuid': payment.bookingUuidCache ?? '',
+            'bookingUuid': bookingUuid,
             'voidedAmount': payment.amount.round(),
             'voidReason': voidReason,
             'voidedBy': voidedBy,
             'voidedAt': nowEpoch,
             'voidedAtIso': nowIso,
-            'hotelDayKey': payment.hotelDayKey ?? '',
+            'hotelDayKey': hotelDayKey,
             if (approvedBy != null) 'approvedBy': approvedBy,
           },
         );
