@@ -713,7 +713,7 @@ class AppwriteSyncManager {
             : pull
             ? 'pull'
             : 'noop',
-        'startTime': startTime.toIso8601String(),
+        'startTime': syncLogCreatedEpoch,
         'status': SyncLogStatus.inProgress.value,
         'action': 'sync_start',
         'details': '{"recordsPushed":0,"recordsPulled":0,"conflicts":0}',
