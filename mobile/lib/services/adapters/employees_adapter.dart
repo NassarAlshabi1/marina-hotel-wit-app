@@ -98,6 +98,8 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
         altKey: 'vector_clock',
         fallback: '{}',
       ),
+      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      employeeID: _vStr(json, 'EmployeeID', src, altKey: 'employee_i_d'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -128,6 +130,8 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
+      'EmployeeID': model.employeeID,
       'deviceId': model.deviceId,
     };
   }

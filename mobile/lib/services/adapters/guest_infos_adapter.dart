@@ -140,6 +140,7 @@ class GuestInfosAdapter extends EntityAdapter<GuestInfo, GuestInfosCompanion> {
         altKey: 'vector_clock',
         fallback: '{}',
       ),
+      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -171,6 +172,7 @@ class GuestInfosAdapter extends EntityAdapter<GuestInfo, GuestInfosCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
       'deviceId': model.deviceId,
     };
   }

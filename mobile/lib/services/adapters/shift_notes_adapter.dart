@@ -108,6 +108,7 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
       vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
+      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -139,7 +140,8 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
         'version': model.version,
         'origin': model.origin,
         'vectorClock': model.vectorClock,
-        'deviceId': model.deviceId,
+        'idempotencyKey': model.idempotencyKey,
+      'deviceId': model.deviceId,
         'createdBy': model.createdBy,
         'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
         'note': model.content, // مطلوب — يوازي content
@@ -170,6 +172,7 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
       'deviceId': model.deviceId,
     };
   }

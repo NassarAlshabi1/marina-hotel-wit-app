@@ -136,6 +136,8 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
         altKey: 'vector_clock',
         fallback: '{}',
       ),
+      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      employeeUuid: _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -169,6 +171,8 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
+      'employeeUuid': model.employeeUuid,
       'deviceId': model.deviceId,
     };
 
