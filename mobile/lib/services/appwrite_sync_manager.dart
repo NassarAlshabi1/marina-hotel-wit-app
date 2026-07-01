@@ -402,10 +402,15 @@ class AppwriteSyncManager {
               'lastSeen': nowIso,
               'lastActive': nowEpoch,
               'createdAt': _deviceCreatedAtEpoch,
+              'createdAtEpoch': _deviceCreatedAtEpoch ?? nowEpoch,
               'updatedAt': nowEpoch,
               'lastModified': nowEpoch,
+              'lastModifiedEpoch': nowEpoch,
+              'syncTimestamp': nowEpoch,
               'version': _deviceVersion,
               'origin': 'mobile',
+              'sync_origin': 'mobile',
+              'vectorClock': '{}',
               // ✅ الحقول المطلوبة في Appwrite Cloud
               'deviceId': _deviceLocalUuid,
               'isActive': true,
@@ -432,10 +437,15 @@ class AppwriteSyncManager {
           'lastSeen': nowIso,
           'lastActive': nowEpoch,
           'createdAt': _deviceCreatedAtEpoch,
+          'createdAtEpoch': _deviceCreatedAtEpoch ?? nowEpoch,
           'updatedAt': nowEpoch,
           'lastModified': nowEpoch,
+          'lastModifiedEpoch': nowEpoch,
+          'syncTimestamp': nowEpoch,
           'version': _deviceVersion,
           'origin': 'mobile',
+          'sync_origin': 'mobile',
+          'vectorClock': '{}',
           // ✅ الحقول المطلوبة في Appwrite Cloud
           'deviceId': _deviceLocalUuid,
           'isActive': true,
@@ -668,7 +678,7 @@ class AppwriteSyncManager {
       }
 
       // ✅ استخدام معرف محلي كـ fallback إذا فشل تسجيل الجهاز
-      final effectiveDeviceId = _currentDeviceId ?? _getLocalDeviceId() ?? 'unknown'; // ignore: dead_null_aware_expression
+      final effectiveDeviceId = _currentDeviceId ?? await _getLocalDeviceId() ?? 'unknown';
 
       // إنشاء سجل مزامنة
       syncLogLocalUuid = IdGen.uuid();
@@ -702,12 +712,18 @@ class AppwriteSyncManager {
         'action': 'sync_start',
         'details': '{"recordsPushed":0,"recordsPulled":0,"conflicts":0}',
         'timestamp': syncLogCreatedEpoch,
+        'timestampIso': startTime.toIso8601String(),
         'localUuid': syncLogLocalUuid,
         'createdAt': syncLogCreatedEpoch,
+        'createdAtEpoch': syncLogCreatedEpoch,
         'updatedAt': syncLogCreatedEpoch,
         'lastModified': syncLogCreatedEpoch,
+        'lastModifiedEpoch': syncLogCreatedEpoch,
+        'syncTimestamp': syncLogCreatedEpoch,
         'version': syncLogVersion,
         'origin': 'mobile',
+        'sync_origin': 'mobile',
+        'vectorClock': '{}',
       });
       syncLogId = syncLog.$id;
       hasSyncLog = true;
