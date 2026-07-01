@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
-import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/local_db.dart';
 import '../services/remote_config_service.dart';
@@ -117,17 +116,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       }
 
-      final deltaSync = AppwriteDeltaSync.instance;
-      int pulledCount = 0;
-
-      if (deltaSync.isInitialized) {
-        final result = await deltaSync.pullDeltaChanges();
-        pulledCount = result.recordsPulled;
-      } else {
-        final syncManager = ref.read(appwriteSyncManagerProvider);
-        final result = await syncManager.sync(push: false);
-        pulledCount = result.recordsPulled;
-      }
+      final syncManager = ref.read(appwriteSyncManagerProvider);
+      final result = await syncManager.sync(push: false);
+      final pulledCount = result.recordsPulled;
 
       // إعادة تعيين علامة التغييرات عن بعد
       AppwriteRealtimeSync().resetRemoteChangesFlag();

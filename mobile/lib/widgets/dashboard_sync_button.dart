@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/secondary_sync_provider.dart';
-import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_health_checker.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/daos/outbox_dao.dart';
@@ -199,33 +198,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
 
-      int pulledCount = 0;
-      final deltaSync = AppwriteDeltaSync.instance;
-      if (deltaSync.isInitialized) {
-        // 1️⃣ سحب عبر DeltaSync
-        final pullResult = await deltaSync.pullDeltaChanges();
-        pulledCount = pullResult.recordsPulled;
-
-        // 2️⃣ حل التعارضات إن وجدت
-        if (pullResult.hasConflicts) {
-          if (mounted) {
-            // ignore: use_build_context_synchronously
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('⚖️ جاري حل التعارضات...'),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-          await _resolveConflicts();
-        }
-      } else {
-        // 2️⃣ بديل: سحب عبر appwriteSyncManager
-        final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-        final pullResult = await appwriteSyncManager.sync(push: false);
-        pulledCount = pullResult.recordsPulled;
-      }
+      final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
+      final pullResult = await appwriteSyncManager.sync(push: false);
+      final pulledCount = pullResult.recordsPulled;
 
       // إعادة تعيين علامة "توجد تغييرات من السيرفر"
       AppwriteRealtimeSync().resetRemoteChangesFlag();
@@ -464,22 +439,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       // رفع إلى Appwrite أولاً
       if (appwriteEnabled && appwriteConnected) {
         try {
-          final deltaSync = AppwriteDeltaSync.instance;
-          if (deltaSync.isInitialized) {
-            final pushResult = await deltaSync.pushDeltaChanges();
-            final pushedCount = pushResult.recordsPushed;
-
-            results['Appwrite'] = {
-              'success': pushResult.success,
-              'pushed': pushedCount,
-            };
-          } else {
-            final result = await appwriteSyncManager.pushLocalChanges();
-            results['Appwrite'] = {
-              'success': result,
-              'pushed': _pendingChangesCount,
-            };
-          }
+          final result = await appwriteSyncManager.pushLocalChanges();
+          results['Appwrite'] = {
+            'success': result,
+            'pushed': _pendingChangesCount,
+          };
         } catch (e) {
           results['Appwrite'] = {
             'success': false,
@@ -714,6 +678,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   }
 
   /// حل التعارضات بين البيانات المحلية والبعيدة
+  // ignore: unused_element
   Future<int> _resolveConflicts() async {
     int resolvedCount = 0;
     try {
