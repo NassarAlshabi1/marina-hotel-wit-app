@@ -1163,7 +1163,7 @@ class AppwriteSyncManager {
           collectionId: AppwriteConfig.syncLogsCollectionId,
           documentId: syncLogId,
           data: {
-            'endTime': endTime.toIso8601String(),
+            'endTime': endEpoch,
             'status': SyncLogStatus.completed.value,
             'action': 'sync_complete',
             'details':
