@@ -259,8 +259,9 @@ for (final coll in collectionList) {
             if (!isNotFound(altError)) { rethrow; }
           }
         }
-        // محاولة أخيرة
-        try { return doUpdate(documentId, suppressErrorLog: true); }
+        // ✅ P1-4 fix: إضافة await هنا — بدونه يُعاد الـ Future فوراً ولا
+        // يلتقط catch أي فشل async (النظام الأساسي يستخدم return await).
+        try { return await doUpdate(documentId, suppressErrorLog: true); }
         catch (_) { rethrow; }
       }
       rethrow;
@@ -268,6 +269,11 @@ for (final coll in collectionList) {
   }
 
   /// حذف مستند من Secondary
+  ///
+  /// ✅ P1-2 fix: الحذف idempotent — استخدام نفس `isNotFound()` المستخدم
+  /// في upsertDocument بدل فحص `code == 404` فقط. الثانوي يُملأ كسولاً
+  /// (سجلات كثيرة لم تُدفَع إليه بعد)، فحذف سجل غير موجود شائع جداً
+  /// ولا يجب أن يُعامل كخطأ.
   Future<void> deleteDocument({
     required String collectionId,
     required String documentId,
@@ -284,8 +290,13 @@ for (final coll in collectionList) {
         operationName: 'secondary_deleteDocument',
       );
     } on AppwriteException catch (e) {
-      // 404 = المستند غير موجود أصلاً، نتجاهله
-      if (e.code == 404) return;
+      // ✅ P1-2: نفس منطق isNotFound في upsert — 404 أو document_not_found
+      // بأي صيغة (code أو type أو toString).
+      if (e.code == 404 ||
+          (e.type ?? '').contains('document_not_found') ||
+          e.toString().contains('document_not_found')) {
+        return; // المستند غير موجود أصلاً — الحذف idempotent ✓
+      }
       rethrow;
     }
   }

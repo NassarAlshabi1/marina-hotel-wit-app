@@ -355,6 +355,66 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     );
   }
 
+  /// ✅ P0-2 (Secondary Audit): يضع السجل في الحالة النهائية `dead`
+  /// بعد تجاوز حد المحاولات. السجلات الـ dead لا تُلتقط للمعالجة لاحقاً
+  /// (لا في Primary ولا في Secondary)، وتظهر في شاشة سجل المزامنة لمراجعة
+  /// يدوية بدل إعادة محاولة صامتة لا نهائية.
+  ///
+  /// الفرق بين `dead` و `failed`:
+  /// - `failed`: فشل مؤقت، سيُعاد التقاطها في الجلسة التالية.
+  /// - `dead`: فشل دائم (خطأ 400/401/403 أو تجاوز maxAttempts)، لا تُعاد
+  ///   محاولتها تلقائياً بل تنتظر تدخّلاً يدوياً.
+  Future<void> setDead(int id, String message, int attempts) async {
+    await (update(outbox)..where((t) => t.id.equals(id))).write(
+      OutboxCompanion(
+        lastError: Value(message),
+        attempts: Value(attempts),
+        processingStatus: const Value('dead'),
+        processingStartedAt: const Value(null),
+        processingWorker: const Value(null),
+      ),
+    );
+    AppwriteLogger().log(
+      '☠️ [Outbox] سجل #$id وُضع في الحالة النهائية dead بعد $attempts محاولة',
+      level: LogLevel.error,
+      tag: 'OUTBOX_DEAD',
+      error: message,
+    );
+  }
+
+  /// ✅ P0-2: عدد السجلات الـ dead (لعرضها في شاشة المراجعة اليدوية).
+  Future<int> countDead() async {
+    final countExp = outbox.id.count();
+    final query = selectOnly(outbox)
+      ..addColumns([countExp])
+      ..where(outbox.processingStatus.equals('dead'));
+    final row = await query.getSingle();
+    return row.read(countExp) ?? 0;
+  }
+
+  /// ✅ P0-2: قائمة السجلات الـ dead لمراجعة يدوية.
+  Future<List<OutboxData>> listDead({int limit = 100}) async {
+    return (select(outbox)
+          ..where((t) => t.processingStatus.equals('dead'))
+          ..orderBy([(t) => OrderingTerm.desc(t.id)])
+          ..limit(limit))
+        .get();
+  }
+
+  /// ✅ P0-2: إعادة تفعيل سجل dead (يضعه في حالة pending لإعادة المحاولة).
+  /// يُستخدم من شاشة المراجعة اليدوية بعد إصلاح سبب الفشل.
+  Future<void> reviveFromDead(int id) async {
+    await (update(outbox)..where((t) => t.id.equals(id))).write(
+      const OutboxCompanion(
+        processingStatus: Value('pending'),
+        attempts: Value(0),
+        lastError: Value(null),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
+      ),
+    );
+  }
+
   Future<void> markCompleted(List<int> ids) async {
     if (ids.isEmpty) {
       return;
