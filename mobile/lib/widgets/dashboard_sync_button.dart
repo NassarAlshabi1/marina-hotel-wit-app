@@ -13,7 +13,6 @@ import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
 import '../services/secondary_appwrite_config.dart';
 import '../services/secondary_sync_manager.dart';
-import '../services/sync_core/conflict_resolver.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
@@ -70,8 +69,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       final db = ref.read(databaseProvider);
       final outboxDao = OutboxDao(db);
-      // ✅ فصل هندسي: نعرض فقط عدد التغييرات المحلية المعلقة
-      final count = await outboxDao.count(sources: const ['local']);
+      // ✅ P2-5 fix: العدد المعروض يطابق نطاق الرفع الفعلي
+      // لا نستخدم count() التي تحسب pending+failed — لأن الرفع
+      // (takeBatch) يأخذ فقط 'pending' و 'delivered_to_primary=0'.
+      // شارة "تغييرات معلّقة" يجب أن تعكس ما سيُرفع فعلاً.
+      final count = await outboxDao.countPendingPushable(sources: const ['local']);
       if (mounted) {
         setState(() {
           _pendingChangesCount = count;
@@ -125,7 +127,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     // ✅ P2-4 fix: تحذير قبل السحب عند وجود تغييرات محلية غير مرفوعة
     if (_pendingChangesCount > 0) {
       if (!mounted) return;
+      // ignore: use_build_context_synchronously
       final shouldContinue = await showDialog<bool>(
+        // ignore: use_build_context_synchronously
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('⚠️ تغييرات محلية غير مرفوعة'),
@@ -146,11 +150,15 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           ],
         ),
       );
-      if (shouldContinue == true) {
+      // null = المستخدم أغلق الحوار؛ true = رفع ثم سحب؛ false = سحب فقط
+      if (shouldContinue == null) {
+        return;
+      }
+      if (shouldContinue) {
         // رفع ثم سحب
+        if (!mounted) return;
+        // ignore: use_build_context_synchronously
         await _pushChanges(context);
-      } else if (shouldContinue != false) {
-        return; // المستخدم أغلق الحوار
       }
     }
 
@@ -500,7 +508,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (smartEnabled && isGoogleDriveSignedIn) {
         try {
           final result = await smartSyncManager.pushLocalChanges();
-          results["Google Drive"] = {"success": result, "pushed": _pendingChangesCount,};
           results['Google Drive'] = {
             'success': result,
             'pushed': _pendingChangesCount,
@@ -720,84 +727,36 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
-  /// حل التعارضات بين البيانات المحلية والبعيدة
-  // ignore: unused_element
-  Future<int> _resolveConflicts() async {
-    int resolvedCount = 0;
-    try {
-      final db = ref.read(databaseProvider);
-      final outboxDao = OutboxDao(db);
-
-      final conflicts = await outboxDao.getConflicts();
-
-      if (conflicts.isEmpty) {
-        return 0;
-      }
-
-      final resolver = ConflictResolver(
-        deviceId: await _getDeviceId(),
-      );
-
-      // معالجة التعارضات بالتوازي باستخدام Future.wait بدلاً من التسلسل
-      final resolveResults = await Future.wait(conflicts.map((conflict) async {
-        try {
-          final localData = conflict.localPayload;
-          final remoteData = conflict.remotePayload;
-
-          final localMap = <String, Map<String, dynamic>>{
-            conflict.targetTable: {conflict.uuid: localData},
-          };
-          final remoteMap = <String, Map<String, dynamic>>{
-            conflict.targetTable: {conflict.uuid: remoteData},
-          };
-
-          final dataConflicts = await resolver.detectConflicts(localMap, remoteMap);
-
-          if (dataConflicts.isNotEmpty) {
-            final resolved = await resolver.resolveConflicts(dataConflicts);
-
-            final winnerData = resolved[conflict.targetTable]?[conflict.uuid];
-            if (winnerData != null) {
-              await outboxDao.resolveConflict(
-                conflict.id,
-                winnerData as Map<String, dynamic>,
-                resolution: 'newer_wins',
-              );
-              return true;
-            }
-          } else {
-            await outboxDao.resolveConflict(
-              conflict.id,
-              localData,
-              resolution: 'auto_no_conflict',
-            );
-          }
-          return false;
-        } catch (e) {
-          debugPrint('❌ خطأ في حل تعارض ${conflict.uuid}: $e');
-          return false;
-        }
-      }),);
-      resolvedCount = resolveResults.where((r) => r).length;
-
-      debugPrint('✅ تم حل $resolvedCount تعارض');
-      return resolvedCount;
-    } catch (e) {
-      debugPrint('❌ خطأ في حل التعارضات: $e');
-      return 0;
-    }
-  }
-
-  /// الحصول على معرف الجهاز
+  /// ✅ P2-6 fix: الحصول على معرف الجهاز — يطابق المعرف الذي يستخدمه الـ sync.
+  ///
+  /// قبل الإصلاح: كانت هذه الدالة تولّد `device_<timestamp>` وتخزّنه تحت
+  /// مفتاح `device_id` — وهو مفتاح مختلف عن `appwrite_device_id` الذي
+  /// يستخدمه `AppwriteSyncManager`. النتيجة: سجلات sync_log تحمل deviceId
+  /// مختلف عن deviceId الفعلي المستخدم في vector clocks و payload الرفع.
+  ///
+  /// بعد الإصلاح: نقرأ من المصدر الموثوق `appwriteSyncManager.currentDeviceId`
+  /// (الذي يُحمَّل من `appwrite_device_id` SharedPreferences). إذا لم يكن
+  /// مسجّلاً بعد (نادراً، فقط قبل أول sync)، نقرأ المفتاح مباشرة كـ fallback،
+  /// ثم 'unknown_device' كحل أخير.
   Future<String> _getDeviceId() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      var deviceId = prefs.getString('device_id');
-      if (deviceId == null) {
-        deviceId = 'device_${DateTime.now().millisecondsSinceEpoch}';
-        await prefs.setString('device_id', deviceId);
+      // 1) المصدر الموثوق: AppwriteSyncManager (يُحدَّث عند registerDevice)
+      final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
+      final canonical = appwriteSyncManager.currentDeviceId;
+      if (canonical != null && canonical.isNotEmpty) {
+        return canonical;
       }
-      return deviceId;
+
+      // 2) Fallback: اقرأ نفس المفتاح مباشرة من SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString('appwrite_device_id');
+      if (stored != null && stored.isNotEmpty) {
+        return stored;
+      }
+
+      // 3) لم يُسجَّل الجهاز بعد — لا نولّد معرفاً وهمياً جديداً
+      //    (ذلك يخلق تعارضاً مع sync). نُرجع قيمة محايدة.
+      return 'unknown_device';
     } catch (e) {
       return 'unknown_device';
     }

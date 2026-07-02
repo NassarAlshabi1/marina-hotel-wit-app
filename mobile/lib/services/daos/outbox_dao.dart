@@ -50,6 +50,31 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return row.read(countExp) ?? 0;
   }
 
+  /// ✅ P2-5 fix: عدد السجلات التي سيأخذها الرفع فعلياً (يطابق نطاق takeBatch).
+  ///
+  /// يطابق تماماً فلتر `takeBatch()` المستخدم في `pushLocalChanges()`:
+  ///   - `processing_status = 'pending'` (فقط، لا يشمل 'failed' أو 'processing')
+  ///   - `delivered_to_primary = 0` (لم تُسلَّم للرئيسي بعد)
+  ///   - `source IN (sources)` عند تمريرها
+  ///
+  /// الفرق عن `count()`:
+  ///   - `count()` يحسب `pending + failed` بغض النظر عن `delivered_to_primary`
+  ///   - هذا يسبّب مبالغة في العدد المعروض لل مستخدم
+  ///
+  /// الاستخدام: شارة "تغييرات معلّقة" على زر الرفع في Dashboard.
+  Future<int> countPendingPushable({List<String>? sources}) async {
+    final countExp = outbox.id.count();
+    final query = selectOnly(outbox)
+      ..addColumns([countExp])
+      ..where(outbox.processingStatus.equals('pending'))
+      ..where(outbox.deliveredToPrimary.equals(false));
+    if (sources != null && sources.isNotEmpty) {
+      query.where(outbox.source.isIn(sources));
+    }
+    final row = await query.getSingle();
+    return row.read(countExp) ?? 0;
+  }
+
   Future<void> resetErrors() async {
     await (update(outbox)
           ..where(
