@@ -51,6 +51,8 @@ class PayloadMapper {
       'lastModified': room.lastModified,
       'version': room.version,
       'origin': room.origin,
+      // ✅ إصلاح: إضافة vectorClock (كان مفقوداً — يُعطّل كشف التعارضات)
+      'vectorClock': room.vectorClock,
       'deviceId': room.deviceId,
       // تمت إزالة الحقول الزائدة التي لا توجد في المخطط (floor, bedsCount, roomType, basePrice)
     };
@@ -338,6 +340,8 @@ class PayloadMapper {
       'lastModified': note.lastModified,
       'version': note.version,
       'origin': note.origin,
+      // ✅ إصلاح: إضافة vectorClock
+      'vectorClock': note.vectorClock,
       'sync_origin': note.origin,
       'deviceId': note.deviceId,
     };
@@ -396,6 +400,8 @@ class PayloadMapper {
       'lastModified': transaction.lastModified,
       'version': transaction.version,
       'origin': transaction.origin,
+      // ✅ إصلاح: إضافة vectorClock
+      'vectorClock': transaction.vectorClock,
       'deviceId': transaction.deviceId,
       'sync_origin': transaction.origin,
     };
@@ -450,6 +456,8 @@ class PayloadMapper {
       'lastModified': payment.lastModified,
       'version': payment.version,
       'origin': payment.origin,
+      // ✅ إصلاح: إضافة vectorClock
+      'vectorClock': payment.vectorClock,
       'deviceId': payment.deviceId,
       'sync_origin': payment.origin,
     };
@@ -474,25 +482,32 @@ class PayloadMapper {
       'priority': note.priority,
       'shiftType': note.shiftType,
       'isRead': note.isRead, // تم الإصلاح: Appwrite يتوقع integer وليس boolean
-      'createdAt': note.createdAt, 
-      'updatedAt': note.updatedAt, 
-      'lastModified': note.lastModified, 
+      'createdAt': note.createdAt,
+      'updatedAt': note.updatedAt,
+      'lastModified': note.lastModified,
       'createdBy': note.createdBy,
-      'shiftDate': shiftDate, 
+      'shiftDate': shiftDate,
       'deviceId': note.deviceId,
       'sync_origin': note.origin,
+      // ✅ حقول الـ sync المفقودة (إصلاح 2026-07-03)
+      'version': note.version,
+      'origin': note.origin,
+      'vectorClock': note.vectorClock,
       // حقل v2 الجديد
-      'note': note.content, 
+      'note': note.content,
     };
     putIfStringNotEmpty(data, 'expiresAt', note.expiresAt);
     putIfStringNotEmpty(data, 'idempotencyKey', note.idempotencyKey);
+    // ✅ إصلاح: إرسال deletedAt كـ integer (epoch seconds) وليس DateTime
+    putIfNotNull(data, 'deletedAt', note.deletedAt);
+    putIfNotNull(data, 'serverId', note.serverId);
     return data;
   }
 
   /// يحوّل [PriceAdjustment] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> priceAdjustmentToRemote(PriceAdjustment row) {
     final now = Time.nowEpoch();
-    return {
+    final data = <String, dynamic>{
       'localUuid': row.localUuid,
       'targetType': row.targetType,
       'targetUuid': row.targetUuid,
@@ -507,17 +522,23 @@ class PayloadMapper {
       'reversedAt': row.reversedAt,
       'reversedBy': row.reversedBy,
       'createdAt': row.createdAt,
-      'updatedAt': now,
-      'lastModified': now,
-      'origin': 'mobile',
+      'updatedAt': row.updatedAt > 0 ? row.updatedAt : now,
+      'lastModified': row.lastModified > 0 ? row.lastModified : now,
+      // ✅ إصلاح: استخدام version/origin/vectorClock من السجل (وليس ثوابت)
+      'version': row.version,
+      'origin': row.origin,
+      'vectorClock': row.vectorClock,
       'syncTimestamp': now,
       'deviceId': row.deviceId,
-      'sync_origin': 'mobile',
-      if (row.serverId != null) 'serverId': row.serverId,
-      // TODO: enable when Drift model has this field — if (row.roomNumber != null) 'roomNumber': row.roomNumber, // حقل v2
-      // TODO: enable when Drift model has this field — if (row.adjustmentMode != null) 'adjustmentMode': row.adjustmentMode, // حقل v2
-      if (row.idempotencyKey != null) 'idempotencyKey': row.idempotencyKey,
+      'sync_origin': row.origin,
     };
+    putIfNotNull(data, 'serverId', row.serverId);
+    putIfStringNotEmpty(data, 'idempotencyKey', row.idempotencyKey);
+    // ✅ إصلاح: إرسال deletedAt كـ integer (epoch seconds)
+    putIfNotNull(data, 'deletedAt', row.deletedAt);
+    // TODO: enable when Drift model has this field — if (row.roomNumber != null) 'roomNumber': row.roomNumber, // حقل v2
+    // TODO: enable when Drift model has this field — if (row.adjustmentMode != null) 'adjustmentMode': row.adjustmentMode, // حقل v2
+    return data;
   }
 
   /// يحوّل سجل [ShiftNote] (يُستخدم كـ blacklist محلي) إلى payload لـ Appwrite.
@@ -533,10 +554,16 @@ class PayloadMapper {
     final createdAtIso = item.createdAtIso ??
         DateTime.fromMillisecondsSinceEpoch(item.createdAt * 1000)
             .toIso8601String();
-    final updatedAtIso = DateTime.fromMillisecondsSinceEpoch(item.updatedAt * 1000)
-        .toIso8601String();
+    final updatedAtIso = item.updatedAtIso ??
+        DateTime.fromMillisecondsSinceEpoch(item.updatedAt * 1000)
+            .toIso8601String();
+    final deletedAtIso = item.deletedAt != null
+        ? (item.deletedAtIso ??
+            DateTime.fromMillisecondsSinceEpoch(item.deletedAt! * 1000)
+                .toIso8601String())
+        : null;
 
-    return {
+    final data = <String, dynamic>{
       // تم الإصلاح الجذري لمطابقة مخطط v2
       'guestName': item.title,
       'guestPhone': (extra['phone'] as String?) ?? '',
@@ -545,24 +572,31 @@ class PayloadMapper {
       'isActive': (extra['active'] as bool?) ?? true,
       'addedDate': createdAtIso,
       'addedBy': (extra['reportedBy'] as String?) ?? 'police',
-      
+
       'localUuid': item.localUuid,
-      'createdAt': createdAtIso,
+      // ✅ إصلاح: createdAt/updatedAt/deletedAt كـ integer (epoch seconds)
+      // مطابقة لكل الكيانات الأخرى مع SyncFields
+      'createdAt': item.createdAt,
       'createdAtIso': createdAtIso,
-      'updatedAt': updatedAtIso,
+      'updatedAt': item.updatedAt,
       'updatedAtIso': updatedAtIso,
-      'deletedAt': item.deletedAt != null
-          ? DateTime.fromMillisecondsSinceEpoch(item.deletedAt! * 1000)
-              .toIso8601String()
-          : null,
       'lastModified': item.lastModified,
-      'origin': 'mobile',
+      // ✅ إصلاح: version/origin/vectorClock من السجل (كانت ثوابت 'mobile')
+      'version': item.version,
+      'origin': item.origin,
+      'vectorClock': item.vectorClock,
       'syncTimestamp': now,
       'deviceId': item.deviceId,
-      'sync_origin': 'mobile',
-      if (item.serverId != null) 'serverId': item.serverId,
-      if (item.idempotencyKey != null) 'idempotencyKey': item.idempotencyKey,
+      'sync_origin': item.origin,
     };
+    // ✅ إصلاح: deletedAt كـ integer (epoch seconds) وليس ISO string
+    putIfNotNull(data, 'deletedAt', item.deletedAt);
+    if (deletedAtIso != null) {
+      putIfStringNotEmpty(data, 'deletedAtIso', deletedAtIso);
+    }
+    putIfNotNull(data, 'serverId', item.serverId);
+    putIfStringNotEmpty(data, 'idempotencyKey', item.idempotencyKey);
+    return data;
   }
 
   /// يحوّل [GuestInfo] محلي إلى payload لـ Appwrite.
