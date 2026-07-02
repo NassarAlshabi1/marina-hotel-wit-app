@@ -6,8 +6,10 @@ import 'package:uuid/uuid.dart';
 
 import '../adapters/adapter_registry.dart';
 import '../appwrite_logger.dart';
+import '../appwrite_sync_manager.dart';
 import '../local_db.dart';
 import '../secondary_appwrite_config.dart';
+import '../vector_clock_service.dart';
 
 part 'outbox_dao.g.dart';
 
@@ -116,6 +118,12 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     }
 
     return transaction(() async {
+      // ✅ P0-VC fix: زيادة Vector Clock عند كل كتابة محلية (لا عند الدفع فقط)
+      // هذا يضمن كشف كل التعديلات المتزامنة حتى لو حدثت عدة تعديلات بين مزامنتين
+      if (source == 'local' && op != 'delete') {
+        await _bumpVectorClockForLocalWrite(entity, localUuid);
+      }
+
       // ✅ البحث عن أي سجل موجود لنفس الكيان والـ UUID بغض النظر عن حالته
       // ('pending' أو 'processing') — هذا يمنع إنشاء سجل مكرر
       final existing = await (select(outbox)
@@ -717,6 +725,36 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     }
     return totalRemoved;
   }
+
+  /// ✅ P0-VC: زيادة Vector Clock عند كل كتابة محلية
+  /// يُستدعى من merge() عند source='local' لضمان كشف كل التعديلات المتزامنة
+  Future<void> _bumpVectorClockForLocalWrite(String entity, String localUuid) async {
+    final tableName = _entityTableMap[entity];
+    if (tableName == null) return;
+
+    final deviceId = AppwriteSyncManager.currentDeviceIdStatic;
+    if (deviceId == null || deviceId.isEmpty) return;
+
+    try {
+      final rows = await attachedDatabase.customSelect(
+        'SELECT vector_clock AS vc FROM $tableName WHERE local_uuid = ? LIMIT 1',
+        variables: [Variable<String>(localUuid)],
+      ).get();
+
+      if (rows.isEmpty) return;
+
+      final currentVcStr = (rows.first.data['vc'] as String?) ?? '{}';
+      final vc = VectorClock.fromString(currentVcStr);
+      vc.increment(deviceId);
+
+      await attachedDatabase.customStatement(
+        'UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?',
+        [vc.toString(), localUuid],
+      );
+    } catch (_) {
+      // تجاهل الأخطاء — VC bump ليس حرجاً لدرجة تعطيل الكتابة
+    }
+  }
 }
 
 /// سجل يمثل تعارض في البيانات
@@ -739,3 +777,26 @@ class ConflictRecord {
   final String lastError;
   final DateTime timestamp;
 }
+
+/// ✅ خريطة أسماء الكيانات إلى أسماء الجداول
+const _entityTableMap = <String, String>{
+  'rooms': 'rooms',
+  'bookings': 'bookings',
+  'payments': 'payments',
+  'expenses': 'expenses',
+  'debts': 'debts',
+  'employees': 'employees',
+  'booking_notes': 'booking_notes',
+  'booking_nights': 'booking_nights',
+  'cash_transactions': 'cash_transactions',
+  'shift_notes': 'shift_notes',
+  'salary_cycles': 'salary_cycles',
+  'salary_payments': 'salary_payments',
+  'salary_withdrawals': 'salary_withdrawals',
+  'guest_infos': 'guest_infos',
+  'blacklist': 'blacklist',
+  'booking_price_adjustments': 'booking_price_adjustments',
+  'price_adjustments': 'price_adjustments',
+  'payment_voids': 'payment_voids',
+  'salary_carry_over_logs': 'salary_carry_over_logs',
+};

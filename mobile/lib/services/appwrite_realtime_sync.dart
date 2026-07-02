@@ -174,14 +174,28 @@ class AppwriteRealtimeSync {
     debugPrint('📡 Realtime: remote changes flag reset - count cleared');
   }
 
+    int _reconnectAttempts = 0;
+
     void _reconnect() {
+      _reconnectAttempts++;
+      // ✅ P1-14 fix: backoff أسّي محدود (5s → 10s → 20s → 40s → 60s capped)
+      final delaySeconds = (_reconnectAttempts == 1)
+          ? 5
+          : (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 60);
+      
       CrashlyticsService.instance.recordSyncError(
         operation: 'realtime_reconnect',
-        error: 'Connection lost — reconnecting in 5s',
+        error: 'Connection lost — reconnecting in ${delaySeconds}s (attempt $_reconnectAttempts)',
         severity: CrashlyticsSeverity.info,
-        context: {'deviceId': _currentDeviceId ?? 'unknown'},
+        context: {'deviceId': _currentDeviceId ?? 'unknown', 'attempt': _reconnectAttempts},
       );
-      Future<void>.delayed(const Duration(seconds: 5), () {
+      
+      // ✅ P1-14 fix: إغلاق الاشتراك القديم قبل إعادة الاشتراك
+      _subscription?.close().catchError((_) {});
+      _subscription = null;
+      _isListening = false;
+
+      Future<void>.delayed(Duration(seconds: delaySeconds), () {
         if (!_isListening) {
           start();
         }
