@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/appwrite_providers.dart';
+import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/appwrite_realtime_sync.dart';
@@ -211,6 +212,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildHeader() {
+    final versionAsync = ref.watch(appVersionProvider);
+    final versionLabel = versionAsync.valueOrNull ?? '...';
     return Row(
       children: [
         Container(
@@ -224,17 +227,48 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: const Icon(Icons.hotel, color: Colors.white, size: 18),
         ),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'فندق مارينا',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              Text(
-                'لوحة التحكم',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+              Row(
+                children: [
+                  const Text(
+                    'لوحة التحكم',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(width: 6),
+                  // ✅ رقم إصدار APK — يُقرأ ديناميكياً من package_info_plus.
+                  // يظهر للمستخدم مباشرةً في الـ header حتى يسهل التحقق من
+                  // النسخة المثبّتة دون فتح شاشة الإعدادات.
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: Colors.blue.shade200,
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Text(
+                      'v$versionLabel',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.blue.shade700,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
