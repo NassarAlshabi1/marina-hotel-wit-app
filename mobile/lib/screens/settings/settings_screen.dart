@@ -539,20 +539,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       builder: (context) => Consumer(
         builder: (context, ref, _) {
-          final isDark = ref.watch(themeSettingsProvider);
+          final pref = ref.watch(themeSettingsProvider);
           return AlertDialog(
             title: const Text('إعدادات التطبيق'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SwitchListTile(
-                  secondary: const Icon(Icons.dark_mode),
-                  title: const Text('المظهر الداكن'),
-                  value: isDark,
-                  onChanged: (v) =>
-                      ref.read(themeSettingsProvider.notifier).setDarkMode(v),
+                Padding(
+                  padding: const EdgeInsets.only(
+                    bottom: 8,
+                    top: 4,
+                    right: 4,
+                  ),
+                  child: Text(
+                    'المظهر',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
                 ),
-                // ✅ تم إزالة عنصر "اللغة" الجامد — لم يكن функциaly
+                // ✅ 3-way radio: فاتح / داكن / تلقائي
+                // يحلّ محلّ SwitchListTile القديم الذي كان bool فقط.
+                ...ThemeModePreference.values.map((mode) {
+                  return RadioListTile<ThemeModePreference>(
+                    value: mode,
+                    groupValue: pref,
+                    onChanged: (v) {
+                      if (v != null) {
+                        ref
+                            .read(themeSettingsProvider.notifier)
+                            .setPreference(v);
+                      }
+                    },
+                    title: Text(mode.arabicLabel),
+                    subtitle: Text(mode.arabicDescription),
+                    secondary: Icon(mode.icon),
+                    dense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  );
+                }),
               ],
             ),
             actions: [
