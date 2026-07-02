@@ -117,16 +117,24 @@ class AppwriteService {
     }
 
     final allDocuments = <models.Document>[];
-    int pageOffset = 0;
     const pageSize = AppwriteConfig.maxPageSize;
+    // ✅ P1-4 fix: cursor pagination بدل offset لمنع إسقاط/تكرار السجلات
+    String? cursorAfterId;
+    bool isFirstPage = true;
 
     try {
       while (true) {
-        final pagedQueries = _applyPagingQueries(
-          queries,
-          limit: pageSize,
-          offset: pageOffset,
-        );
+        final pagedQueries = List<String>.from(queries);
+        // ✅ P1-4: ترتيب ثابت بـ $id لضمان ترقيم مؤشّري حتمي
+        if (isFirstPage) {
+          pagedQueries.add(Query.orderAsc('\$id'));
+          isFirstPage = false;
+        }
+        pagedQueries.add(Query.limit(pageSize));
+        // ✅ P1-4: استخدام cursorAfter بدل offset
+        if (cursorAfterId != null) {
+          pagedQueries.add(Query.cursorAfter(cursorAfterId));
+        }
 
         Future<List<models.Document>> performOperation() async {
           // ignore: deprecated_member_use
@@ -168,7 +176,8 @@ class AppwriteService {
           break;
         }
 
-        pageOffset += pageSize;
+        // ✅ P1-4: تحديث المؤشّر بآخر $id في الصفحة
+        cursorAfterId = pageDocs.last.$id;
       }
     } catch (primaryError) {
       // ✅ Failover: إذا فشل Primary و Secondary مُفعّل للسحب (Pull)، نقرأ منه
