@@ -511,6 +511,14 @@ class SmartConflictResolver {
       case FieldStrategy.newerWins:
         final localTs = _extractTs(localData);
         final remoteTs = _extractTs(remoteData);
+        // ✅ توحيد كسر التعادل: عند التساوي التام يفوز deviceId الأصغر معجمياً (حتمي)
+        if (remoteTs == localTs) {
+          final localDeviceId = (localData['deviceId'] as String?) ?? '';
+          final remoteDeviceId = (remoteData['deviceId'] as String?) ?? '';
+          return _FieldResolution(
+            value: remoteDeviceId.compareTo(localDeviceId) < 0 ? remoteVal : localVal,
+          );
+        }
         return _FieldResolution(
           value: remoteTs > localTs ? remoteVal : localVal,
         );

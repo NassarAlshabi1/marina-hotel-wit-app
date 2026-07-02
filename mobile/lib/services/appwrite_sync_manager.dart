@@ -1693,9 +1693,14 @@ class AppwriteSyncManager {
           localData: localData,
           remoteData: remoteData,
         );
-        // LWW fallback
+        // ✅ توحيد كسر التعادل: LWW + عند التساوي يفوز deviceId الأصغر معجمياً
+        final normalizedRemoteTs = effectiveRemoteTs > 10000000000
+            ? effectiveRemoteTs ~/ 1000 : effectiveRemoteTs;
+        final shouldApply = normalizedRemoteTs > localLastModified ||
+            (normalizedRemoteTs == localLastModified &&
+             (_currentDeviceId ?? '').compareTo('') > 0);
         return _RemoteNewerResult(
-          shouldApplyRemote: effectiveRemoteTs > localLastModified,
+          shouldApplyRemote: shouldApply,
         );
     }
   }
