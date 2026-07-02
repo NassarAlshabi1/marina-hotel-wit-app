@@ -3807,10 +3807,11 @@ class AppwriteSyncManager {
   }
 
   /// رفع التغييرات المحلية إلى Appwrite فوراً
-  Future<bool> pushLocalChanges() async {
+  /// ✅ P1-3 fix: يُرجع عدد السجلات المدفوعة فعلياً بدل bool
+  Future<int> pushLocalChanges() async {
     try {
       final result = await sync(pull: false);
-      return result.status == SyncStatus.success;
+      return result.recordsPushed;
     } catch (e, stackTrace) {
       _logger.error(
         'pushLocalChanges failed via sync()',
@@ -3821,7 +3822,7 @@ class AppwriteSyncManager {
       await CrashlyticsService.instance.recordSyncError(
         operation: 'pushLocalChanges', error: e.toString(), stackTrace: stackTrace,
       );
-      return false;
+      return 0;
     }
   }
 

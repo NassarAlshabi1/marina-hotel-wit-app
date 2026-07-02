@@ -117,33 +117,54 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       deviceId = 'unknown';
     }
 
-    // ✅ إصلاح: التحقق من _isPulling قبل كتابة سجل المزامنة
-    // سابقاً كان السجل يُكتب قبل التحقق مما يُنشئ سجلات وهمية
+    // ✅ P1-2 fix: ضبط العلم متزامناً فوراً قبل أي await لمنع إعادة الدخول
     if (_isPulling) {
       return;
     }
 
-    // تسجيل بداية العملية
-    final db = ref.read(databaseProvider);
-    final syncLogDao = SyncLogDao(db);
-    await syncLogDao.logSync(
-      syncId: syncId,
-      direction: 'pull',
-      deviceId: deviceId,
-      target: 'Appwrite',
-      status: 'in_progress',
-    );
-
-    unawaited(_pullAnimationController.repeat());
-    if (mounted) {
-      setState(() => _isPulling = true);
-    } else {
-      _isPulling = true;
+    // ✅ P2-4 fix: تحذير قبل السحب عند وجود تغييرات محلية غير مرفوعة
+    if (_pendingChangesCount > 0) {
+      if (!mounted) return;
+      final shouldContinue = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('⚠️ تغييرات محلية غير مرفوعة'),
+          content: Text(
+            'لديك $_pendingChangesCount تغييراً محلياً لم يُرفع بعد.\n\n'
+            'سحب البيانات قبل رفع تغييراتك قد يدهس تعديلاتك المحلية.\n\n'
+            'هل تريد الرفع أولاً ثم السحب؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('سحب فقط'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('رفع ثم سحب'),
+            ),
+          ],
+        ),
+      );
+      if (shouldContinue == true) {
+        // رفع ثم سحب
+        await _pushChanges(context);
+      } else if (shouldContinue != false) {
+        return; // المستخدم أغلق الحوار
+      }
     }
 
+    _isPulling = true;
+    if (mounted) {
+      setState(() {});
+    }
+
+    // ✅ P1-1 fix: كل الفحوص تتم قبل كتابة سجل in_progress
+    // لا نكتب in_progress إلا بعد اجتياز كل فحوص ما-قبل-البدء
     try {
       final appwriteEnabled = await _isAppwriteSyncEnabled();
       if (!appwriteEnabled) {
+        _isPulling = false;
         if (mounted) {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
@@ -160,6 +181,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       final appwriteConnected = ref.read(connectionStatusProvider).isConnected;
 
       if (!appwriteConnected) {
+        _isPulling = false;
         if (mounted) {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
@@ -171,6 +193,19 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
         return;
       }
+
+      // ✅ الآن بعد اجتياز كل الفحوص — نكتب سجل in_progress
+      final db = ref.read(databaseProvider);
+      final syncLogDao = SyncLogDao(db);
+      await syncLogDao.logSync(
+        syncId: syncId,
+        direction: 'pull',
+        deviceId: deviceId,
+        target: 'Appwrite',
+        status: 'in_progress',
+      );
+
+      unawaited(_pullAnimationController.repeat());
 
       if (mounted) {
         // ignore: use_build_context_synchronously
@@ -255,15 +290,19 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       // ✅ تسجيل فشل العملية
       stopwatch.stop();
-      await syncLogDao.logSync(
-        syncId: syncId,
-        direction: 'pull',
-        deviceId: deviceId,
-        target: 'Appwrite',
-        status: 'failed',
-        errorMessage: e.toString(),
-        durationMs: stopwatch.elapsedMilliseconds,
-      );
+      try {
+        final db = ref.read(databaseProvider);
+        final syncLogDao = SyncLogDao(db);
+        await syncLogDao.logSync(
+          syncId: syncId,
+          direction: 'pull',
+          deviceId: deviceId,
+          target: 'Appwrite',
+          status: 'failed',
+          errorMessage: e.toString(),
+          durationMs: stopwatch.elapsedMilliseconds,
+        );
+      } catch (_) {}
 
       if (mounted) {
         // ignore: use_build_context_synchronously
@@ -302,23 +341,18 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       deviceId = 'unknown';
     }
 
-    // ✅ إصلاح: التحقق من _isPushing قبل كتابة سجل المزامنة
+    // ✅ P1-2 fix: ضبط العلم متزامناً فوراً قبل أي await
     if (_isPushing) {
       return;
     }
+    _isPushing = true;
+    if (mounted) {
+      setState(() {});
+    }
 
-    // تسجيل بداية العملية
-    final db = ref.read(databaseProvider);
-    final syncLogDao = SyncLogDao(db);
-    await syncLogDao.logSync(
-      syncId: syncId,
-      direction: 'push',
-      deviceId: deviceId,
-      target: 'Appwrite+GoogleDrive',
-      status: 'in_progress',
-    );
-
+    // ✅ P1-1 fix: كل الفحوص قبل كتابة سجل in_progress
     if (_pendingChangesCount == 0) {
+      _isPushing = false;
       if (mounted) {
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
@@ -338,12 +372,19 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       return;
     }
 
+    // ✅ الآن بعد اجتياز الفحوص — نكتب سجل in_progress
+    final db = ref.read(databaseProvider);
+    final syncLogDao = SyncLogDao(db);
+    await syncLogDao.logSync(
+      syncId: syncId,
+      direction: 'push',
+      deviceId: deviceId,
+      target: 'Appwrite',
+      status: 'in_progress',
+    );
+
     unawaited(_pushAnimationController.repeat());
-    if (mounted) {
-      setState(() => _isPushing = true);
-    } else {
-      _isPushing = true;
-    }
+    // _isPushing ضُبط بالفعل في الأعلى (P1-2 fix)
 
     try {
       final smartSyncManager = ref.read(smartSyncManagerProvider);
@@ -439,10 +480,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       // رفع إلى Appwrite أولاً
       if (appwriteEnabled && appwriteConnected) {
         try {
-          final result = await appwriteSyncManager.pushLocalChanges();
+          // ✅ P1-3 fix: pushLocalChanges تُعيد عدد السجلات الفعلي
+          final pushedCount = await appwriteSyncManager.pushLocalChanges();
           results['Appwrite'] = {
-            'success': result,
-            'pushed': _pendingChangesCount,
+            'success': pushedCount >= 0,
+            'pushed': pushedCount,
           };
         } catch (e) {
           results['Appwrite'] = {
@@ -458,6 +500,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (smartEnabled && isGoogleDriveSignedIn) {
         try {
           final result = await smartSyncManager.pushLocalChanges();
+          results["Google Drive"] = {"success": result, "pushed": _pendingChangesCount,};
           results['Google Drive'] = {
             'success': result,
             'pushed': _pendingChangesCount,
