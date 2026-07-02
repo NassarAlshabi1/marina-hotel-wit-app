@@ -357,11 +357,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     AsyncValue<List<Employee>> employeesAsync,
     AsyncValue<int> usersCountAsync,
   ) {
+    // ✅ بطاقة مُصغّرة: padding/margin/icon/font sizes كلها مُقلّصة
+    // لتوفير مساحة عمودية في شاشة الإعدادات.
     return Card(
-      elevation: 4,
-      margin: const EdgeInsets.all(16),
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -369,17 +371,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 Icon(
                   Icons.dashboard,
+                  // ignore: deprecated_member_use_from_same_package
                   color: Theme.of(context).primaryColor,
-                  size: 28,
+                  size: 18,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 6),
                 const Text(
                   'إحصائيات سريعة',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -392,7 +398,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 Expanded(
                   child: _buildStatItem(
-                    'الحجوزات النشطة',
+                    'النشطة',
                     bookingsAsync.value
                             ?.where(
                               (b) => StatusUtils.isActiveBooking(b.status),
@@ -436,19 +442,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   ) {
     return Column(
       children: [
-        Icon(icon, color: color, size: 32),
-        const SizedBox(height: 8),
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 4),
         Text(
           value,
           style: TextStyle(
-            fontSize: 24,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
             color: color,
           ),
         ),
         Text(
           title,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: const TextStyle(fontSize: 10, color: Colors.grey),
           textAlign: TextAlign.center,
         ),
       ],
