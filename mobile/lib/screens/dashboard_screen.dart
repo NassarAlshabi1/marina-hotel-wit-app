@@ -12,8 +12,10 @@ import '../providers/room_payment_status_provider.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/local_db.dart';
 import '../services/remote_config_service.dart';
+import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
 import '../utils/status_utils.dart';
+import '../widgets/dashboard_conflicts_badge.dart';
 import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
 import 'payments/booking_payment_screen.dart';
@@ -60,6 +62,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _autoPullFromAppwrite() async {
+    // ✅ P3-5 (Global SyncGate): السحب التلقائي عند الفتح يمرّ عبر البوّابة
+    // العامة. إذا كان المستخدم قد ضغط زر مزامنة يدوياً، أو كان المؤقّت
+    // يعمل، فإن السحب التلقائي يُلغى بصمت دون منافسة على الموارد.
+    final executed = await SyncGate.instance.runGuardedVoid(
+      operation: 'auto_pull',
+      source: 'auto_open',
+      task: _autoPullFromAppwriteInner,
+    );
+    if (!executed) {
+      debugPrint(
+        'ℹ️ [AutoPull] skipped — SyncGate busy with '
+        '${SyncGate.instance.state.operation} from '
+        '${SyncGate.instance.state.source}',
+      );
+    }
+  }
+
+  Future<void> _autoPullFromAppwriteInner() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
@@ -219,6 +239,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
         ),
+        const DashboardConflictsBadge(),
+        const SizedBox(width: 8),
         const DashboardSyncButton(),
       ],
     );

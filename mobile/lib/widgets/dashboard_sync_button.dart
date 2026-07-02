@@ -13,6 +13,7 @@ import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
 import '../services/secondary_appwrite_config.dart';
 import '../services/secondary_sync_manager.dart';
+import '../services/sync/sync_gate.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
@@ -109,7 +110,40 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   }
 
   /// سحب التغييرات من Appwrite (Pull فقط - بدون دفع)
+  ///
+  /// ✅ P3-5 (Global SyncGate): العملية بالكامل محاطة بـ runGuarded —
+  /// إذا كانت أي عملية مزامنة أخرى جارية من أي مصدر (زر، سحب تلقائي،
+  /// مؤقّت)، يُرفض الدخول فوراً ويُظهر إشعار للمستخدم.
   Future<void> _pullChanges(BuildContext context) async {
+    final executed = await SyncGate.instance.runGuardedVoid(
+      operation: 'pull',
+      source: 'dashboard_button',
+      task: () => _pullChangesInner(context),
+    );
+    if (!executed && mounted) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.lock_clock, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '⏳ المزامنة مشغولة حالياً بعملية أخرى '
+                  '(${SyncGate.instance.state.operation ?? "?"})',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.blueGrey,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _pullChangesInner(BuildContext context) async {
     final stopwatch = Stopwatch()..start();
     final syncId = 'pull_${DateTime.now().millisecondsSinceEpoch}';
     String? deviceId;
@@ -120,6 +154,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
 
     // ✅ P1-2 fix: ضبط العلم متزامناً فوراً قبل أي await لمنع إعادة الدخول
+    // (محلياً داخل هذا الـ widget — البوّابة العامة تحمي عبر المصادر)
     if (_isPulling) {
       return;
     }
@@ -155,7 +190,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         return;
       }
       if (shouldContinue) {
-        // رفع ثم سحب
+        // رفع ثم سحب — نخرج مؤقتاً من البوّابة الحالية لأن _pushChanges
+        // سيحاول دخولها بنفسه. البوّابة تُحرَّر هنا ويُعاد دخولها في الـ push.
         if (!mounted) return;
         // ignore: use_build_context_synchronously
         await _pushChanges(context);
@@ -339,7 +375,38 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   }
 
   /// رفع التغييرات المحلية (Push فقط)
+  ///
+  /// ✅ P3-5 (Global SyncGate): العملية بالكامل محاطة بـ runGuarded.
   Future<void> _pushChanges(BuildContext context) async {
+    final executed = await SyncGate.instance.runGuardedVoid(
+      operation: 'push',
+      source: 'dashboard_button',
+      task: () => _pushChangesInner(context),
+    );
+    if (!executed && mounted) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.lock_clock, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '⏳ المزامنة مشغولة حالياً بعملية أخرى '
+                  '(${SyncGate.instance.state.operation ?? "?"})',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.blueGrey,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _pushChangesInner(BuildContext context) async {
     final stopwatch = Stopwatch()..start();
     final syncId = 'push_${DateTime.now().millisecondsSinceEpoch}';
     String? deviceId;
@@ -782,9 +849,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   }
 
   // ✅ تحسين: إضافة معامل pendingCount لعرض عدد التغييرات
-  Widget _buildPullButton(bool hasRemoteChanges, bool isGoogleDriveSignedIn, int pendingCount) {
-    // زر السحب متاح دائماً طالما Appwrite مفعّل وليس جاري مزامنة
-    final bool pullEnabled = _appwriteEnabled && !_isPulling && !_isPushing;
+  Widget _buildPullButton(bool hasRemoteChanges, bool isGoogleDriveSignedIn, int pendingCount, bool gateBusy) {
+    // زر السحب متاح دائماً طالما Appwrite مفعّل وليس جاري مزامنة محلياً،
+    // والبوّابة العامة ليست مشغولة بعملية من أي مصدر آخر.
+    final bool pullEnabled = _appwriteEnabled && !_isPulling && !_isPushing && !gateBusy;
 
     Color buttonColor;
     IconData buttonIcon;
@@ -909,9 +977,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     );
   }
 
-  Widget _buildPushButton(bool hasChanges, bool isGoogleDriveSignedIn) {
-    // زر الدفع متاح فقط إذا كان يوجد تغييرات محلية
-    final bool pushEnabled = hasChanges && !_isPulling && !_isPushing;
+  Widget _buildPushButton(bool hasChanges, bool isGoogleDriveSignedIn, bool gateBusy) {
+    // زر الدفع متاح فقط إذا كان يوجد تغييرات محلية، والبوّابة العامة
+    // ليست مشغولة بعملية من أي مصدر آخر.
+    final bool pushEnabled = hasChanges && !_isPulling && !_isPushing && !gateBusy;
 
     Color buttonColor;
     IconData buttonIcon;
@@ -1051,21 +1120,33 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         return ValueListenableBuilder<int>(
           valueListenable: AppwriteRealtimeSync().pendingRemoteChangesCount,
           builder: (context, pendingRemoteCount, child) {
-            final hasLocalChanges = _pendingChangesCount > 0;
+            // ✅ P3-5 (Global SyncGate): مراقبة البوّابة العامة. إذا كانت
+            // مشغولة بعملية من أي مصدر (زر آخر، سحب تلقائي، مؤقّت)،
+            // تُعطَّل الأزرار تلقائياً.
+            return ValueListenableBuilder<SyncGateState>(
+              valueListenable: SyncGate.instance.notifier,
+              builder: (context, gateState, child) {
+                final gateBusy = gateState.isBusy;
+                // إذا البوّابة مشغولة بعمل من هذه الـ widget نفسها (push/pull
+                // محلي)، فإن _isPulling/_isPushing بالفعل يُظهر التغذية
+                // الراجعة البصرية المناسبة. أما إذا كانت مشغولة بمصدر خارجي
+                // (auto_open / timer / background)، نُظهر حالة "مشغول" عامة.
+                final externalBusy = gateBusy && !_isPulling && !_isPushing;
+                final hasLocalChanges = _pendingChangesCount > 0;
 
-            return Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
+                return Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
             // صف الأزرار: زر السحب + زر الدفع
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // زر السحب من السيرفر - ✅ تحديث: تمرير عداد التغييرات
-                _buildPullButton(hasRemoteChanges, isGoogleDriveSignedIn, pendingRemoteCount),
+                // زر السحب من السيرفر - ✅ تحديث: تمرير عداد التغييرات + حالة البوّابة
+                _buildPullButton(hasRemoteChanges, isGoogleDriveSignedIn, pendingRemoteCount, gateBusy),
                 const SizedBox(width: 8),
                 // زر الدفع إلى السيرفر
-                _buildPushButton(hasLocalChanges, isGoogleDriveSignedIn),
+                _buildPushButton(hasLocalChanges, isGoogleDriveSignedIn, gateBusy),
               ],
             ),
             const SizedBox(height: 6),
@@ -1073,14 +1154,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: _isPulling || _isPushing
+                color: _isPulling || _isPushing || externalBusy
                     ? Colors.blue.shade50
                     : (hasLocalChanges || hasRemoteChanges)
                         ? Colors.orange.shade50
                         : Colors.green.shade50,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: _isPulling || _isPushing
+                  color: _isPulling || _isPushing || externalBusy
                       ? Colors.blue.shade200
                       : (hasLocalChanges || hasRemoteChanges)
                           ? Colors.orange.shade200
@@ -1094,9 +1175,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   Icon(
                     hasLocalChanges || hasRemoteChanges
                         ? Icons.sync_problem
-                        : (_isPulling || _isPushing ? Icons.sync : Icons.check_circle),
+                        : (_isPulling || _isPushing || externalBusy ? Icons.sync : Icons.check_circle),
                     size: 12,
-                    color: _isPulling || _isPushing
+                    color: _isPulling || _isPushing || externalBusy
                         ? Colors.blue
                         : (hasLocalChanges || hasRemoteChanges)
                             ? Colors.orange
@@ -1112,14 +1193,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                             ? 'جاري السحب...'
                             : _isPushing
                                 ? 'جاري الرفع...'
-                                : hasLocalChanges
-                                    ? '$_pendingChangesCount تغيير محلي معلق'
-                                    : hasRemoteChanges
-                                        ? '$pendingRemoteCount تحديث من السيرفر'
-                                        : 'محدّث',
+                                : externalBusy
+                                    ? 'مزامنة من مصدر آخر (${gateState.operation ?? "?"})'
+                                    : hasLocalChanges
+                                        ? '$_pendingChangesCount تغيير محلي معلق'
+                                        : hasRemoteChanges
+                                            ? '$pendingRemoteCount تحديث من السيرفر'
+                                            : 'محدّث',
                         style: TextStyle(
                           fontSize: 11,
-                          color: _isPulling || _isPushing
+                          color: _isPulling || _isPushing || externalBusy
                               ? Colors.blue.shade900
                               : (hasLocalChanges || hasRemoteChanges)
                                   ? Colors.orange.shade900
@@ -1127,7 +1210,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (!_isPulling && !_isPushing)
+                      if (!_isPulling && !_isPushing && !externalBusy)
                         FutureBuilder<SyncLogEntry?>(
                           future: SyncLogDao(ref.read(databaseProvider)).getLastSync(),
                           builder: (context, snapshot) {
@@ -1186,8 +1269,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 ],
               ),
             ),
-          ],
-        );
+              ],
+                );
+              },
+            );
           },
         );
       },

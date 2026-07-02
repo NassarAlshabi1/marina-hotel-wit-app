@@ -2984,10 +2984,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ref
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
-            .then((success) {
+            .then((pushedCount) {
           debugPrint(
             '📤 [EarlyCheckout] push-only to Appwrite Cloud: '
-            '${success ? "success" : "deferred (will retry via outbox)"}',
+            '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
           );
         }).catchError((Object e) {
           debugPrint('⚠️ [EarlyCheckout] push to Appwrite Cloud failed: $e — '
@@ -3140,10 +3140,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ref
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
-            .then((success) {
+            .then((pushedCount) {
           debugPrint(
             '📤 [CreateDebt] push-only to Appwrite Cloud: '
-            '${success ? "success" : "deferred"}',
+            '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred"}',
           );
         }).catchError((Object e) {
           debugPrint('⚠️ [CreateDebt] push failed: $e');
@@ -3215,10 +3215,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ref
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
-            .then((success) {
+            .then((pushedCount) {
           debugPrint(
             '📤 [Checkout] push-only to Appwrite Cloud: '
-            '${success ? "success" : "deferred (will retry via outbox)"}',
+            '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
           );
         }).catchError((Object e) {
           debugPrint('⚠️ [Checkout] push to Appwrite Cloud failed: $e — '
