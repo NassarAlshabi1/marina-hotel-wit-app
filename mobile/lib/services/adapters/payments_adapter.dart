@@ -41,6 +41,9 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       localId: localId,
       serverId: serverBookingId,
       uuid: bookingUuid,
+      // ✅ إصلاح حرج: عند المزامنة من السيرفر، لا نستخدم localId كـ fallback
+      // لأن bookingLocalId من جهاز بعيد يختلف عن المحلي (autoIncrement مستقل)
+      fromRemote: src == Source.appwrite || src == Source.drive,
     );
 
     // تحذير إذا كان لدينا booking_local_id لكن لم نتمكن من حل المرجع

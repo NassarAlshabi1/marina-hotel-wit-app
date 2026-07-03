@@ -27,6 +27,7 @@ class IdResolver {
     int? localId,
     int? serverId,
     String? uuid,
+    bool fromRemote = false,
   }) async {
     if (uuid != null && uuid.isNotEmpty) {
       // ✅ إصلاح حرج: محاولة كلا صيغتي UUID (بالشرطات وبدون)
@@ -80,7 +81,13 @@ class IdResolver {
         return row.id;
       }
     }
-    if (localId != null) {
+    // ✅ إصلاح حرج: لا نستخدم localId من جهاز بعيد كـ fallback!
+    // المشكلة: bookingLocalId=27 على جهاز A ≠ bookingLocalId=27 على جهاز B
+    // (autoIncrement محلي مستقل). استخدام localId من السيرفر يربط الدفعة
+    // بحجز خاطئ (حجز آخر له نفس id المحلي لكنه شخص مختلف تماماً).
+    //
+    // localId يُستخدم فقط للمسار المحلي (fromRemote=false) حيث id محلي صحيح.
+    if (localId != null && !fromRemote) {
       final row =
           await (db.select(db.bookings)
                 ..where((b) => b.id.equals(localId))
