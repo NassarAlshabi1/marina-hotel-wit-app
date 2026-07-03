@@ -20,6 +20,7 @@ import '../utils/secure_storage.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'adapters/adapter_registry.dart';
+import 'adapters/id_resolver.dart';
 import 'adapters/salary_withdrawals_adapter.dart';
 import 'adapters/source.dart';
 import 'appwrite_config.dart';
@@ -6174,6 +6175,9 @@ class AppwriteSyncManager {
           '⚠️ يوجد $orphanPayCount دفعة يتيمة (بدون ربط بحجز موجود)',
           tag: 'SYNC_INTEGRITY',
         );
+
+        // ✅ إصلاح: إعادة ربط المدفوعات اليتيمة بـ bookingUuidCache
+        await _relinkOrphanedPayments();
       }
 
       // 3. التحقق من سحوبات الرواتب اليتيمة
@@ -6213,6 +6217,109 @@ class AppwriteSyncManager {
         error: e,
         stackTrace: st,
         tag: 'SYNC_INTEGRITY',
+      );
+    }
+  }
+
+  /// ✅ إعادة ربط المدفوعات اليتيمة بحجوزاتها عبر bookingUuidCache.
+  ///
+  /// المشكلة: عند المزامنة، قد تصل المدفوعات قبل الحجوزات (أو الحجز
+  /// مخزّن بصيغة UUID مختلفة — بالشرطات vs بدون). النتيجة: الدفعة
+  /// تُخزّن بـ bookingLocalId=null أو خاطئ → تصبح يتيمة.
+  ///
+  /// الحل: بعد انتهاء المزامنة، نبحث عن المدفوعات التي لها
+  /// bookingUuidCache لكن bookingLocalId غير مربوط بحجز موجود،
+  /// ونُعيد ربطها عبر IdResolver (الذي يجرّب كلا صيغتي UUID).
+  Future<void> _relinkOrphanedPayments() async {
+    try {
+      // ابحث عن المدفوعات التي لها bookingUuidCache لكن bookingLocalId
+      // غير مربوط (NULL أو يشير لحجز غير موجود)
+      final orphans = await database.customSelect(
+        'SELECT p.id, p.booking_uuid_cache, p.booking_local_id '
+        'FROM payments p '
+        'LEFT JOIN bookings b ON p.booking_local_id = b.id '
+        'WHERE p.booking_uuid_cache IS NOT NULL '
+        'AND p.booking_uuid_cache != "" '
+        'AND p.deleted_at IS NULL '
+        'AND (p.booking_local_id IS NULL OR b.id IS NULL)',
+        readsFrom: {database.payments, database.bookings},
+      ).get();
+
+      if (orphans.isEmpty) {
+        return;
+      }
+
+      _logger.info(
+        '🔗 إعادة ربط ${orphans.length} دفعة يتيمة عبر bookingUuidCache',
+        tag: 'SYNC_RELINK',
+      );
+
+      final resolver = IdResolver(database);
+      int relinked = 0;
+
+      for (final row in orphans) {
+        final paymentId = row.read<int>('id');
+        final bookingUuid = row.read<String>('booking_uuid_cache');
+
+        // استخدم IdResolver لـ resolveBooking (يجرّب كلا صيغتي UUID)
+        final resolvedBookingId = await resolver.resolveBooking(
+          uuid: bookingUuid,
+        );
+
+        if (resolvedBookingId != null) {
+          // ✅ وجدنا الحجز — أعد الربط
+          await (database.update(database.payments)
+                ..where((t) => t.id.equals(paymentId)))
+              .write(PaymentsCompanion(
+            bookingLocalId: drift.Value(resolvedBookingId),
+          ));
+          relinked++;
+          _logger.debug(
+            '  ✅ Payment #$paymentId → booking #$resolvedBookingId '
+            '(uuid: ${bookingUuid.substring(0, 8)}...)',
+            tag: 'SYNC_RELINK',
+          );
+        } else {
+          _logger.warning(
+            '  ❌ Payment #$paymentId: could not resolve booking '
+            'uuid: $bookingUuid',
+            tag: 'SYNC_RELINK',
+          );
+        }
+      }
+
+      if (relinked > 0) {
+        _logger.info(
+          '✅ تم إعادة ربط $relinked/$orphans.length دفعة يتيمة',
+          tag: 'SYNC_RELINK',
+        );
+
+        // أعد حساب الحجوزات المتأثرة
+        final relinkedBookingIds = <int>{};
+        for (final row in orphans) {
+          final paymentId = row.read<int>('id');
+          final updated = await (database.select(database.payments)
+                ..where((t) => t.id.equals(paymentId)))
+              .getSingleOrNull();
+          if (updated?.bookingLocalId != null) {
+            relinkedBookingIds.add(updated!.bookingLocalId!);
+          }
+        }
+        for (final bookingId in relinkedBookingIds) {
+          try {
+            await _bookingsRepository.derivedFields
+                .refreshForBookingId(bookingId);
+          } catch (e) {
+            debugPrint('⚠️ refreshForBookingId($bookingId) failed: $e');
+          }
+        }
+      }
+    } catch (e, st) {
+      _logger.error(
+        '❌ فشل إعادة ربط المدفوعات اليتيمة',
+        error: e,
+        stackTrace: st,
+        tag: 'SYNC_RELINK',
       );
     }
   }

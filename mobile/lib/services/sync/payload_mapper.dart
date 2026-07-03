@@ -36,6 +36,19 @@ class PayloadMapper {
     }
   }
 
+  /// ✅ يطبّع UUID للصيغة القياسية (بالشرطات: 8-4-4-4-12).
+  /// إذا كان 32 حرف بدون شرطات، يضيف الشرطات.
+  /// إذا كان بالشرطات بالفعل، يُرجعه كما هو.
+  String _normalizeUuid(String uuid) {
+    final trimmed = uuid.trim();
+    if (trimmed.length == 32 && !trimmed.contains('-')) {
+      return '${trimmed.substring(0, 8)}-${trimmed.substring(8, 12)}-'
+          '${trimmed.substring(12, 16)}-${trimmed.substring(16, 20)}-'
+          '${trimmed.substring(20)}';
+    }
+    return trimmed;
+  }
+
   // ── Entity Mappers ───────────────────────────────────────────────────────
 
   /// يحوّل [Room] محلي إلى payload لـ Appwrite.
@@ -199,7 +212,15 @@ class PayloadMapper {
     };
     putIfNotNull(data, 'serverPaymentId', payment.serverPaymentId);
     putIfNotNull(data, 'bookingLocalId', payment.bookingLocalId);
-    putIfStringNotEmpty(data, 'bookingUuidCache', payment.bookingUuidCache);
+    // ✅ إصلاح: تطبيع bookingUuidCache للصيغة القياسية (بالشرطات) قبل الإرسال
+    // منع تكرار UUIDs بصيغ مختلفة على Appwrite Cloud
+    if (payment.bookingUuidCache != null && payment.bookingUuidCache!.isNotEmpty) {
+      putIfStringNotEmpty(
+        data,
+        'bookingUuidCache',
+        _normalizeUuid(payment.bookingUuidCache!),
+      );
+    }
     putIfNotNull(data, 'serverBookingId', payment.serverBookingId);
     putIfStringNotEmpty(data, 'roomNumber', payment.roomNumber);
     putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
