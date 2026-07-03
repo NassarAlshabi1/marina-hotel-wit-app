@@ -228,20 +228,10 @@ bool _isUniqueConstraintError(Object error) {
     return result.data['id'] as int?;
   }
 
-  /// جلب الصف الكامل من الجدول المحلي بواسطة localUuid
-  /// يُستخدم لإعادة بناء الحمولة من DB المحلي (secondary sync)
-  Future<D?> getByLocalUuid(String localUuid) async {
-    final result = await (db.select(table)
-          ..where((t) => (t as dynamic).localUuid.equals(localUuid)))
-        .getSingleOrNull();
-    return result;
-  }
-
-  /// بناء حمولة Appwrite من النموذج المحلي
-  /// يُستخدم لإصلاح مشكلة snake_case في المسار الثانوي
-  Future<Map<String, dynamic>> buildAppwritePayload(String localUuid) async {
-    final model = await getByLocalUuid(localUuid);
-    if (model == null) return {};
-    return adapter.toJson(model, src: Source.appwrite);
-  }
+  // ✅ تمت إزالة getByLocalUuid و buildAppwritePayload (PR #451):
+  // كانت هاتان الدالتان dead code — غير مستخدمتين في أي مكان.
+  // كما أن getByLocalUuid كان يُسبب تحذير flutter analyze
+  // (return_of_invalid_type_from_closure) بسبب التحويل لـ dynamic.
+  // أي حاجة مستقبلية لهذه الوظائف يجب أن تستخدم TypedResult +
+  // table.mapper بدل dynamic casting.
 }
