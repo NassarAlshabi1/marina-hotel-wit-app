@@ -120,16 +120,17 @@ class AppwriteService {
     const pageSize = AppwriteConfig.maxPageSize;
     // ✅ P1-4 fix: cursor pagination بدل offset لمنع إسقاط/تكرار السجلات
     String? cursorAfterId;
-    bool isFirstPage = true;
 
     try {
       while (true) {
         final pagedQueries = List<String>.from(queries);
-        // ✅ P1-4: ترتيب ثابت بـ $id لضمان ترقيم مؤشّري حتمي
-        if (isFirstPage) {
-          pagedQueries.add(Query.orderAsc('\$id'));
-          isFirstPage = false;
-        }
+        // ✅ P1-4: ترتيب ثابت بـ $id لضمان ترقيم مؤشّري حتمي.
+        // ⚠️ إصلاح (PR #451 r3521832510): يجب إضافة orderAsc على كل صفحة،
+        // ليس فقط الأولى. cursor pagination يتطلب ترتيباً متطابقاً عبر
+        // جميع الصفحات وإلا فاشل Appwrite بـ "cursor requires consistent
+        // sort order" أو يُرجع نتائج خاطئة. pagedQueries يُعاد بناؤه
+        // من queries (بدون الترتيب) في كل تكرار، لذا يجب إعادة إضافته.
+        pagedQueries.add(Query.orderAsc('\$id'));
         pagedQueries.add(Query.limit(pageSize));
         // ✅ P1-4: استخدام cursorAfter بدل offset
         if (cursorAfterId != null) {
