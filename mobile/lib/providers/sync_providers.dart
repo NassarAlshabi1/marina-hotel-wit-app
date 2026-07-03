@@ -35,7 +35,6 @@ final syncPullServiceProvider = Provider<SyncPullService>((ref) {
     appwriteService: ref.read(appwriteServiceProvider),
     database: ref.read(databaseProvider),
     outboxDao: ref.read(outboxDaoProvider),
-    errorService: ref.read(syncErrorServiceProvider('PULL')),
   );
 });
 

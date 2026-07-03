@@ -127,10 +127,6 @@ class AppwriteSyncManager {
       appwriteService: appwriteService,
       database: database,
       outboxDao: outboxDao,
-      adapterRegistry: _adapterRegistry,
-      bookingsRepository: _bookingsRepository,
-      roomsRepository: _roomsRepository,
-      errorService: _err,
     );
   }
   static AppwriteSyncManager? _instance;
