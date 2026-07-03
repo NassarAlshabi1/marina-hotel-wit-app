@@ -12,7 +12,6 @@ import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/local_db.dart';
-import '../services/night_audit_service.dart';
 import '../services/remote_config_service.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
@@ -206,8 +205,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             _buildRoomsSection(),
             const SizedBox(height: 12),
             _buildColorInstructions(),
-            const SizedBox(height: 20),
-            _buildBottomNightAuditButton(),
           ],
         ),
       ),
@@ -281,127 +278,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         const DashboardSyncButton(),
       ],
     );
-  }
-
-  /// ✅ زر إقفال اليوم (Night Audit) — يُعرض في أسفل الشاشة كزر بارز
-  ///
-  /// نستخدم FutureProvider مع keepAlive + cache — لا يُعاد تنفيذه عند كل
-  /// بناء للـ widget (مثلاً أثناء المزامنة). يُحدَّث فقط عند الضغط على الزر.
-  /// وضع الزر في الأسفل بدل الـ header يمنع اهتزاز الشاشة أثناء المزامنة
-  /// لأن الـ header يُعاد بناؤه باستمرار مع تحديث حالة المزامنة.
-  Widget _buildBottomNightAuditButton() {
-    return Consumer(
-      builder: (context, ref, _) {
-        final isClosedAsync = ref.watch(isDayClosedProvider(null));
-
-        // ✅ إصلاح: استخدم snapshot_data مباشرة بدل .when() لتجنّب الاهتزاز
-        // عند إعادة البناء أثناء المزامنة. إذا كان loading، نُظهر الزر
-        // بالحالة السابقة (بدل CircularProgressIndicator الذي يسبب الاهتزاز).
-        final isClosed = isClosedAsync.valueOrNull ?? false;
-        return _NightAuditButton(
-          isClosed: isClosed,
-          onTap: () => _performNightAudit(context),
-        );
-      },
-    );
-  }
-
-  Future<void> _performNightAudit(BuildContext context) async {
-    final service = NightAuditService.instance;
-    final isClosed = await service.isDayClosed(null);
-
-    if (isClosed) {
-      // اليوم مُقفل — اسأل عن إعادة الإرسال
-      final reSend = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('إعادة إرسال التقرير'),
-          content: const Text(
-            'تم إقفال اليوم بالفعل. هل تريد إعادة إرسال التقرير؟',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('إلغاء'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('إعادة الإرسال'),
-            ),
-          ],
-        ),
-      );
-      if (reSend != true) return;
-    } else {
-      // تأكيد الإقفال
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.nightlight_round, color: Colors.indigo),
-              SizedBox(width: 8),
-              Text('إقفال اليوم'),
-            ],
-          ),
-          content: const Text(
-            'سيتم تجميع كل بيانات اليوم المالية وإقفال اليوم الفندقي '
-            'وإرسال التقرير عبر WhatsApp و Telegram.\n\n'
-            'هل تريد المتابعة؟',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('إلغاء'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('إقفال وإرسال'),
-            ),
-          ],
-        ),
-      );
-      if (confirm != true) return;
-    }
-
-    // تنفيذ الإقفال
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            ),
-            SizedBox(width: 12),
-            Text('جاري إقفال اليوم وإرسال التقرير...'),
-          ],
-        ),
-        duration: Duration(seconds: 10),
-      ),
-    );
-
-    final result = await service.closeDay(force: isClosed);
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result.message),
-        backgroundColor: result.success ? Colors.green : Colors.orange,
-        duration: const Duration(seconds: 5),
-      ),
-    );
-
-    // ✅ إصلاح: بدل setState (الذي يُعيد بناء الشاشة كاملة)، نُحدّث
-    // الـ provider فقط ليُعيد بناء زر الإقفال وحده.
-    if (mounted) {
-      ref.invalidate(isDayClosedProvider(null));
-    }
   }
 
   Widget _buildStatisticsCards() {
@@ -966,53 +842,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
           Text(value),
         ],
-      ),
-    );
-  }
-}
-
-/// زر إقفال اليوم — زر كامل العرض في أسفل الشاشة
-class _NightAuditButton extends StatelessWidget {
-  const _NightAuditButton({required this.isClosed, required this.onTap});
-  final bool isClosed;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isClosed ? Colors.green : Colors.indigo;
-    final icon = isClosed ? Icons.check_circle : Icons.nightlight_round;
-    final label = isClosed ? 'اليوم مُقفل — إعادة إرسال التقرير' : 'إقفال اليوم وإرسال التقرير';
-    return SizedBox(
-      width: double.infinity,
-      child: Tooltip(
-        message: isClosed ? 'اليوم مُقفل — اضغط لإعادة الإرسال' : 'إقفال اليوم',
-        child: Material(
-          color: color,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(14),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, color: Colors.white, size: 20),
-                  const SizedBox(width: 10),
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      fontFamily: 'Tajawal',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

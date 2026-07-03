@@ -7,6 +7,7 @@ import '../../providers/repository_providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/crashlytics_service.dart';
 import '../../services/local_db.dart';
+import '../../services/night_audit_service.dart';
 import '../../utils/status_utils.dart';
 import '../ai/ai_chat_screen.dart';
 import '../security/blacklist_screen.dart';
@@ -256,6 +257,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       case 'whatsapp':
         return [
+          _SettingsItem(
+            title: 'إقفال اليوم',
+            subtitle: 'تقرير يومي عبر WhatsApp و Telegram',
+            icon: Icons.nightlight_round,
+            color: Colors.indigo,
+            onTap: () => _performNightAudit(context),
+          ),
           _SettingsItem(
             title: 'تذكير المتبقي',
             subtitle: 'تذكير واتساب بالمتأخر للحجوزات النشطة',
@@ -537,6 +545,104 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   // ─── Dialogs ───
+
+  /// ✅ إقفال اليوم (Night Audit) — يُغلق اليوم الفندقي ويرسل التقرير
+  /// عبر WhatsApp و Telegram. نُقل من شاشة Dashboard إلى الإعدادات لتفادي
+  /// اهتزاز الشاشة أثناء المزامنة (الـ header في Dashboard يُعاد بناؤه
+  /// باستمرار مع تحديث حالة المزامنة).
+  Future<void> _performNightAudit(BuildContext context) async {
+    final service = NightAuditService.instance;
+    final isClosed = await service.isDayClosed(null);
+
+    if (isClosed) {
+      // اليوم مُقفل — اسأل عن إعادة الإرسال
+      final reSend = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('إعادة إرسال التقرير'),
+          content: const Text(
+            'تم إقفال اليوم بالفعل. هل تريد إعادة إرسال التقرير؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('إعادة الإرسال'),
+            ),
+          ],
+        ),
+      );
+      if (reSend != true) return;
+    } else {
+      // تأكيد الإقفال
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.nightlight_round, color: Colors.indigo),
+              SizedBox(width: 8),
+              Text('إقفال اليوم'),
+            ],
+          ),
+          content: const Text(
+            'سيتم تجميع كل بيانات اليوم المالية وإقفال اليوم الفندقي '
+            'وإرسال التقرير عبر WhatsApp و Telegram.\n\n'
+            'هل تريد المتابعة؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('إقفال وإرسال'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
+    // تنفيذ الإقفال
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('جاري إقفال اليوم وإرسال التقرير...'),
+          ],
+        ),
+        duration: Duration(seconds: 10),
+      ),
+    );
+
+    final result = await service.closeDay(force: isClosed);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.message),
+        backgroundColor: result.success ? Colors.green : Colors.orange,
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
 
   void _showAppSettingsDialog(BuildContext context) {
     showDialog<void>(
