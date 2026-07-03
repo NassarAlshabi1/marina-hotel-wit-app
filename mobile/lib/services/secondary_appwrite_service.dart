@@ -246,6 +246,17 @@ for (final coll in collectionList) {
       }
     }
 
+    // ✅ الخطوة 1.5: قبل الإنشاء، جرّب تحديث الـ ID البديل (بدون شرطات)
+    // لسدّ مسار التكرار: update(بشرطات)=404 ثم create(بشرطات) ينجح رغم وجود
+    // نسخة بدون شرطات. نحدّث في مكانه بدل إنشاء نسخة مكررة.
+    if (altDocumentId.isNotEmpty) {
+      try {
+        return await doUpdate(altDocumentId, suppressErrorLog: true);
+      } on AppwriteException catch (altError) {
+        if (!isNotFound(altError)) { rethrow; }
+      }
+    }
+
     // الخطوة 2: createDocument
     try {
       return await doCreate();
