@@ -211,7 +211,12 @@ class PayloadMapper {
       'isVoided': payment.isVoided,
     };
     putIfNotNull(data, 'serverPaymentId', payment.serverPaymentId);
-    putIfNotNull(data, 'bookingLocalId', payment.bookingLocalId);
+    // ✅ إصلاح حرج: لا نرسل bookingLocalId للسيرفر!
+    // bookingLocalId هو id محلي (autoIncrement) يختلف بين الأجهزة.
+    // جهاز A قد يكون bookingLocalId=27، وجهاز B لنفس الحجز bookingLocalId=146.
+    // إرسال هذا الرقم للسيرفر يلوّث البيانات ويسبب ربطاً خاطئاً عند السحب.
+    // الربط الصحيح يتم عبر bookingUuidCache (UUID ثابت عبر الأجهزة).
+    // (لا نرسل bookingLocalId إطلاقاً — البيانات تُستقبل محلياً فقط)
     // ✅ إصلاح: تطبيع bookingUuidCache للصيغة القياسية (بالشرطات) قبل الإرسال
     // منع تكرار UUIDs بصيغ مختلفة على Appwrite Cloud
     if (payment.bookingUuidCache != null && payment.bookingUuidCache!.isNotEmpty) {
@@ -266,8 +271,9 @@ class PayloadMapper {
       'checkinDate': debt.checkinDate,
       'totalAmount': debt.totalAmount,
       'paidAmount': debt.paidAmount,
-      'remainingAmount': debt.remainingAmount.round(), 
-      'bookingLocalId': debt.bookingLocalId,
+      'remainingAmount': debt.remainingAmount.round(),
+      // ✅ إصلاح: لا نرسل bookingLocalId للسيرفر (id محلي يختلف بين الأجهزة)
+      // الربط يتم عبر resolveBooking في debts_adapter باستخدام bookingUuidCache
       'checkoutDate': debt.checkoutDate,
       'paymentDate': debt.paymentDate,
       'isSettled': debt.isSettled,
@@ -376,7 +382,8 @@ class PayloadMapper {
   /// يحوّل [BookingNight] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> bookingNightToRemote(BookingNight night) {
     final data = <String, dynamic>{
-      'bookingLocalId': night.bookingLocalId,
+      // ✅ إصلاح: لا نرسل bookingLocalId للسيرفر (id محلي يختلف بين الأجهزة)
+      // الربط يتم عبر resolveBooking في nights_adapter باستخدام bookingUuidCache
       'hotelDayKey': night.hotelDayKey,
       'nightStart': night.nightStart,
       'nightEnd': night.nightEnd,
@@ -743,7 +750,8 @@ class PayloadMapper {
 
     putIfNotNull(data, 'serverId', adj.serverId);
     putIfNotNull(data, 'deletedAt', adj.deletedAt);
-    putIfNotNull(data, 'bookingLocalId', adj.bookingLocalId);
+    // ✅ إصلاح: لا نرسل bookingLocalId للسيرفر (id محلي يختلف بين الأجهزة)
+    // الربط يتم عبر bookingLocalUuid (UUID ثابت عبر الأجهزة)
     putIfStringNotEmpty(data, 'roomNumber', adj.roomNumber);
     putIfStringNotEmpty(data, 'endHotelDay', adj.endHotelDay);
     putIfStringNotEmpty(data, 'reason', adj.reason);
