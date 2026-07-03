@@ -54,6 +54,8 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  Timer? _hourlySyncTimer;
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +63,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoPullFromAppwrite();
     });
+
+    // ✅ مؤقّت سحب تلقائي كل ساعة — يبدأ بعد ساعة من فتح التطبيق
+    _hourlySyncTimer = Timer.periodic(
+      SyncConstants.appOpenSyncInterval,
+      (_) {
+        if (mounted) {
+          _autoPullFromAppwrite();
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _hourlySyncTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _autoPullFromAppwrite() async {
