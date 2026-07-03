@@ -12,8 +12,6 @@ import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/appwrite_backup_service.dart';
 import '../../services/appwrite_cache_manager.dart';
 import '../../services/appwrite_models.dart';
-import '../../services/local_db.dart';
-import '../../services/restore_fix_service.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
@@ -1182,13 +1180,14 @@ class _AppwriteSettingsScreenState
       final syncManager = ref.read(ap.appwriteSyncManagerProvider);
       final result = await syncManager.sync();
 
-      if (result.isSuccess && result.recordsPulled > 0) {
-        final fixService = RestoreFixService(DatabaseManager.instance);
-        final fixReport = await fixService.runAutoFixAfterRestore();
-        debugPrint(
-          'Auto-fix after sync: ${fixReport.bookingsFixed} bookings fixed',
-        );
-      }
+      // ✅ إصلاح الحجوزات يتم فقط عبر Google Drive Backup — لا عبر Appwrite
+      // if (result.isSuccess && result.recordsPulled > 0) {
+      //   final fixService = RestoreFixService(DatabaseManager.instance);
+      //   final fixReport = await fixService.runAutoFixAfterRestore();
+      //   debugPrint(
+      //     'Auto-fix after sync: ${fixReport.bookingsFixed} bookings fixed',
+      //   );
+      // }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

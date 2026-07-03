@@ -4067,12 +4067,10 @@ class AppwriteSyncManager {
         _lastSyncTime = DateTime.now();
         await _saveSettings();
 
-        // ✅ إصلاح تلقائي بعد السحب: إعادة حساب الحجوزات + حالات الغرف
-        // + المدفوعات + هيكل الحجوزات. يُستدعى فقط عند سحب بيانات جديدة
-        // لتفادي الإصلاح غير الضروري عندما لا توجد تغييرات.
-        if (recordsPulled > 0) {
-          await _runPostPullAutoFix();
-        }
+        // ✅ إصلاح الحجوزات يتم فقط عبر Google Drive Backup — لا عبر Appwrite
+        // if (recordsPulled > 0) {
+        //   await _runPostPullAutoFix();
+        // }
 
         if (recordsPulled > 0) {
           _logger.info('✅ تم سحب $recordsPulled سجل من Appwrite', tag: 'SYNC');
