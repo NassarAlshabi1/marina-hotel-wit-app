@@ -12,6 +12,7 @@ import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/local_db.dart';
+import '../services/night_audit_service.dart';
 import '../services/remote_config_service.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
@@ -275,9 +276,132 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         const DashboardConflictsBadge(),
         const SizedBox(width: 8),
+        _buildNightAuditButton(),
+        const SizedBox(width: 8),
         const DashboardSyncButton(),
       ],
     );
+  }
+
+  /// ✅ زر إقفال اليوم (Night Audit) — يُغلق اليوم الفندقي ويرسل التقرير
+  Widget _buildNightAuditButton() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final isClosedAsync = ref.watch(
+          isDayClosedProvider(null),
+        );
+        return isClosedAsync.when(
+          data: (isClosed) => _NightAuditButton(
+            isClosed: isClosed,
+            onTap: () => _performNightAudit(context),
+          ),
+          loading: () => const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          error: (_, __) => _NightAuditButton(
+            isClosed: false,
+            onTap: () => _performNightAudit(context),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _performNightAudit(BuildContext context) async {
+    final service = NightAuditService.instance;
+    final isClosed = await service.isDayClosed(null);
+
+    if (isClosed) {
+      // اليوم مُقفل — اسأل عن إعادة الإرسال
+      final reSend = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('إعادة إرسال التقرير'),
+          content: const Text(
+            'تم إقفال اليوم بالفعل. هل تريد إعادة إرسال التقرير؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('إعادة الإرسال'),
+            ),
+          ],
+        ),
+      );
+      if (reSend != true) return;
+    } else {
+      // تأكيد الإقفال
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.nightlight_round, color: Colors.indigo),
+              SizedBox(width: 8),
+              Text('إقفال اليوم'),
+            ],
+          ),
+          content: const Text(
+            'سيتم تجميع كل بيانات اليوم المالية وإقفال اليوم الفندقي '
+            'وإرسال التقرير عبر WhatsApp و Telegram.\n\n'
+            'هل تريد المتابعة؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('إقفال وإرسال'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
+    // تنفيذ الإقفال
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('جاري إقفال اليوم وإرسال التقرير...'),
+          ],
+        ),
+        duration: Duration(seconds: 10),
+      ),
+    );
+
+    final result = await service.closeDay(force: isClosed);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.message),
+        backgroundColor: result.success ? Colors.green : Colors.orange,
+        duration: const Duration(seconds: 5),
+      ),
+    );
+
+    // إعادة بناء الـ header لتحديث حالة الزر
+    if (mounted) setState(() {});
   }
 
   Widget _buildStatisticsCards() {
@@ -842,6 +966,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
           Text(value),
         ],
+      ),
+    );
+  }
+}
+
+/// زر إقفال اليوم — أيقونة قمر (مفتوح/مُقفل)
+class _NightAuditButton extends StatelessWidget {
+  const _NightAuditButton({required this.isClosed, required this.onTap});
+  final bool isClosed;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isClosed ? Colors.green : Colors.indigo;
+    final icon = isClosed ? Icons.check_circle : Icons.nightlight_round;
+    return Tooltip(
+      message: isClosed ? 'اليوم مُقفل — اضغط لإعادة الإرسال' : 'إقفال اليوم',
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withValues(alpha: 0.4)),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
       ),
     );
   }
