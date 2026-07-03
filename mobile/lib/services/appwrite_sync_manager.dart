@@ -5869,40 +5869,41 @@ class AppwriteSyncManager {
       const docId = 'whatsapp_settings';
       const collectionId = 'app_settings';
 
-      // ✅ إصلاح: اقتطاع القيم الطويلة لتجنّب RangeError من Appwrite
-      // بعض حقول app_settings على السحابة لها size محدود (30 حرف)
-      // والقيم المشفّرة (telegram_bot_token, lark_app_secret) قد تتجاوز ذلك.
-      // ✅ إصلاح حرج: اقتطاع إلى 28 حرف (بدل 29) لأن بعض الـ attributes
-      // لها size=30 و Appwrite يرفض القيم بطول == size أحياناً.
-      // ✅ إصلاح: try-catch حول substring لمنع RangeError من إيقاف المزامنة
+      // ✅ إصلاح (PR #451 r3521832521): إزالة اقتطاع النصوص المشفّرة.
+      //
+      // كان الكود السابق يقتطع كل string إلى 28 حرفاً لتجنّب RangeError
+      // من Appwrite. هذا يُفسد القيم المشفّرة (telegram_bot_token,
+      // lark_app_secret, wa_api_token) — ciphertext لا يمكن فكّ تشفيره
+      // بعد الاقتطاع، فتفقد الإعدادات قيمتها على الأجهزة الأخرى.
+      //
+      // السبب الجذري للمشكلة كان مختلفاً: مخطط app_settings الفعلي على
+      // Appwrite Cloud uses generic key-value fields (settingKey,
+      // settingValue, settingType, category, ...) وليس الحقول المُسماة
+      // (telegram_bot_token, lark_app_secret, ...). لذا فالـ code يُرسل
+      // حقولاً غير موجودة، وAppwrite يرفضها بـ "Unknown attribute".
+      //
+      // الحل الصحيح هو إعادة تصميم الـ push ليستخدم الـ schema الجديد
+      // (settingKey/settingValue) أو إضافة الحقول المطلوبة على Appwrite
+      // Cloud بحجم كافٍ (255+ حرفاً للقيم المشفّرة). حتى يحدث ذلك،
+      // نُزيل الاقتطاع ونعتمد على الـ try-catch الموجود لاحقاً لإخفاق
+      // صامت (app_settings غير حرجة — لا تمنع المزامنة).
+      //
+      // نُطبّق sanitizePayload فقط (يزيل الحقول غير المعروفة صامتاً).
       final filteredData = _filterPayload('app_settings', data);
-      final truncatedData = <String, dynamic>{};
-      for (final entry in filteredData.entries) {
-        if (entry.value is String) {
-          final strVal = entry.value as String;
-          if (strVal.length > 28) {
-            truncatedData[entry.key] = strVal.substring(0, 28);
-          } else {
-            truncatedData[entry.key] = strVal;
-          }
-        } else {
-          truncatedData[entry.key] = entry.value;
-        }
-      }
 
       // محاولة تحديث، إذا لم يكن موجوداً ننشئه
       try {
         await appwriteService.updateDocument(
           collectionId: collectionId,
           documentId: docId,
-          data: truncatedData,
+          data: filteredData,
         );
       } catch (_) {
         try {
           await appwriteService.createDocument(
             collectionId: collectionId,
             documentId: docId,
-            data: truncatedData,
+            data: filteredData,
           );
         } catch (e2) {
           // ✅ app_settings غير حرجة — لا تمنع المزامنة
