@@ -23,7 +23,6 @@ import 'settings_custom_lists.dart';
 import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_maintenance.dart';
-import 'restore_fix_screen.dart';
 import 'settings_users.dart';
 import 'sync_health/sync_health_screen.dart';
 import 'whatsapp_daily_report_screen.dart';
@@ -165,16 +164,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: () => Navigator.push<void>(
               context,
               MaterialPageRoute<void>(builder: (context) => const SettingsMaintenanceScreen()),
-            ),
-          ),
-          _SettingsItem(
-            title: 'إصلاح الحجوزات والمدفوعات',
-            subtitle: 'إعادة حساب الليالي + حالات الغرف + المدفوعات',
-            icon: Icons.auto_fix_high,
-            color: Colors.teal,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(builder: (context) => const RestoreFixScreen()),
             ),
           ),
           _SettingsItem(
