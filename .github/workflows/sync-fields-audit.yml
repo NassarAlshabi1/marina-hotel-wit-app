@@ -41,13 +41,21 @@ jobs:
         run: |
           OUTPUT=$(flutter test test/sync_fields_audit_test.dart 2>&1 || true)
           echo "$OUTPUT"
-          # الفحص يمر إذا ظهر "All tests passed!" في المخرجات
-          if echo "$OUTPUT" | grep -q "All tests passed!"; then
-            echo "passed=true" >> $GITHUB_OUTPUT
-            echo "issues=0" >> $GITHUB_OUTPUT
+          # الفحص يمر إذا ظهر "tests passed." أو "All tests passed!" في المخرجات.
+          # flutter test يُنتج تنسيقات مختلفة حسب البيئة:
+          #   - TTY: "All tests passed!"
+          #   - no-TTY (CI): "🎉 N tests passed."
+          if echo "$OUTPUT" | grep -qE "(All tests passed!|tests passed\.)"; then
+            # نتأكد أيضاً من عدم وجود فشل
+            if echo "$OUTPUT" | grep -qE "(Some tests failed|FAILED)"; then
+              echo "passed=false" >> $GITHUB_OUTPUT
+              echo "issues=1" >> $GITHUB_OUTPUT
+            else
+              echo "passed=true" >> $GITHUB_OUTPUT
+              echo "issues=0" >> $GITHUB_OUTPUT
+            fi
           else
             echo "passed=false" >> $GITHUB_OUTPUT
-            # اطبع عدد المشاكل إن وُجد (اختياري)
             echo "issues=1" >> $GITHUB_OUTPUT
           fi
 
