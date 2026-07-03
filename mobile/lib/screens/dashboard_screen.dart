@@ -206,6 +206,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             _buildRoomsSection(),
             const SizedBox(height: 12),
             _buildColorInstructions(),
+            const SizedBox(height: 20),
+            _buildBottomNightAuditButton(),
           ],
         ),
       ),
@@ -276,23 +278,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         const DashboardConflictsBadge(),
         const SizedBox(width: 8),
-        _buildNightAuditButton(),
-        const SizedBox(width: 8),
         const DashboardSyncButton(),
       ],
     );
   }
 
-  /// ✅ زر إقفال اليوم (Night Audit) — يُغلق اليوم الفندقي ويرسل التقرير
+  /// ✅ زر إقفال اليوم (Night Audit) — يُعرض في أسفل الشاشة كزر بارز
   ///
   /// نستخدم FutureProvider مع keepAlive + cache — لا يُعاد تنفيذه عند كل
   /// بناء للـ widget (مثلاً أثناء المزامنة). يُحدَّث فقط عند الضغط على الزر.
-  Widget _buildNightAuditButton() {
+  /// وضع الزر في الأسفل بدل الـ header يمنع اهتزاز الشاشة أثناء المزامنة
+  /// لأن الـ header يُعاد بناؤه باستمرار مع تحديث حالة المزامنة.
+  Widget _buildBottomNightAuditButton() {
     return Consumer(
       builder: (context, ref, _) {
-        final isClosedAsync = ref.watch(
-          isDayClosedProvider(null),
-        );
+        final isClosedAsync = ref.watch(isDayClosedProvider(null));
 
         // ✅ إصلاح: استخدم snapshot_data مباشرة بدل .when() لتجنّب الاهتزاز
         // عند إعادة البناء أثناء المزامنة. إذا كان loading، نُظهر الزر
@@ -971,7 +971,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-/// زر إقفال اليوم — أيقونة قمر (مفتوح/مُقفل)
+/// زر إقفال اليوم — زر كامل العرض في أسفل الشاشة
 class _NightAuditButton extends StatelessWidget {
   const _NightAuditButton({required this.isClosed, required this.onTap});
   final bool isClosed;
@@ -981,18 +981,37 @@ class _NightAuditButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isClosed ? Colors.green : Colors.indigo;
     final icon = isClosed ? Icons.check_circle : Icons.nightlight_round;
-    return Tooltip(
-      message: isClosed ? 'اليوم مُقفل — اضغط لإعادة الإرسال' : 'إقفال اليوم',
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withValues(alpha: 0.4)),
+    final label = isClosed ? 'اليوم مُقفل — إعادة إرسال التقرير' : 'إقفال اليوم وإرسال التقرير';
+    return SizedBox(
+      width: double.infinity,
+      child: Tooltip(
+        message: isClosed ? 'اليوم مُقفل — اضغط لإعادة الإرسال' : 'إقفال اليوم',
+        child: Material(
+          color: color,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: Colors.white, size: 20),
+                  const SizedBox(width: 10),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      fontFamily: 'Tajawal',
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          child: Icon(icon, color: color, size: 18),
         ),
       ),
     );
