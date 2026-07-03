@@ -767,15 +767,31 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
     final List<Employee> allEmployees =
         employees ?? await ref.read(employeesRepoProvider).watchAll().first;
-    // ✅ إزالة التكرار: قد توجد سجلات موظفين مكررة (نفس الاسم) بـ localUuid
-    // مختلف بسبب المزامنة. نُزيل التكرار بناءً على الاسم.
+    // ✅ إزالة التكرار: عند المزامنة بين أجهزة متعددة، قد يصل نفس الموظف
+    // (نفس localUuid) بـ id محلي مختلف (autoIncrement). كذلك قد يوجد
+    // نفس الاسم بـ localUuid مختلف (سجل مكرر فعلاً).
+    // الاستراتيجية:
+    //   1. إزالة التكرار بـ localUuid أولاً (نفس الشخص من أجهزة مختلفة)
+    //   2. إزالة التكرار بـ name كـ fallback (سجلات مكررة بنفس الاسم)
+    final seenUuids = <String>{};
     final seenNames = <String>{};
     final List<Employee> availableEmployees = allEmployees.where((emp) {
-      final key = emp.name.trim();
-      if (seenNames.contains(key)) {
+      // 1. إزالة التكرار بـ localUuid
+      final uuid = emp.localUuid.trim();
+      if (uuid.isNotEmpty && seenUuids.contains(uuid)) {
         return false;
       }
-      seenNames.add(key);
+      if (uuid.isNotEmpty) {
+        seenUuids.add(uuid);
+      }
+      // 2. إزالة التكرار بـ name (للسجلات بـ localUuid فارغ أو مكرر بالاسم)
+      final nameKey = emp.name.trim();
+      if (nameKey.isNotEmpty && seenNames.contains(nameKey)) {
+        return false;
+      }
+      if (nameKey.isNotEmpty) {
+        seenNames.add(nameKey);
+      }
       return true;
     }).toList();
     int? selectedEmployeeId = existing?.relatedId;
