@@ -109,13 +109,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
 
       // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب تلقائي؟ ───
+      // ✅ إصلاح: عند أول تشغيل (lastPullEpochMs == null)، نتجاوز الفحص
+      // وننفّذ delta sync فوراً. هذا يضمن سحب كل البيانات عند أول فتح.
       final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
-      if (lastPullEpochMs != null) {
-        final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
+      final isFirstRun = lastPullEpochMs == null;
+      if (!isFirstRun) {
+        final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs!);
         final elapsed = DateTime.now().difference(lastPull);
         if (elapsed < SyncConstants.appOpenSyncInterval) {
+          debugPrint('⏭️ [AutoPull] skipped — last pull was ${elapsed.inMinutes} min ago');
           return;
         }
+      } else {
+        debugPrint('🚀 [AutoPull] first run — executing delta sync immediately');
       }
 
       // التأكد من الاتصال
