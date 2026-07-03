@@ -102,6 +102,11 @@ class IdResolver {
 
   /// حل مرجع الموظف - التحقق من وجود الموظف محلياً
   /// يُستخدم في salary_withdrawals و salary_cycles للتحقق من FK
+  ///
+  /// ✅ إصلاح: يجرّب كلا صيغتي UUID (بالشرطات وبدون) — مثل resolveBooking.
+  /// المشكلة: بعض السجلات على Appwrite Cloud مخزّنة بـ UUID بدون شرطات
+  /// (legacy). عند السحب، employeeUuid في salary_withdrawals قد يكون بصيغة
+  /// مختلفة عن localUuid في الموظفين المحليين → المطابقة تفشل → سجل يتيم.
   Future<int?> resolveEmployee({
     int? localId,
     String? uuid,
@@ -110,13 +115,40 @@ class IdResolver {
   }) async {
     // 1. البحث بالـ UUID أولاً (الأكثر دقة للمزامنة)
     if (uuid != null && uuid.isNotEmpty) {
-      final row =
+      // 1a) ابحث بالـ UUID كما هو (مطابقة تامة)
+      var row =
           await (db.select(db.employees)
                 ..where((e) => e.localUuid.equals(uuid))
                 ..limit(1))
               .getSingleOrNull();
       if (row != null) {
         return row.id;
+      }
+
+      // 1b) ابحث بالصيغة المقابلة (إذا كان بدون شرطات → أضف شرطات)
+      final normalized = normalizeUuid(uuid);
+      if (normalized != uuid) {
+        row =
+            await (db.select(db.employees)
+                  ..where((e) => e.localUuid.equals(normalized))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (row != null) {
+          return row.id;
+        }
+      }
+
+      // 1c) ابحث بالصيغة بدون شرطات (إذا كان بالشرطات → أزل الشرطات)
+      final stripped = stripDashes(uuid);
+      if (stripped != uuid && stripped.length == 32) {
+        row =
+            await (db.select(db.employees)
+                  ..where((e) => e.localUuid.equals(stripped))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (row != null) {
+          return row.id;
+        }
       }
     }
     // 2. البحث بالـ id المحلي
@@ -157,19 +189,46 @@ class IdResolver {
 
   /// حل مرجع دورة الراتب - التحقق من وجود الدورة محلياً
   /// يُستخدم في salary_payments للتحقق من FK
+  ///
+  /// ✅ إصلاح: يجرّب كلا صيغتي UUID (بالشرطات وبدون) — مثل resolveBooking/resolveEmployee.
   Future<int?> resolveSalaryCycle({
     int? localId,
     String? uuid,
   }) async {
     // البحث بالـ UUID أولاً
     if (uuid != null && uuid.isNotEmpty) {
-      final row =
+      // 1a) مطابقة تامة
+      var row =
           await (db.select(db.salaryCycles)
                 ..where((c) => c.localUuid.equals(uuid))
                 ..limit(1))
               .getSingleOrNull();
       if (row != null) {
         return row.id;
+      }
+      // 1b) صيغة بالشرطات
+      final normalized = normalizeUuid(uuid);
+      if (normalized != uuid) {
+        row =
+            await (db.select(db.salaryCycles)
+                  ..where((c) => c.localUuid.equals(normalized))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (row != null) {
+          return row.id;
+        }
+      }
+      // 1c) صيغة بدون شرطات
+      final stripped = stripDashes(uuid);
+      if (stripped != uuid && stripped.length == 32) {
+        row =
+            await (db.select(db.salaryCycles)
+                  ..where((c) => c.localUuid.equals(stripped))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (row != null) {
+          return row.id;
+        }
       }
     }
     // البحث بالـ id المحلي
