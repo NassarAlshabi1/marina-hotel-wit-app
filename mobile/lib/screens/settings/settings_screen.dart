@@ -358,7 +358,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     AsyncValue<int> usersCountAsync,
   ) {
     // ✅ بطاقة مُصغّرة: padding/margin/icon/font sizes كلها مُقلّصة
-    // لتوفير مساحة عمودية في شاشة الإعدادات.
     return Card(
       elevation: 2,
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -371,7 +370,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 Icon(
                   Icons.dashboard,
-                  // ignore: deprecated_member_use_from_same_package
                   color: Theme.of(context).primaryColor,
                   size: 18,
                 ),
@@ -545,48 +543,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       builder: (context) => Consumer(
         builder: (context, ref, _) {
-          final pref = ref.watch(themeSettingsProvider);
+          final isDark = ref.watch(themeSettingsProvider);
           return AlertDialog(
             title: const Text('إعدادات التطبيق'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(
-                    bottom: 8,
-                    top: 4,
-                    right: 4,
-                  ),
-                  child: Text(
-                    'المظهر',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.dark_mode),
+                  title: const Text('المظهر الداكن'),
+                  value: isDark,
+                  onChanged: (v) =>
+                      ref.read(themeSettingsProvider.notifier).setDarkMode(v),
                 ),
-                // ✅ 3-way radio: فاتح / داكن / تلقائي
-                // يحلّ محلّ SwitchListTile القديم الذي كان bool فقط.
-                ...ThemeModePreference.values.map((mode) {
-                  return RadioListTile<ThemeModePreference>(
-                    value: mode,
-                    groupValue: pref,
-                    onChanged: (v) {
-                      if (v != null) {
-                        ref
-                            .read(themeSettingsProvider.notifier)
-                            .setPreference(v);
-                      }
-                    },
-                    title: Text(mode.arabicLabel),
-                    subtitle: Text(mode.arabicDescription),
-                    secondary: Icon(mode.icon),
-                    dense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                  );
-                }),
+                // ✅ تم إزالة عنصر "اللغة" الجامد — لم يكن функциaly
               ],
             ),
             actions: [

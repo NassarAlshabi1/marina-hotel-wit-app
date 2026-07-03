@@ -828,12 +828,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       textDirection: TextDirection.rtl,
       child: Consumer(
         builder: (context, ref, _) {
-          final themeMode = ref.watch(themeModeProvider);
+          final isDark = ref.watch(themeSettingsProvider);
           return MaterialApp(
             title: 'مارينا هوتيل',
             theme: buildTheme(),
             darkTheme: buildDarkTheme(),
-            themeMode: themeMode,
+            themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
             localizationsDelegates: const [
               GlobalMaterialLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,

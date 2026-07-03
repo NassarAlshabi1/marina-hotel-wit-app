@@ -1,666 +1,280 @@
 import 'package:flutter/material.dart';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MARINA HOTEL — THEME SYSTEM (Material 3, Marina Navy palette)
-// ═══════════════════════════════════════════════════════════════════════════
-//
-// الهوية البصرية الجديدة لفندق مارينا — مستوحاة من الأسم (Marina = مرسى يخت):
-//   • Primary    : Deep Marina Navy #003049 — الثقة والعمق البحري
-//   • Secondary  : Brass Gold #B08D57      — الفخامة والتراث
-//   • Tertiary   : Sea-Glass Teal #3D8B8B  — الهدوء الساحلي
-//   • Surface    : Warm Cream #FAF7F2 (light) / Navy-Black #10171F (dark)
-//
-// المصدر الإلهام: Hilton (navy+gold)، Four Seasons (charcoal+gold)،
-// واللوحات البحرية (nautical palettes). تم اختيار الألوان لتكون
-// HCT-compatible لتعمل بسلاسة مع ColorScheme.fromSeed في Material 3.
-//
-// التوافق مع الكود القديم:
-//   • AppColors محفوظ كـ deprecated wrapper يحوّل المراجع القديمة
-//     (بنفسجي Bootstrap) إلى الألوان الجديدة (Marina Navy). صفر كسور.
-//   • buildTheme() / buildDarkTheme() محفوظتان كـ public API.
-//     تستدعيان buildMarinaLightTheme() / buildMarinaDarkTheme().
-//
-// لترحيل مرجع قديم إلى الثيم الجديد يدوياً:
-//   AppColors.primaryColor  →  Theme.of(context).colorScheme.primary
-//   AppColors.textPrimary   →  Theme.of(context).colorScheme.onSurface
-//   AppColors.textSecondary →  Theme.of(context).colorScheme.onSurfaceVariant
-//   AppColors.successColor  →  Theme.of(context).colorScheme.tertiary
-//   AppColors.dangerColor   →  Theme.of(context).colorScheme.error
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// ألوان العلامة التجارية الثابتة لفندق مارينا — لا تتغيّر بين الوضعين
-/// الفاتح والداكن (للألوان التي يجب أن تبقى محايدة بصرياً).
-class MarinaBrandColors {
-  MarinaBrandColors._();
-
-  // ─── Primary palette: Deep Marina Navy ───────────────────────────────
-  /// Primary brand — Deep Marina Navy.
-  /// يُستخدم في الأزرار الأساسية، الـ AppBar، الروابط، التركيز.
-  static const Color navy = Color(0xFF003049);
-  static const Color navyLight = Color(0xFF2C5780); // tone ~60
-  static const Color navyDark = Color(0xFF001F33);  // tone ~20
-
-  // ─── Secondary palette: Brass Gold ───────────────────────────────────
-  /// Secondary brand — Brass Gold (لمسة الفخامة).
-  /// يُستخدم في الأزرار الثانوية، الإبرازات، أيقونات الرفع.
-  static const Color brass = Color(0xFFB08D57);
-  static const Color brassLight = Color(0xFFE6CFA0);
-  static const Color brassDark = Color(0xFF7A5F32);
-
-  // ─── Tertiary palette: Sea-Glass Teal ────────────────────────────────
-  /// Tertiary brand — Sea-Glass Teal (إحساس ساحلي، سبأ/هدوء).
-  /// يُستخدم في مؤشرات النجاح، شارات التوفر، أيقونات الرفاهية.
-  static const Color seaGlass = Color(0xFF3D8B8B);
-  static const Color seaGlassLight = Color(0xFF9DD1D1);
-  static const Color seaGlassDark = Color(0xFF1F5757);
-
-  // ─── Surfaces ────────────────────────────────────────────────────────
-  static const Color creamSurface = Color(0xFFFAF7F2); // warm cream (light)
-  static const Color creamContainer = Color(0xFFF2EDE4);
-  static const Color navyBlack = Color(0xFF10171F);    // navy-black (dark)
-  static const Color navyBlackContainer = Color(0xFF1A242E);
-
-  // ─── Status colors (تتطابق بين الوضعين) ─────────────────────────────
-  static const Color success = Color(0xFF2E7D5B);
-  static const Color successDark = Color(0xFF7FCFA0);
-  static const Color warning = Color(0xFFE0A500);
-  static const Color warningDark = Color(0xFFFFD66B);
-  static const Color error = Color(0xFF9B2226);
-  static const Color errorDark = Color(0xFFF2A0A4);
-  static const Color info = Color(0xFF3D8B8B); // same as seaGlass
-
-  // ─── Charcoal / neutral ──────────────────────────────────────────────
-  static const Color charcoal = Color(0xFF1A1A1A);
-  static const Color warmWhite = Color(0xFFE8E4DC);
-  static const Color outline = Color(0xFFC9BFAE); // light mode outline
-  static const Color outlineDark = Color(0xFF3A4753);
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// DEPRECATED AppColors — يُحوّل المراجع القديمة إلى الألوان الجديدة.
-// ═══════════════════════════════════════════════════════════════════════════
-//
-// قبل الإصلاح: كان AppColors يحمل ألوان بنفسجية (#6A1B9A) لمطابقة PHP
-// Bootstrap admin. بعد الإصلاح: يحمل ألوان Marina Navy الجديدة، مع
-// إبقاء نفس أسماء الـ members لضمان توافق الكود الموجود (101 موقع
-// استخدام عبر lib/).
-//
-// الاستراتيجية: كل اسم قديم يُحوَّل إلى أقرب لون جديد بصرياً:
-//   primaryColor  → navy        (كان بنفسجي → أصبح navy، كلاهما primary)
-//   primaryDark   → navyLight   (كان بنفسجي فاتح → navyLight للوضع الداكن)
-//   primaryLight  → brass       (كان متوسط → brass كـ secondary)
-//   successColor  → success
-//   dangerColor   → error
-//   warningColor  → warning
-//   infoColor     → seaGlass    (كان أزرق → أصبح teal، كلاهما "معلومة")
-//   textPrimary   → charcoal    (كان أسود → أسود فحمي دافئ)
-//   textSecondary → mediumGray  (نفسه)
-//   backgroundColor → creamSurface (كان رمادي → أصبح cream دافئ)
-//   surfaceColor  → white       (نفسه)
-//   sidebarColor  → navyDark    (كان أزرق غامق → navy غامق، أقرب بصرياً)
-//   sidebarAccent → navy        (كان أزرق غامق → navy)
-//   cardBackground → white      (نفسه)
-//   dividerColor  → outline     (كان رمادي → outline دافئ)
-//   lightGray     → outline     (نفسه بصرياً)
-//   mediumGray    → mediumGray  (نفسه)
-//   darkGray      → charcoal    (كان أسود → charcoal)
-
-/// @deprecated استخدم MarinaBrandColors أو Theme.of(context).colorScheme بدلاً منه.
-/// محفوظ مؤقتاً للتوافق مع 101 موقع استخدام في lib/. سيُزال تدريجياً.
+// Color scheme matching PHP Bootstrap admin design
 class AppColors {
-  AppColors._();
-
-  // Primary colors — الآن Marina Navy بدلاً من البنفسجي
-  @Deprecated('استخدم MarinaBrandColors.navy أو Theme.of(context).colorScheme.primary')
-  static const Color primaryColor = MarinaBrandColors.navy;
-  @Deprecated('استخدم MarinaBrandColors.navyLight')
-  static const Color primaryDark = MarinaBrandColors.navyLight;
-  @Deprecated('استخدم MarinaBrandColors.brass أو Theme.of(context).colorScheme.secondary')
-  static const Color primaryLight = MarinaBrandColors.brass;
+  // Primary colors - main accent for borders and highlights
+  static const Color primaryColor = Color(0xFF6A1B9A);  // Deep purple - light mode
+  static const Color primaryDark = Color(0xFFB070DB);   // Lighter purple - dark mode accent
+  static const Color primaryLight = Color(0xFF9650BE);  // Intermediate shade
 
   // Background colors
-  @Deprecated('استخدم Theme.of(context).colorScheme.surface')
-  static const Color backgroundColor = MarinaBrandColors.creamSurface;
-  @Deprecated('استخدم Theme.of(context).colorScheme.surface')
-  static const Color surfaceColor = Colors.white;
+  static const Color backgroundColor = Color(0xFFf8f9fa); // Bootstrap bg-light
+  static const Color surfaceColor = Color(0xFFffffff);
 
   // Text colors
-  @Deprecated('استخدم Theme.of(context).colorScheme.onSurface')
-  static const Color textPrimary = MarinaBrandColors.charcoal;
-  @Deprecated('استخدم Theme.of(context).colorScheme.onSurfaceVariant')
-  static const Color textSecondary = Color(0xFF6c757d);
+  static const Color textPrimary = Color(0xFF212529); // Bootstrap text-dark
+  static const Color textSecondary = Color(0xFF6c757d); // Bootstrap text-muted
 
-  // Status colors — الآن بألوان Marina الموحّدة
-  @Deprecated('استخدم MarinaBrandColors.success أو Theme.of(context).colorScheme.tertiary')
-  static const Color successColor = MarinaBrandColors.success;
-  @Deprecated('استخدم MarinaBrandColors.error أو Theme.of(context).colorScheme.error')
-  static const Color dangerColor = MarinaBrandColors.error;
-  @Deprecated('استخدم MarinaBrandColors.warning')
-  static const Color warningColor = MarinaBrandColors.warning;
-  @Deprecated('استخدم MarinaBrandColors.seaGlass')
-  static const Color infoColor = MarinaBrandColors.seaGlass;
+  // Status colors - matching PHP badges
+  static const Color successColor = Color(0xFF28a745); // Bootstrap success
+  static const Color dangerColor = Color(0xFFdc3545); // Bootstrap danger
+  static const Color warningColor = Color(0xFFffc107); // Bootstrap warning
+  static const Color infoColor = Color(0xFF17a2b8); // Bootstrap info
 
   // Gray colors
-  @Deprecated('استخدم MarinaBrandColors.outline')
-  static const Color lightGray = MarinaBrandColors.outline;
-  @Deprecated('استخدم MarinaBrandColors.outline')
-  static const Color mediumGray = Color(0xFF6c757d);
-  @Deprecated('استخدم MarinaBrandColors.charcoal')
-  static const Color darkGray = MarinaBrandColors.charcoal;
+  static const Color lightGray = Color(0xFFe9ecef); // Bootstrap gray-200
+  static const Color mediumGray = Color(0xFF6c757d); // Bootstrap gray-600
+  static const Color darkGray = Color(0xFF343a40); // Bootstrap dark
 
   // Card and component colors
-  @Deprecated('استخدم Theme.of(context).cardTheme.color')
   static const Color cardBackground = Colors.white;
-  @Deprecated('استخدم Theme.of(context).dividerColor')
-  static const Color dividerColor = MarinaBrandColors.outline;
+  static const Color dividerColor = Color(0xFFdee2e6); // Bootstrap border color
 
-  // Admin sidebar colors — الآن navy بدلاً من الأزرق العشوائي
-  @Deprecated('استخدم MarinaBrandColors.navyDark')
-  static const Color sidebarColor = MarinaBrandColors.navyDark;
-  @Deprecated('استخدم MarinaBrandColors.navy')
-  static const Color sidebarAccent = MarinaBrandColors.navy;
+  // Admin sidebar colors
+  static const Color sidebarColor = Color(0xFF0F172A);
+  static const Color sidebarAccent = Color(0xFF16213C);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// THEME BUILDERS — Marina Navy (Material 3)
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// يبني ThemeData للوضع الفاتح (Marina Navy + Material 3).
-ThemeData buildMarinaLightTheme() {
-  final ColorScheme colorScheme = ColorScheme.fromSeed(
-    seedColor: MarinaBrandColors.navy,
-    // brightness افتراضي = light — لا حاجة لتمريره صراحة
-    primary: MarinaBrandColors.navy,
-    onPrimary: Colors.white,
-    secondary: MarinaBrandColors.brass,
-    onSecondary: Colors.white,
-    tertiary: MarinaBrandColors.seaGlass,
-    onTertiary: Colors.white,
-    error: MarinaBrandColors.error,
-    onError: Colors.white,
-    surface: MarinaBrandColors.creamSurface,
-    onSurface: MarinaBrandColors.charcoal,
-    surfaceContainerHighest: MarinaBrandColors.creamContainer,
-  );
-
-  return _buildMarinaTheme(colorScheme, Brightness.light);
-}
-
-/// يبني ThemeData للوضع الداكن (Marina Navy + Material 3).
-ThemeData buildMarinaDarkTheme() {
-  final ColorScheme colorScheme = ColorScheme.fromSeed(
-    seedColor: MarinaBrandColors.navy,
-    brightness: Brightness.dark,
-    primary: MarinaBrandColors.navyLight, // tone 80 للوضوح على خلفية داكنة
-    onPrimary: Colors.white,
-    secondary: MarinaBrandColors.brassLight,
-    onSecondary: MarinaBrandColors.navyDark,
-    tertiary: MarinaBrandColors.seaGlassLight,
-    onTertiary: MarinaBrandColors.navyDark,
-    error: MarinaBrandColors.errorDark,
-    onError: MarinaBrandColors.navyDark,
-    surface: MarinaBrandColors.navyBlack,
-    onSurface: MarinaBrandColors.warmWhite,
-    surfaceContainerHighest: MarinaBrandColors.navyBlackContainer,
-  );
-
-  return _buildMarinaTheme(colorScheme, Brightness.dark);
-}
-
-ThemeData _buildMarinaTheme(ColorScheme colorScheme, Brightness brightness) {
-  final isLight = brightness == Brightness.light;
-  final brandSuccess =
-      isLight ? MarinaBrandColors.success : MarinaBrandColors.successDark;
-  final brandWarning =
-      isLight ? MarinaBrandColors.warning : MarinaBrandColors.warningDark;
-  final brandError =
-      isLight ? MarinaBrandColors.error : MarinaBrandColors.errorDark;
-  final outlineColor =
-      isLight ? MarinaBrandColors.outline : MarinaBrandColors.outlineDark;
-
-  return ThemeData(
-    useMaterial3: true,
-    brightness: brightness,
-    colorScheme: colorScheme,
+ThemeData buildTheme() {
+  final base = ThemeData(
+    useMaterial3: false, // Use Material 2 for better Bootstrap compatibility
+    brightness: Brightness.light,
+    primarySwatch: _createMaterialColor(AppColors.primaryColor),
     fontFamily: 'Tajawal',
-    scaffoldBackgroundColor: colorScheme.surface,
-    visualDensity: VisualDensity.adaptivePlatformDensity,
+    scaffoldBackgroundColor: AppColors.backgroundColor,
+  );
 
-    // ─── AppBar: لون الـ surface (ليس primary) لمظهر M3 الحديث ────────
-    appBarTheme: AppBarTheme(
-      backgroundColor: colorScheme.surface,
-      foregroundColor: colorScheme.onSurface,
-      surfaceTintColor: colorScheme.primary,
-      elevation: 0,
-      scrolledUnderElevation: 2,
+  return base.copyWith(
+    primaryColor: AppColors.primaryColor,
+    colorScheme: const ColorScheme.light(
+      primary: AppColors.primaryColor,
+      secondary: AppColors.infoColor,
+      error: AppColors.dangerColor,
+      onSecondary: Colors.white,
+      onSurface: AppColors.textPrimary,
+    ),
+
+    // AppBar theme - main accent color
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.primaryColor,
+      foregroundColor: Colors.white,
+      elevation: 1,
       centerTitle: false,
       titleTextStyle: TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w600,
-        color: colorScheme.onSurface,
+        color: Colors.white,
         fontFamily: 'Tajawal',
       ),
-      iconTheme: IconThemeData(color: colorScheme.onSurface),
+      iconTheme: IconThemeData(color: Colors.white),
     ),
 
-    // ─── Card: حواف دائرية 12، ارتفاع خفيف، حدود ناعمة ────────────────
-    cardTheme: CardThemeData(
-      color: colorScheme.surface,
-      surfaceTintColor: colorScheme.primary,
+    // Card theme matching Bootstrap cards
+    cardTheme: const CardThemeData(
+      color: AppColors.cardBackground,
       elevation: 1,
-      margin: const EdgeInsets.all(8),
+      margin: EdgeInsets.all(8),
       shape: RoundedRectangleBorder(
-        borderRadius: const BorderRadius.all(Radius.circular(12)),
-        side: BorderSide(color: outlineColor.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+        side: BorderSide(color: Color(0xFFE8D5F0)), // Light purple border
       ),
     ),
 
-    // ─── Buttons: M3 style مع حواف 8 ───────────────────────────────────
+    // Button themes matching Bootstrap buttons
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
-        elevation: 1,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-          fontFamily: 'Tajawal',
-        ),
+        backgroundColor: AppColors.primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),
     ),
+
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: colorScheme.primary,
-        side: BorderSide(color: colorScheme.outline),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-          fontFamily: 'Tajawal',
-        ),
-      ),
-    ),
-    textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(
-        foregroundColor: colorScheme.primary,
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-          fontFamily: 'Tajawal',
-        ),
-      ),
-    ),
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-          fontFamily: 'Tajawal',
-        ),
+        foregroundColor: AppColors.primaryColor,
+        side: const BorderSide(color: AppColors.primaryColor),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),
     ),
 
-    // ─── Inputs: حدود ناعمة، تركيز بـ primary ──────────────────────────
-    inputDecorationTheme: InputDecorationTheme(
+    // Input theme - borders use primary purple
+    inputDecorationTheme: const InputDecorationTheme(
       border: OutlineInputBorder(
-        borderRadius: const BorderRadius.all(Radius.circular(8)),
-        borderSide: BorderSide(color: outlineColor),
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+        borderSide: BorderSide(color: AppColors.lightGray),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: const BorderRadius.all(Radius.circular(8)),
-        borderSide: BorderSide(color: outlineColor),
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+        borderSide: BorderSide(color: AppColors.lightGray),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: const BorderRadius.all(Radius.circular(8)),
-        borderSide: BorderSide(color: colorScheme.primary, width: 2),
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+        borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
       ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: const BorderRadius.all(Radius.circular(8)),
-        borderSide: BorderSide(color: brandError),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: const BorderRadius.all(Radius.circular(8)),
-        borderSide: BorderSide(color: brandError, width: 2),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-      hintStyle: TextStyle(
-        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-      ),
-      filled: true,
-      fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+      labelStyle: TextStyle(color: AppColors.textSecondary),
+      hintStyle: TextStyle(color: AppColors.textSecondary),
     ),
 
-    // ─── DataTable: رأس بـ primary، صفوف بـ surface ────────────────────
-    dataTableTheme: DataTableThemeData(
-      headingRowColor: WidgetStatePropertyAll(colorScheme.primary),
+    // Table theme
+    dataTableTheme: const DataTableThemeData(
+      headingRowColor: WidgetStatePropertyAll(AppColors.darkGray),
       headingTextStyle: TextStyle(
-        color: colorScheme.onPrimary,
-        fontWeight: FontWeight.w700,
+        color: Colors.white,
+        fontWeight: FontWeight.w600,
         fontSize: 14,
-        fontFamily: 'Tajawal',
       ),
-      dataTextStyle: TextStyle(
-        color: colorScheme.onSurface,
-        fontSize: 14,
-        fontFamily: 'Tajawal',
-      ),
+      dataTextStyle: TextStyle(color: AppColors.textPrimary, fontSize: 14),
       columnSpacing: 24,
       horizontalMargin: 16,
-      dataRowMinHeight: 48,
-      dataRowMaxHeight: 56,
-      dividerThickness: 0.5,
+      dataRowMinHeight: 44,
     ),
 
-    // ─── ListTile ──────────────────────────────────────────────────────
-    listTileTheme: ListTileThemeData(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    // List tile theme
+    listTileTheme: const ListTileThemeData(
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       dense: true,
-      iconColor: colorScheme.primary,
-      textColor: colorScheme.onSurface,
     ),
 
-    // ─── Dividers, switches, sliders ───────────────────────────────────
-    dividerColor: outlineColor.withValues(alpha: 0.6),
-    switchTheme: SwitchThemeData(
-      thumbColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) {
-          return colorScheme.onPrimary;
-        }
-        return colorScheme.outline;
-      }),
-      trackColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) {
-          return colorScheme.primary;
-        }
-        return colorScheme.surfaceContainerHighest;
-      }),
-    ),
+    // Divider color
+    dividerColor: const Color(0xFFE0D0EA), // Soft purple divider
 
-    // ─── Chip theme (للشارات) ──────────────────────────────────────────
-    chipTheme: ChipThemeData(
-      backgroundColor: colorScheme.surfaceContainerHighest,
-      selectedColor: colorScheme.primary,
-      labelStyle: TextStyle(
-        color: colorScheme.onSurface,
-        fontFamily: 'Tajawal',
-        fontSize: 12,
-      ),
-      side: BorderSide(color: outlineColor.withValues(alpha: 0.5)),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(8)),
-      ),
-    ),
-
-    // ─── Navigation (BottomNavBar, NavigationRail, Drawer) ─────────────
-    navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: colorScheme.surface,
-      indicatorColor: colorScheme.primaryContainer,
-      labelTextStyle: WidgetStateProperty.resolveWith((states) {
-        final selected = states.contains(WidgetState.selected);
-        return TextStyle(
-          color: selected ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
-          fontSize: 11,
-          fontFamily: 'Tajawal',
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-        );
-      }),
-      iconTheme: WidgetStateProperty.resolveWith((states) {
-        final selected = states.contains(WidgetState.selected);
-        return IconThemeData(
-          color: selected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
-          size: 22,
-        );
-      }),
-    ),
-    drawerTheme: DrawerThemeData(
-      backgroundColor: colorScheme.surface,
-      scrimColor: Colors.black.withValues(alpha: 0.5),
-    ),
-
-    // ─── SnackBar ──────────────────────────────────────────────────────
-    snackBarTheme: SnackBarThemeData(
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: colorScheme.inverseSurface,
-      contentTextStyle: TextStyle(
-        color: colorScheme.onInverseSurface,
-        fontFamily: 'Tajawal',
-        fontSize: 14,
-      ),
-      actionTextColor: colorScheme.inversePrimary,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(8)),
-      ),
-    ),
-
-    // ─── Dialog ────────────────────────────────────────────────────────
-    dialogTheme: DialogThemeData(
-      backgroundColor: colorScheme.surface,
-      surfaceTintColor: colorScheme.primary,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
-      ),
-      titleTextStyle: TextStyle(
-        color: colorScheme.onSurface,
-        fontSize: 18,
-        fontWeight: FontWeight.w700,
-        fontFamily: 'Tajawal',
-      ),
-      contentTextStyle: TextStyle(
-        color: colorScheme.onSurface,
-        fontSize: 14,
-        fontFamily: 'Tajawal',
-      ),
-    ),
-
-    // ─── Floating Action Button ────────────────────────────────────────
-    floatingActionButtonTheme: FloatingActionButtonThemeData(
-      backgroundColor: colorScheme.primary,
-      foregroundColor: colorScheme.onPrimary,
-      elevation: 3,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
-      ),
-    ),
-
-    // ─── Progress indicators ───────────────────────────────────────────
-    progressIndicatorTheme: ProgressIndicatorThemeData(
-      color: colorScheme.primary,
-      circularTrackColor: colorScheme.surfaceContainerHighest,
-      linearTrackColor: colorScheme.surfaceContainerHighest,
-    ),
-
-    // ─── TabBar ────────────────────────────────────────────────────────
-    tabBarTheme: TabBarThemeData(
-      labelColor: colorScheme.primary,
-      unselectedLabelColor: colorScheme.onSurfaceVariant,
-      indicatorColor: colorScheme.primary,
-      indicatorSize: TabBarIndicatorSize.label,
-      labelStyle: const TextStyle(
-        fontWeight: FontWeight.w700,
-        fontSize: 14,
-        fontFamily: 'Tajawal',
-      ),
-      unselectedLabelStyle: const TextStyle(
-        fontWeight: FontWeight.w500,
-        fontSize: 14,
-        fontFamily: 'Tajawal',
-      ),
-    ),
-
-    // ─── Tooltip ───────────────────────────────────────────────────────
-    tooltipTheme: TooltipThemeData(
-      decoration: BoxDecoration(
-        color: colorScheme.inverseSurface,
-        borderRadius: const BorderRadius.all(Radius.circular(6)),
-      ),
-      textStyle: TextStyle(
-        color: colorScheme.onInverseSurface,
-        fontSize: 12,
-        fontFamily: 'Tajawal',
-      ),
-      waitDuration: const Duration(milliseconds: 500),
-    ),
-
-    // ─── Text theme (يحترم Tajawal) ────────────────────────────────────
-    textTheme: const TextTheme(
-      displayLarge: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w700),
-      displayMedium: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w700),
-      displaySmall: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w700),
-      headlineLarge: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w700),
-      headlineMedium: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w600),
-      headlineSmall: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w600),
-      titleLarge: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w600),
-      titleMedium: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w600),
-      titleSmall: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w600),
-      bodyLarge: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w400),
-      bodyMedium: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w400),
-      bodySmall: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w400),
-      labelLarge: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w600),
-      labelMedium: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w600),
-      labelSmall: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.w600),
-    ),
-
-    // ─── Extensions: ألوان brand الثابتة + ألوان الحالة ───────────────
-    extensions: [
-      MarinaSemanticColors(
-        success: brandSuccess,
-        warning: brandWarning,
-        error: brandError,
-        info: MarinaBrandColors.seaGlass,
-        onSuccess: Colors.white,
-        onWarning: Colors.white,
-        onError: Colors.white,
-        onInfo: Colors.white,
-      ),
-    ],
+    visualDensity: VisualDensity.adaptivePlatformDensity,
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// SEMANTIC COLORS THEME EXTENSION
-// ═══════════════════════════════════════════════════════════════════════════
-//
-// Material 3 ColorScheme لا يوفّر ألوان success/warning/info. هذه الألوان
-// مهمة للوحات تحكم الفنادق (حجوزات ناجحة، تحذيرات، أخطاء). لذلك نُعرّفها
-// كـ ThemeExtension يمكن الوصول إليها عبر:
-//   Theme.of(context).extension<MarinaSemanticColors>()!.success
-//
-// هذا النمط هو الموصى به في توثيق M3 الرسمي للألوان المخصّصة:
-// https://m3.material.io/styles/color/advanced/define-new-colors
+ThemeData buildDarkTheme() {
+  // Dark mode uses lighter primary for visibility on dark surfaces
+  const darkPrimary = AppColors.primaryDark; // Lighter purple for dark mode
+  const darkSurface = Color(0xFF1E1E1E);
+  const darkBackground = Color(0xFF121212);
+  const darkInputBorder = Color(0xFF2C2C2C);
+  const darkAppBar = Color(0xFF4A1070); // Lighter purple for dark AppBar
 
-/// ألوان دلالية (semantic) خارج نطاق ColorScheme الأساسي.
-///
-/// تشمل: success (نجاح)، warning (تحذير)، error (خطأ — مكرّر من
-/// ColorScheme.error للتوافق)، info (معلومة). هذه الألوان مهمة لشاشات
-/// الفندق حيث تتكرّر حالات "حجز ناجح / غرفة محجوزة / دفعة متأخرة".
-@immutable
-class MarinaSemanticColors extends ThemeExtension<MarinaSemanticColors> {
-  const MarinaSemanticColors({
-    required this.success,
-    required this.warning,
-    required this.error,
-    required this.info,
-    required this.onSuccess,
-    required this.onWarning,
-    required this.onError,
-    required this.onInfo,
-  });
+  final base = ThemeData(
+    useMaterial3: false,
+    brightness: Brightness.dark,
+    primarySwatch: _createMaterialColor(darkPrimary),
+    fontFamily: 'Tajawal',
+    scaffoldBackgroundColor: darkBackground,
+  );
 
-  /// لون النجاح (حجز مؤكد، دفعة مستلمة) — أخضر بحري.
-  final Color success;
+  return base.copyWith(
+    primaryColor: darkPrimary,
+    colorScheme: const ColorScheme.dark(
+      primary: darkPrimary,
+      secondary: Color(0xFF5BACD4), // Lighter blue for dark mode
+      surface: darkSurface,
+      error: Color(0xFFEF5350), // Lighter red for dark mode
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: Color(0xFFE0E0E0),
+      onError: Colors.white,
+    ),
 
-  /// لون التحذير (دفعة متأخرة، غرفة تحتاج صيانة) — ذهبي.
-  final Color warning;
+    // Dark AppBar - lighter shade for contrast
+    appBarTheme: const AppBarTheme(
+      backgroundColor: darkAppBar,
+      foregroundColor: Color(0xFFE0D5F0), // Light purple text/icons
+      elevation: 1,
+      centerTitle: false,
+      titleTextStyle: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFFE0D5F0),
+        fontFamily: 'Tajawal',
+      ),
+      iconTheme: IconThemeData(color: Color(0xFFE0D5F0)),
+    ),
 
-  /// لون الخطأ (إلغاء، فشل مزامنة) — أحمر داكن.
-  final Color error;
+    // Dark cards with purple tinted border
+    cardTheme: const CardThemeData(
+      color: darkSurface,
+      elevation: 1,
+      margin: EdgeInsets.all(8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+        side: BorderSide(color: Color(0xFF3D2048)), // Dark purple border for dark mode
+      ),
+    ),
 
-  /// لون المعلومة (إشعارات غير عاجلة) — teal بحري.
-  final Color info;
+    // Dark elevated buttons - lighter purple
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: darkPrimary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+      ),
+    ),
 
-  /// لون النص/الأيقونة فوق [success].
-  final Color onSuccess;
+    // Dark outlined buttons
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: darkPrimary,
+        side: const BorderSide(color: darkPrimary),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+      ),
+    ),
 
-  /// لون النص/الأيقونة فوق [warning].
-  final Color onWarning;
+    // Dark inputs - purple tinted focus
+    inputDecorationTheme: const InputDecorationTheme(
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+        borderSide: BorderSide(color: darkInputBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+        borderSide: BorderSide(color: darkInputBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+        borderSide: BorderSide(color: darkPrimary, width: 2),
+      ),
+      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+      labelStyle: TextStyle(color: Colors.white70),
+      hintStyle: TextStyle(color: Colors.white54),
+    ),
 
-  /// لون النص/الأيقونة فوق [error].
-  final Color onError;
+    // Dark table
+    dataTableTheme: const DataTableThemeData(
+      headingRowColor: WidgetStatePropertyAll(Color(0xFF2C2C2C)),
+      headingTextStyle: TextStyle(
+        color: Color(0xFFE0D5F0), // Light purple heading text
+        fontWeight: FontWeight.w600,
+        fontSize: 14,
+      ),
+      dataTextStyle: TextStyle(color: Colors.white, fontSize: 14),
+      columnSpacing: 24,
+      horizontalMargin: 16,
+      dataRowMinHeight: 44,
+    ),
 
-  /// لون النص/الأيقونة فوق [info].
-  final Color onInfo;
+    listTileTheme: const ListTileThemeData(
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      dense: true,
+      iconColor: Color(0xFFD4A0E8), // Light purple icons in dark
+      textColor: Colors.white,
+    ),
 
-  @override
-  MarinaSemanticColors copyWith({
-    Color? success,
-    Color? warning,
-    Color? error,
-    Color? info,
-    Color? onSuccess,
-    Color? onWarning,
-    Color? onError,
-    Color? onInfo,
-  }) {
-    return MarinaSemanticColors(
-      success: success ?? this.success,
-      warning: warning ?? this.warning,
-      error: error ?? this.error,
-      info: info ?? this.info,
-      onSuccess: onSuccess ?? this.onSuccess,
-      onWarning: onWarning ?? this.onWarning,
-      onError: onError ?? this.onError,
-      onInfo: onInfo ?? this.onInfo,
-    );
-  }
+    // Dark divider - subtle purple tint
+    dividerColor: const Color(0xFF3D2048),
 
-  @override
-  MarinaSemanticColors lerp(
-    ThemeExtension<MarinaSemanticColors>? other,
-    double t,
-  ) {
-    if (other is! MarinaSemanticColors) {
-      return this;
-    }
-    return MarinaSemanticColors(
-      success: Color.lerp(success, other.success, t)!,
-      warning: Color.lerp(warning, other.warning, t)!,
-      error: Color.lerp(error, other.error, t)!,
-      info: Color.lerp(info, other.info, t)!,
-      onSuccess: Color.lerp(onSuccess, other.onSuccess, t)!,
-      onWarning: Color.lerp(onWarning, other.onWarning, t)!,
-      onError: Color.lerp(onError, other.onError, t)!,
-      onInfo: Color.lerp(onInfo, other.onInfo, t)!,
-    );
-  }
+    visualDensity: VisualDensity.adaptivePlatformDensity,
+  );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PUBLIC API — توافق مع الكود القديم
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// @deprecated استخدم buildMarinaLightTheme() بدلاً منه.
-/// محفوظ للتوافق مع main.dart. يُرجع ThemeData الفاتح الجديد (Marina Navy).
-ThemeData buildTheme() => buildMarinaLightTheme();
-
-/// @deprecated استخدم buildMarinaDarkTheme() بدلاً منه.
-/// محفوظ للتوافق مع main.dart. يُرجع ThemeData الداكن الجديد (Marina Navy).
-ThemeData buildDarkTheme() => buildMarinaDarkTheme();
-
-// ═══════════════════════════════════════════════════════════════════════════
-// HELPER — إنشاء MaterialColor من Color (محفوظ للتوافق)
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// @deprecated غير ضروري مع Material 3 و ColorScheme.fromSeed.
-/// محفوظ فقط في حال كان هناك كود خارجي يستدعيه.
-MaterialColor createMaterialColor(Color color) {
+// Helper function to create MaterialColor from Color
+MaterialColor _createMaterialColor(Color color) {
   final strengths = <double>[.05];
   final Map<int, Color> swatch = <int, Color>{};
   final int r = (color.r * 255.0).round().clamp(0, 255);
