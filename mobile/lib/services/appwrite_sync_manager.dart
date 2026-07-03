@@ -35,6 +35,7 @@ import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
+import 'restore_fix_service.dart';
 import 'secondary_appwrite_config.dart';
 import 'sync_constants.dart';
 import 'sync/payload_mapper.dart';
@@ -4065,6 +4066,13 @@ class AppwriteSyncManager {
         _lastSyncTime = DateTime.now();
         await _saveSettings();
 
+        // ✅ إصلاح تلقائي بعد السحب: إعادة حساب الحجوزات + حالات الغرف
+        // + المدفوعات + هيكل الحجوزات. يُستدعى فقط عند سحب بيانات جديدة
+        // لتفادي الإصلاح غير الضروري عندما لا توجد تغييرات.
+        if (recordsPulled > 0) {
+          await _runPostPullAutoFix();
+        }
+
         if (recordsPulled > 0) {
           _logger.info('✅ تم سحب $recordsPulled سجل من Appwrite', tag: 'SYNC');
           return true;
@@ -4088,6 +4096,43 @@ class AppwriteSyncManager {
       }
     // ignore: dead_null_aware_expression
     }, timeout: const Duration(minutes: 5),) ?? false;
+  }
+
+  /// ✅ إصلاح تلقائي بعد السحب — يُعيد حساب الحجوزات + حالات الغرف
+  /// + المدفوعات + هيكل الحجوزات. يُستدعى تلقائياً بعد كل سحب ناجح
+  /// من Appwrite Cloud لضمان اتساق البيانات.
+  ///
+  /// هذا يكمّل EnhancedBookingCalculationService (الذي يُعيد حساب الليالي
+  /// فقط) بـ RestoreFixService الذي يُصلح أيضاً:
+  /// - حالات الغرف بناءً على الحجوزات النشطة
+  /// - المدفوعات المعلّقة (isPendingBalance)
+  /// - هيكل الحجوزات (booking_nights + derived fields)
+  Future<void> _runPostPullAutoFix() async {
+    try {
+      _logger.info('🔧 بدء الإصلاح التلقائي بعد السحب...', tag: 'SYNC');
+      final fixService = RestoreFixService(database);
+      final report = await fixService.runAutoFixAfterRestore();
+      if (report.success) {
+        _logger.info(
+          '✅ الإصلاح التلقائي اكتمل: ${report.bookingsFixed} حجز مُصلّح، '
+          '${report.roomsUpdated} غرفة مُحدّثة، '
+          '${report.paymentsRecalculated} دفعة مُعاد حسابها '
+          '(${report.durationMs}ms)',
+          tag: 'SYNC',
+        );
+      } else {
+        _logger.warning(
+          '⚠️ الإصلاح التلقائي اكتمل بمشاكل: ${report.error ?? "غير معروف"}',
+          tag: 'SYNC',
+        );
+      }
+    } catch (e) {
+      _logger.error(
+        '❌ فشل الإصلاح التلقائي بعد السحب (غير قاتل): $e',
+        tag: 'SYNC',
+      );
+      // لا نُرمي الخطأ — الإصلاح غير قاتل، السحب نفسه نجح
+    }
   }
 
   /// رفع جميع البيانات المحلية
