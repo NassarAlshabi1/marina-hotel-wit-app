@@ -765,8 +765,19 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       dialogSalaryAction = _mapExpenseTypeToSalaryAction(existing.expenseType);
     }
 
-    final List<Employee> availableEmployees =
+    final List<Employee> allEmployees =
         employees ?? await ref.read(employeesRepoProvider).watchAll().first;
+    // ✅ إزالة التكرار: قد توجد سجلات موظفين مكررة (نفس الاسم) بـ localUuid
+    // مختلف بسبب المزامنة. نُزيل التكرار بناءً على الاسم.
+    final seenNames = <String>{};
+    final List<Employee> availableEmployees = allEmployees.where((emp) {
+      final key = emp.name.trim();
+      if (seenNames.contains(key)) {
+        return false;
+      }
+      seenNames.add(key);
+      return true;
+    }).toList();
     int? selectedEmployeeId = existing?.relatedId;
 
     final ok = await showDialog<bool>(
