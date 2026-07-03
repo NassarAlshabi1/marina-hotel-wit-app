@@ -284,26 +284,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   /// ✅ زر إقفال اليوم (Night Audit) — يُغلق اليوم الفندقي ويرسل التقرير
+  ///
+  /// نستخدم FutureProvider مع keepAlive + cache — لا يُعاد تنفيذه عند كل
+  /// بناء للـ widget (مثلاً أثناء المزامنة). يُحدَّث فقط عند الضغط على الزر.
   Widget _buildNightAuditButton() {
     return Consumer(
       builder: (context, ref, _) {
         final isClosedAsync = ref.watch(
           isDayClosedProvider(null),
         );
-        return isClosedAsync.when(
-          data: (isClosed) => _NightAuditButton(
-            isClosed: isClosed,
-            onTap: () => _performNightAudit(context),
-          ),
-          loading: () => const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          error: (_, __) => _NightAuditButton(
-            isClosed: false,
-            onTap: () => _performNightAudit(context),
-          ),
+
+        // ✅ إصلاح: استخدم snapshot_data مباشرة بدل .when() لتجنّب الاهتزاز
+        // عند إعادة البناء أثناء المزامنة. إذا كان loading، نُظهر الزر
+        // بالحالة السابقة (بدل CircularProgressIndicator الذي يسبب الاهتزاز).
+        final isClosed = isClosedAsync.valueOrNull ?? false;
+        return _NightAuditButton(
+          isClosed: isClosed,
+          onTap: () => _performNightAudit(context),
         );
       },
     );
@@ -400,8 +397,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
 
-    // إعادة بناء الـ header لتحديث حالة الزر
-    if (mounted) setState(() {});
+    // ✅ إصلاح: بدل setState (الذي يُعيد بناء الشاشة كاملة)، نُحدّث
+    // الـ provider فقط ليُعيد بناء زر الإقفال وحده.
+    if (mounted) {
+      ref.invalidate(isDayClosedProvider(null));
+    }
   }
 
   Widget _buildStatisticsCards() {
