@@ -5874,11 +5874,19 @@ class AppwriteSyncManager {
       // ✅ إصلاح: اقتطاع القيم الطويلة لتجنّب RangeError من Appwrite
       // بعض حقول app_settings على السحابة لها size محدود (30 حرف)
       // والقيم المشفّرة (telegram_bot_token, lark_app_secret) قد تتجاوز ذلك.
+      // ✅ إصلاح حرج: اقتطاع إلى 28 حرف (بدل 29) لأن بعض الـ attributes
+      // لها size=30 و Appwrite يرفض القيم بطول == size أحياناً.
+      // ✅ إصلاح: try-catch حول substring لمنع RangeError من إيقاف المزامنة
       final filteredData = _filterPayload('app_settings', data);
       final truncatedData = <String, dynamic>{};
       for (final entry in filteredData.entries) {
-        if (entry.value is String && (entry.value as String).length > 29) {
-          truncatedData[entry.key] = (entry.value as String).substring(0, 29);
+        if (entry.value is String) {
+          final strVal = entry.value as String;
+          if (strVal.length > 28) {
+            truncatedData[entry.key] = strVal.substring(0, 28);
+          } else {
+            truncatedData[entry.key] = strVal;
+          }
         } else {
           truncatedData[entry.key] = entry.value;
         }
