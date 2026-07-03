@@ -508,6 +508,23 @@ class AppwriteService {
       // 404 — متوقع للسجلات الجديدة أو المستندات بدون شرطات
     }
 
+    // ─── الخطوة 1.5: قبل الإنشاء، جرّب تحديث الـ ID البديل (بدون شرطات) ───
+    //
+    // ✅ إصلاح جذري للتكرار: المستند قد يكون موجودًا بصيغة بدون شرطات فقط.
+    // في هذه الحالة update(بشرطات) يعطي 404 ثم create(بشرطات) ينجح
+    // فتُنشأ نسخة مكررة (نفس UUID بصيغتين). لذا نحدّث المستند البديل في مكانه
+    // إن وُجد، ونتجنّب الإنشاء المكرر تمامًا.
+    if (altDocumentId.isNotEmpty) {
+      try {
+        return await doUpdate(altDocumentId, suppressErrorLog: true);
+      } on AppwriteException catch (altError) {
+        if (!isNotFound(altError)) {
+          rethrow; // خطأ آخر غير 404
+        }
+        // 404 على البديل أيضًا — المستند غير موجود بأي صيغة → ننتقل للإنشاء
+      }
+    }
+
     // ─── الخطوة 2: createDocument ───
     try {
       return await doCreate();
