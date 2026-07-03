@@ -1696,11 +1696,15 @@ class AppwriteSyncManager {
           remoteData: remoteData,
         );
         // ✅ توحيد كسر التعادل: LWW + عند التساوي يفوز deviceId الأصغر معجمياً
+        // نُقارن deviceId البعيد مع deviceId المحلي: إذا كان البعيد أصغر
+        // معجمياً، يفوز البعيد (لتطبيق سلوك حتمي ومتناظر بين الأجهزة).
         final normalizedRemoteTs = effectiveRemoteTs > 10000000000
             ? effectiveRemoteTs ~/ 1000 : effectiveRemoteTs;
+        final remoteDeviceId = (remoteData['deviceId'] as String?) ?? '';
+        final localDeviceId = _currentDeviceId ?? '';
         final shouldApply = normalizedRemoteTs > localLastModified ||
             (normalizedRemoteTs == localLastModified &&
-             (_currentDeviceId ?? '').compareTo('') > 0);
+             remoteDeviceId.compareTo(localDeviceId) < 0);
         return _RemoteNewerResult(
           shouldApplyRemote: shouldApply,
         );
