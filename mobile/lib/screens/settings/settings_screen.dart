@@ -553,6 +553,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _performNightAudit(BuildContext context) async {
     final service = NightAuditService.instance;
     final isClosed = await service.isDayClosed(null);
+    // ✅ فحص mounted بعد await لمنع استخدام context إذا أُغلقت الشاشة.
+    // (مراجعة PR #451 r3521832508)
+    if (!mounted) return;
 
     if (isClosed) {
       // اليوم مُقفل — اسأل عن إعادة الإرسال

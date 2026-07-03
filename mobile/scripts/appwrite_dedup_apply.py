@@ -103,7 +103,12 @@ def is_safe_empty(doc):
     pn = count_linked("payments", "bookingUuidCache", did)
     nn = count_linked("booking_nights", "bookingUuidCache", did)
     mn = count_linked("booking_notes", "bookingUuidCache", did)
-    if pn not in (0, -1) or nn not in (0, -1) or mn not in (0, -1):
+    # ✅ معالجة -1 كخطأ (شبكة/API) بدلاً من "لا توجد ارتباطات".
+    # المنطق القديم: `pn not in (0, -1)` → عند الفشل (=-1) يعود False
+    # للشرط، أي يُعتبر "آمن" للحذف → قد يُفقد البيانات.
+    if pn == -1 or nn == -1 or mn == -1:
+        return False, f"خطأ في فحص الارتباطات (payments={pn}, nights={nn}, notes={mn})"
+    if pn > 0 or nn > 0 or mn > 0:
         return False, f"مرتبط (payments={pn}, nights={nn}, notes={mn})"
     return True, "آمن"
 
