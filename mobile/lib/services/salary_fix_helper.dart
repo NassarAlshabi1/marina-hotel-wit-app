@@ -1,44 +1,46 @@
-import 'package:drift/drift.dart' as drift;
+import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/app_logger.dart';
 import '../utils/expense_reason_matcher.dart';
-import 'crashlytics_service.dart';
 import 'local_db.dart';
 import 'repositories/expenses_repository.dart';
 import 'sync/payload_mapper.dart';
 
-/// ✅ مساعد لإصلاح مصروفات الرواتب القديمة (يُشغَّل مرة واحدة فقط).
+/// ✅ مساعد لإصلاح مصروفات الرواتب القديمة (مرة واحدة فقط).
 ///
-/// السيناريو الذي يُعالجه هذا الإصلاح:
-/// مصروفات رواتب أُنشئت قبل التوصية 1 (commit 0d631a67) لها:
-///   - `employeeUuid = null` (لم يكن يُكتب إلا وقت الرفع)
-///   - `relatedId` قد يكون null أو يشير لموظف غير موجود (autoIncrement محلي
-///     يختلف بين الأجهزة)
+/// المشكلة: مصروفات رواتب أُنشئت قبل التوصية 1 (commit 0d631a67) لها
+/// `employeeUuid = null` وربما `relatedId` غير صالح (autoIncrement محلي
+/// يختلف بين الأجهزة). بعد التحديث، تبدو هذه المصروفات غير مربوطة
+/// بموظفها، فيبدو المستخدم وكأنه "فقد سحبيات الرواتب القديمة".
 ///
-/// بعد التحديث، تظهر هذه المصروفات غير مربوطة بموظفها، فيبدو المستخدم
-/// وكأنه "فقد سحبيات الرواتب القديمة".
+/// الحل: يستخدم جدول `salary_withdrawals` كرابط عكسي موثوق:
+/// 1. يبحث عن مصروفات الرواتب اليتيمة (UUID فارغ + relatedId غير صالح)
+/// 2. يجد السحب المرتبط عبر `expense_id` (أو `reason` كـ fallback قديم)
+/// 3. يأخذ `employeeId` من السحب → يحل الموظف → يملأ `employeeUuid` + `relatedId`
+/// 4. يُحدّث `updatedAt` عبر `ExpensesRepository.update()` الذي يُضيف للـ outbox
+///    تلقائياً، فيُرفع للسحاب في المزامنة التالية (حقول camelCase).
 ///
-/// الحل: استخدام `salary_withdrawals` كمصدر عكسي موثوق:
-///   1. يبحث عن مصروفات الرواتب اليتيمة (UUID فارغ + relatedId غير صالح)
-///   2. يجد السحب المرتبط عبر `expense_id` (أو `reason` كـ fallback قديم)
-///   3. يأخذ `employeeId` من السحب → يحل الموظف → يملأ `employeeUuid` + `relatedId`
-///   4. التحديث يتم عبر `ExpensesRepository.update` الذي يحدّث `updatedAt`/
-///      `lastModified`/`version` تلقائياً ويُضيف للـ outbox للرفع التلقائي
-///
-/// آمن: لا يحذف أي شيء، فقط يُحدّث الروابط المفقودة. يستخدم SharedPreferences
-/// flag لضمان عدم التكرار.
+/// آمن: لا يحذف أي شيء، فقط يُحدّث الروابط المفقودة. يُكمّل التوصية 6.
 class SalaryFixHelper {
   SalaryFixHelper(this._db);
-
   final AppDatabase _db;
+
+  /// مفتاح SharedPreferences لضمان تنفيذ الإصلاح مرة واحدة فقط.
   static const String _fixDoneKey = 'salary_fix_v1_done';
 
   /// استدعاء هذه الدالة بعد اكتمال السحب الأول من Appwrite.
   ///
-  /// تتحقق من العلم، وإن لم يكن موجوداً، تنفذ الإصلاح. تنتظر حتى يكتمل
-  /// سحب الموظفين (تتحقق من وجود موظف واحد على الأقل) لتجنب الإصلاح
-  /// المبكر على جهاز جديد فارغ.
+  /// تتحقق من:
+  /// 1. SharedPreferences flag — إن كان true، تتخطى (سبق التنفيذ).
+  /// 2. وجود موظفين محلياً — إن لم يوجدوا، تؤجّل (السحب لم يكتمل بعد).
+  ///
+  /// عند النجاح:
+  /// - تُصلح المصروفات اليتيمة محلياً (مع outbox merge للرفع التلقائي).
+  /// - تُضبط الـ flag حتى لا تتكرر.
+  ///
+  /// لا ترفع استثناءات — أخطاء الإصلاح لا توقف المزامنة.
   Future<void> runOnceAfterFirstPull() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -48,65 +50,70 @@ class SalaryFixHelper {
       }
 
       // تأكد من وجود بيانات (موظفين) للتأكد من اكتمال السحب الأول.
-      // على جهاز جديد فارغ، نؤجل الإصلاح حتى يكتمل السحب.
-      final hasEmployees = await (_db.select(_db.employees)
-            ..where((e) => e.deletedAt.isNull())
-            ..limit(1))
-          .get();
-      if (hasEmployees.isEmpty) {
-        debugPrint(
-          '🔧 [SalaryFixHelper] No employees found yet — deferring fix '
-          'until next sync (will retry).',
+      // بدون هذا الفحص، قد نُصلح مصروفات قبل وصول موظفيها.
+      final employeesCount = await _db.employees.count().getSingle();
+      if (employeesCount == 0) {
+        AppLogger.info(
+          'Salary fix deferred — no employees synced yet (waiting for first pull).',
+          tag: 'SALARY_FIX',
         );
-        return; // سيُعاد المحاولة في المرة القادمة (flag لم يُضبط بعد)
+        return; // سيُعاد المحاولة في المرة القادمة (نفس الدالة).
       }
 
-      debugPrint('🔧 [SalaryFixHelper] Starting one-time salary fix...');
+      AppLogger.info(
+        'Starting one-time salary fix (first run after pull)...',
+        tag: 'SALARY_FIX',
+      );
 
-      // 1. إصلاح البيانات المحلية (يُحدّث updatedAt/lastModified + outbox)
+      // 1. إصلاح البيانات المحلية (يُضيف للـ outbox تلقائياً عبر repo.update).
       final fixedCount = await _fixOrphanSalaryExpenses();
 
       if (fixedCount > 0) {
-        debugPrint(
-          '🔧 [SalaryFixHelper] Fixed $fixedCount orphan salary expenses. '
-          'Changes will be pushed to Appwrite on next sync (via outbox).',
+        AppLogger.info(
+          '✅ Salary fix completed — $fixedCount orphan expenses re-linked. '
+          'Changes queued in outbox for next sync.',
+          tag: 'SALARY_FIX',
         );
+        // ملاحظة: لا نستدعي sync() هنا لأن الاستدعاء يأتي من داخل
+        // AppwriteSyncManager.pull() — ستُرفع التغييرات في الـ sync التالي
+        // تلقائياً عبر outbox. استدعاء sync() هنا قد يسبب recursive lock.
       } else {
-        debugPrint(
-          '🔧 [SalaryFixHelper] No broken salary expenses found.',
+        AppLogger.info(
+          'No orphan salary expenses found. Marking fix as done.',
+          tag: 'SALARY_FIX',
         );
       }
 
-      // 2. ضبط الـ flag (حتى لو لم يجد شيئاً — المهم أن الإصلاح تم تشغيله)
+      // 2. ضبط الـ flag (حتى لو لم يجد شيئاً — لا حاجة للتكرار).
       await prefs.setBool(_fixDoneKey, true);
-      debugPrint('🔧 [SalaryFixHelper] One-time fix marked as done.');
     } catch (e, st) {
-      debugPrint('⚠️ [SalaryFixHelper] Fix failed: $e');
-      // لا نضبط الـ flag عند الفشل — يُعاد المحاولة في التشغيل التالي.
-      try {
-        await CrashlyticsService.instance.recordUnexpectedError(
-          error: e,
-          stackTrace: st,
-          context: 'salary_fix_helper',
-        );
-      } catch (_) {
-        // Crashlytics قد لا يكون جاهزاً — تجاهل.
-      }
+      AppLogger.error(
+        '❌ Salary fix failed — will retry on next sync.',
+        error: e,
+        stackTrace: st,
+        tag: 'SALARY_FIX',
+      );
+      // لا نضبط الـ flag عند الفشل — يُعاد المحاولة في المرة القادمة.
     }
   }
 
-  /// إصلاح المصروفات التالفة وإرجاع عدد المصروفات التي تم إصلاحها.
+  /// إصلاح المصروفات اليتيمة محلياً وإرجاع عدد المصروفات المُصلَحة.
   ///
-  /// يستخدم `ExpensesRepository.update` (وليس customUpdate المباشر) لضمان:
-  ///   - تحديث `updatedAt` و `lastModified` بـ epoch حالي
-  ///   - زيادة `version`
-  ///   - إضافة السجل للـ outbox للرفع التلقائي في المزامنة التالية
+  /// يستخدم `ExpensesRepository.update()` (وليس customUpdate خام) لضمان:
+  /// - تحديث `updatedAt` تلقائياً.
+  /// - إضافة العملية للـ outbox (للرفع التلقائي للسحاب).
+  /// - توافق الحقول مع camelCase في Appwrite Cloud.
   Future<int> _fixOrphanSalaryExpenses() async {
     var fixedCount = 0;
+    final repo = ExpensesRepository(_db);
 
-    // ابحث عن مصروفات الرواتب اليتيمة.
-    // نُجري فحص نوع الراتب في Dart عبر PayloadMapper.isSalaryExpenseType
-    // لأن الكلمات المفتاحية عربية متعددة ولا تُترجم بسهولة إلى LIKE.
+    // 1. ابحث عن مصروفات الرواتب اليتيمة.
+    //    نُجري فحص نوع الراتب في Dart عبر PayloadMapper.isSalaryExpenseType
+    //    لأن الكلمات المفتاحية عربية متعددة (رواتب / سحب راتب / خصم راتب…)
+    //    ولا تُترجم بسهولة إلى LIKE في SQL.
+    //
+    //    شرط "اليتيم": employeeUuid فارغ OR relatedId غير صالح
+    //    (NULL أو يشير لموظف غير موجود/محذوف).
     final candidates = await _db.customSelect(
       'SELECT id, expense_type, related_id, employee_uuid '
       'FROM expenses '
@@ -126,115 +133,127 @@ class SalaryFixHelper {
       return 0;
     }
 
-    debugPrint(
-      '🔧 [SalaryFixHelper] Found ${orphans.length} orphan salary expenses '
-      'needing repair.',
+    AppLogger.info(
+      '🔍 Found ${orphans.length} orphan salary expenses to repair.',
+      tag: 'SALARY_FIX',
     );
-
-    // جهّز repository لاستخدام updateById (يُحدّث updatedAt + outbox).
-    // ExpensesRepository ينشئ dao و outbox تلقائياً في constructor.
-    final repo = ExpensesRepository(_db);
 
     for (final row in orphans) {
       final expenseId = row.read<int>('id');
-      final existingUuid = row.read<String?>('employee_uuid');
+      final existingEmployeeUuid = row.read<String?>('employee_uuid');
 
-      int? resolvedEmployeeId;
-      String? resolvedEmployeeUuid;
-
-      // المحاولة 1: عبر employeeUuid (إن وُجد)
-      if (existingUuid != null && existingUuid.isNotEmpty) {
+      // المحاولة 1: عبر employeeUuid الموجود (إن وُجد ولم يُحَل بعد).
+      if (existingEmployeeUuid != null && existingEmployeeUuid.isNotEmpty) {
         final employee = await (_db.select(_db.employees)
-              ..where((e) => e.localUuid.equals(existingUuid))
+              ..where((e) => e.localUuid.equals(existingEmployeeUuid))
               ..where((e) => e.deletedAt.isNull())
               ..limit(1))
             .getSingleOrNull();
+
         if (employee != null) {
-          resolvedEmployeeId = employee.id;
-          resolvedEmployeeUuid = employee.localUuid;
+          // employeeUuid موجود وصالح → فقط عيّن relatedId.
+          // تحديث عبر repo يضمن outbox merge + updatedAt.
+          await repo.update(
+            expenseId,
+            relatedId: employee.id,
+            employeeUuid: employee.localUuid,
+          );
+          fixedCount++;
+          AppLogger.debug(
+            '  ✅ Expense #$expenseId fixed via employeeUuid '
+            '→ employee #${employee.id}',
+            tag: 'SALARY_FIX',
+          );
+          continue;
         }
       }
 
-      // المحاولة 2: عبر salary_withdrawals (المصدر الموثوق)
-      if (resolvedEmployeeId == null) {
-        int? employeeIdFromWithdrawal;
-
-        // 2أ. بحث عبر expense_id (العمود المُعلَن في Drift)
-        try {
-          final swRow = await (_db.select(_db.salaryWithdrawals)
-                ..where((t) => t.expenseId.equals(expenseId))
-                ..where((t) => t.deletedAt.isNull())
-                ..limit(1))
-              .getSingleOrNull();
-          if (swRow != null) {
-            employeeIdFromWithdrawal = swRow.employeeId;
-          }
-        } catch (_) {
-          // العمود expense_id قد لا يكون موجوداً في DBs القديمة جداً.
+      // المحاولة 2: عبر salary_withdrawals (المصدر الموثوق للبيانات التاريخية).
+      // ابحث عن السحب المرتبط عبر expense_id أولاً.
+      int? employeeIdFromWithdrawal;
+      try {
+        final swRow = await _db.customSelect(
+          'SELECT employee_id FROM salary_withdrawals '
+          'WHERE expense_id = ? AND deleted_at IS NULL LIMIT 1',
+          variables: [d.Variable.withInt(expenseId)],
+          readsFrom: {_db.salaryWithdrawals},
+        ).getSingleOrNull();
+        if (swRow != null) {
+          employeeIdFromWithdrawal = swRow.read<int>('employee_id');
         }
+      } catch (_) {
+        // العمود expense_id قد لا يكون موجوداً في DBs القديمة جداً
+        // (أُضيف في migration 40) — ننتقل للـ fallback.
+      }
 
-        // 2ب. fallback: بحث عبر reason (للسجلات القديمة جداً قبل migration 40)
-        // نستخدم customSelect لأن Drift's GeneratedColumn.reason لا يدعم
-        // .like مباشرة في الـ query builder.
-        if (employeeIdFromWithdrawal == null) {
-          final swRows = await _db.customSelect(
-            'SELECT id, employee_id, reason FROM salary_withdrawals '
-            'WHERE deleted_at IS NULL AND reason LIKE ?',
-            variables: [drift.Variable.withString('%exp_$expenseId%')],
-            readsFrom: {_db.salaryWithdrawals},
-          ).get();
-          for (final sw in swRows) {
-            final reason = sw.read<String?>('reason');
-            if (reason != null && matchesExpenseRef(reason, expenseId)) {
-              employeeIdFromWithdrawal = sw.read<int>('employee_id');
-              break;
-            }
-          }
-        }
+      // 2ب. fallback: ابحث عبر reason (للسجلات القديمة جداً قبل migration 40).
+      if (employeeIdFromWithdrawal == null) {
+        final swByReason = await _db.customSelect(
+          'SELECT employee_id, reason FROM salary_withdrawals '
+          'WHERE deleted_at IS NULL AND reason LIKE ?',
+          variables: [d.Variable.withString('%exp_$expenseId%')],
+          readsFrom: {_db.salaryWithdrawals},
+        ).get();
 
-        if (employeeIdFromWithdrawal != null) {
-          final employee = await (_db.select(_db.employees)
-                ..where((e) => e.id.equals(employeeIdFromWithdrawal!))
-                ..where((e) => e.deletedAt.isNull())
-                ..limit(1))
-              .getSingleOrNull();
-          if (employee != null) {
-            resolvedEmployeeId = employee.id;
-            resolvedEmployeeUuid = employee.localUuid;
+        for (final sw in swByReason) {
+          final reason = sw.read<String?>('reason');
+          if (reason != null && matchesExpenseRef(reason, expenseId)) {
+            employeeIdFromWithdrawal = sw.read<int>('employee_id');
+            break;
           }
         }
       }
 
-      if (resolvedEmployeeId == null || resolvedEmployeeUuid == null) {
-        debugPrint(
-          '  ⚠️ Expense #$expenseId: could not resolve employee — leaving as is.',
+      if (employeeIdFromWithdrawal == null) {
+        AppLogger.warning(
+          '  ⚠️ Expense #$expenseId: no salary_withdrawal found, leaving as is.',
+          tag: 'SALARY_FIX',
         );
         continue;
       }
 
-      // 3. حدّث المصروف عبر repository (يُحدّث updatedAt/lastModified + outbox).
-      //    نمرّر employeeUuid كـ '' لنتمكن من تعيينه (لأن null يعني "لا تغيير"
-      //    في update() — راجع expenses_repository.dart:186-190).
-      //    لكننا نريد تعيين قيمة فعلية، فنمرّرها مباشرة.
-      try {
-        await repo.update(
-          expenseId,
-          relatedId: resolvedEmployeeId,
-          employeeUuid: resolvedEmployeeUuid,
+      // تحقق من وجود الموظف واحصل على localUuid.
+      final employee = await (_db.select(_db.employees)
+            ..where((e) => e.id.equals(employeeIdFromWithdrawal!))
+            ..where((e) => e.deletedAt.isNull())
+            ..limit(1))
+          .getSingleOrNull();
+
+      if (employee == null) {
+        AppLogger.warning(
+          '  ⚠️ Expense #$expenseId: employee #$employeeIdFromWithdrawal '
+          'not found (deleted?), leaving as is.',
+          tag: 'SALARY_FIX',
         );
-        fixedCount++;
-        final uuidPreview = resolvedEmployeeUuid.length >= 8
-            ? resolvedEmployeeUuid.substring(0, 8)
-            : resolvedEmployeeUuid;
-        debugPrint(
-          '  ✅ Fixed expense #$expenseId → employee #$resolvedEmployeeId '
-          '(uuid: $uuidPreview...)',
-        );
-      } catch (e) {
-        debugPrint('  ❌ Failed to update expense #$expenseId: $e');
+        continue;
       }
+
+      // أعد ربط المصروف (relatedId + employeeUuid معاً).
+      // تحديث عبر repo يضمن outbox merge + updatedAt للرفع للسحاب.
+      await repo.update(
+        expenseId,
+        relatedId: employee.id,
+        employeeUuid: employee.localUuid,
+      );
+      fixedCount++;
+      final uuidPreview = employee.localUuid.length >= 8
+          ? employee.localUuid.substring(0, 8)
+          : employee.localUuid;
+      AppLogger.debug(
+        '  ✅ Expense #$expenseId fixed via salary_withdrawal '
+        '→ employee #${employee.id} (uuid: $uuidPreview...)',
+        tag: 'SALARY_FIX',
+      );
     }
 
     return fixedCount;
+  }
+
+  /// دالة يدوية لإعادة ضبط الـ flag (للاختبار أو إعادة التشغيل).
+  /// تُتيح إعادة تنفيذ الإصلاح في المرة القادمة.
+  static Future<void> resetFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_fixDoneKey);
+    debugPrint('🔧 Salary fix flag reset — will run again on next sync.');
   }
 }

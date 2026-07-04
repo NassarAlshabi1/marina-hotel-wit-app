@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/expense_reason_matcher.dart';
 import 'local_db.dart';
 import 'sync/payload_mapper.dart';
 
@@ -225,11 +226,79 @@ class DatabaseFixer {
                   continue;
                 }
               } else {
-                // لا UUID ولا موظف محلي — لا نُصفّر مصروف الراتب (تفادي فقدان
-                // الربط بصمت). نترك relatedId القديم ونُسجّل تحذيرًا.
+                // ✅ لا UUID ولا موظف محلي — حاول عبر salary_withdrawals
+                // كرابط عكسي موثوق (السحب يحتفظ بـ employeeId الصحيح دائماً).
+                // هذا يُكمّل التوصية 6 ويُغطّي البيانات القديمة جداً التي
+                // ليس لها employeeUuid أصلاً.
+                int? employeeIdFromWithdrawal;
+                try {
+                  final swRow = await db.customSelect(
+                    'SELECT employee_id FROM salary_withdrawals '
+                    'WHERE expense_id = ? AND deleted_at IS NULL LIMIT 1',
+                    variables: [Variable.withInt(expenseId)],
+                    readsFrom: {db.salaryWithdrawals},
+                  ).getSingleOrNull();
+                  if (swRow != null) {
+                    employeeIdFromWithdrawal = swRow.read<int>('employee_id');
+                  }
+                } catch (_) {
+                  // العمود expense_id قد لا يكون موجوداً في DBs القديمة جداً.
+                }
+
+                // fallback: ابحث عبر reason للسجلات القديمة جداً.
+                if (employeeIdFromWithdrawal == null) {
+                  final swByReason = await db.customSelect(
+                    'SELECT employee_id, reason FROM salary_withdrawals '
+                    'WHERE deleted_at IS NULL AND reason LIKE ?',
+                    variables: [Variable.withString('%exp_$expenseId%')],
+                    readsFrom: {db.salaryWithdrawals},
+                  ).get();
+                  for (final sw in swByReason) {
+                    final reason = sw.read<String?>('reason');
+                    if (reason != null &&
+                        matchesExpenseRef(reason, expenseId)) {
+                      employeeIdFromWithdrawal = sw.read<int>('employee_id');
+                      break;
+                    }
+                  }
+                }
+
+                if (employeeIdFromWithdrawal != null) {
+                  // حلّ الموظف من employeeId المستخرج من السحب.
+                  final byWithdrawal = await (db.select(db.employees)
+                        ..where((e) => e.id.equals(employeeIdFromWithdrawal!))
+                        ..where((e) => e.deletedAt.isNull())
+                        ..limit(1))
+                      .getSingleOrNull();
+                  if (byWithdrawal != null) {
+                    // ✅ إعادة ربط عبر السحب + ملء employeeUuid لتفادي
+                    // المشكلة مستقبلاً (التوصية 1).
+                    await db.customUpdate(
+                      'UPDATE expenses SET related_id = ?, employee_uuid = ? '
+                      'WHERE id = ?',
+                      variables: [
+                        Variable.withInt(byWithdrawal.id),
+                        Variable.withString(byWithdrawal.localUuid),
+                        Variable.withInt(expenseId),
+                      ],
+                      updates: {db.expenses},
+                    );
+                    relinked++;
+                    debugPrint(
+                      'Re-linked orphan salary expense #$expenseId via '
+                      'salary_withdrawal → employee #${byWithdrawal.id} '
+                      '(uuid: ${byWithdrawal.localUuid})',
+                    );
+                    continue;
+                  }
+                }
+
+                // فشل كل شيء: لا نُصفّر مصروف الراتب (تفادي فقدان الربط
+                // بصمت). نترك relatedId القديم ونُسجّل تحذيرًا.
                 debugPrint(
                   '⚠️ Salary expense #$expenseId is orphan with empty '
-                  'employeeUuid — left related_id=$relatedId intact (not zeroed).',
+                  'employeeUuid and no salary_withdrawal — left '
+                  'related_id=$relatedId intact (not zeroed).',
                 );
                 continue;
               }

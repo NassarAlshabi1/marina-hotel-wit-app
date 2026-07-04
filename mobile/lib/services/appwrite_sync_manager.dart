@@ -1165,6 +1165,23 @@ class AppwriteSyncManager {
         } finally {
           // ✅ تحقق معزز من سلامة البيانات والمفاتيح الأجنبية بعد المزامنة
           await _performPostSyncIntegrityCheck();
+
+          // ✅ إصلاح لمرة واحدة: استعادة روابط مصروفات الرواتب اليتيمة.
+          // يعمل تلقائياً بعد اكتمال السحب الأول (عندما تكون الموظفون
+          // والسحبيات متاحة محلياً). يستخدم SharedPreferences flag لضمان
+          // عدم التكرار. غير محجوب — أخطاؤه لا توقف المزامنة.
+          // راجع SalaryFixHelper للتفاصيل.
+          try {
+            final helper = SalaryFixHelper(database);
+            await helper.runOnceAfterFirstPull();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ Salary fix helper failed — will retry on next sync.',
+              error: e,
+              stackTrace: st,
+              tag: 'SALARY_FIX',
+            );
+          }
         }
       }
 
