@@ -5836,6 +5836,7 @@ class AppwriteSyncManager {
       final prefs = await SharedPreferences.getInstance();
       final deviceId = await _getDeviceIdForPrefs();
       final encryptionKey = SecureStorage.getEncryptionKey(null);
+      final now = Time.nowEpoch();
 
       // ⚠️ حقول app_settings الفعلية في Appwrite Cloud (25 حقل فقط — الحد الأقصى)
       // تم تدقيق كل حقل مقابل المخطط الفعلي في 2026-06-14
@@ -5875,6 +5876,17 @@ class AppwriteSyncManager {
         'lark_daily_report_chat_id': prefs.getString('lark_daily_report_chat_id') ?? '',
         // ── مزامنة ──
         'appwrite_sync_interval': prefs.getInt('appwrite_sync_interval') ?? 15,
+        // ✅ إصلاح (2026-07-04): الحقول المطلوبة إجبارياً في مخطط app_settings
+        // على Appwrite Cloud. بدونها، createDocument يفشل بـ:
+        //   document_invalid_structure: Missing required attribute "createdAt" (400)
+        // والـ updateDocument يفشل بـ 404 (المستند لم يُنشأ بعد).
+        // هذه الحقول الخمسة مطلوبة (required=true، default=None) حسب المخطط
+        // الفعلي المُتحقَّق منه عبر GET /collections/app_settings/attributes.
+        'createdAt': now,
+        'updatedAt': now,
+        'lastModified': now,
+        'lastModifiedEpoch': now,
+        'syncTimestamp': now,
       };
 
       const docId = 'whatsapp_settings';
@@ -5903,15 +5915,30 @@ class AppwriteSyncManager {
       final filteredData = _filterPayload('app_settings', data);
 
       // محاولة تحديث، إذا لم يكن موجوداً ننشئه
+      // ✅ إصلاح: كتم 404 المتوقع في updateDocument. المستند 'whatsapp_settings'
+      // قد لا يكون موجوداً بعد (أول رفع) — 404 متوقع تماماً ويُلتقط في
+      // catch لينتقل إلى createDocument. تسجيله كـ ERROR يُسبب ضجيجاً.
       try {
-        await appwriteService.updateDocument(
+        await appwriteService.updateRow(
           collectionId: collectionId,
           documentId: docId,
           data: filteredData,
         );
-      } catch (_) {
+      } catch (e) {
+        // 404 متوقع للمستند الجديد — ننتقل إلى create.
+        // أي خطأ آخر نُسجّله تحذيرًا (app_settings غير حرجة).
+        if (e is AppwriteException &&
+            (e.code == 404 ||
+                (e.type ?? '').contains('document_not_found'))) {
+          // متوقع — لا نسجّله.
+        } else {
+          _logger.warning(
+            'app_settings update failed (non-critical): $e',
+            tag: 'SYNC',
+          );
+        }
         try {
-          await appwriteService.createDocument(
+          await appwriteService.createRow(
             collectionId: collectionId,
             documentId: docId,
             data: filteredData,
