@@ -104,6 +104,17 @@ class SalaryFixHelper {
   /// - إضافة العملية للـ outbox (للرفع التلقائي للسحاب).
   /// - توافق الحقول مع camelCase في Appwrite Cloud.
   Future<int> _fixOrphanSalaryExpenses() async {
+    return fixOrphanSalaryExpensesForTest();
+  }
+
+  /// دالة الإصلاح الفعلية (مُعرَّضة للاختبار).
+  ///
+  /// تبحث عن مصروفات الرواتب اليتيمة وتُعيد ربطها عبر:
+  /// 1. employeeUuid (إن وُجد وصالح)
+  /// 2. salary_withdrawals كرابط عكسي (عبر expense_id ثم reason)
+  ///
+  /// تُرجع عدد المصروفات المُصلَحة. لا تحذف شيئاً — آمنة للاختبار.
+  Future<int> fixOrphanSalaryExpensesForTest() async {
     var fixedCount = 0;
     final repo = ExpensesRepository(_db);
 
@@ -112,13 +123,15 @@ class SalaryFixHelper {
     //    لأن الكلمات المفتاحية عربية متعددة (رواتب / سحب راتب / خصم راتب…)
     //    ولا تُترجم بسهولة إلى LIKE في SQL.
     //
-    //    شرط "اليتيم": employeeUuid فارغ OR relatedId غير صالح
-    //    (NULL أو يشير لموظف غير موجود/محذوف).
+    //    شرط "اليتيم": relatedId غير صالح (NULL أو يشير لموظف غير موجود/محذوف)
+    //    — بصرف النظر عن حالة employeeUuid (قد يكون فارغاً أو موجوداً لكن
+    //      relatedId لم يُحَل بعد). هذا يغطّي:
+    //      * المصروفات القديمة جداً (UUID فارغ + relatedId غير صالح)
+    //      * المصروفات التي لها UUID لكن relatedId لم يُحَل (نادر لكن ممكن)
     final candidates = await _db.customSelect(
       'SELECT id, expense_type, related_id, employee_uuid '
       'FROM expenses '
       'WHERE deleted_at IS NULL '
-      "AND (employee_uuid IS NULL OR employee_uuid = '') "
       'AND (related_id IS NULL OR related_id NOT IN '
       '    (SELECT id FROM employees WHERE deleted_at IS NULL))',
       readsFrom: {_db.expenses, _db.employees},
