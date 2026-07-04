@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import '../utils/expense_reason_matcher.dart';
 import 'local_db.dart';
+import 'repositories/expenses_repository.dart';
 import 'sync/payload_mapper.dart';
 
 /// خدمة لإصلاح البيانات الفاسدة في قاعدة البيانات
@@ -166,6 +167,12 @@ class DatabaseFixer {
     int fixed = 0;
     int relinked = 0;
 
+    // ✅ استخدم ExpensesRepository.update() بدل customUpdate المباشر لضمان:
+    // - تحديث lastModified + updatedAt تلقائياً (للرفع للسحاب)
+    // - إضافة العملية للـ outbox (للمزامنة التلقائية مع Appwrite Cloud)
+    // - توافق الحقول camelCase مع مخطط Appwrite Cloud
+    final repo = ExpensesRepository(db);
+
     try {
       // ✅ التوصية 6: نختار أيضاً employee_uuid للإعادة ربط الرواتب عبر UUID.
       final orphanExpenses = await db.customSelect('''
@@ -201,18 +208,17 @@ class DatabaseFixer {
                     .getSingleOrNull();
                 if (byUuid != null) {
                   // ✅ إعادة الربط عبر UUID — لا تصفير.
-                  await db.customUpdate(
-                    'UPDATE expenses SET related_id = ? WHERE id = ?',
-                    variables: [
-                      Variable.withInt(byUuid.id),
-                      Variable.withInt(expenseId),
-                    ],
-                    updates: {db.expenses},
+                  // repo.update يُحدّث lastModified + updatedAt + يُضيف للـ outbox.
+                  await repo.update(
+                    expenseId,
+                    relatedId: byUuid.id,
+                    employeeUuid: byUuid.localUuid,
                   );
                   relinked++;
                   debugPrint(
                     'Re-linked orphan salary expense #$expenseId → '
-                    'employee #${byUuid.id} (uuid: $employeeUuid)',
+                    'employee #${byUuid.id} (uuid: $employeeUuid) '
+                    '+ lastModified updated for cloud sync',
                   );
                   // تمت المعالجة — لا نمرّ عبر فرع التصفير.
                   continue;
@@ -273,21 +279,18 @@ class DatabaseFixer {
                   if (byWithdrawal != null) {
                     // ✅ إعادة ربط عبر السحب + ملء employeeUuid لتفادي
                     // المشكلة مستقبلاً (التوصية 1).
-                    await db.customUpdate(
-                      'UPDATE expenses SET related_id = ?, employee_uuid = ? '
-                      'WHERE id = ?',
-                      variables: [
-                        Variable.withInt(byWithdrawal.id),
-                        Variable.withString(byWithdrawal.localUuid),
-                        Variable.withInt(expenseId),
-                      ],
-                      updates: {db.expenses},
+                    // repo.update يُحدّث lastModified + updatedAt + يُضيف للـ outbox.
+                    await repo.update(
+                      expenseId,
+                      relatedId: byWithdrawal.id,
+                      employeeUuid: byWithdrawal.localUuid,
                     );
                     relinked++;
                     debugPrint(
                       'Re-linked orphan salary expense #$expenseId via '
                       'salary_withdrawal → employee #${byWithdrawal.id} '
-                      '(uuid: ${byWithdrawal.localUuid})',
+                      '(uuid: ${byWithdrawal.localUuid}) '
+                      '+ lastModified updated for cloud sync',
                     );
                     continue;
                   }
