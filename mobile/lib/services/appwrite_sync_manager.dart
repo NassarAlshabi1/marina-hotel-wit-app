@@ -6270,12 +6270,15 @@ class AppwriteSyncManager {
     try {
       // ابحث عن المدفوعات التي لها bookingUuidCache لكن bookingLocalId
       // غير مربوط (NULL أو يشير لحجز غير موجود)
+      // ✅ إصلاح SQL: استخدم علامات اقتباس مفردة '' للـ string literal الفارغ
+      // بدل "" — علامات الاقتباس المزدوجة في SQLite تُفسَّر كمعرّف عمود وليس
+      // كسلسلة نصية، فتُنتج "no such column". (نفس إصلاح _relinkOrphanSalaryExpenses.)
       final orphans = await database.customSelect(
         'SELECT p.id, p.booking_uuid_cache, p.booking_local_id '
         'FROM payments p '
         'LEFT JOIN bookings b ON p.booking_local_id = b.id '
         'WHERE p.booking_uuid_cache IS NOT NULL '
-        'AND p.booking_uuid_cache != "" '
+        "AND p.booking_uuid_cache != '' "
         'AND p.deleted_at IS NULL '
         'AND (p.booking_local_id IS NULL OR b.id IS NULL)',
         readsFrom: {database.payments, database.bookings},
@@ -6380,10 +6383,13 @@ class AppwriteSyncManager {
       // نُجري فحص نوع الراتب في Dart عبر PayloadMapper.isSalaryExpenseType
       // لأن الكلمات المفتاحية عربية ومتعددة (رواتب / سحب راتب / خصم راتب…)
       // ولا تُترجم بسهولة إلى LIKE في SQL.
+      // ✅ إصلاح SQL: استخدم علامات اقتباس مفردة '' للـ string literal الفارغ
+      // بدل "" — علامات الاقتباس المزدوجة في SQLite تُفسَّر كمعرّف عمود وليس
+      // كسلسلة نصية، فتُنتج "no such column". (تلميح رسالة الخطأ كان صريحًا.)
       final candidates = await database.customSelect(
         'SELECT id, employee_uuid, expense_type FROM expenses '
         'WHERE employee_uuid IS NOT NULL '
-        'AND employee_uuid != "" '
+        "AND employee_uuid != '' "
         'AND related_id IS NULL '
         'AND deleted_at IS NULL',
         readsFrom: {database.expenses},
