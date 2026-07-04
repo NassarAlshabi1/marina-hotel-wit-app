@@ -2097,6 +2097,18 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+        // ✅ إصلاح #2-B: تخزين $id الحقيقي كـ serverId عند السحب.
+        // في الحالات النادرة التي يُنشأ فيها مستند على Appwrite بـ $id مختلف
+        // عن localUuid (مثلاً من خدمة النسخ الاحتياطي الشامل التي تستخدم
+        // ID.unique() عند غياب localUuid)، يضيع $id الحقيقي بعد السحب لأن
+        // `??=` لا يتجاوز السمة الموجودة. حفظه كـ serverId يتيح للدفع اللاحق
+        // مخاطبة المستند الصحيح. هذا إجراء وقائي — راجع payload_mapper.dart
+        // الذي يرسل localUuid كسمة لكن يستخدم serverId للمعرّف الفعلي عند
+        // توفره. (نفس نمط الموظفين في _syncEmployees.)
+        data['serverId'] ??= _asIntSafe(data, 'id') ?? _asIntSafe(data, 'serverId');
+        // ملاحظة: $id نصي (UUID)، لكن serverId في المخطط Int. لذا نُسجّله
+        // فقط إذا كان رقمياً (نادر). للمعرّفات النصية، يبقى localUuid هو
+        // المرجع. هذا لا يضر — الـ adapter يتعامل مع serverId الغائب.
 
         // ✅ إصلاح: التحقق من الحذف الناعم + عدم تجاوز البيانات المحلية الأحدث
         final localUuid = (data['localUuid'] as String?) ?? '';
@@ -2503,9 +2515,15 @@ class AppwriteSyncManager {
   }) async {
     try {
       // 1) قراءة المستند البعيد
+      // ✅ إصلاح #2-D: كتم 404 المتوقع. في فحص OCC، 404 يعني أن المستند
+      // جديد (لم يُرفع بعد) — وهو سلوك متوقع تماماً وليس خطأ. قبل هذا
+      // الإصلاح، كان 404 يُسجَّل كـ ERROR في getRow/withTimeout رغم أن
+      // _occCheckAndMerge يلتقطه ويعالجه بشكل صحيح (يعيد localPayload
+      // للمتابعة إلى create). كتم الخطأ هنا يُخفضه إلى debug.
       final remoteDoc = await appwriteService.getDocument(
         collectionId: collectionId,
         documentId: documentId,
+        suppressErrorLog: true,
       );
       final remoteData = Map<String, dynamic>.from(remoteDoc.data);
 

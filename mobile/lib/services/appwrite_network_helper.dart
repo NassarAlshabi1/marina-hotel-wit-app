@@ -19,12 +19,16 @@ class AppwriteNetworkHelper {
   /// [initialDelay] - التأخير الأولي (افتراضي: 2 ثانية)
   /// [backoffMultiplier] - معامل التضاعف (افتراضي: 2.0)
   /// [operationName] - اسم العملية للتسجيل
+  /// [suppressErrorLog] - إذا true، يُخفض تحذير "Non-retriable error" من
+  ///   WARNING إلى debug. مفيد لأخطاء 404 المتوقعة في upsert probe (مثلاً
+  ///   updateDocument على مستند جديد لم يُرفع بعد) — راجع إصلاح #2-D.
   Future<T> withRetry<T>({
     required Future<T> Function() operation,
     int? maxRetries,
     Duration? initialDelay,
     double? backoffMultiplier,
     String? operationName,
+    bool suppressErrorLog = false,
   }) async {
     final retries = maxRetries ?? AppwriteConfig.maxRetries;
     final delay = initialDelay ?? AppwriteConfig.initialRetryDelay;
@@ -44,7 +48,17 @@ class AppwriteNetworkHelper {
       } catch (e) {
         // التحقق من نوع الخطأ - هل قابل لإعادة المحاولة؟
         if (!_isRetriableError(e)) {
-          _logger.warning('$opName - Non-retriable error: $e', tag: 'RETRY');
+          // ✅ إصلاح #2-D: كتم تحذير "Non-retriable error" للأخطاء المتوقعة
+          // (مثل 404 في upsert probe على مستندات جديدة). الخطأ يُعاد رميه
+          // لكن بدون ضجيج في السجل.
+          if (!suppressErrorLog) {
+            _logger.warning('$opName - Non-retriable error: $e', tag: 'RETRY');
+          } else {
+            _logger.debug(
+              '$opName - Expected non-retriable error (suppressed): $e',
+              tag: 'RETRY',
+            );
+          }
           rethrow;
         }
 
@@ -146,6 +160,9 @@ class AppwriteNetworkHelper {
       ),
       maxRetries: maxRetries,
       operationName: operationName,
+      // ✅ إصلاح #2-D: تمرير suppressErrorLog إلى withRetry أيضاً لكتم
+      // تحذير "Non-retriable error" للأخطاء المتوقعة (404 في upsert probe).
+      suppressErrorLog: suppressErrorLog,
     );
   }
 

@@ -1270,6 +1270,11 @@ class AppwriteService {
   Future<models.Document> getRow({
     required String collectionId,
     required String documentId,
+    // ✅ إصلاح #2-D: كتم 404 المتوقع في فحص OCC. عند استدعاء getRow من
+    // _occCheckAndMerge، 404 يعني ببساطة أن المستند جديد (لم يُرفع بعد)
+    // — وهو سلوك متوقع وليس خطأ. تمرير suppressErrorLog: true يخفضه من
+    // ERROR إلى debug في السجل.
+    bool suppressErrorLog = false,
   }) async {
     await _ensureInitialized();
     // ✅ Manual failover: if active, read from Secondary instead
@@ -1289,6 +1294,7 @@ class AppwriteService {
         documentId: documentId,
       ),
       operationName: 'getRow($collectionId/$documentId)',
+      suppressErrorLog: suppressErrorLog,
     );
   }
 
@@ -1394,10 +1400,12 @@ class AppwriteService {
   Future<models.Document> getDocument({
     required String collectionId,
     required String documentId,
+    bool suppressErrorLog = false,
   }) {
     return getRow(
       collectionId: collectionId,
       documentId: documentId,
+      suppressErrorLog: suppressErrorLog,
     );
   }
 

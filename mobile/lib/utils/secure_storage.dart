@@ -1,18 +1,26 @@
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
+
 class SecureStorage {
   static const _staticSecret = 'marina_hotel_sync_secret_2024';
   static const _prefix = 'ENC:';
 
+  /// يُولّد مفتاح تشفير ثابت (32 بايت) مشتق من [_staticSecret].
+  ///
+  /// ✅ إصلاح RangeError (2026-07-04): كان الإصدار السابق يبني `keyBytes`
+  /// بطول السر (29 بايت) ثم يستدعي `keyBytes.sublist(0, 32)` — وهذا يرمي
+  /// `RangeError (end): Invalid value: Not in inclusive range 0..29: 32`
+  /// لأن القائمة أقصر من 32. كان يمنع رفع `app_settings` نهائيًا.
+  ///
+  /// الحل: SHA-256 يُنتج 32 بايت دائمًا بغضّ النظر عن طول السر، فلا RangeError.
+  /// ملاحظة توافق رجعي: الإصدار السابق لم ينجح أبدًا في إنتاج مفتاح صالح،
+  /// لذا لم تُرفع أي قيمة مشفّرة (`ENC:...`) قط — لا خطر من تغيير الاشتقاق.
   static String getEncryptionKey(String? deviceId) {
-    // For shared settings synced across devices, use constant key
-    // SECURITY: XOR is obfuscation only - use encrypt package for production
-    final bytes = utf8.encode(_staticSecret);
-    final keyBytes = <int>[];
-    for (var i = 0; i < bytes.length; i++) {
-      keyBytes.add((bytes[i] * 7 + i * 13) % 256);
-    }
-    return base64.encode(keyBytes.sublist(0, 32));
+    // For shared settings synced across devices, use constant key.
+    // SECURITY: XOR is obfuscation only - use encrypt package for production.
+    final digest = sha256.convert(utf8.encode(_staticSecret));
+    return base64.encode(digest.bytes); // digest.bytes.length == 32 مضمونة
   }
 
   static String encryptValue(String plain, String key) {
