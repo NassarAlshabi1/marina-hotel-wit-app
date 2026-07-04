@@ -36,6 +36,7 @@ import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
+import 'salary_fix_helper.dart';
 import 'secondary_appwrite_config.dart';
 import 'sync_constants.dart';
 import 'sync/payload_mapper.dart';
@@ -1194,6 +1195,25 @@ class AppwriteSyncManager {
 
       _lastSyncTime = endTime;
       await _saveSettings();
+
+      // ✅ إصلاح لمرة واحدة بعد اكتمال السحب: استعادة روابط مصروفات الرواتب
+      // اليتيمة عبر salary_withdrawals. يعمل مرة واحدة فقط (SharedPreferences
+      // flag) ويُنتظر حتى يكتمل سحب الموظفين. التحديثات تُضاف للـ outbox
+      // وتُرفع تلقائياً في المزامنة التالية. راجع SalaryFixHelper.
+      if (pull) {
+        try {
+          final helper = SalaryFixHelper(database);
+          await helper.runOnceAfterFirstPull();
+        } catch (e, st) {
+          _logger.warning(
+            '⚠️ SalaryFixHelper failed — will retry next sync.',
+            error: e,
+            stackTrace: st,
+            tag: 'SYNC',
+          );
+          // لا نوقف المزامنة بسبب خطأ في الإصلاح.
+        }
+      }
 
       _logger.info(
         'Sync completed successfully (pushed: $recordsPushed, pulled: $recordsPulled)',
