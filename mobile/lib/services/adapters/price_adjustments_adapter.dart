@@ -100,6 +100,12 @@ class PriceAdjustmentsAdapter
 
   @override
   Map<String, dynamic> toJson(PriceAdjustment model, {required Source src}) {
+    // ✅ إصلاح (P2-6): توحيد سلوك updatedAt/lastModified fallback مع PayloadMapper.
+    // PayloadMapper يستخدم `> 0 ? value : now` لمنع 0 من كسر delta sync.
+    // الـ adapter كان يُرسل القيمة الخام (قد تكون 0). نُوحّد السلوك هنا.
+    final now = Time.nowEpoch();
+    final safeUpdatedAt = model.updatedAt > 0 ? model.updatedAt : now;
+    final safeLastModified = model.lastModified > 0 ? model.lastModified : now;
     return {
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
@@ -119,11 +125,11 @@ class PriceAdjustmentsAdapter
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
       _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
-      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
+      _k(src, 'updatedAt', 'updated_at'): safeUpdatedAt,
       _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
-      _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      _k(src, 'lastModified', 'last_modified'): safeLastModified,
       _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,

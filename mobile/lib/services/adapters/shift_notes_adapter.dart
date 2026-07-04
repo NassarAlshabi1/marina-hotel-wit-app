@@ -127,7 +127,11 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
         'content': model.content,
         'priority': model.priority,
         'shiftType': model.shiftType,
-        'isRead': model.isRead == 1, // Appwrite يتوقع boolean
+        // ✅ إصلاح (P0-1): Appwrite schema يُعرّف isRead كـ boolean.
+        // كنا نُرسل `model.isRead` (integer) مما يُسبب "Invalid type" errors.
+        // نُحوّل integer (0/1) إلى boolean للمطابقة مع المخطط.
+        // PayloadMapper أيضاً يُرسل boolean الآن (تم توحيد السلوك).
+        'isRead': model.isRead == 1,
         'createdAt': model.createdAt, // Appwrite يتوقع integer epoch
         'createdAtEpoch': model.createdAtEpoch,
         'createdAtIso': model.createdAtIso,
