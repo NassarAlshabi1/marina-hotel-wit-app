@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'local_db.dart';
+import 'sync/payload_mapper.dart';
 
 /// خدمة لإصلاح البيانات الفاسدة في قاعدة البيانات
 class DatabaseFixer {
@@ -144,15 +145,32 @@ class DatabaseFixer {
   }
 
   /// إصلاح المصروفات اليتيمة
+  ///
+  /// ✅ التوصية 6: توسّع هذه الدالة لتشمل مصروفات الرواتب.
+  ///
+  /// قبل هذا الإصلاح كانت الدالة تتعامل فقط مع `expenseType == 'employee'`
+  /// و `'booking'`، وكانت **تُصفّر** `related_id` عند غياب الهدف. هذا يُفقد
+  /// ربط مصروفات الرواتب بصمت (خطر — راجع القسم 4 من تقرير التوصيات).
+  ///
+  /// السلوك الجديد لمصروفات الرواتب (التي يكتشفها `PayloadMapper.isSalaryExpenseType`):
+  /// 1. إن وُجد `employeeUuid` صالح وحُلَّ عبره موظف محلي → **إعادة الربط**
+  ///    بـ `related_id = employee.id` (لا تصفير).
+  /// 2. إن تعذّر الحل (UUID فارغ أو موظف غير موجود بعد) → **لا نُصفّر**
+  ///    `related_id` بل نتركه ونكتب تحذيرًا، حتى لا نفقد الربط بصمت.
+  ///    يُعالَج لاحقًا عبر `_relinkOrphanSalaryExpenses` عند وصول الموظف.
+  ///
+  /// مصروفات `'employee'` و `'booking'` تحتفظ بسلوكها القديم (التصفير)
+  /// لأنها لا تحمل UUID محمولًا.
   Future<int> _fixOrphanExpenses() async {
     int fixed = 0;
+    int relinked = 0;
 
     try {
-      // البحث عن المصروفات التي تشير لبيانات غير موجودة
+      // ✅ التوصية 6: نختار أيضاً employee_uuid للإعادة ربط الرواتب عبر UUID.
       final orphanExpenses = await db.customSelect('''
-        SELECT e.id, e.related_id, e.expense_type
+        SELECT e.id, e.related_id, e.expense_type, e.employee_uuid
         FROM expenses e
-        WHERE e.related_id IS NOT NULL 
+        WHERE e.related_id IS NOT NULL
           AND e.deleted_at IS NULL
         ''').get();
 
@@ -160,12 +178,65 @@ class DatabaseFixer {
         final expenseId = expense.data['id'] as int;
         final relatedId = expense.data['related_id'] as int?;
         final expenseType = expense.data['expense_type'] as String;
+        final employeeUuid = expense.data['employee_uuid'] as String?;
 
         bool shouldFix = false;
 
         // التحقق من وجود البيانات المرتبطة بناءً على نوع المصروف
         if (relatedId != null) {
-          if (expenseType == 'employee') {
+          // ✅ التوصية 6: فرع مصروفات الرواتب — إعادة ربط عبر UUID لا تصفير.
+          if (PayloadMapper.isSalaryExpenseType(expenseType)) {
+            // تحقق أن الموظف المحلي المرتبط عبر relatedId ما زال موجودًا.
+            final employee = await (db.select(db.employees)
+                  ..where((e) => e.id.equals(relatedId))
+                  ..limit(1))
+                .getSingleOrNull();
+            if (employee == null) {
+              // الموظف المحلي غير موجود — حاول إعادة الربط عبر employeeUuid.
+              if (employeeUuid != null && employeeUuid.isNotEmpty) {
+                final byUuid = await (db.select(db.employees)
+                      ..where((e) => e.localUuid.equals(employeeUuid))
+                      ..limit(1))
+                    .getSingleOrNull();
+                if (byUuid != null) {
+                  // ✅ إعادة الربط عبر UUID — لا تصفير.
+                  await db.customUpdate(
+                    'UPDATE expenses SET related_id = ? WHERE id = ?',
+                    variables: [
+                      Variable.withInt(byUuid.id),
+                      Variable.withInt(expenseId),
+                    ],
+                    updates: {db.expenses},
+                  );
+                  relinked++;
+                  debugPrint(
+                    'Re-linked orphan salary expense #$expenseId → '
+                    'employee #${byUuid.id} (uuid: $employeeUuid)',
+                  );
+                  // تمت المعالجة — لا نمرّ عبر فرع التصفير.
+                  continue;
+                } else {
+                  // UUID موجود لكن الموظف لم يصل بعد — لا نُصفّر.
+                  debugPrint(
+                    '⚠️ Salary expense #$expenseId has employeeUuid '
+                    '$employeeUuid but employee not yet synced — '
+                    'left related_id=$relatedId intact (not zeroed).',
+                  );
+                  continue;
+                }
+              } else {
+                // لا UUID ولا موظف محلي — لا نُصفّر مصروف الراتب (تفادي فقدان
+                // الربط بصمت). نترك relatedId القديم ونُسجّل تحذيرًا.
+                debugPrint(
+                  '⚠️ Salary expense #$expenseId is orphan with empty '
+                  'employeeUuid — left related_id=$relatedId intact (not zeroed).',
+                );
+                continue;
+              }
+            }
+            // الموظف المحلي موجود — الربط سليم، لا شيء لنفعله.
+            continue;
+          } else if (expenseType == 'employee') {
             final employee = await (db.select(
               db.employees,
             )..where((e) => e.id.equals(relatedId))).getSingleOrNull();
@@ -183,7 +254,7 @@ class DatabaseFixer {
         }
 
         if (shouldFix) {
-          // إزالة الربط بالبيانات غير الموجودة
+          // إزالة الربط بالبيانات غير الموجودة (يبقى سلوك 'employee'/'booking' كما هو)
           await db.customUpdate(
             'UPDATE expenses SET related_id = NULL WHERE id = ?',
             variables: [Variable.withInt(expenseId)],
@@ -194,12 +265,14 @@ class DatabaseFixer {
         }
       }
 
-      debugPrint('Fixed $fixed orphan expenses');
+      debugPrint(
+        'Fixed $fixed orphan expenses; re-linked $relinked salary expenses via UUID',
+      );
     } catch (e) {
       debugPrint('Error fixing orphan expenses: $e');
     }
 
-    return fixed;
+    return fixed + relinked;
   }
 
   /// التحقق من صحة قاعدة البيانات

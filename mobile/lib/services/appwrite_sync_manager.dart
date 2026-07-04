@@ -805,7 +805,9 @@ class AppwriteSyncManager {
                 queries: deltaQ,
                 useCache: false,
               );
-              final employeesSynced = await _syncEmployees(employees);
+              // ✅ التوصية 5: لف _syncEmployees بطبقة إعادة محاولة لتحصين
+              // أسبقية الموظفين قبل المصروفات (يقلّل خطر #4).
+              final employeesSynced = await _syncEmployeesWithRetry(employees);
               _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
               return employeesSynced;
             }, phaseMs,);
@@ -814,6 +816,21 @@ class AppwriteSyncManager {
             _logger.error('❌ فشل سحب employees', error: e, stackTrace: st, tag: 'SYNC');
             await CrashlyticsService.instance.recordSyncError(
               operation: 'pull_employees', error: e.toString(), stackTrace: st, context: {'phase': 'sync'},
+            );
+          }
+
+          // ✅ التوصية 3: إعادة ربط مؤجّلة لمصروفات الرواتب اليتيمة عبر
+          // employeeUuid بعد اكتمال سحب الموظفين. يعالج مصروفات وصلت قبل
+          // موظفيها في دورة سابقة (خطر #4).
+          try {
+            await _relinkOrphanSalaryExpenses();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ _relinkOrphanSalaryExpenses فشل بعد سحب الموظفين — '
+              'سيُعاد المحاولة في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_RELINK',
             );
           }
 
@@ -3879,9 +3896,24 @@ class AppwriteSyncManager {
 
           try {
             final employees = await appwriteService.listEmployees(queries: deltaQ, useCache: false);
-            recordsPulled += await _syncEmployees(employees);
+            // ✅ التوصية 5: تحصين أسبقية الموظفين عبر إعادة المحاولة.
+            recordsPulled += await _syncEmployeesWithRetry(employees);
           } catch (e, st) {
             _logger.error('❌ فشل سحب employees (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          // ✅ التوصية 3: إعادة ربط مؤجّلة لمصروفات الرواتب اليتيمة بعد سحب
+          // الموظفين (يعالج خطر #4 — مصروفات وصلت قبل موظفيها).
+          try {
+            await _relinkOrphanSalaryExpenses();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ _relinkOrphanSalaryExpenses فشل (pullRemoteChanges) — '
+              'سيُعاد المحاولة في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_RELINK',
+            );
           }
 
           try {
@@ -6308,5 +6340,158 @@ class AppwriteSyncManager {
         tag: 'SYNC_RELINK',
       );
     }
+  }
+
+  /// ✅ التوصية 3: إعادة ربط مؤجّلة لمصروفات الرواتب اليتيمة عبر employeeUuid.
+  ///
+  /// المشكلة (خطر #4): قد يصل مصروف راتب من Appwrite/Drive قبل وصول سجل
+  /// الموظف (مثلاً فشل سحب الموظفين في دورة ما ونجح سحب المصروفات). مع
+  /// التوصية 2 (قصر fallback relatedId على المصدر المحلي)، يبقى المصروف
+  /// غير مربوط (relatedId = null) رغم وجود employeeUuid صالح.
+  ///
+  /// الحل: بعد انتهاء المزامنة (وبعد `_syncEmployees` تحديدًا)، نبحث عن
+  /// مصروفات الرواتب ذات employeeUuid غير فارغ و relatedId فارغ، ونُعيد
+  /// ربطها بالموظف المحلي المطابق للـ UUID. تغيير additive بحت (استعلام +
+  /// تحديث) — لا يكسر المزامنة ولا يفقد بيانات.
+  ///
+  /// يُستدعى من تدفق المزامنة (push و pull) بعد اكتمال `_syncEmployees`.
+  Future<int> _relinkOrphanSalaryExpenses() async {
+    var relinked = 0;
+    try {
+      // ابحث عن مصروفات الرواتب اليتيمة: employeeUuid موجود، relatedId فارغ.
+      // نُجري فحص نوع الراتب في Dart عبر PayloadMapper.isSalaryExpenseType
+      // لأن الكلمات المفتاحية عربية ومتعددة (رواتب / سحب راتب / خصم راتب…)
+      // ولا تُترجم بسهولة إلى LIKE في SQL.
+      final candidates = await database.customSelect(
+        'SELECT id, employee_uuid, expense_type FROM expenses '
+        'WHERE employee_uuid IS NOT NULL '
+        'AND employee_uuid != "" '
+        'AND related_id IS NULL '
+        'AND deleted_at IS NULL',
+        readsFrom: {database.expenses},
+      ).get();
+
+      // فلترة لأنواع الرواتب فقط (توحيد المنطق مع بقية النظام).
+      final orphans = candidates
+          .where((row) => PayloadMapper.isSalaryExpenseType(
+                row.read<String>('expense_type'),
+              ))
+          .toList();
+
+      if (orphans.isEmpty) {
+        return 0;
+      }
+
+      _logger.info(
+        '🔗 إعادة ربط ${orphans.length} مصروف راتب يتيم عبر employeeUuid',
+        tag: 'SYNC_RELINK',
+      );
+
+      for (final row in orphans) {
+        final expenseId = row.read<int>('id');
+        final employeeUuid = row.read<String>('employee_uuid');
+
+        // حل الموظف عبر localUuid (نفس آلية expenses_adapter).
+        final employee = await (database.select(database.employees)
+              ..where((e) => e.localUuid.equals(employeeUuid))
+              ..limit(1))
+            .getSingleOrNull();
+
+        if (employee != null) {
+          // ✅ وجدنا الموظف — أعد الربط.
+          await (database.update(database.expenses)
+                ..where((t) => t.id.equals(expenseId)))
+              .write(ExpensesCompanion(
+            relatedId: drift.Value(employee.id),
+          ));
+          relinked++;
+          _logger.debug(
+            '  ✅ Expense #$expenseId → employee #${employee.id} '
+            '(uuid: ${employeeUuid.substring(0, employeeUuid.length.clamp(0, 8))}...)',
+            tag: 'SYNC_RELINK',
+          );
+        } else {
+          // الموظف لم يصل بعد — نترك المصروف غير مربوط بانتظار دورة لاحقة.
+          _logger.warning(
+            '  ⏳ Expense #$expenseId: employee not yet synced for '
+            'uuid: $employeeUuid — will retry next cycle.',
+            tag: 'SYNC_RELINK',
+          );
+        }
+      }
+
+      if (relinked > 0) {
+        _logger.info(
+          '✅ تم إعادة ربط $relinked/${orphans.length} مصروف راتب يتيم',
+          tag: 'SYNC_RELINK',
+        );
+      }
+    } catch (e, st) {
+      _logger.error(
+        '❌ فشل إعادة ربط مصروفات الرواتب اليتيمة',
+        error: e,
+        stackTrace: st,
+        tag: 'SYNC_RELINK',
+      );
+    }
+    return relinked;
+  }
+
+  /// ✅ التوصية 5: تحصين أسبقية مزامنة الموظفين قبل المصروفات.
+  ///
+  /// يلف `_syncEmployees` بطبقة إعادة محاولة بسيطة. إذا فشل سحب/معالجة
+  /// الموظفين في دورة ما، يُعاد المحاولة حتى `maxRetries` مرات قبل
+  /// المتابعة إلى `_syncExpenses`. هذا يقلّل السيناريو الوحيد المتبقي
+  /// لخطر #4 (وصول مصروفات الرواتب قبل موظفيها).
+  ///
+  /// ملاحظة: الترتيب نفسه مطبَّق بالفعل (`_syncEmployees` قبل `_syncExpenses`
+  /// في الدفع والسحب) — هذه الطبقة تضيف فقط "تحصينًا" عبر إعادة المحاولة
+  /// دون تغيير الترتيب.
+  Future<int> _syncEmployeesWithRetry(
+    List<models.Document> documents, {
+    int maxRetries = 2,
+  }) async {
+    if (documents.isEmpty) return 0;
+    var attempts = 0;
+    int? lastCount;
+    Object? lastError;
+    while (attempts <= maxRetries) {
+      try {
+        lastCount = await _syncEmployees(documents);
+        if (attempts > 0) {
+          _logger.info(
+            '✅ _syncEmployees نجح بعد $attempts إعادة محاولة '
+            '($lastCount موظف)',
+            tag: 'SYNC',
+          );
+        }
+        return lastCount;
+      } catch (e, st) {
+        lastError = e;
+        attempts++;
+        if (attempts <= maxRetries) {
+          _logger.warning(
+            '⚠️ _syncEmployees فشل (محاولة $attempts/$maxRetries) — '
+            'إعادة المحاولة: $e',
+            tag: 'SYNC',
+            error: e,
+            stackTrace: st,
+          );
+          // فترة انتظار قصيرة متصاعدة قبل إعادة المحاولة.
+          await Future<void>.delayed(
+            Duration(milliseconds: 300 * attempts),
+          );
+        }
+      }
+    }
+    _logger.error(
+      '❌ _syncEmployees فشل بعد $maxRetries إعادة محاولة — '
+      'المتابعة إلى المصروفات قد تترك بعض مصروفات الرواتب غير مربوطة مؤقتًا. '
+      'آخر خطأ: $lastError',
+      tag: 'SYNC',
+    );
+    // لا نُعيد رمي الاستثناء للحفاظ على متانة المزامنة (نفس فلسفة الـ catch
+    // الموجودة في تدفقات السحب/الدفع). يُعالَج لاحقًا عبر _relinkOrphanSalaryExpenses.
+    return lastCount ?? 0;
   }
 }

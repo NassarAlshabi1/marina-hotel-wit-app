@@ -121,7 +121,7 @@ for (final coll in collectionList) {
           failureCount++;
           const reason = 'تخطّي سجل بلا localUuid صالح (معرّف فارغ)';
           stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(
-            FullBackupFailure(documentId: null, reason: reason, collectionName: coll.name),
+            FullBackupFailure(reason: reason, collectionName: coll.name),
           );
           stats.errorsByReason[reason] = (stats.errorsByReason[reason] ?? 0) + 1;
           continue;

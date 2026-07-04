@@ -67,10 +67,13 @@ ThemeData buildTheme() {
       primary: AppColors.primaryColor,
       secondary: AppColors.accentColor,
       error: AppColors.dangerColor,
-      onPrimary: Colors.white,
+      // مطابق للقيمة الافتراضية، لكن نُبقيه صراحةً للقراءة (نص أبيض على اللون الأساسي).
+      onPrimary: Colors.white, // ignore: avoid_redundant_argument_values
       onSecondary: Color(0xFF0A0E2F),
       onSurface: AppColors.textPrimary,
-      surface: AppColors.surfaceColor,
+      // مطابق للقيمة الافتراضية حاليًا (أبيض)، لكن نُبقي الإشارة إلى
+      // AppColors.surfaceColor لضمان تبعية الثيم لأي تغيير مستقبلي على هذا الثابت الدلالي.
+      surface: AppColors.surfaceColor, // ignore: avoid_redundant_argument_values
     ),
 
     // AppBar theme — MarketKy style: خلفية بيضاء + نص كحلي

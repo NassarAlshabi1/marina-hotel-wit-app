@@ -58,6 +58,11 @@ class ExpensesRepository {
     required double amount,
     required String date,
     String? hotelDayKey,
+    // ✅ التوصية 1: اكتب employeeUuid وقت الإنشاء (وليس فقط وقت الرفع).
+    // يجعل كل مصروف راتب جديد محمولاً فورًا حتى قبل المزامنة، ويُغلق خطر #1
+    // (employeeUuid لا يُكتب إلا وقت الرفع). الحقن وقت الرفع يبقى كشبكة أمان
+    // للسجلات القديمة التي أُنشئت قبل هذا الإصلاح.
+    String? employeeUuid,
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
@@ -73,6 +78,9 @@ class ExpensesRepository {
           amount: d.Value(amount),
           date: d.Value(normalizedDate),
           hotelDayKey: d.Value(effectiveHotelDayKey),
+          employeeUuid: employeeUuid != null && employeeUuid.isNotEmpty
+              ? d.Value(employeeUuid)
+              : const d.Value.absent(),
         ),
       );
       unawaited(AutoBackupManager.instance.onDataChange(
@@ -144,6 +152,11 @@ class ExpensesRepository {
     double? amount,
     String? date,
     String? hotelDayKey,
+    // ✅ التوصية 1: اكتب employeeUuid وقت التعديل أيضًا.
+    // - مرّر قيمة (غير فارغة) لتعيين employeeUuid.
+    // - مرّر سلسلة فارغة '' لمسح employeeUuid (عند التحويل من راتب إلى غير راتب).
+    // - مرّر null لترك القيمة الحالية دون تغيير (سلوك التوافق للخلف).
+    String? employeeUuid,
   }) async {
     try {
       final normalizedDate = date != null ? Time.safeIsoToDateString(date) : null;
@@ -169,6 +182,12 @@ class ExpensesRepository {
               : date != null
                   ? d.Value(_hotelDayKeyFromCalendarDate(normalizedDate!))
                   : const d.Value.absent(),
+          // ✅ التوصية 1: employeeUuid — فارغ = مسح، null = لا تغيير.
+          employeeUuid: employeeUuid == null
+              ? const d.Value.absent()
+              : employeeUuid.isEmpty
+                  ? const d.Value(null)
+                  : d.Value(employeeUuid),
         ),
       );
       if (result > 0) {

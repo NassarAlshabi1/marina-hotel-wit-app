@@ -554,8 +554,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final service = NightAuditService.instance;
     final isClosed = await service.isDayClosed(null);
     // ✅ فحص mounted بعد await لمنع استخدام context إذا أُغلقت الشاشة.
+    // نتحقق أيضاً من context.mounted لأن context بارامتر (قد يختلف عن this.context).
     // (مراجعة PR #451 r3521832508)
-    if (!mounted) return;
+    if (!mounted || !context.mounted) return;
 
     if (isClosed) {
       // اليوم مُقفل — اسأل عن إعادة الإرسال
@@ -612,7 +613,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
 
     // تنفيذ الإقفال
-    if (!mounted) return;
+    if (!mounted || !context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Row(
@@ -635,7 +636,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     final result = await service.closeDay(force: isClosed);
 
-    if (!mounted) return;
+    if (!mounted || !context.mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(

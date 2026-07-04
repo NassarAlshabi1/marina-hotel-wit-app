@@ -1,8 +1,10 @@
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/app_logger.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
+import '../sync/payload_mapper.dart';
 import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
@@ -35,14 +37,17 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
     // عبر UUID لضمان التوافق عبر الأجهزة
     int? employeeRelatedId;
     final expenseType = _asString(json, 'expenseType', src) ?? '';
-    if (_isSalaryExpenseType(expenseType)) {
+    // ✅ التوصية (توحيد isSalaryExpenseType): استدعاء النسخة العامة الموحدة
+    // من PayloadMapper بدل تكرار المنطق الخاص محليًا — يمنع تباعد الكلمات
+    // المفتاحية بين النسختين مستقبلًا.
+    if (PayloadMapper.isSalaryExpenseType(expenseType)) {
       final remoteEmployeeUuid = _asString(json, 'employeeUuid', src) ??
           _asString(json, 'employee_local_uuid', src);
       final remoteRelatedId = _asInt(json, 'relatedId', src) ??
           _asInt(json, 'related_id', src);
 
       if (remoteEmployeeUuid != null && remoteEmployeeUuid.isNotEmpty) {
-        // حل عبر UUID (الأكثر دقة)
+        // حل عبر UUID (الأكثر دقة) — مصدر الحقيقة المحمول عبر الأجهزة.
         final row = await (db.select(db.employees)
               ..where((e) => e.localUuid.equals(remoteEmployeeUuid))
               ..limit(1))
@@ -51,14 +56,35 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
           employeeRelatedId = row.id;
         }
       }
-      // Fallback: إذا لم يتم الحل عبر UUID، نحاول بالـ relatedId كـ local id
+      // ✅ التوصية 2: قصر fallback الـ relatedId على المصدر المحلي فقط.
+      // ملاحظة هندسية: Employee.id هو autoIncrement محلي — يختلف بين الأجهزة.
+      // استخدامه كمعرّف عبر Appwrite/Drive (مصادر بعيدة) يسبب ربطًا خاطئًا
+      // بموظف آخر يحمل نفس الـ id على الجهاز المستلم، أو يُبقي الربط يتيمًا.
+      // السلوك الجديد: لمصروفات الرواتب من مصدر بعيد بـ UUID فارغ، نترك
+      // relatedId غير محلول (null) بدل ربطه خطأً. يُعالَج لاحقًا عبر إعادة
+      // الربط المؤجّلة (التوصية 3) عند وصول الموظف، أو عبر database_fixer
+      // (التوصية 6). للبيانات المحلية (استعادة نسخة احتياطية على نفس الجهاز)
+      // يبقى الـ id ذا معنى فيُسمح بالـ fallback.
       if (employeeRelatedId == null && remoteRelatedId != null) {
-        final row = await (db.select(db.employees)
-              ..where((e) => e.id.equals(remoteRelatedId))
-              ..limit(1))
-            .getSingleOrNull();
-        if (row != null) {
-          employeeRelatedId = row.id;
+        if (src == Source.local) {
+          // fallback محلي آمن — الـ id ذو معنى على نفس الجهاز.
+          final row = await (db.select(db.employees)
+                ..where((e) => e.id.equals(remoteRelatedId))
+                ..limit(1))
+              .getSingleOrNull();
+          if (row != null) {
+            employeeRelatedId = row.id;
+          }
+        } else {
+          // ✅ مصدر بعيد (appwrite/drive): لا نستخدم relatedId كـ id محلي.
+          // تسجيل تحذير صريح — يُعالَج لاحقًا عبر إعادة الربط المؤجّلة.
+          AppLogger.warning(
+            'Salary expense (remoteRelatedId=$remoteRelatedId) arrived from '
+            '$src with empty employeeUuid — left unlinked to avoid wrong '
+            'cross-device binding. Will be re-linked when the employee '
+            'arrives (see _relinkOrphanSalaryExpenses).',
+            tag: 'EXPENSES_ADAPTER',
+          );
         }
       }
     }
@@ -94,7 +120,7 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       expenseType: _vStr(json, 'expenseType', src, fallback: ''),
       // ✅ إصلاح: لمصروفات الرواتب، استخدم relatedId المحلول عبر UUID
       // لتوافق الأجهزة المختلفة (relatedId على جهاز آخر قد لا يتطابق)
-      relatedId: (_isSalaryExpenseType(
+      relatedId: (PayloadMapper.isSalaryExpenseType(
                   _asString(json, 'expenseType', src) ?? '',
                 ) &&
                 refs.employeeRelatedId != null)
@@ -330,14 +356,9 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-/// هل نوع المصروف مرتبط بالرواتب
-bool _isSalaryExpenseType(String type) {
-  const salaryKeywords = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'];
-  for (final keyword in salaryKeywords) {
-    if (type.contains(keyword)) return true;
-  }
-  return false;
-}
+// ✅ تم إزالة _isSalaryExpenseType المحلية (تكرار لـ PayloadMapper.isSalaryExpenseType).
+// الاستدعاء الموحد عبر PayloadMapper.isSalaryExpenseType يمنع تباعد الكلمات
+// المفتاحية بين النسختين مستقبلًا — راجع payload_mapper.dart:821-834.
 
 String _k(Source src, String camel, String snake) =>
     src == Source.drive ? snake : camel;
