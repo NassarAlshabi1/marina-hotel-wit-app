@@ -73,6 +73,7 @@ class AppwriteConfig {
     'audit_logs': auditLogsCollectionId,
     'payment_voids': paymentVoidsCollectionId,
     'guest_infos': guestInfosCollectionId,
+    'app_settings': appSettingsCollectionId,
   };
 
   /// يحوّل اسم الكيان إلى collection ID في Appwrite.

@@ -17,6 +17,8 @@ import 'sync_constants.dart';
 import 'sync_locks.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
+import 'telegram/whatsapp_notification_service.dart';
+import 'telegram/telegram_notification_service.dart';
 
 /// استراتيجيات حل التضارب
 enum ConflictResolution {
@@ -590,9 +592,27 @@ class SmartSyncManager {
     }
   }
 
-  /// إشعار خطأ في المزامنة
+  /// إشعار خطأ في المزامنة — يرسل عبر WhatsApp وTelegram
   Future<void> _notifySyncError() async {
-    _log('❌ فشلت المزامنة التلقائية');
+    _log('❌ فشلت المزامنة التلقائية - إرسال إشعار خطأ');
+
+    try {
+      final errorMsg = 'فشلت المزامنة التلقائية - خطأ غير متوقع';
+
+      // إرسال عبر WhatsApp
+      unawaited(WhatsAppNotificationService.instance.notifySyncError(
+        operation: 'sync',
+        error: errorMsg,
+      ));
+
+      // إرسال عبر Telegram
+      unawaited(TelegramNotificationService.instance.notifySyncError(
+        operation: 'sync',
+        error: errorMsg,
+      ));
+    } catch (e) {
+      _log('⚠️ فشل إرسال إشعار الخطأ: $e');
+    }
   }
 
   /// الإعدادات والتحكم

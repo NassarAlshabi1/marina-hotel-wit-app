@@ -47,6 +47,7 @@ import 'sync_core/sync_pull_service.dart';
 import 'sync_enums.dart';
 import 'sync_locks.dart';
 import 'telegram/whatsapp_notification_service.dart';
+import 'telegram/telegram_notification_service.dart';
 import 'vector_clock_service.dart';
 
 // SyncStatus is now defined in sync_enums.dart
@@ -1326,6 +1327,13 @@ class AppwriteSyncManager {
         operation: 'sync',
         // ignore: dead_null_aware_expression
           error: errorMessage ?? e.toString(),
+        recordsPushed: recordsPushed,
+        recordsPulled: recordsPulled,
+      );
+      // ✅ إضافة إشعار Telegram لخطأ المزامنة
+      await TelegramNotificationService.instance.notifySyncError(
+        operation: 'sync',
+        error: errorMessage ?? e.toString(),
         recordsPushed: recordsPushed,
         recordsPulled: recordsPulled,
       );
@@ -4658,6 +4666,11 @@ class AppwriteSyncManager {
         stackTrace: stackTrace,
       );
       await WhatsAppNotificationService.instance.notifySyncError(
+        operation: 'bulk_push',
+        error: e.toString(),
+      );
+      // ✅ إضافة إشعار Telegram لخطأ المزامنة
+      await TelegramNotificationService.instance.notifySyncError(
         operation: 'bulk_push',
         error: e.toString(),
       );

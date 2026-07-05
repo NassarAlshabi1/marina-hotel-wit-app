@@ -10,6 +10,7 @@ import '../../models/payment_models.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
+import '../../utils/stream_helpers.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
@@ -81,7 +82,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
   Widget _buildBody(dynamic paymentsRepo, double income, double expenses, double balance) {
     return StreamBuilder<List<db.Payment>>(
-      stream: paymentsRepo.watchAll() as Stream<List<db.Payment>>,
+      stream: debounceStream(paymentsRepo.watchAll() as Stream<List<db.Payment>>, const Duration(milliseconds: 150)),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -90,7 +91,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         final payments = snapshot.data;
 
         return StreamBuilder<List<db.Booking>>(
-          stream: ref.read(bookingsRepoProvider).watchList(),
+          stream: debounceStream(ref.read(bookingsRepoProvider).watchList(), const Duration(milliseconds: 150)),
           builder: (context, bookingsSnapshot) {
             final activeBookings = bookingsSnapshot.hasData
                 ? bookingsSnapshot.data!
