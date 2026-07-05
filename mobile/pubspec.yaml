@@ -51,6 +51,7 @@ dependencies:
   printing: ^5.13.2
   share_plus: ^10.1.1
   shared_preferences: ^2.3.2
+  signals_flutter: ^6.0.0
   shimmer: ^3.0.0
   sqflite: ^2.3.3+1
   sqlite3: any
