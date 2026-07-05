@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../remote_config_service.dart';
-import 'telegram_config.dart';
 
 /// أنواع أحداث الفندق
 enum WhatsAppEventType {
