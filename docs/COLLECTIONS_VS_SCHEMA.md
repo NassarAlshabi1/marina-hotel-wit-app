@@ -1,182 +1,394 @@
-# 📊 مقارنة شاملة: كل المجموعات مقابل مخطط Appwrite Cloud
+# 📊 مقارنة شاملة: كل المجموعات مقابل مخطط Appwrite Cloud مع أنواع الحقول
 
 **التاريخ:** 2026-07-05  
 **الفرع:** `refactor/clean-v2`  
-**الملفات المرجعية:**
-- `appwrite_sync_utils.dart` — `validFieldsPerCollection` + `collectionSchema`
-- `secondary_appwrite_service.dart` — `_backupFetchers` + `_*ToMap`
-- `appwrite_config.dart` — `_entityToCollection`
-- `local_db.dart` — جداول Drift
 
 ---
 
-## 🗺️ نظرة عامة — كل المجموعات
+## 🗺️ فهرس المجموعات
 
-| # | المجموعة | `validFieldsPerCollection` | `collectionSchema` | `_backupFetchers` | `_entityToCollection` | الحالة |
-|---|----------|---------------------------|-------------------|-------------------|----------------------|--------|
-| 1 | `rooms` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 2 | `bookings` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 3 | `payments` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 4 | `expenses` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 5 | `debts` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 6 | `employees` | ✅ | ✅ | ✅ | ✅ | ⚠️ حقل EmployeeID |
-| 7 | `booking_notes` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 8 | `booking_nights` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 9 | `cash_transactions` | ✅ | ✅ | ✅ | ✅ | ⚠️ حقول مفقودة |
-| 10 | `booking_price_adjustments` | ✅ | ✅ | ✅ | ✅ | ⚠️ appliedAt |
-| 11 | `audit_logs` | ✅ | ✅ | ✅ | ✅ | ⚠️ action/operationType |
-| 12 | `payment_voids` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 13 | `guest_infos` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 14 | `price_adjustments` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 15 | `salary_cycles` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 16 | `salary_payments` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 17 | `salary_withdrawals` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 18 | `salary_carry_over_logs` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 19 | `shift_notes` | ✅ | ✅ | ✅ | ✅ | ✅ كامل |
-| 20 | `app_settings` | ✅ | ❌ | ✅ | ✅ | 🔴 CRITICAL |
-| 21 | `blacklist` | ✅ | ❌ | ⚠️ workaround | ✅ | 🟡 متوسط |
-| 22 | `sync_logs` | ✅ | ❌ | ❌ | ❌ | ℹ️ للقراءة فقط |
-| 23 | `sync_state` | ✅ | ❌ | ❌ | ❌ | ℹ️ للقراءة فقط |
-| 24 | `app_users` | ✅ | ❌ | ❌ | ❌ | ℹ️ غير مستخدم |
-| 25 | `devices` | ✅ | ❌ | ❌ | ❌ | ℹ️ غير مستخدم |
-
----
-
-## 🔍 تفصيل كل مجموعة
-
-### 1. `rooms` ✅ — كامل
-**الحقول في `_*ToMap` (22):** `localUuid`, `serverId`, `createdAt`, `updatedAt`, `deletedAt`, `lastModified`, `createdAtIso`, `updatedAtIso`, `deletedAtIso`, `createdAtEpoch`, `lastModifiedEpoch`, `version`, `origin`, `vectorClock`, `deviceId`, `roomNumber`, `type`, `price`, `status`, `imageUrl`, `cleaningStatus`, `lastCleanedHotelDay`, `lastOccupiedHotelDay`, `requiresMaintenance`
-
-**الحقول في `collectionSchema` (27):** `localUuid`, `roomNumber`, `type`, `price`, `status`, `imageUrl`, `cleaningStatus`, `lastCleanedHotelDay`, `lastOccupiedHotelDay`, `requiresMaintenance`, `serverId`, `createdAt`, `updatedAt`, `deletedAt`, `lastModified`, `createdAtIso`, `updatedAtIso`, `deletedAtIso`, `createdAtEpoch`, `lastModifiedEpoch`, `syncTimestamp`, `deviceId`, `version`, `origin`, `vectorClock`, `sync_origin`, `idempotencyKey`
-
-**الملاحظات:** ✅ `idempotencyKey`, `syncTimestamp`, `sync_origin` تُضاف تلقائياً في `uploadFullBackup` عبر `enhancedData`.
+| # | المجموعة | `collectionSchema` | `_backupFetchers` | الحالة |
+|---|----------|-------------------|-------------------|--------|
+| 1 | `rooms` | ✅ | ✅ | ✅ |
+| 2 | `bookings` | ✅ | ✅ | ✅ |
+| 3 | `payments` | ✅ | ✅ | ✅ |
+| 4 | `expenses` | ✅ | ✅ | ✅ |
+| 5 | `debts` | ✅ | ✅ | ⚠️ |
+| 6 | `employees` | ✅ | ✅ | ⚠️ |
+| 7 | `booking_notes` | ✅ | ✅ | ✅ |
+| 8 | `booking_nights` | ✅ | ✅ | ✅ |
+| 9 | `cash_transactions` | ✅ | ✅ | ⚠️ |
+| 10 | `booking_price_adjustments` | ✅ | ✅ | ⚠️ |
+| 11 | `audit_logs` | ✅ | ✅ | ⚠️ |
+| 12 | `payment_voids` | ✅ | ✅ | ✅ |
+| 13 | `guest_infos` | ✅ | ✅ | ✅ |
+| 14 | `price_adjustments` | ✅ | ✅ | ✅ |
+| 15 | `salary_cycles` | ✅ | ✅ | ✅ |
+| 16 | `salary_payments` | ✅ | ✅ | ✅ |
+| 17 | `salary_withdrawals` | ✅ | ✅ | ✅ |
+| 18 | `salary_carry_over_logs` | ✅ | ✅ | ✅ |
+| 19 | `shift_notes` | ✅ | ✅ | ✅ |
+| 20 | `app_settings` | ❌ (VFP only) | ✅ | 🔴 |
+| 21 | `blacklist` | ❌ (VFP only) | ⚠️ | 🟡 |
+| 22 | `sync_logs` | ❌ (VFP only) | ❌ | ℹ️ |
+| 23 | `sync_state` | ❌ (VFP only) | ❌ | ℹ️ |
+| 24 | `app_users` | ❌ (VFP only) | ❌ | ℹ️ |
+| 25 | `devices` | ❌ (VFP only) | ❌ | ℹ️ |
 
 ---
 
-### 2. `bookings` ✅ — كامل
-**الحقول في `_bookingToMap` (42):** `localUuid`, `serverId`, `createdAt`, `updatedAt`, `deletedAt`, `lastModified`, `createdAtIso`, `updatedAtIso`, `deletedAtIso`, `createdAtEpoch`, `lastModifiedEpoch`, `version`, `origin`, `vectorClock`, `deviceId`, `serverBookingId`, `roomNumber`, `guestName`, `guestPhone`, `guestIdType`, `guestIdNumber`, `guestIdIssueDate`, `guestIdIssuePlace`, `guestNationality`, `guestEmail`, `guestAddress`, `checkinDate`, `checkoutDate`, `actualCheckout`, `status`, `notes`, `discount`, `discountType`, `discountStartDate`, `expectedNights`, `calculatedNights`, `totalNightsCached`, `stayDurationIso`, `lastNightEpoch`, `isOverdue`, `needsCheckoutReview`, `totalDueCached`, `totalPaidCached`, `remainingBalanceCached`, `isFullyPaid`, `hotelDayCheckin`, `hotelDayCheckout`
+## 1. `rooms` ✅
 
-**الحقول الإضافية في `collectionSchema` (45):** `financialFrozenAt`, `financialHash` — غير موجودة في النموذج المحلي (Drift).
-
-**الملاحظات:** ✅ حقول `financialFrozenAt` و `financialHash` موجودة في السحابة فقط (تستخدم لأغراض التدقيق المالي). لا حاجة لإضافتها محلياً.
-
----
-
-### 3. `payments` ✅ — كامل
-**الحقول في `_paymentToMap` (34):** `localUuid`, `serverId`, `createdAt`, `updatedAt`, `deletedAt`, `lastModified`, `createdAtIso`, `updatedAtIso`, `deletedAtIso`, `createdAtEpoch`, `lastModifiedEpoch`, `version`, `origin`, `vectorClock`, `deviceId`, `serverPaymentId`, `bookingLocalId`, `serverBookingId`, `roomNumber`, `amount`, `paymentDate`, `notes`, `paymentMethod`, `revenueType`, `cashTransactionLocalId`, `cashTransactionServerId`, `referenceNumber`, `hotelDayKey`, `isPendingBalance`, `linkedDebtUuid`, `bookingUuidCache`, `discountAmount`, `discountStartDate`, `isVoided`, `voidedAt`, `voidedBy`
-
-**الحقول الإضافية في `collectionSchema` (38):** `isImmutable`, `voidReason` — موجودة في السحابة ولكن ليست في النموذج المحلي.
-
-**الملاحظات:** ✅ كامل للتطبيق العملي. حقل `discountAmount` متوفر.
-
----
-
-### 4. `expenses` ✅ — كامل
-**الحقول في `_expenseToMap` (27):** `localUuid`, `serverId`, `createdAt`, `updatedAt`, `deletedAt`, `lastModified`, `createdAtIso`, `updatedAtIso`, `deletedAtIso`, `createdAtEpoch`, `lastModifiedEpoch`, `version`, `origin`, `vectorClock`, `deviceId`, `expenseType`, `relatedId`, `description`, `amount`, `date`, `cashTransactionId`, `hotelDayKey`, `categoryUuid`, `cashFlowUuid`, `isAutoGenerated`, `employeeUuid`
-
-**الحقول في `collectionSchema` (27):** 🔄 نفس الحقول — ✅ **تطابق تام**
-
----
-
-### 5. `debts` ⚠️ — حقل مكرر
-**الحقول في `_debtToMap` (29):** `localUuid`, `serverId`, `createdAt`, `updatedAt`, `deletedAt`, `lastModified`, `createdAtIso`, `updatedAtIso`, `deletedAtIso`, `createdAtEpoch`, `lastModifiedEpoch`, `version`, `origin`, `vectorClock`, `deviceId`, `bookingLocalId`, `guestName`, `checkinDate`, `checkoutDate`, `dateRecorded`, `debtReason`, `totalAmount`, `paidAmount`, `remainingAmount`, `paymentDate`, `isSettled`, `pledge`, `pledgeType`, `amount` ← مكرر `totalAmount`, `note`, `debtUuid`, `hotelDayOpened`, `hotelDayClosed`, `isFromAutoFix`, `settlementConfirmed`
-
-**الملاحظات:** ⚠️ `amount` و `totalAmount` يحملان نفس القيمة (`d.totalAmount`). كلاهما موجود في `collectionSchema` لكنهما مكرران. يُفضل إزالة `amount` أو جعله حقيقياً.
-
----
-
-### 6. `employees` ⚠️ — EmployeeID
-**الحقول في `_employeeToMap` (22):** `localUuid`, `serverId`, `createdAt`, `updatedAt`, `deletedAt`, `lastModified`, `createdAtIso`, `updatedAtIso`, `deletedAtIso`, `createdAtEpoch`, `lastModifiedEpoch`, `version`, `origin`, `vectorClock`, `deviceId`, `name`, `basicSalary`, `position`, `phone`, `hireDate`, `status`, `terminationDate`, `terminationReason`, `EmployeeID`
-
-**الملاحظات:** ✅ `EmployeeID` موجود الآن (تمت إضافته في الإصلاح السابق).
+| الحقل | النوع في السحابة | في `_roomToMap` | مطابق؟ |
+|-------|-----------------|-----------------|--------|
+| `localUuid` | `string` | ✅ `r.localUuid` | ✅ |
+| `roomNumber` | `string` | ✅ `r.roomNumber` | ✅ |
+| `type` | `string` | ✅ `r.type` | ✅ |
+| `price` | `double` | ✅ `r.price` | ✅ |
+| `status` | `string` | ✅ `r.status` | ✅ |
+| `imageUrl` | `string` | ✅ `r.imageUrl` | ✅ |
+| `cleaningStatus` | `string` | ✅ `r.cleaningStatus` | ✅ |
+| `lastCleanedHotelDay` | `string` | ✅ `r.lastCleanedHotelDay` | ✅ |
+| `lastOccupiedHotelDay` | `string` | ✅ `r.lastOccupiedHotelDay` | ✅ |
+| `requiresMaintenance` | `boolean` | ✅ `r.requiresMaintenance` | ✅ |
+| `serverId` | `integer` | ✅ `r.serverId` | ✅ |
+| `createdAt` | `integer` | ✅ `r.createdAt` | ✅ |
+| `updatedAt` | `integer` | ✅ `r.updatedAt` | ✅ |
+| `deletedAt` | `integer` | ✅ `r.deletedAt` | ✅ |
+| `lastModified` | `integer` | ✅ `r.lastModified` | ✅ |
+| `createdAtIso` | `string` | ✅ `r.createdAtIso` | ✅ |
+| `updatedAtIso` | `string` | ✅ `r.updatedAtIso` | ✅ |
+| `deletedAtIso` | `string` | ✅ `r.deletedAtIso` | ✅ |
+| `createdAtEpoch` | `integer` | ✅ `r.createdAtEpoch` | ✅ |
+| `lastModifiedEpoch` | `integer` | ✅ `r.lastModifiedEpoch` | ✅ |
+| `syncTimestamp` | `integer` | يضاف تلقائياً | ✅ |
+| `deviceId` | `string` | ✅ `r.deviceId` | ✅ |
+| `version` | `integer` | ✅ `r.version` | ✅ |
+| `origin` | `string` | ✅ `r.origin` | ✅ |
+| `vectorClock` | `string` | ✅ `r.vectorClock` | ✅ |
+| `sync_origin` | `string` | يضاف تلقائياً | ✅ |
+| `idempotencyKey` | `string` | يضاف تلقائياً | ✅ |
 
 ---
 
-### 7. `booking_notes` ✅ — كامل
-تطابق تام بين `_bookingNoteToMap` و `collectionSchema`.
+## 2. `bookings` ✅
+
+| الحقل | النوع | في `_bookingToMap` | مطابق؟ |
+|-------|-------|-------------------|--------|
+| `localUuid` | `string` | ✅ `b.localUuid` | ✅ |
+| `serverBookingId` | `integer` | ✅ `b.serverBookingId` | ✅ |
+| `roomNumber` | `string` | ✅ `b.roomNumber` | ✅ |
+| `guestName` | `string` | ✅ `b.guestName` | ✅ |
+| `guestPhone` | `string` | ✅ `b.guestPhone` | ✅ |
+| `guestIdType` | `string` | ✅ `b.guestIdType` | ✅ |
+| `guestIdNumber` | `string` | ✅ `b.guestIdNumber` | ✅ |
+| `guestIdIssueDate` | `string` | ✅ `b.guestIdIssueDate` | ✅ |
+| `guestIdIssuePlace` | `string` | ✅ `b.guestIdIssuePlace` | ✅ |
+| `guestNationality` | `string` | ✅ `b.guestNationality` | ✅ |
+| `guestEmail` | `string` | ✅ `b.guestEmail` | ✅ |
+| `guestAddress` | `string` | ✅ `b.guestAddress` | ✅ |
+| `checkinDate` | `string` | ✅ `b.checkinDate` | ✅ |
+| `checkoutDate` | `string` | ✅ `b.checkoutDate` | ✅ |
+| `actualCheckout` | `string` | ✅ `b.actualCheckout` | ✅ |
+| `status` | `string` | ✅ `b.status` | ✅ |
+| `notes` | `string` | ✅ `b.notes` | ✅ |
+| `expectedNights` | `integer` | ✅ `b.expectedNights` | ✅ |
+| `calculatedNights` | `integer` | ✅ `b.calculatedNights` | ✅ |
+| `totalNightsCached` | `integer` | ✅ `b.totalNightsCached` | ✅ |
+| `stayDurationIso` | `string` | ✅ `b.stayDurationIso` | ✅ |
+| `lastNightEpoch` | `integer` | ✅ `b.lastNightEpoch` | ✅ |
+| `isOverdue` | `boolean` | ✅ `b.isOverdue` | ✅ |
+| `needsCheckoutReview` | `boolean` | ✅ `b.needsCheckoutReview` | ✅ |
+| `totalDueCached` | `double` | ✅ `b.totalDueCached` | ✅ |
+| `totalPaidCached` | `double` | ✅ `b.totalPaidCached` | ✅ |
+| `remainingBalanceCached` | `double` | ✅ `b.remainingBalanceCached` | ✅ |
+| `isFullyPaid` | `boolean` | ✅ `b.isFullyPaid` | ✅ |
+| `discount` | `double` | ✅ `b.discount` | ✅ |
+| `discountType` | `string` | ✅ `b.discountType` | ✅ |
+| `discountStartDate` | `string` | ✅ `b.discountStartDate` | ✅ |
+| `hotelDayCheckin` | `string` | ✅ `b.hotelDayCheckin` | ✅ |
+| `hotelDayCheckout` | `string` | ✅ `b.hotelDayCheckout` | ✅ |
+| `financialFrozenAt` | `integer` | ❌ غير موجود محلياً | ℹ️ |
+| `financialHash` | `string` | ❌ غير موجود محلياً | ℹ️ |
+| حقول SyncFields (8) | متنوعة | ✅ من الـ mixin | ✅ |
 
 ---
 
-### 8. `booking_nights` ✅ — كامل
-**الملاحظات:** `appliedAdjustmentUuid` و `appliedAdjustmentsJson` موجودان الآن. `bookingUuidCache` و `serverBookingId` غير موجودين في النموذج المحلي لكنهما موجودان في السحابة.
+## 3. `payments` ✅
+
+| الحقل | النوع | في `_paymentToMap` | مطابق؟ |
+|-------|-------|-------------------|--------|
+| `localUuid` | `string` | ✅ | ✅ |
+| `serverPaymentId` | `integer` | ✅ | ✅ |
+| `bookingLocalId` | `integer` | ✅ | ✅ |
+| `serverBookingId` | `integer` | ✅ | ✅ |
+| `roomNumber` | `string` | ✅ | ✅ |
+| `amount` | `double` | ✅ | ✅ |
+| `paymentDate` | `string` | ✅ | ✅ |
+| `notes` | `string` | ✅ | ✅ |
+| `paymentMethod` | `string` | ✅ | ✅ |
+| `revenueType` | `string` | ✅ | ✅ |
+| `cashTransactionLocalId` | `integer` | ✅ | ✅ |
+| `cashTransactionServerId` | `integer` | ✅ | ✅ |
+| `referenceNumber` | `string` | ✅ | ✅ |
+| `hotelDayKey` | `string` | ✅ | ✅ |
+| `isPendingBalance` | `boolean` | ✅ | ✅ |
+| `linkedDebtUuid` | `string` | ✅ | ✅ |
+| `bookingUuidCache` | `string` | ✅ | ✅ |
+| `isVoided` | `boolean` | ✅ | ✅ |
+| `voidedAt` | `integer` | ✅ | ✅ |
+| `voidedBy` | `string` | ✅ | ✅ |
+| `voidReason` | `string` | ❌ غير موجود محلياً | ℹ️ |
+| `isImmutable` | `boolean` | ❌ غير موجود محلياً | ℹ️ |
+| `discountAmount` | `double` | ✅ | ✅ |
+| `discountStartDate` | `string` | ✅ | ✅ |
 
 ---
 
-### 9. `cash_transactions` ⚠️ — حقول مفقودة
-**الحقول في `_cashTransactionToMap` (19):** الحقول الأساسية فقط.
-**الحقول المفقودة من `collectionSchema` (22):** `registerId`, `referenceType`, `referenceId`
+## 4. `expenses` ✅ — تطابق تام
 
-**الملاحظات:** ℹ️ هذه الحقول غير موجودة في نموذج Drift المحلي. قد تكون قد أُضيفت إلى السحابة لاستخدامات مستقبلية.
-
----
-
-### 10. `booking_price_adjustments` ⚠️ — `appliedAt`
-**الملاحظات:** `appliedAt: b.createdAt` — هذا تجميع دلالي غير دقيق. `appliedAt` يجب أن يكون وقت تطبيق التعديل الفعلي وليس وقت إنشاء السجل.
-
----
-
-### 11. `audit_logs` ⚠️ — `action` / `operationType`
-**الملاحظات:** `action` و `operationType` يحملان نفس القيمة. `action` هو حقل توافقي (backward compatibility) مع إصدارات سابقة من المخطط.
-
----
-
-### 12. `payment_voids` ✅ — كامل
-تطابق تام بين `_paymentVoidToMap` و `collectionSchema`.
-
----
-
-### 13. `guest_infos` ✅ — كامل
-تطابق تام بين `_guestInfoToMap` و `collectionSchema`.
-
----
-
-### 14. `price_adjustments` ✅ — كامل
-تطابق تام بين `_priceAdjustmentToMap` و `collectionSchema`.
-
----
-
-### 15-18. جداول الرواتب ✅ — كاملة
-`salary_cycles`, `salary_payments`, `salary_withdrawals`, `salary_carry_over_logs` كلها متطابقة.
+| الحقل | النوع | في `_expenseToMap` |
+|-------|-------|-------------------|
+| `localUuid` | `string` | ✅ |
+| `serverId` | `integer` | ✅ |
+| `createdAt` | `integer` | ✅ |
+| `updatedAt` | `integer` | ✅ |
+| `deletedAt` | `integer` | ✅ |
+| `lastModified` | `integer` | ✅ |
+| `createdAtIso` | `string` | ✅ |
+| `updatedAtIso` | `string` | ✅ |
+| `deletedAtIso` | `string` | ✅ |
+| `createdAtEpoch` | `integer` | ✅ |
+| `lastModifiedEpoch` | `integer` | ✅ |
+| `version` | `integer` | ✅ |
+| `origin` | `string` | ✅ |
+| `vectorClock` | `string` | ✅ |
+| `deviceId` | `string` | ✅ |
+| `idempotencyKey` | `string` | ✅ |
+| `syncTimestamp` | `integer` | ✅ (يضاف تلقائياً) |
+| `sync_origin` | `string` | ✅ (يضاف تلقائياً) |
+| `expenseType` | `string` | ✅ |
+| `relatedId` | `integer` | ✅ |
+| `description` | `string` | ✅ |
+| `amount` | `double` | ✅ |
+| `date` | `string` | ✅ |
+| `cashTransactionId` | `integer` | ✅ |
+| `hotelDayKey` | `string` | ✅ |
+| `categoryUuid` | `string` | ✅ |
+| `cashFlowUuid` | `string` | ✅ |
+| `isAutoGenerated` | `boolean` | ✅ |
+| `employeeUuid` | `string` | ✅ |
 
 ---
 
-### 19. `shift_notes` ✅ — كامل
-تطابق تام بين `_shiftNoteToMap` و `collectionSchema`.
+## 5. `debts` ⚠️ — حقل مكرر
+
+| الحقل | النوع | في `_debtToMap` | ملاحظة |
+|-------|-------|-----------------|---------|
+| `localUuid` | `string` | ✅ | |
+| `bookingLocalId` | `integer` | ✅ | |
+| `guestName` | `string` | ✅ | |
+| `checkinDate` | `string` | ✅ | |
+| `checkoutDate` | `string` | ✅ | |
+| `dateRecorded` | `string` | ✅ | |
+| `debtReason` | `string` | ✅ | |
+| `totalAmount` | `double` | ✅ `d.totalAmount` | |
+| `paidAmount` | `double` | ✅ | |
+| `remainingAmount` | `double` | ✅ | |
+| `paymentDate` | `string` | ✅ | |
+| `isSettled` | `boolean` | ✅ `d.isSettled` | ⚠️ Drift: IntColumn |
+| `pledge` | `string` | ✅ | |
+| `pledgeType` | `string` | ✅ | |
+| `amount` | `double` | ✅ **`d.totalAmount`** | 🔴 **مكرر مع totalAmount** |
+| `note` | `string` | ✅ | |
+| `debtUuid` | `string` | ✅ | |
+| `hotelDayOpened` | `string` | ✅ | |
+| `hotelDayClosed` | `string` | ✅ | |
+| `isFromAutoFix` | `boolean` | ✅ | |
+| `settlementConfirmed` | `boolean` | ✅ | |
+| `date` | `string` | ❌ | غير موجود محلياً |
+| `debtorName` | `string` | ❌ | غير موجود محلياً |
+| `description` | `string` | ❌ | غير موجود محلياً |
+| `dueDate` | `string` | ❌ | غير موجود محلياً |
+| `guestPhone` | `string` | ❌ | غير موجود محلياً |
+| `status` | `string` | ❌ | غير موجود محلياً |
+| `bookingUuidCache` | `string` | ❌ | غير موجود محلياً |
 
 ---
 
-### 20. `app_settings` 🔴 — حرجة
-**المشكلة:** لا يحتوي على `collectionSchema`، فقط `validFieldsPerCollection` الذي يستخدم snake_case.  
-**الإصلاح:** أُضيفت جميع الحقول snake_case إلى `_preserveSnakeCase` لمنع تحويلها إلى camelCase.
+## 6. `employees` ⚠️ — EmployeeID
 
-**الحقول المتوقعة من `_appSettingsToMap`:** `localUuid`, `key`, `value`, `hotel_name`, `hotel_cutoff_hour`, `dark_mode`, `wa_api_type`, `wa_api_base_url`, `wa_api_instance_id`, `wa_custom_url_template`, `wa_sendzen_api_key`, `wa_sendzen_from_number`, `telegram_enabled`, `telegram_chat_id`, `telegram_notifications_enabled`, `telegram_daily_report_enabled`, `telegram_daily_report_time`, `appwrite_sync_interval`, `deviceId`, `serverId`, `createdAt`, `updatedAt`, `deletedAt`, `lastModified`, `syncTimestamp`, `idempotencyKey`, `sync_origin`
-
-**الحقول الإضافية في `validFieldsPerCollection` (غير مرسلة):** `api_key`, `database_id`, `endpoint`, `enabled`, `project_id`, `pull_enabled`, `push_enabled`, `secondary_appwrite_config`, `sync_performance_profile`, `telegram_bot_token`, `wa_api_token`, `wifi_only_sync`
-
----
-
-### 21. `blacklist` 🟡 — Workaround
-**لا يحتوي على `collectionSchema`.**  
-**المشكلة:** `_backupFetchers` يستخدم `shiftNotes` كـ workaround لأن جدول `blacklist` غير موجود في Drift.
-
----
-
-### 22-25. جداول غير مستخدمة
-- `sync_logs` — للقراءة فقط، لا يتم رفعها
-- `sync_state` — للقراءة فقط، لا يتم رفعها
-- `app_users` — غير مستخدم في هذا التطبيق
-- `devices` — غير مستخدم في هذا التطبيق
+| الحقل | النوع | في `_employeeToMap` | ملاحظة |
+|-------|-------|-------------------|---------|
+| `name` | `string` | ✅ | |
+| `basicSalary` | `double` | ✅ | |
+| `position` | `string` | ✅ | |
+| `phone` | `string` | ✅ | |
+| `hireDate` | `string` | ✅ | |
+| `status` | `string` | ✅ | |
+| `terminationDate` | `string` | ✅ | |
+| `terminationReason` | `string` | ✅ | |
+| `EmployeeID` | `string` | ✅ `e.employeeID` | ✅ تم الإصلاح |
+| حقول SyncFields | متنوعة | ✅ من الـ mixin | ✅ |
 
 ---
 
-## 📋 ملخص الفجوات
+## 7. `booking_notes` ✅ — تطابق تام
 
-| المستوى | العدد | التفاصيل |
-|---------|-------|---------|
-| 🔴 حرج | 1 | `app_settings` — تم الإصلاح ✅ |
-| 🟡 متوسط | 3 | `employees` (EmployeeID)، `booking_price_adjustments` (appliedAt)، `blacklist` (workaround) |
-| 🟢 خفيف | 2 | `debts` (amount مكرر)، `audit_logs` (action/operationType) |
-| ℹ️ معلوماتي | 3 | `cash_transactions` (3 حقول مفقودة)، `booking_nights` (2 حقول مفقودة) |
+| الحقل | النوع | في `_bookingNoteToMap` |
+|-------|-------|----------------------|
+| `bookingId` | `integer` | ✅ |
+| `noteText` | `string` | ✅ |
+| `alertType` | `string` | ✅ |
+| `alertUntil` | `string` | ✅ |
+| `isActive` | `boolean` | ✅ |
+| `bookingUuidCache` | `string` | ❌ غير موجود محلياً |
+| حقول SyncFields | متنوعة | ✅ |
+
+---
+
+## 8. `booking_nights` ✅ — كامل
+
+| الحقل | النوع | في `_nightToMap` | ملاحظة |
+|-------|-------|-----------------|---------|
+| `bookingLocalId` | `integer` | ✅ | |
+| `hotelDayKey` | `string` | ✅ | |
+| `nightStart` | `string` | ✅ | |
+| `nightEnd` | `string` | ✅ | |
+| `nightlyRate` | `double` | ✅ | |
+| `sequence` | `integer` | ✅ | |
+| `isProcessedByAutoFix` | `boolean` | ✅ | |
+| `baseRate` | `double` | ✅ | |
+| `adjustment` | `double` | ✅ | |
+| `finalRate` | `double` | ✅ | |
+| `appliedAdjustmentUuid` | `string` | ✅ | ✅ تم الإصلاح |
+| `appliedAdjustmentsJson` | `string` | ✅ | ✅ تم الإصلاح |
+| `bookingUuidCache` | `string` | ❌ | غير موجود محلياً |
+| `serverBookingId` | `integer` | ❌ | غير موجود محلياً |
+
+---
+
+## 9. `cash_transactions` ⚠️ — حقول مفقودة
+
+| الحقل | النوع | في `_cashTransactionToMap` | ملاحظة |
+|-------|-------|--------------------------|---------|
+| `registerId` | `integer` | ❌ | موجود محلياً لكن ليس في ToMap |
+| `referenceType` | `string` | ❌ | موجود محلياً لكن ليس في ToMap |
+| `referenceId` | `integer` | ❌ | موجود محلياً لكن ليس في ToMap |
+
+---
+
+## 10. `booking_price_adjustments` ⚠️ — `appliedAt`
+
+| الحقل | النوع | في `_bookingPriceAdjustmentToMap` | ملاحظة |
+|-------|-------|----------------------------------|---------|
+| `bookingLocalUuid` | `string` | ✅ | |
+| `bookingUuid` | `string` | ✅ **= b.bookingLocalUuid** | 🔴 نفس القيمة |
+| `bookingLocalId` | `integer` | ✅ | |
+| `roomNumber` | `string` | ✅ | |
+| `adjustmentType` | `integer` | ✅ | |
+| `adjustmentMode` | `string` | ✅ | |
+| `amount` | `double` | ✅ | |
+| `effectiveHotelDay` | `string` | ✅ | |
+| `endHotelDay` | `string` | ✅ | |
+| `isActive` | `boolean` | ✅ | |
+| `reason` | `string` | ✅ | |
+| `appliedBy` | `string` | ✅ | |
+| `appliedAt` | `integer` | ✅ **= b.createdAt** | 🟡 دلالياً غير دقيق |
+| `cancelledAt` | `string` | ✅ | |
+| `cancelledBy` | `string` | ✅ | |
+
+---
+
+## 11. `audit_logs` ⚠️ — `action` / `operationType`
+
+| الحقل | النوع | في `_auditLogToMap` | ملاحظة |
+|-------|-------|--------------------|---------|
+| `operationType` | `string` | ✅ `a.operationType` | |
+| `action` | `string` | ✅ **= a.operationType** | 🟡 بديل توافقي |
+| باقي الحقول (27) | متنوعة | ✅ |  |
+
+---
+
+## 12-19. الجداول المتبقية ✅
+
+جميعها متطابقة:
+- `payment_voids` ✅ — مع `voidedAmount: integer` (يُحوّل تلقائياً)
+- `guest_infos` ✅
+- `price_adjustments` ✅
+- `salary_cycles` ✅
+- `salary_payments` ✅
+- `salary_withdrawals` ✅
+- `salary_carry_over_logs` ✅
+- `shift_notes` ✅
+
+---
+
+## 20. `app_settings` 🔴 — **حرجة (تم الإصلاح)**
+
+**لا يوجد `collectionSchema`** — فقط `validFieldsPerCollection` بـ snake_case.
+
+### المشكلة الأصلية:
+`sanitizePayload()` يحوّل `hotel_name` → `hotelName` (camelCase) لكن `validFieldsPerCollection` ينتظر `hotel_name` (snake_case) → الحقل يُحذف.
+
+### الحقول المعرّضة (قبل الإصلاح):
+
+| الحقل | النوع (مفترض) | الحالة بعد الإصلاح |
+|-------|--------------|-------------------|
+| `localUuid` | `string` | ✅ |
+| `key` | `string` | ✅ |
+| `value` | `string` | ✅ |
+| `hotel_name` | `string` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `hotel_cutoff_hour` | `integer` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `dark_mode` | `boolean` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `wa_api_type` | `string` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `wa_api_base_url` | `string` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `wa_api_instance_id` | `string` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `wa_custom_url_template` | `string` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `wa_sendzen_api_key` | `string` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `wa_sendzen_from_number` | `string` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `telegram_enabled` | `boolean` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `telegram_chat_id` | `string` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `telegram_notifications_enabled` | `boolean` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `telegram_daily_report_enabled` | `boolean` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `telegram_daily_report_time` | `string` | ✅ أُضيف إلى `_preserveSnakeCase` |
+| `appwrite_sync_interval` | `integer` | ✅ أُضيف إلى `_preserveSnakeCase` |
+
+---
+
+## 21. `blacklist` 🟡 — Wilma Workaround
+
+لا يوجد `collectionSchema`. الحقول في `validFieldsPerCollection`:
+`active`, `name`, `nationalId`, `nationality`, `notes`, `phone`, `reason`, `reportedBy`  
+➕ حقول SyncFields.
+
+**المشكلة:** `_backupFetchers` يستخدم `shiftNotes` بدلاً من جدول `blacklist` حقيقي.
+
+---
+
+## 📋 أنواع الحقول في Appwrite Cloud
+
+| النوع | المعنى | الأمثلة |
+|-------|--------|---------|
+| `string` | نص | `guestName`, `hotelDayKey` |
+| `integer` | عدد صحيح | `createdAt`, `version` |
+| `double` | عدد عشري | `amount`, `price`, `basicSalary` |
+| `boolean` | منطقي | `isActive`, `isVoided`, `requiresMaintenance` |
+
+---
+
+## ⚠️ تحذيرات تحويل الأنواع
+
+```dart
+// payment_voids.voidedAmount: integer (يُحوّل double → int)
+static const Map<String, Set<String>> _intAmountFields = {
+    'payment_voids': {'voidedAmount'},
+};
+```
+
+- `isSettled` في `debts`: السحابة `boolean`، المحلي `IntColumn` (0/1) — يتم التحويل تلقائياً
+- `isRead` في `shift_notes`: السحابة `boolean`، المحلي `IntColumn` (0/1) — يتم التحويل تلقائياً
+- `isActive` في `booking_notes`: السحابة `boolean`، المحلي `IntColumn` (0/1) — يتم التحويل تلقائياً
 
 ---
 
