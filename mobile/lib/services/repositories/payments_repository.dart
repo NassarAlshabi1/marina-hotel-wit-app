@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import 'package:drift/drift.dart' as d;
 
@@ -111,7 +112,9 @@ class PaymentsRepository {
         'INSERT',
         recordData: {'amount': amount},
       ),);
-            return result;
+      // إشعارات فورية (fire-and-forget)
+      _notifyPaymentReceived(result);
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'PaymentsRepository',
@@ -314,5 +317,45 @@ class PaymentsRepository {
       readsFrom: {db.payments},
     ).getSingle();
     return (result.data['total'] as num).toDouble();
+  }
+
+  /// إرسال إشعارات (WhatsApp + Telegram) عند استلام دفعة
+  void _notifyPaymentReceived(int paymentId) async {
+    try {
+      final payment = await (db.select(db.payments)
+            ..where((p) => p.id.equals(paymentId)))
+          .getSingleOrNull();
+      if (payment == null) return;
+
+      // الحصول على معلومات الحجز إن وجد
+      String roomNumber = payment.roomNumber ?? '-';
+      String guestName = '-';
+      if (payment.bookingLocalId != null) {
+        try {
+          final booking = await (db.select(db.bookings)
+                ..where((b) => b.id.equals(payment.bookingLocalId!)))
+              .getSingleOrNull();
+          if (booking != null) {
+            roomNumber = booking.roomNumber;
+            guestName = booking.guestName;
+          }
+        } catch (_) {}
+      }
+
+      unawaited(WhatsAppNotificationService.instance.notifyPayment(
+        roomNumber: roomNumber,
+        guestName: guestName,
+        amount: payment.amount,
+        paymentMethod: payment.paymentMethod,
+      ));
+      unawaited(TelegramNotificationService.instance.notifyPayment(
+        roomNumber: roomNumber,
+        guestName: guestName,
+        amount: payment.amount,
+        paymentMethod: payment.paymentMethod,
+      ));
+    } catch (e) {
+      debugPrint('⚠️ فشل إرسال إشعار الدفعة: $e');
+    }
   }
 }

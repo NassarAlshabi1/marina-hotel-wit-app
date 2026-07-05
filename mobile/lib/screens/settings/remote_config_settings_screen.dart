@@ -117,10 +117,6 @@ class _RemoteConfigSettingsScreenState
                 'whatsapp_report_time',
               ),
               _buildConfigRow(
-                values['lark_report_time'] as String? ?? '---',
-                'lark_report_time',
-              ),
-              _buildConfigRow(
                 'تقرير Telegram',
                 values['telegram_report_time'] as String? ?? '---',
                 'telegram_report_time',

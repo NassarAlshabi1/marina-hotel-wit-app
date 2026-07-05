@@ -12,6 +12,7 @@ import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
+import 'package:flutter/foundation.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db) {
@@ -102,7 +103,9 @@ class BookingsRepository {
         'INSERT',
         recordData: {'id': result},
       ),);
-            return result;
+      // إشعارات فورية (fire-and-forget)
+      _notifyNewBooking(result);
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'BookingsRepository',
@@ -225,7 +228,10 @@ class BookingsRepository {
           'UPDATE',
           recordData: {'id': id},
         ),);
-              }
+        if (status != null) {
+          _notifyBookingUpdate(id, status);
+        }
+      }
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
@@ -383,5 +389,90 @@ class BookingsRepository {
           ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])
           ..limit(1))
         .getSingleOrNull();
+  }
+
+  /// إرسال إشعارات (WhatsApp + Telegram) لحجز جديد
+  void _notifyNewBooking(int id) async {
+    try {
+      final booking = await (db.select(db.bookings)
+            ..where((b) => b.id.equals(id)))
+          .getSingleOrNull();
+      if (booking == null) return;
+
+      final roomNumber = booking.roomNumber;
+      final guestName = booking.guestName;
+      final guestPhone = booking.guestPhone;
+      final checkinDate = booking.checkinDate;
+      final checkoutDate = booking.checkoutDate;
+      final nights = booking.expectedNights;
+
+      unawaited(WhatsAppNotificationService.instance.notifyNewBooking(
+        roomNumber: roomNumber,
+        guestName: guestName,
+        guestPhone: guestPhone,
+        checkinDate: checkinDate,
+        checkoutDate: checkoutDate,
+        nights: nights,
+      ));
+      unawaited(TelegramNotificationService.instance.notifyNewBooking(
+        roomNumber: roomNumber,
+        guestName: guestName,
+        guestPhone: guestPhone,
+        checkinDate: checkinDate,
+        checkoutDate: checkoutDate,
+        nights: nights,
+      ));
+    } catch (e) {
+      debugPrint('⚠️ فشل إرسال إشعار الحجز الجديد: $e');
+    }
+  }
+
+  /// إرسال إشعارات (WhatsApp + Telegram) عند تغيير حالة الحجز
+  void _notifyBookingUpdate(int id, String newStatus) async {
+    try {
+      final booking = await (db.select(db.bookings)
+            ..where((b) => b.id.equals(id)))
+          .getSingleOrNull();
+      if (booking == null) return;
+
+      final roomNumber = booking.roomNumber;
+      final guestName = booking.guestName;
+
+      // حالة تسجيل دخول (check-in): نشط/active/confirmed
+      if (newStatus == 'نشط' || newStatus == 'active' || newStatus == 'confirmed') {
+        unawaited(WhatsAppNotificationService.instance.notifyCheckIn(
+          roomNumber: roomNumber,
+          guestName: guestName,
+          guestPhone: booking.guestPhone,
+          expectedNights: booking.expectedNights,
+        ));
+        unawaited(TelegramNotificationService.instance.notifyCheckIn(
+          roomNumber: roomNumber,
+          guestName: guestName,
+          guestPhone: booking.guestPhone,
+          expectedNights: booking.expectedNights,
+        ));
+      } else if (newStatus == 'مكتمل') {
+        final totalPaid = booking.totalPaidCached;
+        final remaining = booking.remainingBalanceCached;
+
+        unawaited(WhatsAppNotificationService.instance.notifyCheckOut(
+          roomNumber: roomNumber,
+          guestName: guestName,
+          actualNights: booking.calculatedNights ?? booking.expectedNights,
+          totalPaid: totalPaid,
+          remaining: remaining > 0 ? remaining : null,
+        ));
+        unawaited(TelegramNotificationService.instance.notifyCheckOut(
+          roomNumber: roomNumber,
+          guestName: guestName,
+          actualNights: booking.calculatedNights ?? booking.expectedNights,
+          totalPaid: totalPaid,
+          remaining: remaining > 0 ? remaining : null,
+        ));
+      }
+    } catch (e) {
+      debugPrint('⚠️ فشل إرسال إشعار تحديث الحجز: $e');
+    }
   }
 }

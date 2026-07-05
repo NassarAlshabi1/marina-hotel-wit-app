@@ -5952,14 +5952,6 @@ class AppwriteSyncManager {
         'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
         'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
         'telegram_daily_report_time': prefs.getString('telegram_daily_report_time') ?? '',
-        // ── Lark ──
-        'lark_enabled': prefs.getBool('lark_enabled') ?? false,
-        'lark_app_id': prefs.getString('lark_app_id') ?? '',
-        'lark_app_secret': SecureStorage.encryptValue(prefs.getString('lark_app_secret') ?? '', encryptionKey),
-        'lark_webhook_url': prefs.getString('lark_webhook_url') ?? '',
-        'lark_daily_report_enabled': prefs.getBool('lark_daily_report_enabled') ?? false,
-        'lark_daily_report_time': prefs.getString('lark_daily_report_time') ?? '08:00',
-        'lark_daily_report_chat_id': prefs.getString('lark_daily_report_chat_id') ?? '',
         // ── مزامنة ──
         'appwrite_sync_interval': prefs.getInt('appwrite_sync_interval') ?? 15,
         // ✅ إصلاح (2026-07-04): الحقول المطلوبة إجبارياً في مخطط app_settings
@@ -5982,13 +5974,13 @@ class AppwriteSyncManager {
       //
       // كان الكود السابق يقتطع كل string إلى 28 حرفاً لتجنّب RangeError
       // من Appwrite. هذا يُفسد القيم المشفّرة (telegram_bot_token,
-      // lark_app_secret, wa_api_token) — ciphertext لا يمكن فكّ تشفيره
+      // wa_api_token) — ciphertext لا يمكن فكّ تشفيره
       // بعد الاقتطاع، فتفقد الإعدادات قيمتها على الأجهزة الأخرى.
       //
       // السبب الجذري للمشكلة كان مختلفاً: مخطط app_settings الفعلي على
       // Appwrite Cloud uses generic key-value fields (settingKey,
       // settingValue, settingType, category, ...) وليس الحقول المُسماة
-      // (telegram_bot_token, lark_app_secret, ...). لذا فالـ code يُرسل
+      // (telegram_bot_token, ...). لذا فالـ code يُرسل
       // حقولاً غير موجودة، وAppwrite يرفضها بـ "Unknown attribute".
       //
       // الحل الصحيح هو إعادة تصميم الـ push ليستخدم الـ schema الجديد

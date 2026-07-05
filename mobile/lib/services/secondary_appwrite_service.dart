@@ -999,12 +999,6 @@ for (final coll in collectionList) {
         'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
         'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
         'telegram_daily_report_time': prefs.getString('telegram_daily_report_time') ?? '',
-        'lark_enabled': prefs.getBool('lark_enabled') ?? false,
-        'lark_app_id': prefs.getString('lark_app_id') ?? '',
-        'lark_webhook_url': prefs.getString('lark_webhook_url') ?? '',
-        'lark_daily_report_enabled': prefs.getBool('lark_daily_report_enabled') ?? false,
-        'lark_daily_report_time': prefs.getString('lark_daily_report_time') ?? '08:00',
-        'lark_daily_report_chat_id': prefs.getString('lark_daily_report_chat_id') ?? '',
         'appwrite_sync_interval': prefs.getInt('appwrite_sync_interval') ?? 15,
         // حقول المزامنة الأساسية (SyncFields)
         'deviceId': deviceId,

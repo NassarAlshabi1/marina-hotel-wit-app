@@ -161,11 +161,6 @@ class RemoteConfigService {
   bool get whatsappEnabled =>
       _remoteConfig?.getBool('whatsapp_enabled') ?? true;
 
-  /// تفعيل/تعطيل إشعارات Lark
-  /// الافتراضي: false
-  /// الملف المرتبط: lark_config.dart:26
-  bool get larkEnabledRemote =>
-      _remoteConfig?.getBool('lark_enabled') ?? false;
 
   /// رقم هاتف الفندق (يظهر في رسائل الديون)
   /// الافتراضي: '9677734587456'
@@ -189,15 +184,9 @@ class RemoteConfigService {
   String get whatsappReportTime =>
       _remoteConfig?.getString('whatsapp_report_time') ?? '21:00';
 
-  /// وقت تقرير Lark اليومي
-  /// الافتراضي: '08:00'
-  /// الملف المرتبط: lark_config.dart:20, alarm_backup.dart:158
-  String get larkReportTime =>
-      _remoteConfig?.getString('lark_report_time') ?? '08:00';
 
   /// وقت تقرير Telegram اليومي
   /// الافتراضي: '02:00'
-  /// الملف المرتبط: telegram_config.dart:14, alarm_backup.dart:203
   String get telegramReportTime =>
       _remoteConfig?.getString('telegram_report_time') ?? '02:00';
 
@@ -304,13 +293,11 @@ class RemoteConfigService {
     'whatsapp_phone': Env.whatsappPhoneNumber,
     'whatsapp_api_key': Env.whatsappApiKey,
     'whatsapp_enabled': true,
-    'lark_enabled': false,
     'hotel_contact_phone': Env.hotelContactPhone,
 
     // مواعيد التقارير
     'daily_backup_time': '21:00',
     'whatsapp_report_time': '21:00',
-    'lark_report_time': '08:00',
     'telegram_report_time': '02:00',
 
     // قواعد الحجوزات
@@ -351,13 +338,11 @@ class RemoteConfigService {
       'whatsapp_phone': whatsappPhone,
       'whatsapp_api_key': whatsappApiKey,
       'whatsapp_enabled': whatsappEnabled,
-      'lark_enabled': larkEnabledRemote,
       'hotel_contact_phone': hotelContactPhone,
 
       // مواعيد التقارير
       'daily_backup_time': dailyBackupTime,
       'whatsapp_report_time': whatsappReportTime,
-      'lark_report_time': larkReportTime,
       'telegram_report_time': telegramReportTime,
 
       // قواعد الحجوزات

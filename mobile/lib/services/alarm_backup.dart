@@ -10,7 +10,7 @@ import 'telegram/telegram_report_service.dart';
 
 class AlarmBackup {
   static const int alarmId = 0;
-    static const int telegramReportAlarmId = 2;
+  static const int telegramReportAlarmId = 2;
 
   static final FlutterLocalNotificationsPlugin _notif =
       FlutterLocalNotificationsPlugin();
@@ -46,10 +46,10 @@ class AlarmBackup {
       await prefs.setString('telegram_daily_report_time', '02:00');
     }
 
-        
     // جدولة تقرير WhatsApp/Telegram اليومي إذا كان مفعّلاً
     await _scheduleTelegramReportIfNeeded(prefs);
   }
+
   static Future<void> scheduleDailyAlarm(int hour, int minute) async {
     final now = DateTime.now();
     var scheduled = DateTime(now.year, now.month, now.day, hour, minute);
@@ -122,12 +122,12 @@ class AlarmBackup {
     } catch (e) {
       debugPrint('❌ Alarm backup general error: $e');
     } finally {
-      // أعد جدولة الإنذار لليوم التالي في نفس الوقت
+      // أعد جدولة الإنذار لليوم التالي
       final prefs = await SharedPreferences.getInstance();
       final timeString = prefs.getString('auto_backup_time') ?? '21:00';
-      final timeParts = timeString.split(':');
-      final hour = int.tryParse(timeParts[0]) ?? 0;
-      final minute = int.tryParse(timeParts[1]) ?? 0;
+      final parts = timeString.split(':');
+      final hour = int.tryParse(parts[0]) ?? 21;
+      final minute = int.tryParse(parts[1]) ?? 0;
       await scheduleDailyAlarm(hour, minute);
     }
   }
@@ -135,16 +135,16 @@ class AlarmBackup {
   static Future<void> _showOpenAppNotification() async {
     const androidDetails = AndroidNotificationDetails(
       'backup_channel',
-      'Backups',
-      channelDescription: 'Backup notifications',
-      importance: Importance.max,
+      'النسخ الاحتياطي',
+      channelDescription: 'إشعارات النسخ الاحتياطي',
+      importance: Importance.high,
       priority: Priority.high,
     );
     const details = NotificationDetails(android: androidDetails);
     await _notif.show(
       0,
-      'نسخة احتياطية فشلت',
-      'يرجى فتح التطبيق لتسجيل الدخول وإكمال النسخة',
+      '🔐 تسجيل الدخول لمزامنة Google Drive',
+      'يرجى فتح التطبيق لتسجيل الدخول وإكمال النسخة الاحتياطية',
       details,
     );
   }
@@ -153,33 +153,6 @@ class AlarmBackup {
   static Future<void> cancelAlarm() async {
     await AndroidAlarmManager.cancel(alarmId);
     debugPrint('🚫 Alarm cancelled');
-  }
-
-
-      final parts = timeString.split(':');
-      final hour = int.tryParse(parts[0]) ?? 0;
-      final minute = int.tryParse(parts[1]) ?? 0;
-    } else {
-    }
-  }
-
-    final now = DateTime.now();
-    var scheduled = DateTime(now.year, now.month, now.day, hour, minute);
-    if (scheduled.isBefore(now)) {
-      scheduled = scheduled.add(const Duration(days: 1));
-    }
-
-    await AndroidAlarmManager.oneShotAt(
-      scheduled,
-      exact: true,
-      wakeup: true,
-      rescheduleOnReboot: true,
-      allowWhileIdle: true,
-    );
-
-  }
-
-    await Future<void>.delayed(const Duration(milliseconds: 300));
   }
 
   /// جدولة تقرير Telegram/WhatsApp اليومي إذا كان مفعّلاً
@@ -263,29 +236,8 @@ class AlarmBackup {
       final timeString = prefs.getString('telegram_daily_report_time') ?? '02:00';
       final parts = timeString.split(':');
       final hour = int.tryParse(parts[0]) ?? 0;
-      final minute = int.tryParse(parts[1]) ?? 0;
+      final minute = int.tryParse(parts[1]) ?? 1;
       await scheduleTelegramReportAlarm(hour, minute);
-    }
-  }
-
-  @pragma('vm:entry-point')
-    WidgetsFlutterBinding.ensureInitialized();
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-        if (webhookUrl.isNotEmpty) {
-          await reportService.sendDailyReport();
-        } else {
-        }
-      }
-    } catch (e) {
-    } finally {
-      // أعد جدولة لليوم التالي
-      final prefs = await SharedPreferences.getInstance();
-      final parts = timeString.split(':');
-      final hour = int.tryParse(parts[0]) ?? 0;
-      final minute = int.tryParse(parts[1]) ?? 0;
     }
   }
 }

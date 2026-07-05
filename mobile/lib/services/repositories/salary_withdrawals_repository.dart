@@ -267,6 +267,11 @@ class SalaryWithdrawalsRepository {
           amount: amount.toDouble(),
           description: reason ?? 'سحب راتب للموظف',
         ));
+        unawaited(TelegramNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount.toDouble(),
+          description: reason ?? 'سحب راتب للموظف',
+        ));
 
         if (!originIsServer) {
           await _outboxDao.merge(
