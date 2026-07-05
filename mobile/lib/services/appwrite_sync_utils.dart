@@ -987,6 +987,7 @@ class AppwriteSyncUtils {
       'sync_origin': 'string',
       'idempotencyKey': 'string',
 
+    },
     'expenses': {
       'localUuid': 'string',
       'serverId': 'integer',
@@ -1491,7 +1492,6 @@ class AppwriteSyncUtils {
       'issuePlace': 'string',
       'governorate': 'string',
       'notes': 'string',
-    },
     },
   };
 

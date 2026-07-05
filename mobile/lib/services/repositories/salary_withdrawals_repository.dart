@@ -265,12 +265,12 @@ class SalaryWithdrawalsRepository {
         unawaited(WhatsAppNotificationService.instance.notifyNewExpense(
           category: 'سحب راتب',
           amount: amount.toDouble(),
-          description: reason ?? 'سحب راتب للموظف',
+          description: reason,
         ));
         unawaited(TelegramNotificationService.instance.notifyNewExpense(
           category: 'سحب راتب',
           amount: amount.toDouble(),
-          description: reason ?? 'سحب راتب للموظف',
+          description: reason,
         ));
 
         if (!originIsServer) {

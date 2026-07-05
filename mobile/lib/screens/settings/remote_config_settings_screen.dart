@@ -88,9 +88,6 @@ class _RemoteConfigSettingsScreenState
                 isBool: true,
               ),
               _buildConfigRow(
-                isBool: true,
-              ),
-              _buildConfigRow(
                 'هاتف الفندق',
                 values['hotel_contact_phone'] as String? ?? '---',
                 'hotel_contact_phone',
