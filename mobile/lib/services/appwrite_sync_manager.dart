@@ -179,7 +179,13 @@ class AppwriteSyncManager {
   int? _deviceVersion;
   int? _deviceCreatedAtEpoch;
   String? _fcmToken; // توكن FCM للإشعارات بين الأجهزة
-  bool? _remoteEpochIsMillis;
+
+  // ✅ إصلاح جوهري: تتبّع أقصى زمن خادم ($updatedAt) في كل دورة سحب.
+  // يُحدَّث في _extractUpdatedAtSec لكل مستند يُعالَج، ثم يُستخدم في
+  // _updateLastPullTs بدل Time.nowEpoch() — لضمان أن المؤشر يعتمد
+  // على سلطة الخادم لا وقت الجهاز الساحب (الذي قد يكون منحرفاً).
+  // يُعاد ضبطه عند بداية كل دورة سحب.
+  int? _maxUpdatedAtInPull;
 
   final _syncController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
@@ -653,6 +659,11 @@ class AppwriteSyncManager {
     SyncStatus finalStatus = SyncStatus.success;
     late String syncLogId;
     late String syncLogLocalUuid;
+
+    // ✅ إصلاح جوهري: إعادة ضبط متتبّع أقصى $updatedAt في بداية دورة السحب.
+    // سيُحدَّث في _extractUpdatedAtSec لكل مستند يُعالَج، ثم يُستخدم في
+    // _updateLastPullTs بدل Time.nowEpoch().
+    _maxUpdatedAtInPull = null;
     int syncLogVersion = 1;
     bool hasSyncLog = false;
     int? syncLogCreatedEpoch;
@@ -892,8 +903,11 @@ class AppwriteSyncManager {
               }
               final bookingNights = await appwriteService.listBookingNights(queries: nightsDeltaQ, useCache: false);
               final synced = await _syncBookingNights(bookingNights);
-              // تحديث lastPullTs الخاص بـ booking_nights بعد نجاح السحب
-              await _updateBookingNightsPullTs(Time.nowEpoch());
+              // ✅ إصلاح جوهري: تحديث lastPullTs الخاص بـ booking_nights من
+              // أقصى $updatedAt (سلطة الخادم) بدل Time.nowEpoch().
+              // fallback إلى Time.nowEpoch() إذا لم تُعالَج مستندات.
+              final nightsNewTs = _maxUpdatedAtInPull ?? Time.nowEpoch();
+              await _updateBookingNightsPullTs(nightsNewTs);
               _logger.debug('Synced $synced booking nights', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -1097,7 +1111,18 @@ class AppwriteSyncManager {
           // تحديث lastPullTs فقط إذا نجحت كل الكولكشنات
           // إذا فشل بعضها، لا نحدّث timestamp حتى نتمكن من سحبها في المرة القادمة
           if (failedCollections.isEmpty) {
-            await _updateLastPullTs(Time.nowEpoch());
+            // ✅ إصلاح جوهري: اشتقاق المؤشر من أقصى $updatedAt (سلطة الخادم)
+            // بدل Time.nowEpoch() (وقت الجهاز الساحب الذي قد يكون منحرفاً).
+            // fallback إلى Time.nowEpoch() إذا لم يُعالَج أي مستند (دورة فارغة).
+            final newPullTs = _maxUpdatedAtInPull ?? Time.nowEpoch();
+            await _updateLastPullTs(newPullTs);
+            if (_maxUpdatedAtInPull != null) {
+              _logger.debug(
+                '📍 مؤشر السحب الجديد مشتق من max(\$updatedAt) = $_maxUpdatedAtInPull '
+                '(سلطة الخادم)',
+                tag: 'SYNC',
+              );
+            }
           } else {
             _logger.warning(
               '⚠️ ${failedCollections.length} collections فشل سحبها: ${failedCollections.join(", ")} — لن يتم تحديث lastPullTs',
@@ -1534,12 +1559,21 @@ class AppwriteSyncManager {
   /// تلقائياً عند أي تعديل. نستخدمه كمرجع زمني موثوق لفحص التعارضات عندما
   /// يكون lastModified البعيد مفقوداً (وهو ما يحدث في بعض المجموعات مثل
   /// bookings حيث لا يُخزن lastModified في مخطط Appwrite).
+  ///
+  /// ✅ إصلاح جوهري: كما يُحدِّث `_maxUpdatedAtInPull` لتتبّع أقصى زمن خادم
+  /// في كل دورة سحب — يُستخدم لاحقاً في `_updateLastPullTs` بدل `Time.nowEpoch()`.
   int? _extractUpdatedAtSec(models.Document doc) {
     try {
       final updatedAtStr = doc.$updatedAt;
       if (updatedAtStr.isEmpty) return null;
       final dt = DateTime.parse(updatedAtStr);
-      return (dt.millisecondsSinceEpoch / 1000).round();
+      final sec = (dt.millisecondsSinceEpoch / 1000).round();
+      // ✅ تتبّع أقصى $updatedAt في هذه الدورة (سلطة الخادم للمؤشر).
+      final current = _maxUpdatedAtInPull;
+      if (current == null || sec > current) {
+        _maxUpdatedAtInPull = sec;
+      }
+      return sec;
     } catch (_) {
       return null;
     }
@@ -3917,6 +3951,11 @@ class AppwriteSyncManager {
         // ✅ P1-5 fix: تتبّع Collections الفاشلة لمنع تقديم مؤشّر السحب
         final failedCollections = <String>[];
 
+        // ✅ إصلاح جوهري: إعادة ضبط متتبّع أقصى $updatedAt في بداية دورة السحب.
+        // سيُحدَّث في _extractUpdatedAtSec لكل مستند يُعالَج، ثم يُستخدم في
+        // _updateLastPullTs بدل Time.nowEpoch().
+        _maxUpdatedAtInPull = null;
+
         // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
         final lastPullTs = await _getLastPullTs();
         final List<String> deltaQ = await (_pullService?.buildDeltaQueries(lastPullTs) ?? <String>[]);
@@ -4140,7 +4179,18 @@ class AppwriteSyncManager {
 
           // ✅ P1-5 fix: تحديث lastPullTs فقط إذا نجحت كل الكولكشنات
           if (failedCollections.isEmpty) {
-            await _updateLastPullTs(Time.nowEpoch());
+            // ✅ إصلاح جوهري: اشتقاق المؤشر من أقصى $updatedAt (سلطة الخادم)
+            // بدل Time.nowEpoch() (وقت الجهاز الساحب الذي قد يكون منحرفاً).
+            // fallback إلى Time.nowEpoch() إذا لم يُعالَج أي مستند (دورة فارغة).
+            final newPullTs = _maxUpdatedAtInPull ?? Time.nowEpoch();
+            await _updateLastPullTs(newPullTs);
+            if (_maxUpdatedAtInPull != null) {
+              _logger.debug(
+                '📍 pullRemoteChanges: مؤشر السحب مشتق من max(\$updatedAt) = '
+                '$_maxUpdatedAtInPull (سلطة الخادم)',
+                tag: 'SYNC',
+              );
+            }
           } else {
             _logger.warning(
               '⚠️ P1-5: ${failedCollections.length} collections فشلت في pullRemoteChanges: '

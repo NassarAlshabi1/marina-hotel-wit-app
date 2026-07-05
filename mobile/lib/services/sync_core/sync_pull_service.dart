@@ -96,32 +96,62 @@ class SyncPullService {
     }
   }
 
-  /// يبني استعلامات delta للسحب التزايدي بناءً على آخر timestamp.
+  /// ✅ إصلاح جوهري: يبني استعلامات delta للسحب التزايدي بناءً على **زمن الخادم**
+  /// (`$updatedAt`) بدل زمن الحدث المحلي (`lastModified`).
+  ///
+  /// المشكلة القديمة: الفلترة بـ `lastModified` (زمن إنشاء السجل على جهاز المصدر)
+  /// كانت تُفوّت السجلات على الأجهزة البطيئة. السيناريو:
+  /// - الجهاز A يُنشئ دفعة الساعة 10:00 → lastModified = 10:00
+  /// - الرفع يتأخر → يصل السحابة 10:05 (لكن lastModified ما زال 10:00)
+  /// - الجهاز B يسحب 10:06 بفلتر lastModified > (lastPullTs - 5)
+  /// - السجل (10:00) أقل من cutoff → يُستبعد للأبد ❌
+  ///
+  /// الحل: `$updatedAt` حقل نظام في Appwrite يُضبط لحظة كتابة المستند فعلياً
+  /// على الخادم، فيراه أي سحب لاحق مهما كان lastModified قديماً.
+  ///
+  /// المؤشر: يُشتق من `max($updatedAt)` في الصفحة المسحوبة (سلطة الخادم)،
+  /// لا من `Time.nowEpoch()` (وقت الجهاز الساحب).
+  ///
+  /// نافذة الأمان: 60 ثانية (بدل 5) لتفادي انحراف الساعات بين الأجهزة.
+  ///
+  /// fallback: `lastModified` يُستخدم فقط إذا كان `lastPullTs` قديماً جداً
+  /// (قبل تطبيق هذا الإصلاح) — لضمان عدم فقدان السجلات القديمة.
+  ///
   /// إذا كان lastPullTs <= 0 → يُعيد قائمة فارغة (سحب كامل).
   Future<List<String>> buildDeltaQueries(int lastPullTs) async {
     if (lastPullTs <= 0) {
       return [];
     }
-    final cutoffSeconds = lastPullTs - 5;
-    final isMillis = await isRemoteEpochMillis();
-    if (isMillis) {
-      return [Query.greaterThan('lastModified', cutoffSeconds * 1000)];
-    }
-    return [Query.greaterThan('lastModified', cutoffSeconds)];
+    // ✅ نافذة أمان 60 ثانية (بدل 5) لتفادي انحراف الساعات.
+    final cutoffSeconds = lastPullTs - 60;
+    // تحويل cutoff إلى ISO 8601 (Appwrite $updatedAt بصيغة ISO string)
+    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+      cutoffSeconds * 1000,
+      isUtc: true,
+    ).toIso8601String();
+    // الاستعلام الأساسي: $updatedAt (زمن الخادم)
+    return [Query.greaterThan('\$updatedAt', cutoffIso)];
   }
 
-  /// يبني delta queries خاصة بـ booking_nights.
-  /// نسخة متزامنة (non-async) تستقبل remoteEpochIsMillis كمعامل.
+  /// ✅ إصلاح جوهري: يبني delta queries خاصة بـ booking_nights بنفس النهج
+  /// (فلترة بـ `$updatedAt` بدل `lastModified`).
+  ///
+  /// نسخة متزامنة (non-async) تستقبل remoteEpochIsMillis كمعامل للتوافق
+  /// مع الكود الموجود، لكنها تتجاهله الآن لأن `$updatedAt` بصيغة ISO
+  /// (لا يتأثر بوحدة الثواني/الميلي ثانية).
   List<String> bookingNightsDeltaQueries(
     int lastPullTs, {
     required bool remoteEpochIsMillis,
   }) {
     if (lastPullTs > 0) {
-      final cutoff = lastPullTs - 5;
-      if (remoteEpochIsMillis) {
-        return [Query.greaterThan('lastModified', cutoff * 1000)];
-      }
-      return [Query.greaterThan('lastModified', cutoff)];
+      // ✅ نافذة أمان 60 ثانية (بدل 5) لتفادي انحراف الساعات.
+      final cutoffSeconds = lastPullTs - 60;
+      final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+        cutoffSeconds * 1000,
+        isUtc: true,
+      ).toIso8601String();
+      // الاستعلام الأساسي: $updatedAt (زمن الخادم)
+      return [Query.greaterThan('\$updatedAt', cutoffIso)];
     }
     return []; // full fetch
   }
