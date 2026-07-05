@@ -56,7 +56,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
       ],
       // ✅ P0: ValueListenableBuilder — فقط الـ body يُعاد بناؤه، الـ Scaffold لا يتأثر
       body: ValueListenableBuilder<AsyncValue<List<RoomWithPaymentStatus>>>(
-        valueListenable: _roomsNotifier!,
+        valueListenable: _roomsNotifier,
         builder: (context, roomsWithStatusAsync, _) {
           return roomsWithStatusAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),

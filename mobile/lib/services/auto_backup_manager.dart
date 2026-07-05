@@ -142,12 +142,13 @@ class AutoBackupManager {
     String tableName,
     String operation, {
     Map<String, dynamic>? recordData,
+    int batchCount = 1,
   }) async {
     if (!await _isEnabled) {
       return;
     }
 
-    _pendingChanges++;
+    _pendingChanges += batchCount;
     debugPrint(
       '🔄 تغيير في $tableName ($operation) - تغييرات معلقة: $_pendingChanges',
     );
@@ -159,9 +160,7 @@ class AutoBackupManager {
         const Duration(milliseconds: _instantSyncDebounceMilliseconds),
         () async {
           await performDeltaSync();
-          if (_currentMode == BackupMode.deltaSync) {
-            _pendingChanges = 0;
-          }
+          _pendingChanges = 0;
         },
       );
     }
