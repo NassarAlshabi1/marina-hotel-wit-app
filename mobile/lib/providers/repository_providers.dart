@@ -23,6 +23,7 @@ import '../services/whatsapp_service.dart';
 import '../utils/env.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
+import '../utils/stream_helpers.dart';
 
 // إضافة Auto Backup Providers
 export '../providers/auto_backup_provider.dart';
@@ -134,12 +135,10 @@ final whatsappServiceProvider = Provider<WhatsAppService>(
 );
 
 final roomsListProvider = StreamProvider.autoDispose<List<Room>>(
-  (ref) => ref.watch(roomsRepoProvider).watchAll(),
+  (ref) => debounceStream(ref.watch(roomsRepoProvider).watchAll(), const Duration(milliseconds: 150)),
 );
 final availableRoomsProvider = StreamProvider.autoDispose(
-  (ref) => ref
-      .watch(roomsRepoProvider)
-      .watchAll()
+  (ref) => debounceStream(ref.watch(roomsRepoProvider).watchAll(), const Duration(milliseconds: 150))
       .map(
         (rooms) => rooms
             .where((room) => StatusUtils.isRoomAvailable(room.status))
@@ -148,7 +147,7 @@ final availableRoomsProvider = StreamProvider.autoDispose(
 );
 
 final bookingsListProvider = StreamProvider.autoDispose<List<Booking>>(
-  (ref) => ref.watch(bookingsRepoProvider).watch(),
+  (ref) => debounceStream(ref.watch(bookingsRepoProvider).watch(), const Duration(milliseconds: 150)),
 );
 final activeNotesProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(notesRepoProvider).listAllActive(),
@@ -156,10 +155,10 @@ final activeNotesProvider = FutureProvider.autoDispose(
 
 // Simple Notes Providers
 final simpleNotesListProvider = StreamProvider.autoDispose(
-  (ref) => ref.watch(simpleNotesRepoProvider).watchAllNotes(),
+  (ref) => debounceStream(ref.watch(simpleNotesRepoProvider).watchAllNotes(), const Duration(milliseconds: 150)),
 );
 final simpleNotesUnreadCountProvider = StreamProvider.autoDispose(
-  (ref) => ref.watch(simpleNotesRepoProvider).watchUnreadCount(),
+  (ref) => debounceStream(ref.watch(simpleNotesRepoProvider).watchUnreadCount(), const Duration(milliseconds: 150)),
 );
 final allSimpleNotesProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(simpleNotesRepoProvider).getAllNotes(),
@@ -172,15 +171,15 @@ final highPrioritySimpleNotesProvider = FutureProvider.autoDispose(
 );
 
 final employeesListProvider = StreamProvider.autoDispose<List<Employee>>(
-  (ref) => ref.watch(employeesRepoProvider).watchAll(),
+  (ref) => debounceStream(ref.watch(employeesRepoProvider).watchAll(), const Duration(milliseconds: 150)),
 );
 
 final guestInfoListProvider = StreamProvider.autoDispose(
-  (ref) => ref.watch(guestInfoRepoProvider).watchAll(),
+  (ref) => debounceStream(ref.watch(guestInfoRepoProvider).watchAll(), const Duration(milliseconds: 150)),
 );
 
 final expensesListProvider = StreamProvider.autoDispose(
-  (ref) => ref.watch(expensesRepoProvider).watchAll(),
+  (ref) => debounceStream(ref.watch(expensesRepoProvider).watchAll(), const Duration(milliseconds: 150)),
 );
 
 final salaryWithdrawalsListProvider = FutureProvider.autoDispose((ref) {
@@ -188,7 +187,7 @@ final salaryWithdrawalsListProvider = FutureProvider.autoDispose((ref) {
 });
 
 final cashTransactionsListProvider = StreamProvider.autoDispose(
-  (ref) => ref.watch(cashRepoProvider).watchAll(),
+  (ref) => debounceStream(ref.watch(cashRepoProvider).watchAll(), const Duration(milliseconds: 150)),
 );
 
 // Users count based on AuthLocalStore (fixed accounts + saved users)
@@ -232,12 +231,12 @@ final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {
 final bookingPaymentsProvider = StreamProvider.family.autoDispose<List<Payment>, int>(
   (ref, bookingId) {
     final paymentsRepo = ref.watch(paymentsRepoProvider);
-    return paymentsRepo.paymentsByBooking(bookingId);
+    return debounceStream(paymentsRepo.paymentsByBooking(bookingId), const Duration(milliseconds: 150));
   },
 );
 
 final debtsListProvider = StreamProvider.autoDispose(
-  (ref) => ref.watch(debtsRepoProvider).watchAll(),
+  (ref) => debounceStream(ref.watch(debtsRepoProvider).watchAll(), const Duration(milliseconds: 150)),
 );
 final pendingDebtsProvider = Provider.autoDispose<List<Debt>>((ref) {
   final allDebts = ref.watch(debtsListProvider).valueOrNull ?? [];

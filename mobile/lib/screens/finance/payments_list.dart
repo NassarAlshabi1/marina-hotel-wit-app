@@ -7,6 +7,7 @@ import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/stream_helpers.dart';
 
 class PaymentsListScreen extends ConsumerStatefulWidget {
   const PaymentsListScreen({super.key});
@@ -108,7 +109,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
             // ─── قائمة المدفوعات ───
             Expanded(
               child: StreamBuilder(
-                stream: repo.watchAll(),
+                stream: debounceStream(repo.watchAll(), const Duration(milliseconds: 150)),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(

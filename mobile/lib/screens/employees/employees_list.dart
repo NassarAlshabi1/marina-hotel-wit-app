@@ -9,6 +9,7 @@ import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/theme.dart';
+import '../../utils/stream_helpers.dart';
 
 class EmployeesListScreen extends ConsumerStatefulWidget {
   const EmployeesListScreen({super.key});
@@ -46,7 +47,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         body: Stack(
           children: [
             StreamBuilder(
-              stream: repo.watchAll(),
+              stream: debounceStream(repo.watchAll(), const Duration(milliseconds: 150)),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
