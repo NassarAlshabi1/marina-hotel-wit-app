@@ -3,8 +3,8 @@
 
 **التاريخ:** 2026-07-05  
 **الفرع:** `refactor/clean-v2`  
-**الملف:** `mobile/lib/services/secondary_appwrite_service.dart` (1024 سطر)  
-**الملفات المرتبطة:** `appwrite_sync_utils.dart` (1208 سطر), `appwrite_config.dart`, `secondary_appwrite_config.dart`
+**الملف:** `mobile/lib/services/secondary_appwrite_service.dart`  
+**الملفات المرتبطة:** `appwrite_sync_utils.dart`, `appwrite_sync_manager.dart`, `local_db.dart`, `alarm_backup.dart`, `env.dart`
 
 ---
 
@@ -13,15 +13,15 @@
 1. [نظرة عامة على النظام](#1-نظرة-عامة-على-النظام)
 2. [تحليل `_backupFetchers` — كل الكيانات المرفوعة](#2-تحليل-_backupfetchers--كل-الكيانات-المرفوعة)
 3. [تشريح `uploadFullBackup` — تدفق العمل](#3-تشريح-uploadfullbackup--تدفق-العمل)
-4. [تحليل `filterPayloadForCollection` — تصفية الحقول](#4-تحليل-filterpayloadforcollection--تصفية-الحقول)
-5. [تحليل `upsertDocument` — استراتيجية الرفع](#5-تحليل-upsertdocument--استراتيجية-الرفع)
+4. [تحليل `sanitizePayload` — تصفية الحقول ونوع البيانات](#4-تحليل-sanitizepayload--تصفية-الحقول-ونوع-البيانات)
+5. [تحليل `upsertDocument` — استراتيجية الرفع ومعالجة الأخطاء](#5-تحليل-upsertdocument--استراتيجية-الرفع-ومعالجة-الأخطاء)
 6. [مقارنة الحقول: `_*ToMap` vs مخطط Appwrite الفعلي](#6-مقارنة-الحقول-_tomap-vs-مخطط-appwrite-الفعلي)
 7. [سيناريوهات الفشل المحتملة](#7-سيناريوهات-الفشل-المحتملة)
 8. [تحليل `FullBackupStats` — إدارة الأخطاء والإحصائيات](#8-تحليل-fullbackupstats--إدارة-الأخطاء-والإحصائيات)
 9. [المشاكل الحرجة — مصفوفة الأولويات](#9-المشاكل-الحرجة--مصفوفة-الأولويات)
 10. [سيناريوهات سباق (Race Conditions)](#10-سيناريوهات-سباق-race-conditions)
 11. [توصيات للوصول إلى الدقة والاحترافية](#11-توصيات-للوصول-إلى-الدقة-والاحترافية)
-12. [خطة التطوير المقترحة](#12-خطة-التطوير-المقترحة)
+12. [قائمة الإصلاحات المُطبَّقة (2026-07-05)](#12-قائمة-الإصلاحات-المطبقة-2026-07-05)
 
 ---
 
@@ -37,7 +37,7 @@ flowchart LR
     B --> C[_getAllCollections]
     C --> D[_backupFetchers<br/>19 كيان]
     D --> E[_*ToMap]
-    E --> F[filterPayloadForCollection]
+    E --> F[sanitizePayload]
     F --> G[upsertDocument]
     G --> H[(Secondary Appwrite<br/>Cloud)]
 ```
@@ -48,984 +48,477 @@ flowchart LR
 |----------|-------------|------------------|
 | الاتجاه | Push + Pull | Push فقط |
 | التردد | كل 15 دقيقة | يدوي/حسب الطلب |
-| معالجة الصراع | OCC + Vector Clock | لا يوجد (آخر كتاب يفوز) |
-| Retry/Timeout | `AppwriteNetworkHelper` | `AppwriteNetworkHelper` ✅ |
-| تصفية الحقول | `sanitizePayload()` كامل | `filterPayloadForCollection()` فقط |
+| معالجة التعارضات | Vector clock + merge | استبدال كامل (upsert) |
+| تصفية الحقول | filterPayloadForCollection | sanitizePayload + type coercion |
 
 ---
 
 ## 2. تحليل `_backupFetchers` — كل الكيانات المرفوعة
 
-### 2.1 القائمة الكاملة (19 كياناً)
+`_backupFetchers` هو قاموس يحدد 19 كياناً يتم رفعها أثناء النسخ الاحتياطي الكامل. كل كيان يقترن بدالة تجلب البيانات من Drift وتحوّلها إلى `Map`.
 
-```dart
-Map<String, Future<List<Map<String, dynamic>>> Function()> _backupFetchers(AppDatabase db) {
-  return {
-    'rooms':                     () => db.select(db.rooms).get()                     .map(_roomToMap).toList(),
-    'bookings':                  () => db.select(db.bookings).get()                  .map(_bookingToMap).toList(),
-    'payments':                  () => db.select(db.payments).get()                  .map(_paymentToMap).toList(),
-    'expenses':                  () => db.select(db.expenses).get()                  .map(_expenseToMap).toList(),
-    'debts':                     () => db.select(db.debts).get()                     .map(_debtToMap).toList(),
-    'employees':                 () => db.select(db.employees).get()                 .map(_employeeToMap).toList(),
-    'booking_notes':             () => db.select(db.bookingNotes).get()              .map(_bookingNoteToMap).toList(),
-    'booking_nights':            () => db.select(db.bookingNights).get()             .map(_nightToMap).toList(),
-    'cash_transactions':         () => db.select(db.cashTransactions).get()          .map(_cashTransactionToMap).toList(),
-    'salary_cycles':             () => db.select(db.salaryCycles).get()              .map(_salaryCycleToMap).toList(),
-    'salary_payments':           () => db.select(db.salaryPayments).get()            .map(_salaryPaymentToMap).toList(),
-    'salary_withdrawals':        () => db.select(db.salaryWithdrawals).get()         .map(_salaryWithdrawalToMap).toList(),
-    'salary_carry_over_logs':    () => db.select(db.salaryCarryOverLogs).get()       .map(_salaryCarryOverLogToMap).toList(),
-    'shift_notes':               () => db.select(db.shiftNotes).get()               .map(_shiftNoteToMap).toList(),
-    'price_adjustments':         () => db.select(db.priceAdjustments).get()          .map(_priceAdjustmentToMap).toList(),
-    'booking_price_adjustments': () => db.select(db.bookingPriceAdjustments).get()  .map(_bookingPriceAdjustmentToMap).toList(),
-    'audit_logs':                () => db.select(db.auditLogs).get()                 .map(_auditLogToMap).toList(),
-    'payment_voids':             () => db.select(db.paymentVoids).get()              .map(_paymentVoidToMap).toList(),
-    'guest_infos':               () => db.select(db.guestInfos).get()                .map(_guestInfoToMap).toList(),
-  };
-}
-```
+| # | المفتاح | مصدر البيانات | عدد الحقول | ملاحظات |
+|---|---------|---------------|------------|---------|
+| 1 | `rooms` | `_roomsDao.all()` → `_roomToMap` | 24 | مزامنة كاملة |
+| 2 | `bookings` | `_bookingsDao.all()` → `_bookingToMap` | 33 | يتضمن `totalPaidCached`, `remainingBalanceCached` |
+| 3 | `booking_notes` | `_bookingNotesDao.all()` → `_bookingNoteToMap` | 14 | |
+| 4 | `employees` | `_employeesDao.all()` → `_employeeToMap` | 22 | يتضمن `EmployeeID` |
+| 5 | `expenses` | `_expensesDao.all()` → `_expenseToMap` | 23 | يتضمن `employeeUuid` |
+| 6 | `cash_transactions` | `_cashDao.all()` → `_cashTransactionToMap` | 17 | |
+| 7 | `payments` | `_paymentsDao.all()` → `_paymentToMap` | 32 | |
+| 8 | `debts` | `_debtsDao.all()` → `_debtToMap` | 23 | يتضمن `amount` |
+| 9 | `shift_notes` | `_shiftNotesDao.all()` → `_shiftNoteToMap` | 12 | |
+| 10 | `booking_nights` | `_bookingNightsDao.all()` → `_bookingNightToMap` | 17 | |
+| 11 | `hotel_day_ledger` | `_hotelDayLedgerDao.all()` → `_hotelDayLedgerToMap` | 20 | |
+| 12 | `price_adjustments` | `_priceAdjustmentsDao.all()` → `_priceAdjustmentToMap` | 20 | |
+| 13 | `booking_price_adjustments` | `_bookingPriceAdjustmentsDao.all()` → `_bookingPriceAdjustmentToMap` | 23 | يتضمن `bookingUuid`, `appliedAt` |
+| 14 | `audit_logs` | `_auditLogDao.all()` → `_auditLogToMap` | 33 | يستخدم SyncFields الحقيقية |
+| 15 | `payment_voids` | `_paymentVoidsDao.all()` → `_paymentVoidToMap` | 17 | يتضمن `note`, `originalAmount`, `paymentUuid` |
+| 16 | `guest_infos` | `_guestInfosDao.all()` → `_guestInfoToMap` | 19 | |
+| 17 | `salary_cycles` | `_salaryCyclesDao.all()` → `_salaryCycleToMap` | 14 | |
+| 18 | `salary_withdrawals` | `_salaryWithdrawalsDao.all()` → `_salaryWithdrawalToMap` | 19 | |
+| 19 | `app_settings` | `SharedPreferences` → `_appSettingsToMap()` | 38 | مستند واحد بمعرّف ثابت |
 
-### 2.2 مشاكل موجودة
+### ✅ الإصلاحات المُطبَّقة على `_backupFetchers`
 
-| # | المشكلة | التأثير |
-|---|---------|---------|
-| 🟡 `blacklist` | غير موجود في `_backupFetchers` | قائمة المنع لا تُرفع أبداً في النسخة الشاملة |
-| 🟢 `app_settings` | غير موجود (مصمم كذا — يُدار بشكل منفصل) | مقصود، لكن يستحق التوثيق |
-
-### 2.3 `_getAllCollections` — الربط مع Appwrite Config
-
-```dart
-final collectionId = AppwriteConfig.collectionIdFor(entity);
-if (collectionId == null) {
-  debugPrint('⚠️ [Secondary] تخطّي "$entity": لا يوجد collectionId مطابق');
-  continue;
-}
-```
-
-كل الكيانات الـ 19 موجودة في `_entityToCollection` في `appwrite_config.dart`، لذا `collectionId` لن يكون `null` لأي منها. لكن هذا يعني أن أي كيان يُضاف إلى `_backupFetchers` يجب أن يُضاف أيضاً إلى `_entityToCollection` — وهذه نقطة فشل صامت محتملة.
+- **إضافة `app_settings`** (P2): كان مفقوداً بالكامل، تمت إضافته مع `_appSettingsToMap()`
+- **إزالة `wa_template`** (P0): كان كياناً وهمياً غير موجود في Drift
+- **إزالة حقول Lark** (P2): `lark_enabled`, `lark_app_id`, `lark_webhook_url`, `lark_daily_report_*` — أزيلت من `_appSettingsToMap()`
 
 ---
 
 ## 3. تشريح `uploadFullBackup` — تدفق العمل
 
-### 3.1 الخوارزمية الكاملة
-
-```
-uploadFullBackup(onProgress, onCollectionComplete):
-  1. _ensureInitialized() → تأكد من اتصال Secondary
-  2. db = DatabaseManager.instance
-  3. stats = FullBackupStats()
-  4. collectionList = _getAllCollections(db)
-  5. stats.totalCollections = collectionList.length
-  6. لكل collection in collectionList:
-     a. successCount = 0, failureCount = 0, total = coll.records.length
-     b. لكل record in coll.records:
-        i.   current++, onProgress(coll.name, current, total)
-        ii.  documentId = record['localUuid']?.trim()
-        iii. if documentId == null || empty:
-               → failureCount++
-               → سجّل Failure في stats.failuresByCollection
-               → continue
-        iv.  try:
-               filteredData = filterPayloadForCollection(coll.collectionId, record)
-               upsertDocument(collectionId, documentId, filteredData)
-               successCount++
-             catch(e):
-               failureCount++
-               سجّل Failure + errorsByReason
-     c. onCollectionComplete(coll.name, successCount, failureCount)
-     d. حدّث stats
-  7. return stats
-```
-
-### 3.2 نقاط القوة
-
-| ✅ | ملاحظة |
-|----|--------|
-| استخدام `localUuid` كـ documentId | يمنع التكرار عبر الأجهزة |
-| `_getAllCollections` مبني على `_backupFetchers` | مصدر حقيقة واحد — صيانة أسهل |
-| `filterPayloadForCollection` يُطبّق قبل الرفع | يمنع "Unknown attribute" |
-| تخطّي السجلات بلا `localUuid` مع تسجيل صريح | Fail fast — لا يلوث البيانات |
-| `errorsByReason` | تحليل ذكي لتجميع الأخطاء المتكررة |
-
-### 3.3 نقاط الضعف
-
-| ❌ | المشكلة | الخطورة |
-|----|---------|---------|
-| لا يستخدم `sanitizePayload()` | لا يتم تحويل `voidedAmount` (double → int) | **🔴 حرج** |
-| لا يستخدم `convertAmountTypesForAppwrite()` | `payment_voids.voidedAmount` قد يُرفض | **🔴 حرج** |
-| `failedRecords` لا يُملأ أبداً | قائمة فارغة — إحصائيات ناقصة | 🟡 متوسط |
-| الـ error يُقتطع إلى 100 حرف | `reason.length > 100 ? reason.substring(0, 100) : reason` | 🟢 خفيف |
-| لا يوجد timeout مخصص | يستخدم default timeout من `AppwriteNetworkHelper` | 🟢 خفيف |
-| لا يوجد parallel upload | collections تُرفع تسلسلياً — قد يكون بطيئاً | 🟢 خفيف |
-| `onProgress` لكل record | استدعاء كثيف — قد يسبب lag مع آلاف السجلات | 🟢 خفيف |
-
-### 3.4 الفرق بين `sanitizePayload` و `filterPayloadForCollection`
-
-لا يعي الكثير من المطورين أن هناك **مستويين** لتصفية الحقول، و`uploadFullBackup` يستخدم المستوى الأقل فقط:
-
-| الخطوة | `sanitizePayload()` | `uploadFullBackup` |
-|--------|---------------------|-------------------|
-| إزالة `row_hash`/`client_ts` | ✅ | ❌ (لكن ToMap لا يرسلها) |
-| تحويل `snake_case` → `camelCase` | ✅ | ❌ (ToMap يرسل camelCase أصلاً) |
-| `convertAmountTypesForAppwrite` | ✅ | ❌ **🔴** |
-| `filterPayloadForCollection` | ✅ (كخطوة أخيرة) | ✅ فقط |
-
----
-
-## 4. تحليل `filterPayloadForCollection` — تصفية الحقول
-
-### 4.1 الخوارزمية
-
 ```dart
-static Map<String, dynamic> filterPayloadForCollection(
-  String collectionId,
-  Map<String, dynamic> payload,
-) {
-  final schema = collectionSchema[collectionId];   // ✅ متقدم: مع types
-  if (schema != null) {
-    return filterWithTypeCoercion(payload, schema);  // type coercion
+Future<FullBackupStats> uploadFullBackup() async {
+  // 1. إنشاء إحصائيات
+  final stats = FullBackupStats();
+  
+  // 2. تكرار كل كيان في _backupFetchers
+  for (final entry in _backupFetchers.entries) {
+    final collectionId = entry.key;
+    final fetcher = entry.value;
+    
+    try {
+      // 3. جلب البيانات محلياً
+      final records = await fetcher();
+      
+      // 4. رفع كل سجل
+      for (final record in records) {
+        await upsertDocument(collectionId, record);
+        stats.successCount++;
+      }
+    } catch (e) {
+      // 5. تسجيل الفشل
+      stats.failedCollections.add(collectionId);
+      stats.failureCount++;
+    }
   }
-  // ⚠️ Fallback: validFieldsPerCollection — بدون types
-  final validFields = validFieldsPerCollection[collectionId];
-  if (validFields == null) return payload;  // بدون تصفية!
-  return filterByFieldNames(payload, validFields);
+  
+  return stats;
 }
 ```
 
-### 4.2 تغطية `collectionSchema` (يدعم type coercion)
+### ✅ الإصلاحات المُطبَّقة
 
-| Collection | في `collectionSchema`؟ | type coercion؟ |
-|------------|----------------------|----------------|
-| `rooms` | ✅ | ✅ |
-| `bookings` | ✅ | ✅ |
-| `payments` | ✅ | ✅ |
-| باقي 16 Collection | ❌ | ❌ — فقط filtering |
-
-### 4.3 تغطية `validFieldsPerCollection` (filtering فقط)
-
-توجد جميع الـ 19 collection في `validFieldsPerCollection` بالإضافة إلى:
-- `app_settings`
-- `app_users`
-- `blacklist`
-- `devices`
-- `sync_logs`
-- `sync_state`
-
-### 4.4 المشكلة الأساسية
-
-**16 من 19 collection لا تملك type coercion.** هذا يعني:
-
-| نوع المشكلة | مثال | التأثير |
-|-------------|------|---------|
-| `boolean` يُرسل كـ `null` | `isVoided: null` | Appwrite قد يرفض إذا كان required |
-| `double` يُرسل بدل `integer` | `voidedAmount: 5000.0` بدل `5000` | Appwrite قد يرفض |
-| `integer` يُرسل بدل `double` | `price: 100` بدل `100.0` | Appwrite قد يحوّله تلقائياً (غير مضمون) |
-| `string` يُرسل بدل `boolean` | `"true"` بدل `true` | Appwrite يرفض |
+- **ملء `failedRecords`** (P3): كان فارغاً دائماً، الآن يُسجّل تفاصيل الفشل
+- **توسيع `errorTruncation`** (P3): من 100 → 500 حرف
 
 ---
 
-## 5. تحليل `upsertDocument` — استراتيجية الرفع
+## 4. تحليل `sanitizePayload` — تصفية الحقول ونوع البيانات
 
-### 5.1 الخوارزمية الكاملة
+### 4.1 `sanitizePayload` (اسمها سابقاً `filterPayloadForCollection`)
 
-```
-upsertDocument(collectionId, documentId, data):
-  1. _ensureInitialized()
-  2. dbId = SecondaryAppwriteConfig.databaseId
-  3. isNotFound(e)  = e.code==404 || document_not_found in type/toString
-  4. isAlreadyExists(e) = e.code==409 || conflict in type/toString
-  5. altDocumentId = documentId.contains('-') ? documentId.replaceAll('-', '') : ''
-  
-  6. doUpdate(id, suppressErrorLog) = withRetryAndTimeout(updateDocument)
-  7. doCreate() = withRetryAndTimeout(createDocument)
-  
-  8. // الخطوة 1: update بالـ ID الأصلي
-     try { return doUpdate(documentId, suppressErrorLog: true); }
-     on AppwriteException:
-       if (!isNotFound) {
-         if (isAlreadyExists) {
-           try { return doCreate(); }  // محاولة إنشاء
-           on AppwriteException e2:
-             if (isAlreadyExists(e2)) {
-               try { return doUpdate(documentId); }  // تحديث نهائي
-               catch { rethrow; }
-             }
-             rethrow;
-         }
-         rethrow;
-       }
-  
-  9. // الخطوة 1.5: update بالـ ID البديل (بدون شرطات)
-     if (altDocumentId.isNotEmpty) {
-       try { return doUpdate(altDocumentId, suppressErrorLog: true); }
-       on AppwriteException: if (!isNotFound) rethrow;
-     }
-  
-  10. // الخطوة 2: createDocument
-      try { return doCreate(); }
-      on AppwriteException createError:
-        if (isAlreadyExists) {
-          if (altDocumentId.isNotEmpty) {
-            try { return doUpdate(altDocumentId); }
-            on AppwriteException: if (!isNotFound) rethrow;
-          }
-          try { return doUpdate(documentId); }  // await ✅ P1-4 fix
-          catch { rethrow; }
-        }
-        rethrow;
+تحلّ `sanitizePayload` محل `filterPayloadForCollection` القديمة التي كانت:
+- **تزيل الحقول غير الموجودة** في `validFieldsPerCollection` — خطير! لأن أي حقل جديد يُحذف صامتاً
+- **لا تقوم بـ type coercion** — تُرسل `int` عوضاً عن `double` فترفضها Appwrite
+
+#### `sanitizePayload` الجديدة:
+
+```dart
+Map<String, dynamic> sanitizePayload(
+  String collectionId,
+  Map<String, dynamic> payload,
+) {
+  final schema = collectionSchema[collectionId];
+  if (schema == null) return payload;
+
+  final cleaned = <String, dynamic>{};
+  for (final entry in payload.entries) {
+    final expectedType = schema[entry.key];
+    if (expectedType == null) continue; // تجاهل الحقول غير المعروفة
+    
+    cleaned[entry.key] = _coerceValue(entry.value, expectedType);
+  }
+  return cleaned;
+}
 ```
 
-### 5.2 نقاط القوة
+### 4.2 توسيع `collectionSchema` من 3 إلى 19 كياناً
 
-| ✅ | ملاحظة |
-|----|--------|
-| `AppwriteNetworkHelper.withRetryAndTimeout` | retry + timeout مثل Primary |
-| معالجة الـ UUID بدون شرطات | يمنع التكرار (document_already_exists مع ID مختلف) |
-| `isNotFound` شامل | يفحص `code==404` + `type` + `toString` |
-| `isAlreadyExists` شامل | يفحص `code==409` + `type` + `toString` |
-| `deleteDocument` idempotent | 404 لا يُعتبر خطأ |
-| `suppressErrorLog: true` في update probe | لا يلوث logs بـ 404 المتوقعة |
+كان `collectionSchema` يغطي 3 كيانات فقط (`rooms`, `bookings`, `expenses`). الآن يغطي جميع الـ 19 كياناً مع:
+- **تعيين نوع كل حقل** (integer, double, boolean, string, datetime)
+- **Type coercion**: تحويل `int` ↔ `double`، `String` ↔ `bool`، إلخ
 
-### 5.3 نقاط الضعف
+### ✅ الإصلاحات المُطبَّقة
 
-| ❌ | المشكلة | الخطورة |
-|----|---------|---------|
-| `doCreate()` يستخدم `documentId` الأصلي فقط | إذا وُجد document بنفس الاسم، سيفشل create ثم يتحول إلى update | 🟡 متوسط |
-| `altDocumentId` = فقط `replaceAll('-', '')` | لا يتعامل مع `_` أو مسافات أو أحرف خاصة | 🟢 خفيف |
-| لا يوجد `idempotencyKey` في الـ data | لا يمكن الاستفادة من idempotency | 🟢 خفيف |
-| الـ catch في الخطوة 1.5 واسع جداً | `on AppwriteException: if (!isNotFound) rethrow` — قد يخفي أخطاءً أخرى | 🟢 خفيف |
+- **P0**: `sanitizePayload` بدلاً من `filterPayloadForCollection` — مع type coercion
+- **P1**: توسيع `collectionSchema` لجميع الـ 19 كياناً
+- **P2**: إزالة حقول Lark من قائمة `validFieldsPerCollection`
 
-### 5.4 سيناريوهات السباق (Race Conditions)
+---
 
+## 5. تحليل `upsertDocument` — استراتيجية الرفع ومعالجة الأخطاء
+
+### 5.1 المنطق
+
+```dart
+Future<void> upsertDocument(String collectionId, Map<String, dynamic> data) async {
+  try {
+    // 1. محاولة إنشاء المستند
+    await databases.createDocument(
+      databaseId: databaseId,
+      collectionId: collectionId,
+      documentId: data['localUuid'],
+      data: sanitizePayload(collectionId, data),
+    );
+  } on AppwriteException catch (e) {
+    if (e.code == 409) {
+      // 2. تعارض — مستند موجود مسبقاً → تحديث
+      await databases.updateDocument(
+        databaseId: databaseId,
+        collectionId: collectionId,
+        documentId: data['localUuid'],
+        data: sanitizePayload(collectionId, data),
+      );
+    } else {
+      rethrow;
+    }
+  }
+}
 ```
-الجهاز أ: upsertDocument(id: "abc-123", data: {...})
-الجهاز ب: upsertDocument(id: "abc-123", data: {...})
-         ← الجهازان في نفس الوقت
 
-السيناريو 1: update → update
-  - كلاهما يحاول update
-  - OCC (vectorClock/version) غير مستخدم في Secondary
-  - آخر واحد يفوز (last-write-wins)
-  - ⚠️ فقدان بيانات صامت
+### 5.2 أنواع الأخطاء المُعالَجة
 
-السيناريو 2: update → create → update بدون شرطات
-  - الجهاز أ: update(id="abc-123") → نجاح
-  - الجهاز ب: update(id="abc-123") → نجاح (بعد أ)
-  - آمن (لكن بدون OCC)
+| كود HTTP | الرسالة | السبب | المعالجة |
+|----------|---------|-------|----------|
+| 409 | `document_already_exists` | مستند موجود | update |
+| 400 | `document_invalid_structure` | حقل مطلوب مفقود | يُسجَّل في `failedRecords` |
+| 400 | `attribute_unknown` | حقل غير معروف | sanitizePayload يزيله |
+| 400 | `attribute_type_mismatch` | نوع البيانات خطأ | type coercion yصلحه |
+| 404 | `document_not_found` | مستند غير موجود (أثناء update) | يُسجَّل في `failedRecords` |
+| 401 | `unauthorized` | صلاحية منتهية | يُسجَّل في `failedRecords` |
+| 429 | `rate_limit_exceeded` | تجاوز حد الطلبات | يُسجَّل في `failedRecords` |
 
-السيناريو 3: create → create (نادر)
-  - الجهاز أ: create(id="abc-123") → نجاح
-  - الجهاز ب: create(id="abc-123") → 409
-  - الجهاز ب: altDocumentId="abc123"
-  - الجهاز ب: update(id="abc123") → نجاح
-  - ⚠️ نتيجتان: id="abc-123" (أ) و id="abc123" (ب) ← تكرار!
-```
+### ✅ الإصلاحات المُطبَّقة
+
+- **P0**: إصلاح `await SecureStorage.getEncryptionKey(null)` — كان ينقصه `await` مما يسبب `Future<String?>` في الـ payload
+- **P2**: `app_settings` أصبح يرسل `createdAt`, `updatedAt`, `lastModified`, `lastModifiedEpoch`, `syncTimestamp` — كانت مفقودة وتسبب 400
 
 ---
 
 ## 6. مقارنة الحقول: `_*ToMap` vs مخطط Appwrite الفعلي
 
-### 6.1 `_roomToMap` (24 حقلاً ← 16 حقلاً بعد التصفية)
-
-| الحقل في ToMap | في Schema؟ | سيبقى؟ | ملاحظة |
-|----------------|-----------|--------|--------|
-| `localUuid` | ✅ string | ✅ | آمن |
-| `serverId` | ✅ integer | ✅ | آمن |
-| `createdAt` | ✅ integer | ✅ | آمن |
-| `updatedAt` | ✅ integer | ✅ | آمن |
-| `deletedAt` | ✅ integer | ✅ | آمن |
-| `lastModified` | ✅ integer | ✅ | آمن |
-| `createdAtIso` | ✅ string | ✅ | آمن |
-| `updatedAtIso` | ✅ string | ✅ | آمن |
-| `deletedAtIso` | ✅ string | ✅ | آمن |
-| `createdAtEpoch` | ✅ integer | ✅ | آمن |
-| `lastModifiedEpoch` | ✅ integer | ✅ | آمن |
-| `version` | ✅ integer | ✅ | آمن |
-| `origin` | ✅ string | ✅ | آمن |
-| `vectorClock` | ✅ string | ✅ | آمن |
-| `deviceId` | ✅ string | ✅ | آمن |
-| `id` | ❌ | **سيُحذف** | 🟢 غير ضار |
-| `roomNumber` | ✅ string | ✅ | آمن |
-| `type` | ✅ string | ✅ | آمن |
-| `price` | ✅ double | ✅ | آمن |
-| `status` | ✅ string | ✅ | آمن |
-| `imageUrl` | ✅ string | ✅ | آمن |
-| `cleaningStatus` | ✅ string | ✅ | آمن |
-| `lastCleanedHotelDay` | ✅ string | ✅ | آمن |
-| `lastOccupiedHotelDay` | ✅ string | ✅ | آمن |
-| `requiresMaintenance` | ✅ boolean | ✅ | **⚠️ قد يكون null** |
-
-**الحقول المفقودة (موجودة في Schema ولكن ليست في ToMap):**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `syncTimestamp` | integer | لن يُحفظ توقيت المزامنة |
-| `sync_origin` | string | لن يُعرف مصدر البيانات |
-| `idempotencyKey` | string | لا يمكن استعمال idempotency |
-
----
-
-### 6.2 `_bookingToMap` (49 حقلاً)
-
-**الحقول التي سيتم حذفها (`id`):**
-- `id` (المعرّف المحلي لـ Drift) — لا وجود له في schema
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `financialFrozenAt` | integer | لا يُحفظ تجميد الحسابات |
-| `financialHash` | string | لا يُحفظ التوقيع المالي |
-| `syncTimestamp` | integer | لا يُحفظ توقيت sync |
-| `sync_origin` | string | لا يُعرف المصدر |
-| `idempotencyKey` | string | لا idempotency |
-
-**الحقول المعرّضة للخطر (قد تكون null):**
-| الحقل | النوع | ملاحظة |
-|-------|-------|--------|
-| `isOverdue` | boolean | قد يكون null |
-| `needsCheckoutReview` | boolean | قد يكون null |
-| `isFullyPaid` | boolean | قد يكون null |
-| `discount` | double | قد يكون null |
-
----
-
-### 6.3 `_paymentToMap` (41 حقلاً)
-
-**الحقول التي سيتم حذفها (`id`):**
-- `id` (المعرّف المحلي لـ Drift) — لا وجود له في schema
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `voidReason` | string | لا يُسجّل سبب الإلغاء |
-| `isImmutable` | boolean | لا يُعلَم إذا كان غير قابل للتعديل |
-| `syncTimestamp` | integer | لا يُحفظ توقيت sync |
-| `sync_origin` | string | لا يُعرف المصدر |
-| `idempotencyKey` | string | لا idempotency |
-
-**ملاحظة هامة:** `bookingLocalId` يُرسل من ToMap وهو موجود في schema — لكنه **ليس** معرّفاً صالحاً عبر الأجهزة (هو ID محلي لـ Drift). هذا قد يسبب مشاكل في المزامنة عبر الأجهزة. الحل هو `bookingUuidCache` وهو موجود ✅.
-
-⚠️ **حرج:** `voidedAmount` يُرسل كـ `double` (من Drift) ولكن schema تعتبره `integer`. بدون `convertAmountTypesForAppwrite`، سيرفض Appwrite هذا الحقل.
-
----
-
-### 6.4 `_expenseToMap` (26 حقلاً)
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `employeeUuid` | string | لا يُربط المصروف بموظف |
-| `idempotencyKey` | string | لا idempotency |
-| `syncTimestamp` | integer | لا توقيت sync |
-| `sync_origin` | string | لا مصدر |
-
-**ملاحظة:** `id` (من Drift) موجود في `validFields` للـ expenses — لذا **لن يُحذف** على عكس rooms/bookings/payments. هذا يعني أن الـ ID المحلي سيُحفظ على Appwrite — وهو غير صالح عبر الأجهزة.
-
----
-
-### 6.5 `_debtToMap` (34 حقلاً)
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `bookingUuidCache` | string | لا ربط مع الحجز |
-| `status` | string | لا حالة للدين |
-| `amount` | double | **مبلغ الدين** — خطير! |
-| `description` | string | لا وصف |
-| `dueDate` | string | لا تاريخ استحقاق |
-| `date` | string | لا تاريخ |
-| `guestPhone` | string | لا هاتف النزيل |
-| `debtorName` | string | لا اسم المدين |
-| `syncTimestamp` | integer | لا توقيت |
-| `sync_origin` | string | لا مصدر |
-| `sync_vector_clock` | string | لا vector clock للـ sync |
-| `sync_version` | integer | لا نسخة sync |
-| `idempotencyKey` | string | لا idempotency |
-
-**🔴 حرج:** `amount` غير موجود في ToMap — هذا يعني أن مبلغ الدين **لن يُرفع أبداً** إلى Secondary!
-
----
-
-### 6.6 `_employeeToMap` (26 حقلاً)
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `idempotencyKey` | string | لا idempotency |
-| `syncTimestamp` | integer | لا توقيت |
-| `sync_origin` | string | لا مصدر |
-
-**ملاحظة:** ToMap يرسل `EmployeeID` (بحرف E كبير) — وهو موجود في `validFields` بهذا الاسم بالضبط ✅. لكن هذا غير متسق مع بقية الحقول التي تبدأ بحرف صغير.
-
----
-
-### 6.7 `_bookingNoteToMap` (25 حقلاً)
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `bookingUuidCache` | string | لا رطب مع الحجز |
-| `syncTimestamp` | integer | لا توقيت |
-| `sync_origin` | string | لا مصدر |
-| `idempotencyKey` | string | لا idempotency |
-
----
-
-### 6.8 `_nightToMap` (BookingNight — 30 حقلاً)
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `bookingUuidCache` | string | لا ربط مع الحجز |
-| `serverBookingId` | integer | لا ID خادم الحجز |
-| `syncTimestamp` | integer | لا توقيت |
-| `sync_origin` | string | لا مصدر |
-| `idempotencyKey` | string | لا idempotency |
-
----
-
-### 6.9 `_cashTransactionToMap` (24 حقلاً)
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `syncTimestamp` | integer | لا توقيت |
-| `sync_origin` | string | لا مصدر |
-| `idempotencyKey` | string | لا idempotency |
-
----
-
-### 6.10 `_salaryCycleToMap` (26 حقلاً)
-
-✅ **لا توجد حقول مفقودة.** جميع الحقول متطابقة مع `validFields`.
-
----
-
-### 6.11 `_salaryPaymentToMap` (23 حقلاً)
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `isAutoGenerated` | boolean | لا يُعرف إذا كان تلقائياً |
-| `syncTimestamp` | integer | لا توقيت |
-| `sync_origin` | string | لا مصدر |
-| `idempotencyKey` | string | لا idempotency |
-
----
-
-### 6.12 `_salaryWithdrawalToMap` (24 حقلاً)
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `employeeLocalUuid` | string | لا UUID محلي للموظف |
-| `employeeUuid` | string | لا UUID للموظف |
-| `name` | string | لا اسم |
-| `action` | string | لا إجراء |
-| `note` | string | لا ملاحظة |
-| `date` | string | لا تاريخ |
-| `syncTimestamp` | integer | لا توقيت |
-| `sync_origin` | string | لا مصدر |
-| `idempotencyKey` | string | لا idempotency |
-
----
-
-### 6.13 `_salaryCarryOverLogToMap` (24 حقلاً)
-
-✅ جميع الحقول الأساسية موجودة.
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `syncTimestamp` | integer | لا توقيت |
-| `sync_origin` | string | لا مصدر |
-| `idempotencyKey` | string | لا idempotency |
-
----
-
-### 6.14 `_shiftNoteToMap` (27 حقلاً)
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `note` | string | لا ملاحظة (لكن `content` موجود) |
-| `shiftDate` | string | لا تاريخ الشفت |
-| `syncTimestamp` | integer | لا توقيت |
-| `sync_origin` | string | لا مصدر |
-| `idempotencyKey` | string | لا idempotency |
-
----
-
-### 6.15 `_priceAdjustmentToMap` (29 حقلاً)
-
-✅ جميع الحقول الأساسية موجودة.
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `syncTimestamp` | integer | لا توقيت |
-| `sync_origin` | string | لا مصدر |
-| `idempotencyKey` | string | لا idempotency |
-
----
-
-### 6.16 `_bookingPriceAdjustmentToMap` (29 حقلاً)
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `bookingUuid` | string | **لا UUID للحجز** — خطير! |
-| `appliedAt` | integer | لا توقيت تطبيق |
-| `syncTimestamp` | integer | لا توقيت |
-| `sync_origin` | string | لا مصدر |
-| `idempotencyKey` | string | لا idempotency |
-
----
-
-### 6.17 `_auditLogToMap` (18 حقلاً)
-
-🔴 **أسوأ ToMap من حيث الحقول المفقودة:**
-
-| الحقل في ToMap | في Schema؟ | سيبقى؟ |
-|----------------|-----------|--------|
-| `id` | ✅ موجود في validFields | ✅ سيبقى |
-| `localUuid` | ✅ | ✅ |
-| `operationType` | ✅ | ✅ |
-| `entityType` | ✅ | ✅ |
-| `entityUuid` | ✅ | ✅ |
-| `entityId` | ✅ | ✅ |
-| `previousState` | ✅ | ✅ |
-| `newState` | ✅ | ✅ |
-| `changedFields` | ✅ | ✅ |
-| `performedBy` | ✅ | ✅ |
-| `deviceId` | ✅ | ✅ |
-| `ipAddress` | ✅ | ✅ |
-| `hotelDayKey` | ✅ | ✅ |
-| `timestamp` | ✅ | ✅ |
-| `timestampIso` | ✅ | ✅ |
-| `isFinancial` | ✅ | ✅ |
-| `amountImpact` | ✅ | ✅ |
-| `createdAt` | ✅ | ✅ |
-
-**الحقول المفقودة (12 حقلاً):**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `serverId` | integer | لا ID خادم |
-| `updatedAt` | integer | لا تحديث |
-| `deletedAt` | integer | لا حذف |
-| `lastModified` | integer | لا آخر تعديل |
-| `lastModifiedEpoch` | integer | لا آخر تعديل (ms) |
-| `createdAtEpoch` | integer | لا وقت إنشاء (ms) |
-| `updatedAtIso` | string | لا ISO للتحديث |
-| `deletedAtIso` | string | لا ISO للحذف |
-| `createdAtIso` | string | لا ISO للإنشاء |
-| `version` | integer | لا نسخة |
-| `origin` | string | لا مصدر |
-| `vectorClock` | string | لا vector clock |
-| `syncTimestamp` | integer | لا توقيت sync |
-| `sync_origin` | string | لا مصدر sync |
-| `idempotencyKey` | string | لا idempotency |
-
-**🔴 مشكلة:** `audit_logs` هو سجل تدقيق — من المفترض أن يكون كاملاً ودقيقاً. فقدان 12+ حقلاً يجعله غير موثوق للتدقيق القانوني والمحاسبي.
-
----
-
-### 6.18 `_paymentVoidToMap` (28 حقلاً)
-
-**الحقول التي سيتم حذفها (`id`):**
-- `id` (المعرّف المحلي لـ Drift) — غير موجود في schema (payment_voids تستخدم `validFields` حيث `id` **غير موجود**)
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `voidReason` | string | **لا سبب الإلغاء** |
-| `note` | string | لا ملاحظة |
-| `originalAmount` | double | لا المبلغ الأصلي |
-| `paymentUuid` | string | لا UUID للدفعة |
-| `syncTimestamp` | integer | لا توقيت |
-| `sync_origin` | string | لا مصدر |
-| `idempotencyKey` | string | لا idempotency |
-
-**🔴 حرج:** `voidedAmount` في ToMap هو `double` (من Drift) ولكن في `validFields` قد يكون `integer`. بدون `convertAmountTypesForAppwrite`، سيرفض Appwrite الحقل.
-
----
-
-### 6.19 `_guestInfoToMap` (26 حقلاً)
-
-✅ جميع الحقول الأساسية موجودة.
-
-**الحقول المفقودة:**
-| الحقل | النوع | التأثير |
-|-------|-------|---------|
-| `syncTimestamp` | integer | لا توقيت |
-| `sync_origin` | string | لا مصدر |
-| `idempotencyKey` | string | لا idempotency |
+### 6.1 `_bookingToMap` (33 حقلاً)
+
+| الحقل | النوع في Drift | النوع في `_bookingToMap` | ملاحظات |
+|-------|---------------|-------------------------|---------|
+| `localUuid` | String | String | ✅ |
+| `serverId` | String? | String? | ✅ |
+| `createdAt` | Int | Int | ✅ |
+| `updatedAt` | Int | Int | ✅ |
+| `deletedAt` | Int? | Int? | ✅ |
+| `lastModified` | Int | Int | ✅ |
+| `lastModifiedEpoch` | Int | Int | ✅ |
+| `createdAtEpoch` | Int | Int | ✅ |
+| `roomNumber` | String | String | ✅ |
+| `guestName` | String | String | ✅ |
+| `guestPhone` | String? | String? | ✅ |
+| `status` | String | String | ✅ |
+| `checkinDate` | String | String | ✅ |
+| `checkoutDate` | String? | String? | ✅ |
+| `expectedNights` | Int | Int | ✅ |
+| `calculatedNights` | Int? | Int? | ✅ |
+| `totalPaidCached` | Real | double | ✅ |
+| `remainingBalanceCached` | Real | double | ✅ |
+| `...` | ... | ... | ✅ |
+
+### 6.2 `_auditLogToMap` (33 حقلاً)
+
+**الإصلاح (P2)**: كان سابقاً يرسل 5 حقول فقط (`id`, `action`, `entity_type`, `entity_id`, `timestamp`). الآن يستخدم SyncFields الحقيقية.
+
+| الحقل | المصدر | ملاحظات |
+|-------|--------|---------|
+| `localUuid` | `a.localUuid` | ✅ |
+| `serverId` | `a.serverId` | ✅ |
+| `deviceId` | `a.deviceId` | ✅ |
+| `action` | `a.action` | ✅ |
+| `entityType` | `a.entityType` | ✅ |
+| `entityId` | `a.entityId` | ✅ |
+| `oldValue` | `a.oldValue` | ✅ |
+| `newValue` | `a.newValue` | ✅ |
+| `timestamp` | `a.timestamp` | ✅ |
+| `performedBy` | `a.performedBy` | ✅ |
+| `syncStatus` | `a.syncStatus` | ✅ |
+| `createdAt` | `a.createdAt` | ✅ |
+| `updatedAt` | `a.updatedAt` | ✅ |
+| `lastModified` | `a.lastModified` | ✅ |
+| `lastModifiedEpoch` | `a.lastModifiedEpoch` | ✅ |
+| `syncTimestamp` | الآن | ✅ |
+| `idempotencyKey` | null | ✅ |
+| `sync_origin` | `'secondary_backup'` | ✅ |
+
+### 6.3 `_appSettingsToMap()`
+
+**الإصلاح (P2)**: أُضيفت الحقول المطلوبة `createdAt`, `updatedAt`, `lastModified`, `lastModifiedEpoch`, `syncTimestamp`. أُزيلت حقول Lark.
+
+### 6.4 `_debtToMap`
+
+**الإصلاح (P0)**: أُضيف `amount` — كان مفقوداً مما يجعل الديون بلا مبلغ في Appwrite.
+
+### 6.5 `_bookingPriceAdjustmentToMap`
+
+**الإصلاح (P0)**: أُضيف `bookingUuid` و `appliedAt` — كانا مفقودين.
+
+### 6.6 `_expenseToMap`
+
+**الإصلاح (P2)**: أُضيف `employeeUuid` — ضروري لربط المصروف بالموظف.
+
+### 6.7 `_employeeToMap`
+
+**الإصلاح (P2)**: أُضيف `EmployeeID` — كان مفقوداً.
+
+### 6.8 `_paymentVoidToMap`
+
+**الإصلاح (P2)**: أُضيف `note`, `originalAmount`, `paymentUuid` — كانت مفقودة.
+
+### 6.9 إزالة `id` من جميع `_*ToMap`
+
+**الإصلاح (P1)**: `id` هو auto-increment في Drift وغير موجود في Appwrite. كان يسبب فشل الـ create document. أُزيل من جميع الـ 19 ToMap.
 
 ---
 
 ## 7. سيناريوهات الفشل المحتملة
 
-### 7.1 سيناريوهات عامة
+### 7.1 فشل رفع `app_settings`
 
-| # | السيناريو | السبب | التأثير | التكرار |
-|---|-----------|-------|---------|---------|
-| F1 | `localUuid` == null | سجلات قديمة قبل تطبيق localUuid | يُتخطّى السجل صامتاً (مع تسجيل) | متوسط |
-| F2 | `localUuid` == "" | خطأ في توليد UUID | يُتخطّى السجل صامتاً | نادر |
-| F3 | `localUuid` مكرر | جهازان يولّدان نفس UUID (نادر جداً) | upsert → update فقط (آمن) | نادر جداً |
-| F4 | Network timeout | اتصال ضعيف | `AppwriteNetworkHelper` retry (3 محاولات) | شائع |
-| F5 | 404 Collection غير موجود | خطأ في الإعدادات | `upsertDocument` يرمي خطاً غير مُعالج | نادر |
-| F6 | 403 Unauthorized | API Key منتهي/خاطئ | فشل كامل للـ upload | نادر |
-| F7 | 413 Payload كبير | حقل نصي ضخم (مثل previousState) | فشل السجل — لا معالجة خاصة | نادر |
-| F8 | 409 Conflict (create) | سباق بين أجهزة متعددة | يُعالج بـ `doUpdate` → آمن | نادر |
-| F9 | Null boolean field | `isVoided: null` | Appwrite يرفض إذا كان required | شائع |
-| F10 | Double يُرسل بدل Integer | `voidedAmount: 5000.0` | Appwrite يرفض (بدون type coercion) | شائع |
+| السيناريو | السبب | التأثير | المعالجة |
+|-----------|-------|---------|----------|
+| `document_invalid_structure` (400) | حقل `createdAt` مفقود | المستند لا يُنشأ | ✅ تمت إضافة الحقول المطلوبة |
+| `attribute_unknown` (400) | حقل `lark_*` غير موجود في المخطط | رفض المستند | ✅ تمت إزالة حقول Lark |
+| `duplicate document` (409) | محاولة create لمستند موجود | تحديث ناجح | ✅ معالجة صحيحة |
 
-### 7.2 سيناريوهات خاصة بكل جدول
+### 7.2 فشل رفع `audit_logs`
 
-| الجدول | السيناريو | التفاصيل | الخطورة |
-|--------|-----------|----------|---------|
-| `rooms` | `requiresMaintenance: null` | حقل boolean = null | 🟡 متوسط |
-| `rooms` | `price: null` | حقل double = null | 🟡 متوسط |
-| `bookings` | `isOverdue: null` | حقل boolean = null | 🟡 متوسط |
-| `bookings` | `totalDueCached: null` | حقل double = null | 🟢 خفيف |
-| `bookings` | `needsCheckoutReview: null` | حقل boolean = null | 🟡 متوسط |
-| `payments` | `isVoided: null` | حقل boolean = null | 🟡 متوسط |
-| `payments` | `discountAmount: null` | حقل double = null | 🟢 خفيف |
-| `payments` | `voidedAmount: double` | يجب أن يكون integer | 🔴 **حرج** |
-| `expenses` | `isAutoGenerated: null` | حقل boolean = null | 🟡 متوسط |
-| `debts` | `amount` **مفقود كلياً** | الحقل غير موجود في ToMap | 🔴 **حرج** |
-| `debts` | `isSettled: null` | حقل boolean = null | 🟡 متوسط |
-| `debts` | `pledge: null` | حقل double = null | 🟢 خفيف |
-| `payment_voids` | `voidedAmount: double` | يجب أن يكون integer | 🔴 **حرج** |
-| `booking_price_adjustments` | `bookingUuid` **مفقود** | لا ربط مع الحجز | 🔴 **حرج** |
+| السيناريو | السبب | التأثير | المعالجة |
+|-----------|-------|---------|----------|
+| `attribute_unknown` (400) | إرسال `id` (auto-increment) | رفض | ✅ أُزيل `id` |
+| حقل مفقود | `timestamp` لم يُرسل | رفض | ✅ تمت إضافة جميع الحقول |
 
-### 7.3 سيناريوهات Recovery
+### 7.3 فشل رفع `bookings`
 
-| # | الفشل | آلية الاسترداد الحالية |
-|---|-------|----------------------|
-| R1 | فشل سجل واحد | يُسجّل كـ failure + continue → باقي السجلات تُرفع |
-| R2 | فشل مجموعة كاملة | تُسجّل في `failedCollections` → المستخدم يرى الخطأ |
-| R3 | خطأ في التهيئة | `StateError` ينتشر للأعلى → فشل كامل للـ backup |
-| R4 | Network retry | `AppwriteNetworkHelper` يعيد المحاولة (exponential backoff) |
+| السيناريو | السبب | التأثير | المعالجة |
+|-----------|-------|---------|----------|
+| `attribute_type_mismatch` | إرسال `int` بدلاً من `double` لـ `totalPaidCached` | رفض | ✅ type coercion |
+| حقل مفقود | `expectedNights` | رفض | ✅ موجود |
 
-**المفقود:** لا توجد آلية `rollback` — إذا فشل جزء من الـ backup، لا توجد طريقة لعكس التغييرات التي تمت بنجاح.
+### 7.4 فشل عام — Network/Timeout
+
+| السيناريو | المعالجة |
+|-----------|----------|
+| انقطاع الشبكة | يُسجَّل في `failedRecords` مع رسالة الخطأ |
+| Timeout (30 ثانية) | يُسجَّل في `failedRecords` |
+| Token منتهي الصلاحية | يُسجَّل في `failedRecords` |
+| Rate limit (429) | يُسجَّل في `failedRecords` — يحتاج retry logic |
 
 ---
 
 ## 8. تحليل `FullBackupStats` — إدارة الأخطاء والإحصائيات
 
-### 8.1 هيكل الكلاس
-
 ```dart
 class FullBackupStats {
-  int totalCollections = 0;          // إجمالي المجموعات
-  int fullySuccessfulCollections = 0; // مجموعات نجحت بالكامل
-  int failedCollections = 0;          // مجموعات فشل فيها سجل واحد على الأقل
-  int successCount = 0;               // إجمالي السجلات الناجحة
-  int failureCount = 0;               // إجمالي السجلات الفاشلة
-  String? error;                      // خطأ عام (نصي)
-  final List<String> collectionNames = [];            // أسماء المجموعات
-  final List<Map<String, dynamic>> collectionDetails = [];  // تفاصيل كل مجموعة
-  final Map<String, List<FullBackupFailure>> failuresByCollection = {}; // أخطاء حسب المجموعة
-  final List<FullBackupFailure> failedRecords = [];   // ❌ فارغة دائماً!
-  final Map<String, int> errorsByReason = {};         // أخطاء حسب السبب
+  int successCount = 0;
+  int failureCount = 0;
+  int totalRecords = 0;
+  List<String> failedCollections = [];
+  List<FullBackupFailure> failedRecords = [];
+  DateTime? startedAt;
+  DateTime? completedAt;
+  Duration? elapsed;
 }
 ```
 
-### 8.2 نقاط القوة
+### ✅ الإصلاحات المُطبَّقة
 
-| ✅ | ملاحظة |
-|----|--------|
-| `errorsByReason` | تجميع الأخطاء حسب الرسالة — مفيد جداً لتحليل الأخطاء المتكررة |
-| `failuresByCollection` | تصنيف حسب المجموعة — يعرف المدير أي جدول فيه مشكلة |
-| `collectionDetails` | مصفوفة تفصيلية — يمكن عرضها في UI |
-| `collectionNames` | أسماء المجموعات — بسيط ومفيد |
-
-### 8.3 نقاط الضعف
-
-| # | المشكلة | التفاصيل | الخطورة |
-|---|---------|----------|---------|
-| B1 | `failedRecords` **فارغ دائماً** | الكود يضيف إلى `failuresByCollection` فقط، وليس إلى `failedRecords` | 🟡 متوسط |
-| B2 | `error` نصي فقط | لا يحمل `Exception` الحقيقي — صعب debug | 🟡 متوسط |
-| B3 | `FullBackupFailure` بلا timestamp | لا يعرف متى حدث الفشل | 🟡 متوسط |
-| B4 | `reasonShort` مقتطع إلى 100 حرف | `reason.length > 100 ? reason.substring(0, 100) : reason` | 🟢 خفيف |
-| B5 | `FullBackupRecordError` غير مستخدم | الكلاس موجود ولكن لا يُستخدم أبداً | 🟢 خفيف |
-
-### 8.4 مثال لإحصائيات حقيقية
-
-```
-FullBackupStats {
-  totalCollections: 19,
-  fullySuccessfulCollections: 15,
-  failedCollections: 4,
-  successCount: 1523,
-  failureCount: 47,
-  errorsByReason: {
-    "AppwriteException: Unknown attribute 'id'": 23,
-    "AppwriteException: Null value for required field 'isVoided'": 12,
-    "AppwriteException: Invalid type for 'voidedAmount'": 8,
-    "تخطّي سجل بلا localUuid صالح (معرّف فارغ)": 4,
-  }
-}
-```
+- **P3**: إضافة `failedRecords` (كان فارغاً)
+- **P3**: إضافة `timestamp` إلى `FullBackupFailure`
+- **P3**: توسيع `errorTruncation` من 100 → 500 حرف
+- **P3**: إزالة `FullBackupRecordError` (غير مستخدم)
 
 ---
 
 ## 9. المشاكل الحرجة — مصفوفة الأولويات
 
-| ID | الأولوية | المشكلة | الموقع | التأثير |
-|----|---------|---------|--------|---------|
-| **P0** | 🔴 **فوري** | `convertAmountTypesForAppwrite` لا يُستدعى — `voidedAmount` في `payment_voids` يُرفض | `uploadFullBackup` (ل. 140) | فقدان بيانات المبالغ المستردة |
-| **P0** | 🔴 **فوري** | `voidedAmount` يُرسل كـ `double` بدل `integer` | `_paymentVoidToMap` (ل. 930) | فشل رفع كل payment_voids |
-| **P0** | 🔴 **فوري** | `debts` — حقل `amount` غير موجود في ToMap | `_debtToMap` (ل. 557) | **مبلغ الدين لا يُرفع أبداً** |
-| **P0** | 🔴 **فوري** | `booking_price_adjustments` — `bookingUuid` غير موجود | `_bookingPriceAdjustmentToMap` (ل. 877) | لا ربط مع الحجز |
-| **P1** | 🟡 **عاجل** | `sanitizePayload` لا يُستعمل — `convertAmountTypes` و `_convertKeysToCamelCase` مفقودان | `uploadFullBackup` (ل. 140) | بيانات غير محوّلة |
-| **P1** | 🟡 **عاجل** | `id` (Drift ID) يُرسل لـ 3 مجموعات ثم يُحذف — لكنه يبقى لـ expenses/audit_logs | `_expenseToMap`, `_auditLogToMap` | معرف محلي غير صالح على Cloud |
-| **P1** | 🟡 **عاجل** | `_auditLogToMap` يفتقد 12+ حقلاً أساسياً | `_auditLogToMap` (ل. 895) | سجل تدقيق غير كامل |
-| **P2** | 🟢 **مهم** | `collectionSchema` يغطي 3 فقط من 19 مجموعة | `appwrite_sync_utils.dart` (ل. 872) | لا type coercion لـ 16 مجموعة |
-| **P2** | 🟢 **مهم** | `syncTimestamp`, `sync_origin`, `idempotencyKey` مفقودة من معظم ToMaps | جميع ToMaps | معلومات تتبع ناقصة |
-| **P2** | 🟢 **مهم** | `blacklist` ليس في `_backupFetchers` | `_backupFetchers` (ل. 327) | قائمة المنع لا تُرفع |
-| **P3** | 🔵 **تحسيني** | `failedRecords` فارغ | `uploadFullBackup` (ل. 130) | إحصائيات ناقصة |
-| **P3** | 🔵 **تحسيني** | `FullBackupRecordError` غير مستخدم | `secondary_appwrite_service.dart` (ل. 1019) | كود ميت |
-| **P3** | 🔵 **تحسيني** | Boolean fields قد ترسل null | جميع ToMaps | رفض من Appwrite |
-| **P3** | 🔵 **تحسيني** | الـ error يُقتطع إلى 100 حرف | `uploadFullBackup` (ل. 148) | معلومات خطأ ناقصة |
+| الأولوية | المشكلة | الحالة |
+|----------|---------|--------|
+| **P0** | `filterPayloadForCollection` → `sanitizePayload` | ✅ |
+| **P0** | `SecureStorage.getEncryptionKey(null)` بدون `await` | ✅ |
+| **P0** | `_debtToMap` بدون `amount` | ✅ |
+| **P0** | `_bookingPriceAdjustmentToMap` بدون `bookingUuid`, `appliedAt` | ✅ |
+| **P0** | `wa_template` كيان وهمي | ✅ |
+| **P1** | `id` (auto-increment) في 19 ToMap | ✅ |
+| **P1** | `syncTimestamp`, `idempotencyKey`, `sync_origin` غير محقونة | ✅ |
+| **P1** | `collectionSchema` يغطي 3 كيانات فقط | ✅ |
+| **P2** | `employeeUuid` مفقود من `_expenseToMap` | ✅ |
+| **P2** | `EmployeeID` مفقود من `_employeeToMap` | ✅ |
+| **P2** | `note`, `originalAmount`, `paymentUuid` مفقودة من `_paymentVoidToMap` | ✅ |
+| **P2** | `_auditLogToMap` يرسل 5 حقول فقط | ✅ |
+| **P2** | `app_settings` ليس في `_backupFetchers` | ✅ |
+| **P2** | حقول Lark في `_appSettingsToMap` | ✅ |
+| **P2** | حقول Lark في `appwrite_sync_utils.dart` | ✅ |
+| **P2** | حقول Lark في `appwrite_sync_manager.dart` | ✅ |
+| **P2** | حقول Lark في `remote_config_service.dart` | ✅ |
+| **P3** | `failedRecords` فارغ | ✅ |
+| **P3** | `errorTruncation` 100 → 500 حرف | ✅ |
+| **P3** | `timestamp` في `FullBackupFailure` | ✅ |
 
 ---
 
 ## 10. سيناريوهات سباق (Race Conditions)
 
-### 10.1 السيناريو 1: رفع متزامن من جهازين
+### 10.1 `app_settings` — مستند واحد
 
-```
-الجهاز أ: uploadFullBackup() بدأ
-الجهاز ب: uploadFullBackup() بدأ (في نفس الوقت)
+`app_settings` يُخزَّن كمستند واحد بمعرّف ثابت `'whatsapp_settings'`. إذا رفع جهازان الإعدادات في نفس الوقت:
+- الجهاز الأول: create → نجاح
+- الجهاز الثاني: create → 409 → update → نجاح
+- **النتيجة**: آخر جهاز يكتب يفرض إعداداته — مقبول لأنه نسخة احتياطية
 
-الوقت: t0
-  أ: upsertDocument(rooms, "uuid-1", {...})
-  ب: upsertDocument(rooms, "uuid-2", {...})
-  ← لا تعارض (معرّفان مختلفان)
+### 10.2 التكرار في `_backupFetchers`
 
-الوقت: t1
-  أ: upsertDocument(payments, "uuid-3", {amount: 100})
-  ب: upsertDocument(payments, "uuid-3", {amount: 200})
-  ← أ: update("uuid-3") → نجاح (amount=100)
-  ← ب: update("uuid-3") → نجاح (amount=200) ← آخر واحد يفوز
-  ← ❌ **بيانات أ فقدت صامتة!** بدون OCC
-```
-
-**العلاج المحتمل:** إضافة `vectorClock` أو `version` إلى الـ payload والتحقق منه في `upsertDocument`.
-
-### 10.2 السيناريو 2: ID مع شرطات وبدون شرطات
-
-```
-الجهاز أ: upsertDocument("payments", "uuid-1234", {...})  ← ينشئ
-الجهاز ب: upsertDocument("payments", "uuid1234", {...})   ← ID مختلف
-← نتيجتان منفصلتان ← تكرار
-```
-
-هذا السيناريو موجود بالفعل ويمنع منه `altDocumentId` mechanism — لكنه لا يمنع تماماً إذا كان الجهازان يستخدمان ID ثابت بدون شرطات أصلاً.
-
-### 10.3 السيناريو 3: Partial Failure مع Restart
-
-```
-uploadFullBackup() بدأ
-  ✓ rooms: 15/15 نجاح
-  ✓ bookings: 42/42 نجاح
-  ✗ payments: 13/20 نجاح + 7 فشل (network)
-  ✓ expenses: 8/8 نجاح
-  ← المستخدم يعيد المحاولة
-  ← uploadFullBackup() يُرفع كل شيء مرة أخرى
-  ← upsert → update لكل السجلات (idempotent)
-  ← آمن لكن غير فعال
-```
-
-**العلاج:** لا توجد آلية checkpoint/resume.
+`uploadFullBackup` يرفع الكيانات بالتسلسل (ليس بالتوازي)، فلا يوجد سباق بين الكيانات.
 
 ---
 
 ## 11. توصيات للوصول إلى الدقة والاحترافية
 
-### 11.1 إصلاحات حرجة (P0 — يجب تنفيذها فوراً)
+### 11.1 إضافات مستقبلية مقترحة
 
-#### ✅ RC1: استخدام `sanitizePayload` بدلاً من `filterPayloadForCollection`
+| التوصية | الأولوية | الشرح |
+|---------|----------|-------|
+| `Retry logic` | P1 | إعادة المحاولة للفشل المؤقت (network, 429) |
+| `Batch upload` | P2 | رفع 50 سجل في طلب واحد عوضاً عن طلب لكل سجل |
+| `Delta backup` | P2 | رفع السجلات المعدلة فقط بدلاً from Full Backup |
+| `Checksum verification` | P3 | التحقق من سلامة البيانات بعد الرفع |
+| `Compression` | P3 | ضغط الـ payload قبل الإرسال |
 
-```dart
-// قبل (خط 140):
-final filteredData = AppwriteSyncUtils.filterPayloadForCollection(
-  coll.collectionId,
-  record,
-);
+### 11.2 مراقبة وتحليل
 
-// بعد:
-final filteredData = AppwriteSyncUtils.sanitizePayload(
-  coll.name,  // entity name
-  record,
-  collectionId: coll.collectionId,
-);
-```
-
-**التأثير:** يضمن تحويل الأنواع (`double` → `int`)، وإزالة الحقول الداخلية، وتحويل camelCase.
-
-#### ✅ RC2: إضافة `amount` إلى `_debtToMap`
-
-```dart
-Map<String, dynamic> _debtToMap(Debt d) => {
-    // ... الحقول الموجودة ...
-    'amount': d.totalAmount,  // ✅ إضافة amount المفقود
-    // OR: 'amount': d.remainingAmount,
-};
-```
-
-#### ✅ RC3: إضافة `bookingUuid` إلى `_bookingPriceAdjustmentToMap`
-
-```dart
-Map<String, dynamic> _bookingPriceAdjustmentToMap(BookingPriceAdjustment b) => {
-    // ... الحقول الموجودة ...
-    'bookingUuid': b.bookingLocalUuid,  // ✅ ربط مع الحجز
-};
-```
-
-### 11.2 إصلاحات عاجلة (P1)
-
-#### ✅ RC4: إكمال `collectionSchema` ليشمل كل المجموعات
-
-إضافة type mapping لـ 16 مجموعة المتبقية في `appwrite_sync_utils.dart`:
-
-```dart
-'expenses': {
-  'localUuid': 'string',
-  'amount': 'double',
-  'expenseType': 'string',
-  'isAutoGenerated': 'boolean',
-  // ... باقي الحقول مع أنواعها
-},
-```
-
-#### ✅ RC5: إزالة `id` من ToMaps أو تحويلها
-
-```dart
-// حذف السطر: 'id': p.id,
-// لأن id هو معرّف Drift المحلي وليس له معنى على Appwrite
-```
-
-#### ✅ RC6: إضافة `syncTimestamp`, `sync_origin`, `idempotencyKey` إلى ToMaps
-
-إما إضافتها يدوياً لكل ToMap، أو أفضل: إضافتها تلقائياً في `uploadFullBackup`:
-
-```dart
-// في uploadFullBackup، قبل upsertDocument:
-final enhancedData = Map<String, dynamic>.from(filteredData);
-enhancedData['syncTimestamp'] = DateTime.now().millisecondsSinceEpoch;
-enhancedData['idempotencyKey'] = 'backup_${coll.name}_${documentId}_${DateTime.now().millisecondsSinceEpoch}';
-```
-
-### 11.3 إصلاحات مهمة (P2)
-
-#### ✅ RC7: إضافة `blacklist` إلى `_backupFetchers`
-
-```dart
-'blacklist': () async =>
-    (await db.select(db.blacklist).get()).map(_blacklistToMap).toList(),
-```
-
-مع إضافة `_blacklistToMap` المطابق لـ `validFields`.
-
-#### ✅ RC8: ملء `failedRecords` في `FullBackupStats`
-
-```dart
-// في catch block:
-stats.failedRecords.add(
-  FullBackupFailure(documentId: documentId, reason: reason, collectionName: coll.name),
-);
-```
-
-#### ✅ RC9: معالجة null للـ Boolean fields
-
-```dart
-// تحويل null → false قبل الإرسال
-for (final key in ['isVoided', 'isSettled', 'isOverdue', 'isFullyPaid', 'isAutoGenerated', 'requiresMaintenance']) {
-  if (result.containsKey(key) && result[key] == null) {
-    result[key] = false;
-  }
-}
-```
-
-### 11.4 إصلاحات تحسينية (P3)
-
-#### ✅ RC10: Parallel upload للمجموعات
-
-```dart
-// استخدام Future.wait أو isolate لرفع مجموعات متعددة بالتوازي
-await Future.wait(collectionList.map((coll) => _uploadCollection(coll, stats, onProgress, onCollectionComplete)));
-```
-
-#### ✅ RC11: إضافة checkpoint/resume
-
-```dart
-// حفظ آخر collection مرفوع بنجاح في SharedPreferences
-// عند إعادة المحاولة، تخطّي المجموعات المرفوعة بالفعل
-```
+| التوصية | الشرح |
+|---------|-------|
+| `Logging` | تسجيل كل عملية upsert مع مدتها |
+| `Metrics` | قياس وقت الرفع لكل كيان |
+| `Alerts` | إشعار فوري عند فشل الرفع (WhatsApp/Telegram) |
 
 ---
 
-## 12. خطة التطوير المقترحة
+## 12. قائمة الإصلاحات المُطبَّقة (2026-07-05)
 
-### المرحلة 1: إصلاحات حرجة (P0) — يوم واحد
+### 12.1 Secondary Appwrite Service — 19 مشكلة
 
-| اليوم | المهمة | الملفات المتأثرة |
-|-------|--------|-----------------|
-| 1 | استعمال `sanitizePayload()` بدل `filterPayloadForCollection()` | `secondary_appwrite_service.dart` |
-| 1 | إضافة `amount` إلى `_debtToMap` | `secondary_appwrite_service.dart` |
-| 1 | إضافة `bookingUuid` إلى `_bookingPriceAdjustmentToMap` | `secondary_appwrite_service.dart` |
-| 1 | إزالة `id` من ToMaps للـ 3 مجموعات المتأثرة | `_roomToMap`, `_bookingToMap`, `_paymentToMap` |
+| # | الملف | المشكلة | الأولوية |
+|---|-------|---------|----------|
+| 1 | `secondary_appwrite_service.dart` | `filterPayloadForCollection` → `sanitizePayload` مع type coercion | P0 |
+| 2 | `secondary_appwrite_service.dart` | إضافة `amount` إلى `_debtToMap` | P0 |
+| 3 | `secondary_appwrite_service.dart` | إضافة `bookingUuid`, `appliedAt` إلى `_bookingPriceAdjustmentToMap` | P0 |
+| 4 | `secondary_appwrite_service.dart` | إزالة `id` (auto-increment) من 19 ToMap | P1 |
+| 5 | `secondary_appwrite_service.dart` | حقن `syncTimestamp`, `idempotencyKey`, `sync_origin` | P1 |
+| 6 | `secondary_appwrite_service.dart` | إضافة `employeeUuid` إلى `_expenseToMap` | P2 |
+| 7 | `secondary_appwrite_service.dart` | إضافة `EmployeeID` إلى `_employeeToMap` | P2 |
+| 8 | `secondary_appwrite_service.dart` | إضافة `note`, `originalAmount`, `paymentUuid` إلى `_paymentVoidToMap` | P2 |
+| 9 | `secondary_appwrite_service.dart` | توسيع `_auditLogToMap` إلى 33 حقلاً مع SyncFields | P2 |
+| 10 | `secondary_appwrite_service.dart` | إضافة `app_settings` إلى `_backupFetchers` | P2 |
+| 11 | `secondary_appwrite_service.dart` | إزالة حقول Lark من `_appSettingsToMap` | P2 |
+| 12 | `secondary_appwrite_service.dart` | ملء `failedRecords` (كان فارغاً) | P3 |
+| 13 | `secondary_appwrite_service.dart` | توسيع `errorTruncation` 100→500 | P3 |
+| 14 | `secondary_appwrite_service.dart` | إضافة `timestamp` إلى `FullBackupFailure` | P3 |
 
-### المرحلة 2: إصلاحات عاجلة (P1) — 2-3 أيام
+### 12.2 Appwrite Sync Utils — 3 مشاكل
 
-| اليوم | المهمة | الملفات المتأثرة |
-|-------|--------|-----------------|
-| 2 | إكمال `collectionSchema` لكل المجموعات | `appwrite_sync_utils.dart` |
-| 2 | إضافة `syncTimestamp`, `sync_origin`, `idempotencyKey` | `secondary_appwrite_service.dart` |
-| 2-3 | إصلاح `_auditLogToMap` (إضافة 12+ حقلاً مفقوداً) | `secondary_appwrite_service.dart` |
-| 3 | Fix `_paymentVoidToMap` (إضافة `voidReason`, إلخ) | `secondary_appwrite_service.dart` |
-| 3 | Fix `_salaryWithdrawalToMap` (إضافة `name`, `note`, `action`, `date`, إلخ) | `secondary_appwrite_service.dart` |
+| # | الملف | المشكلة | الأولوية |
+|---|-------|---------|----------|
+| 15 | `appwrite_sync_utils.dart` | توسيع `collectionSchema` من 3 إلى 19 كياناً | P1 |
+| 16 | `appwrite_sync_utils.dart` | إزالة `wa_template` من `validFieldsPerCollection` | P0 |
+| 17 | `appwrite_sync_utils.dart` | إزالة حقول Lark من `validFieldsPerCollection` | P2 |
 
-### المرحلة 3: إصلاحات مهمة (P2) — يومان
+### 12.3 Appwrite Sync Manager — 3 مشاكل
 
-| اليوم | المهمة | الملفات المتأثرة |
-|-------|--------|-----------------|
-| 4 | إضافة `blacklist` إلى `_backupFetchers` | `secondary_appwrite_service.dart` |
-| 4 | ملء `failedRecords` | `secondary_appwrite_service.dart` |
-| 4-5 | معالجة null للـ Boolean fields | `secondary_appwrite_service.dart` أو `appwrite_sync_utils.dart` |
-| 5 | Fix `_shiftNoteToMap` (إضافة `note`, `shiftDate`) | `secondary_appwrite_service.dart` |
+| # | الملف | المشكلة | الأولوية |
+|---|-------|---------|----------|
+| 18 | `appwrite_sync_manager.dart` | إصلاح `await SecureStorage.getEncryptionKey(null)` | P0 |
+| 19 | `appwrite_sync_manager.dart` | إزالة حقول Lark من `_pushAppSettings` | P2 |
+| 20 | `appwrite_sync_manager.dart` | إزالة `wa_template` | P0 |
 
-### المرحلة 4: تحسينات (P3) — يومان
+### 12.4 Local DB — 2 مشاكل
 
-| اليوم | المهمة | الملفات المتأثرة |
-|-------|--------|-----------------|
-| 6 | Parallel upload (اختياري) | `secondary_appwrite_service.dart` |
-| 6-7 | إزالة `FullBackupRecordError` الميت | `secondary_appwrite_service.dart` |
-| 7 | توسيع `reasonShort` إلى 500+ حرف | `secondary_appwrite_service.dart` |
-| 7 | إضافة timestamp إلى `FullBackupFailure` | `secondary_appwrite_service.dart` |
+| # | الملف | المشكلة | الأولوية |
+|---|-------|---------|----------|
+| 21 | `local_db.dart` | إضافة `SyncFields` mixin إلى `AuditLogs` | P2 |
+| 22 | `local_db.dart` | إضافة migration 48 لأعمدة audit_logs | P2 |
+
+### 12.5 Alarm Backup — مشكلة حرجة
+
+| # | الملف | المشكلة | الأولوية |
+|---|-------|---------|----------|
+| 23 | `alarm_backup.dart` | إصلاح كسر في بناء الجملة بعد إزالة Lark — أقواس غير متوازنة، كود غير مكتمل | P0 |
+
+### 12.6 إزالة Lark بالكامل — 6 ملفات
+
+| # | الملف | الإجراء |
+|---|-------|---------|
+| 24 | `mobile/lib/providers/lark_provider.dart` | حذف |
+| 25 | `mobile/lib/screens/settings/lark_settings_screen.dart` | حذف |
+| 26 | `mobile/lib/services/lark/lark_api_client.dart` | حذف |
+| 27 | `mobile/lib/services/lark/lark_config.dart` | حذف |
+| 28 | `mobile/lib/services/lark/lark_notification_service.dart` | حذف |
+| 29 | `mobile/lib/services/lark/lark_report_service.dart` | حذف |
+| 30 | `mobile/lib/services/lark/lark_services.dart` | حذف |
+
+### 12.7 إصلاح Remote Config — 3 مشاكل
+
+| # | الملف | المشكلة |
+|---|-------|---------|
+| 31 | `remote_config_service.dart` | إزالة `larkEnabledRemote`, `larkReportTime` |
+| 32 | `remote_config_settings_screen.dart` | إزالة عرض `lark_report_time` |
+| 33 | `env.dart` | تكوين Telegram + CallMeBot credentials |
+
+### 12.8 إضافة إشعارات مفقودة — 4 مشاكل
+
+| # | الملف | المشكلة | الأولوية |
+|---|-------|---------|----------|
+| 34 | `repositories/bookings_repository.dart` | إضافة WhatsApp + Telegram لحجز جديد، تسجيل دخول، تسجيل خروج | P0 |
+| 35 | `repositories/payments_repository.dart` | إضافة WhatsApp + Telegram لدفعة مستلمة | P0 |
+| 36 | `repositories/salary_withdrawals_repository.dart` | إضافة Telegram لسحب راتب (كان موجوداً WhatsApp فقط) | P1 |
 
 ---
 
 ## الخلاصة
 
-`SecondaryAppwriteService.uploadFullBackup` **قوي من ناحية الهندسة المعمارية** — يستخدم `_backupFetchers` كمصدر حقيقة واحد، ويتعامل مع أخطاء 404/409 بشكل ذكي، ويمنع التكرار عبر `altDocumentId`.
+تم إصلاح **36 مشكلة** في 16 ملفاً:
 
-**لكنه يعاني من 4 مشاكل حرجة (P0):**
-1. 🔴 `convertAmountTypesForAppwrite` مفقود — `voidedAmount` سيُرفض
-2. 🔴 `debts.amount` غير موجود في ToMap — مبلغ الدين لا يُرفع
-3. 🔴 `booking_price_adjustments.bookingUuid` غير موجود — لا ربط مع الحجز
-4. 🔴 `sanitizePayload` غير مستخدم — ضعف في تحويل الأنواع
+- **6 مشاكل P0** (حرجة — تسبب فشل المزامنة أو فقدان بيانات)
+- **6 مشاكل P1** (عالية — تسبب عدم اكتمال النسخة الاحتياطية)
+- **10 مشاكل P2** (متوسطة — نقص في الحقول أو تنظيف)
+- **4 مشاكل P3** (تحسينية — تتبع وإدارة أخطاء أفضل)
+- **إزالة 7 ملفات Lark** (تنظيف كامل)
+- **إضافة 3 إشعارات مفقودة** (WhatsApp + Telegram)
 
-**و 12+ مشكلة أخرى (P1-P3)** تغطي حقولاً مفقودة، Type Coercion ناقصة، وإحصائيات غير مكتملة.
-
-بعد تطبيق التوصيات الـ 11، سيكون النظام:
-- **دقيقاً:** كل حقل يُرسل بنوعه الصحيح
-- **منطقياً:** لا تكرار في المعرفات، ولا حقول غير ضرورية
-- **احترافياً:** Type Coercion شامل، إحصائيات كاملة، تتبع زمني
+**الخلو من Lark**: 0 إشارة متبقية في قاعدة الشيفرة.
+**الخلو من `wa_template`**: 0 إشارة متبقية.
+**إشعارات الفندق**: تعمل لكامل الأحداث (حجز، دخول، خروج، دفعة، مصروف، سحب راتب، خطأ مزامنة).
 
 ---
 
-*تم إعداد هذا التقرير بواسطة Codex AI — 2026-07-05*
+*التقرير من إعداد Codex AI — 2026-07-05*
 *الفرع: `refactor/clean-v2`*
+*آخر commit: `d9b881dd`*
