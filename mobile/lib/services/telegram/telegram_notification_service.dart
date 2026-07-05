@@ -326,7 +326,6 @@ class TelegramNotificationService {
       eventTime: DateTime.now(),
     ),);
   }
-}
 
   /// إشعار خطأ مزامنة حرج — يرسل فوراً عبر Telegram
   /// لا يتطلب تفعيل الإشعارات العادية (إشعارات خطأ دائماً مفعلة)
