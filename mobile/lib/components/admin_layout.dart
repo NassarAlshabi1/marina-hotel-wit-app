@@ -120,6 +120,15 @@ class AdminLayout extends StatelessWidget {
       backgroundColor: AppColors.primaryColor,
       foregroundColor: Colors.white,
       elevation: 0,
+      // ✅ إصلاح: titleTextStyle من الثيم يضع color=textPrimary (أسود)
+      // لكن الخلفية primaryColor (أزرق غامق) → نص أبيض إجباري
+      titleTextStyle: const TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        fontFamily: 'Tajawal',
+      ),
+      iconTheme: const IconThemeData(color: Colors.white),
       actions: [if (actions != null) ...actions!],
     );
   }

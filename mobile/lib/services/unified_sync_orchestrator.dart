@@ -93,7 +93,8 @@ class UnifiedSyncOrchestrator {
     SmartSyncManager? smart,
     AppDatabase? database,
   }) async {
-    if (appwrite != null) {
+    // ✅ P1-1 fix: idempotent — لا نُعيد التهيئة إذا تمت مسبقاً
+    if (appwrite != null && _appwrite == null) {
       _appwrite = appwrite;
       await _appwrite!.initialize();
     }
@@ -106,9 +107,9 @@ class UnifiedSyncOrchestrator {
     }
     _driveCoordinator ??= GoogleDriveUnifiedSyncCoordinator.instance;
 
-    await _attachListeners();
-
+    // ✅ P1-1 fix: عدم إعادة attachListeners إذا تمت مسبقاً
     if (!_initialized) {
+      await _attachListeners();
       _initialized = true;
       _emit(_state);
     }
@@ -217,9 +218,11 @@ class UnifiedSyncOrchestrator {
   }
 
   /// رفع تلقائي إلى Appwrite فقط (بدون Google Drive)
+  /// ✅ P1-2 fix: تمييز "مشغول" (true) عن "فشل" (false)
   Future<bool> _autoSyncToAppwrite({String reason = 'auto'}) async {
     if (_syncing) {
-      return false;
+      debugPrint('⏸️ _autoSyncToAppwrite: مشغول — تخطي (ليس فشل)');
+      return true; // مشغول ≠ فشل — لا نُعيد جدولة إعادة محاولة
     }
 
     try {
@@ -258,7 +261,8 @@ class UnifiedSyncOrchestrator {
     bool forceSnapshot = false,
   }) async {
     if (_syncing) {
-      return false;
+      debugPrint('⏸️ syncNow: مشغول — تخطي (ليس فشل)');
+      return true; // ✅ P1-2: مشغول ≠ فشل
     }
 
     _syncing = true;
@@ -430,7 +434,7 @@ class UnifiedSyncOrchestrator {
 
     var success = true;
     if (push) {
-      success = await manager.pushLocalChanges() && success;
+      final pushed = await manager.pushLocalChanges(); success = (pushed >= 0) && success;
     }
     if (pull) {
       success = await manager.pullRemoteChanges() && success;

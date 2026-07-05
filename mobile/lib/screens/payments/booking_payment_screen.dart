@@ -363,40 +363,49 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
           ),
           actions: [
-            // زر إلغاء الليالي المشبوهة
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.of(ctx).pop('cancel_nights'),
-                icon: const Icon(Icons.cancel_outlined),
-                label: Text(
-                  'إلغاء الليالي\n(${CurrencyFormatter.formatAmount(totalSuspiciousAmount)})',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12),
+            // ✅ إصلاح: لف الأزرار في Row بدل Expanded مباشر في actions.
+            // AlertDialog.actions يُعرَض داخل OverflowBar داخلياً الذي لا
+            // يقبل Flexible/Expanded → يسبب Fatal Exception:
+            //   type '_OverflowBarParentData' is not a subtype of type 'FlexParentData'
+            // Row يلتف حول Expanded بشكل صحيح ويحل المشكلة.
+            Row(
+              children: [
+                // زر إلغاء الليالي المشبوهة
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(ctx).pop('cancel_nights'),
+                    icon: const Icon(Icons.cancel_outlined),
+                    label: Text(
+                      'إلغاء الليالي\n(${CurrencyFormatter.formatAmount(totalSuspiciousAmount)})',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade700,
+                      side: BorderSide(color: Colors.red.shade300),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
                 ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red.shade700,
-                  side: BorderSide(color: Colors.red.shade300),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                const SizedBox(width: 12),
+                // زر احتساب الليالي
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.of(ctx).pop('keep_nights'),
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: Text(
+                      'احتساب الليالي\n(${CurrencyFormatter.formatAmount(totalSuspiciousAmount)})',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // زر احتساب الليالي
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.of(ctx).pop('keep_nights'),
-                icon: const Icon(Icons.check_circle_outline),
-                label: Text(
-                  'احتساب الليالي\n(${CurrencyFormatter.formatAmount(totalSuspiciousAmount)})',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
+              ],
             ),
           ],
         ),
@@ -2984,10 +2993,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ref
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
-            .then((success) {
+            .then((pushedCount) {
           debugPrint(
             '📤 [EarlyCheckout] push-only to Appwrite Cloud: '
-            '${success ? "success" : "deferred (will retry via outbox)"}',
+            '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
           );
         }).catchError((Object e) {
           debugPrint('⚠️ [EarlyCheckout] push to Appwrite Cloud failed: $e — '
@@ -3140,10 +3149,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ref
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
-            .then((success) {
+            .then((pushedCount) {
           debugPrint(
             '📤 [CreateDebt] push-only to Appwrite Cloud: '
-            '${success ? "success" : "deferred"}',
+            '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred"}',
           );
         }).catchError((Object e) {
           debugPrint('⚠️ [CreateDebt] push failed: $e');
@@ -3215,10 +3224,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ref
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
-            .then((success) {
+            .then((pushedCount) {
           debugPrint(
             '📤 [Checkout] push-only to Appwrite Cloud: '
-            '${success ? "success" : "deferred (will retry via outbox)"}',
+            '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
           );
         }).catchError((Object e) {
           debugPrint('⚠️ [Checkout] push to Appwrite Cloud failed: $e — '

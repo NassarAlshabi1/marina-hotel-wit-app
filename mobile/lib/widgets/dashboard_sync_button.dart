@@ -7,14 +7,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/secondary_sync_provider.dart';
-import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_health_checker.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
 import '../services/secondary_appwrite_config.dart';
 import '../services/secondary_sync_manager.dart';
-import '../services/sync_core/conflict_resolver.dart';
+import '../services/sync/sync_gate.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
@@ -71,8 +70,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       final db = ref.read(databaseProvider);
       final outboxDao = OutboxDao(db);
-      // ✅ فصل هندسي: نعرض فقط عدد التغييرات المحلية المعلقة
-      final count = await outboxDao.count(sources: const ['local']);
+      // ✅ P2-5 fix: العدد المعروض يطابق نطاق الرفع الفعلي
+      // لا نستخدم count() التي تحسب pending+failed — لأن الرفع
+      // (takeBatch) يأخذ فقط 'pending' و 'delivered_to_primary=0'.
+      // شارة "تغييرات معلّقة" يجب أن تعكس ما سيُرفع فعلاً.
+      final count = await outboxDao.countPendingPushable(sources: const ['local']);
       if (mounted) {
         setState(() {
           _pendingChangesCount = count;
@@ -108,7 +110,40 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   }
 
   /// سحب التغييرات من Appwrite (Pull فقط - بدون دفع)
+  ///
+  /// ✅ P3-5 (Global SyncGate): العملية بالكامل محاطة بـ runGuarded —
+  /// إذا كانت أي عملية مزامنة أخرى جارية من أي مصدر (زر، سحب تلقائي،
+  /// مؤقّت)، يُرفض الدخول فوراً ويُظهر إشعار للمستخدم.
   Future<void> _pullChanges(BuildContext context) async {
+    final executed = await SyncGate.instance.runGuardedVoid(
+      operation: 'pull',
+      source: 'dashboard_button',
+      task: () => _pullChangesInner(context),
+    );
+    if (!executed && mounted) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.lock_clock, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '⏳ المزامنة مشغولة حالياً بعملية أخرى '
+                  '(${SyncGate.instance.state.operation ?? "?"})',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.blueGrey,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _pullChangesInner(BuildContext context) async {
     final stopwatch = Stopwatch()..start();
     final syncId = 'pull_${DateTime.now().millisecondsSinceEpoch}';
     String? deviceId;
@@ -118,33 +153,62 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       deviceId = 'unknown';
     }
 
-    // ✅ إصلاح: التحقق من _isPulling قبل كتابة سجل المزامنة
-    // سابقاً كان السجل يُكتب قبل التحقق مما يُنشئ سجلات وهمية
+    // ✅ P1-2 fix: ضبط العلم متزامناً فوراً قبل أي await لمنع إعادة الدخول
+    // (محلياً داخل هذا الـ widget — البوّابة العامة تحمي عبر المصادر)
     if (_isPulling) {
       return;
     }
 
-    // تسجيل بداية العملية
-    final db = ref.read(databaseProvider);
-    final syncLogDao = SyncLogDao(db);
-    await syncLogDao.logSync(
-      syncId: syncId,
-      direction: 'pull',
-      deviceId: deviceId,
-      target: 'Appwrite',
-      status: 'in_progress',
-    );
-
-    unawaited(_pullAnimationController.repeat());
-    if (mounted) {
-      setState(() => _isPulling = true);
-    } else {
-      _isPulling = true;
+    // ✅ P2-4 fix: تحذير قبل السحب عند وجود تغييرات محلية غير مرفوعة
+    if (_pendingChangesCount > 0) {
+      if (!mounted) return;
+      // ignore: use_build_context_synchronously
+      final shouldContinue = await showDialog<bool>(
+        // ignore: use_build_context_synchronously
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('⚠️ تغييرات محلية غير مرفوعة'),
+          content: Text(
+            'لديك $_pendingChangesCount تغييراً محلياً لم يُرفع بعد.\n\n'
+            'سحب البيانات قبل رفع تغييراتك قد يدهس تعديلاتك المحلية.\n\n'
+            'هل تريد الرفع أولاً ثم السحب؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('سحب فقط'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('رفع ثم سحب'),
+            ),
+          ],
+        ),
+      );
+      // null = المستخدم أغلق الحوار؛ true = رفع ثم سحب؛ false = سحب فقط
+      if (shouldContinue == null) {
+        return;
+      }
+      if (shouldContinue) {
+        // رفع ثم سحب — نخرج مؤقتاً من البوّابة الحالية لأن _pushChanges
+        // سيحاول دخولها بنفسه. البوّابة تُحرَّر هنا ويُعاد دخولها في الـ push.
+        if (!mounted) return;
+        // ignore: use_build_context_synchronously
+        await _pushChanges(context);
+      }
     }
 
+    _isPulling = true;
+    if (mounted) {
+      setState(() {});
+    }
+
+    // ✅ P1-1 fix: كل الفحوص تتم قبل كتابة سجل in_progress
+    // لا نكتب in_progress إلا بعد اجتياز كل فحوص ما-قبل-البدء
     try {
       final appwriteEnabled = await _isAppwriteSyncEnabled();
       if (!appwriteEnabled) {
+        _isPulling = false;
         if (mounted) {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
@@ -161,6 +225,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       final appwriteConnected = ref.read(connectionStatusProvider).isConnected;
 
       if (!appwriteConnected) {
+        _isPulling = false;
         if (mounted) {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
@@ -172,6 +237,19 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
         return;
       }
+
+      // ✅ الآن بعد اجتياز كل الفحوص — نكتب سجل in_progress
+      final db = ref.read(databaseProvider);
+      final syncLogDao = SyncLogDao(db);
+      await syncLogDao.logSync(
+        syncId: syncId,
+        direction: 'pull',
+        deviceId: deviceId,
+        target: 'Appwrite',
+        status: 'in_progress',
+      );
+
+      unawaited(_pullAnimationController.repeat());
 
       if (mounted) {
         // ignore: use_build_context_synchronously
@@ -199,33 +277,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
 
-      int pulledCount = 0;
-      final deltaSync = AppwriteDeltaSync.instance;
-      if (deltaSync.isInitialized) {
-        // 1️⃣ سحب عبر DeltaSync
-        final pullResult = await deltaSync.pullDeltaChanges();
-        pulledCount = pullResult.recordsPulled;
-
-        // 2️⃣ حل التعارضات إن وجدت
-        if (pullResult.hasConflicts) {
-          if (mounted) {
-            // ignore: use_build_context_synchronously
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('⚖️ جاري حل التعارضات...'),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-          await _resolveConflicts();
-        }
-      } else {
-        // 2️⃣ بديل: سحب عبر appwriteSyncManager
-        final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-        final pullResult = await appwriteSyncManager.sync(push: false);
-        pulledCount = pullResult.recordsPulled;
-      }
+      final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
+      final pullResult = await appwriteSyncManager.sync(push: false);
+      final pulledCount = pullResult.recordsPulled;
 
       // إعادة تعيين علامة "توجد تغييرات من السيرفر"
       AppwriteRealtimeSync().resetRemoteChangesFlag();
@@ -280,15 +334,19 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       // ✅ تسجيل فشل العملية
       stopwatch.stop();
-      await syncLogDao.logSync(
-        syncId: syncId,
-        direction: 'pull',
-        deviceId: deviceId,
-        target: 'Appwrite',
-        status: 'failed',
-        errorMessage: e.toString(),
-        durationMs: stopwatch.elapsedMilliseconds,
-      );
+      try {
+        final db = ref.read(databaseProvider);
+        final syncLogDao = SyncLogDao(db);
+        await syncLogDao.logSync(
+          syncId: syncId,
+          direction: 'pull',
+          deviceId: deviceId,
+          target: 'Appwrite',
+          status: 'failed',
+          errorMessage: e.toString(),
+          durationMs: stopwatch.elapsedMilliseconds,
+        );
+      } catch (_) {}
 
       if (mounted) {
         // ignore: use_build_context_synchronously
@@ -317,7 +375,38 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   }
 
   /// رفع التغييرات المحلية (Push فقط)
+  ///
+  /// ✅ P3-5 (Global SyncGate): العملية بالكامل محاطة بـ runGuarded.
   Future<void> _pushChanges(BuildContext context) async {
+    final executed = await SyncGate.instance.runGuardedVoid(
+      operation: 'push',
+      source: 'dashboard_button',
+      task: () => _pushChangesInner(context),
+    );
+    if (!executed && mounted) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.lock_clock, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '⏳ المزامنة مشغولة حالياً بعملية أخرى '
+                  '(${SyncGate.instance.state.operation ?? "?"})',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.blueGrey,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _pushChangesInner(BuildContext context) async {
     final stopwatch = Stopwatch()..start();
     final syncId = 'push_${DateTime.now().millisecondsSinceEpoch}';
     String? deviceId;
@@ -327,23 +416,18 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       deviceId = 'unknown';
     }
 
-    // ✅ إصلاح: التحقق من _isPushing قبل كتابة سجل المزامنة
+    // ✅ P1-2 fix: ضبط العلم متزامناً فوراً قبل أي await
     if (_isPushing) {
       return;
     }
+    _isPushing = true;
+    if (mounted) {
+      setState(() {});
+    }
 
-    // تسجيل بداية العملية
-    final db = ref.read(databaseProvider);
-    final syncLogDao = SyncLogDao(db);
-    await syncLogDao.logSync(
-      syncId: syncId,
-      direction: 'push',
-      deviceId: deviceId,
-      target: 'Appwrite+GoogleDrive',
-      status: 'in_progress',
-    );
-
+    // ✅ P1-1 fix: كل الفحوص قبل كتابة سجل in_progress
     if (_pendingChangesCount == 0) {
+      _isPushing = false;
       if (mounted) {
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
@@ -363,12 +447,19 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       return;
     }
 
+    // ✅ الآن بعد اجتياز الفحوص — نكتب سجل in_progress
+    final db = ref.read(databaseProvider);
+    final syncLogDao = SyncLogDao(db);
+    await syncLogDao.logSync(
+      syncId: syncId,
+      direction: 'push',
+      deviceId: deviceId,
+      target: 'Appwrite',
+      status: 'in_progress',
+    );
+
     unawaited(_pushAnimationController.repeat());
-    if (mounted) {
-      setState(() => _isPushing = true);
-    } else {
-      _isPushing = true;
-    }
+    // _isPushing ضُبط بالفعل في الأعلى (P1-2 fix)
 
     try {
       final smartSyncManager = ref.read(smartSyncManagerProvider);
@@ -464,22 +555,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       // رفع إلى Appwrite أولاً
       if (appwriteEnabled && appwriteConnected) {
         try {
-          final deltaSync = AppwriteDeltaSync.instance;
-          if (deltaSync.isInitialized) {
-            final pushResult = await deltaSync.pushDeltaChanges();
-            final pushedCount = pushResult.recordsPushed;
-
-            results['Appwrite'] = {
-              'success': pushResult.success,
-              'pushed': pushedCount,
-            };
-          } else {
-            final result = await appwriteSyncManager.pushLocalChanges();
-            results['Appwrite'] = {
-              'success': result,
-              'pushed': _pendingChangesCount,
-            };
-          }
+          // ✅ P1-3 fix: pushLocalChanges تُعيد عدد السجلات الفعلي
+          final pushedCount = await appwriteSyncManager.pushLocalChanges();
+          results['Appwrite'] = {
+            'success': pushedCount >= 0,
+            'pushed': pushedCount,
+          };
         } catch (e) {
           results['Appwrite'] = {
             'success': false,
@@ -713,83 +794,36 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
-  /// حل التعارضات بين البيانات المحلية والبعيدة
-  Future<int> _resolveConflicts() async {
-    int resolvedCount = 0;
-    try {
-      final db = ref.read(databaseProvider);
-      final outboxDao = OutboxDao(db);
-
-      final conflicts = await outboxDao.getConflicts();
-
-      if (conflicts.isEmpty) {
-        return 0;
-      }
-
-      final resolver = ConflictResolver(
-        deviceId: await _getDeviceId(),
-      );
-
-      // معالجة التعارضات بالتوازي باستخدام Future.wait بدلاً من التسلسل
-      final resolveResults = await Future.wait(conflicts.map((conflict) async {
-        try {
-          final localData = conflict.localPayload;
-          final remoteData = conflict.remotePayload;
-
-          final localMap = <String, Map<String, dynamic>>{
-            conflict.targetTable: {conflict.uuid: localData},
-          };
-          final remoteMap = <String, Map<String, dynamic>>{
-            conflict.targetTable: {conflict.uuid: remoteData},
-          };
-
-          final dataConflicts = await resolver.detectConflicts(localMap, remoteMap);
-
-          if (dataConflicts.isNotEmpty) {
-            final resolved = await resolver.resolveConflicts(dataConflicts);
-
-            final winnerData = resolved[conflict.targetTable]?[conflict.uuid];
-            if (winnerData != null) {
-              await outboxDao.resolveConflict(
-                conflict.id,
-                winnerData as Map<String, dynamic>,
-                resolution: 'newer_wins',
-              );
-              return true;
-            }
-          } else {
-            await outboxDao.resolveConflict(
-              conflict.id,
-              localData,
-              resolution: 'auto_no_conflict',
-            );
-          }
-          return false;
-        } catch (e) {
-          debugPrint('❌ خطأ في حل تعارض ${conflict.uuid}: $e');
-          return false;
-        }
-      }),);
-      resolvedCount = resolveResults.where((r) => r).length;
-
-      debugPrint('✅ تم حل $resolvedCount تعارض');
-      return resolvedCount;
-    } catch (e) {
-      debugPrint('❌ خطأ في حل التعارضات: $e');
-      return 0;
-    }
-  }
-
-  /// الحصول على معرف الجهاز
+  /// ✅ P2-6 fix: الحصول على معرف الجهاز — يطابق المعرف الذي يستخدمه الـ sync.
+  ///
+  /// قبل الإصلاح: كانت هذه الدالة تولّد `device_<timestamp>` وتخزّنه تحت
+  /// مفتاح `device_id` — وهو مفتاح مختلف عن `appwrite_device_id` الذي
+  /// يستخدمه `AppwriteSyncManager`. النتيجة: سجلات sync_log تحمل deviceId
+  /// مختلف عن deviceId الفعلي المستخدم في vector clocks و payload الرفع.
+  ///
+  /// بعد الإصلاح: نقرأ من المصدر الموثوق `appwriteSyncManager.currentDeviceId`
+  /// (الذي يُحمَّل من `appwrite_device_id` SharedPreferences). إذا لم يكن
+  /// مسجّلاً بعد (نادراً، فقط قبل أول sync)، نقرأ المفتاح مباشرة كـ fallback،
+  /// ثم 'unknown_device' كحل أخير.
   Future<String> _getDeviceId() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      var deviceId = prefs.getString('device_id');
-      if (deviceId == null) {
-        deviceId = 'device_${DateTime.now().millisecondsSinceEpoch}';
-        await prefs.setString('device_id', deviceId);
+      // 1) المصدر الموثوق: AppwriteSyncManager (يُحدَّث عند registerDevice)
+      final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
+      final canonical = appwriteSyncManager.currentDeviceId;
+      if (canonical != null && canonical.isNotEmpty) {
+        return canonical;
       }
-      return deviceId;
+
+      // 2) Fallback: اقرأ نفس المفتاح مباشرة من SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString('appwrite_device_id');
+      if (stored != null && stored.isNotEmpty) {
+        return stored;
+      }
+
+      // 3) لم يُسجَّل الجهاز بعد — لا نولّد معرفاً وهمياً جديداً
+      //    (ذلك يخلق تعارضاً مع sync). نُرجع قيمة محايدة.
+      return 'unknown_device';
     } catch (e) {
       return 'unknown_device';
     }
@@ -815,9 +849,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   }
 
   // ✅ تحسين: إضافة معامل pendingCount لعرض عدد التغييرات
-  Widget _buildPullButton(bool hasRemoteChanges, bool isGoogleDriveSignedIn, int pendingCount) {
-    // زر السحب متاح دائماً طالما Appwrite مفعّل وليس جاري مزامنة
-    final bool pullEnabled = _appwriteEnabled && !_isPulling && !_isPushing;
+  Widget _buildPullButton(bool hasRemoteChanges, bool isGoogleDriveSignedIn, int pendingCount, bool gateBusy) {
+    // زر السحب متاح دائماً طالما Appwrite مفعّل وليس جاري مزامنة محلياً،
+    // والبوّابة العامة ليست مشغولة بعملية من أي مصدر آخر.
+    final bool pullEnabled = _appwriteEnabled && !_isPulling && !_isPushing && !gateBusy;
 
     Color buttonColor;
     IconData buttonIcon;
@@ -942,9 +977,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     );
   }
 
-  Widget _buildPushButton(bool hasChanges, bool isGoogleDriveSignedIn) {
-    // زر الدفع متاح فقط إذا كان يوجد تغييرات محلية
-    final bool pushEnabled = hasChanges && !_isPulling && !_isPushing;
+  Widget _buildPushButton(bool hasChanges, bool isGoogleDriveSignedIn, bool gateBusy) {
+    // زر الدفع متاح فقط إذا كان يوجد تغييرات محلية، والبوّابة العامة
+    // ليست مشغولة بعملية من أي مصدر آخر.
+    final bool pushEnabled = hasChanges && !_isPulling && !_isPushing && !gateBusy;
 
     Color buttonColor;
     IconData buttonIcon;
@@ -1084,21 +1120,33 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         return ValueListenableBuilder<int>(
           valueListenable: AppwriteRealtimeSync().pendingRemoteChangesCount,
           builder: (context, pendingRemoteCount, child) {
-            final hasLocalChanges = _pendingChangesCount > 0;
+            // ✅ P3-5 (Global SyncGate): مراقبة البوّابة العامة. إذا كانت
+            // مشغولة بعملية من أي مصدر (زر آخر، سحب تلقائي، مؤقّت)،
+            // تُعطَّل الأزرار تلقائياً.
+            return ValueListenableBuilder<SyncGateState>(
+              valueListenable: SyncGate.instance.notifier,
+              builder: (context, gateState, child) {
+                final gateBusy = gateState.isBusy;
+                // إذا البوّابة مشغولة بعمل من هذه الـ widget نفسها (push/pull
+                // محلي)، فإن _isPulling/_isPushing بالفعل يُظهر التغذية
+                // الراجعة البصرية المناسبة. أما إذا كانت مشغولة بمصدر خارجي
+                // (auto_open / timer / background)، نُظهر حالة "مشغول" عامة.
+                final externalBusy = gateBusy && !_isPulling && !_isPushing;
+                final hasLocalChanges = _pendingChangesCount > 0;
 
-            return Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
+                return Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
             // صف الأزرار: زر السحب + زر الدفع
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // زر السحب من السيرفر - ✅ تحديث: تمرير عداد التغييرات
-                _buildPullButton(hasRemoteChanges, isGoogleDriveSignedIn, pendingRemoteCount),
+                // زر السحب من السيرفر - ✅ تحديث: تمرير عداد التغييرات + حالة البوّابة
+                _buildPullButton(hasRemoteChanges, isGoogleDriveSignedIn, pendingRemoteCount, gateBusy),
                 const SizedBox(width: 8),
                 // زر الدفع إلى السيرفر
-                _buildPushButton(hasLocalChanges, isGoogleDriveSignedIn),
+                _buildPushButton(hasLocalChanges, isGoogleDriveSignedIn, gateBusy),
               ],
             ),
             const SizedBox(height: 6),
@@ -1106,14 +1154,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: _isPulling || _isPushing
+                color: _isPulling || _isPushing || externalBusy
                     ? Colors.blue.shade50
                     : (hasLocalChanges || hasRemoteChanges)
                         ? Colors.orange.shade50
                         : Colors.green.shade50,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: _isPulling || _isPushing
+                  color: _isPulling || _isPushing || externalBusy
                       ? Colors.blue.shade200
                       : (hasLocalChanges || hasRemoteChanges)
                           ? Colors.orange.shade200
@@ -1127,9 +1175,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   Icon(
                     hasLocalChanges || hasRemoteChanges
                         ? Icons.sync_problem
-                        : (_isPulling || _isPushing ? Icons.sync : Icons.check_circle),
+                        : (_isPulling || _isPushing || externalBusy ? Icons.sync : Icons.check_circle),
                     size: 12,
-                    color: _isPulling || _isPushing
+                    color: _isPulling || _isPushing || externalBusy
                         ? Colors.blue
                         : (hasLocalChanges || hasRemoteChanges)
                             ? Colors.orange
@@ -1145,14 +1193,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                             ? 'جاري السحب...'
                             : _isPushing
                                 ? 'جاري الرفع...'
-                                : hasLocalChanges
-                                    ? '$_pendingChangesCount تغيير محلي معلق'
-                                    : hasRemoteChanges
-                                        ? '$pendingRemoteCount تحديث من السيرفر'
-                                        : 'محدّث',
+                                : externalBusy
+                                    ? 'مزامنة من مصدر آخر (${gateState.operation ?? "?"})'
+                                    : hasLocalChanges
+                                        ? '$_pendingChangesCount تغيير محلي معلق'
+                                        : hasRemoteChanges
+                                            ? '$pendingRemoteCount تحديث من السيرفر'
+                                            : 'محدّث',
                         style: TextStyle(
                           fontSize: 11,
-                          color: _isPulling || _isPushing
+                          color: _isPulling || _isPushing || externalBusy
                               ? Colors.blue.shade900
                               : (hasLocalChanges || hasRemoteChanges)
                                   ? Colors.orange.shade900
@@ -1160,7 +1210,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (!_isPulling && !_isPushing)
+                      if (!_isPulling && !_isPushing && !externalBusy)
                         FutureBuilder<SyncLogEntry?>(
                           future: SyncLogDao(ref.read(databaseProvider)).getLastSync(),
                           builder: (context, snapshot) {
@@ -1219,8 +1269,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 ],
               ),
             ),
-          ],
-        );
+              ],
+                );
+              },
+            );
           },
         );
       },

@@ -59,15 +59,15 @@ class AutoSyncTask {
   static int _debounceToken = 0;
   static bool _initialized = false;
 
-  /// تهيئة WorkManager وتسجيل callback
+  /// ✅ P0-7 fix: تهيئة موحّدة — لا نُهيّئ Workmanager هنا
+  /// Workmanager يُهيّأ مرة واحدة فقط من BackgroundSyncService
+  /// هذا يمنع تعدّد المُوزّعات الذي يكسر المهام الخلفية
   static Future<void> initialize({bool debug = false}) async {
     if (_initialized) {
       return;
     }
     WidgetsFlutterBinding.ensureInitialized();
-    await Workmanager().initialize(
-      autoSyncCallbackDispatcher,
-    );
+    // ✅ P0-7: لا نُهيّئ Workmanager هنا — يُهيّأ من مكان واحد موحّد
     _initialized = true;
   }
 

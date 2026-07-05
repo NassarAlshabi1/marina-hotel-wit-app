@@ -320,7 +320,7 @@ class BackgroundSyncService {
   }
 }
 
-/// Callback dispatcher للـ WorkManager
+/// ✅ P0-7 fix: Callback dispatcher موحّد — يغطي كل أسماء المهام
 @pragma('vm:entry-point')
 void _callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
@@ -334,12 +334,20 @@ void _callbackDispatcher() {
       case backgroundSyncTask:
       case batteryAwareSyncTask:
         return BackgroundSyncService.executeBackgroundSync();
+      // ✅ P0-7: تغطية أسماء مهام من الأنظمة الأخرى لمنع default:false
+      case 'autoBackup':
+      case 'autoBackupTask':
+      case 'marina_auto_sync_now':
+      case 'marina_auto_sync_periodic':
+        developer.log('📋 Routing task $task to BackgroundSyncService', name: 'BackgroundSyncService');
+        return BackgroundSyncService.executeBackgroundSync();
       default:
         developer.log(
-          '⚠️ Unknown task: $task',
+          '⚠️ Unknown task: $task → treating as sync',
           name: 'BackgroundSyncService',
         );
-        return Future.value(false);
+        // ✅ P0-7: بدل false (الذي يُسقط المهمة)، نحاول المزامنة
+        return BackgroundSyncService.executeBackgroundSync();
     }
   });
 }

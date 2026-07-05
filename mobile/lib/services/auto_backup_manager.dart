@@ -6,8 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/hotel_time_engine.dart';
-import 'appwrite_delta_sync.dart';
 import 'appwrite_service.dart';
+import 'appwrite_sync_manager.dart';
 import 'booking_derived_fields_service.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
@@ -28,8 +28,6 @@ class AutoBackupManager {
   static const String _instantSyncEnabledKey = 'instant_sync_enabled';
   static const String _deltaSyncEnabledKey = 'delta_sync_enabled';
   static const String _backupModeKey = 'backup_mode';
-  static const String _appwriteDeltaSyncEnabledKey =
-      'appwrite_delta_sync_enabled';
   static const String _googleDriveDeltaSyncEnabledKey =
       'google_drive_delta_sync_enabled';
 
@@ -39,10 +37,7 @@ class AutoBackupManager {
 
   GoogleDriveBackupService? _backupService;
   GoogleDriveDeltaSync? _googleDriveDeltaSync;
-  AppwriteDeltaSync? _appwriteDeltaSync;
-  // ignore: unused_field
   AppwriteService? _appwriteService;
-  // ignore: unused_field
   AppDatabase? _database;
   Timer? _debounceTimer;
   Timer? _deltaSyncDebounceTimer;
@@ -83,11 +78,6 @@ class AutoBackupManager {
     if (database != null) {
       _googleDriveDeltaSync = GoogleDriveDeltaSync.instance;
       await _googleDriveDeltaSync!.initialize(backupService, database);
-
-      if (appwriteService != null) {
-        _appwriteDeltaSync = AppwriteDeltaSync.instance;
-        await _appwriteDeltaSync!.initialize(appwriteService, database);
-      }
 
       await _startDeltaSyncTimer();
     }
@@ -522,30 +512,35 @@ class AutoBackupManager {
         }
       }
 
-      if (await isAppwriteDeltaSyncEnabled() && _appwriteDeltaSync != null) {
+      // ✅ تم ترحيل المزامنة إلى AppwriteSyncManager (الطريقة الجديدة)
+      // AppwriteDeltaSync محذوف — كل المزامنة عبر AppwriteSyncManager.sync()
+      if (_appwriteService != null && _appwriteService!.isInitialized && _database != null) {
         try {
-          final pushResult = await _appwriteDeltaSync!.pushDeltaChanges();
-          final pullResult = await _appwriteDeltaSync!.pullDeltaChanges();
+          final syncManager = AppwriteSyncManager(
+            appwriteService: _appwriteService!,
+            database: _database!,
+          );
+          final result = await syncManager.sync();
           results['appwrite'] = {
             'push': {
-              'success': pushResult.success,
-              'count': pushResult.pushedCount,
+              'success': result.status == SyncStatus.success,
+              'count': result.recordsPushed,
             },
             'pull': {
-              'success': pullResult.success,
-              'count': pullResult.pulledCount,
+              'success': result.status == SyncStatus.success,
+              'count': result.recordsPulled,
             },
           };
-          if (!pushResult.success || !pullResult.success) {
+          if (result.status != SyncStatus.success) {
             results['success'] = false;
           }
           debugPrint(
-            '✅ Appwrite Delta: رفع ${pushResult.pushedCount}، سحب ${pullResult.pulledCount}',
+            '✅ Appwrite Sync: رفع ${result.recordsPushed}، سحب ${result.recordsPulled}',
           );
         } catch (e) {
           results['appwrite'] = {'error': e.toString()};
           results['success'] = false;
-          debugPrint('❌ خطأ في مزامنة Appwrite التفاضلية: $e');
+          debugPrint('❌ خطأ في مزامنة Appwrite: $e');
         }
       }
 
@@ -614,17 +609,6 @@ class AutoBackupManager {
     );
   }
 
-  Future<bool> isAppwriteDeltaSyncEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_appwriteDeltaSyncEnabledKey) ?? true;
-  }
-
-  Future<void> setAppwriteDeltaSyncEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_appwriteDeltaSyncEnabledKey, enabled);
-    debugPrint('🔧 مزامنة Appwrite التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
-  }
-
   /// تعيين وضع النسخ الاحتياطي
   Future<void> setBackupMode(BackupMode mode) async {
     final prefs = await SharedPreferences.getInstance();
@@ -641,14 +625,11 @@ class AutoBackupManager {
     return {
       'delta_sync_enabled': await isDeltaSyncEnabled(),
       'google_drive_enabled': await isGoogleDriveDeltaSyncEnabled(),
-      'appwrite_enabled': await isAppwriteDeltaSyncEnabled(),
+      'appwrite_enabled': true, // ✅ مفعّل دائماً عبر AppwriteSyncManager
       'is_syncing': _isDeltaSyncing,
       'backup_mode': _currentMode.name,
       'google_drive_status': _googleDriveDeltaSync != null
           ? await _googleDriveDeltaSync!.getStatus()
-          : null,
-      'appwrite_status': _appwriteDeltaSync != null
-          ? await _appwriteDeltaSync!.getStatus()
           : null,
     };
   }

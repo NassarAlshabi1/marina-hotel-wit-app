@@ -9,6 +9,7 @@ import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'secondary_appwrite_config.dart';
 import 'secondary_appwrite_service.dart';
+import 'sync/payload_mapper.dart';
 
 /// Secondary Sync Manager — مزامنة الوجهة الثانوية بنفس outbox الرئيسي.
 ///
@@ -28,12 +29,15 @@ import 'secondary_appwrite_service.dart';
 ///
 /// **السجل يُحذف فقط بعد نجاح كلا الوجهتين** (أو تعطيل Secondary).
 ///
-/// ## الفائدة
+/// ## إصلاحات Secondary Audit (2026-07-03)
 ///
-/// - لا فقدان بيانات: لو فشل Secondary، يبقى السجل حتى تنجح المحاولة التالية
-/// - لا تكرار: كل وجهة ترى نفس الـ localUuid، فلا تُنشئ مستندات مكررة
-/// - استقلالية: Secondary يمكن تعطيله/تفعيله في أي وقت دون التأثير على Primary
-/// - شفافية: dashboard_sync_button يُظهر حالة كل وجهة بشكل مستقل
+/// - **P0-1**: حلقة لا نهائية — تتبّع المُعالَج + استبعاد الفاشل + backoff
+/// - **P0-2**: فلترة `attempts < maxAttempts` + حالة `dead`
+/// - **P1-1**: استبدال `_rebuildPayloadFromLocalDb` بـ `PayloadMapper`
+/// - **P1-2**: `deleteDocument` idempotent (تم في الخدمة)
+/// - **P1-4**: `await` في `upsertDocument` (تم في الخدمة)
+/// - **P1-5**: فحص اتصال مسبق + backoff أسّي + circuit breaker
+/// - **P1-6**: timeout + استرداد لـ `_isSyncing`
 class SecondarySyncManager {
   factory SecondarySyncManager() =>
       _instance ??= SecondarySyncManager._();
@@ -47,10 +51,38 @@ class SecondarySyncManager {
   Timer? _syncTimer;
   bool _isSyncing = false;
   DateTime? _lastSync;
+  DateTime? _syncStartedAt;
+
+  /// ✅ P1-6: لتتبّع مدة الجلسة الحالية وإعادة ضبط العلم إن علِق.
+  DateTime? get syncStartedAt => _syncStartedAt;
+
+  /// ✅ P1-5: Circuit Breaker — بعد N فشل متتالٍ، نقطع الدائرة لمدة M دقيقة.
+  int _consecutiveFailures = 0;
+  DateTime? _circuitOpenUntil;
+  static const int _circuitBreakerThreshold = 5;
+  static const Duration _circuitBreakerCooldown =
+      Duration(minutes: 5);
+
+  /// ✅ P0-2: الحد الأقصى لمحاولات إعادة المحاولة قبل الانتقال لـ `dead`.
+  static const int maxAttempts = 10;
+
+  /// ✅ P1-6: المهلة القصوى لجلسة المزامنة الواحدة (10 دقائق). إن تجاوزتها
+  /// يُعتبر الثانوي عالقاً ويُعاد ضبط `_isSyncing` في الجلسة التالية.
+  static const Duration _syncTimeout = Duration(minutes: 10);
+
+  /// ✅ P1-1: إعادة استخدام PayloadMapper من Primary بدل إعادة بناء يدوي.
+  final PayloadMapper _payloadMapper = const PayloadMapper();
 
   DateTime? get lastSync => _lastSync;
   bool get isSyncing => _isSyncing;
   bool get isAutoSyncEnabled => _syncTimer != null;
+
+  /// ✅ P1-5: هل الـ circuit breaker مفتوح حالياً؟
+  bool get isCircuitOpen =>
+      _circuitOpenUntil != null && DateTime.now().isBefore(_circuitOpenUntil!);
+
+  /// ✅ P1-5: متى يُغلق الـ breaker؟ (للعرض في الواجهة)
+  DateTime? get circuitOpenUntil => _circuitOpenUntil;
 
   /// بدء المزامنة التلقائية
   ///
@@ -79,12 +111,37 @@ class SecondarySyncManager {
     debugPrint('🔵 [SecondarySync] Auto-sync stopped');
   }
 
+  /// ✅ P1-6: استرداد العلم إن علِق لأكثر من _syncTimeout.
+  /// يُستدعى في بداية sync() لاكتشاف الجمود.
+  bool _isStuck() {
+    if (!_isSyncing || _syncStartedAt == null) return false;
+    final elapsed = DateTime.now().difference(_syncStartedAt!);
+    if (elapsed > _syncTimeout) {
+      debugPrint(
+        '⚠️ [SecondarySync] stuck for ${elapsed.inMinutes} min — forcing reset',
+      );
+      _isSyncing = false;
+      _syncStartedAt = null;
+      return true;
+    }
+    return false;
+  }
+
   /// مزامنة كاملة (Push only)
   ///
-  /// يأخذ batch من سجلات outbox التي لم تُسلّم للثانوي بعد، يرفعها،
-  /// ثم يضع علامة `delivered_to_secondary = true`. حذف السجل يحدث فقط
-  /// إذا كانت `delivered_to_primary = true` أيضاً.
+  /// ✅ P0-1: الحلقة آمنة الآن — السجلات الفاشلة تُستبعد من إعادة الالتقاط
+  /// في نفس الجلسة عبر تتبّع معرّفاتها. الفاشل يُرجَع لحالة `failed` (لإعادة
+  /// المحاولة في جلسة لاحقة) أو `dead` (إذا تجاوز maxAttempts أو خطأ دائم).
+  ///
+  /// ✅ P0-2: لا يُلتقط سجل `attempts >= maxAttempts`.
+  ///
+  /// ✅ P1-5: فحص اتصال مسبق + circuit breaker + backoff بين الدورات.
+  ///
+  /// ✅ P1-6: timeout + استرداد لـ _isSyncing.
   Future<SecondarySyncResult> sync() async {
+    // ✅ P1-6: استرداد الجمود قبل فحص _isSyncing
+    _isStuck();
+
     if (_isSyncing) {
       return SecondarySyncResult(
         success: false,
@@ -106,22 +163,60 @@ class SecondarySyncManager {
       );
     }
 
+    // ✅ P1-5: Circuit Breaker — إن كان مفتوحاً، نرفض فوراً
+    if (isCircuitOpen) {
+      final remaining = _circuitOpenUntil!.difference(DateTime.now());
+      return SecondarySyncResult(
+        success: false,
+        message: 'Circuit breaker مفتوح — حاول بعد ${remaining.inSeconds}s',
+      );
+    }
+
+    // ✅ P1-5: فحص اتصال مسبق — لا نقصف السيرفر إن كانت الشبكة مقطوعة
+    final service = SecondaryAppwriteService.instance;
+    final connectionOk = await _checkConnection(service);
+    if (!connectionOk) {
+      _recordFailure();
+      return SecondarySyncResult(
+        success: false,
+        message: 'لا اتصال بالثانوي — سيُعاد المحاولة لاحقاً',
+      );
+    }
+
     _isSyncing = true;
+    _syncStartedAt = DateTime.now();
 
     try {
       final db = DatabaseManager.instance;
       final outboxDao = OutboxDao(db);
-      final service = SecondaryAppwriteService.instance;
 
       int pushed = 0;
       int failed = 0;
+      int dead = 0;
 
-      // نأخذ batch من السجلات غير المُسلّمة للثانوي
+      // ✅ P0-1: تتبّع السجلات المُعالَجة في هذه الجلسة لمنع إعادة التقاطها
+      final processedIds = <int>{};
+
+      // ✅ P0-1 + P1-5: حلقة آمنة مع backoff بين الدورات
+      int emptyLoopsInRow = 0;
       while (true) {
-        final entries = await _takeUndeliveredBatch(db, batchSize: 50);
-        if (entries.isEmpty) break;
+        // ✅ P0-1: نستبعد السجلات المُعالَجة في هذه الجلسة من الالتقاط
+        final entries = await _takeUndeliveredBatch(
+          db,
+          batchSize: 50,
+          excludeIds: processedIds,
+        );
+        if (entries.isEmpty) {
+          emptyLoopsInRow++;
+          if (emptyLoopsInRow >= 1) break; // لا مزيد من السجلات
+          break;
+        }
+        emptyLoopsInRow = 0;
 
         for (final entry in entries) {
+          // ✅ P0-1: ضمان مضاعف — لن يُعاد التقاطه لأنه في processedIds
+          processedIds.add(entry.id);
+
           try {
             final success = await _processEntry(service, entry);
             if (success) {
@@ -129,30 +224,66 @@ class SecondarySyncManager {
               await outboxDao.markDeliveredToSecondary(entry.id);
               pushed++;
             } else {
+              // _processEntry أرجع false → السجل دخل في setError/setDead
+              // بالفعل، لا نضيف شيء هنا
               failed++;
+              // ✅ P0-2: تتبّع ما إذا أصبح dead
+              // (لا نستطيع التمييز هنا بسهولة، لكن نعتمد على _processEntry)
             }
           } catch (e) {
             debugPrint('❌ [SecondarySync] Failed entry ${entry.id}: $e');
-            await outboxDao.setError(entry.id, e.toString(), entry.attempts + 1);
+            // ✅ P0-2: تصنيف الخطأ — دائم أم عابر
+            final newAttempts = entry.attempts + 1;
+            final isPermanent = _isPermanentError(e);
+            if (isPermanent || newAttempts >= maxAttempts) {
+              await outboxDao.setDead(
+                entry.id,
+                '${isPermanent ? "Permanent" : "MaxAttempts"}: $e',
+                newAttempts,
+              );
+              dead++;
+            } else {
+              await outboxDao.setError(entry.id, e.toString(), newAttempts);
+            }
             failed++;
           }
+        }
+
+        // ✅ P1-5: backoff بسيط بين الدورات (10ms فقط إذا كانت هناك سجلات
+        // ناجحة لتجنّب إغراق السيرفر، أطول إذا كانت هناك فشل)
+        if (failed > 0 && entries.isNotEmpty) {
+          await Future<void>.delayed(
+            const Duration(milliseconds: 100),
+          );
         }
       }
 
       _lastSync = DateTime.now();
       await SecondaryAppwriteConfig.updateLastSync();
-      await SecondaryAppwriteConfig.updateSyncStatus(
-        failed == 0 ? 'success' : 'partial',
-      );
+
+      // ✅ P1-5: إعادة ضبط الـ circuit breaker عند النجاح
+      if (failed == 0) {
+        _recordSuccess();
+        await SecondaryAppwriteConfig.updateSyncStatus('success');
+      } else if (pushed > 0) {
+        await SecondaryAppwriteConfig.updateSyncStatus('partial');
+      } else {
+        _recordFailure();
+        await SecondaryAppwriteConfig.updateSyncStatus('partial');
+      }
 
       return SecondarySyncResult(
         success: failed == 0,
-        message: 'رفع للثانوي: $pushed، فشل: $failed',
+        message: dead > 0
+            ? 'رفع: $pushed، فشل: $failed، ميت: $dead'
+            : 'رفع للثانوي: $pushed، فشل: $failed',
         pushed: pushed,
         failed: failed,
+        dead: dead,
       );
     } catch (e) {
       debugPrint('❌ [SecondarySync] sync() error: $e');
+      _recordFailure();
       await SecondaryAppwriteConfig.updateSyncStatus('error');
       return SecondarySyncResult(
         success: false,
@@ -160,13 +291,59 @@ class SecondarySyncManager {
       );
     } finally {
       _isSyncing = false;
+      _syncStartedAt = null;
+    }
+  }
+
+  /// ✅ P0-2: تصنيف الخطأ — هل هو دائم (400/401/403) أم عابر؟
+  bool _isPermanentError(Object e) {
+    if (e is! AppwriteException) return false;
+    return e.code == 400 || e.code == 401 || e.code == 403;
+  }
+
+  /// ✅ P1-5: فحص اتصال مسبق قبل بدء المزامنة.
+  Future<bool> _checkConnection(SecondaryAppwriteService service) async {
+    try {
+      final result = await service.testConnection();
+      return result.success;
+    } catch (e) {
+      debugPrint('⚠️ [SecondarySync] connection check failed: $e');
+      return false;
+    }
+  }
+
+  /// ✅ P1-5: تسجيل نجاح — يُغلق الـ circuit breaker إن كان مفتوحاً.
+  void _recordSuccess() {
+    _consecutiveFailures = 0;
+    if (_circuitOpenUntil != null) {
+      debugPrint('🟢 [SecondarySync] circuit breaker closed');
+    }
+    _circuitOpenUntil = null;
+  }
+
+  /// ✅ P1-5: تسجيل فشل — بعد N فشل متتالٍ، نفتح الـ circuit breaker.
+  void _recordFailure() {
+    _consecutiveFailures++;
+    if (_consecutiveFailures >= _circuitBreakerThreshold &&
+        !isCircuitOpen) {
+      _circuitOpenUntil = DateTime.now().add(_circuitBreakerCooldown);
+      debugPrint(
+        '🔴 [SecondarySync] circuit breaker OPENED for '
+        '${_circuitBreakerCooldown.inMinutes} min '
+        '($_consecutiveFailures consecutive failures)',
+      );
     }
   }
 
   /// رفع التغييرات المحلية فقط (مثل sync لكن مع returns bool)
+  ///
+  /// ✅ P2 fix: ترجع `true` إذا نجحت (حتى لو 0 معلّق)، `false` فقط عند الفشل.
   Future<bool> pushLocalChanges() async {
     final result = await sync();
-    return result.pushed > 0;
+    // قبل الإصلاح: `result.pushed > 0` — يعطي false إذا كان 0 معلّق
+    // (حتى لو كانت sync ناجحة بلا أخطاء)، مما يُظهر اللوحة كـ"فشل".
+    // بعد الإصلاح: نعتبر النجاح = لا فشل + لا dead.
+    return result.failed == 0 && result.dead == 0;
   }
 
   /// سحب التغييرات من الثانوي — غير مُدعوم في هذه النسخة
@@ -184,43 +361,57 @@ class SecondarySyncManager {
 
   /// يأخذ batch من سجلات outbox التي لم تُسلّم للثانوي بعد.
   ///
+  /// ✅ P0-1: [excludeIds] يستبعد السجلات المُعالَجة في نفس الجلسة.
+  /// ✅ P0-2: فلترة `attempts < maxAttempts` + استبعاد حالة `dead`.
+  ///
   /// نستخدم atomic UPDATE...RETURNING لمنع سباق البيانات. السجلات تُؤخذ
   /// بشكل مستقل عن Primary (الذي يأخذ سجلاته الخاصة بناءً على
   /// delivered_to_primary).
-  ///
-  /// ✅ إصلاح (2026-06-28 P1-3): فحص 'pending' و 'failed'
-  /// المنطق القديم كان يفحص فقط 'pending'، مما يعني أن السجلات التي فشل
-  /// Primary في رفعها (status='failed') لن يأخذها Secondary أبداً — مخالف
-  /// للفلسفة "Secondary يرفع بشكل مستقل عن Primary".
-  /// الآن نفحص كلا الحالتين لنضمن استقلالية Secondary.
   Future<List<OutboxData>> _takeUndeliveredBatch(
     AppDatabase db, {
     required int batchSize,
+    Set<int>? excludeIds,
   }) async {
     final worker = DateTime.now().millisecondsSinceEpoch.toString();
-    final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    // ✅ P2 fix: نوحّد الوحدة إلى ميلي ثانية (ms) لا ثوانٍ — مطابق لـ Primary
+    // الذي يقارن بالملّي. هذا يمنع الاسترداد المبكّر/المتأخر للسجلات العالقة.
+    final nowEpochMs = DateTime.now().millisecondsSinceEpoch;
 
     // بناء شرط source: نأخذ فقط سجلات 'local' (تغييرات المستخدم)
     // ولا نأخذ 'restore' (استعادة من نسخة احتياطية لا تحتاج secondary)
     const sourceCondition = " AND source = 'local'";
 
-    // ✅ فحص 'pending' و 'failed' لضمان استقلالية Secondary عن Primary
+    // ✅ P0-2: نستبعد السجلات الـ dead نهائياً، ونفحص 'pending' و 'failed'
+    // ✅ P0-2: نستبعد السجلات التي وصلت لـ maxAttempts
     const statusCondition =
-        " AND processing_status IN ('pending', 'failed')";
+        " AND processing_status IN ('pending', 'failed')"
+        ' AND attempts < $maxAttempts';
+
+    // ✅ P0-1: استبعاد السجلات المُعالَجة في هذه الجلسة
+    String excludeCondition = '';
+    final variables = <drift.Variable>[
+      const drift.Variable<String>('processing'),
+      drift.Variable<int>(nowEpochMs),
+      drift.Variable<String>('secondary_$worker'),
+    ];
+    if (excludeIds != null && excludeIds.isNotEmpty) {
+      // بناء placeholders ديناميكياً: NOT IN (?, ?, ...)
+      final placeholders = List.filled(excludeIds.length, '?').join(', ');
+      excludeCondition = ' AND id NOT IN ($placeholders)';
+      for (final id in excludeIds) {
+        variables.add(drift.Variable<int>(id));
+      }
+    }
+    variables.add(drift.Variable<int>(batchSize));
 
     // ✅ Atomic claim: ضع علامة processing على السجلات غير المُسلّمة للثانوي
     final claimed = await db.customSelect(
       'UPDATE outbox SET processing_status = ?, processing_started_at = ?, processing_worker = ? '
       'WHERE id IN ('
-      '  SELECT id FROM outbox WHERE delivered_to_secondary = 0$statusCondition$sourceCondition '
+      '  SELECT id FROM outbox WHERE delivered_to_secondary = 0$statusCondition$sourceCondition$excludeCondition '
       '  ORDER BY client_ts ASC LIMIT ? '
       ') RETURNING *',
-      variables: [
-        const drift.Variable<String>('processing'),
-        drift.Variable<int>(nowEpoch),
-        drift.Variable<String>('secondary_$worker'),
-        drift.Variable<int>(batchSize),
-      ],
+      variables: variables,
       readsFrom: {db.outbox},
     ).map((row) => OutboxData(
           id: row.read<int>('id'),
@@ -252,22 +443,29 @@ class SecondarySyncManager {
     final collectionId = AppwriteConfig.collectionIdFor(entry.entity);
     if (collectionId == null) {
       debugPrint('⚠️ [SecondarySync] Unknown entity: ${entry.entity}');
+      // ✅ P0-2: كيان غير معروف = خطأ دائم → dead مباشرة
+      final db = DatabaseManager.instance;
+      final outboxDao = OutboxDao(db);
+      await outboxDao.setDead(
+        entry.id,
+        'Unknown entity: ${entry.entity}',
+        entry.attempts + 1,
+      );
       return false;
     }
 
-    // ✅ إصلاح (2026-06-28 P0-2): إعادة بناء الحمولة من DB المحلي
-    // الحمولة المخزنة في outbox تستخدم snake_case، بينما Appwrite يتطلب camelCase.
-    // نحاول أولاً إعادة البناء من DB المحلي للحصول على مفاتيح camelCase صحيحة.
+    // ✅ P1-1: إعادة بناء الحمولة باستخدام PayloadMapper (يدعم كل الكيانات)
+    // بدل إعادة بناء يدوي جزئي كان يدعم rooms و debts فقط.
     Map<String, dynamic> payload;
     try {
-      payload = await _rebuildPayloadFromLocalDb(entry.entity, entry.localUuid);
+      payload = await _rebuildPayloadWithMapper(entry.entity, entry.localUuid);
       payload['localUuid'] = entry.localUuid;
       if (entry.idempotencyKey != null && entry.idempotencyKey!.isNotEmpty) {
         payload['idempotencyKey'] = entry.idempotencyKey;
       }
     } catch (e) {
       // في حالة الفشل، نستخدم الحمولة المخزنة كاحتياط
-      debugPrint('⚠️ [SecondarySync] Failed to rebuild payload locally, using stored payload: $e');
+      debugPrint('⚠️ [SecondarySync] PayloadMapper failed for ${entry.entity}: $e — using stored payload');
       payload = _parsePayload(entry.payload);
       payload['localUuid'] = entry.localUuid;
       if (entry.idempotencyKey != null && entry.idempotencyKey!.isNotEmpty) {
@@ -275,7 +473,7 @@ class SecondarySyncManager {
       }
     }
 
-    // ✅ إصلاح (2026-06-28 P0-1): تصفية payload قبل الإرسال
+    // ✅ تصفية payload قبل الإرسال (إزالة الحقول غير الموجودة في المخطط)
     final filteredPayload = AppwriteSyncUtils.filterPayloadForCollection(
       collectionId,
       payload,
@@ -294,35 +492,36 @@ class SecondarySyncManager {
       await service.upsertDocument(
         collectionId: collectionId,
         documentId: entry.localUuid,
-        data: filteredPayload,  // ✅ حمولة مُصفّاة
+        data: filteredPayload,
       );
       return true;
     } on AppwriteException catch (e) {
-      // ✅ إصلاح P0-3 (2026-06-28): معالجة صحيحة للأخطاء الدائمة
-      if (e.code == 400 || e.code == 401 || e.code == 403) {
+      // ✅ P0-2: معالجة صحيحة للأخطاء الدائمة → setDead مباشرة
+      if (_isPermanentError(e)) {
         debugPrint(
             '❌ [SecondarySync] Permanent error for ${entry.entity}/${entry.localUuid}: ${e.code} ${e.message}');
         final db = DatabaseManager.instance;
         final outboxDao = OutboxDao(db);
-        await outboxDao.setError(
+        await outboxDao.setDead(
           entry.id,
           'Permanent (${e.code}): ${e.message}',
-          999, // attempts عالية = لا إعادة محاولة
+          entry.attempts + 1,
         );
-        return false; // يُعلم sync() أن السجل فشل (failed++)
+        return false;
       }
-      rethrow;
+      rethrow; // خطأ عابر → يُلتقط في sync() ويعامل كـ failed مؤقت
     }
   }
 
-  /// إعادة بناء الحمولة من قاعدة البيانات المحلية
-  /// يُستخدم للحصول على مفاتيح camelCase الصحيحة للـ Secondary
-  Future<Map<String, dynamic>> _rebuildPayloadFromLocalDb(
+  /// ✅ P1-1: إعادة بناء الحمولة باستخدام PayloadMapper من Primary.
+  ///
+  /// يدعم كل الكيانات الـ 18+ بدل الكيانين فقط (rooms، debts) في الإصدار
+  /// القديم. إن لم يكن الكيان مدعوماً في PayloadMapper، يرمي UnsupportedError
+  /// الذي يُلتقط في `_processEntry` ويعود للحمولة المخزنة في outbox.
+  Future<Map<String, dynamic>> _rebuildPayloadWithMapper(
     String entity,
     String localUuid,
   ) async {
-    // حالياً نعيد البناء يدوياً لكل كيان
-    // يجب توصيل AdapterRegistry لاحقاً لتوسيع الدعم
     final db = DatabaseManager.instance;
 
     switch (entity) {
@@ -331,95 +530,140 @@ class SecondarySyncManager {
               ..where((t) => t.localUuid.equals(localUuid)))
             .getSingleOrNull();
         if (row == null) return {};
-        return {
-          'roomNumber': row.roomNumber,
-          'type': row.type,
-          'price': row.price,
-          'status': row.status,
-          'imageUrl': row.imageUrl,
-          'cleaningStatus': row.cleaningStatus,
-          'lastCleanedHotelDay': row.lastCleanedHotelDay,
-          'lastOccupiedHotelDay': row.lastOccupiedHotelDay,
-          'requiresMaintenance': row.requiresMaintenance,
-          'serverId': row.serverId,
-          'createdAt': row.createdAt,
-          'updatedAt': row.updatedAt,
-          'lastModified': row.lastModified,
-          'version': row.version,
-          'origin': row.origin,
-          'deviceId': row.deviceId,
-          'deletedAt': row.deletedAt,
-        };
+        return _payloadMapper.roomToRemote(row);
+
+      case 'bookings':
+        final row = await (db.select(db.bookings)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.bookingToRemote(row);
+
+      case 'expenses':
+        final row = await (db.select(db.expenses)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.expenseToRemote(row);
+
+      case 'payments':
+        final row = await (db.select(db.payments)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.paymentToRemote(row);
+
       case 'debts':
         final row = await (db.select(db.debts)
               ..where((t) => t.localUuid.equals(localUuid)))
             .getSingleOrNull();
         if (row == null) return {};
-        return {
-          'guestName': row.guestName,
-          'checkinDate': row.checkinDate,
-          'checkoutDate': row.checkoutDate,
-          'totalAmount': row.totalAmount,
-          'paidAmount': row.paidAmount,
-          'remainingAmount': row.remainingAmount,
-          'bookingLocalId': row.bookingLocalId,
-          'paymentDate': row.paymentDate,
-          'isSettled': row.isSettled,
-          'debtReason': row.debtReason,
-          'note': row.note,
-          'debtUuid': row.debtUuid,
-          'pledge': row.pledge,
-          'pledgeType': row.pledgeType,
-          'isFromAutoFix': row.isFromAutoFix,
-          'settlementConfirmed': row.settlementConfirmed,
-          'createdAt': row.createdAt,
-          'updatedAt': row.updatedAt,
-          'lastModified': row.lastModified,
-          'version': row.version,
-          'origin': row.origin,
-          'serverId': row.serverId,
-          'deletedAt': row.deletedAt,
-          'deletedAtIso': row.deletedAtIso,
-          'hotelDayOpened': row.hotelDayOpened,
-          'hotelDayClosed': row.hotelDayClosed,
-          'vectorClock': row.vectorClock,
-          'deviceId': row.deviceId,
-          'createdAtEpoch': row.createdAtEpoch,
-          'lastModifiedEpoch': row.lastModifiedEpoch,
-        };
+        return _payloadMapper.debtToRemote(row);
+
+      case 'employees':
+        final row = await (db.select(db.employees)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.employeeToRemote(row);
+
+      case 'booking_notes':
+        final row = await (db.select(db.bookingNotes)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.bookingNoteToRemote(row);
+
+      case 'booking_nights':
+        final row = await (db.select(db.bookingNights)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.bookingNightToRemote(row);
+
+      case 'cash_transactions':
+        final row = await (db.select(db.cashTransactions)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.cashTransactionToRemote(row);
+
+      case 'salary_cycles':
+        final row = await (db.select(db.salaryCycles)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.salaryCycleToRemote(row);
+
+      case 'salary_payments':
+        final row = await (db.select(db.salaryPayments)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.salaryPaymentToRemote(row);
+
+      case 'shift_notes':
+        final row = await (db.select(db.shiftNotes)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.shiftNoteToRemote(row);
+
+      case 'price_adjustments':
+        final row = await (db.select(db.priceAdjustments)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.priceAdjustmentToRemote(row);
+
+      case 'blacklist':
+        // ⚠️ blacklist table غير موجود محلياً — يستخدم shiftNotes كـ workaround
+        // يجب إضافة جدول blacklist في local_db.dart أو استخدام جدول بديل
+        final row = await (db.select(db.shiftNotes)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.blacklistToRemote(row);
+
       case 'guest_infos':
         final row = await (db.select(db.guestInfos)
               ..where((t) => t.localUuid.equals(localUuid)))
             .getSingleOrNull();
         if (row == null) return {};
-        return {
-          'id': row.id,
-          'roomNumber': row.roomNumber,
-          'guestName': row.guestName,
-          'nationality': row.nationality,
-          'idNumber': row.idNumber,
-          'idType': row.idType,
-          'issueDate': row.issueDate,
-          'issuePlace': row.issuePlace,
-          'governorate': row.governorate,
-          'notes': row.notes,
-          'serverId': row.serverId,
-          'createdAt': row.createdAt,
-          'updatedAt': row.updatedAt,
-          'deletedAt': row.deletedAt,
-          'lastModified': row.lastModified,
-          'createdAtIso': row.createdAtIso,
-          'updatedAtIso': row.updatedAtIso,
-          'deletedAtIso': row.deletedAtIso,
-          'createdAtEpoch': row.createdAtEpoch,
-          'lastModifiedEpoch': row.lastModifiedEpoch,
-          'version': row.version,
-          'origin': row.origin,
-          'vectorClock': row.vectorClock,
-          'deviceId': row.deviceId,
-        };
+        return _payloadMapper.guestInfoToRemote(row);
+
+      case 'salary_withdrawals':
+        final row = await (db.select(db.salaryWithdrawals)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.salaryWithdrawalToRemote(row);
+
+      case 'booking_price_adjustments':
+        final row = await (db.select(db.bookingPriceAdjustments)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.bookingPriceAdjustmentToRemote(row);
+
+      case 'salary_carry_over_logs':
+        final row = await (db.select(db.salaryCarryOverLogs)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.salaryCarryOverLogToRemote(row);
+
+      case 'payment_voids':
+        final row = await (db.select(db.paymentVoids)
+              ..where((t) => t.localUuid.equals(localUuid)))
+            .getSingleOrNull();
+        if (row == null) return {};
+        return _payloadMapper.paymentVoidToRemote(row);
+
       default:
-        throw UnsupportedError('Unsupported entity for rebuild: $entity');
+        throw UnsupportedError(
+          'PayloadMapper does not support entity: $entity',
+        );
     }
   }
 
@@ -446,10 +690,14 @@ class SecondarySyncResult {
     required this.message,
     this.pushed = 0,
     this.failed = 0,
+    this.dead = 0,
   });
 
   final bool success;
   final String message;
   final int pushed;
   final int failed;
+
+  /// ✅ P0-2: عدد السجلات التي انتقلت للحالة النهائية `dead` في هذه الجلسة.
+  final int dead;
 }

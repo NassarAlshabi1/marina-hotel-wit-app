@@ -372,7 +372,10 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
       // عد المدفوعات
       final payments = await (db.select(db.payments)
-            ..where((p) => p.bookingLocalId.equals(booking.id))
+            // الربط بـ UUID الثابت + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
+            ..where((p) =>
+                p.bookingLocalId.equals(booking.id) |
+                p.bookingUuidCache.equals(booking.localUuid))
             ..where((p) => p.deletedAt.isNull()))
           .get();
       totalPayments += payments.length;

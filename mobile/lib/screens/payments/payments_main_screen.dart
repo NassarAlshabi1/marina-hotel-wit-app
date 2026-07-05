@@ -716,8 +716,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         revenueType: 'other',
       );
 
-      if (mounted) {
+      if (mounted && dialogContext.mounted) {
         Navigator.pop(dialogContext);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -735,8 +736,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         stackTrace: stack,
         extra: {'amount': amountText, 'method': method.name},
       );
-      if (mounted) {
+      if (mounted && dialogContext.mounted) {
         Navigator.pop(dialogContext);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل الدفعة: $e'),

@@ -12,6 +12,7 @@ import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
+import 'sync/sync_gate.dart';
 import 'sync_constants.dart';
 import 'sync_locks.dart';
 import 'unified_sync_orchestrator.dart';
@@ -142,6 +143,36 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   void _emitState() {
     _stateController.add(currentState);
+  }
+
+  /// ✅ P3-5 (Global SyncGate): يغلّف كل استدعاءات syncNow القادمة من
+  /// هذا الـ engine (المؤقّت، استعادة الشبكة، إيقاف التطبيق، إعادة
+  /// المحاولة) ببوّابة المزامنة العامة. هذا يضمن أن المؤقّت لا يمكنه
+  /// أبداً تشغيل مزامنة بينما المستخدم يضغط زر المزامنة اليدوي في
+  /// لوحة التحكم، والعكس صحيح.
+  ///
+  /// يُرجع false إذا كانت البوّابة مشغولة (العملية لم تُنفّذ)، ويُرجع
+  /// نتيجة syncNow الحقيقية إذا نُفّذت.
+  Future<bool> _guardedSyncNow({
+    bool push = true,
+    bool pull = true,
+    required String reason,
+  }) async {
+    final result = await SyncGate.instance.runGuarded<bool>(
+      operation: push && pull ? 'auto_sync' : (pull ? 'auto_pull' : 'auto_push'),
+      source: 'google_drive_engine',
+      task: () => _orchestrator.syncNow(push: push, pull: pull, reason: reason),
+    );
+    if (result == null) {
+      _log(
+        '⏸️ SyncGate busy — skipped $reason '
+        '(current: ${SyncGate.instance.state.operation} from '
+        '${SyncGate.instance.state.source})',
+        level: LogLevel.debug,
+      );
+      return true; // مشغول ≠ فشل (نفس سياسة UnifiedSyncOrchestrator)
+    }
+    return result;
   }
 
   Future<void> initialize({
@@ -418,14 +449,12 @@ class AutoSyncEngine with WidgetsBindingObserver {
     if (_hasNetworkConnection && _isSignedIn) {
       if (_pendingChangesCount > 0) {
         _log('❤️ Health check: found pending changes - triggering sync');
-        await _orchestrator.syncNow(
-          reason: 'health_check',
-        );
+        await _guardedSyncNow(reason: 'health_check');
       }
 
       if (!hadConnection || !wasSignedIn) {
         _log('❤️ Health check: connection/auth restored - triggering pull');
-        await _orchestrator.syncNow(
+        await _guardedSyncNow(
           push: false,
           reason: 'health_check_pull',
         );
@@ -471,13 +500,13 @@ class AutoSyncEngine with WidgetsBindingObserver {
       _log(
         '📤 Syncing $_pendingChangesCount pending changes after network restore',
       );
-      await _orchestrator.syncNow(
+      await _guardedSyncNow(
         pull: false,
         reason: 'network_restore_push',
       );
     } else {
       _log('📥 Checking for remote changes after network restore');
-      await _orchestrator.syncNow(
+      await _guardedSyncNow(
         push: false,
         reason: 'network_restore_pull',
       );
@@ -556,8 +585,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     if (_pendingChangesCount > 0 && _hasNetworkConnection && _isSignedIn) {
       _log('💾 App paused with pending changes - quick sync before background');
 
-      _orchestrator
-          .syncNow(pull: false, reason: 'app_paused')
+      _guardedSyncNow(pull: false, reason: 'app_paused')
           .then((result) {
             if (result) {
               _log('✅ Quick sync before background completed');
@@ -638,9 +666,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
         }
       }
 
-      await _orchestrator.syncNow(
-        reason: 'auto_retry',
-      );
+      await _guardedSyncNow(reason: 'auto_retry');
     });
   }
 
@@ -777,9 +803,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
       );
     }
 
-    final ok = await _orchestrator.syncNow(
-      reason: 'manual_force',
-    );
+    final ok = await _guardedSyncNow(reason: 'manual_force');
 
     if (ok) {
       return SyncResult.success(message: 'Sync completed successfully');

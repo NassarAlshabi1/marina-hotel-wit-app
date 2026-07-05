@@ -345,6 +345,22 @@ class SmartConflictResolver {
           'timestamp': FieldResolutionRule(FieldStrategy.newerWins),
         },
       ),
+
+      // سجلات ترحيل الراتب: مبلغ تصعيد، سبب دمج، تاريخ آخر تعديل
+      'salary_carry_over_logs': const EntityResolutionPolicy(
+        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+        rules: {
+          'amount': FieldResolutionRule(FieldStrategy.manual,
+              reason: 'مبلغ الترحيل حرج مالياً'),
+          'reason': FieldResolutionRule(FieldStrategy.concat),
+          'carriedAt': FieldResolutionRule(FieldStrategy.newerWins),
+          'employeeId': FieldResolutionRule(FieldStrategy.manual),
+          'previousCycleStart': FieldResolutionRule(FieldStrategy.newerWins),
+          'previousCycleEnd': FieldResolutionRule(FieldStrategy.newerWins),
+          'newCycleStart': FieldResolutionRule(FieldStrategy.newerWins),
+          'newCycleEnd': FieldResolutionRule(FieldStrategy.newerWins),
+        },
+      ),
   };
 
   static const _defaultPolicy = EntityResolutionPolicy(
@@ -495,6 +511,14 @@ class SmartConflictResolver {
       case FieldStrategy.newerWins:
         final localTs = _extractTs(localData);
         final remoteTs = _extractTs(remoteData);
+        // ✅ توحيد كسر التعادل: عند التساوي التام يفوز deviceId الأصغر معجمياً (حتمي)
+        if (remoteTs == localTs) {
+          final localDeviceId = (localData['deviceId'] as String?) ?? '';
+          final remoteDeviceId = (remoteData['deviceId'] as String?) ?? '';
+          return _FieldResolution(
+            value: remoteDeviceId.compareTo(localDeviceId) < 0 ? remoteVal : localVal,
+          );
+        }
         return _FieldResolution(
           value: remoteTs > localTs ? remoteVal : localVal,
         );
@@ -540,32 +564,68 @@ class SmartConflictResolver {
         );
 
       case FieldStrategy.manual:
-        // تصعيد يدوي — نُبقي المحلي مؤقتاً
+        // ✅ P0-6 fix: الحقول المالية الحرجة — نستخدم newerWins مع تحذير شديد
+        // بدل التصعيد اليدوي (الذي يوقف المزامنة) أو LWW الصامت.
+        // النتيجة: آخر تعديل يفوز + تحذير يُسجّل في sync_conflicts للمراجعة.
+        final localTs = _extractTs(localData);
+        final remoteTs = _extractTs(remoteData);
+        final remoteWins = remoteTs > localTs;
         return _FieldResolution(
-          value: localVal,
-          warning: '⚠️ تصعيد يدوي للحقل $field — تم الاحتفاظ بالقيمة المحلية',
+          value: remoteWins ? remoteVal : localVal,
+          warning: '⚠️ FINANCIAL: $field → ${remoteWins ? "remote" : "local"} wins '
+              '(local=$localVal, remote=$remoteVal). '
+              'Review in sync_conflicts.',
         );
     }
   }
 
-  /// تصعيد يدوي للتعارضات الحرجة
+  /// ✅ الحل التلقائي للتعارضات الحرجة (بدلاً من التصعيد اليدوي)
+  /// يستخدم LWW (Last Write Wins) — آخر تعديل يفوز لكل الحقول المتعارضة.
   static ResolutionResult _escalateManual({
     required String entity,
     required Map<String, dynamic> localData,
     required Map<String, dynamic> remoteData,
     required ConflictDetectionResult detection,
   }) {
-    final criticalFields = detection.conflictingFields
-        .where(ConflictDetector.isCriticalField)
-        .toList();
+    final merged = Map<String, dynamic>.from(localData);
+    final localTs = _extractTs(localData);
+    final remoteTs = _extractTs(remoteData);
+    final remoteIsNewer = remoteTs > localTs;
+
+    // دمج الحقول غير المتعارضة (البعيد فقط غيّرها)
+    for (final field in detection.remoteChangedFields) {
+      if (!detection.localChangedFields.contains(field)) {
+        merged[field] = remoteData[field];
+      }
+    }
+
+    // حل الحقول المتعارضة عبر LWW
+    final warnings = <String>[];
+    for (final field in detection.conflictingFields) {
+      merged[field] = remoteIsNewer ? remoteData[field] : localData[field];
+      warnings.add('auto-LWW: $field → ${remoteIsNewer ? "remote" : "local"} wins');
+    }
+
+    // دمج VectorClocks
+    final localVc = VectorClock.fromString(
+      (localData['vectorClock'] as String?) ?? '{}',
+    );
+    final remoteVc = VectorClock.fromString(
+      (remoteData['vectorClock'] as String?) ?? '{}',
+    );
+    final mergedVc = localVc.copy();
+    mergedVc.merge(remoteVc);
+    merged['vectorClock'] = mergedVc.toString();
+
+    // استخدام max(localTs, remoteTs)
+    merged['lastModified'] = localTs > remoteTs ? localTs : remoteTs;
+    merged['version'] = ((merged['version'] as int?) ?? 0) + 1;
 
     return ResolutionResult(
-      mergedData: localData,
-      strategy: ResolutionStrategy.manualEscalation,
-      warnings: [
-        '⚠️ تعارض حرج في $entity — الحقول: ${criticalFields.join(", ")}',
-        'تم الاحتفاظ بالبيانات المحلية حتى المراجعة اليدوية',
-      ],
+      mergedData: merged,
+      strategy: ResolutionStrategy.fieldLevelMerge,
+      warnings: warnings,
+      pushedToRemote: true,
     );
   }
 

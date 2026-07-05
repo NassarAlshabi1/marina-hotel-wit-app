@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
 import 'local_db.dart';
 
@@ -120,50 +121,56 @@ class SyncErrorRecovery {
     );
   }
 
+  // ✅ P1-10 fix: تصنيف الأخطاء عبر AppwriteException.code بدل مطابقة نصية
   ErrorSeverity _classifyError(dynamic exception) {
-    final message = exception.toString().toLowerCase();
-
-    if (message.contains('network') ||
-        message.contains('connection') ||
-        message.contains('timeout')) {
-      return ErrorSeverity.low;
+    // فحص AppwriteException.code أولاً
+    if (exception is AppwriteException) {
+      final code = exception.code ?? 0;
+      // 4xx — أخطاء العميل (غالباً غير قابلة لإعادة المحاولة)
+      if (code == 400 || code == 401 || code == 403 || code == 404) {
+        return code == 401 || code == 403 ? ErrorSeverity.high : ErrorSeverity.medium;
+      }
+      // 429 — rate limit (قابل لإعادة المحاولة)
+      if (code == 429) return ErrorSeverity.medium;
+      // 5xx — أخطاء الخادم (قابلة لإعادة المحاولة)
+      if (code >= 500) return ErrorSeverity.low;
     }
 
+    // fallback: مطابقة نصية للأنواع غير AppwriteException
+    final message = exception.toString().toLowerCase();
+    if (message.contains('network') || message.contains('connection') || message.contains('timeout')) {
+      return ErrorSeverity.low;
+    }
     if (message.contains('conflict') || message.contains('version')) {
       return ErrorSeverity.medium;
     }
-
-    if (message.contains('permission') ||
-        message.contains('unauthorized') ||
-        message.contains('forbidden')) {
+    if (message.contains('permission') || message.contains('unauthorized') || message.contains('forbidden')) {
       return ErrorSeverity.high;
     }
-
-    if (message.contains('corrupt') ||
-        message.contains('integrity') ||
-        message.contains('fatal')) {
+    if (message.contains('corrupt') || message.contains('integrity') || message.contains('fatal')) {
       return ErrorSeverity.critical;
     }
-
     return ErrorSeverity.medium;
   }
 
+  // ✅ P1-10 fix: قابلية إعادة المحاولة عبر AppwriteException.code
   bool _isRetriable(dynamic exception) {
-    final message = exception.toString().toLowerCase();
+    if (exception is AppwriteException) {
+      final code = exception.code ?? 0;
+      // 4xx (عدا 429) = غير قابل لإعادة المحاولة
+      if (code == 400 || code == 401 || code == 403 || code == 404) return false;
+      // 429 + 5xx = قابل لإعادة المحاولة
+      if (code == 429 || code >= 500) return true;
+    }
 
-    if (message.contains('network') ||
-        message.contains('connection') ||
-        message.contains('timeout') ||
-        message.contains('temporary')) {
+    // fallback
+    final message = exception.toString().toLowerCase();
+    if (message.contains('network') || message.contains('connection') || message.contains('timeout') || message.contains('temporary')) {
       return true;
     }
-
-    if (message.contains('permission') ||
-        message.contains('corrupt') ||
-        message.contains('invalid')) {
+    if (message.contains('permission') || message.contains('corrupt') || message.contains('invalid')) {
       return false;
     }
-
     return true;
   }
 

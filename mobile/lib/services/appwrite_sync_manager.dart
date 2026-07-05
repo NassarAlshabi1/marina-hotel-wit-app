@@ -1,4 +1,4 @@
-// ignore_for_file: unused_field, use_late_for_private_fields_and_variables, duplicate_ignore, avoid_redundant_argument_values, no_leading_underscores_for_local_identifiers, unused_local_variable
+// ignore_for_file: unused_field, use_late_for_private_fields_and_variables, duplicate_ignore, avoid_redundant_argument_values, no_leading_underscores_for_local_identifiers, unused_local_variable, directives_ordering
 
 import 'dart:async';
 import 'dart:convert';
@@ -20,6 +20,7 @@ import '../utils/secure_storage.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'adapters/adapter_registry.dart';
+import 'adapters/id_resolver.dart';
 import 'adapters/salary_withdrawals_adapter.dart';
 import 'adapters/source.dart';
 import 'appwrite_config.dart';
@@ -35,13 +36,14 @@ import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
+import 'salary_fix_helper.dart';
 import 'secondary_appwrite_config.dart';
 import 'sync_constants.dart';
+import 'sync/payload_mapper.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_error_service.dart';
 import 'sync_core/sync_metrics.dart';
 import 'sync_core/sync_pull_service.dart';
-import 'sync_core/sync_push_service.dart';
 import 'sync_enums.dart';
 import 'sync_locks.dart';
 import 'telegram/whatsapp_notification_service.dart';
@@ -121,23 +123,10 @@ class AppwriteSyncManager {
     _bookingsRepository = BookingsRepository(database);
     _roomsRepository = RoomsRepository(database);
     _ancestorCacheDao = AncestorCacheDao(database);
-    _pushService = SyncPushService(
-      appwriteService: appwriteService,
-      database: database,
-      outboxDao: outboxDao,
-      adapterRegistry: _adapterRegistry,
-      bookingsRepository: _bookingsRepository,
-      roomsRepository: _roomsRepository,
-      errorService: _err,
-    );
     _pullService = SyncPullService(
       appwriteService: appwriteService,
       database: database,
       outboxDao: outboxDao,
-      adapterRegistry: _adapterRegistry,
-      bookingsRepository: _bookingsRepository,
-      roomsRepository: _roomsRepository,
-      errorService: _err,
     );
   }
   static AppwriteSyncManager? _instance;
@@ -170,8 +159,10 @@ class AppwriteSyncManager {
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
   final _err = SyncErrorService(tag: 'SYNC');
-  SyncPushService? _pushService;
   SyncPullService? _pullService;
+
+  /// PayloadMapper — تم استخراجه من دوال _xxxToRemote لهذا الصنف
+  final PayloadMapper _payloadMapper = const PayloadMapper();
 
   Timer? _syncTimer;
   Timer? _debouncePushTimer;
@@ -188,7 +179,13 @@ class AppwriteSyncManager {
   int? _deviceVersion;
   int? _deviceCreatedAtEpoch;
   String? _fcmToken; // توكن FCM للإشعارات بين الأجهزة
-  bool? _remoteEpochIsMillis;
+
+  // ✅ إصلاح جوهري: تتبّع أقصى زمن خادم ($updatedAt) في كل دورة سحب.
+  // يُحدَّث في _extractUpdatedAtSec لكل مستند يُعالَج، ثم يُستخدم في
+  // _updateLastPullTs بدل Time.nowEpoch() — لضمان أن المؤشر يعتمد
+  // على سلطة الخادم لا وقت الجهاز الساحب (الذي قد يكون منحرفاً).
+  // يُعاد ضبطه عند بداية كل دورة سحب.
+  int? _maxUpdatedAtInPull;
 
   final _syncController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncController.stream;
@@ -379,7 +376,7 @@ class AppwriteSyncManager {
       final nowIso = Time.nowIso();
       final nowEpoch = Time.nowEpoch();
 
-      _deviceLocalUuid ??= 'marina_${finalDeviceModel.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')}_${IdGen.shortId()}';
+      _deviceLocalUuid ??= 'marina_${finalDeviceModel.replaceAll(RegExp('[^a-zA-Z0-9_-]'), '_')}_${IdGen.shortId()}';
       _deviceCreatedAtEpoch ??= nowEpoch;
 
       if (_currentDeviceId != null) {
@@ -409,10 +406,15 @@ class AppwriteSyncManager {
               'lastSeen': nowIso,
               'lastActive': nowEpoch,
               'createdAt': _deviceCreatedAtEpoch,
+              'createdAtEpoch': _deviceCreatedAtEpoch ?? nowEpoch,
               'updatedAt': nowEpoch,
               'lastModified': nowEpoch,
+              'lastModifiedEpoch': nowEpoch,
+              'syncTimestamp': nowEpoch,
               'version': _deviceVersion,
               'origin': 'mobile',
+              'sync_origin': 'mobile',
+              'vectorClock': '{}',
               // ✅ الحقول المطلوبة في Appwrite Cloud
               'deviceId': _deviceLocalUuid,
               'isActive': true,
@@ -439,10 +441,15 @@ class AppwriteSyncManager {
           'lastSeen': nowIso,
           'lastActive': nowEpoch,
           'createdAt': _deviceCreatedAtEpoch,
+          'createdAtEpoch': _deviceCreatedAtEpoch ?? nowEpoch,
           'updatedAt': nowEpoch,
           'lastModified': nowEpoch,
+          'lastModifiedEpoch': nowEpoch,
+          'syncTimestamp': nowEpoch,
           'version': _deviceVersion,
           'origin': 'mobile',
+          'sync_origin': 'mobile',
+          'vectorClock': '{}',
           // ✅ الحقول المطلوبة في Appwrite Cloud
           'deviceId': _deviceLocalUuid,
           'isActive': true,
@@ -652,6 +659,11 @@ class AppwriteSyncManager {
     SyncStatus finalStatus = SyncStatus.success;
     late String syncLogId;
     late String syncLogLocalUuid;
+
+    // ✅ إصلاح جوهري: إعادة ضبط متتبّع أقصى $updatedAt في بداية دورة السحب.
+    // سيُحدَّث في _extractUpdatedAtSec لكل مستند يُعالَج، ثم يُستخدم في
+    // _updateLastPullTs بدل Time.nowEpoch().
+    _maxUpdatedAtInPull = null;
     int syncLogVersion = 1;
     bool hasSyncLog = false;
     int? syncLogCreatedEpoch;
@@ -675,7 +687,13 @@ class AppwriteSyncManager {
       }
 
       // ✅ استخدام معرف محلي كـ fallback إذا فشل تسجيل الجهاز
-      final effectiveDeviceId = _currentDeviceId ?? _getLocalDeviceId() ?? 'unknown'; // ignore: dead_null_aware_expression
+      String effectiveDeviceId;
+      if (_currentDeviceId != null) {
+        effectiveDeviceId = _currentDeviceId!;
+      } else {
+        final localId = await _getLocalDeviceId();
+        effectiveDeviceId = localId ?? 'unknown';
+      }
 
       // إنشاء سجل مزامنة
       syncLogLocalUuid = IdGen.uuid();
@@ -704,17 +722,23 @@ class AppwriteSyncManager {
             : pull
             ? 'pull'
             : 'noop',
-        'startTime': startTime.toIso8601String(),
+        'startTime': syncLogCreatedEpoch,
         'status': SyncLogStatus.inProgress.value,
         'action': 'sync_start',
         'details': '{"recordsPushed":0,"recordsPulled":0,"conflicts":0}',
         'timestamp': syncLogCreatedEpoch,
+        'timestampIso': startTime.toIso8601String(),
         'localUuid': syncLogLocalUuid,
         'createdAt': syncLogCreatedEpoch,
+        'createdAtEpoch': syncLogCreatedEpoch,
         'updatedAt': syncLogCreatedEpoch,
         'lastModified': syncLogCreatedEpoch,
+        'lastModifiedEpoch': syncLogCreatedEpoch,
+        'syncTimestamp': syncLogCreatedEpoch,
         'version': syncLogVersion,
         'origin': 'mobile',
+        'sync_origin': 'mobile',
+        'vectorClock': '{}',
       });
       syncLogId = syncLog.$id;
       hasSyncLog = true;
@@ -793,7 +817,9 @@ class AppwriteSyncManager {
                 queries: deltaQ,
                 useCache: false,
               );
-              final employeesSynced = await _syncEmployees(employees);
+              // ✅ التوصية 5: لف _syncEmployees بطبقة إعادة محاولة لتحصين
+              // أسبقية الموظفين قبل المصروفات (يقلّل خطر #4).
+              final employeesSynced = await _syncEmployeesWithRetry(employees);
               _logger.debug('Synced $employeesSynced employees', tag: 'SYNC');
               return employeesSynced;
             }, phaseMs,);
@@ -802,6 +828,21 @@ class AppwriteSyncManager {
             _logger.error('❌ فشل سحب employees', error: e, stackTrace: st, tag: 'SYNC');
             await CrashlyticsService.instance.recordSyncError(
               operation: 'pull_employees', error: e.toString(), stackTrace: st, context: {'phase': 'sync'},
+            );
+          }
+
+          // ✅ التوصية 3: إعادة ربط مؤجّلة لمصروفات الرواتب اليتيمة عبر
+          // employeeUuid بعد اكتمال سحب الموظفين. يعالج مصروفات وصلت قبل
+          // موظفيها في دورة سابقة (خطر #4).
+          try {
+            await _relinkOrphanSalaryExpenses();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ _relinkOrphanSalaryExpenses فشل بعد سحب الموظفين — '
+              'سيُعاد المحاولة في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_RELINK',
             );
           }
 
@@ -862,8 +903,11 @@ class AppwriteSyncManager {
               }
               final bookingNights = await appwriteService.listBookingNights(queries: nightsDeltaQ, useCache: false);
               final synced = await _syncBookingNights(bookingNights);
-              // تحديث lastPullTs الخاص بـ booking_nights بعد نجاح السحب
-              await _updateBookingNightsPullTs(Time.nowEpoch());
+              // ✅ إصلاح جوهري: تحديث lastPullTs الخاص بـ booking_nights من
+              // أقصى $updatedAt (سلطة الخادم) بدل Time.nowEpoch().
+              // fallback إلى Time.nowEpoch() إذا لم تُعالَج مستندات.
+              final nightsNewTs = _maxUpdatedAtInPull ?? Time.nowEpoch();
+              await _updateBookingNightsPullTs(nightsNewTs);
               _logger.debug('Synced $synced booking nights', tag: 'SYNC');
               return synced;
             }, phaseMs,);
@@ -1067,7 +1111,18 @@ class AppwriteSyncManager {
           // تحديث lastPullTs فقط إذا نجحت كل الكولكشنات
           // إذا فشل بعضها، لا نحدّث timestamp حتى نتمكن من سحبها في المرة القادمة
           if (failedCollections.isEmpty) {
-            await _updateLastPullTs(Time.nowEpoch());
+            // ✅ إصلاح جوهري: اشتقاق المؤشر من أقصى $updatedAt (سلطة الخادم)
+            // بدل Time.nowEpoch() (وقت الجهاز الساحب الذي قد يكون منحرفاً).
+            // fallback إلى Time.nowEpoch() إذا لم يُعالَج أي مستند (دورة فارغة).
+            final newPullTs = _maxUpdatedAtInPull ?? Time.nowEpoch();
+            await _updateLastPullTs(newPullTs);
+            if (_maxUpdatedAtInPull != null) {
+              _logger.debug(
+                '📍 مؤشر السحب الجديد مشتق من max(\$updatedAt) = $_maxUpdatedAtInPull '
+                '(سلطة الخادم)',
+                tag: 'SYNC',
+              );
+            }
           } else {
             _logger.warning(
               '⚠️ ${failedCollections.length} collections فشل سحبها: ${failedCollections.join(", ")} — لن يتم تحديث lastPullTs',
@@ -1135,6 +1190,23 @@ class AppwriteSyncManager {
         } finally {
           // ✅ تحقق معزز من سلامة البيانات والمفاتيح الأجنبية بعد المزامنة
           await _performPostSyncIntegrityCheck();
+
+          // ✅ إصلاح لمرة واحدة: استعادة روابط مصروفات الرواتب اليتيمة.
+          // يعمل تلقائياً بعد اكتمال السحب الأول (عندما تكون الموظفون
+          // والسحبيات متاحة محلياً). يستخدم SharedPreferences flag لضمان
+          // عدم التكرار. غير محجوب — أخطاؤه لا توقف المزامنة.
+          // راجع SalaryFixHelper للتفاصيل.
+          try {
+            final helper = SalaryFixHelper(database);
+            await helper.runOnceAfterFirstPull();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ Salary fix helper failed — will retry on next sync.',
+              error: e,
+              stackTrace: st,
+              tag: 'SALARY_FIX',
+            );
+          }
         }
       }
 
@@ -1148,7 +1220,7 @@ class AppwriteSyncManager {
           collectionId: AppwriteConfig.syncLogsCollectionId,
           documentId: syncLogId,
           data: {
-            'endTime': endTime.toIso8601String(),
+            'endTime': endEpoch,
             'status': SyncLogStatus.completed.value,
             'action': 'sync_complete',
             'details':
@@ -1165,6 +1237,25 @@ class AppwriteSyncManager {
 
       _lastSyncTime = endTime;
       await _saveSettings();
+
+      // ✅ إصلاح لمرة واحدة بعد اكتمال السحب: استعادة روابط مصروفات الرواتب
+      // اليتيمة عبر salary_withdrawals. يعمل مرة واحدة فقط (SharedPreferences
+      // flag) ويُنتظر حتى يكتمل سحب الموظفين. التحديثات تُضاف للـ outbox
+      // وتُرفع تلقائياً في المزامنة التالية. راجع SalaryFixHelper.
+      if (pull) {
+        try {
+          final helper = SalaryFixHelper(database);
+          await helper.runOnceAfterFirstPull();
+        } catch (e, st) {
+          _logger.warning(
+            '⚠️ SalaryFixHelper failed — will retry next sync.',
+            error: e,
+            stackTrace: st,
+            tag: 'SYNC',
+          );
+          // لا نوقف المزامنة بسبب خطأ في الإصلاح.
+        }
+      }
 
       _logger.info(
         'Sync completed successfully (pushed: $recordsPushed, pulled: $recordsPulled)',
@@ -1468,12 +1559,21 @@ class AppwriteSyncManager {
   /// تلقائياً عند أي تعديل. نستخدمه كمرجع زمني موثوق لفحص التعارضات عندما
   /// يكون lastModified البعيد مفقوداً (وهو ما يحدث في بعض المجموعات مثل
   /// bookings حيث لا يُخزن lastModified في مخطط Appwrite).
+  ///
+  /// ✅ إصلاح جوهري: كما يُحدِّث `_maxUpdatedAtInPull` لتتبّع أقصى زمن خادم
+  /// في كل دورة سحب — يُستخدم لاحقاً في `_updateLastPullTs` بدل `Time.nowEpoch()`.
   int? _extractUpdatedAtSec(models.Document doc) {
     try {
       final updatedAtStr = doc.$updatedAt;
       if (updatedAtStr.isEmpty) return null;
       final dt = DateTime.parse(updatedAtStr);
-      return (dt.millisecondsSinceEpoch / 1000).round();
+      final sec = (dt.millisecondsSinceEpoch / 1000).round();
+      // ✅ تتبّع أقصى $updatedAt في هذه الدورة (سلطة الخادم للمؤشر).
+      final current = _maxUpdatedAtInPull;
+      if (current == null || sec > current) {
+        _maxUpdatedAtInPull = sec;
+      }
+      return sec;
     } catch (_) {
       return null;
     }
@@ -1559,8 +1659,17 @@ class AppwriteSyncManager {
     // إذا كانت كلتا الساعتين فارغتين (جديد أو قديم بدون VC) → نستخدم LWW
     if ((localVectorClock == null || localVectorClock.isEmpty || localVectorClock == '{}') &&
         (remoteVcStr.isEmpty || remoteVcStr == '{}')) {
+      // ✅ P0-2 fix: تطبيع وحدة الزمن قبل المقارنة
+      // localLastModified بالثواني (Time.nowEpoch ~/ 1000)
+      // effectiveRemoteTs قد يكون بالملّي ثانية (إذا جاء من حقل آخر)
+      final normalizedRemoteTs = effectiveRemoteTs > 10000000000
+          ? effectiveRemoteTs ~/ 1000
+          : effectiveRemoteTs;
+      final normalizedLocalTs = localLastModified > 10000000000
+          ? localLastModified ~/ 1000
+          : localLastModified;
       return _RemoteNewerResult(
-        shouldApplyRemote: effectiveRemoteTs > localLastModified,
+        shouldApplyRemote: normalizedRemoteTs > normalizedLocalTs,
       );
     }
 
@@ -1669,9 +1778,18 @@ class AppwriteSyncManager {
           localData: localData,
           remoteData: remoteData,
         );
-        // LWW fallback
+        // ✅ توحيد كسر التعادل: LWW + عند التساوي يفوز deviceId الأصغر معجمياً
+        // نُقارن deviceId البعيد مع deviceId المحلي: إذا كان البعيد أصغر
+        // معجمياً، يفوز البعيد (لتطبيق سلوك حتمي ومتناظر بين الأجهزة).
+        final normalizedRemoteTs = effectiveRemoteTs > 10000000000
+            ? effectiveRemoteTs ~/ 1000 : effectiveRemoteTs;
+        final remoteDeviceId = (remoteData['deviceId'] as String?) ?? '';
+        final localDeviceId = _currentDeviceId ?? '';
+        final shouldApply = normalizedRemoteTs > localLastModified ||
+            (normalizedRemoteTs == localLastModified &&
+             remoteDeviceId.compareTo(localDeviceId) < 0);
         return _RemoteNewerResult(
-          shouldApplyRemote: effectiveRemoteTs > localLastModified,
+          shouldApplyRemote: shouldApply,
         );
     }
   }
@@ -2050,6 +2168,18 @@ class AppwriteSyncManager {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
+        // ✅ إصلاح #2-B: تخزين $id الحقيقي كـ serverId عند السحب.
+        // في الحالات النادرة التي يُنشأ فيها مستند على Appwrite بـ $id مختلف
+        // عن localUuid (مثلاً من خدمة النسخ الاحتياطي الشامل التي تستخدم
+        // ID.unique() عند غياب localUuid)، يضيع $id الحقيقي بعد السحب لأن
+        // `??=` لا يتجاوز السمة الموجودة. حفظه كـ serverId يتيح للدفع اللاحق
+        // مخاطبة المستند الصحيح. هذا إجراء وقائي — راجع payload_mapper.dart
+        // الذي يرسل localUuid كسمة لكن يستخدم serverId للمعرّف الفعلي عند
+        // توفره. (نفس نمط الموظفين في _syncEmployees.)
+        data['serverId'] ??= _asIntSafe(data, 'id') ?? _asIntSafe(data, 'serverId');
+        // ملاحظة: $id نصي (UUID)، لكن serverId في المخطط Int. لذا نُسجّله
+        // فقط إذا كان رقمياً (نادر). للمعرّفات النصية، يبقى localUuid هو
+        // المرجع. هذا لا يضر — الـ adapter يتعامل مع serverId الغائب.
 
         // ✅ إصلاح: التحقق من الحذف الناعم + عدم تجاوز البيانات المحلية الأحدث
         final localUuid = (data['localUuid'] as String?) ?? '';
@@ -2384,6 +2514,8 @@ class AppwriteSyncManager {
           return await _processBlacklistEntry(entry);
         case 'price_adjustments':
           return await _processPriceAdjustmentEntry(entry);
+        case 'payment_voids':
+          return await _processPaymentVoidEntry(entry);
         default:
           _logger.warning(
             'Unknown outbox entity: ${entry.entity}',
@@ -2430,6 +2562,99 @@ class AppwriteSyncManager {
     Map<String, dynamic> payload,
   ) {
     return AppwriteSyncUtils.filterPayloadForCollection(collectionId, payload);
+  }
+
+  /// ✅ P0-5: القفل التفاؤلي (OCC) — فحص النسخة البعيدة قبل الدفع
+  ///
+  /// قبل كل عملية update، نقرأ المستند البعيد ونتحقق:
+  /// 1. إذا لم يكن موجوداً → نتابع الدفع العادي (create)
+  /// 2. إذا كان موجوداً بنفس النسخة → نتابع الدفع العادي (لا تعارض)
+  /// 3. إذا كان موجوداً بنسخة أحدث → تعارض! نُشغّل SmartConflictResolver
+  ///    ونُرجع البيانات المدموجة ليستخدمها المُتصل بدل الحمولة الأصلية
+  ///
+  /// [collectionId] — معرف مجموعة Appwrite
+  /// [documentId] — localUuid للمستند
+  /// [localPayload] — الحمولة المحلية المراد دفعها
+  /// [entity] — اسم الكيان (للـ SmartConflictResolver)
+  ///
+  /// يُرجع: الحمولة النهائية للدفع (الأصلية أو المدموجة)
+  Future<Map<String, dynamic>> _occCheckAndMerge({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> localPayload,
+    required String entity,
+  }) async {
+    try {
+      // 1) قراءة المستند البعيد
+      // ✅ إصلاح #2-D: كتم 404 المتوقع. في فحص OCC، 404 يعني أن المستند
+      // جديد (لم يُرفع بعد) — وهو سلوك متوقع تماماً وليس خطأ. قبل هذا
+      // الإصلاح، كان 404 يُسجَّل كـ ERROR في getRow/withTimeout رغم أن
+      // _occCheckAndMerge يلتقطه ويعالجه بشكل صحيح (يعيد localPayload
+      // للمتابعة إلى create). كتم الخطأ هنا يُخفضه إلى debug.
+      final remoteDoc = await appwriteService.getDocument(
+        collectionId: collectionId,
+        documentId: documentId,
+        suppressErrorLog: true,
+      );
+      final remoteData = Map<String, dynamic>.from(remoteDoc.data);
+
+      // 2) استخراج النسخ المحلية والبعيدة
+      final localVersion = (localPayload['version'] as int?) ?? 0;
+      final remoteVersion = (remoteData['version'] as int?) ?? 0;
+
+      // 3) إذا النسخة البعيدة <= المحلية → لا تعارض
+      if (remoteVersion <= localVersion) {
+        return localPayload;
+      }
+
+      // 4) تعارض! النسخة البعيدة أحدث → نُشغّل SmartConflictResolver
+      _logger.warning(
+        '⚠️ OCC conflict detected: entity=$entity, uuid=$documentId, '
+        'localVersion=$localVersion, remoteVersion=$remoteVersion → merging',
+        tag: 'OCC',
+      );
+
+      // محاولة الحصول على ancestor من الـ cache
+      Map<String, dynamic>? ancestor;
+      try {
+        ancestor = await _ancestorCacheDao.getAncestor(entity, documentId);
+      } catch (_) {}
+
+      // تشغيل SmartConflictResolver
+      final resolution = SmartConflictResolver.resolve(
+        entity: entity,
+        localData: localPayload,
+        remoteData: remoteData,
+        commonAncestor: ancestor,
+      );
+
+      if (resolution.strategy == ResolutionStrategy.fieldLevelMerge) {
+        _logger.info(
+          '✅ OCC conflict resolved via 3-way merge: entity=$entity, uuid=$documentId',
+          tag: 'OCC',
+        );
+        // حفظ ancestor المدمج للمرات القادمة
+        try {
+          await _ancestorCacheDao.saveAncestor(
+            entity: entity,
+            localUuid: documentId,
+            data: resolution.mergedData,
+          );
+        } catch (_) {}
+        return resolution.mergedData;
+      }
+
+      // إذا فشل الدمج، نستخدم LWW كـ fallback آمن
+      _logger.warning(
+        '⚠️ OCC merge failed, falling back to LWW: entity=$entity',
+        tag: 'OCC',
+      );
+      return localPayload;
+    } catch (e) {
+      // إذا فشل قراءة المستند البعيد (404 أو شبكة)، نتابع الدفع العادي
+      // 404 يعني أنه جديد → لا تعارض ممكن
+      return localPayload;
+    }
   }
 
   Future<bool> _processRoomEntry(OutboxData entry) async {
@@ -2486,20 +2711,27 @@ class AppwriteSyncManager {
     }
     final payload = _bookingToRemote(booking);
 
+    // ✅ P0-5: OCC check — فحص النسخة البعيدة قبل الدفع
+    final occPayload = await _occCheckAndMerge(
+      collectionId: AppwriteConfig.bookingsCollectionId,
+      documentId: booking.localUuid,
+      localPayload: payload,
+      entity: 'bookings',
+    );
+
     // ✅ تسجيل تشخيصي: تسجيل الحقول الحرجة قبل الرفع
     _logger.info(
       '📤 Push booking ${booking.localUuid.substring(0, 8)}... '
       'status=${booking.status} '
       'actualCheckout=${booking.actualCheckout} '
       'calculatedNights=${booking.calculatedNights} '
-      'lastModified=${booking.lastModified}',
+      'lastModified=${booking.lastModified}'
+      '${occPayload != payload ? " [OCC merged]" : ""}',
       tag: 'SYNC',
     );
 
     // ✅ إزالة idempotencyKey إذا لم يكن في مخطط Appwrite
-    // هذا الحقل غير موجود في مخطط Appwrite وقد يسبب فشل صامت في updateDocument
-    // إذا كان التحقق من المخطط مفعّلاً على Appwrite Cloud
-    final cleanPayload = Map<String, dynamic>.from(payload);
+    final cleanPayload = Map<String, dynamic>.from(occPayload);
     // idempotencyKey يُضاف لاحقاً عبر _addIdempotencyKey
 
     final finalPayload = _addIdempotencyKey(cleanPayload, entry);
@@ -2597,10 +2829,17 @@ class AppwriteSyncManager {
         payload['employeeUuid'] = employee.localUuid;
       }
     }
+    // ✅ P0-5: OCC check — فحص النسخة البعيدة قبل الدفع
+    final occPayload = await _occCheckAndMerge(
+      collectionId: AppwriteConfig.expensesCollectionId,
+      documentId: expense.localUuid,
+      localPayload: payload,
+      entity: 'expenses',
+    );
     try {
       await appwriteService.upsertExpense(
         expense.localUuid,
-        _filterPayload('expenses', _addIdempotencyKey(payload, entry)),
+        _filterPayload('expenses', _addIdempotencyKey(occPayload, entry)),
       );
     } catch (e) {
       // ✅ إذا فشل الرفع بسبب حقل idempotencyKey غير موجود، نُعيد المحاولة بدونه
@@ -2639,10 +2878,17 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _paymentToRemote(payment);
+    // ✅ P0-5: OCC check — فحص النسخة البعيدة قبل الدفع
+    final occPayload = await _occCheckAndMerge(
+      collectionId: AppwriteConfig.paymentsCollectionId,
+      documentId: payment.localUuid,
+      localPayload: payload,
+      entity: 'payments',
+    );
     try {
       await appwriteService.upsertPayment(
         payment.localUuid,
-        _filterPayload('payments', _addIdempotencyKey(payload, entry)),
+        _filterPayload('payments', _addIdempotencyKey(occPayload, entry)),
       );
     } catch (e) {
       // ✅ إذا فشل الرفع بسبب حقل idempotencyKey غير موجود، نُعيد المحاولة بدونه
@@ -2677,10 +2923,17 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _debtToRemote(debt);
+    // ✅ P0-5: OCC check — فحص النسخة البعيدة قبل الدفع
+    final occPayload = await _occCheckAndMerge(
+      collectionId: AppwriteConfig.debtsCollectionId,
+      documentId: debt.localUuid,
+      localPayload: payload,
+      entity: 'debts',
+    );
     try {
       await appwriteService.upsertDebt(
         debt.localUuid,
-        _filterPayload('debts', _addIdempotencyKey(payload, entry)),
+        _filterPayload('debts', _addIdempotencyKey(occPayload, entry)),
       );
     } catch (e) {
       // ✅ إذا فشل الرفع بسبب حقل idempotencyKey غير موجود، نُعيد المحاولة بدونه
@@ -2807,10 +3060,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = _adapterRegistry.guestInfos.adapter.toJson(
-      info,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.guestInfoToRemote(info);
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.guestInfosCollectionId,
       documentId: info.localUuid,
@@ -2994,10 +3244,7 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
       try {
-        final empPayload = _adapterRegistry.employees.adapter.toJson(
-          employee,
-          src: Source.appwrite,
-        );
+        final empPayload = _payloadMapper.employeeToRemote(employee);
         await appwriteService.upsertEmployee(
           employee.localUuid,
           _filterPayload('employees', _addIdempotencyKey(empPayload, entry)),
@@ -3037,15 +3284,10 @@ class AppwriteSyncManager {
       return true;
     }
 
-    final payload = _adapterRegistry.salaryWithdrawals.adapter.toJson(
+    final payload = _payloadMapper.salaryWithdrawalToRemote(
       withdrawal,
-      src: Source.appwrite,
+      employeeUuid: employee.localUuid,
     );
-    // ✅ إضافة employeeUuid لربط السلف بالموضف عبر الأجهزة
-    payload['employeeUuid'] = employee.localUuid;
-    payload['employeeLocalUuid'] = employee.localUuid;
-    // ✅ إضافة sync_origin للتوافق مع مخطط Appwrite Cloud
-    payload['sync_origin'] = withdrawal.origin;
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
       documentId: withdrawal.localUuid,
@@ -3060,253 +3302,24 @@ class AppwriteSyncManager {
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
-  Map<String, dynamic> _roomToRemote(Room room) {
-    final data = <String, dynamic>{
-      'roomNumber': room.roomNumber,
-      'type': room.type,
-      'price': room.price,
-      'status': room.status,
-      'localUuid': room.localUuid,
-      'createdAt': room.createdAt,
-      'updatedAt': room.updatedAt,
-      'lastModified': room.lastModified,
-      'version': room.version,
-      'origin': room.origin,
-      'deviceId': room.deviceId,
-      // حقول مطلوبة إضافية من Appwrite schema
-      'roomType': room.type,
-      'basePrice': room.price,
-      'floor': 1,
-      'bedsCount': 1,
-    };
-    _putIfNotNull(data, 'serverId', room.serverId);
-    data['deletedAt'] = room.deletedAt;
-    _putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
-    return AppwriteSyncUtils.sanitizePayload('rooms', data, collectionId: AppwriteConfig.roomsCollectionId);
-  }
+  Map<String, dynamic> _roomToRemote(Room room) =>
+      _payloadMapper.roomToRemote(room);
 
-  Map<String, dynamic> _bookingToRemote(Booking booking) {
-    final data = <String, dynamic>{
-      'roomNumber': booking.roomNumber,
-      'guestName': booking.guestName,
-      'guestPhone': booking.guestPhone,
-      'guestIdType': booking.guestIdType,
-      'guestIdNumber': booking.guestIdNumber,
-      'guestNationality': booking.guestNationality,
-      'checkinDate': booking.checkinDate,
-      'status': booking.status,
-      'expectedNights': booking.expectedNights,
-      'calculatedNights': booking.calculatedNights,
-      'localUuid': booking.localUuid,
-      'createdAt': booking.createdAt,
-      'updatedAt': booking.updatedAt,
-      'lastModified': booking.lastModified,
-      'version': booking.version,
-      'origin': booking.origin,
-    };
-    _putIfNotNull(data, 'serverBookingId', booking.serverBookingId);
-    _putIfNotNull(data, 'serverId', booking.serverId);
-    data['deletedAt'] = booking.deletedAt;
-    _putIfStringNotEmpty(data, 'guestIdIssueDate', booking.guestIdIssueDate);
-    _putIfStringNotEmpty(data, 'guestIdIssuePlace', booking.guestIdIssuePlace);
-    _putIfStringNotEmpty(data, 'guestEmail', booking.guestEmail);
-    _putIfStringNotEmpty(data, 'guestAddress', booking.guestAddress);
-    // ✅ إصلاح حرج: checkoutDate و actualCheckout يجب إرسالهما دائماً
-    // حتى لو كانا null — لأن `_putIfStringNotEmpty` يحذف المفتاح إذا كان null،
-    // مما يمنع Appwrite من تحديث الحقل عند تسجيل الخروج.
-    // بدون هذا الإصلاح: إذا رُفع الحجز قبل الخروج (actualCheckout=null)،
-    // ثم رُفع بعد الخروج (actualCheckout='2026-...')، المفتاح يُضاف ✅.
-    // لكن إذا عمل DeltaSync push بينهما ببيانات قديمة، يضبط actualCheckout=null على السيرفر.
-    // الحل: إرسال الحقول دائماً صراحةً لضمان تناسق البيانات.
-    data['checkoutDate'] = booking.checkoutDate;
-    data['actualCheckout'] = booking.actualCheckout;
-    _putIfStringNotEmpty(data, 'notes', booking.notes);
-    // حقول مالية
-    data['discount'] = booking.discount;
-    _putIfStringNotEmpty(data, 'discountType', booking.discountType);
-    _putIfStringNotEmpty(data, 'discountStartDate', booking.discountStartDate);
-    data['totalDueCached'] = booking.totalDueCached;
-    data['totalPaidCached'] = booking.totalPaidCached;
-    data['remainingBalanceCached'] = booking.remainingBalanceCached;
-    // حقول تواريخ ومشتقات
-    data['totalNightsCached'] = booking.totalNightsCached;
-    data['isFullyPaid'] = booking.isFullyPaid;
-    _putIfStringNotEmpty(data, 'hotelDayCheckin', booking.hotelDayCheckin);
-    _putIfStringNotEmpty(data, 'hotelDayCheckout', booking.hotelDayCheckout);
-    _putIfStringNotEmpty(data, 'vectorClock', booking.vectorClock);
-    data['deviceId'] = booking.deviceId;
-    // ✅ حقول SyncFields المضافة حديثاً إلى Appwrite Cloud
-    _putIfStringNotEmpty(data, 'createdAtIso', booking.createdAtIso);
-    _putIfStringNotEmpty(data, 'updatedAtIso', booking.updatedAtIso);
-    _putIfStringNotEmpty(data, 'deletedAtIso', booking.deletedAtIso);
-    _putIfNotNull(data, 'createdAtEpoch', booking.createdAtEpoch);
-    _putIfNotNull(data, 'lastModifiedEpoch', booking.lastModifiedEpoch);
-    // ✅ إصلاح (2026-06-27): حقول موجودة على Appwrite Cloud يجب إرسالها
-    // — كانت تُحذف بواسطة filterPayloadForCollection لأنها غير مُدرجة
-    _putIfStringNotEmpty(data, 'sync_origin', booking.origin);
-    _putIfNotNull(data, 'syncTimestamp', booking.lastModified);
-    return AppwriteSyncUtils.sanitizePayload('bookings', data, collectionId: AppwriteConfig.bookingsCollectionId);
-  }
+  Map<String, dynamic> _bookingToRemote(Booking booking) =>
+      _payloadMapper.bookingToRemote(booking);
 
-  Map<String, dynamic> _expenseToRemote(Expense expense) {
-    final data = <String, dynamic>{
-      'expenseType': expense.expenseType,
-      'description': expense.description,
-      'amount': expense.amount,
-      'date': expense.date,
-      'localUuid': expense.localUuid,
-      'createdAt': expense.createdAt,
-      'updatedAt': expense.updatedAt,
-      'lastModified': expense.lastModified,
-      'version': expense.version,
-      'origin': expense.origin,
-      'vectorClock': expense.vectorClock,
-      'deviceId': expense.deviceId,
-    };
-    _putIfNotNull(data, 'relatedId', expense.relatedId);
-    _putIfNotNull(data, 'cashTransactionId', expense.cashTransactionId);
-    _putIfNotNull(data, 'serverId', expense.serverId);
-    data['deletedAt'] = expense.deletedAt;
-    _putIfStringNotEmpty(data, 'hotelDayKey', expense.hotelDayKey);
-    _putIfStringNotEmpty(data, 'categoryUuid', expense.categoryUuid);
-    _putIfStringNotEmpty(data, 'cashFlowUuid', expense.cashFlowUuid);
-    if (expense.isAutoGenerated) data['isAutoGenerated'] = true;
-    // ✅ إصلاح (2026-06-27): حقول إضافية موجودة على Appwrite Cloud
-    _putIfNotNull(data, 'syncTimestamp', expense.lastModified);
-    _putIfStringNotEmpty(data, 'sync_origin', expense.origin);
-    return AppwriteSyncUtils.sanitizePayload('expenses', data, collectionId: AppwriteConfig.expensesCollectionId);
-  }
+  Map<String, dynamic> _expenseToRemote(Expense expense) =>
+      _payloadMapper.expenseToRemote(expense);
 
-  Map<String, dynamic> _paymentToRemote(Payment payment) {
-    final data = <String, dynamic>{
-      'amount': payment.amount,
-      'paymentDate': payment.paymentDate,
-      'paymentMethod': payment.paymentMethod,
-      'revenueType': payment.revenueType,
-      'localUuid': payment.localUuid,
-      'createdAt': payment.createdAt,
-      'updatedAt': payment.updatedAt,
-      'lastModified': payment.lastModified,
-      'version': payment.version,
-      'origin': payment.origin,
-      // ✅ تم حذف sync_version و sync_vector_clock — حقول مكررة وقديمة
-      // version و vectorClock يُرسلان بأسمائهما الصحيحة
-      'hotelDayKey': payment.hotelDayKey ?? '',
-      'isPendingBalance': payment.isPendingBalance,
-    };
-    _putIfNotNull(data, 'serverPaymentId', payment.serverPaymentId);
-    _putIfNotNull(data, 'bookingLocalId', payment.bookingLocalId);
-    _putIfStringNotEmpty(data, 'bookingUuidCache', payment.bookingUuidCache);
-    _putIfNotNull(data, 'serverBookingId', payment.serverBookingId);
-    _putIfStringNotEmpty(data, 'roomNumber', payment.roomNumber);
-    _putIfStringNotEmpty(data, 'notes', payment.notes);
-    _putIfNotNull(
-      data,
-      'cashTransactionLocalId',
-      payment.cashTransactionLocalId,
-    );
-    _putIfNotNull(
-      data,
-      'cashTransactionServerId',
-      payment.cashTransactionServerId,
-    );
-    _putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
-    _putIfNotNull(data, 'serverId', payment.serverId);
-    data['deletedAt'] = payment.deletedAt;
-    _putIfStringNotEmpty(data, 'deletedAtIso', payment.deletedAtIso);
-    _putIfStringNotEmpty(data, 'linkedDebtUuid', payment.linkedDebtUuid);
-    _putIfNotNull(data, 'discountAmount', payment.discountAmount);
-    _putIfStringNotEmpty(data, 'discountStartDate', payment.discountStartDate);
-    // ✅ إرسال isVoided دائماً (حتى لو false) لضمان المزامنة الصحيحة
-    data['isVoided'] = payment.isVoided;
-    _putIfNotNull(data, 'voidedAt', payment.voidedAt);
-    _putIfStringNotEmpty(data, 'voidedBy', payment.voidedBy);
-    // ✅ إرسال حقول SyncFields الإضافية المتوفرة في Appwrite Cloud
-    _putIfNotNull(data, 'createdAtEpoch', payment.createdAtEpoch);
-    _putIfNotNull(data, 'lastModifiedEpoch', payment.lastModifiedEpoch);
-    data['vectorClock'] = payment.vectorClock;
-    data['deviceId'] = payment.deviceId;
-    // ✅ إصلاح (2026-06-27): حقول إضافية موجودة على Appwrite Cloud
-    // ملاحظة: isImmutable و voidReason موجودان على Cloud لكن ليسا في النموذج
-    // المحلي بعد — يُمكن إضافتهما لاحقاً عند الحاجة
-    _putIfStringNotEmpty(data, 'createdAtIso', payment.createdAtIso);
-    _putIfStringNotEmpty(data, 'updatedAtIso', payment.updatedAtIso);
-    _putIfNotNull(data, 'syncTimestamp', payment.lastModified);
-    _putIfStringNotEmpty(data, 'sync_origin', payment.origin);
-    return AppwriteSyncUtils.sanitizePayload('payments', data, collectionId: AppwriteConfig.paymentsCollectionId);
-  }
+  Map<String, dynamic> _paymentToRemote(Payment payment) =>
+      _payloadMapper.paymentToRemote(payment);
 
-  Map<String, dynamic> _debtToRemote(Debt debt) {
-    final data = <String, dynamic>{
-      // ── Required fields ──
-      'localUuid': debt.localUuid,
-      'guestName': debt.guestName,
-      'checkinDate': debt.checkinDate,
-      'totalAmount': debt.totalAmount,
-      'paidAmount': debt.paidAmount,
-      'remainingAmount': debt.remainingAmount.round(), // ✅ Appwrite: integer
-      // ── Required sync fields ──
-      // ✅ تم حذف vector_clock/sync_vector_clock/sync_version/sync_origin
-      // — حقول مكررة وقديمة، يُرسل vectorClock/version/origin بأسمائهم الصحيحة
-      // ── Business fields ──
-      'bookingLocalId': debt.bookingLocalId,
-      'checkoutDate': debt.checkoutDate,
-      'paymentDate': debt.paymentDate,
-      'isSettled': debt.isSettled,
-      'debtReason': debt.debtReason,
-      'note': debt.note,
-      'debtUuid': debt.debtUuid,
-      'pledge': debt.pledge,
-      'pledgeType': debt.pledgeType,
-      'isFromAutoFix': debt.isFromAutoFix,
-      'settlementConfirmed': debt.settlementConfirmed,
-      // ── Timestamps ──
-      'createdAt': debt.createdAt,
-      'updatedAt': debt.updatedAt,
-      'lastModified': debt.lastModified,
-      'version': debt.version,
-      'origin': debt.origin,
-    };
-    _putIfNotNull(data, 'serverId', debt.serverId);
-    data['deletedAt'] = debt.deletedAt;
-    _putIfStringNotEmpty(data, 'deletedAtIso', debt.deletedAtIso);
-    _putIfStringNotEmpty(data, 'hotelDayOpened', debt.hotelDayOpened);
-    _putIfStringNotEmpty(data, 'hotelDayClosed', debt.hotelDayClosed);
-    // ✅ حقول SyncFields المضافة حديثاً إلى Appwrite Cloud
-    data['vectorClock'] = debt.vectorClock;
-    data['deviceId'] = debt.deviceId;
-    _putIfNotNull(data, 'createdAtEpoch', debt.createdAtEpoch);
-    _putIfNotNull(data, 'lastModifiedEpoch', debt.lastModifiedEpoch);
-    // ✅ إصلاح (2026-06-27): حقول إضافية موجودة على Appwrite Cloud
-    _putIfNotNull(data, 'syncTimestamp', debt.lastModified);
-    _putIfStringNotEmpty(data, 'sync_origin', debt.origin);
-    return AppwriteSyncUtils.sanitizePayload('debts', data, collectionId: AppwriteConfig.debtsCollectionId);
-  }
-
-  void _putIfNotNull<T>(Map<String, dynamic> map, String key, T? value) {
-    if (value != null) {
-      map[key] = value;
-    }
-  }
-
-  void _putIfStringNotEmpty(
-    Map<String, dynamic> map,
-    String key,
-    String? value,
-  ) {
-    if (value != null && value.isNotEmpty) {
-      map[key] = value;
-    }
-  }
+  Map<String, dynamic> _debtToRemote(Debt debt) =>
+      _payloadMapper.debtToRemote(debt);
 
   /// هل نوع المصروف مرتبط بالرواتب
-  static bool _isSalaryExpenseType(String type) {
-    const salaryKeywords = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'];
-    for (final keyword in salaryKeywords) {
-      if (type.contains(keyword)) return true;
-    }
-    return false;
-  }
+  static bool _isSalaryExpenseType(String type) =>
+      PayloadMapper.isSalaryExpenseType(type);
 
   // ─── Delta Sync ────────────────────────────────────────────────────────
 
@@ -3901,10 +3914,11 @@ class AppwriteSyncManager {
   }
 
   /// رفع التغييرات المحلية إلى Appwrite فوراً
-  Future<bool> pushLocalChanges() async {
+  /// ✅ P1-3 fix: يُرجع عدد السجلات المدفوعة فعلياً بدل bool
+  Future<int> pushLocalChanges() async {
     try {
       final result = await sync(pull: false);
-      return result.status == SyncStatus.success;
+      return result.recordsPushed;
     } catch (e, stackTrace) {
       _logger.error(
         'pushLocalChanges failed via sync()',
@@ -3915,7 +3929,7 @@ class AppwriteSyncManager {
       await CrashlyticsService.instance.recordSyncError(
         operation: 'pushLocalChanges', error: e.toString(), stackTrace: stackTrace,
       );
-      return false;
+      return 0;
     }
   }
 
@@ -3934,6 +3948,13 @@ class AppwriteSyncManager {
         _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
 
         int recordsPulled = 0;
+        // ✅ P1-5 fix: تتبّع Collections الفاشلة لمنع تقديم مؤشّر السحب
+        final failedCollections = <String>[];
+
+        // ✅ إصلاح جوهري: إعادة ضبط متتبّع أقصى $updatedAt في بداية دورة السحب.
+        // سيُحدَّث في _extractUpdatedAtSec لكل مستند يُعالَج، ثم يُستخدم في
+        // _updateLastPullTs بدل Time.nowEpoch().
+        _maxUpdatedAtInPull = null;
 
         // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
         final lastPullTs = await _getLastPullTs();
@@ -3969,9 +3990,24 @@ class AppwriteSyncManager {
 
           try {
             final employees = await appwriteService.listEmployees(queries: deltaQ, useCache: false);
-            recordsPulled += await _syncEmployees(employees);
+            // ✅ التوصية 5: تحصين أسبقية الموظفين عبر إعادة المحاولة.
+            recordsPulled += await _syncEmployeesWithRetry(employees);
           } catch (e, st) {
             _logger.error('❌ فشل سحب employees (pullRemoteChanges)', error: e, stackTrace: st, tag: 'SYNC');
+          }
+
+          // ✅ التوصية 3: إعادة ربط مؤجّلة لمصروفات الرواتب اليتيمة بعد سحب
+          // الموظفين (يعالج خطر #4 — مصروفات وصلت قبل موظفيها).
+          try {
+            await _relinkOrphanSalaryExpenses();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ _relinkOrphanSalaryExpenses فشل (pullRemoteChanges) — '
+              'سيُعاد المحاولة في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_RELINK',
+            );
           }
 
           try {
@@ -4051,9 +4087,27 @@ class AppwriteSyncManager {
               nightsPullTs,
               remoteEpochIsMillis: remoteEpochIsMillis,
             );
+            // ✅ عند السحب الأولي (nightsPullTs == 0): تحديد 1000 سجل كحد أقصى
+            // booking_nights قد يحوي عشرات الآلاف من السجلات (ليالية تاريخية)
+            // مما يسبب بطء شديد في التثبيت الأول + استهلاك ذاكرة كبير.
+            // السحب التزايدي اللاحق يجلب التغييرات الجديدة فقط.
+            const int kInitialBookingNightsLimit = 1000;
+            final bool isInitialPull = nightsPullTs == 0;
+            if (isInitialPull) {
+              _logger.info(
+                '📥 السحب الأولي لـ booking_nights — تحديد $kInitialBookingNightsLimit سجل كحد أقصى',
+                tag: 'SYNC',
+              );
+            }
             final bookingNights = await appwriteService.listBookingNights(
               queries: nightsDeltaQ,
               useCache: false,
+              maxRecords: isInitialPull ? kInitialBookingNightsLimit : null,
+            );
+            _logger.info(
+              '📊 تم جلب ${bookingNights.length} سجل booking_nights'
+              '${isInitialPull ? " (حد أولي: $kInitialBookingNightsLimit)" : ""}',
+              tag: 'SYNC',
             );
             recordsPulled += await _syncBookingNights(bookingNights);
             await _updateBookingNightsPullTs(Time.nowEpoch());
@@ -4123,12 +4177,35 @@ class AppwriteSyncManager {
 
           // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
-          // تحديث lastPullTs بعد محاولة سحب كل الكولكشنات
-          await _updateLastPullTs(Time.nowEpoch());
+          // ✅ P1-5 fix: تحديث lastPullTs فقط إذا نجحت كل الكولكشنات
+          if (failedCollections.isEmpty) {
+            // ✅ إصلاح جوهري: اشتقاق المؤشر من أقصى $updatedAt (سلطة الخادم)
+            // بدل Time.nowEpoch() (وقت الجهاز الساحب الذي قد يكون منحرفاً).
+            // fallback إلى Time.nowEpoch() إذا لم يُعالَج أي مستند (دورة فارغة).
+            final newPullTs = _maxUpdatedAtInPull ?? Time.nowEpoch();
+            await _updateLastPullTs(newPullTs);
+            if (_maxUpdatedAtInPull != null) {
+              _logger.debug(
+                '📍 pullRemoteChanges: مؤشر السحب مشتق من max(\$updatedAt) = '
+                '$_maxUpdatedAtInPull (سلطة الخادم)',
+                tag: 'SYNC',
+              );
+            }
+          } else {
+            _logger.warning(
+              '⚠️ P1-5: ${failedCollections.length} collections فشلت في pullRemoteChanges: '
+              '${failedCollections.join(", ")} — لن يتم تحديث lastPullTs',
+              tag: 'SYNC',
+            );
+          }
         });
 
         _lastSyncTime = DateTime.now();
         await _saveSettings();
+
+        // ✅ إصلاح الحجوزات يتم فقط عبر Google Drive Backup — لا عبر Appwrite.
+        // تمت إزالة _runPostPullAutoFix كلياً لأنه كان يستخدم RestoreFixService
+        // الذي لا يجب أن يُستدعى من مسار Appwrite (حسب قرار المستخدم).
 
         if (recordsPulled > 0) {
           _logger.info('✅ تم سحب $recordsPulled سجل من Appwrite', tag: 'SYNC');
@@ -4472,10 +4549,7 @@ class AppwriteSyncManager {
       for (final adj in adjustments) {
         if (skipDeleted && adj.deletedAt != null) continue;
         try {
-          final payload = _adapterRegistry.bookingPriceAdjustments.adapter.toJson(
-            adj,
-            src: Source.appwrite,
-          );
+          final payload = _payloadMapper.bookingPriceAdjustmentToRemote(adj);
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
             documentId: adj.localUuid,
@@ -4494,10 +4568,7 @@ class AppwriteSyncManager {
       for (final info in guestInfos) {
         if (skipDeleted && info.deletedAt != null) continue;
         try {
-          final payload = _adapterRegistry.guestInfos.adapter.toJson(
-            info,
-            src: Source.appwrite,
-          );
+          final payload = _payloadMapper.guestInfoToRemote(info);
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.guestInfosCollectionId,
             documentId: info.localUuid,
@@ -4516,10 +4587,7 @@ class AppwriteSyncManager {
       for (final withdrawal in salaryWithdrawals) {
         if (skipDeleted && withdrawal.deletedAt != null) continue;
         try {
-          final payload = _adapterRegistry.salaryWithdrawals.adapter.toJson(
-            withdrawal,
-            src: Source.appwrite,
-          );
+          final payload = _payloadMapper.salaryWithdrawalToRemote(withdrawal);
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
             documentId: withdrawal.localUuid,
@@ -4539,10 +4607,7 @@ class AppwriteSyncManager {
       for (final log in carryOverLogs) {
         if (log.deletedAt != null) continue;
         try {
-          final payload = _adapterRegistry.salaryCarryOverLogs.adapter.toJson(
-            log,
-            src: Source.appwrite,
-          );
+          final payload = _payloadMapper.salaryCarryOverLogToRemote(log);
           await appwriteService.upsertDocument(
             collectionId: 'salary_carry_over_logs',
             documentId: log.localUuid,
@@ -4600,167 +4665,26 @@ class AppwriteSyncManager {
     }
   }
 
-  Map<String, dynamic> _employeeToRemote(Employee employee) {
-    final data = <String, dynamic>{
-      'name': employee.name,
-      'basicSalary': employee.basicSalary,
-      'position': employee.position,
-      'phone': employee.phone,
-      'hireDate': employee.hireDate,
-      'status': employee.status,
-      'localUuid': employee.localUuid,
-      'createdAt': employee.createdAt,
-      'updatedAt': employee.updatedAt,
-      'lastModified': employee.lastModified,
-      'version': employee.version,
-      'origin': employee.origin,
-      'deviceId': employee.deviceId,
-    };
-    _putIfNotNull(data, 'serverId', employee.serverId);
-    data['deletedAt'] = employee.deletedAt;
-    return data;
-  }
+  Map<String, dynamic> _employeeToRemote(Employee employee) =>
+      _payloadMapper.employeeToRemote(employee);
 
-  Map<String, dynamic> _bookingNoteToRemote(BookingNote note) {
-    final data = <String, dynamic>{
-      'bookingId': note.bookingId,
-      'noteText': note.noteText,
-      'alertType': note.alertType,
-      'isActive': note.isActive,
-      'localUuid': note.localUuid,
-      'createdAt': note.createdAt,
-      'updatedAt': note.updatedAt,
-      'lastModified': note.lastModified,
-      'version': note.version,
-      'origin': note.origin,
-      'sync_origin': note.origin,
-      'deviceId': note.deviceId,
-    };
-    _putIfNotNull(data, 'serverId', note.serverId);
-    data['deletedAt'] = note.deletedAt;
-    _putIfStringNotEmpty(data, 'alertUntil', note.alertUntil);
-    return data;
-  }
+  Map<String, dynamic> _bookingNoteToRemote(BookingNote note) =>
+      _payloadMapper.bookingNoteToRemote(note);
 
-  Map<String, dynamic> _bookingNightToRemote(BookingNight night) {
-    final data = <String, dynamic>{
-      'bookingLocalId': night.bookingLocalId,
-      'hotelDayKey': night.hotelDayKey,
-      'nightStart': night.nightStart,
-      'nightEnd': night.nightEnd,
-      'nightlyRate': night.nightlyRate,
-      'sequence': night.sequence,
-      'isProcessedByAutoFix': night.isProcessedByAutoFix,
-      'baseRate': night.baseRate,
-      'adjustment': night.adjustment,
-      'finalRate': night.finalRate,
-      'localUuid': night.localUuid,
-      'createdAt': night.createdAt,
-      'updatedAt': night.updatedAt,
-      'lastModified': night.lastModified,
-      'version': night.version,
-      'origin': night.origin,
-      'vectorClock': night.vectorClock,
-      'deviceId': night.deviceId,
-    };
-    _putIfNotNull(data, 'serverId', night.serverId);
-    data['deletedAt'] = night.deletedAt;
-    _putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
-    _putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
-    return data;
-  }
+  Map<String, dynamic> _bookingNightToRemote(BookingNight night) =>
+      _payloadMapper.bookingNightToRemote(night);
 
-  Map<String, dynamic> _cashTransactionToRemote(CashTransaction transaction) {
-    final data = <String, dynamic>{
-      'transactionType': transaction.transactionType,
-      'amount': transaction.amount.round(), // Appwrite: integer
-      'transactionTime': transaction.transactionTime,
-      'localUuid': transaction.localUuid,
-      'createdAt': transaction.createdAt,
-      'updatedAt': transaction.updatedAt,
-      'lastModified': transaction.lastModified,
-      'version': transaction.version,
-      'origin': transaction.origin,
-      'deviceId': transaction.deviceId,
-    };
-    _putIfNotNull(data, 'registerId', transaction.registerId);
-    _putIfNotNull(data, 'referenceId', transaction.referenceId);
-    _putIfNotNull(data, 'createdBy', transaction.createdBy);
-    _putIfNotNull(data, 'serverId', transaction.serverId);
-    data['deletedAt'] = transaction.deletedAt;
-    _putIfStringNotEmpty(data, 'referenceType', transaction.referenceType);
-    _putIfStringNotEmpty(data, 'description', transaction.description);
-    return data;
-  }
+  Map<String, dynamic> _cashTransactionToRemote(CashTransaction transaction) =>
+      _payloadMapper.cashTransactionToRemote(transaction);
 
-  Map<String, dynamic> _salaryCycleToRemote(SalaryCycle cycle) {
-    final data = <String, dynamic>{
-      'employeeId': cycle.employeeId,
-      'cycleKey': cycle.cycleKey,
-      'expectedAmount': cycle.expectedAmount,
-      'actualPaid': cycle.actualPaid,
-      'remainingAmount': cycle.remainingAmount,
-      'status': cycle.status,
-      'localUuid': cycle.localUuid,
-      'createdAt': cycle.createdAt,
-      'updatedAt': cycle.updatedAt,
-      'lastModified': cycle.lastModified,
-      'version': cycle.version,
-      'origin': cycle.origin,
-      'vectorClock': cycle.vectorClock,
-      'deviceId': cycle.deviceId,
-    };
-    _putIfNotNull(data, 'serverId', cycle.serverId);
-    data['deletedAt'] = cycle.deletedAt;
-    _putIfStringNotEmpty(data, 'hotelDayStart', cycle.hotelDayStart);
-    _putIfStringNotEmpty(data, 'hotelDayEnd', cycle.hotelDayEnd);
-    return data;
-  }
+  Map<String, dynamic> _salaryCycleToRemote(SalaryCycle cycle) =>
+      _payloadMapper.salaryCycleToRemote(cycle);
 
-  Map<String, dynamic> _salaryPaymentToRemote(SalaryPayment payment) {
-    final data = <String, dynamic>{
-      'cycleId': payment.cycleId,
-      'amount': payment.amount,
-      'paymentDateIso': payment.paymentDateIso,
-      'isAutoGenerated': payment.isAutoGenerated,
-      'localUuid': payment.localUuid,
-      'createdAt': payment.createdAt,
-      'updatedAt': payment.updatedAt,
-      'lastModified': payment.lastModified,
-      'version': payment.version,
-      'origin': payment.origin,
-      'deviceId': payment.deviceId,
-    };
-    _putIfNotNull(data, 'serverId', payment.serverId);
-    data['deletedAt'] = payment.deletedAt;
-    _putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
-    _putIfStringNotEmpty(data, 'method', payment.method);
-    return data;
-  }
+  Map<String, dynamic> _salaryPaymentToRemote(SalaryPayment payment) =>
+      _payloadMapper.salaryPaymentToRemote(payment);
 
-  Map<String, dynamic> _shiftNoteToRemote(ShiftNote note) {
-    final createdDate = DateTime.fromMillisecondsSinceEpoch(
-      note.createdAt * 1000,
-    );
-    final shiftDate = createdDate.toIso8601String().substring(0, 10);
-    final data = <String, dynamic>{
-      'localUuid': note.localUuid,
-      'title': note.title,
-      'content': note.content,
-      'priority': note.priority,
-      'shiftType': note.shiftType,
-      'isRead': note.isRead == 1, // Appwrite يتوقع boolean
-      'createdAt': note.createdAt, // Appwrite يتوقع integer epoch
-      'updatedAt': note.updatedAt, // integer epoch — مطلوب
-      'lastModified': note.lastModified, // مطلوب للـ Delta Sync
-      'createdBy': note.createdBy,
-      'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
-      'deviceId': note.deviceId,
-      // ✅ تم حذف حقل 'note' المكرر — Appwrite shift_notes لا يملكه (يستخدم content)
-    };
-    _putIfStringNotEmpty(data, 'expiresAt', note.expiresAt);
-    return data;
-  }
+  Map<String, dynamic> _shiftNoteToRemote(ShiftNote note) =>
+      _payloadMapper.shiftNoteToRemote(note);
 
   Future<bool> _processSalaryPaymentEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
@@ -4776,10 +4700,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.salaryPayments.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.salaryPaymentToRemote(item);
     await appwriteService.upsertSalaryPayment(
       item.localUuid,
       _filterPayload('salary_payments', _addIdempotencyKey(payload, entry)),
@@ -4809,10 +4730,7 @@ class AppwriteSyncManager {
       return true;
     }
 
-    final payload = outboxDao.adapters.cashTransactions.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.cashTransactionToRemote(item);
 
     await appwriteService.upsertCashTransaction(
       item.localUuid,
@@ -4843,10 +4761,7 @@ class AppwriteSyncManager {
       return true;
     }
 
-    final payload = outboxDao.adapters.shiftNotes.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.shiftNoteToRemote(item);
 
     await appwriteService.upsertShiftNote(
       item.localUuid,
@@ -4888,10 +4803,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = _adapterRegistry.salaryCarryOverLogs.adapter.toJson(
-      log,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.salaryCarryOverLogToRemote(log);
     await appwriteService.upsertDocument(
       collectionId: 'salary_carry_over_logs',
       documentId: entry.localUuid,
@@ -4971,71 +4883,11 @@ class AppwriteSyncManager {
     return true;
   }
 
-  Map<String, dynamic> _priceAdjustmentToRemote(PriceAdjustment row) {
-    final now = Time.nowEpoch();
-    return {
-      'localUuid': row.localUuid,
-      'targetType': row.targetType,
-      'targetUuid': row.targetUuid,
-      'adjustmentType': row.adjustmentType,
-      'previousValue': row.previousValue,
-      'newValue': row.newValue,
-      'reason': row.reason,
-      'effectiveDate': row.effectiveDate,
-      'appliedBy': row.appliedBy,
-      'hotelDayKey': row.hotelDayKey,
-      'isReversed': row.isReversed,
-      'reversedAt': row.reversedAt,
-      'reversedBy': row.reversedBy,
-      'createdAt': row.createdAt,
-      'updatedAt': now,
-      'lastModified': now,
-      'origin': 'mobile',
-      'syncTimestamp': now,
-      'deviceId': row.deviceId,
-      if (row.serverId != null) 'serverId': row.serverId,
-    };
-  }
+  Map<String, dynamic> _priceAdjustmentToRemote(PriceAdjustment row) =>
+      _payloadMapper.priceAdjustmentToRemote(row);
 
-  Map<String, dynamic> _blacklistToRemote(ShiftNote item) {
-    Map<String, dynamic> extra = {};
-    try {
-      extra = jsonDecode(item.content) as Map<String, dynamic>;
-    } catch (e) { debugPrint('WARN: Failed to parse blacklist content for sync: $e'); }
-
-    final now = Time.nowEpoch();
-    // Appwrite blacklist collection: createdAt/updatedAt/deletedAt are STRING (ISO)
-    final createdAtIso = item.createdAtIso ??
-        DateTime.fromMillisecondsSinceEpoch(item.createdAt * 1000)
-            .toIso8601String();
-    final updatedAtIso = DateTime.fromMillisecondsSinceEpoch(item.updatedAt * 1000)
-        .toIso8601String();
-
-    return {
-      'name': item.title,
-      'nationality': (extra['nationality'] as String?) ?? '',
-      'nationalId': (extra['nationalId'] as String?) ?? '',
-      'phone': (extra['phone'] as String?) ?? '',
-      'reason': (extra['reason'] as String?) ?? '',
-      'notes': (extra['notes'] as String?) ?? '',
-      'reportedBy': (extra['reportedBy'] as String?) ?? 'police',
-      'active': (extra['active'] as bool?) ?? true,
-      'localUuid': item.localUuid,
-      'createdAt': createdAtIso,
-      'createdAtIso': createdAtIso,
-      'updatedAt': updatedAtIso,
-      'updatedAtIso': updatedAtIso,
-      'deletedAt': item.deletedAt != null
-          ? DateTime.fromMillisecondsSinceEpoch(item.deletedAt! * 1000)
-              .toIso8601String()
-          : null,
-      'lastModified': item.lastModified,
-      'origin': 'mobile',
-      'syncTimestamp': now,
-      'deviceId': item.deviceId,
-      if (item.serverId != null) 'serverId': item.serverId,
-    };
-  }
+  Map<String, dynamic> _blacklistToRemote(ShiftNote item) =>
+      _payloadMapper.blacklistToRemote(item);
 
   Future<int> _syncBlacklist(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
@@ -5179,6 +5031,46 @@ class AppwriteSyncManager {
     return processed;
   }
 
+  /// ✅ معالجة سجل إلغاء دفع (PaymentVoid) من الـ outbox
+  Future<bool> _processPaymentVoidEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.paymentVoidsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final voidRecord = await _getPaymentVoidByLocalUuid(entry.localUuid);
+    if (voidRecord == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.paymentVoidsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final payload = _payloadMapper.paymentVoidToRemote(voidRecord);
+    await appwriteService.upsertDocument(
+      collectionId: AppwriteConfig.paymentVoidsCollectionId,
+      documentId: voidRecord.localUuid,
+      data: _filterPayload(
+        'payment_voids',
+        _addIdempotencyKey(payload, entry),
+      ),
+    );
+    return true;
+  }
+
+  Future<PaymentVoid?> _getPaymentVoidByLocalUuid(String uuid) {
+    return (database.select(database.paymentVoids)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   Future<bool> _processEmployeeEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
       // ✅ حذف ناعم: نبحث عن الموظف محلياً (بما فيه المحذوف ناعماً)
@@ -5187,10 +5079,7 @@ class AppwriteSyncManager {
       final item = await _getEmployeeByLocalUuid(entry.localUuid);
       if (item != null && item.deletedAt != null) {
         // ✅ حذف ناعم — إرسال deletedAt إلى Appwrite
-        final payload = outboxDao.adapters.employees.adapter.toJson(
-          item,
-          src: Source.appwrite,
-        );
+        final payload = _payloadMapper.employeeToRemote(item);
         try {
           await appwriteService.upsertEmployee(
             item.localUuid,
@@ -5229,10 +5118,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.employees.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.employeeToRemote(item);
     try {
       await appwriteService.upsertEmployee(
         item.localUuid,
@@ -5280,10 +5166,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.bookingNotes.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.bookingNoteToRemote(item);
     // Note: booking notes often part of booking but if synced separately:
     await appwriteService.upsertBookingNote(
       item.localUuid,
@@ -5313,10 +5196,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.nights.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.bookingNightToRemote(item);
     await appwriteService.upsertBookingNight(
       item.localUuid,
       _filterPayload('booking_nights', _addIdempotencyKey(payload, entry)),
@@ -5345,10 +5225,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.salaryCycles.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.salaryCycleToRemote(item);
     // ✅ إضافة employeeUuid لربط دورة الراتب بالموظف عبر الأجهزة
     final employee = await (database.select(database.employees)
           ..where((e) => e.id.equals(item.employeeId))
@@ -5392,10 +5269,7 @@ class AppwriteSyncManager {
       );
       return true;
     }
-    final payload = outboxDao.adapters.bookingPriceAdjustments.adapter.toJson(
-      item,
-      src: Source.appwrite,
-    );
+    final payload = _payloadMapper.bookingPriceAdjustmentToRemote(item);
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
       documentId: item.localUuid,
@@ -6049,6 +5923,7 @@ class AppwriteSyncManager {
       final prefs = await SharedPreferences.getInstance();
       final deviceId = await _getDeviceIdForPrefs();
       final encryptionKey = SecureStorage.getEncryptionKey(null);
+      final now = Time.nowEpoch();
 
       // ⚠️ حقول app_settings الفعلية في Appwrite Cloud (25 حقل فقط — الحد الأقصى)
       // تم تدقيق كل حقل مقابل المخطط الفعلي في 2026-06-14
@@ -6088,24 +5963,77 @@ class AppwriteSyncManager {
         'lark_daily_report_chat_id': prefs.getString('lark_daily_report_chat_id') ?? '',
         // ── مزامنة ──
         'appwrite_sync_interval': prefs.getInt('appwrite_sync_interval') ?? 15,
+        // ✅ إصلاح (2026-07-04): الحقول المطلوبة إجبارياً في مخطط app_settings
+        // على Appwrite Cloud. بدونها، createDocument يفشل بـ:
+        //   document_invalid_structure: Missing required attribute "createdAt" (400)
+        // والـ updateDocument يفشل بـ 404 (المستند لم يُنشأ بعد).
+        // هذه الحقول الخمسة مطلوبة (required=true، default=None) حسب المخطط
+        // الفعلي المُتحقَّق منه عبر GET /collections/app_settings/attributes.
+        'createdAt': now,
+        'updatedAt': now,
+        'lastModified': now,
+        'lastModifiedEpoch': now,
+        'syncTimestamp': now,
       };
 
       const docId = 'whatsapp_settings';
       const collectionId = 'app_settings';
 
+      // ✅ إصلاح (PR #451 r3521832521): إزالة اقتطاع النصوص المشفّرة.
+      //
+      // كان الكود السابق يقتطع كل string إلى 28 حرفاً لتجنّب RangeError
+      // من Appwrite. هذا يُفسد القيم المشفّرة (telegram_bot_token,
+      // lark_app_secret, wa_api_token) — ciphertext لا يمكن فكّ تشفيره
+      // بعد الاقتطاع، فتفقد الإعدادات قيمتها على الأجهزة الأخرى.
+      //
+      // السبب الجذري للمشكلة كان مختلفاً: مخطط app_settings الفعلي على
+      // Appwrite Cloud uses generic key-value fields (settingKey,
+      // settingValue, settingType, category, ...) وليس الحقول المُسماة
+      // (telegram_bot_token, lark_app_secret, ...). لذا فالـ code يُرسل
+      // حقولاً غير موجودة، وAppwrite يرفضها بـ "Unknown attribute".
+      //
+      // الحل الصحيح هو إعادة تصميم الـ push ليستخدم الـ schema الجديد
+      // (settingKey/settingValue) أو إضافة الحقول المطلوبة على Appwrite
+      // Cloud بحجم كافٍ (255+ حرفاً للقيم المشفّرة). حتى يحدث ذلك،
+      // نُزيل الاقتطاع ونعتمد على الـ try-catch الموجود لاحقاً لإخفاق
+      // صامت (app_settings غير حرجة — لا تمنع المزامنة).
+      //
+      // نُطبّق sanitizePayload فقط (يزيل الحقول غير المعروفة صامتاً).
+      final filteredData = _filterPayload('app_settings', data);
+
       // محاولة تحديث، إذا لم يكن موجوداً ننشئه
+      // ✅ إصلاح: كتم 404 المتوقع في updateDocument. المستند 'whatsapp_settings'
+      // قد لا يكون موجوداً بعد (أول رفع) — 404 متوقع تماماً ويُلتقط في
+      // catch لينتقل إلى createDocument. تسجيله كـ ERROR يُسبب ضجيجاً.
       try {
-        await appwriteService.updateDocument(
+        await appwriteService.updateRow(
           collectionId: collectionId,
           documentId: docId,
-          data: _filterPayload('app_settings', data),
+          data: filteredData,
         );
-      } catch (_) {
-        await appwriteService.createDocument(
-          collectionId: collectionId,
-          documentId: docId,
-          data: _filterPayload('app_settings', data),
-        );
+      } catch (e) {
+        // 404 متوقع للمستند الجديد — ننتقل إلى create.
+        // أي خطأ آخر نُسجّله تحذيرًا (app_settings غير حرجة).
+        if (e is AppwriteException &&
+            (e.code == 404 ||
+                (e.type ?? '').contains('document_not_found'))) {
+          // متوقع — لا نسجّله.
+        } else {
+          _logger.warning(
+            'app_settings update failed (non-critical): $e',
+            tag: 'SYNC',
+          );
+        }
+        try {
+          await appwriteService.createRow(
+            collectionId: collectionId,
+            documentId: docId,
+            data: filteredData,
+          );
+        } catch (e2) {
+          // ✅ app_settings غير حرجة — لا تمنع المزامنة
+          _logger.warning('app_settings push failed (non-critical): $e2', tag: 'SYNC');
+        }
       }
 
       return true;
@@ -6397,6 +6325,9 @@ class AppwriteSyncManager {
           '⚠️ يوجد $orphanPayCount دفعة يتيمة (بدون ربط بحجز موجود)',
           tag: 'SYNC_INTEGRITY',
         );
+
+        // ✅ إصلاح: إعادة ربط المدفوعات اليتيمة بـ bookingUuidCache
+        await _relinkOrphanedPayments();
       }
 
       // 3. التحقق من سحوبات الرواتب اليتيمة
@@ -6438,5 +6369,267 @@ class AppwriteSyncManager {
         tag: 'SYNC_INTEGRITY',
       );
     }
+  }
+
+  /// ✅ إعادة ربط المدفوعات اليتيمة بحجوزاتها عبر bookingUuidCache.
+  ///
+  /// المشكلة: عند المزامنة، قد تصل المدفوعات قبل الحجوزات (أو الحجز
+  /// مخزّن بصيغة UUID مختلفة — بالشرطات vs بدون). النتيجة: الدفعة
+  /// تُخزّن بـ bookingLocalId=null أو خاطئ → تصبح يتيمة.
+  ///
+  /// الحل: بعد انتهاء المزامنة، نبحث عن المدفوعات التي لها
+  /// bookingUuidCache لكن bookingLocalId غير مربوط بحجز موجود،
+  /// ونُعيد ربطها عبر IdResolver (الذي يجرّب كلا صيغتي UUID).
+  Future<void> _relinkOrphanedPayments() async {
+    try {
+      // ابحث عن المدفوعات التي لها bookingUuidCache لكن bookingLocalId
+      // غير مربوط (NULL أو يشير لحجز غير موجود)
+      // ✅ إصلاح SQL: استخدم علامات اقتباس مفردة '' للـ string literal الفارغ
+      // بدل "" — علامات الاقتباس المزدوجة في SQLite تُفسَّر كمعرّف عمود وليس
+      // كسلسلة نصية، فتُنتج "no such column". (نفس إصلاح _relinkOrphanSalaryExpenses.)
+      final orphans = await database.customSelect(
+        'SELECT p.id, p.booking_uuid_cache, p.booking_local_id '
+        'FROM payments p '
+        'LEFT JOIN bookings b ON p.booking_local_id = b.id '
+        'WHERE p.booking_uuid_cache IS NOT NULL '
+        "AND p.booking_uuid_cache != '' "
+        'AND p.deleted_at IS NULL '
+        'AND (p.booking_local_id IS NULL OR b.id IS NULL)',
+        readsFrom: {database.payments, database.bookings},
+      ).get();
+
+      if (orphans.isEmpty) {
+        return;
+      }
+
+      _logger.info(
+        '🔗 إعادة ربط ${orphans.length} دفعة يتيمة عبر bookingUuidCache',
+        tag: 'SYNC_RELINK',
+      );
+
+      final resolver = IdResolver(database);
+      int relinked = 0;
+
+      for (final row in orphans) {
+        final paymentId = row.read<int>('id');
+        final bookingUuid = row.read<String>('booking_uuid_cache');
+
+        // استخدم IdResolver لـ resolveBooking (يجرّب كلا صيغتي UUID)
+        final resolvedBookingId = await resolver.resolveBooking(
+          uuid: bookingUuid,
+        );
+
+        if (resolvedBookingId != null) {
+          // ✅ وجدنا الحجز — أعد الربط
+          await (database.update(database.payments)
+                ..where((t) => t.id.equals(paymentId)))
+              .write(PaymentsCompanion(
+            bookingLocalId: drift.Value(resolvedBookingId),
+          ));
+          relinked++;
+          _logger.debug(
+            '  ✅ Payment #$paymentId → booking #$resolvedBookingId '
+            '(uuid: ${bookingUuid.substring(0, 8)}...)',
+            tag: 'SYNC_RELINK',
+          );
+        } else {
+          _logger.warning(
+            '  ❌ Payment #$paymentId: could not resolve booking '
+            'uuid: $bookingUuid',
+            tag: 'SYNC_RELINK',
+          );
+        }
+      }
+
+      if (relinked > 0) {
+        _logger.info(
+          '✅ تم إعادة ربط $relinked/$orphans.length دفعة يتيمة',
+          tag: 'SYNC_RELINK',
+        );
+
+        // أعد حساب الحجوزات المتأثرة
+        final relinkedBookingIds = <int>{};
+        for (final row in orphans) {
+          final paymentId = row.read<int>('id');
+          final updated = await (database.select(database.payments)
+                ..where((t) => t.id.equals(paymentId)))
+              .getSingleOrNull();
+          if (updated?.bookingLocalId != null) {
+            relinkedBookingIds.add(updated!.bookingLocalId!);
+          }
+        }
+        for (final bookingId in relinkedBookingIds) {
+          try {
+            await _bookingsRepository.derivedFields
+                .refreshForBookingId(bookingId);
+          } catch (e) {
+            debugPrint('⚠️ refreshForBookingId($bookingId) failed: $e');
+          }
+        }
+      }
+    } catch (e, st) {
+      _logger.error(
+        '❌ فشل إعادة ربط المدفوعات اليتيمة',
+        error: e,
+        stackTrace: st,
+        tag: 'SYNC_RELINK',
+      );
+    }
+  }
+
+  /// ✅ التوصية 3: إعادة ربط مؤجّلة لمصروفات الرواتب اليتيمة عبر employeeUuid.
+  ///
+  /// المشكلة (خطر #4): قد يصل مصروف راتب من Appwrite/Drive قبل وصول سجل
+  /// الموظف (مثلاً فشل سحب الموظفين في دورة ما ونجح سحب المصروفات). مع
+  /// التوصية 2 (قصر fallback relatedId على المصدر المحلي)، يبقى المصروف
+  /// غير مربوط (relatedId = null) رغم وجود employeeUuid صالح.
+  ///
+  /// الحل: بعد انتهاء المزامنة (وبعد `_syncEmployees` تحديدًا)، نبحث عن
+  /// مصروفات الرواتب ذات employeeUuid غير فارغ و relatedId فارغ، ونُعيد
+  /// ربطها بالموظف المحلي المطابق للـ UUID. تغيير additive بحت (استعلام +
+  /// تحديث) — لا يكسر المزامنة ولا يفقد بيانات.
+  ///
+  /// يُستدعى من تدفق المزامنة (push و pull) بعد اكتمال `_syncEmployees`.
+  Future<int> _relinkOrphanSalaryExpenses() async {
+    var relinked = 0;
+    try {
+      // ابحث عن مصروفات الرواتب اليتيمة: employeeUuid موجود، relatedId فارغ.
+      // نُجري فحص نوع الراتب في Dart عبر PayloadMapper.isSalaryExpenseType
+      // لأن الكلمات المفتاحية عربية ومتعددة (رواتب / سحب راتب / خصم راتب…)
+      // ولا تُترجم بسهولة إلى LIKE في SQL.
+      // ✅ إصلاح SQL: استخدم علامات اقتباس مفردة '' للـ string literal الفارغ
+      // بدل "" — علامات الاقتباس المزدوجة في SQLite تُفسَّر كمعرّف عمود وليس
+      // كسلسلة نصية، فتُنتج "no such column". (تلميح رسالة الخطأ كان صريحًا.)
+      final candidates = await database.customSelect(
+        'SELECT id, employee_uuid, expense_type FROM expenses '
+        'WHERE employee_uuid IS NOT NULL '
+        "AND employee_uuid != '' "
+        'AND related_id IS NULL '
+        'AND deleted_at IS NULL',
+        readsFrom: {database.expenses},
+      ).get();
+
+      // فلترة لأنواع الرواتب فقط (توحيد المنطق مع بقية النظام).
+      final orphans = candidates
+          .where((row) => PayloadMapper.isSalaryExpenseType(
+                row.read<String>('expense_type'),
+              ))
+          .toList();
+
+      if (orphans.isEmpty) {
+        return 0;
+      }
+
+      _logger.info(
+        '🔗 إعادة ربط ${orphans.length} مصروف راتب يتيم عبر employeeUuid',
+        tag: 'SYNC_RELINK',
+      );
+
+      for (final row in orphans) {
+        final expenseId = row.read<int>('id');
+        final employeeUuid = row.read<String>('employee_uuid');
+
+        // حل الموظف عبر localUuid (نفس آلية expenses_adapter).
+        final employee = await (database.select(database.employees)
+              ..where((e) => e.localUuid.equals(employeeUuid))
+              ..limit(1))
+            .getSingleOrNull();
+
+        if (employee != null) {
+          // ✅ وجدنا الموظف — أعد الربط.
+          await (database.update(database.expenses)
+                ..where((t) => t.id.equals(expenseId)))
+              .write(ExpensesCompanion(
+            relatedId: drift.Value(employee.id),
+          ));
+          relinked++;
+          _logger.debug(
+            '  ✅ Expense #$expenseId → employee #${employee.id} '
+            '(uuid: ${employeeUuid.substring(0, employeeUuid.length.clamp(0, 8))}...)',
+            tag: 'SYNC_RELINK',
+          );
+        } else {
+          // الموظف لم يصل بعد — نترك المصروف غير مربوط بانتظار دورة لاحقة.
+          _logger.warning(
+            '  ⏳ Expense #$expenseId: employee not yet synced for '
+            'uuid: $employeeUuid — will retry next cycle.',
+            tag: 'SYNC_RELINK',
+          );
+        }
+      }
+
+      if (relinked > 0) {
+        _logger.info(
+          '✅ تم إعادة ربط $relinked/${orphans.length} مصروف راتب يتيم',
+          tag: 'SYNC_RELINK',
+        );
+      }
+    } catch (e, st) {
+      _logger.error(
+        '❌ فشل إعادة ربط مصروفات الرواتب اليتيمة',
+        error: e,
+        stackTrace: st,
+        tag: 'SYNC_RELINK',
+      );
+    }
+    return relinked;
+  }
+
+  /// ✅ التوصية 5: تحصين أسبقية مزامنة الموظفين قبل المصروفات.
+  ///
+  /// يلف `_syncEmployees` بطبقة إعادة محاولة بسيطة. إذا فشل سحب/معالجة
+  /// الموظفين في دورة ما، يُعاد المحاولة حتى `maxRetries` مرات قبل
+  /// المتابعة إلى `_syncExpenses`. هذا يقلّل السيناريو الوحيد المتبقي
+  /// لخطر #4 (وصول مصروفات الرواتب قبل موظفيها).
+  ///
+  /// ملاحظة: الترتيب نفسه مطبَّق بالفعل (`_syncEmployees` قبل `_syncExpenses`
+  /// في الدفع والسحب) — هذه الطبقة تضيف فقط "تحصينًا" عبر إعادة المحاولة
+  /// دون تغيير الترتيب.
+  Future<int> _syncEmployeesWithRetry(
+    List<models.Document> documents, {
+    int maxRetries = 2,
+  }) async {
+    if (documents.isEmpty) return 0;
+    var attempts = 0;
+    int? lastCount;
+    Object? lastError;
+    while (attempts <= maxRetries) {
+      try {
+        lastCount = await _syncEmployees(documents);
+        if (attempts > 0) {
+          _logger.info(
+            '✅ _syncEmployees نجح بعد $attempts إعادة محاولة '
+            '($lastCount موظف)',
+            tag: 'SYNC',
+          );
+        }
+        return lastCount;
+      } catch (e, st) {
+        lastError = e;
+        attempts++;
+        if (attempts <= maxRetries) {
+          _logger.warning(
+            '⚠️ _syncEmployees فشل (محاولة $attempts/$maxRetries) — '
+            'إعادة المحاولة: $e',
+            tag: 'SYNC',
+            error: e,
+            stackTrace: st,
+          );
+          // فترة انتظار قصيرة متصاعدة قبل إعادة المحاولة.
+          await Future<void>.delayed(
+            Duration(milliseconds: 300 * attempts),
+          );
+        }
+      }
+    }
+    _logger.error(
+      '❌ _syncEmployees فشل بعد $maxRetries إعادة محاولة — '
+      'المتابعة إلى المصروفات قد تترك بعض مصروفات الرواتب غير مربوطة مؤقتًا. '
+      'آخر خطأ: $lastError',
+      tag: 'SYNC',
+    );
+    // لا نُعيد رمي الاستثناء للحفاظ على متانة المزامنة (نفس فلسفة الـ catch
+    // الموجودة في تدفقات السحب/الدفع). يُعالَج لاحقًا عبر _relinkOrphanSalaryExpenses.
+    return lastCount ?? 0;
   }
 }

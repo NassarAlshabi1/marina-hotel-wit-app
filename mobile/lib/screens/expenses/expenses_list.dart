@@ -765,8 +765,35 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       dialogSalaryAction = _mapExpenseTypeToSalaryAction(existing.expenseType);
     }
 
-    final List<Employee> availableEmployees =
+    final List<Employee> allEmployees =
         employees ?? await ref.read(employeesRepoProvider).watchAll().first;
+    // ✅ إزالة التكرار: عند المزامنة بين أجهزة متعددة، قد يصل نفس الموظف
+    // (نفس localUuid) بـ id محلي مختلف (autoIncrement). كذلك قد يوجد
+    // نفس الاسم بـ localUuid مختلف (سجل مكرر فعلاً).
+    // الاستراتيجية:
+    //   1. إزالة التكرار بـ localUuid أولاً (نفس الشخص من أجهزة مختلفة)
+    //   2. إزالة التكرار بـ name كـ fallback (سجلات مكررة بنفس الاسم)
+    final seenUuids = <String>{};
+    final seenNames = <String>{};
+    final List<Employee> availableEmployees = allEmployees.where((emp) {
+      // 1. إزالة التكرار بـ localUuid
+      final uuid = emp.localUuid.trim();
+      if (uuid.isNotEmpty && seenUuids.contains(uuid)) {
+        return false;
+      }
+      if (uuid.isNotEmpty) {
+        seenUuids.add(uuid);
+      }
+      // 2. إزالة التكرار بـ name (للسجلات بـ localUuid فارغ أو مكرر بالاسم)
+      final nameKey = emp.name.trim();
+      if (nameKey.isNotEmpty && seenNames.contains(nameKey)) {
+        return false;
+      }
+      if (nameKey.isNotEmpty) {
+        seenNames.add(nameKey);
+      }
+      return true;
+    }).toList();
     int? selectedEmployeeId = existing?.relatedId;
 
     final ok = await showDialog<bool>(
@@ -973,6 +1000,19 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         // selectedDate يُعيَّن افتراضياً من HotelTimeEngine.getHotelDay()
         // hotelDayKey يُحسب من selectedDate لضمان الاتساق حتى لو غيّر المستخدم التاريخ
         final newHotelDayKey = _hotelDayKeyFromDate(selectedDate);
+
+        // ✅ التوصية 1: حل الموظف مرة واحدة لاستخدام محليUuid في إنشاء المصروف.
+        // قبل هذا الإصلاح كان employeeUuid يُحقن فقط وقت الرفع (خطر #1)،
+        // الآن يُكتب فورًا فيُصبح المصروف محمولاً عبر الأجهزة حتى قبل المزامنة.
+        // ملاحظة: نُبقي سلوك firstWhere الأصلي (StateError عند عدم الإيجاد) لأن
+        // الشاشة تتحقق مسبقًا من وجود موظفين ومن اختيار موظف قبل الحفظ.
+        final Employee? resolvedEmployee =
+            (isSalaryExpense && selectedEmployeeId != null)
+                ? availableEmployees.firstWhere(
+                    (e) => e.id == selectedEmployeeId,
+                  )
+                : null;
+
         final newId = await repo.create(
           expenseType: savedType,
           relatedId: isSalaryExpense ? selectedEmployeeId : null,
@@ -980,19 +1020,21 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           amount: parsedAmount,
           date: trimmedDate,
           hotelDayKey: newHotelDayKey,
+          // ✅ التوصية 1: اكتب employeeUuid وقت الإنشاء — مصدر الحقيقة المحمول.
+          employeeUuid:
+              (isSalaryExpense && resolvedEmployee != null)
+                  ? resolvedEmployee.localUuid
+                  : null,
         );
 
-        if (isSalaryExpense && selectedEmployeeId != null) {
+        if (isSalaryExpense && resolvedEmployee != null) {
           final signedAmount = savedType == _salaryDeductionAction
               ? -parsedAmount
               : parsedAmount;
-              
-          // التأكد من وجود الموظف قبل الحفظ
-          final employee = availableEmployees.firstWhere((e) => e.id == selectedEmployeeId);
-          
+
           await salaryRepo.saveFromExpense(
             expenseId: newId,
-            employeeId: employee.id, // استخدام employee.id كـ EmployeeID
+            employeeId: resolvedEmployee.id, // استخدام employee.id كـ EmployeeID
             action: savedType,
             amount: signedAmount,
             date: trimmedDate,
@@ -1004,6 +1046,15 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       } else {
         // ✅ تعديل مصروف موجود — إعادة حساب hotelDayKey من التاريخ المختار
         final updatedHotelDayKey = _hotelDayKeyFromDate(DateTime.parse(trimmedDate));
+
+        // ✅ التوصية 1: حل الموظف مرة واحدة لاستخدام localUuid في تعديل المصروف.
+        final Employee? resolvedEmployee =
+            (isSalaryExpense && selectedEmployeeId != null)
+                ? availableEmployees.firstWhere(
+                    (e) => e.id == selectedEmployeeId,
+                  )
+                : null;
+
         await repo.update(
           existing.id,
           expenseType: savedType,
@@ -1012,18 +1063,22 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           amount: parsedAmount,
           date: trimmedDate,
           hotelDayKey: updatedHotelDayKey,
+          // ✅ التوصية 1: اكتب employeeUuid وقت التعديل.
+          // - لمصروف الراتب: localUuid للموظف المختار.
+          // - لغير الراتب: '' لمسح أي رابط قديم (يمنع بقاء رابط يتيم عند
+          //   التحويل من راتب إلى نوع آخر).
+          employeeUuid: (isSalaryExpense && resolvedEmployee != null)
+              ? resolvedEmployee.localUuid
+              : '',
         );
 
-        if (isSalaryExpense && selectedEmployeeId != null) {
+        if (isSalaryExpense && resolvedEmployee != null) {
           final signedAmount =
               savedType == _salaryDeductionAction ? -parsedAmount : parsedAmount;
-          
-          // التأكد من وجود الموظف قبل الحفظ
-          final employee = availableEmployees.firstWhere((e) => e.id == selectedEmployeeId);
-          
+
           await salaryRepo.saveFromExpense(
             expenseId: existing.id,
-            employeeId: employee.id, // استخدام employee.id كـ EmployeeID
+            employeeId: resolvedEmployee.id, // استخدام employee.id كـ EmployeeID
             action: savedType,
             amount: signedAmount,
             date: trimmedDate,

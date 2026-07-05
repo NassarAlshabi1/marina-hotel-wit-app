@@ -1,8 +1,10 @@
 // ignore_for_file: directives_ordering, prefer_const_constructors, use_if_null_to_convert_nulls_to_bools, unawaited_futures, use_build_context_synchronously, unused_field
+import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../services/appwrite_config.dart';
 import '../../services/secondary_appwrite_config.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
@@ -119,6 +121,16 @@ class _SecondaryAppwriteSettingsScreenState
     }
   }
 
+  /// ✅ P1-3 fix: اختبار الاتصال **بدون** حفظ الإعدادات قسراً.
+  ///
+  /// قبل الإصلاح: `_testConnection()` يستدعي `await _save()` قبل الاختبار،
+  /// فمجرّد الضغط على "اختبار الاتصال" يكتب فوق الإعدادات المحفوظة بقيم
+  /// الحقول الحالية (قد تكون فارغة/خاطئة) ويستدعي `invalidate()` — فيتلف
+  /// تكوين عامل يعمل، ويعيد تهيئة مدير المزامنة الحيّ بقيم غير مُتحقَّقة.
+  ///
+  /// بعد الإصلاح: نحن نُنشئ عميل اختبار مؤقت (TestableSecondaryService)
+  /// يستخدم قيم الحقول الحالية مباشرة دون حفظها في SharedPreferences ولا
+  /// استدعاء invalidate(). المستخدم حرّ في تجربة قيم مختلفة قبل الحفظ.
   Future<void> _testConnection() async {
     setState(() {
       _testingConnection = true;
@@ -127,20 +139,80 @@ class _SecondaryAppwriteSettingsScreenState
       _testLatency = null;
     });
     try {
-      await _save();
-      final result = await SecondaryAppwriteService().testConnection();
+      // ✅ P2 fix: تحقق من صحّة المدخلات قبل الاختبار
+      final endpoint = _endpointCtrl.text.trim();
+      final projectId = _projectIdCtrl.text.trim();
+      final databaseId = _databaseIdCtrl.text.trim();
+      final apiKey = _apiKeyCtrl.text.trim();
+
+      if (endpoint.isEmpty || projectId.isEmpty || databaseId.isEmpty) {
+        setState(() {
+          _testSuccess = false;
+          _testResult = 'يرجى ملء جميع الحقول (Endpoint، Project ID، Database ID)';
+        });
+        return;
+      }
+
+      // ✅ P1-3: استخدم خدمة اختبار مؤقتة بدل الحفظ القسري
+      final result = await _testConnectionWithoutSaving(
+        endpoint: endpoint,
+        projectId: projectId,
+        databaseId: databaseId,
+        apiKey: apiKey,
+      );
+      if (!mounted) return;
       setState(() {
         _testSuccess = result.success;
         _testResult = result.message;
         _testLatency = result.latencyMs;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _testSuccess = false;
         _testResult = 'خطأ غير متوقع: $e';
       });
     } finally {
       if (mounted) setState(() => _testingConnection = false);
+    }
+  }
+
+  /// ✅ P1-3: يبني عميل Appwrite مؤقت للاختبار دون حفظ الإعدادات.
+  Future<ConnectionTestResult> _testConnectionWithoutSaving({
+    required String endpoint,
+    required String projectId,
+    required String databaseId,
+    required String apiKey,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    try {
+      final client = Client()
+        ..setEndpoint(endpoint)
+        ..setProject(projectId)
+        ..setSelfSigned();
+      if (apiKey.isNotEmpty) {
+        client.addHeader('X-Appwrite-Key', apiKey);
+      }
+      final databases = Databases(client);
+      // ignore: deprecated_member_use
+      await databases.listDocuments(
+        databaseId: databaseId,
+        collectionId: AppwriteConfig.roomsCollectionId,
+        queries: [Query.limit(1)],
+      );
+      stopwatch.stop();
+      return ConnectionTestResult(
+        success: true,
+        message: '✅ تم الاتصال بنجاح',
+        latencyMs: stopwatch.elapsedMilliseconds,
+      );
+    } catch (e) {
+      stopwatch.stop();
+      return ConnectionTestResult(
+        success: false,
+        message: '❌ فشل: $e',
+        latencyMs: stopwatch.elapsedMilliseconds,
+      );
     }
   }
 

@@ -58,8 +58,10 @@ class RetryStrategy {
         baseDelay = config.initialDelay * attemptNumber;
 
       case RetryBackoffType.exponential:
+        // ✅ P1-12 fix: استخدام round() بدل toInt() لمنع بتر القيم
         final exponential = pow(config.backoffMultiplier, attemptNumber - 1);
-        baseDelay = config.initialDelay * exponential.toInt();
+        final delayMs = (config.initialDelay.inMilliseconds * exponential).round();
+        baseDelay = Duration(milliseconds: delayMs);
 
       case RetryBackoffType.fibonacci:
         final fib = _fibonacci(attemptNumber);
@@ -79,7 +81,8 @@ class RetryStrategy {
   Duration _calculateJitter(Duration baseDelay) {
     final jitterMs = baseDelay.inMilliseconds * config.jitterFactor;
     final randomJitter = (_random.nextDouble() * 2 - 1) * jitterMs;
-    return Duration(milliseconds: randomJitter.toInt());
+    // ✅ P1-12 fix: استخدام round() بدل toInt()
+    return Duration(milliseconds: randomJitter.round());
   }
 
   int _fibonacci(int n) {

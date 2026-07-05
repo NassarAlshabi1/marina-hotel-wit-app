@@ -108,6 +108,7 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
       vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
+      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -126,7 +127,11 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
         'content': model.content,
         'priority': model.priority,
         'shiftType': model.shiftType,
-        'isRead': model.isRead == 1, // Appwrite يتوقع boolean
+        // ✅ إصلاح (P0-1): Appwrite schema يُعرّف isRead كـ boolean.
+        // كنا نُرسل `model.isRead` (integer) مما يُسبب "Invalid type" errors.
+        // نُحوّل integer (0/1) إلى boolean للمطابقة مع المخطط.
+        // PayloadMapper أيضاً يُرسل boolean الآن (تم توحيد السلوك).
+        'isRead': model.isRead == 1,
         'createdAt': model.createdAt, // Appwrite يتوقع integer epoch
         'createdAtEpoch': model.createdAtEpoch,
         'createdAtIso': model.createdAtIso,
@@ -139,7 +144,8 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
         'version': model.version,
         'origin': model.origin,
         'vectorClock': model.vectorClock,
-        'deviceId': model.deviceId,
+        'idempotencyKey': model.idempotencyKey,
+      'deviceId': model.deviceId,
         'createdBy': model.createdBy,
         'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
         'note': model.content, // مطلوب — يوازي content
@@ -170,6 +176,7 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
       'deviceId': model.deviceId,
     };
   }

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
@@ -153,9 +154,14 @@ class _SettingsMaintenanceScreenState
     // Logs
     final logStats = DiagnosticsLogger.instance.getStats();
 
-    // Device info
+    // Device info + App version
     String deviceModel = 'غير معروف';
     String osVersion = '';
+    String appVersion = '1.2.0+3';
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
+    } catch (_) {}
     try {
       final deviceInfo = DeviceInfoPlugin();
       if (Platform.isAndroid) {
@@ -170,7 +176,7 @@ class _SettingsMaintenanceScreenState
     } catch (_) {}
 
     return _SystemInfo(
-      appVersion: '1.2.0+3',
+      appVersion: appVersion,
       deviceModel: deviceModel,
       osVersion: osVersion,
       dbConnected: DatabaseManager.isInitialized,
@@ -307,7 +313,8 @@ class _SettingsMaintenanceScreenState
                   IconButton(
                     icon: const Icon(Icons.refresh, size: 18),
                     tooltip: 'تحديث',
-                    onPressed: _loadSystemInfo,
+                    // ✅ P1 fix: تعطيل زر التحديث أثناء العملية
+                    onPressed: _isWorking ? null : _loadSystemInfo,
                   ),
               ],
             ),
@@ -494,8 +501,13 @@ class _SettingsMaintenanceScreenState
   }
 
   void _hideLoading() {
-    setState(() => _isWorking = false);
-    Navigator.of(context, rootNavigator: true).pop();
+    if (mounted) {
+      setState(() => _isWorking = false);
+      final nav = Navigator.of(context, rootNavigator: true);
+      if (nav.canPop()) {
+        nav.pop();
+      }
+    }
   }
 
   void _showSnack(String message, {Color? color}) {
@@ -614,7 +626,10 @@ class _SettingsMaintenanceScreenState
                       title: Text(check.tableName as String),
                       subtitle: Text('${check.recordCount} سجل'),
                       trailing: Text(
-                        (check.checksum as String).substring(0, 8),
+                        // ✅ P1 fix: حماية من RangeError إذا كان checksum أقصر من 8 أحرف
+                        (check.checksum as String).length >= 8
+                            ? (check.checksum as String).substring(0, 8)
+                            : (check.checksum as String),
                         style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
                       ),
                     );
@@ -1039,10 +1054,32 @@ class _SettingsMaintenanceScreenState
                   SqliteBackupRestore.kDefaultDbFileName,
                 );
                 await sqflite.deleteDatabase(dbPath);
-                await DatabaseManager.reopen();
 
+                // ✅ إصلاح P0: حذف مختار للمفاتيح بدلاً من prefs.clear()
+                // نحذف فقط المفاتيح المتعلقة بالبيانات، ونحتفظ بالإعدادات الحرجة
                 final prefs = await SharedPreferences.getInstance();
-                await prefs.clear();
+                const keysToRemove = [
+                  'appwrite_last_sync_time',
+                  'appwrite_pull_after_drive_skip_done',
+                  'sync_last_pull_booking_nights',
+                  'appwrite_delta_sync_enabled',
+                  'last_auto_backup_timestamp',
+                  'auto_backup_enabled',
+                  'delta_sync_enabled',
+                  'backup_mode',
+                  'appwrite_last_delta_sync',
+                  'last_app_open_pull',
+                  'device_id',
+                  'appwrite_delta_device_id',
+                ];
+                for (final key in keysToRemove) {
+                  await prefs.remove(key);
+                }
+
+                // ✅ إصلاح P1: إعادة تهيئة المزامنة بعد reset
+                try {
+                  await SyncGuardian.instance.restart();
+                } catch (_) {}
 
                 _hideLoading();
                 _showSnack('تم إعادة تعيين التطبيق بنجاح', color: Colors.green);
@@ -1050,6 +1087,11 @@ class _SettingsMaintenanceScreenState
               } catch (e) {
                 _hideLoading();
                 _showSnack('خطأ في إعادة التعيين: $e', color: Colors.red);
+              } finally {
+                // ✅ P0 fix: ضمان إعادة فتح قاعدة البيانات حتى لو فشل الحذف
+                try {
+                  await DatabaseManager.reopen();
+                } catch (_) {}
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),

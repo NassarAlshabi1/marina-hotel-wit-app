@@ -7,6 +7,7 @@ import '../../providers/repository_providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/crashlytics_service.dart';
 import '../../services/local_db.dart';
+import '../../services/night_audit_service.dart';
 import '../../utils/status_utils.dart';
 import '../ai/ai_chat_screen.dart';
 import '../security/blacklist_screen.dart';
@@ -36,14 +37,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final _searchController = TextEditingController();
-  String _searchQuery = '';
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
 
   /// ✅ قراءة رقم الإصدار ديناميكياً من package_info_plus
   Future<String> _getAppVersion() async {
@@ -62,18 +55,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final employeesAsync = ref.watch(employeesListProvider);
     final usersCountAsync = ref.watch(usersCountProvider);
 
-    // ✅ قائمة كل عناصر الإعدادات للبحث
-    final allItems = _getAllSettingsItems(context);
-
-    // ✅ فلترة حسب البحث
-    final filteredItems = _searchQuery.isEmpty
-        ? null
-        : allItems
-            .where((item) =>
-                item.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                item.subtitle.toLowerCase().contains(_searchQuery.toLowerCase()))
-            .toList();
-
     return AppScaffold(
       title: 'الإعدادات',
       // ✅ P0 fix: إزالة زر المزامنة المكرر — AppScaffold يضيف SyncActionButton تلقائياً
@@ -89,59 +70,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             usersCountAsync,
           ),
 
-          // ✅ شريط البحث
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'بحث في الإعدادات...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-              onChanged: (value) => setState(() => _searchQuery = value),
-            ),
-          ),
-
-          // ✅ المحتوى: إما نتائج البحث أو الأقسام
+          // ✅ المحتوى: الأقسام (تمت إزالة شريط البحث)
           Expanded(
-            child: filteredItems != null
-                ? _buildSearchResults(context, filteredItems)
-                : ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      // قسم إدارة البيانات
-                      _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
-                      _buildSettingsGrid(context, _getSectionItems(context, 'data')),
-                      const SizedBox(height: 20),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // قسم إدارة البيانات
+                _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
+                _buildSettingsGrid(context, _getSectionItems(context, 'data')),
+                const SizedBox(height: 20),
 
-                      // قسم المزامنة والنسخ الاحتياطي
-                      _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
-                      _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
-                      const SizedBox(height: 20),
+                // قسم المزامنة والنسخ الاحتياطي
+                _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
+                _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
+                const SizedBox(height: 20),
 
-                      // ✅ قسم واتساب والإشعارات (مقسم من القسم العام)
-                      _buildSectionTitle('واتساب والإشعارات', Icons.notifications),
-                      _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
-                      const SizedBox(height: 20),
+                // ✅ قسم واتساب والإشعارات (مقسم من القسم العام)
+                _buildSectionTitle('واتساب والإشعارات', Icons.notifications),
+                _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
+                const SizedBox(height: 20),
 
-                      // ✅ قسم التطبيق (مقسم من القسم العام)
-                      _buildSectionTitle('التطبيق', Icons.apps),
-                      _buildSettingsGrid(context, _getSectionItems(context, 'app')),
-                    ],
-                  ),
+                // ✅ قسم التطبيق (مقسم من القسم العام)
+                _buildSectionTitle('التطبيق', Icons.apps),
+                _buildSettingsGrid(context, _getSectionItems(context, 'app')),
+              ],
+            ),
           ),
         ],
       ),
@@ -150,6 +103,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   // ─── قوائم العناصر حسب القسم ───
 
+  // ignore: unused_element
   List<_SettingsItem> _getAllSettingsItems(BuildContext context) {
     return [
       ..._getSectionItems(context, 'data'),
@@ -304,6 +258,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       case 'whatsapp':
         return [
           _SettingsItem(
+            title: 'إقفال اليوم',
+            subtitle: 'تقرير يومي عبر WhatsApp و Telegram',
+            icon: Icons.nightlight_round,
+            color: Colors.indigo,
+            onTap: () => _performNightAudit(context),
+          ),
+          _SettingsItem(
             title: 'تذكير المتبقي',
             subtitle: 'تذكير واتساب بالمتأخر للحجوزات النشطة',
             icon: Icons.payment,
@@ -395,37 +356,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  // ─── نتائج البحث ───
-
-  Widget _buildSearchResults(BuildContext context, List<_SettingsItem> items) {
-    if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.search_off, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              'لا توجد نتائج لـ "$_searchQuery"',
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          'نتائج البحث (${items.length})',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
-        ),
-        const SizedBox(height: 12),
-        _buildSettingsGrid(context, items),
-      ],
-    );
-  }
-
   // ─── بطاقة الإحصائيات ───
 
   Widget _buildQuickStatsCard(
@@ -435,11 +365,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     AsyncValue<List<Employee>> employeesAsync,
     AsyncValue<int> usersCountAsync,
   ) {
+    // ✅ بطاقة مُصغّرة: padding/margin/icon/font sizes كلها مُقلّصة
     return Card(
-      elevation: 4,
-      margin: const EdgeInsets.all(16),
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -448,16 +379,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Icon(
                   Icons.dashboard,
                   color: Theme.of(context).primaryColor,
-                  size: 28,
+                  size: 18,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 6),
                 const Text(
                   'إحصائيات سريعة',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -470,7 +404,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 Expanded(
                   child: _buildStatItem(
-                    'الحجوزات النشطة',
+                    'النشطة',
                     bookingsAsync.value
                             ?.where(
                               (b) => StatusUtils.isActiveBooking(b.status),
@@ -514,19 +448,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   ) {
     return Column(
       children: [
-        Icon(icon, color: color, size: 32),
-        const SizedBox(height: 8),
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 4),
         Text(
           value,
           style: TextStyle(
-            fontSize: 24,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
             color: color,
           ),
         ),
         Text(
           title,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: const TextStyle(fontSize: 10, color: Colors.grey),
           textAlign: TextAlign.center,
         ),
       ],
@@ -611,6 +545,108 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   // ─── Dialogs ───
+
+  /// ✅ إقفال اليوم (Night Audit) — يُغلق اليوم الفندقي ويرسل التقرير
+  /// عبر WhatsApp و Telegram. نُقل من شاشة Dashboard إلى الإعدادات لتفادي
+  /// اهتزاز الشاشة أثناء المزامنة (الـ header في Dashboard يُعاد بناؤه
+  /// باستمرار مع تحديث حالة المزامنة).
+  Future<void> _performNightAudit(BuildContext context) async {
+    final service = NightAuditService.instance;
+    final isClosed = await service.isDayClosed(null);
+    // ✅ فحص mounted بعد await لمنع استخدام context إذا أُغلقت الشاشة.
+    // نتحقق أيضاً من context.mounted لأن context بارامتر (قد يختلف عن this.context).
+    // (مراجعة PR #451 r3521832508)
+    if (!mounted || !context.mounted) return;
+
+    if (isClosed) {
+      // اليوم مُقفل — اسأل عن إعادة الإرسال
+      final reSend = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('إعادة إرسال التقرير'),
+          content: const Text(
+            'تم إقفال اليوم بالفعل. هل تريد إعادة إرسال التقرير؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('إعادة الإرسال'),
+            ),
+          ],
+        ),
+      );
+      if (reSend != true) return;
+    } else {
+      // تأكيد الإقفال
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.nightlight_round, color: Colors.indigo),
+              SizedBox(width: 8),
+              Text('إقفال اليوم'),
+            ],
+          ),
+          content: const Text(
+            'سيتم تجميع كل بيانات اليوم المالية وإقفال اليوم الفندقي '
+            'وإرسال التقرير عبر WhatsApp و Telegram.\n\n'
+            'هل تريد المتابعة؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('إقفال وإرسال'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
+    // تنفيذ الإقفال
+    if (!mounted || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('جاري إقفال اليوم وإرسال التقرير...'),
+          ],
+        ),
+        duration: Duration(seconds: 10),
+      ),
+    );
+
+    final result = await service.closeDay(force: isClosed);
+
+    if (!mounted || !context.mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.message),
+        backgroundColor: result.success ? Colors.green : Colors.orange,
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
 
   void _showAppSettingsDialog(BuildContext context) {
     showDialog<void>(

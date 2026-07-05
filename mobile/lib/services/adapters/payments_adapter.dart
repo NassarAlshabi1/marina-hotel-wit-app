@@ -41,6 +41,9 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       localId: localId,
       serverId: serverBookingId,
       uuid: bookingUuid,
+      // ✅ إصلاح حرج: عند المزامنة من السيرفر، لا نستخدم localId كـ fallback
+      // لأن bookingLocalId من جهاز بعيد يختلف عن المحلي (autoIncrement مستقل)
+      fromRemote: src == Source.appwrite || src == Source.drive,
     );
 
     // تحذير إذا كان لدينا booking_local_id لكن لم نتمكن من حل المرجع
@@ -173,6 +176,7 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
         altKey: 'vector_clock',
         fallback: '{}',
       ),
+      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
       discountAmount: _vDouble(json, 'discountAmount', src),
       discountStartDate: _vStr(json, 'discountStartDate', src),
@@ -218,6 +222,7 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
       'deviceId': model.deviceId,
       // ✅ تم إضافة الحقول التالية إلى Appwrite Cloud (2026-05-15)
       _k(src, 'discountAmount', 'discount_amount'): model.discountAmount,

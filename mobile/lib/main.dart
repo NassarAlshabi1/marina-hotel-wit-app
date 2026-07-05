@@ -263,6 +263,15 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     );
     debugPrint('✅ SmartSyncManager initialized');
 
+    // ✅ تفعيل SyncGuardian — الحارس الذي يدير المزامنة الخلفية وإعادة التشغيل
+    debugPrint('🛡️ [7.5/8] Initializing SyncGuardian...');
+    try {
+      await SyncGuardian.instance.initialize(database: database);
+      debugPrint('✅ SyncGuardian initialized');
+    } catch (e) {
+      debugPrint('⚠️ SyncGuardian init failed (non-fatal): $e');
+    }
+
     debugPrint('🤖 [8/8] Initializing & Starting Auto Sync Engine...');
     final autoSyncEngine = AutoSyncEngine.instance;
 

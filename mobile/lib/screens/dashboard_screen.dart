@@ -7,14 +7,16 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/appwrite_providers.dart';
+import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
-import '../services/appwrite_delta_sync.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/local_db.dart';
 import '../services/remote_config_service.dart';
+import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
 import '../utils/status_utils.dart';
+import '../widgets/dashboard_conflicts_badge.dart';
 import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
 import 'payments/booking_payment_screen.dart';
@@ -61,6 +63,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _autoPullFromAppwrite() async {
+    // ✅ P3-5 (Global SyncGate): السحب التلقائي عند الفتح يمرّ عبر البوّابة
+    // العامة. إذا كان المستخدم قد ضغط زر مزامنة يدوياً، أو كان المؤقّت
+    // يعمل، فإن السحب التلقائي يُلغى بصمت دون منافسة على الموارد.
+    final executed = await SyncGate.instance.runGuardedVoid(
+      operation: 'auto_pull',
+      source: 'auto_open',
+      task: _autoPullFromAppwriteInner,
+    );
+    if (!executed) {
+      debugPrint(
+        'ℹ️ [AutoPull] skipped — SyncGate busy with '
+        '${SyncGate.instance.state.operation} from '
+        '${SyncGate.instance.state.source}',
+      );
+    }
+  }
+
+  Future<void> _autoPullFromAppwriteInner() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
@@ -117,17 +137,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       }
 
-      final deltaSync = AppwriteDeltaSync.instance;
-      int pulledCount = 0;
-
-      if (deltaSync.isInitialized) {
-        final result = await deltaSync.pullDeltaChanges();
-        pulledCount = result.recordsPulled;
-      } else {
-        final syncManager = ref.read(appwriteSyncManagerProvider);
-        final result = await syncManager.sync(push: false);
-        pulledCount = result.recordsPulled;
-      }
+      final syncManager = ref.read(appwriteSyncManagerProvider);
+      final result = await syncManager.sync(push: false);
+      final pulledCount = result.recordsPulled;
 
       // إعادة تعيين علامة التغييرات عن بعد
       AppwriteRealtimeSync().resetRemoteChangesFlag();
@@ -200,6 +212,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildHeader() {
+    final versionAsync = ref.watch(appVersionProvider);
+    final versionLabel = versionAsync.valueOrNull ?? '...';
     return Row(
       children: [
         Container(
@@ -213,21 +227,54 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: const Icon(Icons.hotel, color: Colors.white, size: 18),
         ),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'فندق مارينا',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              Text(
-                'لوحة التحكم',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+              Row(
+                children: [
+                  const Text(
+                    'لوحة التحكم',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(width: 6),
+                  // ✅ رقم إصدار APK — يُقرأ ديناميكياً من package_info_plus.
+                  // يظهر للمستخدم مباشرةً في الـ header حتى يسهل التحقق من
+                  // النسخة المثبّتة دون فتح شاشة الإعدادات.
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: Colors.blue.shade200,
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Text(
+                      'v$versionLabel',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.blue.shade700,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
+        const DashboardConflictsBadge(),
+        const SizedBox(width: 8),
         const DashboardSyncButton(),
       ],
     );

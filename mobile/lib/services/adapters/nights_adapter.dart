@@ -151,6 +151,14 @@ class NightsAdapter
         src,
         altKey: 'applied_adjustment_uuid',
       ),
+      // ✅ إصلاح (P0-3): قراءة appliedAdjustmentsJson عند pull.
+      // PayloadMapper يُرسله لكن الـ adapter لم يكن يقرأه.
+      appliedAdjustmentsJson: _vStr(
+        json,
+        'appliedAdjustmentsJson',
+        src,
+        altKey: 'applied_adjustments_json',
+      ),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -179,6 +187,7 @@ class NightsAdapter
         altKey: 'vector_clock',
         fallback: '{}',
       ),
+      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -202,6 +211,11 @@ class NightsAdapter
       _k(src, 'finalRate', 'final_rate'): model.finalRate,
       _k(src, 'appliedAdjustmentUuid', 'applied_adjustment_uuid'):
           model.appliedAdjustmentUuid,
+      // ✅ إصلاح (P0-3): إضافة appliedAdjustmentsJson الذي كان مفقوداً.
+      // PayloadMapper يُرسله لكن الـ adapter لم يكن يُرسله — فقدان بيانات.
+      // Appwrite schema: string size=5000 (مُتحقّق منه).
+      _k(src, 'appliedAdjustmentsJson', 'applied_adjustments_json'):
+          model.appliedAdjustmentsJson,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
       _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
@@ -214,6 +228,7 @@ class NightsAdapter
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
       'deviceId': model.deviceId,
     };
   }

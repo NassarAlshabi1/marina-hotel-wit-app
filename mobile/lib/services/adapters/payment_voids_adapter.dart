@@ -122,6 +122,10 @@ class PaymentVoidsAdapter
         altKey: 'vector_clock',
         fallback: '{}',
       ),
+      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      note: _vStr(json, 'note', src),
+      originalAmount: _vDoubleNullable(json, 'originalAmount', src, altKey: 'original_amount'),
+      paymentUuid: _vStr(json, 'paymentUuid', src, altKey: 'payment_uuid'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -155,6 +159,10 @@ class PaymentVoidsAdapter
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
+      'note': model.note,
+      'originalAmount': model.originalAmount,
+      'paymentUuid': model.paymentUuid,
       'deviceId': model.deviceId,
     };
   }
@@ -255,4 +263,31 @@ String? _altKey(String camel, Source src) {
     }
   }
   return buf.toString();
+}
+
+// ✅ Helpers إضافية للحقول الجديدة (v2)
+
+d.Value<double?> _vDoubleNullable(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+}) {
+  final v = _asDouble(json, key, src) ??
+      (altKey != null ? _asFloat(json, altKey, src) : null);
+  return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+double? _asFloat(Map<String, dynamic> json, String key, Source src) {
+  return _asDouble(json, key, src);
+}
+
+double? _asDouble(Map<String, dynamic> json, String key, Source src) {
+  final v = _raw(json, key, src);
+  if (v == null) return null;
+  if (v is double) return v;
+  if (v is int) return v.toDouble();
+  if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v);
+  return null;
 }

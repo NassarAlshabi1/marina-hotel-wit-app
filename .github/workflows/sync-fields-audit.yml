@@ -12,6 +12,7 @@ on:
       - 'mobile/lib/services/adapters/**'
       - 'mobile/lib/services/appwrite_sync_utils.dart'
       - 'mobile/lib/services/local_db.dart'
+      - 'mobile/test/sync_fields_audit_test.dart'
 
 jobs:
   audit:
@@ -35,24 +36,38 @@ jobs:
       - name: Generate code (build_runner)
         run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: Run sync fields audit
+      - name: Run sync fields audit (flutter test)
         id: audit
         run: |
-          OUTPUT=$(dart run lib/scripts/audit_sync_fields.dart 2>&1)
+          OUTPUT=$(flutter test test/sync_fields_audit_test.dart 2>&1 || true)
           echo "$OUTPUT"
-          # استخرج عدد المشاكل
-          ISSUES=$(echo "$OUTPUT" | grep "Total issues:" | grep -o '[0-9]*' || echo "0")
-          echo "issues=$ISSUES" >> $GITHUB_OUTPUT
+          # الفحص يمر إذا ظهر "tests passed." أو "All tests passed!" في المخرجات.
+          # flutter test يُنتج تنسيقات مختلفة حسب البيئة:
+          #   - TTY: "All tests passed!"
+          #   - no-TTY (CI): "🎉 N tests passed."
+          if echo "$OUTPUT" | grep -qE "(All tests passed!|tests passed\.)"; then
+            # نتأكد أيضاً من عدم وجود فشل
+            if echo "$OUTPUT" | grep -qE "(Some tests failed|FAILED)"; then
+              echo "passed=false" >> $GITHUB_OUTPUT
+              echo "issues=1" >> $GITHUB_OUTPUT
+            else
+              echo "passed=true" >> $GITHUB_OUTPUT
+              echo "issues=0" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "passed=false" >> $GITHUB_OUTPUT
+            echo "issues=1" >> $GITHUB_OUTPUT
+          fi
 
       - name: Flutter analyze
         run: flutter analyze --no-pub --no-fatal-infos
 
       - name: Fail if audit found issues
-        if: steps.audit.outputs.issues != '0'
+        if: steps.audit.outputs.passed != 'true'
         run: |
-          echo "::error::Sync fields audit found ${{ steps.audit.outputs.issues }} issues!"
+          echo "::error::Sync fields audit failed!"
           echo "::error::Some adapter fields are missing from validFieldsPerCollection."
-          echo "::error::Run 'dart run lib/scripts/audit_sync_fields.dart' locally to see details."
+          echo "::error::Run 'flutter test test/sync_fields_audit_test.dart' locally to see details."
           exit 1
 
       - name: Comment on PR
@@ -60,11 +75,11 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const issues = '${{ steps.audit.outputs.issues }}';
-            const status = issues === '0' ? '✅' : '❌';
+            const passed = '${{ steps.audit.outputs.passed }}' === 'true';
+            const status = passed ? '✅' : '❌';
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## ${status} Sync Fields Audit\n\n**Issues found:** ${issues}\n\n${issues === '0' ? 'All adapter fields are properly synced.' : 'Some fields will be filtered before reaching Appwrite Cloud. Fix before merging!'}`
+              body: `## ${status} Sync Fields Audit\n\n**Result:** ${passed ? 'All adapter fields are properly synced.' : 'Some fields will be filtered before reaching Appwrite Cloud. Fix before merging!'}\n\nRun \`flutter test test/sync_fields_audit_test.dart\` locally to see details.`
             });

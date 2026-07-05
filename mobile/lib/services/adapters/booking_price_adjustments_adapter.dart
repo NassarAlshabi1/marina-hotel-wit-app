@@ -41,11 +41,26 @@ class BookingPriceAdjustmentsAdapter
     );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
+
+    // ✅ إصلاح: إذا فشل resolveBooking والحجز غير موجود محلياً، تخطّي السجل
+    // بدل محاولة إدراجه بـ FK خاطئ (bookingLocalUuid NOT NULL FK).
+    // هذا يمنع SqliteException(787): FOREIGN KEY constraint failed.
+    final shouldSkip = resolvedId == null &&
+        bookingUuid != null &&
+        bookingUuid.isNotEmpty &&
+        (src == Source.appwrite || src == Source.drive);
+    final skipReason = shouldSkip
+        ? 'booking_price_adjustment: لا يمكن العثور على الحجز المرتبط '
+            '(uuid=$bookingUuid, localId=$localId) — تم التخطي لتجنب FK constraint failed'
+        : null;
+
     return ResolveResult(
       bookingLocalId: resolvedId,
       bookingUuidCache: bookingUuid,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
+      shouldSkip: shouldSkip,
+      skipReason: skipReason,
     );
   }
 
@@ -153,6 +168,7 @@ class BookingPriceAdjustmentsAdapter
         altKey: 'vector_clock',
         fallback: '{}',
       ),
+      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -190,6 +206,7 @@ class BookingPriceAdjustmentsAdapter
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
       'deviceId': model.deviceId,
     };
   }

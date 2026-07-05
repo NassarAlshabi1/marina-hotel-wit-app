@@ -1,11 +1,11 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../adapters/sync_adapter.dart';
 import '../models/sync_result.dart';
 import '../models/sync_state.dart';
-import '../strategies/retry_strategy.dart';
 
 /// منسق المزامنة الموحد - نقطة الدخول الوحيدة لكل عمليات المزامنة
 class SyncOrchestrator {
@@ -17,7 +17,13 @@ class SyncOrchestrator {
 
   final List<SyncAdapter> _adapters = [];
   final StreamController<SyncState> _stateController = StreamController<SyncState>.broadcast();
-  final RetryStrategy _retryStrategy = ExponentialBackoffStrategy();
+
+  // إعدادات إعادة المحاولة المضمنة (تم حذف ملف strategies/retry_strategy.dart
+  // أثناء التنظيف المعماري — أُبقيت المنطق هنا لأنه الواجهة الوحيدة المستخدمة).
+  static const int _maxAttempts = 5;
+  static const Duration _initialDelay = Duration(seconds: 1);
+  static const Duration _maxDelay = Duration(minutes: 5);
+  static const double _backoffMultiplier = 2.0;
   
   Stream<SyncState> get stateStream => _stateController.stream;
   
@@ -97,15 +103,33 @@ class SyncOrchestrator {
     }
   }
 
-  /// مزامنة مع إعادة محاولة
+  /// مزامنة مع إعادة محاولة (Exponential Backoff + Jitter).
   Future<SyncResult> _syncWithRetry(
     SyncAdapter adapter, {
     required bool push,
     required bool pull,
   }) async {
-    return _retryStrategy.execute(() async {
-      return adapter.sync(push: push, pull: pull);
-    });
+    int attempt = 0;
+    Duration currentDelay = _initialDelay;
+
+    while (true) {
+      try {
+        return await adapter.sync(push: push, pull: pull);
+      } catch (e) {
+        attempt++;
+        if (attempt >= _maxAttempts) {
+          return SyncResult.error('فشلت المزامنة بعد $_maxAttempts محاولات: $e');
+        }
+        final jitter = Random().nextInt(1000);
+        await Future<void>.delayed(currentDelay + Duration(milliseconds: jitter));
+        currentDelay = Duration(
+          milliseconds: min(
+            (currentDelay.inMilliseconds * _backoffMultiplier).toInt(),
+            _maxDelay.inMilliseconds,
+          ),
+        );
+      }
+    }
   }
 
   /// دفع التغييرات المحلية فقط (بدون سحب)

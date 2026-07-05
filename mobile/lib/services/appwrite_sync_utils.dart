@@ -195,6 +195,7 @@ class AppwriteSyncUtils {
       'alertType',
       'alertUntil',
       'bookingId',
+      'bookingUuidCache',
       'createdAt',
       'createdAtEpoch',
       'createdAtIso',
@@ -339,6 +340,7 @@ class AppwriteSyncUtils {
     'debts': {
       'amount',
       'bookingLocalId',
+      'bookingUuidCache',
       'checkinDate',
       'checkoutDate',
       'createdAt',

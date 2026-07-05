@@ -37,6 +37,9 @@ class CircuitBreaker {
   int get failureCount => _failureCount;
   int get successCount => _successCount;
 
+  // ✅ P1-9 fix: latch لمنع thundering herd في half-open
+  bool _halfOpenProbeInFlight = false;
+
   Future<T> execute<T>(Future<T> Function() operation) async {
     if (_state == CircuitState.open) {
       if (_shouldAttemptReset()) {
@@ -46,6 +49,16 @@ class CircuitBreaker {
           'Circuit breaker [$name] مفتوح - الخدمة غير متاحة مؤقتًا',
         );
       }
+    }
+
+    // ✅ P1-9 fix: في half-open، اسمح بمسبار واحد فقط
+    if (_state == CircuitState.halfOpen) {
+      if (_halfOpenProbeInFlight) {
+        throw CircuitBreakerOpenException(
+          'Circuit breaker [$name] half-open — مسبار قيد التنفيذ',
+        );
+      }
+      _halfOpenProbeInFlight = true;
     }
 
     try {
@@ -61,6 +74,9 @@ class CircuitBreaker {
     } catch (e) {
       _onFailure();
       rethrow;
+    } finally {
+      // ✅ P1-9: تحرير الـ latch
+      _halfOpenProbeInFlight = false;
     }
   }
 

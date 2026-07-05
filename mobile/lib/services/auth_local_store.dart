@@ -334,6 +334,7 @@ class AuthLocalStore {
       final docId = 'user_$username';
       // ✅ تشفير كلمة المرور قبل الرفع للسحابة
       final hashedPassword = PasswordHasher.hash(password);
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       await appwrite.upsertDocument(
         collectionId: 'app_users',
         documentId: docId,
@@ -346,6 +347,10 @@ class AuthLocalStore {
           'active': true,
           'last_login': 0,
           'credentials_version': 1,
+          // ✅ حقول SyncFields المطلوبة على Appwrite Cloud
+          'createdAt': now,
+          'updatedAt': now,
+          'lastModified': now,
         },
       );
       AppLogger.debug('User $username pushed to cloud (password hashed)', tag: 'AUTH');
@@ -438,6 +443,10 @@ class AuthLocalStore {
       if (newUserType != null) data['user_type'] = newUserType;
       if (newPermissions != null) data['permissions'] = jsonEncode(newPermissions);
       if (active != null) data['active'] = active;
+      // ✅ تحديث حقول SyncFields المطلوبة على Appwrite Cloud
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      data['updatedAt'] = now;
+      data['lastModified'] = now;
 
       await appwrite.updateDocument(
         collectionId: 'app_users',

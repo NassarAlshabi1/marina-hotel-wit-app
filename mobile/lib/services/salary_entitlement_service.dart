@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
+import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 
 class SalaryEntitlement {
@@ -338,6 +339,7 @@ class SalaryEntitlementService {
         'في دورة ${_formatDate(previousCycleStart)} إلى ${_formatDate(previousCycleEnd)}.';
 
     final nowEpoch = Time.nowEpoch();
+    final carryLogUuid = IdGen.uuid();
     await _db.into(_db.salaryCarryOverLogs).insert(
       SalaryCarryOverLogsCompanion.insert(
         employeeId: employee.id,
@@ -348,12 +350,34 @@ class SalaryEntitlementService {
         newCycleEnd: _formatDate(currentCycleEnd),
         reason: reason,
         carriedAt: nowEpoch,
-        localUuid: IdGen.uuid(),
+        localUuid: carryLogUuid,
         createdAt: nowEpoch,
         updatedAt: nowEpoch,
         lastModified: nowEpoch,
       ),
     );
+
+    // ✅ تسجيل في outbox للمزامنة مع Appwrite Cloud
+    try {
+      await OutboxDao(_db).merge(
+        entity: 'salary_carry_over_logs',
+        op: 'create',
+        localUuid: carryLogUuid,
+        clientTs: nowEpoch,
+        payload: {
+          'employeeId': employee.id,
+          'amount': carriedOver,
+          'previousCycleStart': _formatDate(previousCycleStart),
+          'previousCycleEnd': _formatDate(previousCycleEnd),
+          'newCycleStart': _formatDate(currentCycleStart),
+          'newCycleEnd': _formatDate(currentCycleEnd),
+          'reason': reason,
+          'carriedAt': nowEpoch,
+        },
+      );
+    } catch (e) {
+      debugPrint('⚠️ فشل تسجيل salary_carry_over_log في outbox: $e');
+    }
 
     debugPrint('📝 ترحيل تلقائي: $carriedOver للموظف ${employee.name}');
   }

@@ -180,9 +180,8 @@ class SyncConflictResolver {
         );
         return const ConflictCheckResult(
           isConflict: true,
-          resolved: true,
           usedLocal: true,
-          reason: 'manualReview: تم تسجيل التعارض للمراجعة اليدوية — الاحتفاظ بالمحلي كإجراء آمن',
+          reason: 'manualReview: تم تسجيل التعارض للمراجعة اليدوية — الاحتفاظ بالمحلي مؤقتاً',
         );
       }
 
@@ -272,7 +271,9 @@ class SyncConflictResolver {
         logId: logId ?? 0,
         targetTable: table,
         uuid: localUuid,
-        resolution: 'pending',
+        // ✅ P1-7 fix: توحيد مؤشر "غير محلول" — '' بدل 'pending'
+        // conflict_manager.dart يعتبر resolution == null أو '' كغير محلول
+        resolution: '',
         localPayload: jsonEncode(localData),
         remotePayload: jsonEncode(remoteData),
         createdAt: now,
@@ -330,7 +331,7 @@ class SyncConflictResolver {
   /// جلب جميع التعارضات غير المحلولة
   Future<List<SyncConflictRow>> getPendingConflicts() async {
     return (db.select(db.syncConflicts)
-          ..where((t) => t.resolution.equals('pending')))
+          ..where((t) => t.resolution.equals('')))
         .get();
   }
 
@@ -378,7 +379,7 @@ class SyncConflictResolver {
     final deleteResult = await db.customSelect(
       'DELETE FROM sync_conflicts WHERE resolution != ? AND created_at < ?',
       variables: [
-        const Variable<String>('pending'),
+        const Variable<String>(''),
         Variable<String>(cutoff),
       ],
     ).get();
@@ -396,7 +397,7 @@ class SyncConflictResolver {
     final result = await db
         .customSelect(
           'SELECT COUNT(*) as cnt FROM sync_conflicts WHERE resolution = ?',
-          variables: [const Variable<String>('pending')],
+          variables: [const Variable<String>('')],
         )
         .getSingleOrNull();
 

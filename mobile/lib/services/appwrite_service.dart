@@ -94,6 +94,7 @@ class AppwriteService {
     required List<String> queries,
     bool useCache = true,
     bool useRetry = true,
+    int? maxRecords,
   }) async {
     // ✅ Manual failover: if active, read from Secondary instead of Primary
     // This covers all entity reads (listRooms, listBookings, listPayments, etc.)
@@ -116,16 +117,25 @@ class AppwriteService {
     }
 
     final allDocuments = <models.Document>[];
-    int pageOffset = 0;
     const pageSize = AppwriteConfig.maxPageSize;
+    // ✅ P1-4 fix: cursor pagination بدل offset لمنع إسقاط/تكرار السجلات
+    String? cursorAfterId;
 
     try {
       while (true) {
-        final pagedQueries = _applyPagingQueries(
-          queries,
-          limit: pageSize,
-          offset: pageOffset,
-        );
+        final pagedQueries = List<String>.from(queries);
+        // ✅ P1-4: ترتيب ثابت بـ $id لضمان ترقيم مؤشّري حتمي.
+        // ⚠️ إصلاح (PR #451 r3521832510): يجب إضافة orderAsc على كل صفحة،
+        // ليس فقط الأولى. cursor pagination يتطلب ترتيباً متطابقاً عبر
+        // جميع الصفحات وإلا فاشل Appwrite بـ "cursor requires consistent
+        // sort order" أو يُرجع نتائج خاطئة. pagedQueries يُعاد بناؤه
+        // من queries (بدون الترتيب) في كل تكرار، لذا يجب إعادة إضافته.
+        pagedQueries.add(Query.orderAsc('\$id'));
+        pagedQueries.add(Query.limit(pageSize));
+        // ✅ P1-4: استخدام cursorAfter بدل offset
+        if (cursorAfterId != null) {
+          pagedQueries.add(Query.cursorAfter(cursorAfterId));
+        }
 
         Future<List<models.Document>> performOperation() async {
           // ignore: deprecated_member_use
@@ -155,11 +165,20 @@ class AppwriteService {
 
         allDocuments.addAll(pageDocs);
 
+        // ✅ قطع عند بلوغ maxRecords (مثلاً السحب الأولي لـ booking_nights)
+        if (maxRecords != null && allDocuments.length >= maxRecords) {
+          if (allDocuments.length > maxRecords) {
+            allDocuments.removeRange(maxRecords, allDocuments.length);
+          }
+          break;
+        }
+
         if (pageDocs.length < pageSize) {
           break;
         }
 
-        pageOffset += pageSize;
+        // ✅ P1-4: تحديث المؤشّر بآخر $id في الصفحة
+        cursorAfterId = pageDocs.last.$id;
       }
     } catch (primaryError) {
       // ✅ Failover: إذا فشل Primary و Secondary مُفعّل للسحب (Pull)، نقرأ منه
@@ -488,6 +507,23 @@ class AppwriteService {
         rethrow;
       }
       // 404 — متوقع للسجلات الجديدة أو المستندات بدون شرطات
+    }
+
+    // ─── الخطوة 1.5: قبل الإنشاء، جرّب تحديث الـ ID البديل (بدون شرطات) ───
+    //
+    // ✅ إصلاح جذري للتكرار: المستند قد يكون موجودًا بصيغة بدون شرطات فقط.
+    // في هذه الحالة update(بشرطات) يعطي 404 ثم create(بشرطات) ينجح
+    // فتُنشأ نسخة مكررة (نفس UUID بصيغتين). لذا نحدّث المستند البديل في مكانه
+    // إن وُجد، ونتجنّب الإنشاء المكرر تمامًا.
+    if (altDocumentId.isNotEmpty) {
+      try {
+        return await doUpdate(altDocumentId, suppressErrorLog: true);
+      } on AppwriteException catch (altError) {
+        if (!isNotFound(altError)) {
+          rethrow; // خطأ آخر غير 404
+        }
+        // 404 على البديل أيضًا — المستند غير موجود بأي صيغة → ننتقل للإنشاء
+      }
     }
 
     // ─── الخطوة 2: createDocument ───
@@ -839,12 +875,14 @@ class AppwriteService {
   Future<List<models.Document>> listBookingNights({
     List<String>? queries,
     bool useCache = true,
+    int? maxRecords,
   }) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.bookingNightsCollectionId,
       queries: queries ?? [],
       useCache: useCache,
+      maxRecords: maxRecords,
     );
   }
 
@@ -1232,6 +1270,11 @@ class AppwriteService {
   Future<models.Document> getRow({
     required String collectionId,
     required String documentId,
+    // ✅ إصلاح #2-D: كتم 404 المتوقع في فحص OCC. عند استدعاء getRow من
+    // _occCheckAndMerge، 404 يعني ببساطة أن المستند جديد (لم يُرفع بعد)
+    // — وهو سلوك متوقع وليس خطأ. تمرير suppressErrorLog: true يخفضه من
+    // ERROR إلى debug في السجل.
+    bool suppressErrorLog = false,
   }) async {
     await _ensureInitialized();
     // ✅ Manual failover: if active, read from Secondary instead
@@ -1251,6 +1294,7 @@ class AppwriteService {
         documentId: documentId,
       ),
       operationName: 'getRow($collectionId/$documentId)',
+      suppressErrorLog: suppressErrorLog,
     );
   }
 
@@ -1356,10 +1400,12 @@ class AppwriteService {
   Future<models.Document> getDocument({
     required String collectionId,
     required String documentId,
+    bool suppressErrorLog = false,
   }) {
     return getRow(
       collectionId: collectionId,
       documentId: documentId,
+      suppressErrorLog: suppressErrorLog,
     );
   }
 
