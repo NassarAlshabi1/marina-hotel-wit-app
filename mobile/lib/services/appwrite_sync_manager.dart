@@ -2393,9 +2393,12 @@ class AppwriteSyncManager {
       int processedInBatch = 0;
       for (final entry in entries) {
         try {
-          const timeoutSeconds = 30;
+          // ✅ إصلاح: timeout ديناميكي متصاعد بدل 30 ثانية ثابتة.
+          // كلما زاد عدد المحاولات السابقة (entry.attempts) زاد الـ timeout،
+          // مما يمنع فقدان البيانات على الأجهزة البطيئة أو عند الحمائل الكبيرة.
+          final dynamicTimeout = _computeDynamicTimeout(entry);
           final success = await _processOutboxEntry(entry)
-              .timeout(const Duration(seconds: timeoutSeconds));
+              .timeout(dynamicTimeout);
           if (success) {
             // ✅ Dual-delivery: نضع علامة "مُسلّم للرئيسي" بدلاً من الحذف.
             // السجل يُحذف تلقائياً فقط إذا كان مُسلّماً للثانوي أيضاً.
@@ -2630,8 +2633,12 @@ class AppwriteSyncManager {
     }
     final room = await _getRoomByLocalUuid(entry.localUuid);
     if (room == null) {
-      await _deleteSilently(() => appwriteService.deleteRoom(entry.localUuid));
-      return true;
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'rooms',
+        () => appwriteService.deleteRoom(entry.localUuid),
+      );
     }
     final payload = _roomToRemote(room);
 
@@ -2670,10 +2677,12 @@ class AppwriteSyncManager {
     }
     final booking = await _getBookingByLocalUuid(entry.localUuid);
     if (booking == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'bookings',
         () => appwriteService.deleteBooking(entry.localUuid),
       );
-      return true;
     }
     final payload = _bookingToRemote(booking);
 
@@ -2779,10 +2788,12 @@ class AppwriteSyncManager {
     }
     final expense = await _getExpenseByLocalUuid(entry.localUuid);
     if (expense == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'expenses',
         () => appwriteService.deleteExpense(entry.localUuid),
       );
-      return true;
     }
     final payload = _expenseToRemote(expense);
     // ✅ إضافة employeeUuid لمصروفات الرواتب لربط الموظف عبر الأجهزة
@@ -2838,10 +2849,14 @@ class AppwriteSyncManager {
     }
     final payment = await _getPaymentByLocalUuid(entry.localUuid);
     if (payment == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج (fatal data loss on slow devices):
+      // لا نحذف من السحاب إلا إذا كان السجل محذوفاً softly فعلاً.
+      // إذا كان خطأ قراءة مؤقت (DB lock، بطء الجهاز)، نُعيد المحاولة.
+      return _handleMissingLocalRecord(
+        entry,
+        'payments',
         () => appwriteService.deletePayment(entry.localUuid),
       );
-      return true;
     }
     final payload = _paymentToRemote(payment);
     // ✅ P0-5: OCC check — فحص النسخة البعيدة قبل الدفع
@@ -2885,8 +2900,12 @@ class AppwriteSyncManager {
     }
     final debt = await _getDebtByLocalUuid(entry.localUuid);
     if (debt == null) {
-      await _deleteSilently(() => appwriteService.deleteDebt(entry.localUuid));
-      return true;
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'debts',
+        () => appwriteService.deleteDebt(entry.localUuid),
+      );
     }
     final payload = _debtToRemote(debt);
     // ✅ P0-5: OCC check — فحص النسخة البعيدة قبل الدفع
@@ -2921,6 +2940,126 @@ class AppwriteSyncManager {
       }
     }
     return true;
+  }
+
+  /// ✅ إصلاح حرج (fatal data loss on slow devices):
+  /// يتحقق مما إذا كان السجل المحلي مفقوداً بسبب **حذف ناعم فعلي** أم
+  /// **خطأ قراءة مؤقت** (DB lock، بطء الجهاز، isolate مشغول).
+  ///
+  /// السيناريو الخطير الذي يُصلِحه هذا الإصلاح:
+  /// 1. _getPaymentByLocalUuid يُرجع null على جهاز بطيء (خطأ قراءة مؤقت)
+  /// 2. _processPaymentEntry يحذف المستند من Appwrite Cloud + return true
+  /// 3. markDeliveredToPrimary → deliveredToPrimary=true + deliveredToSecondary=true (افتراضي)
+  /// 4. السجل يُحذف من outbox فوراً
+  /// 5. 🔥 فقدان كامل: لا في outbox، ولا في السحاب (حُذف)
+  ///
+  /// هذا الإصلاح: عند `record == null` لـ `op != 'delete'`، نميّز بين:
+  /// - **محذوف softly** (deletedAt != null): نحذف من السحاب + return true (سلوك صحيح)
+  /// - **خطأ قراءة** (السجل غير موجود إطلاقاً): NO نحذف + return false (أعد المحاولة)
+  ///
+  /// [tableName] — اسم الجدول في SQL (rooms, bookings, payments, ...)
+  /// [localUuid] — المعرّف المحمول للسجل
+  /// يُرجع: true إذا كان محذوفاً softly، false إذا لم يكن موجوداً إطلاقاً
+  Future<bool> _isRecordSoftDeleted(
+    String tableName,
+    String localUuid,
+  ) async {
+    try {
+      final result = await database.customSelect(
+        'SELECT deleted_at FROM $tableName '
+        'WHERE local_uuid = ? AND deleted_at IS NOT NULL '
+        'LIMIT 1',
+        variables: [drift.Variable.withString(localUuid)],
+        // readsFrom يُحدّث Drift stream — لكننا نستخدم customSelect مرة واحدة
+        // فلا حاجة لتحديد readsFrom هنا (الاستعلام لمرة واحدة).
+      ).getSingleOrNull();
+      // إذا وُجد صف بـ deleted_at != null → محذوف softly فعلاً
+      return result != null;
+    } catch (e) {
+      // خطأ في الاستعلام نفسه → نعتبره "غير محذوف softly" (أعد المحاولة)
+      _logger.warning(
+        '⚠️ _isRecordSoftDeleted($tableName, $localUuid) failed: $e — '
+        'treating as NOT soft-deleted (will retry)',
+        tag: 'SYNC',
+      );
+      return false;
+    }
+  }
+
+  /// ✅ إصلاح: timeout ديناميكي متصاعد بدل 30 ثانية ثابتة.
+  ///
+  /// الحساب:
+  /// - **الأساس**: 30 ثانية (كما كان)
+  /// - **متصاعد حسب المحاولات**: +15 ثانية لكل محاولة سابقة (entry.attempts)
+  ///   - محاولة 0: 30 ثانية
+  ///   - محاولة 1: 45 ثانية
+  ///   - محاولة 2: 60 ثانية
+  ///   - محاولة 3: 75 ثانية
+  /// - **حجم الحمولة**: +1 ثانية لكل 1KB فوق 2KB (الحمائل الكبيرة تحتاج وقتاً)
+  /// - **الحد الأقصى**: 5 دقائق (300 ثانية) — يمنع الانتظار اللانهائي
+  ///
+  /// لماذا؟ على الأجهزة البطيئة أو مع الحمائل الكبيرة، 30 ثانية قد لا تكفي
+  /// لـ OCC check + upsert + retry. timeout ثابت يسبب فقدان البيانات لأن
+  /// الـ entry يُستعاد بعد دقيقة لكن قد يفشل مرة أخرى بنفس الـ timeout.
+  ///
+  /// الـ timeout المتصاعد يمنح كل محاولة وقتاً كافياً، ومع كل إعادة محاولة
+  /// يزداد الـ timeout، مما يزيد فرصة النجاح.
+  Duration _computeDynamicTimeout(OutboxData entry) {
+    // الأساس
+    const baseSeconds = 30;
+
+    // تصاعد حسب المحاولات السابقة
+    final attemptBonus = (entry.attempts * 15).clamp(0, 120);
+
+    // تصاعد حسب حجم الحمولة (1 ثانية لكل 1KB فوق 2KB)
+    final payloadSize = entry.payload.length;
+    final payloadBonus = payloadSize > 2048
+        ? ((payloadSize - 2048) / 1024).floor().clamp(0, 60)
+        : 0;
+
+    // الحساب النهائي مع حد أقصى 5 دقائق
+    final totalSeconds = (baseSeconds + attemptBonus + payloadBonus)
+        .clamp(30, 300);
+
+    return Duration(seconds: totalSeconds);
+  }
+
+  /// معالج موحّد للسجل المحلي المفقود في process methods.
+  ///
+  /// يُرجع `true` إذا كان يجب متابعة العملية (حذف من السحاب)،
+  /// أو `false` إذا كان يجب إعادة المحاولة (لا حذف).
+  ///
+  /// [entry] — عنصر outbox
+  /// [tableName] — اسم الجدول في SQL
+  /// [deleteAction] — دالة الحذف من Appwrite
+  Future<bool> _handleMissingLocalRecord(
+    OutboxData entry,
+    String tableName,
+    Future<void> Function() deleteAction,
+  ) async {
+    // إذا كانت العملية delete متعمَّدة → احذف من السحاب (سلوك صحيح)
+    if (entry.op == 'delete') {
+      await _deleteSilently(deleteAction);
+      return true;
+    }
+
+    // للعمليات create/update: تحقق من الحذف الناعم
+    final isSoftDeleted = await _isRecordSoftDeleted(tableName, entry.localUuid);
+    if (isSoftDeleted) {
+      // محذوف softly فعلاً → احذف من السحاب + return true
+      await _deleteSilently(deleteAction);
+      return true;
+    }
+
+    // ❌ خطأ قراءة مؤقت (السجل غير موجود ولا محذوف softly)
+    // لا نحذف من السحاب — أعد المحاولة في الـ sync التالي.
+    _logger.warning(
+      '⚠️ ${entry.entity} ${entry.localUuid} not found locally and NOT '
+      'soft-deleted (op=${entry.op}) — possible DB read error on slow device. '
+      'NOT deleting from cloud. Entry will retry.',
+      tag: 'SYNC',
+    );
+    return false;
   }
 
   Future<void> _deleteSilently(Future<void> Function() action) async {
@@ -3021,10 +3160,12 @@ class AppwriteSyncManager {
     }
     final info = await _getGuestInfoByLocalUuid(entry.localUuid);
     if (info == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'guest_infos',
         () => appwriteService.deleteGuestInfo(entry.localUuid),
       );
-      return true;
     }
     final payload = _payloadMapper.guestInfoToRemote(info);
     await appwriteService.upsertDocument(
@@ -3191,10 +3332,12 @@ class AppwriteSyncManager {
     }
     final withdrawal = await _getSalaryWithdrawalByLocalUuid(entry.localUuid);
     if (withdrawal == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'salary_withdrawals',
         () => appwriteService.deleteSalaryWithdrawal(entry.localUuid),
       );
-      return true;
     }
 
     // ✅ إصلاح FK constraint: التأكد أن الموظف موجود على Appwrite قبل الدفع
@@ -4645,10 +4788,12 @@ class AppwriteSyncManager {
     }
     final item = await _getSalaryPaymentByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'salary_payments',
         () => appwriteService.deleteSalaryPayment(entry.localUuid),
       );
-      return true;
     }
     final payload = _payloadMapper.salaryPaymentToRemote(item);
     await appwriteService.upsertSalaryPayment(
@@ -4674,10 +4819,12 @@ class AppwriteSyncManager {
     }
     final item = await _getCashTransactionByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'cash_transactions',
         () => appwriteService.deleteCashTransaction(entry.localUuid),
       );
-      return true;
     }
 
     final payload = _payloadMapper.cashTransactionToRemote(item);
@@ -4705,10 +4852,12 @@ class AppwriteSyncManager {
     }
     final item = await _getShiftNoteByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'shift_notes',
         () => appwriteService.deleteShiftNote(entry.localUuid),
       );
-      return true;
     }
 
     final payload = _payloadMapper.shiftNoteToRemote(item);
@@ -4745,13 +4894,15 @@ class AppwriteSyncManager {
           ..limit(1))
         .getSingleOrNull();
     if (log == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'salary_carry_over_logs',
         () => appwriteService.deleteDocument(
           collectionId: 'salary_carry_over_logs',
           documentId: entry.localUuid,
         ),
       );
-      return true;
     }
     final payload = _payloadMapper.salaryCarryOverLogToRemote(log);
     await appwriteService.upsertDocument(
@@ -4771,10 +4922,12 @@ class AppwriteSyncManager {
     }
     final item = await _getBlacklistShiftNoteByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'blacklist',
         () => appwriteService.deleteBlacklist(entry.localUuid),
       );
-      return true;
     }
 
     final payload = _blacklistToRemote(item);
@@ -4814,14 +4967,15 @@ class AppwriteSyncManager {
         .getSingleOrNull();
 
     if (localRow == null) {
-      // السجل غير موجود محلياً — نحذف من Appwrite أيضاً
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'price_adjustments',
         () => appwriteService.deleteDocument(
           collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
           documentId: entry.localUuid,
         ),
       );
-      return true;
     }
 
     final payload = _priceAdjustmentToRemote(localRow);
@@ -4994,13 +5148,15 @@ class AppwriteSyncManager {
     }
     final voidRecord = await _getPaymentVoidByLocalUuid(entry.localUuid);
     if (voidRecord == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'payment_voids',
         () => appwriteService.deleteDocument(
           collectionId: AppwriteConfig.paymentVoidsCollectionId,
           documentId: entry.localUuid,
         ),
       );
-      return true;
     }
     final payload = _payloadMapper.paymentVoidToRemote(voidRecord);
     await appwriteService.upsertDocument(
@@ -5063,10 +5219,12 @@ class AppwriteSyncManager {
     }
     final item = await _getEmployeeByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'employees',
         () => appwriteService.deleteEmployee(entry.localUuid),
       );
-      return true;
     }
     final payload = _payloadMapper.employeeToRemote(item);
     try {
@@ -5111,10 +5269,12 @@ class AppwriteSyncManager {
     }
     final item = await _getBookingNoteByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'booking_notes',
         () => appwriteService.deleteBookingNote(entry.localUuid),
       );
-      return true;
     }
     final payload = _payloadMapper.bookingNoteToRemote(item);
     // Note: booking notes often part of booking but if synced separately:
@@ -5141,10 +5301,12 @@ class AppwriteSyncManager {
     }
     final item = await _getBookingNightByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'booking_nights',
         () => appwriteService.deleteBookingNight(entry.localUuid),
       );
-      return true;
     }
     final payload = _payloadMapper.bookingNightToRemote(item);
     await appwriteService.upsertBookingNight(
@@ -5170,10 +5332,12 @@ class AppwriteSyncManager {
     }
     final item = await _getSalaryCycleByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
+      // ✅ إصلاح حرج: لا تحذف من السحاب عند خطأ قراءة مؤقت.
+      return _handleMissingLocalRecord(
+        entry,
+        'salary_cycles',
         () => appwriteService.deleteSalaryCycle(entry.localUuid),
       );
-      return true;
     }
     final payload = _payloadMapper.salaryCycleToRemote(item);
     // ✅ إضافة employeeUuid لربط دورة الراتب بالموظف عبر الأجهزة
