@@ -903,7 +903,6 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     ));
   }
 
-  $old_anchor
   /// يُستدعى من merge() عند source='local' لضمان كشف كل التعديلات المتزامنة
   Future<void> _bumpVectorClockForLocalWrite(String entity, String localUuid) async {
     final tableName = _entityTableMap[entity];
