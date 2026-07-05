@@ -172,3 +172,38 @@ final roomsWithPaymentStatusProvider =
 
   return controller.stream;
 });
+// ══════════════════════════════════════════════════════════════════════════
+//  ✅ P0: Riverpod .select() — مشتقات فائقة السرعة للهواتف الضعيفة
+//
+//  هذه البروفايدرات تستخدم .select() لمراقبة قيمة مُشتقّة فقط.
+//  الميزة: لو تغيرت غرفة واحدة، الـ Dashboard الذي يشاهد العدد لا يعيد بناء نفسه.
+// ══════════════════════════════════════════════════════════════════════════
+
+/// عدد الغرف المشغولة — يُحدّث فقط عندما يتغير العدد (وليس عند تغيير حالات فردية)
+final occupiedRoomsCountProvider = Provider<int>((ref) {
+  return ref.watch(roomsWithPaymentStatusProvider.select(
+    (rooms) => rooms.where((r) => r.hasActiveBooking).length,
+  ));
+});
+
+/// عدد الغرف المتاحة — يُحدّث فقط عندما يتغير العدد
+final availableRoomsCountProvider = Provider<int>((ref) {
+  return ref.watch(roomsWithPaymentStatusProvider.select(
+    (rooms) => rooms.where((r) => !r.hasActiveBooking && r.room.status != 'صيانة').length,
+  ));
+});
+
+/// عدد الغرف المتأخرة السداد — يُحدّث فقط عندما يتغير العدد
+final overdueRoomsCountProvider = Provider<int>((ref) {
+  return ref.watch(roomsWithPaymentStatusProvider.select(
+    (rooms) => rooms.where((r) => r.isPaymentOverdue).length,
+  ));
+});
+
+/// عدد الغرف تحت الصيانة — يُحدّث فقط عندما يتغير العدد
+final maintenanceRoomsCountProvider = Provider<int>((ref) {
+  return ref.watch(roomsWithPaymentStatusProvider.select(
+    (rooms) => rooms.where((r) => r.room.status == 'صيانة').length,
+  ));
+});
+
