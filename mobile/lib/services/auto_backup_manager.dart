@@ -46,6 +46,8 @@ class AutoBackupManager {
   bool _isBackingUp = false;
   bool _isDeltaSyncing = false;
   int _pendingChanges = 0;
+  int _batchNesting = 0;        // ✅ عدد الدُفعات المتداخلة (batchStart/batchEnd)
+  bool _batchDirty = false;     // ✅ هل حدث تغيير أثناء الـ batch؟
   String? _deviceId;
   BackupMode _currentMode = BackupMode.deltaSync;
   String? _lastRenewedHotelDay;
@@ -138,6 +140,35 @@ class AutoBackupManager {
   }
 
   /// تسجيل تغيير في قاعدة البيانات لبدء عد تنازلي للنسخ التلقائي
+  /// ✅ بدء دفعة — يُعلّق الـ debounce أثناء العمليات المجمّعة
+  /// استخدم هذا عندما تعرف أنك ستجري عدة تغييرات متتالية
+  /// مثال: استيراد نسخة احتياطية، إضافة حجز مع دفعات وليالي
+  void batchStart() {
+    _batchNesting++;
+  }
+
+  /// ✅ إنهاء دفعة — يُفعّل الـ debounce ويُشغّل المزامنة إذا كان هناك تغييرات
+  Future<void> batchEnd() async {
+    _batchNesting--;
+    if (_batchNesting <= 0) {
+      _batchNesting = 0;
+      if (_batchDirty) {
+        _batchDirty = false;
+        // شغّل المزامنة بعد إنهاء الدفعة
+        if (_currentMode == BackupMode.deltaSync || _currentMode == BackupMode.both) {
+          await performDeltaSync();
+        }
+        if (_currentMode == BackupMode.fullBackup || _currentMode == BackupMode.both) {
+          _performAutoBackup(
+            reason: 'تغييرات مجمّعة',
+            changesCount: _pendingChanges,
+          );
+        }
+        _pendingChanges = 0;
+      }
+    }
+  }
+
   Future<void> onDataChange(
     String tableName,
     String operation, {
@@ -149,6 +180,12 @@ class AutoBackupManager {
     }
 
     _pendingChanges += batchCount;
+
+    // ✅ أثناء الدفعة: نسجّل التغيير فقط ولا نشغّل الـ debounce
+    if (_batchNesting > 0) {
+      _batchDirty = true;
+      return;
+    }
     debugPrint(
       '🔄 تغيير في $tableName ($operation) - تغييرات معلقة: $_pendingChanges',
     );
