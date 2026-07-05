@@ -182,28 +182,28 @@ final roomsWithPaymentStatusProvider =
 /// عدد الغرف المشغولة — يُحدّث فقط عندما يتغير العدد (وليس عند تغيير حالات فردية)
 final occupiedRoomsCountProvider = Provider<int>((ref) {
   return ref.watch(roomsWithPaymentStatusProvider.select(
-    (rooms) => rooms.where((r) => r.hasActiveBooking).length,
+    (rooms) => rooms.valueOrNull?.where((r) => r.hasActiveBooking).length ?? 0,
   ));
 });
 
 /// عدد الغرف المتاحة — يُحدّث فقط عندما يتغير العدد
 final availableRoomsCountProvider = Provider<int>((ref) {
   return ref.watch(roomsWithPaymentStatusProvider.select(
-    (rooms) => rooms.where((r) => !r.hasActiveBooking && r.room.status != 'صيانة').length,
+    (rooms) => rooms.valueOrNull?.where((r) => !r.hasActiveBooking && r.room.status != 'صيانة').length ?? 0,
   ));
 });
 
 /// عدد الغرف المتأخرة السداد — يُحدّث فقط عندما يتغير العدد
 final overdueRoomsCountProvider = Provider<int>((ref) {
   return ref.watch(roomsWithPaymentStatusProvider.select(
-    (rooms) => rooms.where((r) => r.isPaymentOverdue).length,
+    (rooms) => rooms.valueOrNull?.where((r) => r.isPaymentOverdue).length ?? 0,
   ));
 });
 
 /// عدد الغرف تحت الصيانة — يُحدّث فقط عندما يتغير العدد
 final maintenanceRoomsCountProvider = Provider<int>((ref) {
   return ref.watch(roomsWithPaymentStatusProvider.select(
-    (rooms) => rooms.where((r) => r.room.status == 'صيانة').length,
+    (rooms) => rooms.valueOrNull?.where((r) => r.room.status == 'صيانة').length ?? 0,
   ));
 });
 
