@@ -5922,7 +5922,7 @@ class AppwriteSyncManager {
     try {
       final prefs = await SharedPreferences.getInstance();
       final deviceId = await _getDeviceIdForPrefs();
-      final encryptionKey = SecureStorage.getEncryptionKey(null);
+      final encryptionKey = await SecureStorage.getEncryptionKey(null);
       final now = Time.nowEpoch();
 
       // ⚠️ حقول app_settings الفعلية في Appwrite Cloud (25 حقل فقط — الحد الأقصى)
@@ -5945,7 +5945,6 @@ class AppwriteSyncManager {
         'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
         'wa_sendzen_api_key': prefs.getString('wa_sendzen_api_key') ?? '',
         'wa_sendzen_from_number': prefs.getString('wa_sendzen_from_number') ?? '',
-        'wa_template': prefs.getString('whatsapp_template') ?? '',
         // ── Telegram ──
         'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
         'telegram_bot_token': SecureStorage.encryptValue(prefs.getString('telegram_bot_token') ?? '', encryptionKey),
@@ -6074,11 +6073,7 @@ class AppwriteSyncManager {
           }
         }
 
-        // wa_template → whatsapp_template (مفتاح مختلف في prefs)
-        final template = data['wa_template'];
-        if (template != null && template.toString().isNotEmpty) {
-          await prefs.setString('whatsapp_template', template.toString());
-        }
+
 
         // ── Telegram fields ──
         const tgStringFields = {

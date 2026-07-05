@@ -8,7 +8,7 @@ import '../booking_derived_fields_service.dart';
 import '../crashlytics_service.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
-import '../lark/lark_notification_service.dart';
+import '../telegram/telegram_notification_service.dart';
 import '../local_db.dart';
 import '../telegram/whatsapp_notification_service.dart';
 
@@ -111,9 +111,7 @@ class PaymentsRepository {
         'INSERT',
         recordData: {'amount': amount},
       ),);
-      // إشعار Lark عند استلام دفعة (fire-and-forget)
-      _notifyLarkPayment(roomNumber, amount, paymentMethod, bookingLocalId);
-      return result;
+            return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'PaymentsRepository',
@@ -127,41 +125,7 @@ class PaymentsRepository {
     }
   }
 
-  /// إرسال إشعار Lark عند استلام دفعة
-  void _notifyLarkPayment(
-    String? roomNumber,
-    double amount,
-    String paymentMethod,
-    int? bookingLocalId,
-  ) {
-    // الحصول على اسم الضيف والمبلغ المتبقي بشكل غير متزامن
-    if (bookingLocalId == null) {
-      return;
-    }
-    (db.select(db.bookings)..where((b) => b.id.equals(bookingLocalId)))
-        .getSingleOrNull()
-        .then((booking) {
-      if (booking == null) {
-        return;
-      }
-      LarkNotificationService.instance.notifyPayment(
-        roomNumber: roomNumber ?? booking.roomNumber,
-        guestName: booking.guestName,
-        amount: amount,
-        paymentMethod: paymentMethod,
-        remaining: booking.remainingBalanceCached,
-      );
-      WhatsAppNotificationService.instance.notifyPayment(
-        roomNumber: roomNumber ?? booking.roomNumber,
-        guestName: booking.guestName,
-        amount: amount,
-        paymentMethod: paymentMethod,
-        remaining: booking.remainingBalanceCached,
-      );
-    });
-  }
-
-  Future<int> update(
+    Future<int> update(
     int id, {
     int? bookingLocalId,
     int? serverBookingId,

@@ -459,9 +459,9 @@ class BookingPriceAdjustments extends Table with SyncFields {
 }
 
 @DataClassName('AuditLog')
-class AuditLogs extends Table {
+class AuditLogs extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get localUuid => text().unique()();
+  // localUuid, deviceId, createdAt — موروثة من SyncFields
   TextColumn get operationType => text()();
   TextColumn get entityType => text()();
   TextColumn get entityUuid => text()();
@@ -470,14 +470,12 @@ class AuditLogs extends Table {
   TextColumn get newState => text().nullable()();
   TextColumn get changedFields => text().nullable()();
   TextColumn get performedBy => text()();
-  TextColumn get deviceId => text()();
   TextColumn get ipAddress => text().nullable()();
   TextColumn get hotelDayKey => text()();
   IntColumn get timestamp => integer()();
   TextColumn get timestampIso => text()();
   BoolColumn get isFinancial => boolean().withDefault(const Constant(false))();
   IntColumn get amountImpact => integer().nullable()();
-  IntColumn get createdAt => integer()();
 
   List<Index> get indexes => [
     Index(
@@ -864,7 +862,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 47;
+  int get schemaVersion => 48;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2299,6 +2297,49 @@ class AppDatabase extends _$AppDatabase {
           'Migration 47: added note, originalAmount, paymentUuid to payment_voids',
           name: 'db.migration',
         );
+
+      if (from < 48) {
+        // ✅ v2: إضافة SyncFields إلى audit_logs للتوافق مع مخطط Appwrite Cloud
+        // audit_logs لم يكن يمتلك حقول المزامنة الأساسية (serverId, updatedAt,
+        // lastModified, version, origin, vectorClock, إلخ)
+        // هذه الحقول ضرورية لتتبع مصدر وتوقيت كل سجل تدقيق عبر الأجهزة.
+        final auditLogColumns = <String, String>{
+          'server_id': 'INTEGER',
+          'updated_at': 'INTEGER',
+          'deleted_at': 'INTEGER',
+          'last_modified': 'INTEGER',
+          'created_at_iso': 'TEXT',
+          'updated_at_iso': 'TEXT',
+          'deleted_at_iso': 'TEXT',
+          'created_at_epoch': 'INTEGER NOT NULL DEFAULT 0',
+          'last_modified_epoch': 'INTEGER NOT NULL DEFAULT 0',
+          'version': 'INTEGER NOT NULL DEFAULT 1',
+          'origin': 'TEXT NOT NULL DEFAULT \'local\'',
+          'vector_clock': 'TEXT NOT NULL DEFAULT \'{}\'',
+          'idempotency_key': 'TEXT',
+        };
+        for (final column in auditLogColumns.entries) {
+          try {
+            await m.database.customStatement(
+              'ALTER TABLE audit_logs ADD COLUMN ${column.key} ${column.value}',
+            );
+            developer.log(
+              'Migration 48: added audit_logs.${column.key}',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            // العمود موجود مسبقاً — ليس خطأ
+            developer.log(
+              'Migration 48: audit_logs.${column.key} already exists: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        developer.log(
+          'Migration 48: added SyncFields columns to audit_logs',
+          name: 'db.migration',
+        );
+      }
       }
     },
   );

@@ -28,7 +28,7 @@ class WhatsAppSettingsSync {
         'wa_api_token': prefs.getString('wa_api_token') ?? '',
         'wa_custom_url_template':
             prefs.getString('wa_custom_url_template') ?? '',
-        'wa_template': prefs.getString('whatsapp_template') ?? '',
+
       };
 
       final dbId = AppwriteConfigManager.databaseId;
@@ -86,7 +86,6 @@ class WhatsAppSettingsSync {
         'wa_api_instance_id',
         'wa_api_token',
         'wa_custom_url_template',
-        'wa_template',
       ];
 
       final saved = <String, String>{};
@@ -94,10 +93,7 @@ class WhatsAppSettingsSync {
         final value = doc.data[field];
         if (value != null && value.toString().isNotEmpty) {
           await prefs.setString(field, value.toString());
-          // wa_template يحفظ بمفتاح مختلف
-          if (field == 'wa_template') {
-            await prefs.setString('whatsapp_template', value.toString());
-          }
+
           saved[field] = value.toString();
         }
       }

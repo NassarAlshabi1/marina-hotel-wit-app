@@ -68,7 +68,7 @@ class _WhatsAppSettingsScreenState
     }
     setState(() {
       _templateController.text =
-          prefs.getString('whatsapp_template') ?? whatsappPaymentTemplate;
+          whatsappPaymentTemplate;
       _baseUrlController.text =
           prefs.getString('wa_api_base_url') ?? _defaultBaseUrl;
       _instanceIdController.text =
@@ -118,7 +118,7 @@ class _WhatsAppSettingsScreenState
   Future<void> _saveTemplate() async {
     setState(() => _isSaving = true);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('whatsapp_template', _templateController.text);
+
     if (!mounted) {
       return;
     }
@@ -154,7 +154,7 @@ class _WhatsAppSettingsScreenState
     await prefs.remove('wa_api_instance_id');
     await prefs.remove('wa_api_token');
     await prefs.remove('wa_custom_url_template');
-    await prefs.remove('whatsapp_template');
+
     ref.invalidate(whatsappSettingsProvider);
     if (!mounted) {
       return;

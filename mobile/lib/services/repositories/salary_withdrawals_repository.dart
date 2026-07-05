@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/expense_reason_matcher.dart';
@@ -6,6 +8,8 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
+import '../telegram/telegram_notification_service.dart';
+import '../telegram/whatsapp_notification_service.dart';
 
 class SalaryWithdrawalsRepository {
   SalaryWithdrawalsRepository(this._db) : _outboxDao = OutboxDao(_db);
@@ -258,6 +262,11 @@ class SalaryWithdrawalsRepository {
 
         // ✅ كتابة expense_id في العمود الخام
         await _setExpenseIdRaw(newId, expenseId);
+        unawaited(WhatsAppNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount.toDouble(),
+          description: reason ?? 'سحب راتب للموظف',
+        ));
 
         if (!originIsServer) {
           await _outboxDao.merge(

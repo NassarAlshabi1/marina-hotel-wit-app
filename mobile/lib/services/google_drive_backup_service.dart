@@ -448,7 +448,6 @@ class GoogleDriveBackupService {
         'wa_api_instance_id',
         'wa_api_token',
         'wa_custom_url_template',
-        'whatsapp_template',
       ];
       for (final key in waKeys) {
         final value = prefs.getString(key);

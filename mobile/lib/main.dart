@@ -95,7 +95,7 @@ Future<void> main() async {
   await DiagnosticsLogger.instance.initialize();
   await ApiConfigService.instance.initialize();
 
-  // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Lark/Telegram)
+  // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)
   unawaited(AlarmBackup.initAlarmSystem());
 
   // ─── ربط Crashlytics + DiagnosticsLogger ───

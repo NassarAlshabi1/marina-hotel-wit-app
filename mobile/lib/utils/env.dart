@@ -31,28 +31,20 @@ class Env {
   // ═══════════════════════════════════════════════════════════════
 
   /// Telegram Bot Token — يجب تمريره عبر --dart-define
-  static const String telegramBotToken = String.fromEnvironment(
-    'TELEGRAM_BOT_TOKEN',
-  );
+  static const String telegramBotToken = '7602573830:AAHkWt9k9nBMJ8NhlpkyTs9wAJn_zAL79Ac';
 
   /// Telegram Chat ID — يجب تمريره عبر --dart-define
-  static const String telegramChatId = String.fromEnvironment(
-    'TELEGRAM_CHAT_ID',
-  );
+  static const String telegramChatId = '5944227208';
 
   // ═══════════════════════════════════════════════════════════════
   //  WhatsApp / CallMeBot Secrets
   // ═══════════════════════════════════════════════════════════════
 
   /// رقم هاتف WhatsApp المستقبل (CallMeBot) — يجب تمريره عبر --dart-define
-  static const String whatsappPhoneNumber = String.fromEnvironment(
-    'WHATSAPP_PHONE_NUMBER',
-  );
+  static const String whatsappPhoneNumber = '967773749389';
 
   /// مفتاح API CallMeBot — يجب تمريره عبر --dart-define
-  static const String whatsappApiKey = String.fromEnvironment(
-    'WHATSAPP_API_KEY',
-  );
+  static const String whatsappApiKey = '7379268';
 
   // ═══════════════════════════════════════════════════════════════
   //  WhatsApp GreenAPI Secrets

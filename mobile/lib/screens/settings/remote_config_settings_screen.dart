@@ -88,9 +88,6 @@ class _RemoteConfigSettingsScreenState
                 isBool: true,
               ),
               _buildConfigRow(
-                'Lark مفعّل',
-                (values['lark_enabled'] as bool?)?.toString() ?? '---',
-                'lark_enabled',
                 isBool: true,
               ),
               _buildConfigRow(
@@ -120,7 +117,6 @@ class _RemoteConfigSettingsScreenState
                 'whatsapp_report_time',
               ),
               _buildConfigRow(
-                'تقرير Lark',
                 values['lark_report_time'] as String? ?? '---',
                 'lark_report_time',
               ),
