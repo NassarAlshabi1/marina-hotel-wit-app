@@ -1687,7 +1687,32 @@ class AppwriteSyncUtils {
   /// ❌ sync_vector_clock غير موجود في أي مجموعة — لا يُضاف
   static const Set<String> _preserveSnakeCase = {
     'sync_origin',  // موجود فقط في: booking_notes, sync_state, app_users
-    // app_settings كلها snake_case — لكنها تُرسل مباشرة بدون toCamelCase
+    // ═══════════════════════════════════════════════════════════════
+    // حقول app_settings — كلها snake_case في Appwrite Cloud
+    // عند إضافة حقل جديد إلى _appSettingsToMap، يجب إضافته هنا أيضاً
+    // ═══════════════════════════════════════════════════════════════
+    'hotel_name',
+    'hotel_cutoff_hour',
+    'dark_mode',
+    'wa_api_type',
+    'wa_api_base_url',
+    'wa_api_instance_id',
+    'wa_custom_url_template',
+    'wa_sendzen_api_key',
+    'wa_sendzen_from_number',
+    'telegram_enabled',
+    'telegram_chat_id',
+    'telegram_notifications_enabled',
+    'telegram_daily_report_enabled',
+    'telegram_daily_report_time',
+    'appwrite_sync_interval',
+    'api_key',
+    'database_id',
+    'endpoint',
+    'enabled',
+    'project_id',
+    'pull_enabled',
+    'push_enabled',
   };
 
   /// تحويل أسماء الحقول من snake_case إلى camelCase (للتوافق مع Appwrite)

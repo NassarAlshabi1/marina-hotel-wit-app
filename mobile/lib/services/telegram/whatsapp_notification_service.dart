@@ -65,6 +65,16 @@ class WhatsAppNotificationService {
   String get _apiKey => RemoteConfigService.instance.whatsappApiKey;
   final http.Client _httpClient = http.Client();
 
+  /// التحقق من تفعيل WhatsApp — يفحص Remote Config أولاً، ثم يعود للافتراضي (true)
+  bool _checkWhatsAppEnabled() {
+    try {
+      return RemoteConfigService.instance.whatsappEnabled;
+    } catch (_) {
+      // Remote Config غير متاح — الإشعارات مفعلة افتراضياً
+      return true;
+    }
+  }
+
   /// تحرير موارد HTTP client
   void dispose() {
     _httpClient.close();
@@ -161,17 +171,11 @@ class WhatsAppNotificationService {
     try {
       // ✅ استخدام الإعدادات الموحدة لـ WhatsApp/Telegram
       // RemoteConfig كطبقة تحكم إضافية (اختيارية) - مع fallback عند الفشل
-      try {
-        if (!RemoteConfigService.instance.whatsappEnabled) {
-          debugPrint('⚠️ WhatsApp: معطل في Remote Config');
-        }
-      } catch (_) {
-        // Remote Config غير متاح - نعتمد على الإعدادات المحلية
-      }
-      if (!await TelegramConfig.isEnabled()) {
-        return false;
-      }
-      if (!await TelegramConfig.isNotificationsEnabled()) {
+      // ✅ إعدادات WhatsApp مستقلة تماماً عن Telegram
+      // يتم التحكم عبر Remote Config مع fallback إلى SharedPreferences
+      final isWhatsAppEnabled = _checkWhatsAppEnabled();
+      if (!isWhatsAppEnabled) {
+        debugPrint('⚠️ WhatsApp: الإشعارات معطلة');
         return false;
       }
 
