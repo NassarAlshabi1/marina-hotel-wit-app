@@ -70,6 +70,18 @@ class SalaryWithdrawalsRepository {
       await _setExpenseIdRaw(id, expenseId);
     }
 
+    // إشعارات فورية (fire-and-forget)
+    unawaited(WhatsAppNotificationService.instance.notifyNewExpense(
+      category: 'سحب راتب',
+      amount: amount.toDouble(),
+      description: reason,
+    ));
+    unawaited(TelegramNotificationService.instance.notifyNewExpense(
+      category: 'سحب راتب',
+      amount: amount.toDouble(),
+      description: reason,
+    ));
+
     if (!originIsServer) {
       final payload = <String, dynamic>{
         'employeeId': employeeId,
