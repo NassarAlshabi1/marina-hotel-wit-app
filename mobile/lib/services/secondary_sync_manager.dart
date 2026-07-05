@@ -617,6 +617,8 @@ class SecondarySyncManager {
         return _payloadMapper.priceAdjustmentToRemote(row);
 
       case 'blacklist':
+        // ⚠️ blacklist table غير موجود محلياً — يستخدم shiftNotes كـ workaround
+        // يجب إضافة جدول blacklist في local_db.dart أو استخدام جدول بديل
         final row = await (db.select(db.shiftNotes)
               ..where((t) => t.localUuid.equals(localUuid)))
             .getSingleOrNull();
