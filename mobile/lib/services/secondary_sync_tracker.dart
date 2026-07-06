@@ -3,8 +3,6 @@
 /// يخزّن الأخطاء في الذاكرة مع إمكانية تصديرها إلى نص.
 /// يُستخدم من SecondarySyncManager لجمع معلومات الإخفاقات
 /// وعرضها في شاشة الإعدادات.
-library;
-
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';

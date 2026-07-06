@@ -101,7 +101,7 @@ class SecondaryAppwriteService {
     await ensureInitialized();
     final db = DatabaseManager.instance;
     final stats = FullBackupStats();
-    final collectionList = await _getAllCollections(db);
+    final collectionList = await getAllCollections(db);
 
     stats.totalCollections = collectionList.length;
 for (final coll in collectionList) {
@@ -401,9 +401,9 @@ for (final coll in collectionList) {
   /// تجميع كل بيانات الجداول المحلية للرفع الشامل
   /// ✅ P0-3 إصلاح: استخدام اجراءات Drift الفعلية بدلاً من قائمة ثابتة فارغة
   /// ✅ يُبنى من `_backupFetchers` (مصدر حقيقة واحد) بدل قائمة + switch منفصلين.
-  Future<List<_CollectionData>> getAllCollections(AppDatabase db) async {
+  Future<List<CollectionData>> getAllCollections(AppDatabase db) async {
     final fetchers = _backupFetchers(db);
-    final result = <_CollectionData>[];
+    final result = <CollectionData>[];
 
     for (final entry in fetchers.entries) {
       final entity = entry.key;
@@ -415,7 +415,7 @@ for (final coll in collectionList) {
       }
 
       final records = await entry.value();
-      result.add(_CollectionData(
+      result.add(CollectionData(
         name: entity,
         collectionId: collectionId,
         records: records,
