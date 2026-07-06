@@ -506,7 +506,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           tooltip: 'سجل المدفوعات',
         ),
       ],
-      body: StreamBuilder<db.Booking?>(
+      body: RepaintBoundary(
+        child: StreamBuilder<db.Booking?>(
         stream: ref.watch(bookingsRepoProvider).watchOne(widget.booking.id),
         builder: (context, bookingSnap) {
           final booking = bookingSnap.data ?? widget.booking;
@@ -766,6 +767,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         );
         },
       ),
+      ), // RepaintBoundary
     ),
     );
   }

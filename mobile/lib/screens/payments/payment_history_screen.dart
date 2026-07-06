@@ -42,7 +42,8 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
         ),
         IconButton(icon: const Icon(Icons.clear), onPressed: _clearFilters),
       ],
-      body: Column(
+      body: RepaintBoundary(
+        child: Column(
         children: [
           if (_hasActiveFilters()) _buildActiveFiltersChips(),
           Expanded(
@@ -80,6 +81,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           ),
         ],
       ),
+      ), // RepaintBoundary
     );
   }
 

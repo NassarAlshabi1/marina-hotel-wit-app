@@ -53,7 +53,8 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<List<PendingConflict>>(
+      body: RepaintBoundary(
+        child: StreamBuilder<List<PendingConflict>>(
         stream: _conflictManager.conflictsStream,
         builder: (context, snapshot) {
           final conflicts = snapshot.data ?? [];
@@ -120,6 +121,7 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
           );
         },
       ),
+      ), // RepaintBoundary
     );
   }
 
