@@ -1110,7 +1110,7 @@ class FullBackupStats {
     if (failuresByCollection.isNotEmpty) {
       buf.writeln('── الأخطاء حسب الجدول ──');
       for (final entry in failuresByCollection.entries) {
-        buf.writeln('  📁 ${entry.key} (${entry.length} خطأ):');
+        buf.writeln('  📁 ${entry.key} (${entry.value.length} خطأ):');
         for (final failure in entry.value) {
           final id = failure.documentId ?? 'بدون معرّف';
           final reason = failure.reason.length > 200
