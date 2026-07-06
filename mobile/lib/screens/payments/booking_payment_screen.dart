@@ -36,6 +36,7 @@ class BookingPaymentScreen extends ConsumerStatefulWidget {
       _BookingPaymentScreenState();
 }
 
+
 class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     with SingleTickerProviderStateMixin, SyncOnExitMixin {
   @override
@@ -52,6 +53,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// معرّفات الليالي المشبوهة (المضافة بعد موعد المغادرة المتوقع بسبب نسيان الموظف)
   /// عند الإلغاء تُحذف من قاعدة البيانات وتُستبعد من حساب المبلغ
   final Set<int> _cancelledSuspiciousNightIds = {};
+
+
 
 
   Payment _mapDbPaymentToUi(db.Payment p) {

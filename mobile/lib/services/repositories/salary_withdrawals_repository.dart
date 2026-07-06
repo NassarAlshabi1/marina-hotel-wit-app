@@ -246,6 +246,17 @@ class SalaryWithdrawalsRepository {
             clientTs: now,
           );
         }
+        // إشعارات فورية (fire-and-forget) عند التحديث
+        unawaited(WhatsAppNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount.toDouble(),
+          description: note ?? reasonText,
+        ));
+        unawaited(TelegramNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount.toDouble(),
+          description: note ?? reasonText,
+        ));
       } else {
         // إنشاء سجل جديد
         final uuid = IdGen.uuid();
