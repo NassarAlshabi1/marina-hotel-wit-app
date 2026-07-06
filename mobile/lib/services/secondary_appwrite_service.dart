@@ -38,7 +38,7 @@ class SecondaryAppwriteService {
   Databases? _databases;
 
   /// تهيئة الاتصال بـ Secondary (lazy)
-  Future<void> _ensureInitialized() async {
+  Future<void> ensureInitialized() async {
     if (_databases != null) return;
 
     if (!SecondaryAppwriteConfig.isConfigured) {
@@ -69,7 +69,7 @@ class SecondaryAppwriteService {
   Future<ConnectionTestResult> testConnection() async {
     final stopwatch = Stopwatch()..start();
     try {
-      await _ensureInitialized();
+      await ensureInitialized();
       // ignore: deprecated_member_use
       await _databases!.listDocuments(
         databaseId: SecondaryAppwriteConfig.databaseId,
@@ -98,7 +98,7 @@ class SecondaryAppwriteService {
     required void Function(String collection, int current, int total) onProgress,
     required void Function(String collectionName, int successCount, int failureCount) onCollectionComplete,
   }) async {
-    await _ensureInitialized();
+    await ensureInitialized();
     final db = DatabaseManager.instance;
     final stats = FullBackupStats();
     final collectionList = await _getAllCollections(db);
@@ -194,7 +194,7 @@ for (final coll in collectionList) {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    await _ensureInitialized();
+    await ensureInitialized();
     final dbId = SecondaryAppwriteConfig.databaseId;
 
     bool isNotFound(AppwriteException e) =>
@@ -306,7 +306,7 @@ for (final coll in collectionList) {
     required String collectionId,
     required String documentId,
   }) async {
-    await _ensureInitialized();
+    await ensureInitialized();
     try {
       await _networkHelper.withRetryAndTimeout(
         // ignore: deprecated_member_use
@@ -401,7 +401,7 @@ for (final coll in collectionList) {
   /// تجميع كل بيانات الجداول المحلية للرفع الشامل
   /// ✅ P0-3 إصلاح: استخدام اجراءات Drift الفعلية بدلاً من قائمة ثابتة فارغة
   /// ✅ يُبنى من `_backupFetchers` (مصدر حقيقة واحد) بدل قائمة + switch منفصلين.
-  Future<List<_CollectionData>> _getAllCollections(AppDatabase db) async {
+  Future<List<_CollectionData>> getAllCollections(AppDatabase db) async {
     final fetchers = _backupFetchers(db);
     final result = <_CollectionData>[];
 
@@ -1088,8 +1088,8 @@ class FullBackupFailure {
 }
 
 /// بيانات جدول للرفع الشامل
-class _CollectionData {
-  _CollectionData({required this.name, required this.collectionId, required this.records});
+class CollectionData {
+  CollectionData({required this.name, required this.collectionId, required this.records});
   final String name;
   final String collectionId;
   final List<Map<String, dynamic>> records;
