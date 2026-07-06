@@ -328,6 +328,7 @@ class PayloadMapper {
     final data = <String, dynamic>{
       'name': employee.name,
       'basicSalary': employee.basicSalary,
+      'salary': employee.basicSalary,
       'position': employee.position,
       'phone': employee.phone,
       'hireDate': employee.hireDate,
@@ -706,6 +707,7 @@ class PayloadMapper {
       'employeeId': withdrawal.employeeId,
       'amount': withdrawal.amount.round(), 
       'withdrawDate': effectiveWithdrawDate,
+      'withdrawalDate': effectiveWithdrawDate,
     };
     putIfNotNull(data, 'serverId', withdrawal.serverId);
     putIfNotNull(data, 'deletedAt', withdrawal.deletedAt);

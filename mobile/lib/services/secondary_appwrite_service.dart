@@ -627,6 +627,7 @@ for (final coll in collectionList) {
         'deviceId': e.deviceId,
         'name': e.name,
         'basicSalary': e.basicSalary,
+        'salary': e.basicSalary,
         'position': e.position,
         'phone': e.phone,
         'hireDate': e.hireDate,
@@ -784,6 +785,7 @@ for (final coll in collectionList) {
         'employeeId': s.employeeId,
         'amount': s.amount,
         'withdrawDate': s.withdrawDate,
+        'withdrawalDate': s.withdrawDate,
         'reason': s.reason,
         'hotelDayKey': s.hotelDayKey,
         'withdrawalType': s.withdrawalType,
@@ -983,7 +985,6 @@ for (final coll in collectionList) {
 
       return {
         'localUuid': 'whatsapp_settings',
-        'key': 'whatsapp_settings',
         'value': '',
         'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
         'hotel_cutoff_hour': prefs.getInt('hotel_cutoff_hour') ?? 14,

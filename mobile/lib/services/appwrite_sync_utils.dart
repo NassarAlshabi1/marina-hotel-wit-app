@@ -38,7 +38,6 @@ class AppwriteSyncUtils {
       'hotel_cutoff_hour',
       'hotel_name',
       'idempotencyKey',
-      'key',
       'lastModified',
       'lastModifiedEpoch',
       'localUuid',
@@ -412,6 +411,7 @@ class AppwriteSyncUtils {
     'employees': {
       'EmployeeID',
       'basicSalary',
+      'salary',
       'createdAt',
       'createdAtEpoch',
       'createdAtIso',
@@ -763,6 +763,7 @@ class AppwriteSyncUtils {
       'vectorClock',
       'version',
       'withdrawDate',
+      'withdrawalDate',
       'withdrawalType'
     },
     'shift_notes': {
@@ -1087,6 +1088,7 @@ class AppwriteSyncUtils {
       'sync_origin': 'string',
       'name': 'string',
       'basicSalary': 'double',
+      'salary': 'double',
       'position': 'string',
       'phone': 'string',
       'hireDate': 'string',
@@ -1261,6 +1263,7 @@ class AppwriteSyncUtils {
       'employeeUuid': 'string',
       'amount': 'double',
       'withdrawDate': 'string',
+      'withdrawalDate': 'string',
       'reason': 'string',
       'hotelDayKey': 'string',
       'withdrawalType': 'string',

@@ -5943,7 +5943,6 @@ class AppwriteSyncManager {
       // ❌ لا ترسل حقولاً غير موجودة — يسبب "Unknown attribute" خطأ 400
       // ✅ P0-7 إصلاح: تشفير الحقول الحساسة قبل الإرسال للسحابة
       final data = <String, dynamic>{
-        'key': 'whatsapp_settings',
         'value': '',
         // ── فندق ──
         'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
