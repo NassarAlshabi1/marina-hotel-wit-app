@@ -9,6 +9,7 @@ import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'secondary_appwrite_config.dart';
 import 'secondary_appwrite_service.dart';
+import 'secondary_sync_tracker.dart';
 import 'sync/payload_mapper.dart';
 
 /// Secondary Sync Manager — مزامنة الوجهة الثانوية بنفس outbox الرئيسي.
@@ -193,6 +194,8 @@ class SecondarySyncManager {
       int pushed = 0;
       int failed = 0;
       int dead = 0;
+      final tracker = SecondarySyncTracker.instance;
+      tracker.startSession();
 
       // ✅ P0-1: تتبّع السجلات المُعالَجة في هذه الجلسة لمنع إعادة التقاطها
       final processedIds = <int>{};
@@ -227,8 +230,12 @@ class SecondarySyncManager {
               // _processEntry أرجع false → السجل دخل في setError/setDead
               // بالفعل، لا نضيف شيء هنا
               failed++;
-              // ✅ P0-2: تتبّع ما إذا أصبح dead
-              // (لا نستطيع التمييز هنا بسهولة، لكن نعتمد على _processEntry)
+              tracker.trackError(
+                entity: entry.entity,
+                localUuid: entry.localUuid,
+                reason: '_processEntry فشل',
+                attempts: entry.attempts + 1,
+              );
             }
           } catch (e) {
             debugPrint('❌ [SecondarySync] Failed entry ${entry.id}: $e');
@@ -246,6 +253,13 @@ class SecondarySyncManager {
               await outboxDao.setError(entry.id, e.toString(), newAttempts);
             }
             failed++;
+            tracker.trackError(
+              entity: entry.entity,
+              localUuid: entry.localUuid,
+              reason: e.toString(),
+              isPermanent: isPermanent,
+              attempts: newAttempts,
+            );
           }
         }
 
@@ -272,14 +286,30 @@ class SecondarySyncManager {
         await SecondaryAppwriteConfig.updateSyncStatus('partial');
       }
 
-      return SecondarySyncResult(
-        success: failed == 0,
-        message: dead > 0
-            ? 'رفع: $pushed، فشل: $failed، ميت: $dead'
-            : 'رفع للثانوي: $pushed، فشل: $failed',
+      final sessionSummary = tracker.endSession(
         pushed: pushed,
         failed: failed,
         dead: dead,
+        isSuccess: failed == 0,
+        message: dead > 0
+            ? 'رفع: $pushed، فشل: $failed، ميت: $dead'
+            : 'رفع للثانوي: $pushed، فشل: $failed',
+      );
+
+      return SecondarySyncResult(
+        success: failed == 0,
+        message: sessionSummary.message,
+        pushed: pushed,
+        failed: failed,
+        dead: dead,
+        failures: tracker.currentErrors
+            .map((e) => SecondarySyncFailure(
+                  entity: e.entity,
+                  localUuid: e.localUuid,
+                  reason: e.reason,
+                  timestamp: e.timestamp,
+                ))
+            .toList(),
       );
     } catch (e) {
       debugPrint('❌ [SecondarySync] sync() error: $e');
@@ -691,6 +721,7 @@ class SecondarySyncResult {
     this.pushed = 0,
     this.failed = 0,
     this.dead = 0,
+    this.failures = const [],
   });
 
   final bool success;
@@ -700,4 +731,62 @@ class SecondarySyncResult {
 
   /// ✅ P0-2: عدد السجلات التي انتقلت للحالة النهائية `dead` في هذه الجلسة.
   final int dead;
+
+  /// تفاصيل الإخفاقات في هذه الجلسة
+  final List<SecondarySyncFailure> failures;
+
+  /// نص ملخص جاهز للنسخ إلى الحافظة
+  String get textSummary {
+    final buf = StringBuffer();
+    buf.writeln('🔄 تقرير المزامنة الثانوية');
+    buf.writeln('════════════════════════════');
+    buf.writeln('');
+    final statusIcon = success ? '✅' : '❌';
+    buf.writeln('$statusIcon الحالة: $message');
+    buf.writeln('📤 تم الرفع: $pushed');
+    buf.writeln('❌ فشل: $failed');
+    buf.writeln('☠️ Dead: $dead');
+    buf.writeln('');
+
+    if (failures.isNotEmpty) {
+      buf.writeln('── تفاصيل الإخفاقات ──');
+      for (final f in failures) {
+        buf.writeln('  · [${f.entity}] ${f.localUuid}: ${f.reason}');
+      }
+      buf.writeln('');
+    }
+
+    buf.writeln('🕐 ${DateTime.now().toLocal().toIso8601String()}');
+    buf.writeln('Marina Hotel — Secondary Sync Report');
+    return buf.toString();
+  }
+}
+
+/// خطأ في مزامنة سجل واحد للثانوي
+class SecondarySyncFailure {
+  SecondarySyncFailure({
+    required this.entity,
+    required this.localUuid,
+    required this.reason,
+    this.timestamp,
+  });
+
+  final String entity;
+  final String localUuid;
+  final String reason;
+  final DateTime? timestamp;
+
+  @override
+  String toString() {
+    return '❌ [$entity] $localUuid: $reason';
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'entity': entity,
+      'localUuid': localUuid,
+      'reason': reason,
+      'timestamp': timestamp?.toLocal().toIso8601String(),
+    };
+  }
 }

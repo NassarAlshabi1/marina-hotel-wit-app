@@ -1071,6 +1071,81 @@ class FullBackupStats {
   final Map<String, List<FullBackupFailure>> failuresByCollection = {};
   final List<FullBackupFailure> failedRecords = [];
   final Map<String, int> errorsByReason = {};
+
+  /// ملخص نصي جاهز للنسخ إلى الحافظة
+  String get textSummary {
+    final buf = StringBuffer();
+    buf.writeln('📊 تقرير النسخة الشاملة — Secondary Appwrite');
+    buf.writeln('═══════════════════════════════════════');
+    buf.writeln('');
+    buf.writeln('✅ نجح: $successCount');
+    buf.writeln('❌ فشل: $failureCount');
+    buf.writeln('📁 الجداول: $fullySuccessfulCollections مكتمل / $failedCollections فاشل');
+    if (error != null) {
+      buf.writeln('⚠️ خطأ عام: $error');
+    }
+    buf.writeln('');
+
+    if (collectionDetails.isNotEmpty) {
+      buf.writeln('── تفاصيل الجداول ──');
+      for (final detail in collectionDetails) {
+        final name = detail['name'] ?? '?';
+        final total = detail['total'] ?? 0;
+        final success = detail['success'] ?? 0;
+        final failure = detail['failure'] ?? 0;
+        final icon = (failure as int) == 0 ? '✅' : '⚠️';
+        buf.writeln('  $icon $name: $success/$total (فشل: $failure)');
+      }
+      buf.writeln('');
+    }
+
+    if (errorsByReason.isNotEmpty) {
+      buf.writeln('── الأخطاء حسب السبب ──');
+      for (final entry in errorsByReason.entries) {
+        buf.writeln('  [${entry.value}] ${entry.key}');
+      }
+      buf.writeln('');
+    }
+
+    if (failuresByCollection.isNotEmpty) {
+      buf.writeln('── الأخطاء حسب الجدول ──');
+      for (final entry in failuresByCollection.entries) {
+        buf.writeln('  📁 ${entry.key} (${entry.length} خطأ):');
+        for (final failure in entry.value) {
+          final id = failure.documentId ?? 'بدون معرّف';
+          final reason = failure.reason.length > 200
+              ? '${failure.reason.substring(0, 200)}...'
+              : failure.reason;
+          buf.writeln('    · [$id] $reason');
+        }
+      }
+    }
+
+    buf.writeln('');
+    buf.writeln('🕐 ${DateTime.now().toLocal().toIso8601String()}');
+    buf.writeln('Marina Hotel — Backup Report');
+    return buf.toString();
+  }
+
+  /// تحويل إلى Map للتصدير
+  Map<String, dynamic> toJson() {
+    return {
+      'totalCollections': totalCollections,
+      'fullySuccessfulCollections': fullySuccessfulCollections,
+      'failedCollections': failedCollections,
+      'successCount': successCount,
+      'failureCount': failureCount,
+      'error': error,
+      'collectionNames': collectionNames,
+      'collectionDetails': collectionDetails,
+      'failuresByCollection': failuresByCollection.map(
+        (k, v) => MapEntry(k, v.map((f) => f.toJson()).toList()),
+      ),
+      'failedRecords': failedRecords.map((f) => f.toJson()).toList(),
+      'errorsByReason': errorsByReason,
+      'timestamp': DateTime.now().toLocal().toIso8601String(),
+    };
+  }
 }
 
 /// خطأ في رفع سجل واحد
@@ -1085,6 +1160,23 @@ class FullBackupFailure {
   final String reason;
   final String? collectionName;
   final DateTime? timestamp;
+
+  @override
+  String toString() {
+    final coll = collectionName ?? '?';
+    final id = documentId ?? 'بدون معرّف';
+    return '❌ [$coll] $id: $reason';
+  }
+
+  /// تحويل إلى Map للتصدير والنسخ
+  Map<String, dynamic> toJson() {
+    return {
+      'documentId': documentId,
+      'reason': reason,
+      'collectionName': collectionName,
+      'timestamp': timestamp?.toLocal().toIso8601String(),
+    };
+  }
 }
 
 /// بيانات جدول للرفع الشامل

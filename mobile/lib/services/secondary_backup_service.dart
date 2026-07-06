@@ -52,6 +52,7 @@ class BackupProgress {
     this.failureCount = 0,
     this.isBookingNightsPhase = false,
     this.error,
+    this.currentCollectionFailures = 0,
   });
 
   final BackupPhase phase;
@@ -65,6 +66,9 @@ class BackupProgress {
   final int failureCount;
   final bool isBookingNightsPhase;
   final String? error;
+
+  /// عدد الإخفاقات في المجموعة الحالية
+  final int currentCollectionFailures;
 
   double get percentage {
     if (totalRecords == 0) return 0;
@@ -88,6 +92,7 @@ class BackupProgress {
     int? failureCount,
     bool? isBookingNightsPhase,
     String? error,
+    int? currentCollectionFailures,
   }) {
     return BackupProgress(
       phase: phase ?? this.phase,
@@ -101,6 +106,7 @@ class BackupProgress {
       failureCount: failureCount ?? this.failureCount,
       isBookingNightsPhase: isBookingNightsPhase ?? this.isBookingNightsPhase,
       error: error,
+      currentCollectionFailures: currentCollectionFailures ?? this.currentCollectionFailures,
     );
   }
 }
@@ -260,6 +266,7 @@ class SecondaryBackupService {
         stats.error = 'تم إلغاء النسخة من قبل المستخدم';
       }
 
+      _lastStats = stats;
       _progressController.add(BackupProgress(
         phase: BackupPhase.completed,
         totalCollections: totalCollections,
@@ -290,6 +297,8 @@ class SecondaryBackupService {
   ) async {
     int successCount = 0;
     int failureCount = 0;
+
+    int runningFailureCount = 0;
 
     for (int i = 0; i < coll.records.length; i++) {
       if (_cancelled) return;
@@ -327,6 +336,7 @@ class SecondaryBackupService {
         );
         successCount++;
       } catch (e) {
+        runningFailureCount++;
         failureCount++;
         final reason = e.toString();
         final failure = FullBackupFailure(
@@ -409,6 +419,32 @@ class SecondaryBackupService {
       case 'guest_infos': return 'معلومات النزلاء';
       default: return name;
     }
+  }
+
+  /// آخر نسخة شاملة مكتملة (للوصول إلى الأخطاء بعد الانتهاء)
+  FullBackupStats? _lastStats;
+
+  /// الحصول على آخر إحصائيات النسخة
+  FullBackupStats? get lastStats => _lastStats;
+
+  /// نص الأخطاء المنسق جاهز للنسخ إلى الحافظة
+  String get errorReportText {
+    if (_lastStats == null) return 'لا توجد نسخة سابقة';
+    return _lastStats!.textSummary;
+  }
+
+  /// أخطاء مجموعة محددة كـ String للنسخ
+  String errorsForCollection(String collectionName) {
+    if (_lastStats == null) return '';
+    final failures = _lastStats!.failuresByCollection[collectionName];
+    if (failures == null || failures.isEmpty) return '✅ لا توجد أخطاء في $collectionName';
+
+    final buf = StringBuffer();
+    buf.writeln('❌ أخطاء $collectionName (${failures.length}):');
+    for (final f in failures) {
+      buf.writeln('  · $f');
+    }
+    return buf.toString();
   }
 
   /// تنظيف الموارد
