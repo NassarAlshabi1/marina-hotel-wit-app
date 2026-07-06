@@ -296,7 +296,7 @@ class SecondaryBackupService {
   Future<void> _uploadCollection(
     CollectionData coll,
     FullBackupStats stats,
-    void Function(List<Map<String, dynamic>> record, int index) onProgress,
+    void Function(Map<String, dynamic> record, int index) onProgress,
   ) async {
     int successCount = 0;
     int failureCount = 0;
