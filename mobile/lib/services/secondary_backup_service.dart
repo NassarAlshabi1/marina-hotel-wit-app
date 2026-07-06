@@ -8,6 +8,9 @@ import 'appwrite_sync_utils.dart';
 import 'local_db.dart';
 import 'secondary_appwrite_service.dart';
 
+/// إعادة تصدير FullBackupStats من الخدمة الأصلية
+export 'secondary_appwrite_service.dart' show FullBackupStats, FullBackupFailure;
+
 /// مراحل النسخة الشاملة
 enum BackupPhase {
   preparing('تحضير البيانات...'),
@@ -452,6 +455,3 @@ class SecondaryBackupService {
     _progressController.close();
   }
 }
-
-/// إعادة تصدير FullBackupStats من الخدمة الأصلية
-export 'secondary_appwrite_service.dart' show FullBackupStats, FullBackupFailure;
