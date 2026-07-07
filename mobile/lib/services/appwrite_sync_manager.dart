@@ -170,7 +170,7 @@ class AppwriteSyncManager {
   Timer? _failedRetryTimer;
   Timer? _cleanupTimer;
   Timer? _stuckRecoveryTimer;
-  double _adaptiveBatchSize = 50;
+  double _adaptiveBatchSize = 20;
   StreamSubscription<void>? _outboxSubscription;
   Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
   SyncStatus _currentStatus = SyncStatus.idle;
@@ -541,7 +541,9 @@ class AppwriteSyncManager {
       const Duration(minutes: 1),
       (_) async {
         try {
-          final recovered = await outboxDao.cleanupStuckEntries();
+          final recovered = await outboxDao.cleanupStuckEntries(
+            timeout: const Duration(seconds: 60),
+          );
           if (recovered > 0) {
             _logger.info(
               '🔧 تم استعادة $recovered عنصر عالق في outbox من "processing" إلى "pending"',
@@ -2407,8 +2409,9 @@ class AppwriteSyncManager {
 
   Future<int> _pushAllEntities() async {
     // ✅ فحص الاتصال أولاً
+    List<ConnectivityResult> connectivity = const <ConnectivityResult>[];
     try {
-      final connectivity = await Connectivity().checkConnectivity();
+      connectivity = await Connectivity().checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) {
         _logger.warning('⚠️ لا يوجد اتصال بالإنترنت - تم تأجيل الرفع', tag: 'SYNC');
         return 0;
@@ -2419,6 +2422,16 @@ class AppwriteSyncManager {
     int consecutiveFailures = 0;
     const int maxIterations = 500;
     int iterations = 0;
+    final constrainedNetwork = _isConstrainedNetwork(connectivity);
+    final minBatchSize = constrainedNetwork ? 5 : 10;
+    final maxBatchSize = constrainedNetwork ? 25 : 100;
+    final entryTimeout = Duration(seconds: constrainedNetwork ? 12 : 25);
+
+    if (_adaptiveBatchSize > maxBatchSize) {
+      _adaptiveBatchSize = maxBatchSize.toDouble();
+    } else if (_adaptiveBatchSize < minBatchSize) {
+      _adaptiveBatchSize = minBatchSize.toDouble();
+    }
 
     while (true) {
       iterations++;
@@ -2435,9 +2448,8 @@ class AppwriteSyncManager {
       int processedInBatch = 0;
       for (final entry in entries) {
         try {
-          const timeoutSeconds = 30;
           final success = await _processOutboxEntry(entry)
-              .timeout(const Duration(seconds: timeoutSeconds));
+              .timeout(entryTimeout);
           if (success) {
             // ✅ Dual-delivery: نضع علامة "مُسلّم للرئيسي" بدلاً من الحذف.
             // السجل يُحذف تلقائياً فقط إذا كان مُسلّماً للثانوي أيضاً.
@@ -2446,17 +2458,30 @@ class AppwriteSyncManager {
           }
         } catch (e) {
           if (e is TimeoutException) {
-            _logger.warning('⏱️ Timeout processing entry ${entry.id}', tag: 'SYNC');
+            final message =
+                'Timeout processing entry ${entry.id} after ${entryTimeout.inSeconds}s';
+            _logger.warning('⏱️ $message', tag: 'SYNC');
+            await outboxDao.setError(entry.id, message, entry.attempts + 1);
+          } else {
+            final message = 'Unexpected push error for entry ${entry.id}: $e';
+            _logger.warning('⚠️ $message', tag: 'SYNC');
+            await outboxDao.setError(entry.id, message, entry.attempts + 1);
           }
         }
       }
 
       // Adaptive batch size
       if (processedInBatch == entries.length) {
-        _adaptiveBatchSize = (_adaptiveBatchSize * 1.3).clamp(10, 200);
+        _adaptiveBatchSize = (_adaptiveBatchSize * 1.3).clamp(
+          minBatchSize,
+          maxBatchSize,
+        ).toDouble();
         consecutiveFailures = 0;
       } else {
-        _adaptiveBatchSize = (_adaptiveBatchSize * 0.6).clamp(5, 100);
+        _adaptiveBatchSize = (_adaptiveBatchSize * 0.6).clamp(
+          minBatchSize,
+          maxBatchSize,
+        ).toDouble();
         consecutiveFailures++;
       }
 
@@ -2472,6 +2497,17 @@ class AppwriteSyncManager {
       }
     }
     return totalProcessed;
+  }
+
+  bool _isConstrainedNetwork(List<ConnectivityResult> connectivity) {
+    if (connectivity.isEmpty) {
+      return true;
+    }
+    if (connectivity.contains(ConnectivityResult.wifi) ||
+        connectivity.contains(ConnectivityResult.ethernet)) {
+      return false;
+    }
+    return true;
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {
