@@ -924,6 +924,7 @@ class AppwriteSyncUtils {
       'discount': 'double',
       'discountType': 'string',
       'discountStartDate': 'string',
+      'amount': 'double',
       'hotelDayCheckin': 'string',
       'hotelDayCheckout': 'string',
       'financialFrozenAt': 'integer',

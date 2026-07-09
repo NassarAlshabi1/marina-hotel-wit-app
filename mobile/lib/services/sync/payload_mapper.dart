@@ -329,10 +329,13 @@ class PayloadMapper {
   /// يحوّل [Employee] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> employeeToRemote(Employee employee) {
     final now = Time.nowEpoch();
+    // ✅ salary و basicSalary يجب أن تكونا دائماً قيمتين فعليتين (وليس null)
+    // لأن Appwrite الثانوي يطلبهما كـ required. نضمن قيمة 0.0 كاحتياطي.
+    final basicSalary = employee.basicSalary ?? 0.0;
     final data = <String, dynamic>{
       'name': employee.name,
-      'basicSalary': employee.basicSalary,
-      'salary': employee.basicSalary,
+      'basicSalary': basicSalary,
+      'salary': basicSalary,
       'position': employee.position,
       'phone': employee.phone,
       'hireDate': employee.hireDate,

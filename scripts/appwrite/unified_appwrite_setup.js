@@ -32,6 +32,19 @@
  *      # مجموعة واحدة فقط
  *      APPWRITE_API_KEY=xxxxx node scripts/appwrite/unified_appwrite_setup.js --only=bookings,payments
  *
+ *      # ⚠️ حذف الحقول الزائدة غير الموجودة في SCHEMA (--prune)
+ *      #   مهم لإزالة حقول مثل paymentLocalId و nightNumber من الثانوي
+ *      #   التي تسبّب خطأ "Missing required attribute" عند المزامنة.
+ *      APPWRITE_API_KEY=xxxxx node scripts/appwrite/unified_appwrite_setup.js --prune
+ *
+ *      # ⚠️ إصلاح أنواع الحقول الخاطئة (--fix-types)
+ *      #   يحذف الحقل ذا النوع الخاطئ ويُنشئه بالمواصفات الصحيحة.
+ *      #   مثال: createdAt = string في الثانوي → integer كما في SCHEMA.
+ *      APPWRITE_API_KEY=xxxxx node scripts/appwrite/unified_appwrite_setup.js --fix-types
+ *
+ *      # دمج --prune + --fix-types لإصلاح شامل للثانوي
+ *      APPWRITE_API_KEY=xxxxx node scripts/appwrite/unified_appwrite_setup.js --prune --fix-types
+ *
  *  ▸ يتطلب مفتاح API بصلاحيات: databases.write / collections.write / attributes.write / indexes.write
  * ════════════════════════════════════════════════════════════════════════════
  */
@@ -59,6 +72,8 @@ const API_KEY = process.env.APPWRITE_API_KEY;
 // أعلام سطر الأوامر
 const ARGV = process.argv.slice(2);
 const VERIFY_ONLY = ARGV.includes('--verify');
+const PRUNE = ARGV.includes('--prune');        // حذف الحقول الزائدة غير الموجودة في SCHEMA
+const FIX_TYPES = ARGV.includes('--fix-types'); // حذف الحقول ذات النوع الخاطئ وإعادة إنشائها
 const ONLY_ARG = ARGV.find((a) => a.startsWith('--only='));
 const ONLY = ONLY_ARG
   ? ONLY_ARG.replace('--only=', '').split(',').map((s) => s.trim()).filter(Boolean)
@@ -516,11 +531,6 @@ const SCHEMA = {
     user_type: 'string',
     username: 'string',
     version: 'integer',
-    // حقول زمنية يُرسلها _pushUserToCloud فعلياً (epoch seconds) — مفقودة سابقاً
-    // فكان الرفع يفشل على مجموعة مُهيّأة حديثاً. تُضاف هنا لتقبلها المجموعة.
-    createdAt: 'integer',
-    updatedAt: 'integer',
-    lastModified: 'integer',
   },
 };
 
@@ -582,11 +592,34 @@ function stringSize(field) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const isConflict = (e) => e && (e.code === 409 || /already exists/i.test(e.message || ''));
 
+// خريطة أنواع Appwrite → مفاتيح الدوال
+const TYPE_TO_APPWRITE = {
+  string: 'string',
+  integer: 'integer',
+  double: 'double',
+  boolean: 'boolean',
+};
+
+// تحويل نوع السمة في Appwrite إلى نوع SCHEMA الموحّد
+function appwriteTypeToSchema(attr) {
+  // attr.type قد يكون: 'string','integer','double','boolean'
+  // (في node-appwrite الحديث يُعاد النوع في `type`، وفي القديم في `key`/`array`+`type`)
+  if (!attr) return null;
+  const t = (attr.type || '').toLowerCase();
+  if (t === 'string' || t === 'integer' || t === 'double' || t === 'boolean') {
+    return t;
+  }
+  // إصدارات أقدم تستخدم format (e.g. {type: 'string', format: 'datetime'})
+  return null;
+}
+
 const stats = {
   collectionsCreated: 0,
   collectionsExisting: 0,
   attributesCreated: 0,
   attributesExisting: 0,
+  attributesRecreated: 0, // عدد الحقول التي حُذِفت وأُعيد إنشاؤها (--fix-types)
+  attributesPruned: 0,    // عدد الحقول الزائدة التي حُذِفت (--prune)
   indexesCreated: 0,
   indexesExisting: 0,
   errors: [],
@@ -638,6 +671,55 @@ async function ensureCollection(collectionId) {
 
 async function ensureAttribute(collectionId, key, type) {
   const required = key === KEY_FIELD; // فقط المفتاح مطلوب؛ الباقي اختياري (لأمان المزامنة الجزئية)
+
+  // 1) إذا كان الحقل موجوداً مسبقاً، تحقّق من النوع وعلم required مع --fix-types
+  try {
+    const coll = await databases.getCollection(DATABASE_ID, collectionId);
+    const existing = coll.attributes.find((a) => a.key === key);
+    if (existing) {
+      const actualType = appwriteTypeToSchema(existing);
+      // علم required في الإصدار الحديث يأتي في `required`، وفي القديم قد يأتي في `isRequired`
+      const actualRequired = !!(existing.required ?? existing.isRequired);
+      const typeMismatch = actualType && actualType !== type;
+      const requiredMismatch = actualRequired !== required;
+
+      if (typeMismatch || requiredMismatch) {
+        if (FIX_TYPES) {
+          const reason = [
+            typeMismatch ? `${actualType}→${type}` : null,
+            requiredMismatch ? `required=${actualRequired}→${required}` : null,
+          ].filter(Boolean).join(', ');
+          console.log(`   🔧 ${key}: تعارض (${reason}) — حذف وإعادة إنشاء`);
+          try {
+            await databases.deleteAttribute(DATABASE_ID, collectionId, key);
+            stats.attributesRecreated++;
+            await sleep(800); // مهلة حتى يُحذَف فعلياً
+          } catch (e) {
+            console.error(`   ❌ فشل حذف ${key} (لإعادة الإنشاء): ${e.message}`);
+            stats.errors.push(`${collectionId}.${key}: delete failed: ${e.message}`);
+            return;
+          }
+          // سقط عمداً إلى الإنشاء أدناه
+        } else {
+          const reason = [
+            typeMismatch ? `نوع=${actualType} (مطلوب ${type})` : null,
+            requiredMismatch ? `required=${actualRequired} (مطلوب ${required})` : null,
+          ].filter(Boolean).join('، ');
+          console.log(`   ⚠️  ${key}: ${reason} — شغّل --fix-types للإصلاح`);
+          stats.errors.push(`${collectionId}.${key}: mismatch (${reason}). Run with --fix-types`);
+          return;
+        }
+      } else {
+        // متطابق — لا شيء للفعله
+        stats.attributesExisting++;
+        return;
+      }
+    }
+  } catch (e) {
+    // إذا فشل getCollection، أكمل لمحاولة الإنشاء
+  }
+
+  // 2) إنشاء الحقل بالمواصفات المطلوبة
   try {
     if (type === 'string') {
       await databases.createStringAttribute(
@@ -667,6 +749,31 @@ async function ensureAttribute(collectionId, key, type) {
     } else {
       console.error(`   ❌ فشل الحقل ${key}: ${e.message}`);
       stats.errors.push(`${collectionId}.${key}: ${e.message}`);
+    }
+  }
+}
+
+// حذف الحقول الزائدة غير الموجودة في SCHEMA (--prune)
+// مهم جداً لإزالة حقول مثل paymentLocalId و nightNumber من الثانوي
+async function pruneExtraAttributes(collectionId, wantedFields) {
+  let coll;
+  try {
+    coll = await databases.getCollection(DATABASE_ID, collectionId);
+  } catch (e) {
+    return; // المجموعة غير موجودة — لا شيء لحذفه
+  }
+  const wanted = new Set(Object.keys(wantedFields));
+  for (const attr of coll.attributes) {
+    if (!wanted.has(attr.key)) {
+      try {
+        await databases.deleteAttribute(DATABASE_ID, collectionId, attr.key);
+        console.log(`   🗑️  حقل زائد حُذف: ${attr.key} (كان ${appwriteTypeToSchema(attr) || attr.type || '?'})`);
+        stats.attributesPruned++;
+        await sleep(400);
+      } catch (e) {
+        console.error(`   ❌ فشل حذف الحقل الزائد ${attr.key}: ${e.message}`);
+        stats.errors.push(`${collectionId}.prune.${attr.key}: ${e.message}`);
+      }
     }
   }
 }
@@ -776,7 +883,12 @@ async function main() {
   console.log(`Endpoint : ${ENDPOINT}`);
   console.log(`Project  : ${PROJECT_ID}`);
   console.log(`Database : ${DATABASE_ID}`);
-  console.log(`Mode     : ${VERIFY_ONLY ? 'VERIFY (قراءة فقط)' : 'SETUP (إنشاء/تحديث)'}`);
+  const modeFlags = [];
+  if (VERIFY_ONLY) modeFlags.push('VERIFY');
+  if (PRUNE) modeFlags.push('PRUNE (حذف الزائد)');
+  if (FIX_TYPES) modeFlags.push('FIX-TYPES (إصلاح الأنواع)');
+  if (!VERIFY_ONLY && !PRUNE && !FIX_TYPES) modeFlags.push('SETUP');
+  console.log(`Mode     : ${modeFlags.join(' + ')}`);
   console.log(`Targets  : ${targets.length} مجموعة${ONLY ? ' (مُصفّاة)' : ''}`);
   console.log('═══════════════════════════════════════════════════════════');
 
@@ -797,6 +909,12 @@ async function main() {
       await ensureAttribute(collectionId, key, type);
     }
 
+    // ✅ حذف الحقول الزائدة عن SCHEMA (مثل paymentLocalId, nightNumber في الثانوي)
+    // مهم لتطابق Primary والثانوي حقلاً بحقل.
+    if (PRUNE) {
+      await pruneExtraAttributes(collectionId, fields);
+    }
+
     // انتظر جاهزية الحقول قبل بناء الفهارس (الفهرس يتطلب حقولاً available).
     await waitForAttributes(collectionId, Object.keys(fields).length);
     await ensureStandardIndexes(collectionId, fields);
@@ -805,9 +923,15 @@ async function main() {
   console.log('\n═══════════════════════════════════════════════════════════');
   console.log('✅ اكتمل الإعداد الموحّد');
   console.log('───────────────────────────────────────────────────────────');
-  console.log(`المجموعات : أُنشئت ${stats.collectionsCreated} / موجودة ${stats.collectionsExisting}`);
-  console.log(`الحقول    : أُنشئت ${stats.attributesCreated} / موجودة ${stats.attributesExisting}`);
-  console.log(`الفهارس   : أُنشئت ${stats.indexesCreated} / موجودة ${stats.indexesExisting}`);
+  console.log(`المجموعات     : أُنشئت ${stats.collectionsCreated} / موجودة ${stats.collectionsExisting}`);
+  console.log(`الحقول        : أُنشئت ${stats.attributesCreated} / موجودة ${stats.attributesExisting}`);
+  if (stats.attributesPruned > 0) {
+    console.log(`🗑️  حقول زائدة محذوفة (--prune): ${stats.attributesPruned}`);
+  }
+  if (stats.attributesRecreated > 0) {
+    console.log(`🔧 حقول أُعيد إنشاؤها (--fix-types): ${stats.attributesRecreated}`);
+  }
+  console.log(`الفهارس       : أُنشئت ${stats.indexesCreated} / موجودة ${stats.indexesExisting}`);
   if (stats.errors.length) {
     console.log(`\n⚠️  أخطاء (${stats.errors.length}):`);
     stats.errors.forEach((er) => console.log(`   · ${er}`));
