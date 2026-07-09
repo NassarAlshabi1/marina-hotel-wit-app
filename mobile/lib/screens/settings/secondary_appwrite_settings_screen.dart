@@ -919,14 +919,14 @@ class _SecondaryAppwriteSettingsScreenState
           if (enabled) ...[
             const Text(
               'بيانات الاتصال',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _endpointCtrl,
               decoration: const InputDecoration(
-                labelText: 'Endpoint *',
-                hintText: 'https://fra.cloud.appwrite.io/v1',
+                labelText: 'Endpoint URL',
+                hintText: 'https://cloud.appwrite.io/v1',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.link),
               ),
@@ -937,8 +937,8 @@ class _SecondaryAppwriteSettingsScreenState
             TextField(
               controller: _projectIdCtrl,
               decoration: const InputDecoration(
-                labelText: 'Project ID *',
-                hintText: '690ff0da0025518570c1',
+                labelText: 'Project ID',
+                hintText: 'معرف المشروع',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.folder),
               ),
@@ -948,8 +948,8 @@ class _SecondaryAppwriteSettingsScreenState
             TextField(
               controller: _databaseIdCtrl,
               decoration: const InputDecoration(
-                labelText: 'Database ID *',
-                hintText: 'hotel_db',
+                labelText: 'Database ID',
+                hintText: 'معرف قاعدة البيانات',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.storage),
               ),
@@ -960,8 +960,8 @@ class _SecondaryAppwriteSettingsScreenState
               controller: _apiKeyCtrl,
               obscureText: _obscureApiKey,
               decoration: InputDecoration(
-                labelText: 'API Key',
-                hintText: 'standard_...',
+                labelText: 'API Key (اختياري)',
+                hintText: 'مفتاح API من Appwrite',
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.key),
                 suffixIcon: IconButton(
