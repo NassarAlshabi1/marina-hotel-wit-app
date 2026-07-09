@@ -14,6 +14,10 @@ on:
       - 'mobile/lib/services/local_db.dart'
       - 'mobile/test/sync_fields_audit_test.dart'
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   audit:
     runs-on: ubuntu-latest
