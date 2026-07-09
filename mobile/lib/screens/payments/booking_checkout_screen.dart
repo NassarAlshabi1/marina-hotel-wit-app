@@ -294,6 +294,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
 
     if (result == 'cancel_nights') {
       // حفظ معرّفات الليالي الملغاة لاستبعادها من الحساب
+      if (!mounted) return;
       setState(() {
         _cancelledSuspiciousNightIds
             .addAll(suspiciousNights.map((n) => n.id));
@@ -703,6 +704,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       await _showSuspiciousNightsDialog(suspiciousNights);
       // بعد معالجة الليالي المشبوهة، ننتقل لخيارات الخروج
     }
+    if (!mounted) return;
     // 2. عرض خيارات تسجيل الخروج (بدون دين / مع دين)
     // ignore: use_build_context_synchronously
     await _showCheckoutOptions(context, remainingAmount, totalDue);
@@ -773,6 +775,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     );
 
     // ignore: use_build_context_synchronously
+    if (!mounted) return;
     if (choice == 'without_debt') {
       // ignore: use_build_context_synchronously
       await _completeCheckoutNow(context, remainingAmount, totalDue, createDebt: false);

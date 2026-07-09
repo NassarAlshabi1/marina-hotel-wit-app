@@ -259,6 +259,7 @@ class _SecondaryAppwriteSettingsScreenState
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
 
     setState(() {
       _uploadingFullBackup = true;
