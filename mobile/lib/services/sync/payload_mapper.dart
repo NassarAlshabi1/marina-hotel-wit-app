@@ -117,6 +117,10 @@ class PayloadMapper {
     data['actualCheckout'] = booking.actualCheckout;
     putIfStringNotEmpty(data, 'notes', booking.notes);
     data['discount'] = booking.discount;
+    // ✅ حقل amount الموحّد لجدول bookings (مثل payments/expenses/cash_transactions).
+    // القيمة المشتقّة = المبلغ المستحق للمُطالبة (totalDueCached). هذا الحقل يُرسَل
+    // لكل من Primary و Secondary فيطابق الحقول تماماً.
+    data['amount'] = booking.totalDueCached;
     putIfStringNotEmpty(data, 'discountType', booking.discountType);
     putIfStringNotEmpty(data, 'discountStartDate', booking.discountStartDate);
     data['totalDueCached'] = booking.totalDueCached;

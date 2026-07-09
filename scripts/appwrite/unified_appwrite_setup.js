@@ -154,6 +154,7 @@ const SCHEMA = {
     remainingBalanceCached: 'double',
     isFullyPaid: 'boolean',
     discount: 'double',
+    amount: 'double',
     discountType: 'string',
     discountStartDate: 'string',
     hotelDayCheckin: 'string',

@@ -257,6 +257,7 @@ class AppwriteSyncUtils {
       'discount',
       'discountStartDate',
       'discountType',
+      'amount',
       'expectedNights',
       'financialFrozenAt',
       'financialHash',

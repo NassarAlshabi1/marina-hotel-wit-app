@@ -397,7 +397,13 @@ class DeltaSyncService {
         createdAt: (dynamic row) => (row as Booking).createdAt,
         lastModified: (dynamic row) => (row as Booking).lastModified,
         deletedAt: (dynamic row) => (row as Booking).deletedAt,
-        toJson: (dynamic row) => (row as Booking).toJson(),
+        toJson: (dynamic row) {
+          final b = row as Booking;
+          final j = b.toJson();
+          // ✅ حقل amount الموحّد لجدول bookings (مشتق من المبلغ المستحق).
+          j['amount'] = b.totalDueCached;
+          return j;
+        },
       ),
       _EntityConfig(
         entity: 'booking_notes',

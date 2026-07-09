@@ -356,7 +356,13 @@ for (final coll in collectionList) {
       'rooms': () async =>
           (await db.select(db.rooms).get()).map((e) => e.toJson()).toList(),
       'bookings': () async =>
-          (await db.select(db.bookings).get()).map((e) => e.toJson()).toList(),
+          (await db.select(db.bookings).get()).map((e) {
+            final j = e.toJson();
+            // ✅ حقل amount الموحّد لجدول bookings (مشتق من المبلغ المستحق)
+            // حتى يطابق Primary تماماً في الحقول المُرسَلة.
+            j['amount'] = e.totalDueCached;
+            return j;
+          }).toList(),
       'payments': () async =>
           (await db.select(db.payments).get()).map((e) => e.toJson()).toList(),
       'expenses': () async =>
