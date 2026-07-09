@@ -516,6 +516,11 @@ const SCHEMA = {
     user_type: 'string',
     username: 'string',
     version: 'integer',
+    // حقول زمنية يُرسلها _pushUserToCloud فعلياً (epoch seconds) — مفقودة سابقاً
+    // فكان الرفع يفشل على مجموعة مُهيّأة حديثاً. تُضاف هنا لتقبلها المجموعة.
+    createdAt: 'integer',
+    updatedAt: 'integer',
+    lastModified: 'integer',
   },
 };
 
