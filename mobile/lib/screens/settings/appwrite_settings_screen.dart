@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1394,9 +1395,28 @@ class _AppwriteSettingsScreenState
       final service = AppwriteBackupService(
         appwriteService: ref.read(ap.appwriteServiceProvider),
       );
+
+      // ✅ اختيار المسار الذي يحدّده المستخدم لحفظ النسخة الاحتياطية
+      final suggestedName =
+          'appwrite_full_backup_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now().toUtc())}.json';
+      final chosenPath = await FilePicker.platform.saveFile(
+        dialogTitle: 'اختر مكان حفظ النسخة الاحتياطية',
+        fileName: suggestedName,
+      );
+      if (chosenPath == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم إلغاء اختيار مسار الحفظ')),
+          );
+        }
+        return;
+      }
+
       final result = await service.exportBackup(
         deviceId: deviceId,
         includeSchema: true,
+        targetPath: chosenPath,
       );
 
       if (!mounted) {

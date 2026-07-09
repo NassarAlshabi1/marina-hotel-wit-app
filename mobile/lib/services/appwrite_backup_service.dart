@@ -121,6 +121,7 @@ class AppwriteBackupService {
   Future<AppwriteBackupResult> exportBackup({
     String? deviceId,
     bool includeSchema = false,
+    String? targetPath,
   }) async {
     await _appwriteService.initialize();
 
@@ -173,16 +174,26 @@ class AppwriteBackupService {
       'collections': collections,
     };
 
-    final dir = await getApplicationDocumentsDirectory();
-    final targetDir = Directory('${dir.path}/appwrite_backups');
-    if (!targetDir.existsSync()) {
-      await targetDir.create(recursive: true);
-    }
+    final File file;
+    if (targetPath != null && targetPath.trim().isNotEmpty) {
+      // ✅ حفظ في المسار الذي يحدّده المستخدم (اختيار عبر FilePicker.saveFile)
+      file = File(targetPath);
+      final parent = file.parent;
+      if (!parent.existsSync()) {
+        await parent.create(recursive: true);
+      }
+    } else {
+      final dir = await getApplicationDocumentsDirectory();
+      final targetDir = Directory('${dir.path}/appwrite_backups');
+      if (!targetDir.existsSync()) {
+        await targetDir.create(recursive: true);
+      }
 
-    final prefix = includeSchema ? 'appwrite_full_backup' : 'appwrite_backup';
-    final fileName =
-        '${prefix}_${DateFormat('yyyyMMdd_HHmmss').format(timestamp)}.json';
-    final file = File('${targetDir.path}/$fileName');
+      final prefix = includeSchema ? 'appwrite_full_backup' : 'appwrite_backup';
+      final fileName =
+          '${prefix}_${DateFormat('yyyyMMdd_HHmmss').format(timestamp)}.json';
+      file = File('${targetDir.path}/$fileName');
+    }
     await file.writeAsString(jsonEncode(payload));
 
     return AppwriteBackupResult(
