@@ -8,6 +8,8 @@
     "test:debug": "npx playwright test --debug",
     "test:expenses": "npx playwright test tests/expenses --reporter=line",
     "install:playwright": "npx playwright install --with-deps",
+    "appwrite:setup": "node scripts/appwrite/unified_appwrite_setup.js",
+    "appwrite:verify": "node scripts/appwrite/unified_appwrite_setup.js --verify",
     "appwrite:create": "node scripts/appwrite/create_appwrite_collections.js",
     "appwrite:indexes": "node scripts/appwrite/create_unique_indexes.js",
     "appwrite:mobile-indexes": "node scripts/appwrite/create_mobile_indexes.js",
