@@ -2479,6 +2479,7 @@ class AppwriteSyncManager {
       }
 
       int processedInBatch = 0;
+      bool abortPush = false; // ✅ يُضبط عند تفعّل circuit breaker أو 429
       for (final entry in entries) {
         // ✅ جديد: فحص circuit breaker داخل الحلقة — إذا تفعّل في منتصف الدفعة
         // (مثلاً بعد عدة 429 متتالية)، نُوقف المعالجة فوراً ونترك بقية السجلات
@@ -2492,6 +2493,7 @@ class AppwriteSyncManager {
             'تُترك بقية السجلات في outbox.',
             tag: 'SYNC',
           );
+          abortPush = true;
           break;
         }
         try {
@@ -2516,6 +2518,7 @@ class AppwriteSyncManager {
               tag: 'SYNC',
             );
             // لا نضع setError — السجل يبقى eligible للإعادة
+            abortPush = true;
             break; // اخرج من حلقة الدفعة لتقليل الضغط على الخادم
           }
           if (e is TimeoutException) {
@@ -2529,6 +2532,17 @@ class AppwriteSyncManager {
             await outboxDao.setError(entry.id, message, entry.attempts + 1);
           }
         }
+      }
+
+      // ✅ إذا تفعّل circuit breaker أو حدث 429، أوقف الـ push بالكامل —
+      // لا نريد جلب دفعة جديدة و Hammering الخادم.
+      if (abortPush) {
+        _logger.warning(
+          '⛔ إيقاف _pushAllEntities بسبب rate limit — '
+          'السجلات المتبقية تُعالج في المزامنة التالية',
+          tag: 'SYNC',
+        );
+        break;
       }
 
       // Adaptive batch size

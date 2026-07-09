@@ -27,8 +27,8 @@ class AppwriteNetworkHelper {
   // احتمال تجاوزها في push flow حيث تتوالى updateDocument بشكل مكثّف.
   // ─────────────────────────────────────────────────────────────────────
   static const Duration _minRequestInterval = Duration(milliseconds: 120);
-  DateTime _lastRequestTime = DateTime.fromMillisecondsEpoch(0);
-  final _requestLock = _NoopLock();
+  DateTime _lastRequestTime =
+      DateTime.fromMillisecondsSinceEpoch(0);
 
   // ─────────────────────────────────────────────────────────────────────
   // Circuit Breaker — يحمي من إغراق الخادم عند تكرار 429.
@@ -435,12 +435,5 @@ class AppwriteNetworkHelper {
     if (_circuitBreakerUntil == null) return null;
     final remaining = _circuitBreakerUntil!.difference(DateTime.now());
     return remaining.isNegative ? null : remaining;
-  }
-}
-
-/// قفل وهمي — محجوز لاستخدام مستقبلي لتزامن الطلبات المتوازية.
-class _NoopLock {
-  Future<void> synchronized<T>(Future<T> Function() fn) async {
-    await fn();
   }
 }
