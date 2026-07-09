@@ -74,6 +74,7 @@ const ARGV = process.argv.slice(2);
 const VERIFY_ONLY = ARGV.includes('--verify');
 const PRUNE = ARGV.includes('--prune');        // حذف الحقول الزائدة غير الموجودة في SCHEMA
 const FIX_TYPES = ARGV.includes('--fix-types'); // حذف الحقول ذات النوع الخاطئ وإعادة إنشائها
+const MAKE_OPTIONAL = ARGV.includes('--make-optional'); // ✅ فقط حوّل required=true → required=false دون حذف الحقل أو بياناته
 const ONLY_ARG = ARGV.find((a) => a.startsWith('--only='));
 const ONLY = ONLY_ARG
   ? ONLY_ARG.replace('--only=', '').split(',').map((s) => s.trim()).filter(Boolean)
@@ -620,6 +621,7 @@ const stats = {
   attributesExisting: 0,
   attributesRecreated: 0, // عدد الحقول التي حُذِفت وأُعيد إنشاؤها (--fix-types)
   attributesPruned: 0,    // عدد الحقول الزائدة التي حُذِفت (--prune)
+  attributesMadeOptional: 0, // عدد الحقول التي حُوِّلت من required=true إلى false (--make-optional)
   indexesCreated: 0,
   indexesExisting: 0,
   errors: [],
@@ -683,11 +685,15 @@ async function ensureAttribute(collectionId, key, type) {
       const typeMismatch = actualType && actualType !== type;
       const requiredMismatch = actualRequired !== required;
 
-      if (typeMismatch || requiredMismatch) {
+      // ✅ إذا كان --make-optional مفعّلاً، تجاهل requiredMismatch تماماً
+      // لأن makeAttributesOptional سيتعامل معه لاحقاً دون حذف الحقل.
+      const effectiveRequiredMismatch = MAKE_OPTIONAL ? false : requiredMismatch;
+
+      if (typeMismatch || effectiveRequiredMismatch) {
         if (FIX_TYPES) {
           const reason = [
             typeMismatch ? `${actualType}→${type}` : null,
-            requiredMismatch ? `required=${actualRequired}→${required}` : null,
+            effectiveRequiredMismatch ? `required=${actualRequired}→${required}` : null,
           ].filter(Boolean).join(', ');
           console.log(`   🔧 ${key}: تعارض (${reason}) — حذف وإعادة إنشاء`);
           try {
@@ -703,7 +709,7 @@ async function ensureAttribute(collectionId, key, type) {
         } else {
           const reason = [
             typeMismatch ? `نوع=${actualType} (مطلوب ${type})` : null,
-            requiredMismatch ? `required=${actualRequired} (مطلوب ${required})` : null,
+            effectiveRequiredMismatch ? `required=${actualRequired} (مطلوب ${required})` : null,
           ].filter(Boolean).join('، ');
           console.log(`   ⚠️  ${key}: ${reason} — شغّل --fix-types للإصلاح`);
           stats.errors.push(`${collectionId}.${key}: mismatch (${reason}). Run with --fix-types`);
@@ -773,6 +779,72 @@ async function pruneExtraAttributes(collectionId, wantedFields) {
       } catch (e) {
         console.error(`   ❌ فشل حذف الحقل الزائد ${attr.key}: ${e.message}`);
         stats.errors.push(`${collectionId}.prune.${attr.key}: ${e.message}`);
+      }
+    }
+  }
+}
+
+// ✅ تحويل الحقول المُعلَّمة كـ required=true إلى required=false دون حذف الحقل
+// أو بياناته. يستخدم دوال updateXAttribute في Appwrite التي تُحدِّث علم required
+// مباشرةً. هذا آمن تماماً للبيانات الموجودة.
+//
+// المنطق:
+//   - يجلب الحقول الفعلية للمجموعة.
+//   - لكل حقل موجود في SCHEMA:
+//       إذا كان required=true في Appwrite والمطلوب في SCHEMA هو optional:
+//           استدعِ updateXAttribute(required=false) حسب نوع الحقل.
+//   - لا يحذف أي حقل ولا يُغيّر النوع.
+//
+// مثال:
+//   bookings.createdAt: required=true → required=false (لا تتأثر البيانات)
+async function makeAttributesOptional(collectionId, wantedFields) {
+  let coll;
+  try {
+    coll = await databases.getCollection(DATABASE_ID, collectionId);
+  } catch (e) {
+    return; // المجموعة غير موجودة — لا شيء لفعله
+  }
+
+  for (const attr of coll.attributes) {
+    const wantedType = wantedFields[attr.key];
+    if (wantedType === undefined) continue; // حقل زائد — تجاهله (هذا وظيفة --prune)
+
+    const actualRequired = !!(attr.required ?? attr.isRequired);
+    const targetRequired = attr.key === KEY_FIELD; // فقط المفتاح مطلوب
+
+    if (actualRequired && !targetRequired) {
+      try {
+        if (wantedType === 'string') {
+          await databases.updateStringAttribute(
+            DATABASE_ID, collectionId, attr.key,
+            false, // required=false
+            attr.default ?? undefined, // الحفاظ على القيمة الافتراضية إن وُجدت
+          );
+        } else if (wantedType === 'integer') {
+          await databases.updateIntegerAttribute(
+            DATABASE_ID, collectionId, attr.key, false,
+            attr.default ?? undefined,
+          );
+        } else if (wantedType === 'double') {
+          await databases.updateFloatAttribute(
+            DATABASE_ID, collectionId, attr.key, false,
+            attr.min ?? undefined, attr.max ?? undefined,
+            attr.default ?? undefined,
+          );
+        } else if (wantedType === 'boolean') {
+          await databases.updateBooleanAttribute(
+            DATABASE_ID, collectionId, attr.key, false,
+            attr.default ?? undefined,
+          );
+        } else {
+          continue;
+        }
+        console.log(`   🔓 ${attr.key}: required=true → required=false`);
+        stats.attributesMadeOptional++;
+        await sleep(300);
+      } catch (e) {
+        console.error(`   ❌ فشل تحويل ${attr.key} إلى optional: ${e.message}`);
+        stats.errors.push(`${collectionId}.${attr.key}.make-optional: ${e.message}`);
       }
     }
   }
@@ -886,8 +958,9 @@ async function main() {
   const modeFlags = [];
   if (VERIFY_ONLY) modeFlags.push('VERIFY');
   if (PRUNE) modeFlags.push('PRUNE (حذف الزائد)');
-  if (FIX_TYPES) modeFlags.push('FIX-TYPES (إصلاح الأنواع)');
-  if (!VERIFY_ONLY && !PRUNE && !FIX_TYPES) modeFlags.push('SETUP');
+  if (FIX_TYPES) modeFlags.push('FIX-TYPES (حذف+إعادة إنشاء)');
+  if (MAKE_OPTIONAL) modeFlags.push('MAKE-OPTIONAL (تحويل required=false فقط)');
+  if (!VERIFY_ONLY && !PRUNE && !FIX_TYPES && !MAKE_OPTIONAL) modeFlags.push('SETUP');
   console.log(`Mode     : ${modeFlags.join(' + ')}`);
   console.log(`Targets  : ${targets.length} مجموعة${ONLY ? ' (مُصفّاة)' : ''}`);
   console.log('═══════════════════════════════════════════════════════════');
@@ -915,6 +988,12 @@ async function main() {
       await pruneExtraAttributes(collectionId, fields);
     }
 
+    // ✅ تحويل الحقول required=true إلى required=false دون حذف الحقل أو بياناته.
+    // هذا يحل خطأ "Missing required attribute" بشكل آمن تماماً للبيانات.
+    if (MAKE_OPTIONAL) {
+      await makeAttributesOptional(collectionId, fields);
+    }
+
     // انتظر جاهزية الحقول قبل بناء الفهارس (الفهرس يتطلب حقولاً available).
     await waitForAttributes(collectionId, Object.keys(fields).length);
     await ensureStandardIndexes(collectionId, fields);
@@ -930,6 +1009,9 @@ async function main() {
   }
   if (stats.attributesRecreated > 0) {
     console.log(`🔧 حقول أُعيد إنشاؤها (--fix-types): ${stats.attributesRecreated}`);
+  }
+  if (stats.attributesMadeOptional > 0) {
+    console.log(`🔓 حقول حُوِّلت إلى optional (--make-optional): ${stats.attributesMadeOptional}`);
   }
   console.log(`الفهارس       : أُنشئت ${stats.indexesCreated} / موجودة ${stats.indexesExisting}`);
   if (stats.errors.length) {

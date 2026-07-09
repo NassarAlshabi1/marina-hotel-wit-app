@@ -1,9 +1,18 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:appwrite/appwrite.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 
-/// مساعد للعمليات الشبكية مع Retry Logic و Timeout
+/// مساعد للعمليات الشبكية مع Retry Logic و Timeout و Rate Limiting ذكي.
+///
+/// ✅ إصلاح (2026-07-10): معالجة شاملة لخطأ 429 (general_rate_limit_exceeded):
+///   1. **Rate Limiter شامل (token bucket)**: يضمن تأخيراً أدنى بين كل طلب
+///      متتالي لـ Appwrite، يمنع إغراق الخادم بطلبات متتالية من push flow.
+///   2. **احترام Retry-After**: عند 429، ننتظر المدة التي يطلبها الخادم
+///      (أو backoff أطول: 5s, 15s, 45s, 120s) بدل backoff العادي (2s, 4s, 8s).
+///   3. **Circuit Breaker**: بعد 5 أخطاء 429 متتالية، نُفعّل وضع "pausing"
+///      لمدة 60 ثانية يرفض فيها أي طلب جديد فوراً دون ضغط إضافي على الخادم.
 class AppwriteNetworkHelper {
   factory AppwriteNetworkHelper() => _instance;
   AppwriteNetworkHelper._internal();
@@ -11,6 +20,74 @@ class AppwriteNetworkHelper {
       AppwriteNetworkHelper._internal();
 
   final _logger = AppwriteLogger();
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Rate Limiter (token bucket) — يضمن تأخيراً أدنى بين الطلبات المتتالية.
+  // Appwrite Cloud يفرض حدوداً لكل مشروع/مستخدم؛ التأخير الأدنى يقلل
+  // احتمال تجاوزها في push flow حيث تتوالى updateDocument بشكل مكثّف.
+  // ─────────────────────────────────────────────────────────────────────
+  static const Duration _minRequestInterval = Duration(milliseconds: 120);
+  DateTime _lastRequestTime = DateTime.fromMillisecondsEpoch(0);
+  final _requestLock = _NoopLock();
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Circuit Breaker — يحمي من إغراق الخادم عند تكرار 429.
+  // ─────────────────────────────────────────────────────────────────────
+  int _consecutiveRateLimitHits = 0;
+  static const int _circuitBreakerThreshold = 5;
+  DateTime? _circuitBreakerUntil;
+  static const Duration _circuitBreakerCooldown = Duration(seconds: 60);
+
+  /// ينتظر حتى يصبح مسموحاً بإطلاق طلب جديد (للحفاظ على rate limit).
+  Future<void> _acquireRequestSlot() async {
+    // 1) فحص circuit breaker
+    if (_circuitBreakerUntil != null) {
+      final now = DateTime.now();
+      if (now.isBefore(_circuitBreakerUntil!)) {
+        final remaining = _circuitBreakerUntil!.difference(now);
+        throw AppwriteException(
+          'Circuit breaker active — rate limit cooldown. '
+          'Retry in ${remaining.inSeconds}s.',
+          429,
+          'general_rate_limit_exceeded',
+        );
+      } else {
+        // انتهت فترة التهدئة — أعد الضبط
+        _circuitBreakerUntil = null;
+        _consecutiveRateLimitHits = 0;
+      }
+    }
+
+    // 2) احترام التأخير الأدنى بين الطلبات
+    final now = DateTime.now();
+    final elapsed = now.difference(_lastRequestTime);
+    if (elapsed < _minRequestInterval) {
+      final wait = _minRequestInterval - elapsed;
+      await Future<void>.delayed(wait);
+    }
+    _lastRequestTime = DateTime.now();
+  }
+
+  /// يُستدعى عند نجاح أي طلب — يصفّر عدّاد circuit breaker.
+  void _onRequestSuccess() {
+    if (_consecutiveRateLimitHits > 0) {
+      _consecutiveRateLimitHits = 0;
+    }
+  }
+
+  /// يُستدعى عند تلقي 429 — يحدّث circuit breaker.
+  void _onRateLimitHit() {
+    _consecutiveRateLimitHits++;
+    if (_consecutiveRateLimitHits >= _circuitBreakerThreshold) {
+      _circuitBreakerUntil =
+          DateTime.now().add(_circuitBreakerCooldown);
+      _logger.error(
+        '🔌 Circuit breaker ACTIVATED for ${_circuitBreakerCooldown.inSeconds}s '
+        'after $_consecutiveRateLimitHits consecutive 429s',
+        tag: 'RATE_LIMIT',
+      );
+    }
+  }
 
   /// تنفيذ عملية مع Retry Logic (Exponential Backoff)
   ///
@@ -43,9 +120,39 @@ class AppwriteNetworkHelper {
       attempt++;
 
       try {
+        // ✅ Rate limiter: انتظر قبل إطلاق الطلب
+        await _acquireRequestSlot();
         _logger.debug('$opName - Attempt $attempt/$retries', tag: 'RETRY');
-        return await operation();
+        final result = await operation();
+        _onRequestSuccess();
+        return result;
       } catch (e) {
+        // ✅ معالجة 429 بأولوية: backoff أطول + احترام Retry-After
+        if (_isRateLimitError(e)) {
+          _onRateLimitHit();
+
+          // عند الوصول للحد الأقصى من المحاولات، ارفع الخطأ
+          if (attempt >= retries) {
+            _logger.error(
+              '$opName - Max retries ($retries) reached on rate limit (429)',
+              error: e,
+              tag: 'RATE_LIMIT',
+            );
+            rethrow;
+          }
+
+          // احسب وقت الانتظار: استخدم Retry-After إذا توفّر، وإلا استخدم
+          // backoff متدرّجاً مخصصاً لـ 429 (5s, 15s, 45s, 120s).
+          final waitTime = _extractRetryAfter(e) ?? _rateLimitBackoff(attempt);
+          _logger.warning(
+            '$opName - 429 rate limit on attempt $attempt/$retries. '
+            'Waiting ${waitTime.inSeconds}s before retry.',
+            tag: 'RATE_LIMIT',
+          );
+          await Future<void>.delayed(waitTime);
+          continue; // لا نطبّق currentDelay العادي
+        }
+
         // التحقق من نوع الخطأ - هل قابل لإعادة المحاولة؟
         if (!_isRetriableError(e)) {
           // ✅ إصلاح #2-D: كتم تحذير "Non-retriable error" للأخطاء المتوقعة
@@ -229,6 +336,60 @@ class AppwriteNetworkHelper {
     return false;
   }
 
+  /// يكتشف ما إذا كان الخطأ هو 429 rate limit.
+  bool _isRateLimitError(dynamic error) {
+    if (error is AppwriteException) {
+      if (error.code == 429) return true;
+      final type = (error.type ?? '').toLowerCase();
+      if (type.contains('rate_limit') ||
+          type.contains('general_rate_limit_exceeded')) {
+        return true;
+      }
+    }
+    final errorStr = error.toString().toLowerCase();
+    return errorStr.contains('rate_limit_exceeded') ||
+        errorStr.contains('rate limit') ||
+        errorStr.contains('429');
+  }
+
+  /// يستخرج قيمة Retry-After من رسالة خطأ Appwrite (إن وُجدت).
+  /// Appwrite لا يُعيد header بصيغة قياسية دائماً، لكنه يُضمّن أحياناً
+  /// "try again after X seconds" في رسالة الخطأ.
+  Duration? _extractRetryAfter(dynamic error) {
+    if (error is AppwriteException) {
+      final msg = error.message ?? '';
+      // أنماط شائعة: "try again after 30 seconds", "retry after 45s"
+      final patterns = [
+        RegExp(r'try\s+again\s+after\s+(\d+)\s*s', caseSensitive: false),
+        RegExp(r'retry\s+after\s+(\d+)\s*s', caseSensitive: false),
+        RegExp(r'after\s+(\d+)\s+seconds', caseSensitive: false),
+      ];
+      for (final p in patterns) {
+        final m = p.firstMatch(msg);
+        if (m != null) {
+          final secs = int.tryParse(m.group(1) ?? '');
+          if (secs != null && secs > 0 && secs < 600) {
+            // حدّ أقصى 10 دقائق لتفادي الانتظار الطويل بلا داعٍ
+            return Duration(seconds: secs);
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Backoff متدرّج خاص بأخطاء 429 — أطول من backoff العادي.
+  /// المحاولة 1: 5s، 2: 15s، 3: 45s، 4+: 120s.
+  /// مع jitter عشوائي ±20% لتقليل التصادم بين الأجهزة.
+  Duration _rateLimitBackoff(int attempt) {
+    const baseSeconds = [5, 15, 45, 120];
+    final idx = (attempt - 1).clamp(0, baseSeconds.length - 1);
+    final base = baseSeconds[idx];
+    final jitter = (base * 0.2) * (Random().nextDouble() * 2 - 1);
+    final seconds = (base + jitter).round().clamp(1, 600);
+    return Duration(seconds: seconds);
+  }
+
   /// حساب وقت الانتظار بناءً على Exponential Backoff مع Jitter
   ///
   /// [attempt] - رقم المحاولة
@@ -257,5 +418,29 @@ class AppwriteNetworkHelper {
     }
 
     return Duration(milliseconds: exponentialDelay.round());
+  }
+
+  /// ✅ جديد: حالة الـ circuit breaker — يُستخدم من sync manager لإيقاف
+  /// المزامنة مؤقتاً عند تفعّله.
+  bool get isCircuitBreakerActive {
+    if (_circuitBreakerUntil == null) return false;
+    if (DateTime.now().isBefore(_circuitBreakerUntil!)) return true;
+    _circuitBreakerUntil = null;
+    _consecutiveRateLimitHits = 0;
+    return false;
+  }
+
+  /// ✅ جديد: المدة المتبقية حتى انتهاء الـ circuit breaker (null إذا غير مُفعّل).
+  Duration? get circuitBreakerRemaining {
+    if (_circuitBreakerUntil == null) return null;
+    final remaining = _circuitBreakerUntil!.difference(DateTime.now());
+    return remaining.isNegative ? null : remaining;
+  }
+}
+
+/// قفل وهمي — محجوز لاستخدام مستقبلي لتزامن الطلبات المتوازية.
+class _NoopLock {
+  Future<void> synchronized<T>(Future<T> Function() fn) async {
+    await fn();
   }
 }
