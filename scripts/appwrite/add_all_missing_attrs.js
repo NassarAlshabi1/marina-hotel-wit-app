@@ -73,7 +73,6 @@ const MISSING = {
     { key: 'finalRate', type: 'double', required: false },
     { key: 'appliedAdjustmentUuid', type: 'string', size: 100, required: false },
     { key: 'appliedAdjustmentsJson', type: 'string', size: 2000, required: false },
-    { key: 'nightNumber', type: 'integer', required: false },
   ],
   salary_withdrawals: [
     { key: 'withdrawDate', type: 'string', size: 50, required: false },
@@ -84,7 +83,6 @@ const MISSING = {
   ],
   salary_payments: [
     { key: 'amount', type: 'double', required: false },
-    { key: 'paymentLocalId', type: 'integer', required: false },
   ],
   salary_cycles: [
     { key: 'expectedAmount', type: 'double', required: false, default: 0 },

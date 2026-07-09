@@ -237,7 +237,6 @@ class PayloadMapper {
     putIfNotNull(data, 'serverBookingId', payment.serverBookingId);
     putIfStringNotEmpty(data, 'roomNumber', payment.roomNumber);
     putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
-    putIfNotNull(data, 'paymentLocalId', payment.id);
     putIfStringNotEmpty(data, 'notes', payment.notes);
     putIfNotNull(data, 'cashTransactionLocalId', payment.cashTransactionLocalId);
     putIfNotNull(data, 'cashTransactionServerId', payment.cashTransactionServerId);
@@ -422,7 +421,6 @@ class PayloadMapper {
     };
     putIfNotNull(data, 'serverId', night.serverId);
     putIfNotNull(data, 'deletedAt', night.deletedAt);
-    putIfNotNull(data, 'nightNumber', night.sequence);
     putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
     putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
     
@@ -509,7 +507,6 @@ class PayloadMapper {
     };
     putIfNotNull(data, 'serverId', payment.serverId);
     putIfNotNull(data, 'deletedAt', payment.deletedAt);
-    putIfNotNull(data, 'paymentLocalId', payment.id);
     putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
     putIfStringNotEmpty(data, 'method', payment.method);
     putIfStringNotEmpty(data, 'idempotencyKey', payment.idempotencyKey);

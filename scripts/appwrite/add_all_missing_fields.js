@@ -61,15 +61,6 @@ const MISSING_FIELDS = {
     { key: "terminationDate", type: "string", size: 50, required: false },
     { key: "terminationReason", type: "string", size: 200, required: false },
   ],
-  salary_payments: [
-    { key: "paymentLocalId", type: "integer", size: null, required: false },
-  ],
-  booking_nights: [
-    { key: "nightNumber", type: "integer", size: null, required: false },
-  ],
-  payments: [
-    { key: "paymentLocalId", type: "integer", size: null, required: false },
-  ],
   salary_withdrawals: [
     { key: "withdrawDate", type: "string", size: 50, required: false },
     { key: "reason", type: "string", size: 500, required: false },
