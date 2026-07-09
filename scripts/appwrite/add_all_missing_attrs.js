@@ -8,7 +8,7 @@ const { Client, Databases } = require('node-appwrite');
 const ENDPOINT = 'https://fra.cloud.appwrite.io/v1';
 const PROJECT_ID = '690ff0da0025518570c1';
 const DATABASE_ID = 'hotel_db';
-const API_KEY = 'standard_4158f40bb3d2e370befc7df85f6f66dfa06dcc068036f60085b155e88d46546f57ffec6c9a6d4ea3b7ba11bf0e5dce276122ecb5aa20cd96bb8d08aa33eddd0d7a531171bf7d763509215657a3d138d1a9393228550ff14102903127bfade5ef0b93f87baa39d2850e7f7d4cedca6190d9179d2e5239a2c53c4d941a89ef84da';
+const API_KEY = process.env.APPWRITE_API_KEY || '';
 
 const client = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
 const databases = new Databases(client);
@@ -19,6 +19,11 @@ const MISSING = {
     { key: 'basePrice', type: 'double', required: false },
     { key: 'floor', type: 'integer', required: false },
     { key: 'bedsCount', type: 'integer', required: false },
+  ],
+  employees: [
+    { key: 'salary', type: 'double', required: false },
+    { key: 'terminationDate', type: 'string', size: 50, required: false },
+    { key: 'terminationReason', type: 'string', size: 200, required: false },
   ],
   bookings: [
     { key: 'expectedNights', type: 'integer', required: false },
@@ -68,6 +73,7 @@ const MISSING = {
     { key: 'finalRate', type: 'double', required: false },
     { key: 'appliedAdjustmentUuid', type: 'string', size: 100, required: false },
     { key: 'appliedAdjustmentsJson', type: 'string', size: 2000, required: false },
+    { key: 'nightNumber', type: 'integer', required: false },
   ],
   salary_withdrawals: [
     { key: 'withdrawDate', type: 'string', size: 50, required: false },
@@ -78,6 +84,7 @@ const MISSING = {
   ],
   salary_payments: [
     { key: 'amount', type: 'double', required: false },
+    { key: 'paymentLocalId', type: 'integer', required: false },
   ],
   salary_cycles: [
     { key: 'expectedAmount', type: 'double', required: false, default: 0 },
@@ -98,9 +105,7 @@ const MISSING = {
   payment_voids: [
     { key: 'idempotencyKey', type: 'string', size: 200, required: false },
   ],
-  shift_notes: [
-    // note هو مكرر لـ content — لا نضيفه، سنزيله من الكود بدلاً من ذلك
-  ],
+  shift_notes: [],
 };
 
 async function getExistingAttrs(collectionId) {
@@ -159,6 +164,23 @@ async function main() {
   console.log(`\n═══════════════════════════════════════════════════════════`);
   console.log(`✅ اكتمل: ${totalAdded} إضافة، ${totalSkipped} موجود سابقاً`);
   console.log('═══════════════════════════════════════════════════════════');
+
+  // عرض جميع السمات الحالية لكل Collection
+  console.log('\n═══════════════════════════════════════════════════════════');
+  console.log('📋 السمات الحالية في كل Collection:');
+  console.log('═══════════════════════════════════════════════════════════\n');
+  for (const [collId] of Object.entries(MISSING)) {
+    try {
+      const { attributes } = await databases.listAttributes(DATABASE_ID, collId);
+      console.log(`📋 ${collId}:`);
+      for (const attr of attributes) {
+        if (!attr.key.startsWith('$')) {
+          console.log(`   - ${attr.key} (${attr.type}) [${attr.status}]${attr.required ? ' required' : ''}`);
+        }
+      }
+      console.log('');
+    } catch (_) {}
+  }
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
