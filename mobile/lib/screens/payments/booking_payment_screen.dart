@@ -417,6 +417,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     if (result == 'cancel_nights') {
       // حفظ معرّفات الليالي الملغاة لاستبعادها من الحساب
+      if (!mounted) return true;
       setState(() {
         _cancelledSuspiciousNightIds
             .addAll(suspiciousNights.map((n) => n.id));

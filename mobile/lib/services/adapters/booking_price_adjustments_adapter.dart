@@ -42,12 +42,11 @@ class BookingPriceAdjustmentsAdapter
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
 
-    // ✅ إصلاح: إذا فشل resolveBooking والحجز غير موجود محلياً، تخطّي السجل
-    // بدل محاولة إدراجه بـ FK خاطئ (bookingLocalUuid NOT NULL FK).
-    // هذا يمنع SqliteException(787): FOREIGN KEY constraint failed.
+    // ✅ إصلاح: إذا فشل resolveBooking والحجز غير قابل للحل محلياً، تخطّي السجل
+    // بدل إدراجه كسجل يتيم (bookingLocalId = null) لا علاقة له بحجز فعلي.
+    // bookingLocalId nullable أصلاً، لكن ترك سجل بلا حجز مرتبط يُفسد البيانات
+    // عند السحب من Appwrite/Drive، لذا نتخطّى دوماً عند فشل الحل للمدخل البعيد.
     final shouldSkip = resolvedId == null &&
-        bookingUuid != null &&
-        bookingUuid.isNotEmpty &&
         (src == Source.appwrite || src == Source.drive);
     final skipReason = shouldSkip
         ? 'booking_price_adjustment: لا يمكن العثور على الحجز المرتبط '

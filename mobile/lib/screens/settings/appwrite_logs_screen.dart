@@ -40,7 +40,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   /// بدء التحديث التلقائي
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) {
         setState(() {}); // تحديث الشاشة
       }
