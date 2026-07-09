@@ -30,6 +30,10 @@ on:
         type: boolean
         default: true
 
+permissions:
+  contents: read
+  actions: read
+
 concurrency:
   group: debug-apk-${{ github.ref }}
   cancel-in-progress: true
