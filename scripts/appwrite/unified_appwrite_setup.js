@@ -497,6 +497,26 @@ const SCHEMA = {
     reportedBy: 'string',
     active: 'boolean',
   }),
+
+  // مستخدمو التطبيق (حسابات الدخول). مُضافة لجعل الثانوية مطابقة للأساسية.
+  // منقولة حرفياً من collectionSchema['app_users'] (appwrite_sync_utils.dart).
+  // ⚠️ ليس لها حقول SYNC قياسية (بلا localUuid) ولا فهارس — تُدار عبر upsert مباشر
+  // في auth_local_store._pushUserToCloud. لذا لا نطبّق withSync ولا نبني فهرساً.
+  app_users: {
+    active: 'boolean',
+    credentials_version: 'integer',
+    fullName: 'string',
+    full_name: 'string',
+    lastLogin: 'integer',
+    last_login: 'integer',
+    password: 'string',
+    permissions: 'string',
+    sync_origin: 'string',
+    userType: 'string',
+    user_type: 'string',
+    username: 'string',
+    version: 'integer',
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -527,6 +547,7 @@ function stringSize(field) {
     vectorClock: 2000,
     secondary_appwrite_config: 8000,
     appliedAdjustmentsJson: 8000,
+    permissions: 2000, // app_users: قائمة صلاحيات مُرمّزة JSON
     api_key: 2000,
     wa_api_token: 2000,
     telegram_bot_token: 2000,
