@@ -701,9 +701,8 @@ async function ensureAttribute(collectionId, key, type) {
           ].filter(Boolean).join(', ');
           console.log(`   🔧 ${key}: تعارض (${reason}) — حذف وإعادة إنشاء`);
           try {
-            await databases.deleteAttribute(DATABASE_ID, collectionId, key);
+            await deleteAttributeAndWait(collectionId, key);
             stats.attributesRecreated++;
-            await sleep(800); // مهلة حتى يُحذَف فعلياً
           } catch (e) {
             console.error(`   ❌ فشل حذف ${key} (لإعادة الإنشاء): ${e.message}`);
             stats.errors.push(`${collectionId}.${key}: delete failed: ${e.message}`);

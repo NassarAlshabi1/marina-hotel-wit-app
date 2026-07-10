@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:signals_flutter/signals_flutter.dart';
 
 /// ✅ تأخير إصدار بيانات الـ Stream حتى تهدأ التغييرات.
 Stream<T> debounceStream<T>(Stream<T> source, Duration duration) {
@@ -11,13 +12,15 @@ Stream<T> debounceStream<T>(Stream<T> source, Duration duration) {
       timer?.cancel();
       latest = data;
       timer = Timer(duration, () {
-        sink.add(latest!);
+        if (latest != null) {
+          sink.add(latest as T);
+        }
       });
     },
     handleDone: (sink) {
       timer?.cancel();
       if (latest != null) {
-        sink.add(latest!);
+        sink.add(latest as T);
       }
       sink.close();
     },
@@ -35,9 +38,9 @@ class StreamToValueNotifier<T> extends ValueNotifier<T> {
 
   StreamToValueNotifier({
     required Stream<T> source,
-    T? initialValue,
+    required T initialValue,
     Duration? debounce,
-  }) : super(initialValue as T) {
+  }) : super(initialValue) {
     var stream = source;
     if (debounce != null) {
       stream = debounceStream(stream, debounce);
@@ -75,29 +78,24 @@ class StreamToValueNotifier<T> extends ValueNotifier<T> {
 /// );
 ///
 /// // في build:
-/// Watch((context) => myWidget(signal.value))
+/// Watch((context) => myWidget(signal.signal.value))
 /// ```
 class StreamToSignal<T> {
   StreamSubscription<T>? _subscription;
-  
-  /// القيمة الحالية للإشارة
-  T value;
+  final Signal<T> signal;
 
   StreamToSignal({
     required Stream<T> source,
     required T initialValue,
     Duration? debounce,
-  }) : value = initialValue {
+  }) : signal = signal<T>(initialValue) {
     var stream = source;
     if (debounce != null) {
       stream = debounceStream(stream, debounce);
     }
     _subscription = stream.listen(
       (data) {
-        if (value != data) {
-          value = data;
-          _notifyListeners();
-        }
+        signal.value = data;
       },
       onError: (error) {
         debugPrint('❌ [StreamToSignal] Stream error: $error');
@@ -105,27 +103,9 @@ class StreamToSignal<T> {
     );
   }
 
-  final List<void Function()> _listeners = [];
-
-  /// اشتراك في تغييرات الإشارة
-  void listen(void Function() callback) {
-    _listeners.add(callback);
-  }
-
-  /// إلغاء الاشتراك
-  void unlisten(void Function() callback) {
-    _listeners.remove(callback);
-  }
-
-  void _notifyListeners() {
-    for (final listener in List.from(_listeners)) {
-      listener();
-    }
-  }
-
   /// تنظيف الموارد
   void dispose() {
     _subscription?.cancel();
-    _listeners.clear();
+    signal.dispose();
   }
 }
