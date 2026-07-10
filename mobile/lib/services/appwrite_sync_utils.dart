@@ -922,6 +922,10 @@ class AppwriteSyncUtils {
       'remainingBalanceCached': 'double',
       'isFullyPaid': 'boolean',
       'discount': 'double',
+      // حقل amount الموحّد لجدول bookings (مطابق للمخطط الموحّد
+      // unified_appwrite_setup.js). القيمة مشتقّة من totalDueCached في
+      // payload_mapper، ويُبقيها الفلتر ليطابق الأساسية والثانوية.
+      'amount': 'double',
       'discountType': 'string',
       'discountStartDate': 'string',
       'hotelDayCheckin': 'string',

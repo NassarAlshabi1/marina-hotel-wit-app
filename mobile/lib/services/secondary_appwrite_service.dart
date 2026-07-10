@@ -188,8 +188,58 @@ for (final coll in collectionList) {
     return stats;
   }
 
-  /// Upsert مستند في Secondary — معالجة ID بدون شرطات (مثل Primary)
+  static final RegExp _unknownAttrPattern =
+      RegExp(r'Unknown attribute:\s*"([^"]+)"');
+
+  /// استخراج اسم السمة غير المعروفة من خطأ Appwrite (إن وُجد).
+  String? _extractUnknownAttribute(AppwriteException e) {
+    final type = e.type ?? '';
+    final msg = e.message ?? e.toString();
+    final isStructureError = e.code == 400 &&
+        (type.contains('document_invalid_structure') ||
+            msg.contains('Invalid document structure') ||
+            msg.contains('Unknown attribute'));
+    if (!isStructureError) return null;
+    return _unknownAttrPattern.firstMatch(msg)?.group(1);
+  }
+
+  /// Upsert مستند في Secondary — غلاف صامد أمام انحراف المخطط: إذا رفض
+  /// الخادم حقلاً غير معروف (Unknown attribute) نُزيله ونعيد المحاولة، بدل
+  /// فشل السجل كاملاً (نفس سلوك Primary).
   Future<models.Document> upsertDocument({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) async {
+    var workingData = Map<String, dynamic>.from(data);
+    final maxRetries = workingData.length + 1;
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await _upsertDocumentOnce(
+          collectionId: collectionId,
+          documentId: documentId,
+          data: workingData,
+        );
+      } on AppwriteException catch (e) {
+        final unknownAttr = _extractUnknownAttribute(e);
+        if (unknownAttr != null &&
+            workingData.containsKey(unknownAttr) &&
+            attempt < maxRetries) {
+          workingData = Map<String, dynamic>.from(workingData)
+            ..remove(unknownAttr);
+          _logger.warning(
+            '⚠️ [Secondary] حقل غير معروف في المخطط — أُزيل وأُعيدت المحاولة: '
+            '$collectionId.$unknownAttr',
+            tag: 'SCHEMA_DRIFT',
+          );
+          continue;
+        }
+        rethrow;
+      }
+    }
+  }
+
+  Future<models.Document> _upsertDocumentOnce({
     required String collectionId,
     required String documentId,
     required Map<String, dynamic> data,
