@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -545,11 +546,11 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
 
     setState(() => _exportingPdf = true);
     try {
+      // ✅ تحميل الخطوط العربية أولاً — أي فشل هنا يُغلق العملية مبكراً برسالة واضحة.
       final fonts = await PdfUtils.loadArabicFonts();
       final prefs = await SharedPreferences.getInstance();
       final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
       final headers = [
-        
         'الملاحظات',
         'المحافظة',
         'مكان الإصدار',
@@ -561,19 +562,26 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         'رقم الغرفة',
         '#',
       ];
+      // ✅ Defensive null handling: الحقول non-nullable في schema، لكن قد تحتوي NULL
+      // في قاعدة بيانات قديمة (قبل تطبيق NOT NULL) — عندئذ قراءتها كـ String تُسبب
+      // TypeError صامت. نُحوّل كل حقل لـ String? ثم نستخدم ?? '-'.
+      String safe(dynamic v) {
+        if (v == null) return '-';
+        final s = v.toString().trim();
+        return s.isEmpty ? '-' : s;
+      }
       final data = List.generate(entries.length, (i) {
         final info = entries[i];
         return [
-          
-          info.notes ?? '-',
-          info.governorate ?? '-',
-          info.issuePlace ?? '-',
-          info.issueDate ?? '-',
-          info.idNumber,
-          info.idType,
-          info.nationality,
-          info.guestName,
-          info.roomNumber,
+          safe(info.notes),
+          safe(info.governorate),
+          safe(info.issuePlace),
+          safe(info.issueDate),
+          safe(info.idNumber),
+          safe(info.idType),
+          safe(info.nationality),
+          safe(info.guestName),
+          safe(info.roomNumber),
           '${i + 1}',
         ];
       });
@@ -708,16 +716,21 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 6: pw.Alignment.centerRight,
                 7: pw.Alignment.centerRight,
                 8: pw.Alignment.centerRight,
+                9: pw.Alignment.center,
               },
             ),
           ],
         ),
       );
 
+      // ✅ فصل doc.save() عن sharePdf — سهولة في التشخيص وضمان اكتمال التوليد قبل المشاركة.
+      final Uint8List pdfBytes = await doc.save();
       final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
       final filename = 'guest-info-$timestamp.pdf';
-      await Printing.sharePdf(bytes: await doc.save(), filename: filename);
-    } catch (error) {
+      await Printing.sharePdf(bytes: pdfBytes, filename: filename);
+    } catch (error, stackTrace) {
+      // ✅ تشخيص مفصّل: نُسجّل الـ stackTrace في console + نُظهر رسالة واضحة للمستخدم.
+      debugPrint('❌ فشل تصدير PDF لسجل المعلومية:\n  error: $error\n  stack: $stackTrace');
       _showSnack('فشل تصدير الملف: $error');
     } finally {
       if (mounted) {
