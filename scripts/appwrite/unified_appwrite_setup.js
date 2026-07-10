@@ -775,10 +775,12 @@ async function pruneExtraAttributes(collectionId, wantedFields) {
   for (const attr of coll.attributes) {
     if (!wanted.has(attr.key)) {
       try {
-        await databases.deleteAttribute(DATABASE_ID, collectionId, attr.key);
+        // ✅ استخدم deleteAttributeAndWait بدلاً من databases.deleteAttribute + sleep(400)
+        // — حذف السمة غير فوري على Appwrite، والـ sleep الثابت قد يسبب 409 Conflict
+        // عند إعادة الإنشاء لاحقاً. deleteAttributeAndWait يتحقق فعلياً من اختفاء السمة.
+        await deleteAttributeAndWait(collectionId, attr.key);
         console.log(`   🗑️  حقل زائد حُذف: ${attr.key} (كان ${appwriteTypeToSchema(attr) || attr.type || '?'})`);
         stats.attributesPruned++;
-        await sleep(400);
       } catch (e) {
         console.error(`   ❌ فشل حذف الحقل الزائد ${attr.key}: ${e.message}`);
         stats.errors.push(`${collectionId}.prune.${attr.key}: ${e.message}`);
