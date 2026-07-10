@@ -117,7 +117,13 @@ Future<void> main() async {
   }
 
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)
-  unawaited(AlarmBackup.initAlarmSystem());
+  // ✅ catchError بدلاً من unawaited المُجرّد — لو فشل initAlarmSystem، نسجّل
+  // الخطأ بدل تركه silent (البوت أشار لهذا بشكل صحيح).
+  unawaited(
+    AlarmBackup.initAlarmSystem().catchError(
+      (Object e) => debugPrint('⚠️ Alarm system init failed: $e'),
+    ),
+  );
 
   // ─── ربط Crashlytics + DiagnosticsLogger ───
   CrashlyticsService.instance.setupErrorHandlers(

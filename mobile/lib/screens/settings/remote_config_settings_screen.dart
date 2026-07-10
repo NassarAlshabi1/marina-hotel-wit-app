@@ -73,12 +73,12 @@ class _RemoteConfigSettingsScreenState
             [
               _buildConfigRow(
                 'رقم WhatsApp',
-                values['whatsapp_phone'] as String? ?? '---',
+                values['whatsapp_phone']?.toString() ?? '---',
                 'whatsapp_phone',
               ),
               _buildConfigRow(
                 'مفتاح API',
-                _maskKey(values['whatsapp_api_key'] as String? ?? '---'),
+                _maskKey(values['whatsapp_api_key']?.toString() ?? '---'),
                 'whatsapp_api_key',
               ),
               _buildConfigRow(
@@ -89,7 +89,7 @@ class _RemoteConfigSettingsScreenState
               ),
               _buildConfigRow(
                 'هاتف الفندق',
-                values['hotel_contact_phone'] as String? ?? '---',
+                values['hotel_contact_phone']?.toString() ?? '---',
                 'hotel_contact_phone',
               ),
             ],
@@ -105,17 +105,17 @@ class _RemoteConfigSettingsScreenState
             [
               _buildConfigRow(
                 'النسخ الاحتياطي',
-                values['daily_backup_time'] as String? ?? '---',
+                values['daily_backup_time']?.toString() ?? '---',
                 'daily_backup_time',
               ),
               _buildConfigRow(
                 'تقرير WhatsApp',
-                values['whatsapp_report_time'] as String? ?? '---',
+                values['whatsapp_report_time']?.toString() ?? '---',
                 'whatsapp_report_time',
               ),
               _buildConfigRow(
                 'تقرير Telegram',
-                values['telegram_report_time'] as String? ?? '---',
+                values['telegram_report_time']?.toString() ?? '---',
                 'telegram_report_time',
               ),
             ],
@@ -159,7 +159,7 @@ class _RemoteConfigSettingsScreenState
               _buildConfigRow(
                 'نوع الخصم الافتراضي',
                 _translateDiscountType(
-                  values['default_discount_type'] as String? ?? '---',
+                  values['default_discount_type']?.toString() ?? '---',
                 ),
                 'default_discount_type',
               ),
@@ -212,7 +212,7 @@ class _RemoteConfigSettingsScreenState
               ),
               _buildConfigRow(
                 'كود الدولة',
-                values['country_code_default'] as String? ?? '---',
+                values['country_code_default']?.toString() ?? '---',
                 'country_code_default',
               ),
               _buildConfigRow(

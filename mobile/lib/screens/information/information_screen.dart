@@ -544,6 +544,10 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       return;
     }
 
+    // ✅ Guard ضد double-press: لو ضغط المستخدم الزر مرتين سريعاً قبل أن يُعطّله
+    // الـ UI (يحدث قبل أول await)، نتجنّب تشغيل عمليتي تصدير متزامنتين.
+    if (_exportingPdf) return;
+
     setState(() => _exportingPdf = true);
     try {
       // ✅ تحميل الخطوط العربية أولاً — أي فشل هنا يُغلق العملية مبكراً برسالة واضحة.

@@ -261,6 +261,11 @@ class _SecondaryAppwriteSettingsScreenState
     if (confirmed != true) return;
     if (!mounted) return;
 
+    // ✅ Guard ضد تشغيل عمليتي backup متزامنتين (double-tap أو race). الـ UI
+    // يُعطّل الزر عبر `_uploadingFullBackup`، لكن هذا التحقق الإضافي يضمن عدم
+    // بدء عملية ثانية قبل أن يُحدّث الـ state فعلياً.
+    if (_uploadingFullBackup) return;
+
     setState(() {
       _uploadingFullBackup = true;
       _fullBackupResult = '';
@@ -277,6 +282,9 @@ class _SecondaryAppwriteSettingsScreenState
 
     // ✅ استخدام SecondaryBackupService — يعمل في الخلفية
     final backupService = SecondaryBackupService.instance;
+    // ✅ ألغِ أي subscription سابق قبل إنشاء واحد جديد — يمنع memory leak
+    // وتعدد listeners لو استُدعيت الدالة مرتين (مثلاً بعد race window).
+    await _backupSub?.cancel();
     _backupSub = backupService.progressStream.listen((progress) {
       if (!mounted) return;
       setState(() {

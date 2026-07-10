@@ -67,8 +67,10 @@ class _WhatsAppSettingsScreenState
       return;
     }
     setState(() {
+      // ✅ حمّل القالب المحفوظ من prefs (إن وُجد) بدل الكتابة فوقه بالـ default
+      // دائماً — كان هذا bug يُفقِد المستخدم تخصيصاته بعد إعادة فتح الشاشة.
       _templateController.text =
-          whatsappPaymentTemplate;
+          prefs.getString('wa_template') ?? whatsappPaymentTemplate;
       _baseUrlController.text =
           prefs.getString('wa_api_base_url') ?? _defaultBaseUrl;
       _instanceIdController.text =
@@ -118,6 +120,9 @@ class _WhatsAppSettingsScreenState
   Future<void> _saveTemplate() async {
     setState(() => _isSaving = true);
     final prefs = await SharedPreferences.getInstance();
+    // ✅ BUG FIX: كان الكود يُظهر رسالة "تم الحفظ بنجاح" دون حفظ أي شيء فعلياً!
+    // نحفظ القالب تحت مفتاح 'wa_template' (مطابق لما يقرأه _loadSettings).
+    await prefs.setString('wa_template', _templateController.text.trim());
 
     if (!mounted) {
       return;

@@ -41,8 +41,14 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (mounted) {
-        setState(() {}); // تحديث الشاشة
+      // ✅ لفّ في try-catch — لو رمى setState/build استثناء، لا يتوقف الـ timer
+      // صامتاً (يفقد المستخدم auto-refresh دون أن يعرف).
+      try {
+        if (mounted) {
+          setState(() {}); // تحديث الشاشة
+        }
+      } catch (e) {
+        debugPrint('⚠️ appwrite_logs auto-refresh setState failed: $e');
       }
     });
   }

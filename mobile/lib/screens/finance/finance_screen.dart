@@ -101,7 +101,13 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
             return RefreshIndicator(
               color: Colors.indigo,
-              onRefresh: () async => setState(() {}),
+              // ✅ BUG FIX: كان `setState(() {})` فقط لا يُعيد جلب البيانات من
+              // الـ repository — المستخدم يسحب للأسفل ويرى نفس البيانات القديمة.
+              // invalidate يُجبر الـ providers على إعادة الجلب من المصدر.
+              onRefresh: () async {
+                ref.invalidate(todayPaymentsProvider);
+                ref.invalidate(todayExpensesProvider);
+              },
               child: _buildBody(income, expenses, balance),
             );
           },

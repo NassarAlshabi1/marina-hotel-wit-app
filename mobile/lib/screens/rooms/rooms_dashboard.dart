@@ -66,7 +66,19 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
                 children: [
                   const Icon(Icons.error, size: 64, color: Colors.red),
                   const SizedBox(height: 16),
-                  Text('خطأ: $e', textAlign: TextAlign.center),
+                  // 🔒 لا نُظهر `$e` للمستخدم — قد يحتوي على أسماء جداول/حقول
+                  // داخلية أو رسائل Appwrite. نسجّل التفاصيل للمطورين فقط.
+                  const Text(
+                    'حدث خطأ أثناء تحميل الغرف',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'تحقّق من اتصال الشبكة وحاول مرة أخرى.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                 ],
               ),
             ),

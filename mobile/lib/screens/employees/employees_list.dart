@@ -49,6 +49,25 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
             StreamBuilder(
               stream: debounceStream(repo.watchAll(), const Duration(milliseconds: 150)),
               builder: (context, snapshot) {
+                // ✅ معالجة حالة الخطأ قبل hasData — بدونها يظهر loading مؤبداً
+                // عند انفجار الـ stream بدل رسالة واضحة.
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        const Text('حدث خطأ أثناء تحميل الموظفين',
+                            style: TextStyle(fontSize: 16)),
+                        const SizedBox(height: 8),
+                        const Text('تحقّق من اتصال الشبكة وحاول مرة أخرى.',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                            textAlign: TextAlign.center),
+                      ],
+                    ),
+                  );
+                }
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }

@@ -111,6 +111,25 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
               child: StreamBuilder(
                 stream: debounceStream(repo.watchAll(), const Duration(milliseconds: 150)),
                 builder: (context, snapshot) {
+                  // ✅ معالجة حالة الخطأ قبل ConnectionState.waiting — بدونها
+                  // قد لا يظهر للمستخدم أي feedback عند انفجار الـ stream.
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                          const SizedBox(height: 16),
+                          const Text('حدث خطأ أثناء تحميل المدفوعات',
+                              style: TextStyle(fontSize: 16)),
+                          const SizedBox(height: 8),
+                          const Text('تحقّق من اتصال الشبكة وحاول مرة أخرى.',
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                              textAlign: TextAlign.center),
+                        ],
+                      ),
+                    );
+                  }
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
                       child: CircularProgressIndicator(

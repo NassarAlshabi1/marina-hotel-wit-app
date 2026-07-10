@@ -142,7 +142,7 @@ class _ActiveBookingsReminderScreenState
         'فندق مارينا\n'
         'للاستفسار: 9677734587456';
 
-    return message ?? _buildFallbackMessage(booking);
+    return message;
   }
 
   /// رسالة بديلة إذا كان النموذج معطّل
