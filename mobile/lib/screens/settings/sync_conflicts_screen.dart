@@ -57,6 +57,41 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
         child: StreamBuilder<List<PendingConflict>>(
         stream: _conflictManager.conflictsStream,
         builder: (context, snapshot) {
+          // ✅ معالجة حالة الخطأ — بدونها يظهر للمستخدم قائمة فارغة (كأنه لا توجد
+          // تعارضات) حتى لو انفجر الـ stream، وهو مضلِّل.
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    'حدث خطأ أثناء تحميل التعارضات',
+                    style: const TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${snapshot.error}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => _conflictManager.loadPendingConflicts(),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('إعادة المحاولة'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // ✅ معالجة حالة التحميل — تمنع الشاشة البيضاء قبل وصول أول بيانات.
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
           final conflicts = snapshot.data ?? [];
 
           if (conflicts.isEmpty) {

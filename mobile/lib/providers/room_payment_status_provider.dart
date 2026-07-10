@@ -189,7 +189,10 @@ final occupiedRoomsCountProvider = Provider<int>((ref) {
 /// عدد الغرف المتاحة — يُحدّث فقط عندما يتغير العدد
 final availableRoomsCountProvider = Provider<int>((ref) {
   return ref.watch(roomsWithPaymentStatusProvider.select(
-    (rooms) => rooms.valueOrNull?.where((r) => !r.hasActiveBooking && r.room.status != 'صيانة').length ?? 0,
+    (rooms) => rooms.valueOrNull?.where((r) =>
+        !r.hasActiveBooking &&
+        r.room.status != 'صيانة' &&
+        r.room.status != 'maintenance').length ?? 0,
   ));
 });
 

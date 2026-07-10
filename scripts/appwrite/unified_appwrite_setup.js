@@ -856,15 +856,30 @@ async function makeAttributesOptional(collectionId, wantedFields) {
 }
 
 async function waitForAttributes(collectionId, expected) {
-  for (let i = 0; i < 30; i++) {
+  // ✅ الثوابت قابلة للتهيئة عبر env vars — مفيد للبيئات البطيئة (self-hosted Appwrite).
+  const maxIter = process.env.WAIT_MAX_ITER ? parseInt(process.env.WAIT_MAX_ITER, 10) : 30;
+  const sleepMs = process.env.WAIT_SLEEP_MS ? parseInt(process.env.WAIT_SLEEP_MS, 10) : 1500;
+  for (let i = 0; i < maxIter; i++) {
     try {
       const coll = await databases.getCollection(DATABASE_ID, collectionId);
-      const ready = coll.attributes.filter((a) => a.status === 'available').length;
-      if (ready >= expected) return true;
-    } catch (_) { /* تجاهل */ }
-    await sleep(1500);
+      const available = coll.attributes.filter((a) => a.status === 'available');
+      // ✅ تسجيل granular: أي الحقول لم تُصر جاهزة بعد؟ يساعد في تشخيص التهيئة البطيئة.
+      const notReady = coll.attributes
+        .filter((a) => a.status !== 'available')
+        .map((a) => `${a.key}(${a.status})`);
+      if (available.length >= expected) return true;
+      if (i === 0 || i % 5 === 4) {
+        console.log(
+          `   ⏳ ${collectionId}: ${available.length}/${expected} جاهز` +
+            (notReady.length ? ` — بانتظار: ${notReady.join(', ')}` : ''),
+        );
+      }
+    } catch (_) { /* تجاهل — نُعيد المحاولة */ }
+    await sleep(sleepMs);
   }
-  console.log(`   ⚠️  انتهت مهلة انتظار جاهزية الحقول في ${collectionId} — أتابع`);
+  console.log(
+    `   ⚠️  انتهت مهلة انتظار جاهزية الحقول في ${collectionId} (${maxIter * sleepMs / 1000}s) — أتابع`,
+  );
   return false;
 }
 

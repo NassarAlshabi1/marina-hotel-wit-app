@@ -92,8 +92,18 @@ Future<void> main() async {
   // ─── Remote Config: تهيئة مبكراً ───
   await RemoteConfigService.instance.initialize();
 
-  await DiagnosticsLogger.instance.initialize();
-  await ApiConfigService.instance.initialize();
+  // ✅ DiagnosticsLogger + ApiConfigService: لفّ في try-catch مثل Firebase أعلاه.
+  // لو فشل أي منهما، يكمل التطبيق عمله بدون logging/API config لكن لا ي crash.
+  try {
+    await DiagnosticsLogger.instance.initialize();
+  } catch (e) {
+    debugPrint('⚠️ DiagnosticsLogger initialization failed: $e');
+  }
+  try {
+    await ApiConfigService.instance.initialize();
+  } catch (e) {
+    debugPrint('⚠️ ApiConfigService initialization failed: $e');
+  }
 
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)
   unawaited(AlarmBackup.initAlarmSystem());
