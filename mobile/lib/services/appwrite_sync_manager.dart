@@ -1268,7 +1268,21 @@ class AppwriteSyncManager {
       errorMessage = e.toString();
       finalStatus = SyncStatus.failed;
 
-      if (hasSyncLog) {
+      // ✅ جديد: تحديد ما إذا كان الفشل بسبب rate limit (429) — في هذه الحالة
+      // لا نحاول كتابة سجل "sync_failed" على Appwrite لأن ذلك قد يُسبب 429
+      // إضافي. نكتفي بالتسجيل المحلي.
+      final isRateLimitFailure = e is AppwriteException &&
+          (e.code == 429 ||
+              (e.type ?? '').toLowerCase().contains('rate_limit') ||
+              (e.message ?? '').toLowerCase().contains('rate_limit'));
+
+      if (isRateLimitFailure) {
+        _logger.warning(
+          '🔌 Sync failed due to rate limit (429) — '
+          'deferring sync log write. Will retry on next sync.',
+          tag: 'SYNC',
+        );
+      } else if (hasSyncLog) {
         final failEpoch = Time.nowEpoch();
         syncLogVersion += 1;
         try {
@@ -1313,32 +1327,37 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
 
-      // Crashlytics + WhatsApp alert على فشل المزامنة الرئيسي
-      await CrashlyticsService.instance.recordFatalSyncError(
-        operation: 'sync',
-        error: e,
-        stackTrace: stackTrace,
-        context: {
-          'recordsPushed': '$recordsPushed',
-          'recordsPulled': '$recordsPulled',
+      // ✅ جديد: تخطّي إشعارات Crashlytics/WhatsApp/Telegram لأخطاء 429
+      // العابرة — هذه ليست أخطاءً حرجة تستدعي تنبيه الإدارة، بل ضغط مؤقت
+      // على rate limit سيُحل تلقائياً عبر circuit breaker + backoff.
+      if (!isRateLimitFailure) {
+        // Crashlytics + WhatsApp alert على فشل المزامنة الرئيسي
+        await CrashlyticsService.instance.recordFatalSyncError(
+          operation: 'sync',
+          error: e,
+          stackTrace: stackTrace,
+          context: {
+            'recordsPushed': '$recordsPushed',
+            'recordsPulled': '$recordsPulled',
+            // ignore: dead_null_aware_expression
+            'errorMessage': errorMessage ?? '',
+          },
+        );
+        await WhatsAppNotificationService.instance.notifySyncError(
+          operation: 'sync',
           // ignore: dead_null_aware_expression
-          'errorMessage': errorMessage ?? '',
-        },
-      );
-      await WhatsAppNotificationService.instance.notifySyncError(
-        operation: 'sync',
-        // ignore: dead_null_aware_expression
           error: errorMessage ?? e.toString(),
-        recordsPushed: recordsPushed,
-        recordsPulled: recordsPulled,
-      );
-      // ✅ إضافة إشعار Telegram لخطأ المزامنة
-      await TelegramNotificationService.instance.notifySyncError(
+          recordsPushed: recordsPushed,
+          recordsPulled: recordsPulled,
+        );
+        // ✅ إضافة إشعار Telegram لخطأ المزامنة
+        await TelegramNotificationService.instance.notifySyncError(
         operation: 'sync',
         error: errorMessage ?? e.toString(),
         recordsPushed: recordsPushed,
         recordsPulled: recordsPulled,
       );
+      } // end if (!isRateLimitFailure)
     } finally {
       // ✅ إصلاح حرج (audit agent-6): ضمان إعادة ضبط _currentStatus دائماً
       // حتى لو فشل معالج الأخطاء نفسه (مثل CrashlyticsService أو
@@ -2418,6 +2437,20 @@ class AppwriteSyncManager {
       }
     } catch (_) {}
 
+    // ✅ جديد: فحص circuit breaker قبل بدء الـ push. إذا كان مُفعّلاً بسبب
+    // تكرار أخطاء 429، نُوقف push phase فوراً لتفادي إغراق الخادم بطلبات
+    // إضافية. السجلات تبقى في outbox وتُعالج في المزامنة التالية.
+    if (appwriteService.networkHelper.isCircuitBreakerActive) {
+      final remaining =
+          appwriteService.networkHelper.circuitBreakerRemaining;
+      _logger.warning(
+        '🔌 Circuit breaker مُفعّل — إيقاف push phase. '
+        'المتبقي ${remaining?.inSeconds ?? 0}s',
+        tag: 'SYNC',
+      );
+      return 0;
+    }
+
     int totalProcessed = 0;
     int consecutiveFailures = 0;
     const int maxIterations = 500;
@@ -2446,7 +2479,23 @@ class AppwriteSyncManager {
       }
 
       int processedInBatch = 0;
+      bool abortPush = false; // ✅ يُضبط عند تفعّل circuit breaker أو 429
       for (final entry in entries) {
+        // ✅ جديد: فحص circuit breaker داخل الحلقة — إذا تفعّل في منتصف الدفعة
+        // (مثلاً بعد عدة 429 متتالية)، نُوقف المعالجة فوراً ونترك بقية السجلات
+        // في outbox للمزامنة التالية.
+        if (appwriteService.networkHelper.isCircuitBreakerActive) {
+          final remaining =
+              appwriteService.networkHelper.circuitBreakerRemaining;
+          _logger.warning(
+            '🔌 Circuit breaker مُفعّل أثناء معالجة الدفعة — إيقاف فوري. '
+            'المتبقي ${remaining?.inSeconds ?? 0}s. '
+            'تُترك بقية السجلات في outbox.',
+            tag: 'SYNC',
+          );
+          abortPush = true;
+          break;
+        }
         try {
           final success = await _processOutboxEntry(entry)
               .timeout(entryTimeout);
@@ -2457,6 +2506,21 @@ class AppwriteSyncManager {
             processedInBatch++;
           }
         } catch (e) {
+          // ✅ جديد: إذا كان الخطأ 429 rate limit، لا نضع علامة error على
+          // السجل (سيعاد إرساله في المزامنة التالية). فقط نُسجّل تحذيراً.
+          final isRateLimit = e is AppwriteException &&
+              (e.code == 429 ||
+                  (e.type ?? '').toLowerCase().contains('rate_limit'));
+          if (isRateLimit) {
+            _logger.warning(
+              '🔌 429 rate limit على السجل ${entry.id} — '
+              'سيُعاد إرساله في المزامنة التالية',
+              tag: 'SYNC',
+            );
+            // لا نضع setError — السجل يبقى eligible للإعادة
+            abortPush = true;
+            break; // اخرج من حلقة الدفعة لتقليل الضغط على الخادم
+          }
           if (e is TimeoutException) {
             final message =
                 'Timeout processing entry ${entry.id} after ${entryTimeout.inSeconds}s';
@@ -2468,6 +2532,17 @@ class AppwriteSyncManager {
             await outboxDao.setError(entry.id, message, entry.attempts + 1);
           }
         }
+      }
+
+      // ✅ إذا تفعّل circuit breaker أو حدث 429، أوقف الـ push بالكامل —
+      // لا نريد جلب دفعة جديدة و Hammering الخادم.
+      if (abortPush) {
+        _logger.warning(
+          '⛔ إيقاف _pushAllEntities بسبب rate limit — '
+          'السجلات المتبقية تُعالج في المزامنة التالية',
+          tag: 'SYNC',
+        );
+        break;
       }
 
       // Adaptive batch size
