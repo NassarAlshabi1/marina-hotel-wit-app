@@ -63,6 +63,10 @@ const VERIFY_ONLY = ARGV.includes('--verify');
 // الصحيح (Appwrite لا يسمح بتغيير نوع سمة في مكانها). ⚠️ عملية هدمية: تُفقد قيم
 // ذلك العمود على السحابة وتُعاد من التخزين المحلي عند المزامنة التالية.
 const FIX_TYPES = ARGV.includes('--fix-types');
+// ✅ تأكيد صريح لتفادي تشغيل --fix-types بالخطأ. عند غيابه، يُطبَع تحذير ويُنتظر
+// 5 ثوانٍ مع عدّ تنازلي قبل البدء — يُلغى المستخدم بالـ Ctrl+C.
+// تمرير --confirm أو -y يتخطّى الانتظار (مناسب للسكربتات الآلية / CI).
+const CONFIRM = ARGV.includes('--confirm') || ARGV.includes('-y');
 const ONLY_ARG = ARGV.find((a) => a.startsWith('--only='));
 const ONLY = ONLY_ARG
   ? ONLY_ARG.replace('--only=', '').split(',').map((s) => s.trim()).filter(Boolean)
@@ -556,11 +560,9 @@ function stringSize(field) {
     // الصف (off-page) فلا يُحسب ضمن حدّ حجم صف Appwrite.
     config_json: 65535,
     permissions: 2000, // app_users: قائمة صلاحيات مُرمّزة JSON
-    api_key: 2000,
-    wa_api_token: 2000,
-    telegram_bot_token: 2000,
-    wa_sendzen_api_key: 2000,
-    wa_custom_url_template: 2000,
+    // ✅ تنظيف: حذف api_key, wa_api_token, telegram_bot_token, wa_sendzen_api_key,
+    //    wa_custom_url_template — كلها انتقلت إلى config_json (الخيار 2) ولم تعد
+    //    أعمدة منفصلة في أي SCHEMA. إبقاؤها هنا يُضلّل القارئ ويوحي بأنها مستخدمة.
     financialHash: 128,
   };
   if (explicit[field] != null) return explicit[field];
@@ -882,6 +884,25 @@ async function main() {
   }
 
   if (FIX_TYPES) {
+    // ✅ تأكيد هدمي: --fix-types يحذف أعمدة ويُعيد إنشاءها (يُفقد قيمها على السحابة).
+    // إن لم يُمرَّر --confirm/-y، نُطبِع تحذيراً صريحاً وننتظر 5 ثوانٍ مع عدّ تنازلي
+    // قبل البدء. هذا يمنع التشغيل العرضي (مثلاً نسخ أمر من README وتشغيله سريعاً).
+    if (!CONFIRM) {
+      console.log('═══════════════════════════════════════════════════════════');
+      console.log('⚠️  تحذير: وضع FIX-TYPES هدمي!');
+      console.log('   سيتم حذف كل سمة نوعها غير مطابق لإعادة إنشائها بالنوع الصحيح.');
+      console.log('   قيم تلك الأعمدة ستُفقد على السحابة (تُعاد محلياً عند المزامنة).');
+      console.log('   للإلغاء اضغط Ctrl+C خلال 5 ثوانٍ...');
+      console.log('   (لتخطّي هذا التحذير مستقبلاً: أضِف --confirm أو -y)');
+      console.log('═══════════════════════════════════════════════════════════');
+      for (let i = 5; i > 0; i--) {
+        process.stdout.write(`\r   البدء خلال ${i} ثانية...  `);
+        await sleep(1000);
+      }
+      process.stdout.write('\r   ▶ البدء الآن.                  \n');
+    } else {
+      console.log('⚠️  FIX-TYPES (تم تخطّي التحذير عبر --confirm)');
+    }
     await fixTypes(targets);
     return;
   }

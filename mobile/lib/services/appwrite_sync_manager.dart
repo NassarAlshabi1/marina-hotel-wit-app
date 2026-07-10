@@ -5967,20 +5967,10 @@ class AppwriteSyncManager {
   // ─── PaymentVoids ─────────────────────────────────────────────────────
 
   /// رفع كل الإعدادات المحلية من SharedPreferences → Appwrite
-  /// ✅ الخيار 2: مفاتيح app_settings النصّية (WhatsApp/Telegram) التي تُجمَّع
-  /// في حقل واحد `config_json` بدل أعمدة منفصلة، لتفادي حدّ حجم الصف في Appwrite.
-  /// تُستخدم في الرفع (تجميع) والسحب (تفكيك) معاً لضمان التماثل.
-  static const List<String> _appSettingsConfigKeys = [
-    'wa_api_type',
-    'wa_api_base_url',
-    'wa_api_instance_id',
-    'wa_api_token',
-    'wa_custom_url_template',
-    'wa_sendzen_api_key',
-    'wa_sendzen_from_number',
-    'telegram_bot_token',
-    'telegram_chat_id',
-  ];
+  /// ✅ الخيار 2: مفاتيح app_settings النصّية (WhatsApp/Telegram) مُجمَّعة في
+  /// `config_json` — الثابت المشترك معرّف في `AppwriteSyncUtils.appSettingsConfigKeys`
+  /// (DRY: مصدر وحيد يستخدمه Primary و Secondary معاً).
+  /// 🔒 لا يُضاف 'api_key' (ثغرة أمنية) ولا 'appwrite_log_level' (إعداد محلي).
 
   Future<bool> _pushAppSettingsToCloud() async {
     try {
@@ -6035,7 +6025,7 @@ class AppwriteSyncManager {
       // في Appwrite (app_settings كان يفشل بـ "Missing/Unknown attribute").
       // نُزيل المفاتيح الفردية من الحمولة ونضعها داخل config_json.
       final configMap = <String, dynamic>{};
-      for (final k in _appSettingsConfigKeys) {
+      for (final k in AppwriteSyncUtils.appSettingsConfigKeys) {
         if (data.containsKey(k)) {
           configMap[k] = data.remove(k);
         }
@@ -6125,15 +6115,17 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(doc.data);
 
         // ✅ الخيار 2: فكّ config_json المُجمّع ودمج مفاتيحه في data قبل
-        // منطق الحقول أدناه — فيبقى ذلك المنطق دون تغيير (توافق خلفي: إن جاء
-        // المستند بأعمدة قديمة منفصلة نحترمها لأننا نستخدم putIfAbsent).
+        // منطق الحقول أدناه. config_json هو المصدر الجديد للحقيقة، لذا قيمه
+        // تُسبق (overwrite) أي أعمدة قديمة منفصلة قد تكون موجودة في المستند.
+        // التوافق الخلفي: إن لم يوجد config_json (مستند من عميل قديم)، يبقى
+        // data بأعمدته الأصلية دون تعديل — لأن الـ if block لا يُنفَّذ.
         final rawConfig = data['config_json'];
         if (rawConfig is String && rawConfig.isNotEmpty) {
           try {
             final decoded = jsonDecode(rawConfig);
             if (decoded is Map) {
               decoded.forEach((k, v) {
-                data.putIfAbsent(k.toString(), () => v);
+                data[k.toString()] = v;
               });
             }
           } catch (e) {

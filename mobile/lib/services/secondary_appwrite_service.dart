@@ -544,19 +544,10 @@ for (final coll in collectionList) {
 
       // ✅ الخيار 2: تجميع مفاتيح WhatsApp/Telegram النصّية في config_json واحد
       // (مطابق لـ Primary) لتفادي تجاوز حدّ حجم الصف في Appwrite.
-      const configKeys = [
-        'wa_api_type',
-        'wa_api_base_url',
-        'wa_api_instance_id',
-        'wa_api_token',
-        'wa_custom_url_template',
-        'wa_sendzen_api_key',
-        'wa_sendzen_from_number',
-        'telegram_bot_token',
-        'telegram_chat_id',
-      ];
+      // ⚠️ نُعيد استخدام `AppwriteSyncUtils.appSettingsConfigKeys` (DRY) — مصدر
+      //    وحيد للقائمة بين Primary و Secondary لتفادي الانحراف مستقبلاً.
       final configMap = <String, dynamic>{};
-      for (final k in configKeys) {
+      for (final k in AppwriteSyncUtils.appSettingsConfigKeys) {
         if (map.containsKey(k)) {
           configMap[k] = map.remove(k);
         }

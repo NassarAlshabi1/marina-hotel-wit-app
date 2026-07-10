@@ -2,6 +2,26 @@ import '../utils/hotel_date_helper.dart';
 
 /// فئة أدوات موحدة لمعالجة البيانات قبل إرسالها أو بعد سحبها من Appwrite
 class AppwriteSyncUtils {
+  // ══════════════════════════════════════════════════════════════════════════
+  // ✅ الخيار 2: مفاتيح app_settings النصّية (WhatsApp/Telegram) التي تُجمَّع
+  // في حقل واحد `config_json` بدل أعمدة منفصلة، لتفادي حدّ حجم الصف في Appwrite.
+  // تُستخدم في الرفع (تجميع) والسحب (تفكيك) معاً لضمان التماثل.
+  // ⚠️ مصدر وحيد للحقيقة — يجب استخدامه في Primary و Secondary معاً (DRY).
+  // 🔒 ملاحظة أمنية: لا تُضِف 'api_key' هنا — رفعه للسحابة يُخزّن مفتاح الوصول
+  //    داخل النظام الذي يحميه (ثغرة أمنية). ولا 'appwrite_log_level' (إعداد محلي).
+  // ══════════════════════════════════════════════════════════════════════════
+  static const List<String> appSettingsConfigKeys = [
+    'wa_api_type',
+    'wa_api_base_url',
+    'wa_api_instance_id',
+    'wa_api_token',
+    'wa_custom_url_template',
+    'wa_sendzen_api_key',
+    'wa_sendzen_from_number',
+    'telegram_bot_token',
+    'telegram_chat_id',
+  ];
+
   /// الحقول التي يجب تحويلها إلى أعداد صحيحة (بناءً على قيود Appwrite الحالية)
   /// ⚠️ تم التحديث بناءً على الجداول الفعلية (remainingAmount وسواها أصبحت double)
   /// - payment_voids.voidedAmount: integer على Cloud ✓ (المتبقي الوحيد)
@@ -16,11 +36,13 @@ class AppwriteSyncUtils {
   // ══════════════════════════════════════════════════════════════════════════
   static const Map<String, Set<String>> validFieldsPerCollection = {
     'app_settings': {
-      'api_key',
+      // ✅ الإصلاح: حذف 'api_key' (لا يُرفع للسحابة — ثغرة أمنية، ولا يُستخدم
+      //    في _appSettingsToMap أصلاً) و 'appwrite_log_level' (إعداد محلي فقط).
+      //    كلاهما محذوف من SCHEMA في unified_appwrite_setup.js — إبقاؤهما هنا
+      //    يُضلّل المُطوّر ويُخاطر بتمريرهما عبر _filterPayload في المستقبل.
       'appwrite_auto_sync_on_connect',
       'appwrite_log_console',
       'appwrite_log_file',
-      'appwrite_log_level',
       'appwrite_sync_interval',
       'auto_backup_frequency',
       'auto_backup_time',
