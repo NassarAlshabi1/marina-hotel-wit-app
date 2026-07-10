@@ -73,8 +73,15 @@ const API_KEY = process.env.APPWRITE_API_KEY;
 const ARGV = process.argv.slice(2);
 const VERIFY_ONLY = ARGV.includes('--verify');
 const PRUNE = ARGV.includes('--prune');        // حذف الحقول الزائدة غير الموجودة في SCHEMA
+// إصلاح الأنواع: يحذف كل حقل نوعه الفعلي يختلف عن SCHEMA ويُعيد إنشاءه بالنوع
+// الصحيح (Appwrite لا يسمح بتغيير نوع سمة في مكانها). ⚠️ عملية هدمية: تُفقد قيم
+// ذلك العمود على السحابة وتُعاد من التخزين المحلي عند المزامنة التالية.
 const FIX_TYPES = ARGV.includes('--fix-types'); // حذف الحقول ذات النوع الخاطئ وإعادة إنشائها
 const MAKE_OPTIONAL = ARGV.includes('--make-optional'); // ✅ فقط حوّل required=true → required=false دون حذف الحقل أو بياناته
+// ✅ تأكيد صريح لتفادي تشغيل --fix-types / --prune بالخطأ. عند غيابه، يُطبَع تحذير
+// ويُنتظر 5 ثوانٍ مع عدّ تنازلي قبل البدء — يُلغى المستخدم بالـ Ctrl+C.
+// تمرير --confirm أو -y يتخطّى الانتظار (مناسب للسكربتات الآلية / CI).
+const CONFIRM = ARGV.includes('--confirm') || ARGV.includes('-y');
 const ONLY_ARG = ARGV.find((a) => a.startsWith('--only='));
 const ONLY = ONLY_ARG
   ? ONLY_ARG.replace('--only=', '').split(',').map((s) => s.trim()).filter(Boolean)
@@ -364,8 +371,10 @@ const SCHEMA = {
     targetType: 'string',
     targetUuid: 'string',
     adjustmentType: 'string',
-    previousValue: 'integer',
-    newValue: 'integer',
+    // ✅ متطابق مع النشر الفعلي على الوجهتين (double)؛ محوّل السحب يحوّل
+    // double→int بأمان (_asInt/.toInt) لعمود Drift الصحيح.
+    previousValue: 'double',
+    newValue: 'double',
     reason: 'string',
     effectiveDate: 'string',
     appliedBy: 'string',
@@ -407,7 +416,8 @@ const SCHEMA = {
     timestamp: 'integer',
     timestampIso: 'string',
     isFinancial: 'boolean',
-    amountImpact: 'integer',
+    // ✅ متطابق مع النشر الفعلي على الوجهتين (double)؛ محوّل السحب يحوّل double→int
+    amountImpact: 'double',
     action: 'string',
   }),
 
@@ -477,26 +487,19 @@ const SCHEMA = {
     endpoint: 'string',
     project_id: 'string',
     database_id: 'string',
-    api_key: 'string',
     enabled: 'boolean',
     push_enabled: 'boolean',
     pull_enabled: 'boolean',
     appwrite_auto_sync_on_connect: 'boolean',
     appwrite_log_console: 'boolean',
     appwrite_log_file: 'boolean',
-    appwrite_log_level: 'string',
-    // WhatsApp
-    wa_api_type: 'string',
-    wa_api_base_url: 'string',
-    wa_api_instance_id: 'string',
-    wa_api_token: 'string',
-    wa_custom_url_template: 'string',
-    wa_sendzen_api_key: 'string',
-    wa_sendzen_from_number: 'string',
-    // Telegram
+    // ✅ الخيار 2: كل مفاتيح WhatsApp/Telegram/API النصية الحسّاسة مُجمّعة
+    // في حقل JSON واحد (config_json) بدل ~11 عموداً نصياً منفصلاً — لتفادي
+    // تجاوز حدّ حجم الصف (row-size) في Appwrite. يُنشأ بحجم كبير (TEXT خارج
+    // الصف) فلا يستهلك من ميزانية الصف عملياً.
+    config_json: 'string',
+    // Telegram — المفاتيح المنطقية (bool) تبقى أعمدة؛ النصّية داخل config_json
     telegram_enabled: 'boolean',
-    telegram_bot_token: 'string',
-    telegram_chat_id: 'string',
     telegram_notifications_enabled: 'boolean',
     telegram_daily_report_enabled: 'boolean',
     telegram_daily_report_time: 'string',
@@ -563,12 +566,13 @@ function stringSize(field) {
     vectorClock: 2000,
     secondary_appwrite_config: 8000,
     appliedAdjustmentsJson: 8000,
+    // config_json: مُجمّع إعدادات app_settings — حجم كبير ليُخزَّن TEXT خارج
+    // الصف (off-page) فلا يُحسب ضمن حدّ حجم صف Appwrite.
+    config_json: 65535,
     permissions: 2000, // app_users: قائمة صلاحيات مُرمّزة JSON
-    api_key: 2000,
-    wa_api_token: 2000,
-    telegram_bot_token: 2000,
-    wa_sendzen_api_key: 2000,
-    wa_custom_url_template: 2000,
+    // ✅ تنظيف: حذف api_key, wa_api_token, telegram_bot_token, wa_sendzen_api_key,
+    //    wa_custom_url_template — كلها انتقلت إلى config_json (الخيار 2) ولم تعد
+    //    أعمدة منفصلة في أي SCHEMA. إبقاؤها هنا يُضلّل القارئ ويوحي بأنها مستخدمة.
     financialHash: 128,
   };
   if (explicit[field] != null) return explicit[field];
@@ -902,6 +906,7 @@ async function ensureStandardIndexes(collectionId, fields) {
 async function verify(targetCollections) {
   let missingCollections = 0;
   let missingAttributes = 0;
+  let typeMismatches = 0;
 
   for (const collectionId of targetCollections) {
     const wanted = SCHEMA[collectionId];
@@ -916,20 +921,102 @@ async function verify(targetCollections) {
       }
       throw e;
     }
-    const actualKeys = new Set(actual.attributes.map((a) => a.key));
-    const missing = Object.keys(wanted).filter((k) => !actualKeys.has(k));
-    if (missing.length === 0) {
-      console.log(`✅ ${collectionId}: كل الحقول موجودة (${Object.keys(wanted).length})`);
+    // خريطة الحقل الفعلي → نوعه، لمقارنة الوجود والنوع معاً.
+    const actualByKey = new Map(actual.attributes.map((a) => [a.key, a]));
+    const missing = Object.keys(wanted).filter((k) => !actualByKey.has(k));
+
+    // ✅ فحص تطابق الأنواع — الحقل الموجود يجب أن يكون بنفس النوع المطلوب.
+    // نوع Appwrite (a.type) أحد: string | integer | double | boolean، وهو
+    // نفس مفردات SCHEMA. عدم التطابق هو ما يُنتج خطأ "invalid type" وقت الرفع.
+    const mismatches = [];
+    for (const [key, wantType] of Object.entries(wanted)) {
+      const attr = actualByKey.get(key);
+      if (attr && attr.type !== wantType) {
+        mismatches.push(`${key}: فعلي=${attr.type} ≠ مطلوب=${wantType}`);
+      }
+    }
+
+    if (missing.length === 0 && mismatches.length === 0) {
+      console.log(`✅ ${collectionId}: كل الحقول موجودة وبأنواع متطابقة (${Object.keys(wanted).length})`);
     } else {
-      console.log(`⚠️  ${collectionId}: ناقص ${missing.length} حقل → ${missing.join(', ')}`);
-      missingAttributes += missing.length;
+      if (missing.length > 0) {
+        console.log(`⚠️  ${collectionId}: ناقص ${missing.length} حقل → ${missing.join(', ')}`);
+        missingAttributes += missing.length;
+      }
+      if (mismatches.length > 0) {
+        console.log(`❌ ${collectionId}: ${mismatches.length} عدم تطابق نوع → ${mismatches.join(' | ')}`);
+        typeMismatches += mismatches.length;
+      }
     }
   }
 
   console.log('\n══════════════════════════════════════════');
-  console.log(`ملخّص الفحص: مجموعات مفقودة=${missingCollections}, حقول مفقودة=${missingAttributes}`);
+  console.log(
+    `ملخّص الفحص: مجموعات مفقودة=${missingCollections}, ` +
+      `حقول مفقودة=${missingAttributes}, عدم تطابق الأنواع=${typeMismatches}`,
+  );
   console.log('══════════════════════════════════════════');
-  process.exit(missingCollections + missingAttributes > 0 ? 2 : 0);
+  process.exit(
+    missingCollections + missingAttributes + typeMismatches > 0 ? 2 : 0,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5.1) وضع إصلاح الأنواع (--fix-types): حذف كل حقل نوعه يختلف عن SCHEMA وإعادة
+//      إنشائه بالنوع الصحيح. ⚠️ هدمي — تُفقد قيم العمود على السحابة (تُعاد محلياً).
+// ─────────────────────────────────────────────────────────────────────────────
+async function deleteAttributeAndWait(collectionId, key) {
+  try {
+    await databases.deleteAttribute(DATABASE_ID, collectionId, key);
+  } catch (e) {
+    if (e.code !== 404) throw e;
+  }
+  // حذف السمة غير فوري — ننتظر اختفاءها قبل إعادة الإنشاء بنفس المفتاح.
+  for (let i = 0; i < 30; i++) {
+    const coll = await databases.getCollection(DATABASE_ID, collectionId);
+    if (!coll.attributes.some((a) => a.key === key)) return;
+    await sleep(1000);
+  }
+  throw new Error(`لم يكتمل حذف السمة ${collectionId}.${key} خلال المهلة`);
+}
+
+async function fixTypes(targetCollections) {
+  let fixed = 0;
+  let failed = 0;
+  for (const collectionId of targetCollections) {
+    const wanted = SCHEMA[collectionId];
+    let actual;
+    try {
+      actual = await databases.getCollection(DATABASE_ID, collectionId);
+    } catch (e) {
+      if (e.code === 404) {
+        console.log(`❌ المجموعة مفقودة: ${collectionId}`);
+        continue;
+      }
+      throw e;
+    }
+    const byKey = new Map(actual.attributes.map((a) => [a.key, a]));
+    for (const [key, wantType] of Object.entries(wanted)) {
+      const attr = byKey.get(key);
+      if (attr && attr.type !== wantType) {
+        console.log(
+          `♻️  ${collectionId}.${key}: ${attr.type} → ${wantType} (حذف + إعادة إنشاء)`,
+        );
+        try {
+          await deleteAttributeAndWait(collectionId, key);
+          await ensureAttribute(collectionId, key, wantType);
+          fixed++;
+        } catch (e) {
+          console.log(`   ❌ فشل إصلاح ${key}: ${e.message || e}`);
+          failed++;
+        }
+      }
+    }
+  }
+  console.log('\n══════════════════════════════════════════');
+  console.log(`إصلاح الأنواع: مُصلَح=${fixed}, فشل=${failed}`);
+  console.log('══════════════════════════════════════════');
+  process.exit(failed > 0 ? 2 : 0);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -969,6 +1056,42 @@ async function main() {
 
   if (VERIFY_ONLY) {
     await verify(targets);
+    return;
+  }
+
+  // ✅ تأكيد هدمي مشترك: --fix-types و --prune كلاهما يحذف أعمدة (يُفقد قيمها).
+  // --make-optional غير هدمي (يحوّل required=true → false دون حذف)، فلا يحتاج تأكيداً.
+  // إن لم يُمرَّر --confirm/-y، نُطبِع تحذيراً صريحاً وننتظر 5 ثوانٍ مع عدّ تنازلي.
+  const DESTRUCTIVE_MODE = FIX_TYPES || PRUNE;
+  if (DESTRUCTIVE_MODE && !CONFIRM) {
+    const modes = [];
+    if (FIX_TYPES) modes.push('FIX-TYPES');
+    if (PRUNE) modes.push('PRUNE');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log(`⚠️  تحذير: وضع ${modes.join(' + ')} هدمي!`);
+    if (FIX_TYPES) {
+      console.log('   - FIX-TYPES: حذف كل سمة نوعها غير مطابق وإعادة إنشائها (قيمها تُفقد).');
+    }
+    if (PRUNE) {
+      console.log('   - PRUNE: حذف كل حقل زائد عن SCHEMA (قيمه تُفقد).');
+    }
+    console.log('   للإلغاء اضغط Ctrl+C خلال 5 ثوانٍ...');
+    console.log('   (لتخطّي هذا التحذير مستقبلاً: أضِف --confirm أو -y)');
+    console.log('═══════════════════════════════════════════════════════════');
+    for (let i = 5; i > 0; i--) {
+      process.stdout.write(`\r   البدء خلال ${i} ثانية...  `);
+      await sleep(1000);
+    }
+    process.stdout.write('\r   ▶ البدء الآن.                  \n');
+  } else if (DESTRUCTIVE_MODE && CONFIRM) {
+    const modes = [];
+    if (FIX_TYPES) modes.push('FIX-TYPES');
+    if (PRUNE) modes.push('PRUNE');
+    console.log(`⚠️  ${modes.join(' + ')} (تم تخطّي التحذير عبر --confirm)`);
+  }
+
+  if (FIX_TYPES) {
+    await fixTypes(targets);
     return;
   }
 
