@@ -5967,6 +5967,21 @@ class AppwriteSyncManager {
   // ─── PaymentVoids ─────────────────────────────────────────────────────
 
   /// رفع كل الإعدادات المحلية من SharedPreferences → Appwrite
+  /// ✅ الخيار 2: مفاتيح app_settings النصّية (WhatsApp/Telegram) التي تُجمَّع
+  /// في حقل واحد `config_json` بدل أعمدة منفصلة، لتفادي حدّ حجم الصف في Appwrite.
+  /// تُستخدم في الرفع (تجميع) والسحب (تفكيك) معاً لضمان التماثل.
+  static const List<String> _appSettingsConfigKeys = [
+    'wa_api_type',
+    'wa_api_base_url',
+    'wa_api_instance_id',
+    'wa_api_token',
+    'wa_custom_url_template',
+    'wa_sendzen_api_key',
+    'wa_sendzen_from_number',
+    'telegram_bot_token',
+    'telegram_chat_id',
+  ];
+
   Future<bool> _pushAppSettingsToCloud() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -6014,6 +6029,18 @@ class AppwriteSyncManager {
         'lastModifiedEpoch': now,
         'syncTimestamp': now,
       };
+
+      // ✅ الخيار 2: تجميع مفاتيح WhatsApp/Telegram النصّية الحسّاسة في حقل
+      // JSON واحد (config_json) بدل أعمدة منفصلة — لتفادي تجاوز حدّ حجم الصف
+      // في Appwrite (app_settings كان يفشل بـ "Missing/Unknown attribute").
+      // نُزيل المفاتيح الفردية من الحمولة ونضعها داخل config_json.
+      final configMap = <String, dynamic>{};
+      for (final k in _appSettingsConfigKeys) {
+        if (data.containsKey(k)) {
+          configMap[k] = data.remove(k);
+        }
+      }
+      data['config_json'] = jsonEncode(configMap);
 
       const docId = 'whatsapp_settings';
       const collectionId = 'app_settings';
@@ -6095,7 +6122,27 @@ class AppwriteSyncManager {
 
     for (final doc in documents) {
       try {
-        final data = doc.data;
+        final data = Map<String, dynamic>.from(doc.data);
+
+        // ✅ الخيار 2: فكّ config_json المُجمّع ودمج مفاتيحه في data قبل
+        // منطق الحقول أدناه — فيبقى ذلك المنطق دون تغيير (توافق خلفي: إن جاء
+        // المستند بأعمدة قديمة منفصلة نحترمها لأننا نستخدم putIfAbsent).
+        final rawConfig = data['config_json'];
+        if (rawConfig is String && rawConfig.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(rawConfig);
+            if (decoded is Map) {
+              decoded.forEach((k, v) {
+                data.putIfAbsent(k.toString(), () => v);
+              });
+            }
+          } catch (e) {
+            _logger.warning(
+              'app_settings: تعذّر فكّ config_json: $e',
+              tag: 'SYNC',
+            );
+          }
+        }
 
         // ── WhatsApp fields ──
         const waStringFields = {

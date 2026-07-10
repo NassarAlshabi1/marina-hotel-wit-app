@@ -25,6 +25,8 @@ class AppwriteSyncUtils {
       'auto_backup_frequency',
       'auto_backup_time',
       'conflict_strategy',
+      // ✅ الخيار 2: مفاتيح WhatsApp/Telegram النصّية مُجمّعة في config_json
+      'config_json',
       'createdAt',
       'createdAtEpoch',
       'createdAtIso',

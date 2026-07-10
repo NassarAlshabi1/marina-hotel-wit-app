@@ -1,4 +1,5 @@
 // ignore_for_file: unused_element, prefer_final_locals, unnecessary_lambdas, curly_braces_in_flow_control_structures
+import 'dart:convert';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:flutter/foundation.dart';
@@ -503,7 +504,7 @@ for (final coll in collectionList) {
       final now = DateTime.now().millisecondsSinceEpoch;
       final deviceId = prefs.getString('appwrite_delta_device_id') ?? 'default';
 
-      return {
+      final map = <String, dynamic>{
         'localUuid': 'whatsapp_settings',
         'value': '',
         'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
@@ -540,6 +541,29 @@ for (final coll in collectionList) {
         'syncTimestamp': now,
         'sync_origin': 'secondary_backup',
       };
+
+      // ✅ الخيار 2: تجميع مفاتيح WhatsApp/Telegram النصّية في config_json واحد
+      // (مطابق لـ Primary) لتفادي تجاوز حدّ حجم الصف في Appwrite.
+      const configKeys = [
+        'wa_api_type',
+        'wa_api_base_url',
+        'wa_api_instance_id',
+        'wa_api_token',
+        'wa_custom_url_template',
+        'wa_sendzen_api_key',
+        'wa_sendzen_from_number',
+        'telegram_bot_token',
+        'telegram_chat_id',
+      ];
+      final configMap = <String, dynamic>{};
+      for (final k in configKeys) {
+        if (map.containsKey(k)) {
+          configMap[k] = map.remove(k);
+        }
+      }
+      map['config_json'] = jsonEncode(configMap);
+
+      return map;
     }
 }
 

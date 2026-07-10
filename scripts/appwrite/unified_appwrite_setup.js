@@ -461,26 +461,19 @@ const SCHEMA = {
     endpoint: 'string',
     project_id: 'string',
     database_id: 'string',
-    api_key: 'string',
     enabled: 'boolean',
     push_enabled: 'boolean',
     pull_enabled: 'boolean',
     appwrite_auto_sync_on_connect: 'boolean',
     appwrite_log_console: 'boolean',
     appwrite_log_file: 'boolean',
-    appwrite_log_level: 'string',
-    // WhatsApp
-    wa_api_type: 'string',
-    wa_api_base_url: 'string',
-    wa_api_instance_id: 'string',
-    wa_api_token: 'string',
-    wa_custom_url_template: 'string',
-    wa_sendzen_api_key: 'string',
-    wa_sendzen_from_number: 'string',
-    // Telegram
+    // ✅ الخيار 2: كل مفاتيح WhatsApp/Telegram/API النصية الحسّاسة مُجمّعة
+    // في حقل JSON واحد (config_json) بدل ~11 عموداً نصياً منفصلاً — لتفادي
+    // تجاوز حدّ حجم الصف (row-size) في Appwrite. يُنشأ بحجم كبير (TEXT خارج
+    // الصف) فلا يستهلك من ميزانية الصف عملياً.
+    config_json: 'string',
+    // Telegram — المفاتيح المنطقية (bool) تبقى أعمدة؛ النصّية داخل config_json
     telegram_enabled: 'boolean',
-    telegram_bot_token: 'string',
-    telegram_chat_id: 'string',
     telegram_notifications_enabled: 'boolean',
     telegram_daily_report_enabled: 'boolean',
     telegram_daily_report_time: 'string',
@@ -552,6 +545,9 @@ function stringSize(field) {
     vectorClock: 2000,
     secondary_appwrite_config: 8000,
     appliedAdjustmentsJson: 8000,
+    // config_json: مُجمّع إعدادات app_settings — حجم كبير ليُخزَّن TEXT خارج
+    // الصف (off-page) فلا يُحسب ضمن حدّ حجم صف Appwrite.
+    config_json: 65535,
     permissions: 2000, // app_users: قائمة صلاحيات مُرمّزة JSON
     api_key: 2000,
     wa_api_token: 2000,
