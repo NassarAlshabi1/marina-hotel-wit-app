@@ -22,10 +22,14 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@daytonaio/sdk": "^0.175.0",
+    "@daytonaio/sdk": "^0.195.0",
     "node-appwrite": "^20.3.0"
   },
   "overrides": {
-    "protobufjs": "^7.5.0"
+    "protobufjs": "^7.6.3",
+    "tar": "^7.5.16",
+    "ws": "^8.21.0",
+    "@grpc/grpc-js": "^1.14.4",
+    "@opentelemetry/core": "^2.8.0"
   }
 }
