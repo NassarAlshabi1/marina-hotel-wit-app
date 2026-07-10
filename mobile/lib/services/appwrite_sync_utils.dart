@@ -1394,8 +1394,9 @@ class AppwriteSyncUtils {
       'targetType': 'string',
       'targetUuid': 'string',
       'adjustmentType': 'string',
-      'previousValue': 'integer',
-      'newValue': 'integer',
+      // ✅ نوع مطابق للنشر الفعلي (double على الوجهتين)؛ المحوّل يحوّل double→int
+      'previousValue': 'double',
+      'newValue': 'double',
       'reason': 'string',
       'effectiveDate': 'string',
       'appliedBy': 'string',
@@ -1471,7 +1472,8 @@ class AppwriteSyncUtils {
       'timestamp': 'integer',
       'timestampIso': 'string',
       'isFinancial': 'boolean',
-      'amountImpact': 'integer',
+      // ✅ نوع مطابق للنشر الفعلي (double على الوجهتين)؛ المحوّل يحوّل double→int
+      'amountImpact': 'double',
       'action': 'string',
     },
     'payment_voids': {

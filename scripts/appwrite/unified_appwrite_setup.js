@@ -59,6 +59,10 @@ const API_KEY = process.env.APPWRITE_API_KEY;
 // أعلام سطر الأوامر
 const ARGV = process.argv.slice(2);
 const VERIFY_ONLY = ARGV.includes('--verify');
+// إصلاح الأنواع: يحذف كل حقل نوعه الفعلي يختلف عن SCHEMA ويُعيد إنشاءه بالنوع
+// الصحيح (Appwrite لا يسمح بتغيير نوع سمة في مكانها). ⚠️ عملية هدمية: تُفقد قيم
+// ذلك العمود على السحابة وتُعاد من التخزين المحلي عند المزامنة التالية.
+const FIX_TYPES = ARGV.includes('--fix-types');
 const ONLY_ARG = ARGV.find((a) => a.startsWith('--only='));
 const ONLY = ONLY_ARG
   ? ONLY_ARG.replace('--only=', '').split(',').map((s) => s.trim()).filter(Boolean)
@@ -348,8 +352,10 @@ const SCHEMA = {
     targetType: 'string',
     targetUuid: 'string',
     adjustmentType: 'string',
-    previousValue: 'integer',
-    newValue: 'integer',
+    // ✅ متطابق مع النشر الفعلي على الوجهتين (double)؛ محوّل السحب يحوّل
+    // double→int بأمان (_asInt/.toInt) لعمود Drift الصحيح.
+    previousValue: 'double',
+    newValue: 'double',
     reason: 'string',
     effectiveDate: 'string',
     appliedBy: 'string',
@@ -391,7 +397,8 @@ const SCHEMA = {
     timestamp: 'integer',
     timestampIso: 'string',
     isFinancial: 'boolean',
-    amountImpact: 'integer',
+    // ✅ متطابق مع النشر الفعلي على الوجهتين (double)؛ محوّل السحب يحوّل double→int
+    amountImpact: 'double',
     action: 'string',
   }),
 
@@ -719,6 +726,7 @@ async function ensureStandardIndexes(collectionId, fields) {
 async function verify(targetCollections) {
   let missingCollections = 0;
   let missingAttributes = 0;
+  let typeMismatches = 0;
 
   for (const collectionId of targetCollections) {
     const wanted = SCHEMA[collectionId];
@@ -733,20 +741,102 @@ async function verify(targetCollections) {
       }
       throw e;
     }
-    const actualKeys = new Set(actual.attributes.map((a) => a.key));
-    const missing = Object.keys(wanted).filter((k) => !actualKeys.has(k));
-    if (missing.length === 0) {
-      console.log(`✅ ${collectionId}: كل الحقول موجودة (${Object.keys(wanted).length})`);
+    // خريطة الحقل الفعلي → نوعه، لمقارنة الوجود والنوع معاً.
+    const actualByKey = new Map(actual.attributes.map((a) => [a.key, a]));
+    const missing = Object.keys(wanted).filter((k) => !actualByKey.has(k));
+
+    // ✅ فحص تطابق الأنواع — الحقل الموجود يجب أن يكون بنفس النوع المطلوب.
+    // نوع Appwrite (a.type) أحد: string | integer | double | boolean، وهو
+    // نفس مفردات SCHEMA. عدم التطابق هو ما يُنتج خطأ "invalid type" وقت الرفع.
+    const mismatches = [];
+    for (const [key, wantType] of Object.entries(wanted)) {
+      const attr = actualByKey.get(key);
+      if (attr && attr.type !== wantType) {
+        mismatches.push(`${key}: فعلي=${attr.type} ≠ مطلوب=${wantType}`);
+      }
+    }
+
+    if (missing.length === 0 && mismatches.length === 0) {
+      console.log(`✅ ${collectionId}: كل الحقول موجودة وبأنواع متطابقة (${Object.keys(wanted).length})`);
     } else {
-      console.log(`⚠️  ${collectionId}: ناقص ${missing.length} حقل → ${missing.join(', ')}`);
-      missingAttributes += missing.length;
+      if (missing.length > 0) {
+        console.log(`⚠️  ${collectionId}: ناقص ${missing.length} حقل → ${missing.join(', ')}`);
+        missingAttributes += missing.length;
+      }
+      if (mismatches.length > 0) {
+        console.log(`❌ ${collectionId}: ${mismatches.length} عدم تطابق نوع → ${mismatches.join(' | ')}`);
+        typeMismatches += mismatches.length;
+      }
     }
   }
 
   console.log('\n══════════════════════════════════════════');
-  console.log(`ملخّص الفحص: مجموعات مفقودة=${missingCollections}, حقول مفقودة=${missingAttributes}`);
+  console.log(
+    `ملخّص الفحص: مجموعات مفقودة=${missingCollections}, ` +
+      `حقول مفقودة=${missingAttributes}, عدم تطابق الأنواع=${typeMismatches}`,
+  );
   console.log('══════════════════════════════════════════');
-  process.exit(missingCollections + missingAttributes > 0 ? 2 : 0);
+  process.exit(
+    missingCollections + missingAttributes + typeMismatches > 0 ? 2 : 0,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5.1) وضع إصلاح الأنواع (--fix-types): حذف كل حقل نوعه يختلف عن SCHEMA وإعادة
+//      إنشائه بالنوع الصحيح. ⚠️ هدمي — تُفقد قيم العمود على السحابة (تُعاد محلياً).
+// ─────────────────────────────────────────────────────────────────────────────
+async function deleteAttributeAndWait(collectionId, key) {
+  try {
+    await databases.deleteAttribute(DATABASE_ID, collectionId, key);
+  } catch (e) {
+    if (e.code !== 404) throw e;
+  }
+  // حذف السمة غير فوري — ننتظر اختفاءها قبل إعادة الإنشاء بنفس المفتاح.
+  for (let i = 0; i < 30; i++) {
+    const coll = await databases.getCollection(DATABASE_ID, collectionId);
+    if (!coll.attributes.some((a) => a.key === key)) return;
+    await sleep(1000);
+  }
+  throw new Error(`لم يكتمل حذف السمة ${collectionId}.${key} خلال المهلة`);
+}
+
+async function fixTypes(targetCollections) {
+  let fixed = 0;
+  let failed = 0;
+  for (const collectionId of targetCollections) {
+    const wanted = SCHEMA[collectionId];
+    let actual;
+    try {
+      actual = await databases.getCollection(DATABASE_ID, collectionId);
+    } catch (e) {
+      if (e.code === 404) {
+        console.log(`❌ المجموعة مفقودة: ${collectionId}`);
+        continue;
+      }
+      throw e;
+    }
+    const byKey = new Map(actual.attributes.map((a) => [a.key, a]));
+    for (const [key, wantType] of Object.entries(wanted)) {
+      const attr = byKey.get(key);
+      if (attr && attr.type !== wantType) {
+        console.log(
+          `♻️  ${collectionId}.${key}: ${attr.type} → ${wantType} (حذف + إعادة إنشاء)`,
+        );
+        try {
+          await deleteAttributeAndWait(collectionId, key);
+          await ensureAttribute(collectionId, key, wantType);
+          fixed++;
+        } catch (e) {
+          console.log(`   ❌ فشل إصلاح ${key}: ${e.message || e}`);
+          failed++;
+        }
+      }
+    }
+  }
+  console.log('\n══════════════════════════════════════════');
+  console.log(`إصلاح الأنواع: مُصلَح=${fixed}, فشل=${failed}`);
+  console.log('══════════════════════════════════════════');
+  process.exit(failed > 0 ? 2 : 0);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -772,7 +862,15 @@ async function main() {
   console.log(`Endpoint : ${ENDPOINT}`);
   console.log(`Project  : ${PROJECT_ID}`);
   console.log(`Database : ${DATABASE_ID}`);
-  console.log(`Mode     : ${VERIFY_ONLY ? 'VERIFY (قراءة فقط)' : 'SETUP (إنشاء/تحديث)'}`);
+  console.log(
+    `Mode     : ${
+      FIX_TYPES
+        ? 'FIX-TYPES (هدمي: حذف+إعادة إنشاء)'
+        : VERIFY_ONLY
+          ? 'VERIFY (قراءة فقط)'
+          : 'SETUP (إنشاء/تحديث)'
+    }`,
+  );
   console.log(`Targets  : ${targets.length} مجموعة${ONLY ? ' (مُصفّاة)' : ''}`);
   console.log('═══════════════════════════════════════════════════════════');
 
@@ -780,6 +878,11 @@ async function main() {
 
   if (VERIFY_ONLY) {
     await verify(targets);
+    return;
+  }
+
+  if (FIX_TYPES) {
+    await fixTypes(targets);
     return;
   }
 
