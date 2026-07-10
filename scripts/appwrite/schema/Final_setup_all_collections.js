@@ -288,6 +288,7 @@ const employees = {
     ...syncFields.attributes,
     { key: 'name',        type: 'string', required: true,  size: 200 },
     { key: 'basicSalary', type: 'float',  required: true },
+    { key: 'salary',      type: 'float',  required: false, default: 0 },
     { key: 'position',    type: 'string', required: false, default: 'موظف', size: 100 },
     { key: 'phone',       type: 'string', required: false, default: '', size: 30 },
     { key: 'hireDate',    type: 'string', required: false, default: '', size: 20 },

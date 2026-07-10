@@ -426,7 +426,67 @@ class AppwriteService {
     );
   }
 
+  /// استخراج اسم السمة غير المعروفة من خطأ Appwrite (إن وُجد).
+  ///
+  /// عند إرسال حقل غير موجود في مخطط Appwrite تُعيد الخدمة:
+  ///   document_invalid_structure: Unknown attribute: "X" (400)
+  /// نلتقط اسم الحقل "X" لإزالته ثم إعادة المحاولة، بدل فشل السجل كاملاً.
+  /// يُعيد null إذا لم يكن الخطأ من هذا النوع.
+  static final RegExp _unknownAttrPattern =
+      RegExp(r'Unknown attribute:\s*"([^"]+)"');
+
+  String? _extractUnknownAttribute(AppwriteException e) {
+    final type = e.type ?? '';
+    final msg = e.message ?? e.toString();
+    final isStructureError = e.code == 400 &&
+        (type.contains('document_invalid_structure') ||
+            msg.contains('Invalid document structure') ||
+            msg.contains('Unknown attribute'));
+    if (!isStructureError) return null;
+    final match = _unknownAttrPattern.firstMatch(msg);
+    return match?.group(1);
+  }
+
+  /// غلاف عام حول عملية الرفع الفعلية يجعل المزامنة صامدة أمام انحراف
+  /// المخطط بين التطبيق و Appwrite Cloud: إذا رفض الخادم حقلاً غير معروف
+  /// (Unknown attribute)، نُزيل ذلك الحقل فقط ونعيد المحاولة — فبدل أن
+  /// يفشل السجل بالكامل، يُرفَع بباقي الحقول الصحيحة.
   Future<models.Document> _upsertDocumentInternal({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) async {
+    var workingData = Map<String, dynamic>.from(data);
+    // حد أعلى للمحاولات = عدد الحقول (كل محاولة تُزيل حقلاً واحداً على الأكثر).
+    final maxRetries = workingData.length + 1;
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await _upsertDocumentOnce(
+          collectionId: collectionId,
+          documentId: documentId,
+          data: workingData,
+        );
+      } on AppwriteException catch (e) {
+        final unknownAttr = _extractUnknownAttribute(e);
+        if (unknownAttr != null &&
+            workingData.containsKey(unknownAttr) &&
+            attempt < maxRetries) {
+          workingData = Map<String, dynamic>.from(workingData)
+            ..remove(unknownAttr);
+          _logger.warning(
+            '⚠️ حقل غير معروف في مخطط Appwrite — تمت إزالته وإعادة المحاولة: '
+            '$collectionId.$unknownAttr (شغّل unified_appwrite_setup.js '
+            'لإضافته إلى المخطط)',
+            tag: 'SCHEMA_DRIFT',
+          );
+          continue;
+        }
+        rethrow;
+      }
+    }
+  }
+
+  Future<models.Document> _upsertDocumentOnce({
     required String collectionId,
     required String documentId,
     required Map<String, dynamic> data,
@@ -1310,16 +1370,37 @@ class AppwriteService {
     required Map<String, dynamic> data,
   }) async {
     await _ensureInitialized();
-    return _networkHelper.withTimeout(
-      // ignore: deprecated_member_use
-      operation: () => _databases.createDocument(
-        databaseId: AppwriteConfigManager.databaseId,
-        collectionId: collectionId,
-        documentId: documentId,
-        data: data,
-      ),
-      operationName: 'createRow($collectionId/$documentId)',
-    );
+    var workingData = Map<String, dynamic>.from(data);
+    final maxRetries = workingData.length + 1;
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await _networkHelper.withTimeout(
+          // ignore: deprecated_member_use
+          operation: () => _databases.createDocument(
+            databaseId: AppwriteConfigManager.databaseId,
+            collectionId: collectionId,
+            documentId: documentId,
+            data: workingData,
+          ),
+          operationName: 'createRow($collectionId/$documentId)',
+        );
+      } on AppwriteException catch (e) {
+        final unknownAttr = _extractUnknownAttribute(e);
+        if (unknownAttr != null &&
+            workingData.containsKey(unknownAttr) &&
+            attempt < maxRetries) {
+          workingData = Map<String, dynamic>.from(workingData)
+            ..remove(unknownAttr);
+          _logger.warning(
+            '⚠️ حقل غير معروف في مخطط Appwrite — أُزيل وأُعيدت المحاولة: '
+            '$collectionId.$unknownAttr',
+            tag: 'SCHEMA_DRIFT',
+          );
+          continue;
+        }
+        rethrow;
+      }
+    }
   }
 
   /// تحديث مستند موجود
@@ -1329,16 +1410,37 @@ class AppwriteService {
     required Map<String, dynamic> data,
   }) async {
     await _ensureInitialized();
-    return _networkHelper.withTimeout(
-      // ignore: deprecated_member_use
-      operation: () => _databases.updateDocument(
-        databaseId: AppwriteConfigManager.databaseId,
-        collectionId: collectionId,
-        documentId: documentId,
-        data: data,
-      ),
-      operationName: 'updateRow($collectionId/$documentId)',
-    );
+    var workingData = Map<String, dynamic>.from(data);
+    final maxRetries = workingData.length + 1;
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await _networkHelper.withTimeout(
+          // ignore: deprecated_member_use
+          operation: () => _databases.updateDocument(
+            databaseId: AppwriteConfigManager.databaseId,
+            collectionId: collectionId,
+            documentId: documentId,
+            data: workingData,
+          ),
+          operationName: 'updateRow($collectionId/$documentId)',
+        );
+      } on AppwriteException catch (e) {
+        final unknownAttr = _extractUnknownAttribute(e);
+        if (unknownAttr != null &&
+            workingData.containsKey(unknownAttr) &&
+            attempt < maxRetries) {
+          workingData = Map<String, dynamic>.from(workingData)
+            ..remove(unknownAttr);
+          _logger.warning(
+            '⚠️ حقل غير معروف في مخطط Appwrite — أُزيل وأُعيدت المحاولة: '
+            '$collectionId.$unknownAttr',
+            tag: 'SCHEMA_DRIFT',
+          );
+          continue;
+        }
+        rethrow;
+      }
+    }
   }
 
   /// إنشاء سجل مزامنة
