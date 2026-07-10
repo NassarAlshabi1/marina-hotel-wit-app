@@ -626,6 +626,7 @@ const stats = {
   attributesRecreated: 0, // عدد الحقول التي حُذِفت وأُعيد إنشاؤها (--fix-types)
   attributesPruned: 0,    // عدد الحقول الزائدة التي حُذِفت (--prune)
   attributesMadeOptional: 0, // عدد الحقول التي حُوِّلت من required=true إلى false (--make-optional)
+  attributeWaitTimeouts: 0, // عدد المرات التي انتهت فيها مهلة waitForAttributes (تتبع للسمعة)
   indexesCreated: 0,
   indexesExisting: 0,
   errors: [],
@@ -880,6 +881,7 @@ async function waitForAttributes(collectionId, expected) {
   console.log(
     `   ⚠️  انتهت مهلة انتظار جاهزية الحقول في ${collectionId} (${maxIter * sleepMs / 1000}s) — أتابع`,
   );
+  stats.attributeWaitTimeouts++;
   return false;
 }
 
@@ -1134,8 +1136,15 @@ async function main() {
     }
 
     // انتظر جاهزية الحقول قبل بناء الفهارس (الفهرس يتطلب حقولاً available).
-    await waitForAttributes(collectionId, Object.keys(fields).length);
-    await ensureStandardIndexes(collectionId, fields);
+    // ✅ إذا انتهت المهلة (return false)، نتخطّى الفهارس لهذه المجموعة بدلاً من
+    // محاولة إنشائها (ستفشل بـ 400/409) — نضيف خطأ واضح للـ summary.
+    const ready = await waitForAttributes(collectionId, Object.keys(fields).length);
+    if (ready) {
+      await ensureStandardIndexes(collectionId, fields);
+    } else {
+      console.log(`   ⏭️  تخطّي إنشاء الفهارس لـ ${collectionId} — الحقول لم تصبح جاهزة في المهلة`);
+      stats.errors.push(`${collectionId}.indexes: skipped (attribute wait timeout)`);
+    }
   }
 
   console.log('\n═══════════════════════════════════════════════════════════');
@@ -1151,6 +1160,9 @@ async function main() {
   }
   if (stats.attributesMadeOptional > 0) {
     console.log(`🔓 حقول حُوِّلت إلى optional (--make-optional): ${stats.attributesMadeOptional}`);
+  }
+  if (stats.attributeWaitTimeouts > 0) {
+    console.log(`⏱️  مهلات انتظار حقول (تخطّى الفهارس): ${stats.attributeWaitTimeouts}`);
   }
   console.log(`الفهارس       : أُنشئت ${stats.indexesCreated} / موجودة ${stats.indexesExisting}`);
   if (stats.errors.length) {

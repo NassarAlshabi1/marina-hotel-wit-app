@@ -60,29 +60,36 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
           // ✅ معالجة حالة الخطأ — بدونها يظهر للمستخدم قائمة فارغة (كأنه لا توجد
           // تعارضات) حتى لو انفجر الـ stream، وهو مضلِّل.
           if (snapshot.hasError) {
+            // 🔒 نسجّل التفاصيل التقنية في debugPrint فقط (للمطورين)، ولا نُظهرها
+            // للمستخدم — قد تحتوي على أسماء جداول/حقول داخلية أو رسائل Appwrite.
+            debugPrint('❌ sync_conflicts stream error: ${snapshot.error}');
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text(
-                    'حدث خطأ أثناء تحميل التعارضات',
-                    style: const TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${snapshot.error}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => _conflictManager.loadPendingConflicts(),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('إعادة المحاولة'),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'حدث خطأ أثناء تحميل التعارضات',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'تحقّق من اتصال الشبكة وحاول مرة أخرى.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => _conflictManager.loadPendingConflicts(),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('إعادة المحاولة'),
+                    ),
+                  ],
+                ),
               ),
             );
           }

@@ -44,7 +44,7 @@ class RoomWithPaymentStatus {
 
   Color get roomColor {
     // صيانة - الأولوية القصوى
-    if (room.status == 'صيانة' || room.status == 'maintenance') {
+    if (StatusUtils.isUnderMaintenance(room.status)) {
       return Colors.orange.shade600;
     }
 
@@ -63,7 +63,7 @@ class RoomWithPaymentStatus {
   /// ✅ الحالة المعروضة للغرفة - مشتقة من الحجز النشط
   /// بدلاً من room.status المخزن الذي قد يكون قديماً
   String get displayStatus {
-    if (room.status == 'صيانة' || room.status == 'maintenance') {
+    if (StatusUtils.isUnderMaintenance(room.status)) {
       return 'صيانة';
     }
     if (hasActiveBooking) {
@@ -191,8 +191,7 @@ final availableRoomsCountProvider = Provider<int>((ref) {
   return ref.watch(roomsWithPaymentStatusProvider.select(
     (rooms) => rooms.valueOrNull?.where((r) =>
         !r.hasActiveBooking &&
-        r.room.status != 'صيانة' &&
-        r.room.status != 'maintenance').length ?? 0,
+        !StatusUtils.isUnderMaintenance(r.room.status)).length ?? 0,
   ));
 });
 
@@ -204,9 +203,12 @@ final overdueRoomsCountProvider = Provider<int>((ref) {
 });
 
 /// عدد الغرف تحت الصيانة — يُحدّث فقط عندما يتغير العدد
+/// ✅ استخدام StatusUtils.isUnderMaintenance (DRY) — كان قبل ذلك يفحص
+/// 'صيانة' فقط بدون 'maintenance'، فكانت الغرف الإنجليزية لا تُحسب!
 final maintenanceRoomsCountProvider = Provider<int>((ref) {
   return ref.watch(roomsWithPaymentStatusProvider.select(
-    (rooms) => rooms.valueOrNull?.where((r) => r.room.status == 'صيانة').length ?? 0,
+    (rooms) => rooms.valueOrNull?.where((r) =>
+        StatusUtils.isUnderMaintenance(r.room.status)).length ?? 0,
   ));
 });
 

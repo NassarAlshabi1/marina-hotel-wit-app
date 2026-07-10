@@ -83,17 +83,28 @@ Future<void> main() async {
     debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
   }
 
-  // ─── Crashlytics: تهيئة قبل كل شيء ───
-  await CrashlyticsService.instance.initialize();
+  // ─── Critical services: لفّ في try-catch لمنع crash كامل للتطبيق عند فشل أي
+  //     خدمة فرعية. كل خدمة هنا optional — التطبيق يكمل بدونها بقيم default.
+  //     (البوت ركّز على DiagnosticsLogger/ApiConfigService فقط، لكن نفس النمط
+  //     ينطبق على CrashlyticsService و RemoteConfigService.)
+  try {
+    await CrashlyticsService.instance.initialize();
+  } catch (e) {
+    debugPrint('⚠️ CrashlyticsService initialization failed: $e');
+  }
 
   // ─── SecondaryAppwriteConfig: تهيئة SharedPreferences قبل أي وصول للإعدادات ───
+  // ⚠️ هذه SERVICE إلزامية — فشلها يعني فشل وصول كامل للإعدادات لاحقاً، فلا نلفّها
+  // في try-catch (نُفضّل crash مبكر واضح على crash متأخر غامض عند أول وصول لـ prefs).
   await SecondaryAppwriteConfig.ensureInitialized();
 
-  // ─── Remote Config: تهيئة مبكراً ───
-  await RemoteConfigService.instance.initialize();
+  try {
+    await RemoteConfigService.instance.initialize();
+  } catch (e) {
+    debugPrint('⚠️ RemoteConfigService initialization failed: $e — using defaults');
+  }
 
-  // ✅ DiagnosticsLogger + ApiConfigService: لفّ في try-catch مثل Firebase أعلاه.
-  // لو فشل أي منهما، يكمل التطبيق عمله بدون logging/API config لكن لا ي crash.
+  // ✅ DiagnosticsLogger + ApiConfigService: نفس النمط — optional services.
   try {
     await DiagnosticsLogger.instance.initialize();
   } catch (e) {
