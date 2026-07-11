@@ -25,32 +25,54 @@ class AppwriteNetworkHelper {
   // Rate Limiter (token bucket) — يضمن تأخيراً أدنى بين الطلبات المتتالية.
   // Appwrite Cloud يفرض حدوداً لكل مشروع/مستخدم؛ التأخير الأدنى يقلل
   // احتمال تجاوزها في push flow حيث تتوالى updateDocument بشكل مكثّف.
+  //
+  // ✅ إصلاح (2026-07-11): رفع التأخير من 120ms إلى 600ms (1.6 req/s)
+  // لأن Appwrite Cloud Free tier يفرض ~2 req/s. الـ 120ms السابق (8.3 req/s)
+  // كان يسبب إغراق السيرفر بـ 429s متتالية.
   // ─────────────────────────────────────────────────────────────────────
-  static const Duration _minRequestInterval = Duration(milliseconds: 120);
+  static const Duration _minRequestInterval = Duration(milliseconds: 600);
   DateTime _lastRequestTime =
       DateTime.fromMillisecondsSinceEpoch(0);
 
   // ─────────────────────────────────────────────────────────────────────
   // Circuit Breaker — يحمي من إغراق الخادم عند تكرار 429.
+  //
+  // ✅ إصلاح (2026-07-11): progressive cooldown بدلاً من 60s ثابت.
+  // كل تفعيل جديد يضاعف المدة: 60s → 120s → 300s → 600s → 600s...
+  // هذا يمنع الحلقة المفرغة حيث يُعاد تفعيله فوراً بعد انتهاء الـ 60s.
   // ─────────────────────────────────────────────────────────────────────
   int _consecutiveRateLimitHits = 0;
   static const int _circuitBreakerThreshold = 5;
   DateTime? _circuitBreakerUntil;
-  static const Duration _circuitBreakerCooldown = Duration(seconds: 60);
+  int _circuitBreakerActivationCount = 0; // لزيادة المدة تدريجياً
+  static const List<Duration> _progressiveCooldowns = [
+    Duration(seconds: 60),
+    Duration(seconds: 120),
+    Duration(seconds: 300),
+    Duration(seconds: 600),
+  ];
 
   /// ينتظر حتى يصبح مسموحاً بإطلاق طلب جديد (للحفاظ على rate limit).
+  ///
+  /// ✅ إصلاح حرج (2026-07-11): بدلاً من رمي AppwriteException(429) عندما
+  /// الـ circuit breaker مفعّل (مما يسبب حلقة مفرغة — الاستثناء يُلتقط
+  /// في withRetry ويُعامل كـ 429 جديد فيزيد العداد)، ننتظر فعلياً حتى
+  /// انتهاء فترة التهدئة ثم نُكمل. هذا يكسر الحلقة المفرغة.
   Future<void> _acquireRequestSlot() async {
-    // 1) فحص circuit breaker
+    // 1) فحص circuit breaker — انتظر بدلاً من رمي استثناء
     if (_circuitBreakerUntil != null) {
       final now = DateTime.now();
       if (now.isBefore(_circuitBreakerUntil!)) {
         final remaining = _circuitBreakerUntil!.difference(now);
-        throw AppwriteException(
-          'Circuit breaker active — rate limit cooldown. '
-          'Retry in ${remaining.inSeconds}s.',
-          429,
-          'general_rate_limit_exceeded',
+        _logger.warning(
+          '⏳ Circuit breaker active — waiting ${remaining.inSeconds}s '
+          'before next request (instead of throwing 429)',
+          tag: 'RATE_LIMIT',
         );
+        await Future<void>.delayed(remaining);
+        // بعد الانتظار، أعد الضبط
+        _circuitBreakerUntil = null;
+        _consecutiveRateLimitHits = 0;
       } else {
         // انتهت فترة التهدئة — أعد الضبط
         _circuitBreakerUntil = null;
@@ -60,8 +82,6 @@ class AppwriteNetworkHelper {
 
     // 2) احترام التأخير الأدنى بين الطلبات
     // ✅ إصلاح سباق: نحجز فتحة الطلب التالية بشكل متزامن *قبل* الـ await.
-    // خلاف ذلك، الطلبات المتزامنة تقرأ نفس _lastRequestTime وتنطلق معًا،
-    // مما يُبطل مفعول محدّد المعدّل. بتحديث _lastRequestTime فورًا نُسلسل الطلبات.
     final now = DateTime.now();
     final scheduledTime = _lastRequestTime.add(_minRequestInterval).isAfter(now)
         ? _lastRequestTime.add(_minRequestInterval)
@@ -74,21 +94,35 @@ class AppwriteNetworkHelper {
   }
 
   /// يُستدعى عند نجاح أي طلب — يصفّر عدّاد circuit breaker.
+  ///
+  /// ✅ إصلاح (2026-07-11): عند النجاح، أعد ضبط عدّاد التفعيلات أيضاً
+  /// حتى لا يستمر progressive cooldown في الزيادة بعد التعافي.
   void _onRequestSuccess() {
     if (_consecutiveRateLimitHits > 0) {
       _consecutiveRateLimitHits = 0;
     }
+    if (_circuitBreakerActivationCount > 0) {
+      _circuitBreakerActivationCount = 0;
+    }
   }
 
-  /// يُستدعى عند تلقي 429 — يحدّث circuit breaker.
+  /// يُستدعى عند تلقي 429 من السيرفر (وليس من circuit breaker محلي).
+  ///
+  /// ✅ إصلاح (2026-07-11): progressive cooldown — كل تفعيل جديد يزيد المدة.
+  /// هذا يمنع إعادة التفعيل الفورية بعد انتهاء الـ 60s.
   void _onRateLimitHit() {
     _consecutiveRateLimitHits++;
     if (_consecutiveRateLimitHits >= _circuitBreakerThreshold) {
-      _circuitBreakerUntil =
-          DateTime.now().add(_circuitBreakerCooldown);
+      // ✅ progressive cooldown: 60s → 120s → 300s → 600s
+      final cooldownIndex = _circuitBreakerActivationCount
+          .clamp(0, _progressiveCooldowns.length - 1);
+      final cooldown = _progressiveCooldowns[cooldownIndex];
+      _circuitBreakerActivationCount++;
+      _circuitBreakerUntil = DateTime.now().add(cooldown);
       _logger.error(
-        '🔌 Circuit breaker ACTIVATED for ${_circuitBreakerCooldown.inSeconds}s '
-        'after $_consecutiveRateLimitHits consecutive 429s',
+        '🔌 Circuit breaker ACTIVATED for ${cooldown.inSeconds}s '
+        'after $_consecutiveRateLimitHits consecutive 429s '
+        '(activation #$_circuitBreakerActivationCount)',
         tag: 'RATE_LIMIT',
       );
     }
@@ -427,11 +461,14 @@ class AppwriteNetworkHelper {
 
   /// ✅ جديد: حالة الـ circuit breaker — يُستخدم من sync manager لإيقاف
   /// المزامنة مؤقتاً عند تفعّله.
+  ///
+  /// ✅ إصلاح (2026-07-11): أعد ضبط عدّاد التفعيلات عند انتهاء الـ cooldown.
   bool get isCircuitBreakerActive {
     if (_circuitBreakerUntil == null) return false;
     if (DateTime.now().isBefore(_circuitBreakerUntil!)) return true;
     _circuitBreakerUntil = null;
     _consecutiveRateLimitHits = 0;
+    _circuitBreakerActivationCount = 0;
     return false;
   }
 

@@ -4,6 +4,7 @@ import 'package:appwrite/appwrite.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'appwrite_config.dart';
+import 'appwrite_network_helper.dart';
 import 'appwrite_sync_utils.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
@@ -203,6 +204,20 @@ class SecondarySyncManager {
       // ✅ P0-1 + P1-5: حلقة آمنة مع backoff بين الدورات
       int emptyLoopsInRow = 0;
       while (true) {
+        // ✅ إصلاح (2026-07-11): توقف فوري إذا كان network circuit breaker
+        // مفعّلاً — لا نلتقط سجلات جديدة وندعها تتراكم للمزامنة القادمة.
+        // هذا يمنع الحلقة المفرغة: 429 → circuit breaker → محاولة جديدة → 429.
+        if (AppwriteNetworkHelper().isCircuitBreakerActive) {
+          final remaining = AppwriteNetworkHelper().circuitBreakerRemaining;
+          debugPrint(
+            '🔌 [SecondarySync] Network circuit breaker active '
+            '(remaining ${remaining?.inSeconds ?? 0}s) — '
+            'stopping sync to avoid rate limit loop. '
+            '$pushed pushed, $failed failed so far.',
+          );
+          break;
+        }
+
         // ✅ P0-1: نستبعد السجلات المُعالَجة في هذه الجلسة من الالتقاط
         final entries = await _takeUndeliveredBatch(
           db,
