@@ -59,13 +59,18 @@ class AppwriteNetworkHelper {
     }
 
     // 2) احترام التأخير الأدنى بين الطلبات
+    // ✅ إصلاح سباق: نحجز فتحة الطلب التالية بشكل متزامن *قبل* الـ await.
+    // خلاف ذلك، الطلبات المتزامنة تقرأ نفس _lastRequestTime وتنطلق معًا،
+    // مما يُبطل مفعول محدّد المعدّل. بتحديث _lastRequestTime فورًا نُسلسل الطلبات.
     final now = DateTime.now();
-    final elapsed = now.difference(_lastRequestTime);
-    if (elapsed < _minRequestInterval) {
-      final wait = _minRequestInterval - elapsed;
+    final scheduledTime = _lastRequestTime.add(_minRequestInterval).isAfter(now)
+        ? _lastRequestTime.add(_minRequestInterval)
+        : now;
+    _lastRequestTime = scheduledTime;
+    final wait = scheduledTime.difference(now);
+    if (wait > Duration.zero) {
       await Future<void>.delayed(wait);
     }
-    _lastRequestTime = DateTime.now();
   }
 
   /// يُستدعى عند نجاح أي طلب — يصفّر عدّاد circuit breaker.

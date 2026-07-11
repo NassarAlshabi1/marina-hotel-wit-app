@@ -89,8 +89,8 @@ Future<void> main() async {
   //     ينطبق على CrashlyticsService و RemoteConfigService.)
   try {
     await CrashlyticsService.instance.initialize();
-  } catch (e) {
-    debugPrint('⚠️ CrashlyticsService initialization failed: $e');
+  } catch (e, stack) {
+    debugPrint('⚠️ CrashlyticsService initialization failed: $e\n$stack');
   }
 
   // ─── SecondaryAppwriteConfig: تهيئة SharedPreferences قبل أي وصول للإعدادات ───
@@ -100,20 +100,20 @@ Future<void> main() async {
 
   try {
     await RemoteConfigService.instance.initialize();
-  } catch (e) {
-    debugPrint('⚠️ RemoteConfigService initialization failed: $e — using defaults');
+  } catch (e, stack) {
+    debugPrint('⚠️ RemoteConfigService initialization failed: $e — using defaults\n$stack');
   }
 
   // ✅ DiagnosticsLogger + ApiConfigService: نفس النمط — optional services.
   try {
     await DiagnosticsLogger.instance.initialize();
-  } catch (e) {
-    debugPrint('⚠️ DiagnosticsLogger initialization failed: $e');
+  } catch (e, stack) {
+    debugPrint('⚠️ DiagnosticsLogger initialization failed: $e\n$stack');
   }
   try {
     await ApiConfigService.instance.initialize();
-  } catch (e) {
-    debugPrint('⚠️ ApiConfigService initialization failed: $e');
+  } catch (e, stack) {
+    debugPrint('⚠️ ApiConfigService initialization failed: $e\n$stack');
   }
 
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)

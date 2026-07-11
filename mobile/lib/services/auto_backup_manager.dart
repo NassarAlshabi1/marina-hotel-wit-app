@@ -169,6 +169,17 @@ class AutoBackupManager {
     }
   }
 
+  /// ✅ تشغيل عملية داخل دفعة بأمان — يضمن استدعاء [batchEnd] حتى عند رمي استثناء،
+  /// فيمنع بقاء `_batchNesting > 0` للأبد (الذي يُعطّل النسخ التلقائي).
+  Future<R> runInBatch<R>(Future<R> Function() action) async {
+    batchStart();
+    try {
+      return await action();
+    } finally {
+      await batchEnd();
+    }
+  }
+
   Future<void> onDataChange(
     String tableName,
     String operation, {
