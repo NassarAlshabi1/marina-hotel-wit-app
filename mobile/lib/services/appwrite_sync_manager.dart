@@ -2237,10 +2237,11 @@ class AppwriteSyncManager {
         final incomingLastModified = _asIntNullable(data['lastModified']) ??
             _extractUpdatedAtSec(doc) ?? 0;
         if (existingPayment != null &&
-            existingPayment.lastModified > incomingLastModified) {
+            existingPayment.lastModified >= incomingLastModified) {
           _logger.debug(
-            'Skipping payment ${doc.$id}: local is newer (financial immutability, '
-            'local=${existingPayment.lastModified} > remote=$incomingLastModified)',
+          'Skipping payment ${doc.$id}: local is newer or equal '
+          '(financial immutability, local=${existingPayment.lastModified} '
+          '>= remote=$incomingLastModified)',
             tag: 'SYNC',
           );
           processed++;
@@ -2335,10 +2336,11 @@ class AppwriteSyncManager {
         final incomingLastModified = _asIntNullable(data['lastModified']) ??
             _extractUpdatedAtSec(doc) ?? 0;
         if (existingDebt != null &&
-            existingDebt.lastModified > incomingLastModified) {
+            existingDebt.lastModified >= incomingLastModified) {
           _logger.debug(
-            'Skipping debt ${doc.$id}: local is newer (financial immutability, '
-            'local=${existingDebt.lastModified} > remote=$incomingLastModified)',
+          'Skipping debt ${doc.$id}: local is newer or equal '
+          '(financial immutability, local=${existingDebt.lastModified} '
+          '>= remote=$incomingLastModified)',
             tag: 'SYNC',
           );
           processed++;
