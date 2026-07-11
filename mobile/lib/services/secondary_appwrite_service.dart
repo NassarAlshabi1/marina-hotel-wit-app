@@ -259,6 +259,13 @@ for (final coll in collectionList) {
         (e.type ?? '').contains('conflict') ||
         e.toString().contains('document_already_exists');
 
+    bool isRateLimit(AppwriteException e) =>
+        e.code == 429 ||
+        (e.type ?? '').contains('rate_limit') ||
+        (e.type ?? '').contains('general_rate_limit_exceeded') ||
+        e.toString().contains('429') ||
+        e.toString().contains('rate limit');
+
     // ✅ معالجة ID بدون شرطات (نفس Primary)
     final altDocumentId = documentId.contains('-')
         ? documentId.replaceAll('-', '')
@@ -296,10 +303,19 @@ for (final coll in collectionList) {
     }
 
     // الخطوة 1: updateDocument بالـ ID الأصلي
+    // ✅ معالجة 429: انتظر قليلاً ثم انتقل مباشرة للإنشاء بدل إعادة الرمي
+    // (الإعادة تستهلك كل محاولات withRetry قبل وصول 404 لـ catch)
     try {
       return await doUpdate(documentId, suppressErrorLog: true);
     } on AppwriteException catch (updateError) {
-      if (!isNotFound(updateError)) {
+      if (isRateLimit(updateError)) {
+        _logger.warning(
+          'secondary_upsert: 429 on update $documentId — waiting 65s then create',
+          tag: 'RATE_LIMIT',
+        );
+        await Future<void>.delayed(const Duration(seconds: 65));
+        // انتقل مباشرة للخطوة 2 (create) — لا إعادة try update
+      } else if (!isNotFound(updateError)) {
         if (isAlreadyExists(updateError)) {
           try { return await doCreate(); }
           on AppwriteException catch (e2) {

@@ -2,7 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 
 /// استراتيجية حل التضارب
-enum ConflictStrategy { newerWins, devicePriority, manualResolve }
+enum ConflictStrategy { newerWins, devicePriority }
 
 /// معلومات التضارب
 class DataConflict {
@@ -148,8 +148,6 @@ class ConflictResolver {
         return conflict.isLocalNewer ? conflict.localData : conflict.remoteData;
 
       case ConflictStrategy.devicePriority:
-        // ignore: unused_local_variable
-        final remoteDevice = conflict.remoteData['device_id'] as String?;
         final remotePriority =
             conflict.remoteData['device_priority'] as int? ?? 100;
 
@@ -158,12 +156,6 @@ class ConflictResolver {
         } else {
           return conflict.remoteData;
         }
-
-      case ConflictStrategy.manualResolve:
-        // ✅ إصلاح: بدلاً من السقوط الصامت إلى newerWins، نُرجع البيانات المحلية
-        // كإجراء آمن مع تسجيل الحاجة لمراجعة يدوية
-        debugPrint('⚠️ ConflictResolver: تعارض يحتاج مراجعة يدوية — تم الاحتفاظ بالبيانات المحلية كإجراء آمن: ${conflict.table}/${conflict.uuid}');
-        return conflict.localData;
     }
   }
 

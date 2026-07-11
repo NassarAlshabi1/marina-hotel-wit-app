@@ -1769,25 +1769,6 @@ class AppwriteSyncManager {
               );
             }
 
-            if (resolution.strategy == ResolutionStrategy.manualEscalation) {
-              _logger.warning(
-                '⚠️ Concurrent conflict escalated to manual: '
-                'entity=$entityName, uuid=$localUuid. '
-                'Warnings: ${resolution.warnings.join("; ")}',
-                tag: 'CONFLICT',
-              );
-              await _logConcurrentConflict(
-                entity: entityName,
-                uuid: localUuid,
-                localVc: localVectorClock ?? '{}',
-                remoteVc: remoteVcStr,
-                localLastModified: localLastModified,
-                remoteLastModified: effectiveRemoteTs,
-                localData: localData,
-                remoteData: remoteData,
-              );
-              return const _RemoteNewerResult(shouldApplyRemote: false);
-            }
           } catch (e) {
             _logger.warning(
               '⚠️ SmartConflictResolver failed, falling back to LWW: $e',

@@ -504,6 +504,13 @@ class AppwriteService {
         (e.type ?? '').contains('conflict') ||
         e.toString().contains('document_already_exists');
 
+    bool isRateLimit(AppwriteException e) =>
+        e.code == 429 ||
+        (e.type ?? '').contains('rate_limit') ||
+        (e.type ?? '').contains('general_rate_limit_exceeded') ||
+        e.toString().contains('429') ||
+        e.toString().contains('rate limit');
+
     // ✅ إصلاح حرج (2026-06-28): معالجة مستندات بـ ID بدون شرطات
     //
     // بعض المستندات القديمة خُزّنت في Appwrite بـ ID بدون شرطات:
@@ -554,11 +561,17 @@ class AppwriteService {
     }
 
     // ─── الخطوة 1: updateDocument بالـ ID الأصلي (بالشرطات) ───
+    // ✅ معالجة 429: انتظر ثم انتقل مباشرة للإنشاء بدل إعادة الرمي
     try {
       return await doUpdate(documentId, suppressErrorLog: true);
     } on AppwriteException catch (updateError) {
-      if (!isNotFound(updateError)) {
-        // 409 على update → نادر، نحاول create
+      if (isRateLimit(updateError)) {
+        debugPrint(
+          '⚠️ primary_upsert: 429 on update $documentId — waiting 65s then create',
+        );
+        await Future<void>.delayed(const Duration(seconds: 65));
+        // انتقل مباشرة للخطوة 2 (create)
+      } else if (!isNotFound(updateError)) {
         if (isAlreadyExists(updateError)) {
           try { return await doCreate(); }
           on AppwriteException catch (e2) {
