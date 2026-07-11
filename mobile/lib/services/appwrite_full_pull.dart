@@ -1,4 +1,5 @@
 import 'package:appwrite/appwrite.dart';
+import 'package:drift/drift.dart' as drift;
 import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 import 'adapters/adapter_registry.dart';
@@ -578,7 +579,7 @@ class AppwriteFullPull {
       final sanitized = tableName.replaceAll("'", "''");
       final result = await db.customSelect(
         "SELECT last_modified FROM '$sanitized' WHERE local_uuid = ? LIMIT 1",
-        variables: [Variable.withString(localUuid)],
+        variables: [drift.Variable.withString(localUuid)],
         readsFrom: Set.unmodifiable({}),
       ).getSingleOrNull();
       final raw = result?.data['last_modified'];
