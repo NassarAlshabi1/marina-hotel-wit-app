@@ -71,11 +71,15 @@ class ResolutionResult {
     required this.mergedData,
     required this.strategy,
     this.warnings = const [],
+    this.pushedToRemote = false,
   });
 
   final Map<String, dynamic> mergedData;
   final ResolutionStrategy strategy;
   final List<String> warnings;
+
+  /// هل يجب رفع النتيجة المدمجة للسحابة؟
+  final bool pushedToRemote;
 }
 
 /// محلّل التعارضات الذكي — يحل جميع التعارضات تلقائياً على مستوى السجل
@@ -414,6 +418,7 @@ class SmartConflictResolver {
       mergedData: merged,
       strategy: ResolutionStrategy.fieldLevelMerge,
       warnings: warnings,
+      pushedToRemote: true,
     );
   }
 
