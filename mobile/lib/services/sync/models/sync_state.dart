@@ -23,7 +23,7 @@ enum SyncPriority {
 
 /// نموذج حالة المزامنة باستخدام Freezed
 @freezed
-class SyncState with _$SyncState {
+abstract class SyncState with _$SyncState {
   const factory SyncState({
     required SyncStatus status,
     @Default(0) int progress,
@@ -64,7 +64,7 @@ class SyncState with _$SyncState {
 
 /// إعدادات المزامنة
 @freezed
-class SyncSettings with _$SyncSettings {
+abstract class SyncSettings with _$SyncSettings {
   const factory SyncSettings({
     @Default(true) bool autoSyncEnabled,
     @Default(5) int syncIntervalMinutes,
