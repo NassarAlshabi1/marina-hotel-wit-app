@@ -29,15 +29,6 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
   );
 
   @override
-  void initState() {
-    super.initState();
-    // ref.listen يشتغل مرة واحدة ولا يعيد بناء الشاشة
-    ref.listen(roomsWithPaymentStatusProvider, (prev, next) {
-      _roomsNotifier.value = next;
-    });
-  }
-
-  @override
   void dispose() {
     _roomsNotifier.dispose();
     super.dispose();
@@ -45,6 +36,9 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(roomsWithPaymentStatusProvider, (prev, next) {
+      _roomsNotifier.value = next;
+    });
     return AppScaffold(
       title: 'حالة الغرف',
       actions: [
