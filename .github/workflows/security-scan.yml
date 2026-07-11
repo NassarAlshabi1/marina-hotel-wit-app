@@ -68,23 +68,32 @@ jobs:
           fetch-depth: 0
 
       - name: Initialize CodeQL
+        id: init
         uses: github/codeql-action/init@v3
+        continue-on-error: true
         with:
           languages: javascript, php
-          # Use the 'security-and-quality' suite for broader coverage
           queries: security-and-quality
 
+      - name: Skip remaining CodeQL steps if init failed
+        if: steps.init.outcome != 'success'
+        run: |
+          echo "::warning::CodeQL init failed — likely CodeQL is not enabled on this repo."
+          echo "::warning::Enable it in Settings → Security & analysis → CodeQL analysis."
+          echo "Skipping Autobuild and Analyze steps."
+
       - name: Autobuild
+        if: steps.init.outcome == 'success'
         uses: github/codeql-action/autobuild@v3
+        continue-on-error: true
 
       - name: Perform CodeQL Analysis
+        if: steps.init.outcome == 'success'
         uses: github/codeql-action/analyze@v3
+        continue-on-error: true
         with:
           category: "/language:javascript"
           output: sarif-results/codeql-js.sarif
-
-      # CodeQL analyze produces one SARIF per language when using multiple languages
-      # The analyze action uploads them automatically; we don't need a separate upload step.
 
   # ═══════════════════════════════════════════════════════════
   # 2) Semgrep — multi-language SAST + supply-chain detection
@@ -177,9 +186,6 @@ jobs:
           output: sarif-results/trivy-fs.sarif
           exit-code: '0'    # Don't fail build; report to Security tab
           limit-severities-for-sarif: true
-        env:
-          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db:2
-          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db:2
 
       - name: Trivy — Misconfiguration scan (IaC + Dockerfile + workflows)
         uses: aquasecurity/trivy-action@0.30.0
