@@ -2237,10 +2237,11 @@ class AppwriteSyncManager {
         final incomingLastModified = _asIntNullable(data['lastModified']) ??
             _extractUpdatedAtSec(doc) ?? 0;
         if (existingPayment != null &&
-            existingPayment.lastModified > incomingLastModified) {
+            existingPayment.lastModified >= incomingLastModified) {
           _logger.debug(
-            'Skipping payment ${doc.$id}: local is newer (financial immutability, '
-            'local=${existingPayment.lastModified} > remote=$incomingLastModified)',
+          'Skipping payment ${doc.$id}: local is newer or equal '
+          '(financial immutability, local=${existingPayment.lastModified} '
+          '>= remote=$incomingLastModified)',
             tag: 'SYNC',
           );
           processed++;
@@ -2335,10 +2336,11 @@ class AppwriteSyncManager {
         final incomingLastModified = _asIntNullable(data['lastModified']) ??
             _extractUpdatedAtSec(doc) ?? 0;
         if (existingDebt != null &&
-            existingDebt.lastModified > incomingLastModified) {
+            existingDebt.lastModified >= incomingLastModified) {
           _logger.debug(
-            'Skipping debt ${doc.$id}: local is newer (financial immutability, '
-            'local=${existingDebt.lastModified} > remote=$incomingLastModified)',
+          'Skipping debt ${doc.$id}: local is newer or equal '
+          '(financial immutability, local=${existingDebt.lastModified} '
+          '>= remote=$incomingLastModified)',
             tag: 'SYNC',
           );
           processed++;
@@ -2683,6 +2685,51 @@ class AppwriteSyncManager {
     return AppwriteSyncUtils.filterPayloadForCollection(collectionId, payload);
   }
 
+  /// ✅ P0-5: القفل التفاؤلي (OCC) لكل الكيانات — واجهة مختصرة تستخدم
+  /// اسم الكيان فقط وتحدد collectionId تلقائياً.
+  /// يُرجع الحمولة النهائية (أصلية أو مدموجة).
+  Future<Map<String, dynamic>> _occPushCheck({
+    required String entity,
+    required String documentId,
+    required Map<String, dynamic> localPayload,
+  }) async {
+    final collectionId = _entityToCollectionId(entity);
+    if (collectionId == null) return localPayload;
+    return _occCheckAndMerge(
+      collectionId: collectionId,
+      documentId: documentId,
+      localPayload: localPayload,
+      entity: entity,
+    );
+  }
+
+  /// تحويل اسم الكيان إلى معرف مجموعة Appwrite
+  String? _entityToCollectionId(String entity) {
+    final map = <String, String>{
+      'rooms': AppwriteConfig.roomsCollectionId,
+      'bookings': AppwriteConfig.bookingsCollectionId,
+      'payments': AppwriteConfig.paymentsCollectionId,
+      'expenses': AppwriteConfig.expensesCollectionId,
+      'debts': AppwriteConfig.debtsCollectionId,
+      'employees': AppwriteConfig.employeesCollectionId,
+      'booking_notes': AppwriteConfig.bookingNotesCollectionId,
+      'booking_nights': AppwriteConfig.bookingNightsCollectionId,
+      'cash_transactions': AppwriteConfig.cashTransactionsCollectionId,
+      'shift_notes': AppwriteConfig.shiftNotesCollectionId,
+      'salary_cycles': AppwriteConfig.salaryCyclesCollectionId,
+      'salary_payments': AppwriteConfig.salaryPaymentsCollectionId,
+      'salary_withdrawals': AppwriteConfig.salaryWithdrawalsCollectionId,
+      'guest_infos': AppwriteConfig.guestInfosCollectionId,
+      'blacklist': AppwriteConfig.blacklistCollectionId,
+      'booking_price_adjustments': AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+      'price_adjustments': AppwriteConfig.priceAdjustmentsCollectionId,
+      'payment_voids': AppwriteConfig.paymentVoidsCollectionId,
+      'salary_carry_over_logs': 'salary_carry_over_logs',
+      'audit_logs': AppwriteConfig.auditLogsCollectionId,
+    };
+    return map[entity];
+  }
+
   /// ✅ P0-5: القفل التفاؤلي (OCC) — فحص النسخة البعيدة قبل الدفع
   ///
   /// قبل كل عملية update، نقرأ المستند البعيد ونتحقق:
@@ -2787,11 +2834,16 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _roomToRemote(room);
+    final occPayload = await _occPushCheck(
+      entity: 'rooms',
+      documentId: room.localUuid,
+      localPayload: payload,
+    );
 
     try {
       await appwriteService.upsertRoom(
         room.localUuid,
-        _filterPayload('rooms', _addIdempotencyKey(payload, entry)),
+        _filterPayload('rooms', _addIdempotencyKey(occPayload, entry)),
       );
     } catch (e) {
       // ✅ إذا فشل الرفع بسبب حقل idempotencyKey غير موجود، نُعيد المحاولة بدونه
@@ -2805,7 +2857,7 @@ class AppwriteSyncManager {
         );
         await appwriteService.upsertRoom(
           room.localUuid,
-          _filterPayload('rooms', payload), // بدون idempotencyKey
+          _filterPayload('rooms', occPayload), // بدون idempotencyKey
         );
       } else {
         rethrow;
@@ -2874,7 +2926,7 @@ class AppwriteSyncManager {
         );
         await appwriteService.upsertBooking(
           booking.localUuid,
-          _filterPayload('bookings', payload), // بدون idempotencyKey
+          _filterPayload('bookings', occPayload), // بدون idempotencyKey
         );
       } else {
         rethrow;
@@ -3180,10 +3232,15 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.guestInfoToRemote(info);
+    final occPayload = await _occPushCheck(
+      entity: 'guest_infos',
+      documentId: info.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.guestInfosCollectionId,
       documentId: info.localUuid,
-      data: _filterPayload('guest_infos', _addIdempotencyKey(payload, entry)),
+      data: _filterPayload('guest_infos', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -3407,10 +3464,15 @@ class AppwriteSyncManager {
       withdrawal,
       employeeUuid: employee.localUuid,
     );
+    final occPayload = await _occPushCheck(
+      entity: 'salary_withdrawals',
+      documentId: withdrawal.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
       documentId: withdrawal.localUuid,
-      data: _filterPayload('salary_withdrawals', _addIdempotencyKey(payload, entry)),
+      data: _filterPayload('salary_withdrawals', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -4825,9 +4887,14 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.salaryPaymentToRemote(item);
+    final occPayload = await _occPushCheck(
+      entity: 'salary_payments',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertSalaryPayment(
       item.localUuid,
-      _filterPayload('salary_payments', _addIdempotencyKey(payload, entry)),
+      _filterPayload('salary_payments', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -4856,9 +4923,15 @@ class AppwriteSyncManager {
 
     final payload = _payloadMapper.cashTransactionToRemote(item);
 
+    final occPayload = await _occPushCheck(
+      entity: 'cash_transactions',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
+
     await appwriteService.upsertCashTransaction(
       item.localUuid,
-      _filterPayload('cash_transactions', _addIdempotencyKey(payload, entry)),
+      _filterPayload('cash_transactions', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -4886,10 +4959,15 @@ class AppwriteSyncManager {
     }
 
     final payload = _payloadMapper.shiftNoteToRemote(item);
+    final occPayload = await _occPushCheck(
+      entity: 'shift_notes',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
 
     await appwriteService.upsertShiftNote(
       item.localUuid,
-      _filterPayload('shift_notes', _addIdempotencyKey(payload, entry)),
+      _filterPayload('shift_notes', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -4928,10 +5006,15 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.salaryCarryOverLogToRemote(log);
+    final occPayload = await _occPushCheck(
+      entity: 'salary_carry_over_logs',
+      documentId: entry.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertDocument(
       collectionId: 'salary_carry_over_logs',
       documentId: entry.localUuid,
-      data: _filterPayload('salary_carry_over_logs', _addIdempotencyKey(payload, entry)),
+      data: _filterPayload('salary_carry_over_logs', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -4952,9 +5035,14 @@ class AppwriteSyncManager {
     }
 
     final payload = _blacklistToRemote(item);
+    final occPayload = await _occPushCheck(
+      entity: 'blacklist',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertBlacklist(
       item.localUuid,
-      _filterPayload('blacklist', _addIdempotencyKey(payload, entry)),
+      _filterPayload('blacklist', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -4999,10 +5087,15 @@ class AppwriteSyncManager {
     }
 
     final payload = _priceAdjustmentToRemote(localRow);
+    final occPayload = await _occPushCheck(
+      entity: 'price_adjustments',
+      documentId: localRow.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
       documentId: localRow.localUuid,
-      data: _filterPayload('price_adjustments', _addIdempotencyKey(payload, entry)),
+      data: _filterPayload('price_adjustments', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -5177,12 +5270,17 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.paymentVoidToRemote(voidRecord);
+    final occPayload = await _occPushCheck(
+      entity: 'payment_voids',
+      documentId: voidRecord.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.paymentVoidsCollectionId,
       documentId: voidRecord.localUuid,
       data: _filterPayload(
         'payment_voids',
-        _addIdempotencyKey(payload, entry),
+        _addIdempotencyKey(occPayload, entry),
       ),
     );
     return true;
@@ -5243,10 +5341,15 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.employeeToRemote(item);
+    final occPayload = await _occPushCheck(
+      entity: 'employees',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     try {
       await appwriteService.upsertEmployee(
         item.localUuid,
-        _filterPayload('employees', _addIdempotencyKey(payload, entry)),
+        _filterPayload('employees', _addIdempotencyKey(occPayload, entry)),
       );
     } catch (e) {
       if (e.toString().contains('attribute_not_found') ||
@@ -5291,10 +5394,14 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.bookingNoteToRemote(item);
-    // Note: booking notes often part of booking but if synced separately:
+    final occPayload = await _occPushCheck(
+      entity: 'booking_notes',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertBookingNote(
       item.localUuid,
-      _filterPayload('booking_notes', _addIdempotencyKey(payload, entry)),
+      _filterPayload('booking_notes', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -5321,9 +5428,14 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.bookingNightToRemote(item);
+    final occPayload = await _occPushCheck(
+      entity: 'booking_nights',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertBookingNight(
       item.localUuid,
-      _filterPayload('booking_nights', _addIdempotencyKey(payload, entry)),
+      _filterPayload('booking_nights', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -5350,7 +5462,6 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.salaryCycleToRemote(item);
-    // ✅ إضافة employeeUuid لربط دورة الراتب بالموظف عبر الأجهزة
     final employee = await (database.select(database.employees)
           ..where((e) => e.id.equals(item.employeeId))
           ..limit(1))
@@ -5359,9 +5470,14 @@ class AppwriteSyncManager {
       payload['employeeUuid'] = employee.localUuid;
       payload['employeeLocalUuid'] = employee.localUuid;
     }
+    final occPayload = await _occPushCheck(
+      entity: 'salary_cycles',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertSalaryCycle(
       item.localUuid,
-      _filterPayload('salary_cycles', _addIdempotencyKey(payload, entry)),
+      _filterPayload('salary_cycles', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -5394,10 +5510,15 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.bookingPriceAdjustmentToRemote(item);
+    final occPayload = await _occPushCheck(
+      entity: 'booking_price_adjustments',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
       documentId: item.localUuid,
-      data: _filterPayload('booking_price_adjustments', _addIdempotencyKey(payload, entry)),
+      data: _filterPayload('booking_price_adjustments', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
