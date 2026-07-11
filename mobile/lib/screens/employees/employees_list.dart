@@ -64,6 +64,16 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                         const Text('تحقّق من اتصال الشبكة وحاول مرة أخرى.',
                             style: TextStyle(fontSize: 12, color: Colors.grey),
                             textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        // ✅ زر إعادة محاولة يُشغّل مزامنة فعلية ويُعيد بناء الـ stream
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            ref.read(syncServiceProvider).runSync();
+                            setState(() => _refreshCounter++);
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('إعادة المحاولة'),
+                        ),
                       ],
                     ),
                   );
