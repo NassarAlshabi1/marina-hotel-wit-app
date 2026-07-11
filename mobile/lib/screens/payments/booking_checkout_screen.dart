@@ -1338,7 +1338,5 @@ class _CheckoutPaymentsList extends ConsumerWidget {
             ),
           ],
         );
-      },
-    );
   }
 }
