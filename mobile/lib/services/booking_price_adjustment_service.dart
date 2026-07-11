@@ -464,6 +464,7 @@ class BookingPriceAdjustmentService {
           roomNumber: Value(newRoomNumber),
           updatedAt: Value(now),
           lastModified: Value(now),
+          version: Value(adj.version + 1),
         ),
       );
 
