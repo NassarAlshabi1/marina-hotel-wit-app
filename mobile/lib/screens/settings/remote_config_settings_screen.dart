@@ -83,7 +83,10 @@ class _RemoteConfigSettingsScreenState
               ),
               _buildConfigRow(
                 'WhatsApp مفعّل',
-                (values['whatsapp_enabled'] as bool?)?.toString() ?? '---',
+                // ✅ فحص النوع قبل التحويل — القيمة قد تصل كنص من الـ remote config
+                (values['whatsapp_enabled'] is bool)
+                    ? values['whatsapp_enabled'].toString()
+                    : '---',
                 'whatsapp_enabled',
                 isBool: true,
               ),
@@ -165,7 +168,8 @@ class _RemoteConfigSettingsScreenState
               ),
               _buildConfigRow(
                 'سقف مضاعف السعر',
-                '${(values['max_rate_multiplier'] as double?)?.toStringAsFixed(1) ?? '3.0'}x',
+                // ✅ يقبل num (int/double) بأمان بدل التحويل الصريح إلى double الذي يرمي استثناءً
+                '${(values['max_rate_multiplier'] is num) ? (values['max_rate_multiplier'] as num).toStringAsFixed(1) : '3.0'}x',
                 'max_rate_multiplier',
               ),
             ],

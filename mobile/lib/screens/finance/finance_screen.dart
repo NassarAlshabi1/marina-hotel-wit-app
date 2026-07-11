@@ -104,9 +104,15 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
               // ✅ BUG FIX: كان `setState(() {})` فقط لا يُعيد جلب البيانات من
               // الـ repository — المستخدم يسحب للأسفل ويرى نفس البيانات القديمة.
               // invalidate يُجبر الـ providers على إعادة الجلب من المصدر.
+              // ✅ ننتظر اكتمال إعادة الجلب فعليًا حتى تبقى دائرة التحديث ظاهرة
+              // إلى أن تصل البيانات الجديدة، بدل أن تختفي فورًا.
               onRefresh: () async {
                 ref.invalidate(todayPaymentsProvider);
                 ref.invalidate(todayExpensesProvider);
+                await Future.wait<void>([
+                  ref.read(todayPaymentsProvider.future),
+                  ref.read(todayExpensesProvider.future),
+                ]);
               },
               child: _buildBody(income, expenses, balance),
             );
