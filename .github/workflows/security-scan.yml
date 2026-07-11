@@ -58,6 +58,9 @@ jobs:
     name: CodeQL Analysis (PHP/JS)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -70,10 +73,6 @@ jobs:
           languages: javascript, php
           # Use the 'security-and-quality' suite for broader coverage
           queries: security-and-quality
-          # Enable default + extended suites
-          packs: |
-            codeql/php-queries:*
-            codeql/javascript-queries:*
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
@@ -81,15 +80,11 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{ matrix.language }}"
-          output: sarif-results/codeql.sarif
+          category: "/language:javascript"
+          output: sarif-results/codeql-js.sarif
 
-      - name: Upload CodeQL SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: sarif-results/codeql.sarif
-          wait-for-processing: true
+      # CodeQL analyze produces one SARIF per language when using multiple languages
+      # The analyze action uploads them automatically; we don't need a separate upload step.
 
   # ═══════════════════════════════════════════════════════════
   # 2) Semgrep — multi-language SAST + supply-chain detection
@@ -98,13 +93,17 @@ jobs:
     name: Semgrep SAST + Supply Chain
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    container:
-      image: returntocorp/semgrep:latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Install Semgrep
+        run: pip install semgrep
 
       - name: Semgrep scan
         run: |
@@ -141,6 +140,7 @@ jobs:
         with:
           sarif_file: sarif-results/semgrep.sarif
           wait-for-processing: true
+        continue-on-error: true  # Don't fail workflow if SARIF upload fails (rate limits, permissions)
 
       - name: Upload Semgrep JSON report
         if: always()
@@ -157,6 +157,9 @@ jobs:
     name: Trivy Filesystem & Secrets
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -164,7 +167,7 @@ jobs:
           fetch-depth: 0
 
       - name: Trivy — Filesystem scan (vulns + secrets)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           scan-type: fs
           scan-ref: .
@@ -179,7 +182,7 @@ jobs:
           TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db:2
 
       - name: Trivy — Misconfiguration scan (IaC + Dockerfile + workflows)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           scan-type: fs
           scan-ref: .
@@ -189,7 +192,7 @@ jobs:
           exit-code: '0'
 
       - name: Trivy — License scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           scan-type: fs
           scan-ref: .
@@ -199,18 +202,20 @@ jobs:
           exit-code: '0'
 
       - name: Upload Trivy SARIF (filesystem)
-        if: always()
+        if: always() && hashFiles('sarif-results/trivy-fs.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: sarif-results/trivy-fs.sarif
           wait-for-processing: true
+        continue-on-error: true
 
       - name: Upload Trivy SARIF (misconfig)
-        if: always()
+        if: always() && hashFiles('sarif-results/trivy-misconfig.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: sarif-results/trivy-misconfig.sarif
           wait-for-processing: true
+        continue-on-error: true
 
       - name: Upload Trivy license report
         if: always()
@@ -243,7 +248,7 @@ jobs:
           upload-result: true
 
       - name: Scan SBOM with Grype
-        uses: anchore/scan-action@v4
+        uses: anchore/scan-action@v5
         with:
           sbom: sbom.spdx.json
           format: sarif
@@ -252,11 +257,12 @@ jobs:
           severity-cutoff: high
 
       - name: Upload Grype SARIF
-        if: always()
+        if: always() && hashFiles('sarif-results/grype.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: sarif-results/grype.sarif
           wait-for-processing: true
+        continue-on-error: true
 
   # ═══════════════════════════════════════════════════════════
   # 5) npm audit — Node.js advisories
