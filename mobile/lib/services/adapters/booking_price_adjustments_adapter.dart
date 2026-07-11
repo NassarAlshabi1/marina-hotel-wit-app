@@ -120,7 +120,7 @@ class BookingPriceAdjustmentsAdapter
       ),
       // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
       // نقرأه كـ double للمحلي (integer على Cloud → double محلياً)
-      amount: _vDouble(json, 'amount', src, fallback: 0),
+      amount: _vDouble(json, 'amount', src),
       effectiveHotelDay: _vStr(
         json,
         'effectiveHotelDay',

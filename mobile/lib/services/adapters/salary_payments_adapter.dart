@@ -115,7 +115,7 @@ class SalaryPaymentsAdapter
           : (src == Source.appwrite || src == Source.drive)
               ? const d.Value.absent() // يتيمة — لا نستخدم القيمة الخامة البعيدة
               : _vInt(json, 'cycleId', src, altKey: 'cycle_id', fallback: 0),
-      amount: _vInt(json, 'amount', src, fallback: 0),
+      amount: _vInt(json, 'amount', src),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       paymentDateIso: _vStr(
         json,

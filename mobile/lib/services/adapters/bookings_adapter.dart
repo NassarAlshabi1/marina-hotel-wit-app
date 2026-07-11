@@ -155,7 +155,6 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
         'discount',
         src,
         altKey: 'discount',
-        fallback: 0,
       ),
       discountType: _vStr(
         json,
