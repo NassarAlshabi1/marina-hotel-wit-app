@@ -118,6 +118,9 @@ class GuestInfosRepository {
         return;
       }
 
+      // ✅ OCC: فحص version في WHERE لمنع lost update
+      // إذا عدّل جهاز آخر السجل بين القراءة والكتابة، لن يطابق الشرط
+      // وسيُرجع 0 صفوف → نكتشف التعارض بدلاً من طمس التعديل الآخر
       await (_db.update(_db.guestInfos)
             ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
           .write(
@@ -176,6 +179,7 @@ class GuestInfosRepository {
       }
 
       // soft delete: تعيين deletedAt بدلاً من حذف فعلي
+      // ✅ OCC: فحص version في WHERE لمنع lost update
       await (_db.update(_db.guestInfos)
             ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
           .write(
