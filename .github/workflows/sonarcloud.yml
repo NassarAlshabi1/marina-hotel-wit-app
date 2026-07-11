@@ -69,8 +69,13 @@ jobs:
           unzip -o $HOME/.sonar/sonar-scanner.zip -d $HOME/.sonar/
           export PATH=$SONAR_SCANNER_HOME/bin:$PATH
           export SONAR_SCANNER_OPTS="-server"
+          # Point sonar-scanner at the Flutter/Dart sources and test/coverage outputs
           sonar-scanner \
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }} \
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
             -Dsonar.sources=mobile/lib \
+            -Dsonar.tests=mobile/test \
+            -Dsonar.inclusions=mobile/lib/**,mobile/pubspec.yaml \
+            -Dsonar.coverageReportPaths=mobile/coverage/lcov.info \
+            -Dsonar.login=$SONAR_TOKEN \
             -Dsonar.host.url=https://sonarcloud.io
