@@ -151,7 +151,7 @@ void main() {
         expect(result.mergedData['status'], equals('remote_status'));
       });
 
-      test('concurrentSameFields with critical field escalates to manual', () {
+      test('concurrentSameFields with critical field resolves via LWW (not manual)', () {
         final result = SmartConflictResolver.resolve(
           entity: 'expenses',
           localData: {
@@ -170,7 +170,12 @@ void main() {
             'lastModified': 500,
           },
         );
-        expect(result.strategy, equals(ResolutionStrategy.manualEscalation));
+        expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
+        // After commit fffa6a37 ("fully automatic conflict resolution"),
+        // critical fields no longer escalate to manual. Instead they resolve
+        // via LWW (Last Write Wins) inside fieldLevelMerge.
+        // The remote has lastModified=2000 > local=1000, so remote value wins.
+        expect(result.mergedData?['amount'], equals(200.0));
         expect(result.warnings, isNotEmpty);
       });
     });
@@ -362,7 +367,7 @@ void main() {
         expect(result.mergedData['status'], equals('remote'));
       });
 
-      test('rooms: price escalates to manual', () {
+      test('rooms: price resolves via LWW (not manual)', () {
         final result = SmartConflictResolver.resolve(
           entity: 'rooms',
           localData: {
@@ -381,10 +386,14 @@ void main() {
             'lastModified': 500,
           },
         );
-        expect(result.strategy, equals(ResolutionStrategy.manualEscalation));
+        expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
+        // After commit fffa6a37, 'price' on rooms uses LWW instead of manual escalation.
+        // Remote (lastModified=2000) is newer than local (lastModified=1000),
+        // so the remote price (200.0) should win.
+        expect(result.mergedData?['price'], equals(200.0));
       });
 
-      test('payments: amount escalates to manual', () {
+      test('payments: amount resolves via LWW (not manual)', () {
         final result = SmartConflictResolver.resolve(
           entity: 'payments',
           localData: {
@@ -403,10 +412,14 @@ void main() {
             'lastModified': 500,
           },
         );
-        expect(result.strategy, equals(ResolutionStrategy.manualEscalation));
+        expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
+        // After commit fffa6a37, 'amount' on payments uses LWW instead of manual escalation.
+        // Remote (lastModified=2000) is newer than local (lastModified=1000),
+        // so the remote amount (200.0) should win.
+        expect(result.mergedData?['amount'], equals(200.0));
       });
 
-      test('debts: all fields escalate to manual', () {
+      test('debts: all fields resolve via LWW (not manual)', () {
         final result = SmartConflictResolver.resolve(
           entity: 'debts',
           localData: {
@@ -425,7 +438,11 @@ void main() {
             'lastModified': 500,
           },
         );
-        expect(result.strategy, equals(ResolutionStrategy.manualEscalation));
+        expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
+        // After commit fffa6a37, 'totalAmount' on debts uses LWW instead of manual escalation.
+        // Remote (lastModified=2000) is newer than local (lastModified=1000),
+        // so the remote totalAmount (200.0) should win.
+        expect(result.mergedData?['totalAmount'], equals(200.0));
       });
 
       test('unknown entity uses default policy (newerWins)', () {
