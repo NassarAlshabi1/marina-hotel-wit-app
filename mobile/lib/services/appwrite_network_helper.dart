@@ -26,71 +26,92 @@ class AppwriteNetworkHelper {
   // Appwrite Cloud يفرض حدوداً لكل مشروع/مستخدم؛ التأخير الأدنى يقلل
   // احتمال تجاوزها في push flow حيث تتوالى updateDocument بشكل مكثّف.
   //
-  // ✅ إصلاح (2026-07-11): رفع التأخير من 120ms إلى 600ms (1.6 req/s)
-  // لأن Appwrite Cloud Free tier يفرض ~2 req/s. الـ 120ms السابق (8.3 req/s)
+  // ✅ إصلاح (2026-07-11 hotfix): رفع التأخير من 600ms إلى 1000ms (60 req/min).
+  // Appwrite Cloud Free tier يفرض ~60 req/min. الـ 600ms السابق (100 req/min)
   // كان يسبب إغراق السيرفر بـ 429s متتالية.
   // ─────────────────────────────────────────────────────────────────────
-  static const Duration _minRequestInterval = Duration(milliseconds: 600);
+  static const Duration _minRequestInterval = Duration(milliseconds: 1000);
   DateTime _lastRequestTime =
       DateTime.fromMillisecondsSinceEpoch(0);
 
   // ─────────────────────────────────────────────────────────────────────
   // Circuit Breaker — يحمي من إغراق الخادم عند تكرار 429.
   //
-  // ✅ إصلاح (2026-07-11): progressive cooldown بدلاً من 60s ثابت.
-  // كل تفعيل جديد يضاعف المدة: 60s → 120s → 300s → 600s → 600s...
-  // هذا يمنع الحلقة المفرغة حيث يُعاد تفعيله فوراً بعد انتهاء الـ 60s.
+  // ✅ إصلاح (2026-07-11 hotfix): Circuit Breaker حقيقي بثلاث حالات:
+  //   CLOSED  — طبيعي، الطلبات تمر
+  //   OPEN    — مرفوضة فوراً دون اتصال بالسيرفر لمدة cooldown
+  //   HALF-OPEN — يُسمح بطلب واحد فقط للاختبار بعد انتهاء cooldown
+  //
+  // الإصلاحات الرئيسية:
+  //   1. عند OPEN، نرفض الطلبات فوراً (fail fast) بدلاً من الانتظار.
+  //      هذا يمنع race condition حيث threads متعددة تنتظر وتُعيد ضبط الحالة.
+  //   2. لا نُعيد ضبط _consecutiveRateLimitHits إلا عند طلب ناجح فعلياً.
+  //   3. progressive cooldown: 60s → 120s → 300s → 600s.
   // ─────────────────────────────────────────────────────────────────────
   int _consecutiveRateLimitHits = 0;
   static const int _circuitBreakerThreshold = 5;
   DateTime? _circuitBreakerUntil;
-  int _circuitBreakerActivationCount = 0; // لزيادة المدة تدريجياً
+  int _circuitBreakerActivationCount = 0;
   static const List<Duration> _progressiveCooldowns = [
     Duration(seconds: 60),
     Duration(seconds: 120),
     Duration(seconds: 300),
     Duration(seconds: 600),
   ];
+  // قفل لتسلسل الوصول لحالة الـ breaker (يمنع race conditions)
+  final _breakerLock = _AsyncLock();
 
   /// ينتظر حتى يصبح مسموحاً بإطلاق طلب جديد (للحفاظ على rate limit).
   ///
-  /// ✅ إصلاح حرج (2026-07-11): بدلاً من رمي AppwriteException(429) عندما
-  /// الـ circuit breaker مفعّل (مما يسبب حلقة مفرغة — الاستثناء يُلتقط
-  /// في withRetry ويُعامل كـ 429 جديد فيزيد العداد)، ننتظر فعلياً حتى
-  /// انتهاء فترة التهدئة ثم نُكمل. هذا يكسر الحلقة المفرغة.
+  /// ✅ إصلاح حرج (2026-07-11 hotfix): Circuit Breaker حقيقي.
+  ///
+  /// عند OPEN: يرفض الطلب فوراً (fail fast) بدلاً من الانتظار.
+  /// هذا يمنع:
+  ///   1. race condition حيث threads متعددة تنتظر وتُعيد ضبط الحالة
+  ///   2. استمرار العداد في النمو بدون توقف
+  ///   3. استهلاك الموارد في انتظار بلا فائدة
+  ///
+  /// الـ exception المُرمي يحمل نوع 'circuit_breaker_active' حتى يتمكن
+  /// withRetry من تمييزه عن 429 الحقيقي من السيرفر.
   Future<void> _acquireRequestSlot() async {
-    // 1) فحص circuit breaker — انتظر بدلاً من رمي استثناء
-    if (_circuitBreakerUntil != null) {
-      final now = DateTime.now();
-      if (now.isBefore(_circuitBreakerUntil!)) {
-        final remaining = _circuitBreakerUntil!.difference(now);
-        _logger.warning(
-          '⏳ Circuit breaker active — waiting ${remaining.inSeconds}s '
-          'before next request (instead of throwing 429)',
-          tag: 'RATE_LIMIT',
-        );
-        await Future<void>.delayed(remaining);
-        // بعد الانتظار، أعد الضبط
-        _circuitBreakerUntil = null;
-        _consecutiveRateLimitHits = 0;
-      } else {
-        // انتهت فترة التهدئة — أعد الضبط
-        _circuitBreakerUntil = null;
-        _consecutiveRateLimitHits = 0;
+    // ✅ إصلاح (2026-07-11 hotfix): استخدم lock لمنع race conditions
+    // عندما threads متعددة تحاول اكتساب slot في وقت واحد.
+    return _breakerLock.synchronize(() async {
+      // 1) فحص circuit breaker — fail fast بدلاً من الانتظار
+      if (_circuitBreakerUntil != null) {
+        final now = DateTime.now();
+        if (now.isBefore(_circuitBreakerUntil!)) {
+          final remaining = _circuitBreakerUntil!.difference(now);
+          // ✅ إصلاح: لا ننتظر — نرمي استثناء فوراً.
+          // هذا يكسر الحلقة المفرغة: withRetry سيرى circuit_breaker_active
+          // وينتظر فعلياً دون زيادة عداد 429.
+          throw AppwriteException(
+            'Circuit breaker active — rate limit cooldown. '
+            'Retry in ${remaining.inSeconds}s.',
+            429,
+            'circuit_breaker_active',
+          );
+        } else {
+          // ✅ انتهت فترة التهدئة — انتقل إلى HALF-OPEN:
+          // نُعيد ضبط _circuitBreakerUntil لكن نحتفظ بـ _consecutiveRateLimitHits
+          // حتى لا يُعاد تفعيل الـ breaker فوراً عند أول 429.
+          // الـ request القادم سيمر (HALF-OPEN) — إن نجح، يُصفّر العداد.
+          _circuitBreakerUntil = null;
+        }
       }
-    }
 
-    // 2) احترام التأخير الأدنى بين الطلبات
-    // ✅ إصلاح سباق: نحجز فتحة الطلب التالية بشكل متزامن *قبل* الـ await.
-    final now = DateTime.now();
-    final scheduledTime = _lastRequestTime.add(_minRequestInterval).isAfter(now)
-        ? _lastRequestTime.add(_minRequestInterval)
-        : now;
-    _lastRequestTime = scheduledTime;
-    final wait = scheduledTime.difference(now);
-    if (wait > Duration.zero) {
-      await Future<void>.delayed(wait);
-    }
+      // 2) احترام التأخير الأدنى بين الطلبات
+      // ✅ إصلاح سباق: نحجز فتحة الطلب التالية بشكل متزامن *قبل* الـ await.
+      final now = DateTime.now();
+      final scheduledTime = _lastRequestTime.add(_minRequestInterval).isAfter(now)
+          ? _lastRequestTime.add(_minRequestInterval)
+          : now;
+      _lastRequestTime = scheduledTime;
+      final wait = scheduledTime.difference(now);
+      if (wait > Duration.zero) {
+        await Future<void>.delayed(wait);
+      }
+    });
   }
 
   /// يُستدعى عند نجاح أي طلب — يصفّر عدّاد circuit breaker.
@@ -166,6 +187,23 @@ class AppwriteNetworkHelper {
         _onRequestSuccess();
         return result;
       } catch (e) {
+        // ✅ إصلاح (2026-07-11 hotfix): ميز circuit_breaker_active عن 429 الحقيقي.
+        // circuit_breaker_active = الخطأ من _acquireRequestSlot (محلي، لا يستهلك محاولة).
+        // 429 الحقيقي = الخطأ من السيرفر (يستهلك محاولة + يزيد العداد).
+        if (_isCircuitBreakerActive(e)) {
+          // ✅ الـ breaker مُفعّل — انتظر حتى انتهاء cooldown دون زيادة العداد.
+          // لا نستهلك محاولة (attempt لا تزيد).
+          attempt--;
+          final remaining = circuitBreakerRemaining ?? const Duration(seconds: 60);
+          _logger.warning(
+            '$opName - Circuit breaker active, waiting ${remaining.inSeconds}s '
+            'before retry (attempt not consumed).',
+            tag: 'RATE_LIMIT',
+          );
+          await Future<void>.delayed(remaining);
+          continue;
+        }
+
         // ✅ معالجة 429 بأولوية: backoff أطول + احترام Retry-After
         if (_isRateLimitError(e)) {
           _onRateLimitHit();
@@ -182,7 +220,16 @@ class AppwriteNetworkHelper {
 
           // احسب وقت الانتظار: استخدم Retry-After إذا توفّر، وإلا استخدم
           // backoff متدرّجاً مخصصاً لـ 429 (5s, 15s, 45s, 120s).
-          final waitTime = _extractRetryAfter(e) ?? _rateLimitBackoff(attempt);
+          // ✅ إصلاح (2026-07-11 hotfix): حد أدنى 60s لاحترام الـ rate limit
+          // بدلاً من 5s, 15s (التي تسبب إعادة 429 فوراً).
+          final extractedRetryAfter = _extractRetryAfter(e);
+          final backoff = _rateLimitBackoff(attempt);
+          // استخدم القيمة الأكبر بين Retry-After و backoff، مع حد أدنى 60s
+          final waitTime = [
+            extractedRetryAfter ?? Duration.zero,
+            backoff,
+            const Duration(seconds: 60), // ✅ حد أدنى 60s
+          ].reduce((a, b) => a > b ? a : b);
           _logger.warning(
             '$opName - 429 rate limit on attempt $attempt/$retries. '
             'Waiting ${waitTime.inSeconds}s before retry.',
@@ -462,13 +509,12 @@ class AppwriteNetworkHelper {
   /// ✅ جديد: حالة الـ circuit breaker — يُستخدم من sync manager لإيقاف
   /// المزامنة مؤقتاً عند تفعّله.
   ///
-  /// ✅ إصلاح (2026-07-11): أعد ضبط عدّاد التفعيلات عند انتهاء الـ cooldown.
+  /// ✅ إصلاح (2026-07-11 hotfix): لا نُعيد ضبط العداد هنا — يتم في _onRequestSuccess.
   bool get isCircuitBreakerActive {
     if (_circuitBreakerUntil == null) return false;
     if (DateTime.now().isBefore(_circuitBreakerUntil!)) return true;
+    // انتهت فترة التهدئة — انتقل إلى HALF-OPEN
     _circuitBreakerUntil = null;
-    _consecutiveRateLimitHits = 0;
-    _circuitBreakerActivationCount = 0;
     return false;
   }
 
@@ -477,5 +523,45 @@ class AppwriteNetworkHelper {
     if (_circuitBreakerUntil == null) return null;
     final remaining = _circuitBreakerUntil!.difference(DateTime.now());
     return remaining.isNegative ? null : remaining;
+  }
+
+  /// ✅ إصلاح (2026-07-11 hotfix): يكتشف ما إذا كان الخطأ من circuit breaker
+  /// المحلي (type: 'circuit_breaker_active') بدلاً من 429 حقيقي من السيرفر.
+  /// هذا يمنع الحلقة المفرغة حيث يُعامل خطأ الـ breaker كـ 429 جديد فيزيد العداد.
+  bool _isCircuitBreakerActive(dynamic error) {
+    if (error is AppwriteException) {
+      final type = (error.type ?? '').toLowerCase();
+      if (type.contains('circuit_breaker_active')) return true;
+    }
+    final errorStr = error.toString().toLowerCase();
+    return errorStr.contains('circuit_breaker_active');
+  }
+}
+
+/// ✅ إصلاح (2026-07-11 hotfix): قفل async بسيط لتسلسل الوصول لحالة الـ breaker.
+/// يمنع race conditions عندما threads متعددة تحاول _acquireRequestSlot في وقت واحد.
+class _AsyncLock {
+  Completer<void>? _completer;
+
+  Future<void> acquire() async {
+    while (_completer != null) {
+      await _completer!.future;
+    }
+    _completer = Completer<void>();
+  }
+
+  void release() {
+    final c = _completer;
+    _completer = null;
+    c?.complete();
+  }
+
+  Future<T> synchronize<T>(Future<T> Function() action) async {
+    await acquire();
+    try {
+      return await action();
+    } finally {
+      release();
+    }
   }
 }
