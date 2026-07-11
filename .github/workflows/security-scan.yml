@@ -324,12 +324,12 @@ jobs:
           retention-days: 30
 
   # ═══════════════════════════════════════════════════════════
-  # 6) Flutter/Dart — pub security check
+  # 6) Flutter/Dart — pub.dev advisories + discontinued detection
   # ═══════════════════════════════════════════════════════════
   pub-security:
-    name: Flutter pub security check
+    name: Flutter/Dart pub.dev advisories
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: mobile
@@ -346,28 +346,148 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Flutter pub outdated
-        run: flutter pub outdated || true
-
-      - name: Dart pub security check
-        # `dart pub audit` is available since Dart 3.4
+      - name: Flutter pub outdated (captures discontinued packages)
+        # `flutter pub outdated` is the official Dart tool that surfaces
+        # 'discontinued' packages — these no longer receive security patches.
         run: |
           set -euo pipefail
-          if dart pub audit --help >/dev/null 2>&1; then
-            echo "Running dart pub audit..."
-            dart pub audit --output=json > ../pub-audit.json || true
-            dart pub audit || true
-          else
-            echo "::notice::dart pub audit not available in this SDK version"
-            echo '{"skipped":true}' > ../pub-audit.json
-          fi
+          flutter pub outdated > ../pub-outdated.txt 2>&1 || true
+          cat ../pub-outdated.txt
 
-      - name: Upload pub audit report
+      - name: Scan pub.dev advisories API for all locked packages
+        # NOTE: `dart pub audit` does NOT exist as of Dart 3.9.
+        # The official security advisories live at pub.dev/api/packages/<pkg>
+        # under the `advisories` and `isDiscontinued` fields.
+        # This script iterates pubspec.lock and queries each package.
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF' > ../pub-security-report.json
+          import json, urllib.request, time, sys, yaml
+
+          with open('pubspec.lock') as f:
+              lock = yaml.safe_load(f)
+          packages = lock.get('packages', {})
+
+          findings = {
+              'scanned_at': __import__('datetime').datetime.utcnow().isoformat() + 'Z',
+              'total_packages': len(packages),
+              'discontinued': [],
+              'advisories': [],
+              'errors': [],
+          }
+
+          for i, (name, info) in enumerate(packages.items()):
+              try:
+                  url = f'https://pub.dev/api/packages/{name}'
+                  req = urllib.request.Request(url, headers={'Accept': 'application/json'})
+                  with urllib.request.urlopen(req, timeout=10) as r:
+                      data = json.loads(r.read())
+                  if data.get('isDiscontinued', False):
+                      findings['discontinued'].append({
+                          'package': name,
+                          'installed_version': info.get('version', '?'),
+                          'latest_version': data.get('latest', {}).get('version', '?'),
+                      })
+                  advs = data.get('advisories', []) or []
+                  for a in advs:
+                      findings['advisories'].append({
+                          'package': name,
+                          'installed_version': info.get('version', '?'),
+                          'advisory_id': a.get('id', '?'),
+                          'summary': a.get('summary', ''),
+                          'affected_versions': a.get('affected_versions', ''),
+                          'fixed_version': a.get('fixed_version', ''),
+                          'published': a.get('published', ''),
+                      })
+                  # Be gentle with pub.dev (avoid rate limits)
+                  time.sleep(0.1)
+              except Exception as e:
+                  findings['errors'].append({'package': name, 'error': str(e)})
+
+          print(json.dumps(findings, indent=2))
+          PYEOF
+          cat ../pub-security-report.json
+
+      - name: Build SARIF for pub.dev findings
+        # Convert discontinued + advisories into SARIF so they appear in
+        # GitHub Security tab alongside CodeQL/Semgrep/Trivy findings.
+        run: |
+          set -euo pipefail
+          mkdir -p ../sarif-results
+          python3 - <<'PYEOF' > ../sarif-results/pub-security.sarif
+          import json
+          with open('../pub-security-report.json') as f:
+              data = json.load(f)
+
+          results = []
+          for d in data.get('discontinued', []):
+              results.append({
+                  'ruleId': 'pub-discontinued',
+                  'level': 'warning',
+                  'message': {
+                      'text': f"Package '{d['package']}' is DISCONTINUED — "
+                              f"installed {d['installed_version']}, latest {d['latest_version']}. "
+                              f"Discontinued packages receive no security patches."
+                  },
+                  'locations': [{
+                      'physicalLocation': {
+                          'artifactLocation': {'uri': 'mobile/pubspec.lock'}
+                      }
+                  }],
+                  'partialFingerprints': {'primaryLocationLineHash': d['package']},
+              })
+          for a in data.get('advisories', []):
+              results.append({
+                  'ruleId': 'pub-advisory',
+                  'level': 'error',
+                  'message': {
+                      'text': f"{a['advisory_id']} on '{a['package']}' "
+                              f"({a['installed_version']}): {a['summary']}"
+                  },
+                  'locations': [{
+                      'physicalLocation': {
+                          'artifactLocation': {'uri': 'mobile/pubspec.lock'}
+                      }
+                  }],
+              })
+
+          sarif = {
+              '$schema': 'https://docs.oasis-open.org/sarif/sarif/v2.1.0/cos02/schemas/sarif-schema-2.1.0.json',
+              'version': '2.1.0',
+              'runs': [{
+                  'tool': {
+                      'driver': {
+                          'name': 'pub.dev advisories',
+                          'informationUri': 'https://pub.dev/security-advisories',
+                          'rules': [
+                              {'id': 'pub-discontinued', 'name': 'DiscontinuedPackage',
+                               'shortDescription': {'text': 'Package marked discontinued on pub.dev'}},
+                              {'id': 'pub-advisory', 'name': 'PubSecurityAdvisory',
+                               'shortDescription': {'text': 'Security advisory published on pub.dev'}},
+                          ]
+                      }
+                  },
+                  'results': results,
+              }]
+          }
+          print(json.dumps(sarif, indent=2))
+          PYEOF
+
+      - name: Upload pub security SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sarif-results/pub-security.sarif
+          wait-for-processing: true
+
+      - name: Upload pub security reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pub-audit-report
-          path: pub-audit.json
+          name: pub-security-report
+          path: |
+            pub-security-report.json
+            pub-outdated.txt
           if-no-files-found: ignore
           retention-days: 30
 
