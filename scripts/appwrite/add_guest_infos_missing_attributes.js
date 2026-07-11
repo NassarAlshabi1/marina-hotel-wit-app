@@ -60,15 +60,13 @@ const missingAttributes = [
   { key: 'notes', type: 'string', size: 2000, required: false },
 ];
 
-async function attributeExists(attrKey) {
-  try {
+(function() {
+  function attributeExists(attrKey) {
     // محاولة listAttributes تحتاج API key — نستخدم محاولة create
     // ونلتقط خطأ "already exists"
-    return false; // سنجرب الإنشاء ونلتقط الخطأ
-  } catch (e) {
     return false;
   }
-}
+})();
 
 async function createAttribute(attr) {
   const { key, type, size, required } = attr;
