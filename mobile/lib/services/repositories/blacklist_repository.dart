@@ -206,15 +206,18 @@ class BlacklistRepository {
     } catch (e) { debugPrint('WARN: Failed to parse blacklist JSON: $e'); }
     payload['active'] = active;
     final now = Time.nowEpoch();
+    // ✅ bump version + OCC: فحص version في WHERE لمنع lost update
     final updated =
-        await (db.update(db.shiftNotes)..where((t) => t.id.equals(id))).write(
-          ShiftNotesCompanion(
-            content: d.Value(jsonEncode(payload)),
-            updatedAt: d.Value(now),
-            lastModified: d.Value(now),
-            version: d.Value(row.version + 1),
-          ),
-        );
+        await (db.update(db.shiftNotes)
+              ..where((t) => t.id.equals(id) & t.version.equals(row.version)))
+          .write(
+            ShiftNotesCompanion(
+              content: d.Value(jsonEncode(payload)),
+              updatedAt: d.Value(now),
+              lastModified: d.Value(now),
+              version: d.Value(row.version + 1),
+            ),
+          );
 
     if (updated > 0) {
       await _outboxDao.merge(
@@ -252,7 +255,9 @@ class BlacklistRepository {
     final oldPayload = jsonDecode(row.content) as Map<String, dynamic>;
     final now = Time.nowEpoch();
     final updated =
-        await (db.update(db.shiftNotes)..where((t) => t.id.equals(id))).write(
+        await (db.update(db.shiftNotes)
+              ..where((t) => t.id.equals(id) & t.version.equals(row.version)))
+            .write(
           ShiftNotesCompanion(
             title: d.Value(name.trim()),
             content: d.Value(

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart' as d;
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -319,8 +319,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       await (db.update(db.bookingNights)
             ..where((n) => n.id.equals(nightId)))
           .write(BookingNightsCompanion(
-            deletedAt: d.Value(nowEpoch),
-            updatedAt: d.Value(nowEpoch),
+            deletedAt: Value(nowEpoch),
+            updatedAt: Value(nowEpoch),
           ));
     }
     // ✅ تسجيل التغيير فوراً ليُرفع للسحابة في الـ sync القادم

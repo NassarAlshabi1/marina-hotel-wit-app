@@ -108,6 +108,7 @@ class PaymentVoidService {
             );
 
         // 3) تحديث الدفعة الأصلية: isVoided=true + voidedAt + voidedBy
+        // ✅ bump version لتفعيل OCC عند الدفع لاحقاً
         await (_db.update(_db.payments)
               ..where((t) => t.localUuid.equals(paymentUuid)))
             .write(PaymentsCompanion(

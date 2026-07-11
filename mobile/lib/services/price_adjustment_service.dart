@@ -88,6 +88,7 @@ class PriceAdjustmentService {
     // ─── إصلاح BUG المزامنة: إنشاء outbox entry لتحديث الغرفة ───
     // التحديث المباشر لـ rooms يتجاوز RoomsDao ولا يُنشئ outbox entry،
     // لذلك نُنشئه يدوياً لضمان مزامنة السعر الجديد.
+    // ✅ bump version لتفعيل OCC عند الدفع لاحقاً
     await (db.update(db.rooms)..where((r) => r.roomNumber.equals(roomNumber)))
         .write(RoomsCompanion(
           price: Value(newPrice),
