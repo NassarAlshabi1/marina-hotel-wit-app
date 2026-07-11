@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart' as d;
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -319,8 +319,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       await (db.update(db.bookingNights)
             ..where((n) => n.id.equals(nightId)))
           .write(BookingNightsCompanion(
-            deletedAt: d.Value(nowEpoch),
-            updatedAt: d.Value(nowEpoch),
+            deletedAt: Value(nowEpoch),
+            updatedAt: Value(nowEpoch),
           ));
     }
     // ✅ تسجيل التغيير فوراً ليُرفع للسحابة في الـ sync القادم
@@ -601,81 +601,85 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text(
-                        'المدفوعات السابقة',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        flex: 2,
-                        child: _CheckoutPaymentsList(
-                          payments: snapshot.data ?? const <Payment>[],
-                          totalDue: totalDue,
-                          onRefresh: _refreshBookingNights,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                       StreamBuilder<List<Payment>>(
                         stream: paymentsRepo.paymentsByBooking(
                           widget.booking.id,
                         ),
                         builder: (context, snapshot) {
-                          final totalPaid =
-                              snapshot.data
-                                  ?.where((p) => !p.isVoided)
-                                  .fold<double>(
-                                    0,
-                                    (sum, payment) => sum + payment.amount,
-                                  ) ??
-                              0.0;
+                          final payments = snapshot.data ?? const <Payment>[];
+                          final totalPaid = payments
+                              .where((p) => !p.isVoided)
+                              .fold<double>(
+                                0,
+                                (sum, payment) => sum + payment.amount,
+                              );
                           final remainingAmount =
                               (totalDue - totalPaid).clamp(0, totalDue).toDouble();
-                          return Row(
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
+                              Text(
+                                'المدفوعات السابقة',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 8),
                               Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: _isProcessing
-                                      ? null
-                                      : () => _addPayment(context),
-                                  icon: const Icon(Icons.add_circle),
-                                  label: const Text('إضافة دفعة جديدة'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.green,
-                                    foregroundColor: Colors.white,
-                                  ),
+                                flex: 2,
+                                child: _CheckoutPaymentsList(
+                                  payments: payments,
+                                  totalDue: totalDue,
+                                  onRefresh: _refreshBookingNights,
                                 ),
                               ),
-                              if (remainingAmount <= 0) ...[
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: _isProcessing
-                                        ? null
-                                        : () => _completeCheckout(context),
-                                    icon: const Icon(Icons.check_circle),
-                                    label: const Text('إتمام الحجز'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue,
-                                      foregroundColor: Colors.white,
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: _isProcessing
+                                          ? null
+                                          : () => _addPayment(context),
+                                      icon: const Icon(Icons.add_circle),
+                                      label: const Text('إضافة دفعة جديدة'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ] else ...[
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: _isProcessing
-                                        ? null
-                                        : () => _handleCheckout(context, remainingAmount, totalDue, suspiciousNights),
-                                    icon: const Icon(Icons.logout),
-                                    label: const Text('تسجيل خروج'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.orange,
-                                      foregroundColor: Colors.white,
+                                  if (remainingAmount <= 0) ...[
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed: _isProcessing
+                                            ? null
+                                            : () => _completeCheckout(context),
+                                        icon: const Icon(Icons.check_circle),
+                                        label: const Text('إتمام الحجز'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.blue,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              ],
+                                  ] else ...[
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed: _isProcessing
+                                            ? null
+                                            : () => _handleCheckout(context, remainingAmount, totalDue, suspiciousNights),
+                                        icon: const Icon(Icons.logout),
+                                        label: const Text('تسجيل خروج'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.orange,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ],
                           );
                         },
@@ -1338,7 +1342,5 @@ class _CheckoutPaymentsList extends ConsumerWidget {
             ),
           ],
         );
-      },
-    );
   }
 }

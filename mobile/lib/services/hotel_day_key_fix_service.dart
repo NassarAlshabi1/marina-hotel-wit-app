@@ -134,6 +134,7 @@ class HotelDayKeyFixService {
       for (final row in rows) {
         final correctKey = computeCorrectHotelDayKey(row.date);
         if (row.hotelDayKey != correctKey) {
+          // ✅ bump version + outbox لضمان مزامنة التصحيح مع Appwrite Cloud
           await (db.update(db.expenses)
                 ..where((t) => t.id.equals(row.id)))
               .write(ExpensesCompanion(
@@ -169,6 +170,7 @@ class HotelDayKeyFixService {
       for (final row in rows) {
         final correctKey = computeCorrectHotelDayKey(row.withdrawDate);
         if (row.hotelDayKey != correctKey) {
+          // ✅ bump version + outbox لضمان مزامنة التصحيح مع Appwrite Cloud
           await (db.update(db.salaryWithdrawals)
                 ..where((t) => t.id.equals(row.id)))
               .write(SalaryWithdrawalsCompanion(
@@ -446,6 +448,7 @@ class HotelDayKeyFixService {
         if (row.paymentDate.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.paymentDate);
         if (row.hotelDayKey != correctKey) {
+          // ✅ bump version + outbox لضمان مزامنة التصحيح مع Appwrite Cloud
           await (db.update(db.payments)
                 ..where((t) => t.id.equals(row.id)))
               .write(PaymentsCompanion(
@@ -480,6 +483,7 @@ class HotelDayKeyFixService {
         if (row.nightStart.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.nightStart);
         if (row.hotelDayKey != correctKey) {
+          // ✅ bump version + outbox لضمان مزامنة التصحيح مع Appwrite Cloud
           await (db.update(db.bookingNights)
                 ..where((t) => t.id.equals(row.id)))
               .write(BookingNightsCompanion(

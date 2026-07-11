@@ -464,6 +464,7 @@ class BookingPriceAdjustmentService {
           roomNumber: Value(newRoomNumber),
           updatedAt: Value(now),
           lastModified: Value(now),
+          // ✅ bump version لتفعيل OCC عند الدفع لاحقاً
           version: Value(adj.version + 1),
         ),
       );

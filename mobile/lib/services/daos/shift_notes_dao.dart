@@ -117,6 +117,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
         version: Value(existing.version + 1),
       );
 
+      // ✅ OCC: فحص version في WHERE لمنع lost update
       final rows = await (update(shiftNotes)
             ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
           .write(companion);
@@ -170,7 +171,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       final effectiveLastModified =
           originIsServer && serverLastModified != null
               ? Value(serverLastModified)
-              : Value(now);
+               : Value(now);
+      // ✅ OCC: فحص version في WHERE لمنع lost update
       final rows = await (update(shiftNotes)
             ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
           .write(
@@ -212,7 +214,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       final effectiveLastModified =
           originIsServer && serverLastModified != null
               ? Value(serverLastModified)
-              : Value(now);
+               : Value(now);
+      // ✅ OCC: فحص version في WHERE لمنع lost update
       final rows = await (update(shiftNotes)
             ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
           .write(
@@ -256,6 +259,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       // SyncFields adds `deletedAt`. We should use Soft Delete.
 
       final now = Time.nowEpoch();
+      // ✅ OCC: فحص version في WHERE لمنع lost update
       final rows = await (update(shiftNotes)
             ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
           .write(
