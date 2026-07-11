@@ -117,9 +117,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
         version: Value(existing.version + 1),
       );
 
-      final rows = await (update(
-        shiftNotes,
-      )..where((t) => t.id.equals(id))).write(companion);
+      final rows = await (update(shiftNotes)
+            ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
+          .write(companion);
 
       if (rows > 0 && !originIsServer) {
         final payload = <String, dynamic>{};
@@ -171,7 +171,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           originIsServer && serverLastModified != null
               ? Value(serverLastModified)
               : Value(now);
-      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
+      final rows = await (update(shiftNotes)
+            ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
           .write(
             ShiftNotesCompanion(
               isRead: const Value(1),
@@ -212,7 +213,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
           originIsServer && serverLastModified != null
               ? Value(serverLastModified)
               : Value(now);
-      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
+      final rows = await (update(shiftNotes)
+            ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
           .write(
             ShiftNotesCompanion(
               isRead: const Value(0),
@@ -254,7 +256,8 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       // SyncFields adds `deletedAt`. We should use Soft Delete.
 
       final now = Time.nowEpoch();
-      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
+      final rows = await (update(shiftNotes)
+            ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
           .write(
             ShiftNotesCompanion(
               deletedAt: Value(now),
