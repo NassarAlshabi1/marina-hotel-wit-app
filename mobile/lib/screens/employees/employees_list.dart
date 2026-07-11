@@ -9,6 +9,7 @@ import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/theme.dart';
+import '../../utils/stream_helpers.dart';
 
 class EmployeesListScreen extends ConsumerStatefulWidget {
   const EmployeesListScreen({super.key});
@@ -46,8 +47,37 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         body: Stack(
           children: [
             StreamBuilder(
-              stream: repo.watchAll(),
+              stream: debounceStream(repo.watchAll(), const Duration(milliseconds: 150)),
               builder: (context, snapshot) {
+                // ✅ معالجة حالة الخطأ قبل hasData — بدونها يظهر loading مؤبداً
+                // عند انفجار الـ stream بدل رسالة واضحة.
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        const Text('حدث خطأ أثناء تحميل الموظفين',
+                            style: TextStyle(fontSize: 16)),
+                        const SizedBox(height: 8),
+                        const Text('تحقّق من اتصال الشبكة وحاول مرة أخرى.',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                            textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        // ✅ زر إعادة محاولة يُشغّل مزامنة فعلية ويُعيد بناء الـ stream
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            ref.read(syncServiceProvider).runSync();
+                            setState(() => _refreshCounter++);
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('إعادة المحاولة'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }

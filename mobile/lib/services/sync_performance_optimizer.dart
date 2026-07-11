@@ -4,6 +4,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'appwrite_config.dart';
+
 /// مُحسِّن أداء المزامنة
 /// يراقب حالة الاتصال ويحسن أداء المزامنة بناءً على نوع الشبكة
 class SyncPerformanceOptimizer {
@@ -28,16 +30,16 @@ class SyncPerformanceOptimizer {
   // إعدادات الأداء حسب نوع الشبكة
   static const Map<String, Map<String, dynamic>> _performanceSettings = {
     'wifi': {
-      'batchSize': 100,
-      'timeout': 30,
+      'batchSize': 80,
+      'timeout': 25,
       'retryAttempts': 3,
       'syncInterval': 60, // ثواني
     },
     'mobile': {
-      'batchSize': 50,
-      'timeout': 15,
-      'retryAttempts': 2,
-      'syncInterval': 120, // ثواني
+      'batchSize': 15,
+      'timeout': 12,
+      'retryAttempts': 4,
+      'syncInterval': 90, // ثواني
     },
     'none': {
       'batchSize': 0,
@@ -206,11 +208,17 @@ class SyncPerformanceOptimizer {
 
   /// التحقق من وجود اتصال إنترنت فعلي
   Future<bool> _hasInternetConnection() async {
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 2);
     try {
-      final result = await InternetAddress.lookup(
-        'google.com',
-      ).timeout(const Duration(seconds: 5));
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+      final uri = Uri.parse(AppwriteConfig.endpoint);
+      final request = await client
+          .getUrl(uri)
+          .timeout(const Duration(seconds: 2));
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      final response = await request.close().timeout(const Duration(seconds: 2));
+      await response.drain<void>();
+      return response.statusCode < HttpStatus.internalServerError;
     } on SocketException catch (_) {
       return false;
     } on TimeoutException catch (_) {
@@ -218,6 +226,8 @@ class SyncPerformanceOptimizer {
     } catch (e) {
       debugPrint('❌ خطأ في فحص الاتصال: $e');
       return false;
+    } finally {
+      client.close(force: true);
     }
   }
 

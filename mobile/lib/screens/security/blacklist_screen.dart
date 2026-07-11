@@ -41,7 +41,8 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
           tooltip: 'مزامنة',
         ),
       ],
-      body: StreamBuilder<List<BlacklistEntry>>(
+      body: RepaintBoundary(
+        child: StreamBuilder<List<BlacklistEntry>>(
         stream: repo.watchAll(),
         builder: (context, snapshot) {
           // ✅ P0 fix: معالجة أخطاء الـ stream
@@ -344,6 +345,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
           );
         },
       ),
+      ), // RepaintBoundary
       fab: FloatingActionButton(
         onPressed: () => _openEntryDialog(context, repo),
         tooltip: 'إضافة شخص للقائمة السوداء',

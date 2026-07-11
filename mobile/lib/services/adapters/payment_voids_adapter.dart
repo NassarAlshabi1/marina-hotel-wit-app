@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
@@ -80,7 +81,7 @@ class PaymentVoidsAdapter
       bookingUuid: refs.bookingUuidCache != null
           ? d.Value(refs.bookingUuidCache!)
           : _vStr(json, 'bookingUuid', src, altKey: 'booking_uuid', fallback: ''),
-      voidedAmount: _vInt(json, 'voidedAmount', src, altKey: 'voided_amount', fallback: 0),
+      voidedAmount: _vInt(json, 'voidedAmount', src, altKey: 'voided_amount'),
       voidReason: _vStr(json, 'voidReason', src, altKey: 'void_reason', fallback: ''),
       voidedBy: _vStr(json, 'voidedBy', src, altKey: 'voided_by', fallback: ''),
       voidedAt: d.Value(voidedAt),
@@ -286,8 +287,13 @@ double? _asDouble(Map<String, dynamic> json, String key, Source src) {
   final v = _raw(json, key, src);
   if (v == null) return null;
   if (v is double) return v;
-  if (v is int) return v.toDouble();
   if (v is num) return v.toDouble();
   if (v is String) return double.tryParse(v);
+  // ✅ تسجيل تحذيري للأنواع غير المتوقعة (bool, List, Map) — كان silent null
+  // يصعّب التشخيص عند تلقي بيانات Appwrite/Drive بنوع خاطئ.
+  debugPrint(
+    '⚠️ payment_voids._asDouble: قيمة غير متوقعة لـ $key من $src — '
+    'type=${v.runtimeType}, value=$v',
+  );
   return null;
 }

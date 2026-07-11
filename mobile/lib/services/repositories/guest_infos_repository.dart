@@ -118,7 +118,8 @@ class GuestInfosRepository {
         return;
       }
 
-      await (_db.update(_db.guestInfos)..where((t) => t.id.equals(id)))
+      await (_db.update(_db.guestInfos)
+            ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
           .write(
         GuestInfosCompanion(
           roomNumber: d.Value(roomNumber),
@@ -133,6 +134,7 @@ class GuestInfosRepository {
           updatedAt: d.Value(now),
           lastModified: d.Value(now),
           updatedAtIso: d.Value(nowIso),
+          version: d.Value(existing.version + 1),
         ),
       );
 
@@ -174,7 +176,8 @@ class GuestInfosRepository {
       }
 
       // soft delete: تعيين deletedAt بدلاً من حذف فعلي
-      await (_db.update(_db.guestInfos)..where((t) => t.id.equals(id)))
+      await (_db.update(_db.guestInfos)
+            ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
           .write(
         GuestInfosCompanion(
           deletedAt: d.Value(now),

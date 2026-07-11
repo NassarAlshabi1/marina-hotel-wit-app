@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import 'package:drift/drift.dart' as d;
 
@@ -8,7 +9,7 @@ import '../booking_derived_fields_service.dart';
 import '../crashlytics_service.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
-import '../lark/lark_notification_service.dart';
+import '../telegram/telegram_notification_service.dart';
 import '../local_db.dart';
 import '../telegram/whatsapp_notification_service.dart';
 
@@ -111,8 +112,8 @@ class PaymentsRepository {
         'INSERT',
         recordData: {'amount': amount},
       ),);
-      // إشعار Lark عند استلام دفعة (fire-and-forget)
-      _notifyLarkPayment(roomNumber, amount, paymentMethod, bookingLocalId);
+      // إشعارات فورية (fire-and-forget)
+      _notifyPaymentReceived(result);
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
@@ -127,41 +128,7 @@ class PaymentsRepository {
     }
   }
 
-  /// إرسال إشعار Lark عند استلام دفعة
-  void _notifyLarkPayment(
-    String? roomNumber,
-    double amount,
-    String paymentMethod,
-    int? bookingLocalId,
-  ) {
-    // الحصول على اسم الضيف والمبلغ المتبقي بشكل غير متزامن
-    if (bookingLocalId == null) {
-      return;
-    }
-    (db.select(db.bookings)..where((b) => b.id.equals(bookingLocalId)))
-        .getSingleOrNull()
-        .then((booking) {
-      if (booking == null) {
-        return;
-      }
-      LarkNotificationService.instance.notifyPayment(
-        roomNumber: roomNumber ?? booking.roomNumber,
-        guestName: booking.guestName,
-        amount: amount,
-        paymentMethod: paymentMethod,
-        remaining: booking.remainingBalanceCached,
-      );
-      WhatsAppNotificationService.instance.notifyPayment(
-        roomNumber: roomNumber ?? booking.roomNumber,
-        guestName: booking.guestName,
-        amount: amount,
-        paymentMethod: paymentMethod,
-        remaining: booking.remainingBalanceCached,
-      );
-    });
-  }
-
-  Future<int> update(
+    Future<int> update(
     int id, {
     int? bookingLocalId,
     int? serverBookingId,
@@ -350,5 +317,45 @@ class PaymentsRepository {
       readsFrom: {db.payments},
     ).getSingle();
     return (result.data['total'] as num).toDouble();
+  }
+
+  /// إرسال إشعارات (WhatsApp + Telegram) عند استلام دفعة
+  void _notifyPaymentReceived(int paymentId) async {
+    try {
+      final payment = await (db.select(db.payments)
+            ..where((p) => p.id.equals(paymentId)))
+          .getSingleOrNull();
+      if (payment == null) return;
+
+      // الحصول على معلومات الحجز إن وجد
+      String roomNumber = payment.roomNumber ?? '-';
+      String guestName = '-';
+      if (payment.bookingLocalId != null) {
+        try {
+          final booking = await (db.select(db.bookings)
+                ..where((b) => b.id.equals(payment.bookingLocalId!)))
+              .getSingleOrNull();
+          if (booking != null) {
+            roomNumber = booking.roomNumber;
+            guestName = booking.guestName;
+          }
+        } catch (_) {}
+      }
+
+      unawaited(WhatsAppNotificationService.instance.notifyPayment(
+        roomNumber: roomNumber,
+        guestName: guestName,
+        amount: payment.amount,
+        paymentMethod: payment.paymentMethod,
+      ));
+      unawaited(TelegramNotificationService.instance.notifyPayment(
+        roomNumber: roomNumber,
+        guestName: guestName,
+        amount: payment.amount,
+        paymentMethod: payment.paymentMethod,
+      ));
+    } catch (e) {
+      debugPrint('⚠️ فشل إرسال إشعار الدفعة: $e');
+    }
   }
 }

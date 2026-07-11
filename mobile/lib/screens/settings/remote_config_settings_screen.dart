@@ -73,29 +73,26 @@ class _RemoteConfigSettingsScreenState
             [
               _buildConfigRow(
                 'رقم WhatsApp',
-                values['whatsapp_phone'] as String? ?? '---',
+                values['whatsapp_phone']?.toString() ?? '---',
                 'whatsapp_phone',
               ),
               _buildConfigRow(
                 'مفتاح API',
-                _maskKey(values['whatsapp_api_key'] as String? ?? '---'),
+                _maskKey(values['whatsapp_api_key']?.toString() ?? '---'),
                 'whatsapp_api_key',
               ),
               _buildConfigRow(
                 'WhatsApp مفعّل',
-                (values['whatsapp_enabled'] as bool?)?.toString() ?? '---',
+                // ✅ فحص النوع قبل التحويل — القيمة قد تصل كنص من الـ remote config
+                (values['whatsapp_enabled'] is bool)
+                    ? values['whatsapp_enabled'].toString()
+                    : '---',
                 'whatsapp_enabled',
                 isBool: true,
               ),
               _buildConfigRow(
-                'Lark مفعّل',
-                (values['lark_enabled'] as bool?)?.toString() ?? '---',
-                'lark_enabled',
-                isBool: true,
-              ),
-              _buildConfigRow(
                 'هاتف الفندق',
-                values['hotel_contact_phone'] as String? ?? '---',
+                values['hotel_contact_phone']?.toString() ?? '---',
                 'hotel_contact_phone',
               ),
             ],
@@ -111,22 +108,17 @@ class _RemoteConfigSettingsScreenState
             [
               _buildConfigRow(
                 'النسخ الاحتياطي',
-                values['daily_backup_time'] as String? ?? '---',
+                values['daily_backup_time']?.toString() ?? '---',
                 'daily_backup_time',
               ),
               _buildConfigRow(
                 'تقرير WhatsApp',
-                values['whatsapp_report_time'] as String? ?? '---',
+                values['whatsapp_report_time']?.toString() ?? '---',
                 'whatsapp_report_time',
               ),
               _buildConfigRow(
-                'تقرير Lark',
-                values['lark_report_time'] as String? ?? '---',
-                'lark_report_time',
-              ),
-              _buildConfigRow(
                 'تقرير Telegram',
-                values['telegram_report_time'] as String? ?? '---',
+                values['telegram_report_time']?.toString() ?? '---',
                 'telegram_report_time',
               ),
             ],
@@ -170,13 +162,14 @@ class _RemoteConfigSettingsScreenState
               _buildConfigRow(
                 'نوع الخصم الافتراضي',
                 _translateDiscountType(
-                  values['default_discount_type'] as String? ?? '---',
+                  values['default_discount_type']?.toString() ?? '---',
                 ),
                 'default_discount_type',
               ),
               _buildConfigRow(
                 'سقف مضاعف السعر',
-                '${(values['max_rate_multiplier'] as double?)?.toStringAsFixed(1) ?? '3.0'}x',
+                // ✅ يقبل num (int/double) بأمان بدل التحويل الصريح إلى double الذي يرمي استثناءً
+                '${(values['max_rate_multiplier'] is num) ? (values['max_rate_multiplier'] as num).toStringAsFixed(1) : '3.0'}x',
                 'max_rate_multiplier',
               ),
             ],
@@ -223,7 +216,7 @@ class _RemoteConfigSettingsScreenState
               ),
               _buildConfigRow(
                 'كود الدولة',
-                values['country_code_default'] as String? ?? '---',
+                values['country_code_default']?.toString() ?? '---',
                 'country_code_default',
               ),
               _buildConfigRow(

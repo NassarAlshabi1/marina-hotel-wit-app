@@ -242,6 +242,7 @@ const collections = [
             { key: 'localUuid', type: 'string', size: 36, required: true },
             { key: 'name', type: 'string', size: 100, required: true },
             { key: 'basicSalary', type: 'double', required: true },
+            { key: 'salary', type: 'double', required: false },
             { key: 'position', type: 'string', size: 50, required: true },
             { key: 'phone', type: 'string', size: 20, required: false },
             { key: 'status', type: 'string', size: 20, required: true },

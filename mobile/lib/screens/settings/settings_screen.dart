@@ -17,7 +17,6 @@ import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
 import 'data_protection_screen.dart';
 import 'google_drive_backup_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
-import 'php_api_settings_screen.dart';
 import 'remote_config_settings_screen.dart';
 import 'secondary_appwrite_settings_screen.dart';
 import 'settings_custom_lists.dart';
@@ -221,16 +220,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: () => Navigator.push<void>(
               context,
               MaterialPageRoute<void>(builder: (context) => const SyncHealthScreen()),
-            ),
-          ),
-          _SettingsItem(
-            title: 'PHP API',
-            subtitle: 'إعدادات الخادم والاتصال',
-            icon: Icons.api,
-            color: Colors.indigo,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(builder: (context) => const PhpApiSettingsScreen()),
             ),
           ),
           _SettingsItem(

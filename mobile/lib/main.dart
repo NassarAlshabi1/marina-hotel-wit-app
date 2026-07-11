@@ -83,20 +83,47 @@ Future<void> main() async {
     debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
   }
 
-  // ─── Crashlytics: تهيئة قبل كل شيء ───
-  await CrashlyticsService.instance.initialize();
+  // ─── Critical services: لفّ في try-catch لمنع crash كامل للتطبيق عند فشل أي
+  //     خدمة فرعية. كل خدمة هنا optional — التطبيق يكمل بدونها بقيم default.
+  //     (البوت ركّز على DiagnosticsLogger/ApiConfigService فقط، لكن نفس النمط
+  //     ينطبق على CrashlyticsService و RemoteConfigService.)
+  try {
+    await CrashlyticsService.instance.initialize();
+  } catch (e, stack) {
+    debugPrint('⚠️ CrashlyticsService initialization failed: $e\n$stack');
+  }
 
   // ─── SecondaryAppwriteConfig: تهيئة SharedPreferences قبل أي وصول للإعدادات ───
+  // ⚠️ هذه SERVICE إلزامية — فشلها يعني فشل وصول كامل للإعدادات لاحقاً، فلا نلفّها
+  // في try-catch (نُفضّل crash مبكر واضح على crash متأخر غامض عند أول وصول لـ prefs).
   await SecondaryAppwriteConfig.ensureInitialized();
 
-  // ─── Remote Config: تهيئة مبكراً ───
-  await RemoteConfigService.instance.initialize();
+  try {
+    await RemoteConfigService.instance.initialize();
+  } catch (e, stack) {
+    debugPrint('⚠️ RemoteConfigService initialization failed: $e — using defaults\n$stack');
+  }
 
-  await DiagnosticsLogger.instance.initialize();
-  await ApiConfigService.instance.initialize();
+  // ✅ DiagnosticsLogger + ApiConfigService: نفس النمط — optional services.
+  try {
+    await DiagnosticsLogger.instance.initialize();
+  } catch (e, stack) {
+    debugPrint('⚠️ DiagnosticsLogger initialization failed: $e\n$stack');
+  }
+  try {
+    await ApiConfigService.instance.initialize();
+  } catch (e, stack) {
+    debugPrint('⚠️ ApiConfigService initialization failed: $e\n$stack');
+  }
 
-  // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Lark/Telegram)
-  unawaited(AlarmBackup.initAlarmSystem());
+  // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)
+  // ✅ catchError بدلاً من unawaited المُجرّد — لو فشل initAlarmSystem، نسجّل
+  // الخطأ بدل تركه silent (البوت أشار لهذا بشكل صحيح).
+  unawaited(
+    AlarmBackup.initAlarmSystem().catchError(
+      (Object e) => debugPrint('⚠️ Alarm system init failed: $e'),
+    ),
+  );
 
   // ─── ربط Crashlytics + DiagnosticsLogger ───
   CrashlyticsService.instance.setupErrorHandlers(

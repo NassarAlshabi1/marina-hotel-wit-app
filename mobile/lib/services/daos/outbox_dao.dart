@@ -811,7 +811,98 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return totalRemoved;
   }
 
-  /// ✅ P0-VC: زيادة Vector Clock عند كل كتابة محلية
+  /// ✅ P0: إدراج/تحديث دفعة من عناصر outbox في معاملة واحدة
+  /// أسرع بكثير من استدعاء merge() لكل عنصر على حدة عند العمليات المجمّعة
+  /// مثل: استيراد نسخة احتياطية، إضافة حجز مع دفعات وليالي
+  Future<List<int>> mergeBatch(List<Map<String, dynamic>> items) async {
+    if (items.isEmpty) return [];
+
+    return transaction(() async {
+      final ids = <int>[];
+      for (final item in items) {
+        final id = await _mergeSingle(
+          entity: item['entity'] as String,
+          op: item['op'] as String,
+          localUuid: item['localUuid'] as String,
+          serverId: item['serverId'] as int?,
+          payload: item['payload'] as Map<String, dynamic>,
+          clientTs: item['clientTs'] as int,
+          source: item['source'] as String? ?? 'local',
+        );
+        if (id != null) ids.add(id);
+      }
+      return ids;
+    });
+  }
+
+  /// ✅ P0: إدراج/تحديث عنصر outbox واحد (للاستخدام الداخلي في mergeBatch)
+  Future<int?> _mergeSingle({
+    required String entity,
+    required String op,
+    required String localUuid,
+    int? serverId,
+    required Map<String, dynamic> payload,
+    required int clientTs,
+    String source = 'local',
+  }) async {
+    final payloadJson = jsonEncode(payload);
+    final idempKey = '$entity:$op:$localUuid:$clientTs';
+
+    bool deliveredToSecondary = true;
+    try {
+      deliveredToSecondary = !SecondaryAppwriteConfig.isEnabled ||
+          !SecondaryAppwriteConfig.isPushEnabled;
+    } catch (_) {}
+
+    if (source == 'local' && op != 'delete') {
+      await _bumpVectorClockForLocalWrite(entity, localUuid);
+    }
+
+    final existing = await (select(outbox)
+          ..where((t) =>
+              t.entity.equals(entity) &
+              t.localUuid.equals(localUuid) &
+              t.processingStatus.isIn(const ['pending', 'processing']),)
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
+        OutboxCompanion(
+          op: existing.op == 'delete' ? const Value.absent() : Value(op),
+          payload: Value(payloadJson),
+          clientTs: Value(clientTs),
+          idempotencyKey: Value(idempKey),
+          serverId: Value(serverId),
+          source: Value(source),
+          deliveredToSecondary: Value(deliveredToSecondary),
+          processingStatus: existing.processingStatus == 'processing'
+              ? const Value('pending')
+              : const Value.absent(),
+          processingStartedAt: existing.processingStatus == 'processing'
+              ? const Value(null)
+              : const Value.absent(),
+          processingWorker: existing.processingStatus == 'processing'
+              ? const Value(null)
+              : const Value.absent(),
+        ),
+      );
+      return existing.id;
+    }
+
+    return into(outbox).insert(OutboxCompanion.insert(
+      entity: entity,
+      op: op,
+      localUuid: localUuid,
+      serverId: Value(serverId),
+      payload: payloadJson,
+      clientTs: clientTs,
+      idempotencyKey: Value(idempKey),
+      source: Value(source),
+      deliveredToSecondary: Value(deliveredToSecondary),
+    ));
+  }
+
   /// يُستدعى من merge() عند source='local' لضمان كشف كل التعديلات المتزامنة
   Future<void> _bumpVectorClockForLocalWrite(String entity, String localUuid) async {
     final tableName = _entityTableMap[entity];

@@ -44,7 +44,7 @@ class RoomWithPaymentStatus {
 
   Color get roomColor {
     // صيانة - الأولوية القصوى
-    if (room.status == 'صيانة' || room.status == 'maintenance') {
+    if (StatusUtils.isUnderMaintenance(room.status)) {
       return Colors.orange.shade600;
     }
 
@@ -63,7 +63,7 @@ class RoomWithPaymentStatus {
   /// ✅ الحالة المعروضة للغرفة - مشتقة من الحجز النشط
   /// بدلاً من room.status المخزن الذي قد يكون قديماً
   String get displayStatus {
-    if (room.status == 'صيانة' || room.status == 'maintenance') {
+    if (StatusUtils.isUnderMaintenance(room.status)) {
       return 'صيانة';
     }
     if (hasActiveBooking) {
@@ -172,3 +172,43 @@ final roomsWithPaymentStatusProvider =
 
   return controller.stream;
 });
+// ══════════════════════════════════════════════════════════════════════════
+//  ✅ P0: Riverpod .select() — مشتقات فائقة السرعة للهواتف الضعيفة
+//
+//  هذه البروفايدرات تستخدم .select() لمراقبة قيمة مُشتقّة فقط.
+//  الميزة: لو تغيرت غرفة واحدة، الـ Dashboard الذي يشاهد العدد لا يعيد بناء نفسه.
+// ══════════════════════════════════════════════════════════════════════════
+
+/// عدد الغرف المشغولة — يُحدّث فقط عندما يتغير العدد (وليس عند تغيير حالات فردية)
+final occupiedRoomsCountProvider = Provider<int>((ref) {
+  return ref.watch(roomsWithPaymentStatusProvider.select(
+    (rooms) => rooms.valueOrNull?.where((r) => r.hasActiveBooking).length ?? 0,
+  ));
+});
+
+/// عدد الغرف المتاحة — يُحدّث فقط عندما يتغير العدد
+final availableRoomsCountProvider = Provider<int>((ref) {
+  return ref.watch(roomsWithPaymentStatusProvider.select(
+    (rooms) => rooms.valueOrNull?.where((r) =>
+        !r.hasActiveBooking &&
+        !StatusUtils.isUnderMaintenance(r.room.status)).length ?? 0,
+  ));
+});
+
+/// عدد الغرف المتأخرة السداد — يُحدّث فقط عندما يتغير العدد
+final overdueRoomsCountProvider = Provider<int>((ref) {
+  return ref.watch(roomsWithPaymentStatusProvider.select(
+    (rooms) => rooms.valueOrNull?.where((r) => r.isPaymentOverdue).length ?? 0,
+  ));
+});
+
+/// عدد الغرف تحت الصيانة — يُحدّث فقط عندما يتغير العدد
+/// ✅ استخدام StatusUtils.isUnderMaintenance (DRY) — كان قبل ذلك يفحص
+/// 'صيانة' فقط بدون 'maintenance'، فكانت الغرف الإنجليزية لا تُحسب!
+final maintenanceRoomsCountProvider = Provider<int>((ref) {
+  return ref.watch(roomsWithPaymentStatusProvider.select(
+    (rooms) => rooms.valueOrNull?.where((r) =>
+        StatusUtils.isUnderMaintenance(r.room.status)).length ?? 0,
+  ));
+});
+

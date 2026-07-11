@@ -42,7 +42,8 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
         ),
         IconButton(icon: const Icon(Icons.clear), onPressed: _clearFilters),
       ],
-      body: Column(
+      body: RepaintBoundary(
+        child: Column(
         children: [
           if (_hasActiveFilters()) _buildActiveFiltersChips(),
           Expanded(
@@ -80,6 +81,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           ),
         ],
       ),
+      ), // RepaintBoundary
     );
   }
 
@@ -106,7 +108,12 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                 Text('${snapshot.error}'),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => setState(() {}),
+                  // ✅ إعادة المحاولة تُشغّل مزامنة فعلية من المصدر بدل مجرد
+                  // setState الذي قد لا يُغيّر شيئاً لو كان الخطأ ثابتاً.
+                  onPressed: () {
+                    ref.read(syncServiceProvider).runSync();
+                    setState(() {});
+                  },
                   child: const Text('إعادة المحاولة'),
                 ),
               ],

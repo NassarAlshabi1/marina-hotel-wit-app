@@ -407,7 +407,7 @@ class _GoogleDriveBackupContentState
 
     if (confirmed ?? false) {
       try {
-        final service = GoogleDriveBackupService();
+        final service = ref.read(googleDriveBackupServiceProvider);
         await service.uploadDbBackup();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -626,7 +626,7 @@ class _GoogleDriveBackupContentState
             'جاري تنزيل نسخة .db...',
           );
 
-      final service = GoogleDriveBackupService();
+      final service = ref.read(googleDriveBackupServiceProvider);
       await service.restoreDbBackup(fileId);
 
       if (mounted) {

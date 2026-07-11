@@ -46,6 +46,8 @@ class AutoBackupManager {
   bool _isBackingUp = false;
   bool _isDeltaSyncing = false;
   int _pendingChanges = 0;
+  int _batchNesting = 0;        // ✅ عدد الدُفعات المتداخلة (batchStart/batchEnd)
+  bool _batchDirty = false;     // ✅ هل حدث تغيير أثناء الـ batch؟
   String? _deviceId;
   BackupMode _currentMode = BackupMode.deltaSync;
   String? _lastRenewedHotelDay;
@@ -138,16 +140,63 @@ class AutoBackupManager {
   }
 
   /// تسجيل تغيير في قاعدة البيانات لبدء عد تنازلي للنسخ التلقائي
+  /// ✅ بدء دفعة — يُعلّق الـ debounce أثناء العمليات المجمّعة
+  /// استخدم هذا عندما تعرف أنك ستجري عدة تغييرات متتالية
+  /// مثال: استيراد نسخة احتياطية، إضافة حجز مع دفعات وليالي
+  void batchStart() {
+    _batchNesting++;
+  }
+
+  /// ✅ إنهاء دفعة — يُفعّل الـ debounce ويُشغّل المزامنة إذا كان هناك تغييرات
+  Future<void> batchEnd() async {
+    _batchNesting--;
+    if (_batchNesting <= 0) {
+      _batchNesting = 0;
+      if (_batchDirty) {
+        _batchDirty = false;
+        // شغّل المزامنة بعد إنهاء الدفعة
+        if (_currentMode == BackupMode.deltaSync || _currentMode == BackupMode.both) {
+          await performDeltaSync();
+        }
+        if (_currentMode == BackupMode.fullBackup || _currentMode == BackupMode.both) {
+          _performAutoBackup(
+            reason: 'تغييرات مجمّعة',
+            changesCount: _pendingChanges,
+          );
+        }
+        _pendingChanges = 0;
+      }
+    }
+  }
+
+  /// ✅ تشغيل عملية داخل دفعة بأمان — يضمن استدعاء [batchEnd] حتى عند رمي استثناء،
+  /// فيمنع بقاء `_batchNesting > 0` للأبد (الذي يُعطّل النسخ التلقائي).
+  Future<R> runInBatch<R>(Future<R> Function() action) async {
+    batchStart();
+    try {
+      return await action();
+    } finally {
+      await batchEnd();
+    }
+  }
+
   Future<void> onDataChange(
     String tableName,
     String operation, {
     Map<String, dynamic>? recordData,
+    int batchCount = 1,
   }) async {
     if (!await _isEnabled) {
       return;
     }
 
-    _pendingChanges++;
+    _pendingChanges += batchCount;
+
+    // ✅ أثناء الدفعة: نسجّل التغيير فقط ولا نشغّل الـ debounce
+    if (_batchNesting > 0) {
+      _batchDirty = true;
+      return;
+    }
     debugPrint(
       '🔄 تغيير في $tableName ($operation) - تغييرات معلقة: $_pendingChanges',
     );
@@ -158,8 +207,12 @@ class AutoBackupManager {
       _deltaSyncDebounceTimer = Timer(
         const Duration(milliseconds: _instantSyncDebounceMilliseconds),
         () async {
-          await performDeltaSync();
-          if (_currentMode == BackupMode.deltaSync) {
+          // ملاحظة: performDeltaSync() يحمي نفسه داخلياً ضد التزامن عبر
+          // _isDeltaSyncing، فلا يمكن أن تعمل مزامنتان تفاضليتان معاً.
+          // ✅ لا نصفّر العدّاد إلا إذا نُفّذت المزامنة فعلاً (لم تُتخطَّ لأن
+          // أخرى جارية) حتى يبقى عدد التغييرات المعلّقة دقيقاً.
+          final result = await performDeltaSync();
+          if (result['success'] == true) {
             _pendingChanges = 0;
           }
         },

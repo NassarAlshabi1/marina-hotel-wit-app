@@ -114,14 +114,12 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
         'totalAmount',
         src,
         altKey: 'total_amount',
-        fallback: 0,
       ),
       paidAmount: _vDouble(
         json,
         'paidAmount',
         src,
         altKey: 'paid_amount',
-        fallback: 0,
       ),
       // ✅ remainingAmount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
       // نقرأه من السحابة، وإذا لم يكن موجوداً نحسبه: totalAmount - paidAmount

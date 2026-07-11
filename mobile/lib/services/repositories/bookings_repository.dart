@@ -9,9 +9,10 @@ import '../booking_derived_fields_service.dart';
 import '../crashlytics_service.dart';
 import '../daos/bookings_dao.dart';
 import '../daos/outbox_dao.dart';
-import '../lark/lark_notification_service.dart';
 import '../local_db.dart';
+import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
+import 'package:flutter/foundation.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db) {
@@ -102,8 +103,8 @@ class BookingsRepository {
         'INSERT',
         recordData: {'id': result},
       ),);
-      // إشعار Lark (غير متزامن — لا يبطئ العملية)
-      _notifyLarkNewBooking(roomNumber, guestName, guestPhone, checkinDate, checkoutDate, expectedNights);
+      // إشعارات فورية (fire-and-forget)
+      _notifyNewBooking(result);
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
@@ -118,34 +119,7 @@ class BookingsRepository {
     }
   }
 
-  /// إرسال إشعار Lark و Telegram لحجز جديد (fire-and-forget)
-  void _notifyLarkNewBooking(
-    String roomNumber,
-    String guestName,
-    String? guestPhone,
-    String? checkinDate,
-    String? checkoutDate,
-    int expectedNights,
-  ) {
-    LarkNotificationService.instance.notifyNewBooking(
-      roomNumber: roomNumber,
-      guestName: guestName,
-      guestPhone: guestPhone,
-      checkinDate: checkinDate,
-      checkoutDate: checkoutDate,
-      nights: expectedNights,
-    );
-    WhatsAppNotificationService.instance.notifyNewBooking(
-      roomNumber: roomNumber,
-      guestName: guestName,
-      guestPhone: guestPhone,
-      checkinDate: checkinDate,
-      checkoutDate: checkoutDate,
-      nights: expectedNights,
-    );
-  }
-
-  Future<int> update(
+    Future<int> update(
     int id, {
     String? roomNumber,
     String? guestName,
@@ -254,8 +228,9 @@ class BookingsRepository {
           'UPDATE',
           recordData: {'id': id},
         ),);
-        // إشعار Lark عند تغيير حالة الحجز (fire-and-forget)
-        _notifyLarkBookingUpdate(id, status);
+        if (status != null) {
+          _notifyBookingUpdate(id, status);
+        }
       }
       return result;
     } catch (e, stack) {
@@ -270,50 +245,7 @@ class BookingsRepository {
     }
   }
 
-  /// إرسال إشعار Lark و Telegram عند تحديث حالة الحجز
-  void _notifyLarkBookingUpdate(int bookingId, String? newStatus) {
-    if (newStatus == null) {
-      return;
-    }
-    // الحصول على بيانات الحجز بشكل غير متزامن
-    dao.getById(bookingId).then((booking) {
-      if (booking == null) {
-        return;
-      }
-      switch (newStatus) {
-        case 'نشط':
-          LarkNotificationService.instance.notifyCheckIn(
-            roomNumber: booking.roomNumber,
-            guestName: booking.guestName,
-            guestPhone: booking.guestPhone,
-            expectedNights: booking.expectedNights,
-          );
-          WhatsAppNotificationService.instance.notifyCheckIn(
-            roomNumber: booking.roomNumber,
-            guestName: booking.guestName,
-            guestPhone: booking.guestPhone,
-            expectedNights: booking.expectedNights,
-          );
-        case 'مكتمل':
-          LarkNotificationService.instance.notifyCheckOut(
-            roomNumber: booking.roomNumber,
-            guestName: booking.guestName,
-            actualNights: booking.calculatedNights,
-            totalPaid: booking.totalPaidCached,
-            remaining: booking.remainingBalanceCached,
-          );
-          WhatsAppNotificationService.instance.notifyCheckOut(
-            roomNumber: booking.roomNumber,
-            guestName: booking.guestName,
-            actualNights: booking.calculatedNights,
-            totalPaid: booking.totalPaidCached,
-            remaining: booking.remainingBalanceCached,
-          );
-      }
-    });
-  }
-
-  Future<int> delete(int id) async {
+    Future<int> delete(int id) async {
     try {
       final result = await dao.softDelete(id);
       if (result > 0) {
@@ -457,5 +389,90 @@ class BookingsRepository {
           ..orderBy([(b) => d.OrderingTerm.desc(b.checkinDate)])
           ..limit(1))
         .getSingleOrNull();
+  }
+
+  /// إرسال إشعارات (WhatsApp + Telegram) لحجز جديد
+  void _notifyNewBooking(int id) async {
+    try {
+      final booking = await (db.select(db.bookings)
+            ..where((b) => b.id.equals(id)))
+          .getSingleOrNull();
+      if (booking == null) return;
+
+      final roomNumber = booking.roomNumber;
+      final guestName = booking.guestName;
+      final guestPhone = booking.guestPhone;
+      final checkinDate = booking.checkinDate;
+      final checkoutDate = booking.checkoutDate;
+      final nights = booking.expectedNights;
+
+      unawaited(WhatsAppNotificationService.instance.notifyNewBooking(
+        roomNumber: roomNumber,
+        guestName: guestName,
+        guestPhone: guestPhone,
+        checkinDate: checkinDate,
+        checkoutDate: checkoutDate,
+        nights: nights,
+      ));
+      unawaited(TelegramNotificationService.instance.notifyNewBooking(
+        roomNumber: roomNumber,
+        guestName: guestName,
+        guestPhone: guestPhone,
+        checkinDate: checkinDate,
+        checkoutDate: checkoutDate,
+        nights: nights,
+      ));
+    } catch (e) {
+      debugPrint('⚠️ فشل إرسال إشعار الحجز الجديد: $e');
+    }
+  }
+
+  /// إرسال إشعارات (WhatsApp + Telegram) عند تغيير حالة الحجز
+  void _notifyBookingUpdate(int id, String newStatus) async {
+    try {
+      final booking = await (db.select(db.bookings)
+            ..where((b) => b.id.equals(id)))
+          .getSingleOrNull();
+      if (booking == null) return;
+
+      final roomNumber = booking.roomNumber;
+      final guestName = booking.guestName;
+
+      // حالة تسجيل دخول (check-in): نشط/active/confirmed
+      if (newStatus == 'نشط' || newStatus == 'active' || newStatus == 'confirmed') {
+        unawaited(WhatsAppNotificationService.instance.notifyCheckIn(
+          roomNumber: roomNumber,
+          guestName: guestName,
+          guestPhone: booking.guestPhone,
+          expectedNights: booking.expectedNights,
+        ));
+        unawaited(TelegramNotificationService.instance.notifyCheckIn(
+          roomNumber: roomNumber,
+          guestName: guestName,
+          guestPhone: booking.guestPhone,
+          expectedNights: booking.expectedNights,
+        ));
+      } else if (newStatus == 'مكتمل') {
+        final totalPaid = booking.totalPaidCached;
+        final remaining = booking.remainingBalanceCached;
+
+        unawaited(WhatsAppNotificationService.instance.notifyCheckOut(
+          roomNumber: roomNumber,
+          guestName: guestName,
+          actualNights: booking.calculatedNights ?? booking.expectedNights,
+          totalPaid: totalPaid,
+          remaining: remaining > 0 ? remaining : null,
+        ));
+        unawaited(TelegramNotificationService.instance.notifyCheckOut(
+          roomNumber: roomNumber,
+          guestName: guestName,
+          actualNights: booking.calculatedNights ?? booking.expectedNights,
+          totalPaid: totalPaid,
+          remaining: remaining > 0 ? remaining : null,
+        ));
+      }
+    } catch (e) {
+      debugPrint('⚠️ فشل إرسال إشعار تحديث الحجز: $e');
+    }
   }
 }

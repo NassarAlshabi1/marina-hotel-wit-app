@@ -1,4 +1,6 @@
 // ignore_for_file: directives_ordering, prefer_const_constructors, use_if_null_to_convert_nulls_to_bools, unawaited_futures, use_build_context_synchronously, unused_field
+import 'dart:async';
+
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +13,7 @@ import '../../services/local_db.dart';
 import '../../services/secondary_sync_manager.dart';
 
 import '../../services/secondary_appwrite_service.dart';
+import '../../services/secondary_backup_service.dart';
 import '../../services/appwrite_sync_manager.dart';
 
 /// شاشة إعدادات الوجهة الثانوية لـ Appwrite
@@ -47,6 +50,7 @@ class _SecondaryAppwriteSettingsScreenState
   DateTime? _uploadStartTime;
   int _currentCollectionRecords = 0;
   int _currentCollectionDone = 0;
+  StreamSubscription<BackupProgress>? _backupSub;
 
   @override
   void initState() {
@@ -68,6 +72,7 @@ class _SecondaryAppwriteSettingsScreenState
     _projectIdCtrl.dispose();
     _databaseIdCtrl.dispose();
     _apiKeyCtrl.dispose();
+    _backupSub?.cancel();
     super.dispose();
   }
 
@@ -221,20 +226,24 @@ class _SecondaryAppwriteSettingsScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد رفع النسخة الشاملة'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('سيتم رفع جميع البيانات المحلية إلى الوجهة الثانوية.'),
-            SizedBox(height: 8),
-            Text('• الغرف، الحجوزات، المدفوعات، الديون'),
-            Text('• الموظفون، المصروفات، المعاملات النقدية'),
-            Text('• ملاحظات الحجز، الليالي، النوبة'),
-            Text('• دورات الرواتب، الدفعات، السحوبات'),
-            SizedBox(height: 8),
-            Text('⚠️ قد يستغرق وقتاً طويلاً حسب حجم البيانات'),
-            Text('⚠️ يُفضل توفر اتصال مستقر بالإنترنت'),
-          ],
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('سيتم رفع جميع البيانات المحلية إلى الوجهة الثانوية.'),
+              SizedBox(height: 8),
+              Text('• الغرف، الحجوزات، المدفوعات، الديون'),
+              Text('• الموظفون، المصروفات، المعاملات النقدية'),
+              Text('• ملاحظات الحجز، الليالي، النوبة'),
+              Text('• دورات الرواتب، الدفعات، السحوبات'),
+              SizedBox(height: 8),
+              Text('⚠️ قد يستغرق وقتاً طويلاً حسب حجم البيانات'),
+              Text('⚠️ يُفضل توفر اتصال مستقر بالإنترنت'),
+              SizedBox(height: 4),
+              Text('✅ يعمل في الخلفية — يمكنك التنقل بين الشاشات'),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -250,6 +259,12 @@ class _SecondaryAppwriteSettingsScreenState
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
+
+    // ✅ Guard ضد تشغيل عمليتي backup متزامنتين (double-tap أو race). الـ UI
+    // يُعطّل الزر عبر `_uploadingFullBackup`، لكن هذا التحقق الإضافي يضمن عدم
+    // بدء عملية ثانية قبل أن يُحدّث الـ state فعلياً.
+    if (_uploadingFullBackup) return;
 
     setState(() {
       _uploadingFullBackup = true;
@@ -265,29 +280,28 @@ class _SecondaryAppwriteSettingsScreenState
       _currentCollectionDone = 0;
     });
 
+    // ✅ استخدام SecondaryBackupService — يعمل في الخلفية
+    final backupService = SecondaryBackupService.instance;
+    // ✅ ألغِ أي subscription سابق قبل إنشاء واحد جديد — يمنع memory leak
+    // وتعدد listeners لو استُدعيت الدالة مرتين (مثلاً بعد race window).
+    await _backupSub?.cancel();
+    _backupSub = backupService.progressStream.listen((progress) {
+      if (!mounted) return;
+      setState(() {
+        _completedCollections = progress.completedCollections;
+        _totalCollectionsToUpload = progress.totalCollections;
+        _currentCollectionName = progress.currentCollection;
+        _currentCollectionRecords = progress.totalRecords;
+        _currentCollectionDone = progress.collectionProgress;
+        _completedRecords = progress.successCount + progress.failureCount;
+        _totalRecordsToUpload = progress.totalRecords > 0 ? progress.totalRecords : _totalRecordsToUpload;
+      });
+    });
+
     try {
-      final stats = await SecondaryAppwriteService().uploadFullBackup(
-        onProgress: (collection, current, total) {
-          if (mounted) {
-            setState(() {
-              _currentCollectionName = collection;
-              _currentCollectionRecords = total;
-              _currentCollectionDone = current;
-              _completedRecords++;
-              if (current == 1) {
-                _totalRecordsToUpload += total;
-              }
-            });
-          }
-        },
-        onCollectionComplete: (collectionName, successCount, failureCount) {
-          if (mounted) {
-            setState(() {
-              _completedCollections++;
-            });
-          }
-        },
-      );
+      final stats = await backupService.startFullBackup();
+      _backupSub?.cancel();
+      _backupSub = null;
 
       if (mounted) {
         setState(() {
@@ -307,9 +321,7 @@ class _SecondaryAppwriteSettingsScreenState
           }
         });
 
-        if (mounted) {
-          _showCollectionDetailsDialog(stats);
-        }
+        _showCollectionDetailsDialog(stats);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -321,6 +333,8 @@ class _SecondaryAppwriteSettingsScreenState
         );
       }
     } catch (e) {
+      _backupSub?.cancel();
+      _backupSub = null;
       if (mounted) {
         setState(() {
           _uploadingFullBackup = false;
@@ -914,14 +928,14 @@ class _SecondaryAppwriteSettingsScreenState
           if (enabled) ...[
             const Text(
               'بيانات الاتصال',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _endpointCtrl,
               decoration: const InputDecoration(
-                labelText: 'Endpoint *',
-                hintText: 'https://fra.cloud.appwrite.io/v1',
+                labelText: 'Endpoint URL',
+                hintText: 'https://cloud.appwrite.io/v1',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.link),
               ),
@@ -932,8 +946,8 @@ class _SecondaryAppwriteSettingsScreenState
             TextField(
               controller: _projectIdCtrl,
               decoration: const InputDecoration(
-                labelText: 'Project ID *',
-                hintText: '690ff0da0025518570c1',
+                labelText: 'Project ID',
+                hintText: 'معرف المشروع',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.folder),
               ),
@@ -943,8 +957,8 @@ class _SecondaryAppwriteSettingsScreenState
             TextField(
               controller: _databaseIdCtrl,
               decoration: const InputDecoration(
-                labelText: 'Database ID *',
-                hintText: 'hotel_db',
+                labelText: 'Database ID',
+                hintText: 'معرف قاعدة البيانات',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.storage),
               ),
@@ -955,8 +969,8 @@ class _SecondaryAppwriteSettingsScreenState
               controller: _apiKeyCtrl,
               obscureText: _obscureApiKey,
               decoration: InputDecoration(
-                labelText: 'API Key',
-                hintText: 'standard_...',
+                labelText: 'API Key (اختياري)',
+                hintText: 'مفتاح API من Appwrite',
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.key),
                 suffixIcon: IconButton(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/expense_reason_matcher.dart';
@@ -6,6 +8,8 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
+import '../telegram/telegram_notification_service.dart';
+import '../telegram/whatsapp_notification_service.dart';
 
 class SalaryWithdrawalsRepository {
   SalaryWithdrawalsRepository(this._db) : _outboxDao = OutboxDao(_db);
@@ -65,6 +69,18 @@ class SalaryWithdrawalsRepository {
     if (expenseId > 0) {
       await _setExpenseIdRaw(id, expenseId);
     }
+
+    // إشعارات فورية (fire-and-forget)
+    unawaited(WhatsAppNotificationService.instance.notifyNewExpense(
+      category: 'سحب راتب',
+      amount: amount.toDouble(),
+      description: reason,
+    ));
+    unawaited(TelegramNotificationService.instance.notifyNewExpense(
+      category: 'سحب راتب',
+      amount: amount.toDouble(),
+      description: reason,
+    ));
 
     if (!originIsServer) {
       final payload = <String, dynamic>{
@@ -230,6 +246,17 @@ class SalaryWithdrawalsRepository {
             clientTs: now,
           );
         }
+        // إشعارات فورية (fire-and-forget) عند التحديث
+        unawaited(WhatsAppNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount.toDouble(),
+          description: note ?? reasonText,
+        ));
+        unawaited(TelegramNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount.toDouble(),
+          description: note ?? reasonText,
+        ));
       } else {
         // إنشاء سجل جديد
         final uuid = IdGen.uuid();
@@ -258,6 +285,16 @@ class SalaryWithdrawalsRepository {
 
         // ✅ كتابة expense_id في العمود الخام
         await _setExpenseIdRaw(newId, expenseId);
+        unawaited(WhatsAppNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount.toDouble(),
+          description: note,
+        ));
+        unawaited(TelegramNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount.toDouble(),
+          description: note,
+        ));
 
         if (!originIsServer) {
           await _outboxDao.merge(

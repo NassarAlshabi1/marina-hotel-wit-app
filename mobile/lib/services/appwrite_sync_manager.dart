@@ -47,6 +47,7 @@ import 'sync_core/sync_pull_service.dart';
 import 'sync_enums.dart';
 import 'sync_locks.dart';
 import 'telegram/whatsapp_notification_service.dart';
+import 'telegram/telegram_notification_service.dart';
 import 'vector_clock_service.dart';
 
 // SyncStatus is now defined in sync_enums.dart
@@ -169,7 +170,7 @@ class AppwriteSyncManager {
   Timer? _failedRetryTimer;
   Timer? _cleanupTimer;
   Timer? _stuckRecoveryTimer;
-  double _adaptiveBatchSize = 50;
+  double _adaptiveBatchSize = 20;
   StreamSubscription<void>? _outboxSubscription;
   Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
   SyncStatus _currentStatus = SyncStatus.idle;
@@ -540,7 +541,9 @@ class AppwriteSyncManager {
       const Duration(minutes: 1),
       (_) async {
         try {
-          final recovered = await outboxDao.cleanupStuckEntries();
+          final recovered = await outboxDao.cleanupStuckEntries(
+            timeout: const Duration(seconds: 60),
+          );
           if (recovered > 0) {
             _logger.info(
               '🔧 تم استعادة $recovered عنصر عالق في outbox من "processing" إلى "pending"',
@@ -1265,7 +1268,21 @@ class AppwriteSyncManager {
       errorMessage = e.toString();
       finalStatus = SyncStatus.failed;
 
-      if (hasSyncLog) {
+      // ✅ جديد: تحديد ما إذا كان الفشل بسبب rate limit (429) — في هذه الحالة
+      // لا نحاول كتابة سجل "sync_failed" على Appwrite لأن ذلك قد يُسبب 429
+      // إضافي. نكتفي بالتسجيل المحلي.
+      final isRateLimitFailure = e is AppwriteException &&
+          (e.code == 429 ||
+              (e.type ?? '').toLowerCase().contains('rate_limit') ||
+              (e.message ?? '').toLowerCase().contains('rate_limit'));
+
+      if (isRateLimitFailure) {
+        _logger.warning(
+          '🔌 Sync failed due to rate limit (429) — '
+          'deferring sync log write. Will retry on next sync.',
+          tag: 'SYNC',
+        );
+      } else if (hasSyncLog) {
         final failEpoch = Time.nowEpoch();
         syncLogVersion += 1;
         try {
@@ -1310,25 +1327,37 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
 
-      // Crashlytics + WhatsApp alert على فشل المزامنة الرئيسي
-      await CrashlyticsService.instance.recordFatalSyncError(
-        operation: 'sync',
-        error: e,
-        stackTrace: stackTrace,
-        context: {
-          'recordsPushed': '$recordsPushed',
-          'recordsPulled': '$recordsPulled',
+      // ✅ جديد: تخطّي إشعارات Crashlytics/WhatsApp/Telegram لأخطاء 429
+      // العابرة — هذه ليست أخطاءً حرجة تستدعي تنبيه الإدارة، بل ضغط مؤقت
+      // على rate limit سيُحل تلقائياً عبر circuit breaker + backoff.
+      if (!isRateLimitFailure) {
+        // Crashlytics + WhatsApp alert على فشل المزامنة الرئيسي
+        await CrashlyticsService.instance.recordFatalSyncError(
+          operation: 'sync',
+          error: e,
+          stackTrace: stackTrace,
+          context: {
+            'recordsPushed': '$recordsPushed',
+            'recordsPulled': '$recordsPulled',
+            // ignore: dead_null_aware_expression
+            'errorMessage': errorMessage ?? '',
+          },
+        );
+        await WhatsAppNotificationService.instance.notifySyncError(
+          operation: 'sync',
           // ignore: dead_null_aware_expression
-          'errorMessage': errorMessage ?? '',
-        },
-      );
-      await WhatsAppNotificationService.instance.notifySyncError(
-        operation: 'sync',
-        // ignore: dead_null_aware_expression
           error: errorMessage ?? e.toString(),
+          recordsPushed: recordsPushed,
+          recordsPulled: recordsPulled,
+        );
+        // ✅ إضافة إشعار Telegram لخطأ المزامنة
+        await TelegramNotificationService.instance.notifySyncError(
+        operation: 'sync',
+        error: errorMessage ?? e.toString(),
         recordsPushed: recordsPushed,
         recordsPulled: recordsPulled,
       );
+      } // end if (!isRateLimitFailure)
     } finally {
       // ✅ إصلاح حرج (audit agent-6): ضمان إعادة ضبط _currentStatus دائماً
       // حتى لو فشل معالج الأخطاء نفسه (مثل CrashlyticsService أو
@@ -2208,10 +2237,11 @@ class AppwriteSyncManager {
         final incomingLastModified = _asIntNullable(data['lastModified']) ??
             _extractUpdatedAtSec(doc) ?? 0;
         if (existingPayment != null &&
-            existingPayment.lastModified > incomingLastModified) {
+            existingPayment.lastModified >= incomingLastModified) {
           _logger.debug(
-            'Skipping payment ${doc.$id}: local is newer (financial immutability, '
-            'local=${existingPayment.lastModified} > remote=$incomingLastModified)',
+          'Skipping payment ${doc.$id}: local is newer or equal '
+          '(financial immutability, local=${existingPayment.lastModified} '
+          '>= remote=$incomingLastModified)',
             tag: 'SYNC',
           );
           processed++;
@@ -2306,10 +2336,11 @@ class AppwriteSyncManager {
         final incomingLastModified = _asIntNullable(data['lastModified']) ??
             _extractUpdatedAtSec(doc) ?? 0;
         if (existingDebt != null &&
-            existingDebt.lastModified > incomingLastModified) {
+            existingDebt.lastModified >= incomingLastModified) {
           _logger.debug(
-            'Skipping debt ${doc.$id}: local is newer (financial immutability, '
-            'local=${existingDebt.lastModified} > remote=$incomingLastModified)',
+          'Skipping debt ${doc.$id}: local is newer or equal '
+          '(financial immutability, local=${existingDebt.lastModified} '
+          '>= remote=$incomingLastModified)',
             tag: 'SYNC',
           );
           processed++;
@@ -2399,18 +2430,43 @@ class AppwriteSyncManager {
 
   Future<int> _pushAllEntities() async {
     // ✅ فحص الاتصال أولاً
+    List<ConnectivityResult> connectivity = const <ConnectivityResult>[];
     try {
-      final connectivity = await Connectivity().checkConnectivity();
+      connectivity = await Connectivity().checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) {
         _logger.warning('⚠️ لا يوجد اتصال بالإنترنت - تم تأجيل الرفع', tag: 'SYNC');
         return 0;
       }
     } catch (_) {}
 
+    // ✅ جديد: فحص circuit breaker قبل بدء الـ push. إذا كان مُفعّلاً بسبب
+    // تكرار أخطاء 429، نُوقف push phase فوراً لتفادي إغراق الخادم بطلبات
+    // إضافية. السجلات تبقى في outbox وتُعالج في المزامنة التالية.
+    if (appwriteService.networkHelper.isCircuitBreakerActive) {
+      final remaining =
+          appwriteService.networkHelper.circuitBreakerRemaining;
+      _logger.warning(
+        '🔌 Circuit breaker مُفعّل — إيقاف push phase. '
+        'المتبقي ${remaining?.inSeconds ?? 0}s',
+        tag: 'SYNC',
+      );
+      return 0;
+    }
+
     int totalProcessed = 0;
     int consecutiveFailures = 0;
     const int maxIterations = 500;
     int iterations = 0;
+    final constrainedNetwork = _isConstrainedNetwork(connectivity);
+    final minBatchSize = constrainedNetwork ? 5 : 10;
+    final maxBatchSize = constrainedNetwork ? 25 : 100;
+    final entryTimeout = Duration(seconds: constrainedNetwork ? 12 : 25);
+
+    if (_adaptiveBatchSize > maxBatchSize) {
+      _adaptiveBatchSize = maxBatchSize.toDouble();
+    } else if (_adaptiveBatchSize < minBatchSize) {
+      _adaptiveBatchSize = minBatchSize.toDouble();
+    }
 
     while (true) {
       iterations++;
@@ -2425,11 +2481,26 @@ class AppwriteSyncManager {
       }
 
       int processedInBatch = 0;
+      bool abortPush = false; // ✅ يُضبط عند تفعّل circuit breaker أو 429
       for (final entry in entries) {
+        // ✅ جديد: فحص circuit breaker داخل الحلقة — إذا تفعّل في منتصف الدفعة
+        // (مثلاً بعد عدة 429 متتالية)، نُوقف المعالجة فوراً ونترك بقية السجلات
+        // في outbox للمزامنة التالية.
+        if (appwriteService.networkHelper.isCircuitBreakerActive) {
+          final remaining =
+              appwriteService.networkHelper.circuitBreakerRemaining;
+          _logger.warning(
+            '🔌 Circuit breaker مُفعّل أثناء معالجة الدفعة — إيقاف فوري. '
+            'المتبقي ${remaining?.inSeconds ?? 0}s. '
+            'تُترك بقية السجلات في outbox.',
+            tag: 'SYNC',
+          );
+          abortPush = true;
+          break;
+        }
         try {
-          const timeoutSeconds = 30;
           final success = await _processOutboxEntry(entry)
-              .timeout(const Duration(seconds: timeoutSeconds));
+              .timeout(entryTimeout);
           if (success) {
             // ✅ Dual-delivery: نضع علامة "مُسلّم للرئيسي" بدلاً من الحذف.
             // السجل يُحذف تلقائياً فقط إذا كان مُسلّماً للثانوي أيضاً.
@@ -2437,18 +2508,57 @@ class AppwriteSyncManager {
             processedInBatch++;
           }
         } catch (e) {
+          // ✅ جديد: إذا كان الخطأ 429 rate limit، لا نضع علامة error على
+          // السجل (سيعاد إرساله في المزامنة التالية). فقط نُسجّل تحذيراً.
+          final isRateLimit = e is AppwriteException &&
+              (e.code == 429 ||
+                  (e.type ?? '').toLowerCase().contains('rate_limit'));
+          if (isRateLimit) {
+            _logger.warning(
+              '🔌 429 rate limit على السجل ${entry.id} — '
+              'سيُعاد إرساله في المزامنة التالية',
+              tag: 'SYNC',
+            );
+            // لا نضع setError — السجل يبقى eligible للإعادة
+            abortPush = true;
+            break; // اخرج من حلقة الدفعة لتقليل الضغط على الخادم
+          }
           if (e is TimeoutException) {
-            _logger.warning('⏱️ Timeout processing entry ${entry.id}', tag: 'SYNC');
+            final message =
+                'Timeout processing entry ${entry.id} after ${entryTimeout.inSeconds}s';
+            _logger.warning('⏱️ $message', tag: 'SYNC');
+            await outboxDao.setError(entry.id, message, entry.attempts + 1);
+          } else {
+            final message = 'Unexpected push error for entry ${entry.id}: $e';
+            _logger.warning('⚠️ $message', tag: 'SYNC');
+            await outboxDao.setError(entry.id, message, entry.attempts + 1);
           }
         }
       }
 
+      // ✅ إذا تفعّل circuit breaker أو حدث 429، أوقف الـ push بالكامل —
+      // لا نريد جلب دفعة جديدة و Hammering الخادم.
+      if (abortPush) {
+        _logger.warning(
+          '⛔ إيقاف _pushAllEntities بسبب rate limit — '
+          'السجلات المتبقية تُعالج في المزامنة التالية',
+          tag: 'SYNC',
+        );
+        break;
+      }
+
       // Adaptive batch size
       if (processedInBatch == entries.length) {
-        _adaptiveBatchSize = (_adaptiveBatchSize * 1.3).clamp(10, 200);
+        _adaptiveBatchSize = (_adaptiveBatchSize * 1.3).clamp(
+          minBatchSize,
+          maxBatchSize,
+        ).toDouble();
         consecutiveFailures = 0;
       } else {
-        _adaptiveBatchSize = (_adaptiveBatchSize * 0.6).clamp(5, 100);
+        _adaptiveBatchSize = (_adaptiveBatchSize * 0.6).clamp(
+          minBatchSize,
+          maxBatchSize,
+        ).toDouble();
         consecutiveFailures++;
       }
 
@@ -2464,6 +2574,17 @@ class AppwriteSyncManager {
       }
     }
     return totalProcessed;
+  }
+
+  bool _isConstrainedNetwork(List<ConnectivityResult> connectivity) {
+    if (connectivity.isEmpty) {
+      return true;
+    }
+    if (connectivity.contains(ConnectivityResult.wifi) ||
+        connectivity.contains(ConnectivityResult.ethernet)) {
+      return false;
+    }
+    return true;
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {
@@ -2562,6 +2683,51 @@ class AppwriteSyncManager {
     Map<String, dynamic> payload,
   ) {
     return AppwriteSyncUtils.filterPayloadForCollection(collectionId, payload);
+  }
+
+  /// ✅ P0-5: القفل التفاؤلي (OCC) لكل الكيانات — واجهة مختصرة تستخدم
+  /// اسم الكيان فقط وتحدد collectionId تلقائياً.
+  /// يُرجع الحمولة النهائية (أصلية أو مدموجة).
+  Future<Map<String, dynamic>> _occPushCheck({
+    required String entity,
+    required String documentId,
+    required Map<String, dynamic> localPayload,
+  }) async {
+    final collectionId = _entityToCollectionId(entity);
+    if (collectionId == null) return localPayload;
+    return _occCheckAndMerge(
+      collectionId: collectionId,
+      documentId: documentId,
+      localPayload: localPayload,
+      entity: entity,
+    );
+  }
+
+  /// تحويل اسم الكيان إلى معرف مجموعة Appwrite
+  String? _entityToCollectionId(String entity) {
+    final map = <String, String>{
+      'rooms': AppwriteConfig.roomsCollectionId,
+      'bookings': AppwriteConfig.bookingsCollectionId,
+      'payments': AppwriteConfig.paymentsCollectionId,
+      'expenses': AppwriteConfig.expensesCollectionId,
+      'debts': AppwriteConfig.debtsCollectionId,
+      'employees': AppwriteConfig.employeesCollectionId,
+      'booking_notes': AppwriteConfig.bookingNotesCollectionId,
+      'booking_nights': AppwriteConfig.bookingNightsCollectionId,
+      'cash_transactions': AppwriteConfig.cashTransactionsCollectionId,
+      'shift_notes': AppwriteConfig.shiftNotesCollectionId,
+      'salary_cycles': AppwriteConfig.salaryCyclesCollectionId,
+      'salary_payments': AppwriteConfig.salaryPaymentsCollectionId,
+      'salary_withdrawals': AppwriteConfig.salaryWithdrawalsCollectionId,
+      'guest_infos': AppwriteConfig.guestInfosCollectionId,
+      'blacklist': AppwriteConfig.blacklistCollectionId,
+      'booking_price_adjustments': AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+      'price_adjustments': AppwriteConfig.priceAdjustmentsCollectionId,
+      'payment_voids': AppwriteConfig.paymentVoidsCollectionId,
+      'salary_carry_over_logs': 'salary_carry_over_logs',
+      'audit_logs': AppwriteConfig.auditLogsCollectionId,
+    };
+    return map[entity];
   }
 
   /// ✅ P0-5: القفل التفاؤلي (OCC) — فحص النسخة البعيدة قبل الدفع
@@ -2668,11 +2834,16 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _roomToRemote(room);
+    final occPayload = await _occPushCheck(
+      entity: 'rooms',
+      documentId: room.localUuid,
+      localPayload: payload,
+    );
 
     try {
       await appwriteService.upsertRoom(
         room.localUuid,
-        _filterPayload('rooms', _addIdempotencyKey(payload, entry)),
+        _filterPayload('rooms', _addIdempotencyKey(occPayload, entry)),
       );
     } catch (e) {
       // ✅ إذا فشل الرفع بسبب حقل idempotencyKey غير موجود، نُعيد المحاولة بدونه
@@ -2686,7 +2857,7 @@ class AppwriteSyncManager {
         );
         await appwriteService.upsertRoom(
           room.localUuid,
-          _filterPayload('rooms', payload), // بدون idempotencyKey
+          _filterPayload('rooms', occPayload), // بدون idempotencyKey
         );
       } else {
         rethrow;
@@ -2755,7 +2926,7 @@ class AppwriteSyncManager {
         );
         await appwriteService.upsertBooking(
           booking.localUuid,
-          _filterPayload('bookings', payload), // بدون idempotencyKey
+          _filterPayload('bookings', occPayload), // بدون idempotencyKey
         );
       } else {
         rethrow;
@@ -3061,10 +3232,15 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.guestInfoToRemote(info);
+    final occPayload = await _occPushCheck(
+      entity: 'guest_infos',
+      documentId: info.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.guestInfosCollectionId,
       documentId: info.localUuid,
-      data: _filterPayload('guest_infos', _addIdempotencyKey(payload, entry)),
+      data: _filterPayload('guest_infos', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -3288,10 +3464,15 @@ class AppwriteSyncManager {
       withdrawal,
       employeeUuid: employee.localUuid,
     );
+    final occPayload = await _occPushCheck(
+      entity: 'salary_withdrawals',
+      documentId: withdrawal.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
       documentId: withdrawal.localUuid,
-      data: _filterPayload('salary_withdrawals', _addIdempotencyKey(payload, entry)),
+      data: _filterPayload('salary_withdrawals', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -4661,6 +4842,11 @@ class AppwriteSyncManager {
         operation: 'bulk_push',
         error: e.toString(),
       );
+      // ✅ إضافة إشعار Telegram لخطأ المزامنة
+      await TelegramNotificationService.instance.notifySyncError(
+        operation: 'bulk_push',
+        error: e.toString(),
+      );
       rethrow;
     }
   }
@@ -4701,9 +4887,14 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.salaryPaymentToRemote(item);
+    final occPayload = await _occPushCheck(
+      entity: 'salary_payments',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertSalaryPayment(
       item.localUuid,
-      _filterPayload('salary_payments', _addIdempotencyKey(payload, entry)),
+      _filterPayload('salary_payments', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -4732,9 +4923,15 @@ class AppwriteSyncManager {
 
     final payload = _payloadMapper.cashTransactionToRemote(item);
 
+    final occPayload = await _occPushCheck(
+      entity: 'cash_transactions',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
+
     await appwriteService.upsertCashTransaction(
       item.localUuid,
-      _filterPayload('cash_transactions', _addIdempotencyKey(payload, entry)),
+      _filterPayload('cash_transactions', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -4762,10 +4959,15 @@ class AppwriteSyncManager {
     }
 
     final payload = _payloadMapper.shiftNoteToRemote(item);
+    final occPayload = await _occPushCheck(
+      entity: 'shift_notes',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
 
     await appwriteService.upsertShiftNote(
       item.localUuid,
-      _filterPayload('shift_notes', _addIdempotencyKey(payload, entry)),
+      _filterPayload('shift_notes', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -4804,10 +5006,15 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.salaryCarryOverLogToRemote(log);
+    final occPayload = await _occPushCheck(
+      entity: 'salary_carry_over_logs',
+      documentId: entry.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertDocument(
       collectionId: 'salary_carry_over_logs',
       documentId: entry.localUuid,
-      data: _filterPayload('salary_carry_over_logs', _addIdempotencyKey(payload, entry)),
+      data: _filterPayload('salary_carry_over_logs', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -4828,9 +5035,14 @@ class AppwriteSyncManager {
     }
 
     final payload = _blacklistToRemote(item);
+    final occPayload = await _occPushCheck(
+      entity: 'blacklist',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertBlacklist(
       item.localUuid,
-      _filterPayload('blacklist', _addIdempotencyKey(payload, entry)),
+      _filterPayload('blacklist', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -4875,10 +5087,15 @@ class AppwriteSyncManager {
     }
 
     final payload = _priceAdjustmentToRemote(localRow);
+    final occPayload = await _occPushCheck(
+      entity: 'price_adjustments',
+      documentId: localRow.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
       documentId: localRow.localUuid,
-      data: _filterPayload('price_adjustments', _addIdempotencyKey(payload, entry)),
+      data: _filterPayload('price_adjustments', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -5053,12 +5270,17 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.paymentVoidToRemote(voidRecord);
+    final occPayload = await _occPushCheck(
+      entity: 'payment_voids',
+      documentId: voidRecord.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.paymentVoidsCollectionId,
       documentId: voidRecord.localUuid,
       data: _filterPayload(
         'payment_voids',
-        _addIdempotencyKey(payload, entry),
+        _addIdempotencyKey(occPayload, entry),
       ),
     );
     return true;
@@ -5119,10 +5341,15 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.employeeToRemote(item);
+    final occPayload = await _occPushCheck(
+      entity: 'employees',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     try {
       await appwriteService.upsertEmployee(
         item.localUuid,
-        _filterPayload('employees', _addIdempotencyKey(payload, entry)),
+        _filterPayload('employees', _addIdempotencyKey(occPayload, entry)),
       );
     } catch (e) {
       if (e.toString().contains('attribute_not_found') ||
@@ -5167,10 +5394,14 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.bookingNoteToRemote(item);
-    // Note: booking notes often part of booking but if synced separately:
+    final occPayload = await _occPushCheck(
+      entity: 'booking_notes',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertBookingNote(
       item.localUuid,
-      _filterPayload('booking_notes', _addIdempotencyKey(payload, entry)),
+      _filterPayload('booking_notes', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -5197,9 +5428,14 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.bookingNightToRemote(item);
+    final occPayload = await _occPushCheck(
+      entity: 'booking_nights',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertBookingNight(
       item.localUuid,
-      _filterPayload('booking_nights', _addIdempotencyKey(payload, entry)),
+      _filterPayload('booking_nights', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -5226,7 +5462,6 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.salaryCycleToRemote(item);
-    // ✅ إضافة employeeUuid لربط دورة الراتب بالموظف عبر الأجهزة
     final employee = await (database.select(database.employees)
           ..where((e) => e.id.equals(item.employeeId))
           ..limit(1))
@@ -5235,9 +5470,14 @@ class AppwriteSyncManager {
       payload['employeeUuid'] = employee.localUuid;
       payload['employeeLocalUuid'] = employee.localUuid;
     }
+    final occPayload = await _occPushCheck(
+      entity: 'salary_cycles',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertSalaryCycle(
       item.localUuid,
-      _filterPayload('salary_cycles', _addIdempotencyKey(payload, entry)),
+      _filterPayload('salary_cycles', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -5270,10 +5510,15 @@ class AppwriteSyncManager {
       return true;
     }
     final payload = _payloadMapper.bookingPriceAdjustmentToRemote(item);
+    final occPayload = await _occPushCheck(
+      entity: 'booking_price_adjustments',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
       documentId: item.localUuid,
-      data: _filterPayload('booking_price_adjustments', _addIdempotencyKey(payload, entry)),
+      data: _filterPayload('booking_price_adjustments', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -5918,11 +6163,16 @@ class AppwriteSyncManager {
   // ─── PaymentVoids ─────────────────────────────────────────────────────
 
   /// رفع كل الإعدادات المحلية من SharedPreferences → Appwrite
+  /// ✅ الخيار 2: مفاتيح app_settings النصّية (WhatsApp/Telegram) مُجمَّعة في
+  /// `config_json` — الثابت المشترك معرّف في `AppwriteSyncUtils.appSettingsConfigKeys`
+  /// (DRY: مصدر وحيد يستخدمه Primary و Secondary معاً).
+  /// 🔒 لا يُضاف 'api_key' (ثغرة أمنية) ولا 'appwrite_log_level' (إعداد محلي).
+
   Future<bool> _pushAppSettingsToCloud() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final deviceId = await _getDeviceIdForPrefs();
-      final encryptionKey = SecureStorage.getEncryptionKey(null);
+      final encryptionKey = await SecureStorage.getEncryptionKey(null);
       final now = Time.nowEpoch();
 
       // ⚠️ حقول app_settings الفعلية في Appwrite Cloud (25 حقل فقط — الحد الأقصى)
@@ -5930,7 +6180,6 @@ class AppwriteSyncManager {
       // ❌ لا ترسل حقولاً غير موجودة — يسبب "Unknown attribute" خطأ 400
       // ✅ P0-7 إصلاح: تشفير الحقول الحساسة قبل الإرسال للسحابة
       final data = <String, dynamic>{
-        'key': 'whatsapp_settings',
         'value': '',
         // ── فندق ──
         'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
@@ -5945,7 +6194,6 @@ class AppwriteSyncManager {
         'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
         'wa_sendzen_api_key': prefs.getString('wa_sendzen_api_key') ?? '',
         'wa_sendzen_from_number': prefs.getString('wa_sendzen_from_number') ?? '',
-        'wa_template': prefs.getString('whatsapp_template') ?? '',
         // ── Telegram ──
         'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
         'telegram_bot_token': SecureStorage.encryptValue(prefs.getString('telegram_bot_token') ?? '', encryptionKey),
@@ -5953,14 +6201,6 @@ class AppwriteSyncManager {
         'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
         'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
         'telegram_daily_report_time': prefs.getString('telegram_daily_report_time') ?? '',
-        // ── Lark ──
-        'lark_enabled': prefs.getBool('lark_enabled') ?? false,
-        'lark_app_id': prefs.getString('lark_app_id') ?? '',
-        'lark_app_secret': SecureStorage.encryptValue(prefs.getString('lark_app_secret') ?? '', encryptionKey),
-        'lark_webhook_url': prefs.getString('lark_webhook_url') ?? '',
-        'lark_daily_report_enabled': prefs.getBool('lark_daily_report_enabled') ?? false,
-        'lark_daily_report_time': prefs.getString('lark_daily_report_time') ?? '08:00',
-        'lark_daily_report_chat_id': prefs.getString('lark_daily_report_chat_id') ?? '',
         // ── مزامنة ──
         'appwrite_sync_interval': prefs.getInt('appwrite_sync_interval') ?? 15,
         // ✅ إصلاح (2026-07-04): الحقول المطلوبة إجبارياً في مخطط app_settings
@@ -5976,6 +6216,18 @@ class AppwriteSyncManager {
         'syncTimestamp': now,
       };
 
+      // ✅ الخيار 2: تجميع مفاتيح WhatsApp/Telegram النصّية الحسّاسة في حقل
+      // JSON واحد (config_json) بدل أعمدة منفصلة — لتفادي تجاوز حدّ حجم الصف
+      // في Appwrite (app_settings كان يفشل بـ "Missing/Unknown attribute").
+      // نُزيل المفاتيح الفردية من الحمولة ونضعها داخل config_json.
+      final configMap = <String, dynamic>{};
+      for (final k in AppwriteSyncUtils.appSettingsConfigKeys) {
+        if (data.containsKey(k)) {
+          configMap[k] = data.remove(k);
+        }
+      }
+      data['config_json'] = jsonEncode(configMap);
+
       const docId = 'whatsapp_settings';
       const collectionId = 'app_settings';
 
@@ -5983,13 +6235,13 @@ class AppwriteSyncManager {
       //
       // كان الكود السابق يقتطع كل string إلى 28 حرفاً لتجنّب RangeError
       // من Appwrite. هذا يُفسد القيم المشفّرة (telegram_bot_token,
-      // lark_app_secret, wa_api_token) — ciphertext لا يمكن فكّ تشفيره
+      // wa_api_token) — ciphertext لا يمكن فكّ تشفيره
       // بعد الاقتطاع، فتفقد الإعدادات قيمتها على الأجهزة الأخرى.
       //
       // السبب الجذري للمشكلة كان مختلفاً: مخطط app_settings الفعلي على
       // Appwrite Cloud uses generic key-value fields (settingKey,
       // settingValue, settingType, category, ...) وليس الحقول المُسماة
-      // (telegram_bot_token, lark_app_secret, ...). لذا فالـ code يُرسل
+      // (telegram_bot_token, ...). لذا فالـ code يُرسل
       // حقولاً غير موجودة، وAppwrite يرفضها بـ "Unknown attribute".
       //
       // الحل الصحيح هو إعادة تصميم الـ push ليستخدم الـ schema الجديد
@@ -6056,7 +6308,29 @@ class AppwriteSyncManager {
 
     for (final doc in documents) {
       try {
-        final data = doc.data;
+        final data = Map<String, dynamic>.from(doc.data);
+
+        // ✅ الخيار 2: فكّ config_json المُجمّع ودمج مفاتيحه في data قبل
+        // منطق الحقول أدناه. config_json هو المصدر الجديد للحقيقة، لذا قيمه
+        // تُسبق (overwrite) أي أعمدة قديمة منفصلة قد تكون موجودة في المستند.
+        // التوافق الخلفي: إن لم يوجد config_json (مستند من عميل قديم)، يبقى
+        // data بأعمدته الأصلية دون تعديل — لأن الـ if block لا يُنفَّذ.
+        final rawConfig = data['config_json'];
+        if (rawConfig is String && rawConfig.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(rawConfig);
+            if (decoded is Map) {
+              decoded.forEach((k, v) {
+                data[k.toString()] = v;
+              });
+            }
+          } catch (e) {
+            _logger.warning(
+              'app_settings: تعذّر فكّ config_json: $e',
+              tag: 'SYNC',
+            );
+          }
+        }
 
         // ── WhatsApp fields ──
         const waStringFields = {
@@ -6074,11 +6348,7 @@ class AppwriteSyncManager {
           }
         }
 
-        // wa_template → whatsapp_template (مفتاح مختلف في prefs)
-        final template = data['wa_template'];
-        if (template != null && template.toString().isNotEmpty) {
-          await prefs.setString('whatsapp_template', template.toString());
-        }
+
 
         // ── Telegram fields ──
         const tgStringFields = {

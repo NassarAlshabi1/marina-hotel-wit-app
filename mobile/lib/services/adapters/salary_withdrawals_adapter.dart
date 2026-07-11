@@ -125,7 +125,7 @@ class SalaryWithdrawalsAdapter
           : (src == Source.appwrite || src == Source.drive)
               ? const d.Value.absent() // يتيم — لا نستخدم القيمة الخامة البعيدة
               : _vInt(json, 'employeeId', src, altKey: 'employee_id'),
-      amount: _vDouble(json, 'amount', src, fallback: 0),
+      amount: _vDouble(json, 'amount', src),
       withdrawDate: d.Value(wd),
       reason: reasonVal != null ? d.Value(reasonVal) : const d.Value.absent(),
       hotelDayKey: _vStr(

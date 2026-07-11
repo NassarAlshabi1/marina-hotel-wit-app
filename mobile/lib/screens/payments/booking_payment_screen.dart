@@ -36,6 +36,7 @@ class BookingPaymentScreen extends ConsumerStatefulWidget {
       _BookingPaymentScreenState();
 }
 
+
 class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     with SingleTickerProviderStateMixin, SyncOnExitMixin {
   @override
@@ -52,6 +53,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// معرّفات الليالي المشبوهة (المضافة بعد موعد المغادرة المتوقع بسبب نسيان الموظف)
   /// عند الإلغاء تُحذف من قاعدة البيانات وتُستبعد من حساب المبلغ
   final Set<int> _cancelledSuspiciousNightIds = {};
+
+
 
 
   Payment _mapDbPaymentToUi(db.Payment p) {
@@ -414,6 +417,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     if (result == 'cancel_nights') {
       // حفظ معرّفات الليالي الملغاة لاستبعادها من الحساب
+      if (!mounted) return true;
       setState(() {
         _cancelledSuspiciousNightIds
             .addAll(suspiciousNights.map((n) => n.id));
@@ -503,7 +507,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           tooltip: 'سجل المدفوعات',
         ),
       ],
-      body: StreamBuilder<db.Booking?>(
+      body: RepaintBoundary(
+        child: StreamBuilder<db.Booking?>(
         stream: ref.watch(bookingsRepoProvider).watchOne(widget.booking.id),
         builder: (context, bookingSnap) {
           final booking = bookingSnap.data ?? widget.booking;
@@ -763,6 +768,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         );
         },
       ),
+      ), // RepaintBoundary
     ),
     );
   }

@@ -10,6 +10,7 @@ import '../../models/payment_models.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
+import '../../utils/stream_helpers.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
@@ -27,6 +28,37 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   @override
   String get screenId => 'finance';
   bool _isSavingPayment = false;
+
+  // ✅ ValueNotifier — أسرع بديل لـ StreamBuilder في الهواتف الضعيفة
+  ValueNotifier<List<db.Payment>>? _paymentsNotifier;
+  ValueNotifier<List<db.Booking>>? _bookingsNotifier;
+
+  @override
+  void initState() {
+    super.initState();
+    _initNotifiers();
+  }
+
+  void _initNotifiers() {
+    final paymentsRepo = ref.read(paymentsRepoProvider);
+    _paymentsNotifier = StreamToValueNotifier(
+      source: paymentsRepo.watchAll() as Stream<List<db.Payment>>,
+      debounce: const Duration(milliseconds: 150),
+      initialValue: <db.Payment>[],
+    );
+    _bookingsNotifier = StreamToValueNotifier(
+      source: ref.read(bookingsRepoProvider).watchList(),
+      debounce: const Duration(milliseconds: 150),
+      initialValue: <db.Booking>[],
+    );
+  }
+
+  @override
+  void dispose() {
+    _paymentsNotifier?.dispose();
+    _bookingsNotifier?.dispose();
+    super.dispose();
+  }
 
   /// ✅ إصلاح: استخراج الوقت من سلسلة تاريخ بأي صيغة (ISO أو SQL)
   /// بدلاً من split(' ').last.substring(0, 5) الذي يفشل مع صيغة ISO
@@ -67,11 +99,22 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             final expenses = todayExpenses.valueOrNull ?? 0.0;
             final balance = income - expenses;
 
-            final paymentsRepo = ref.read(paymentsRepoProvider);
             return RefreshIndicator(
               color: Colors.indigo,
-              onRefresh: () async => setState(() {}),
-              child: _buildBody(paymentsRepo, income, expenses, balance),
+              // ✅ BUG FIX: كان `setState(() {})` فقط لا يُعيد جلب البيانات من
+              // الـ repository — المستخدم يسحب للأسفل ويرى نفس البيانات القديمة.
+              // invalidate يُجبر الـ providers على إعادة الجلب من المصدر.
+              // ✅ ننتظر اكتمال إعادة الجلب فعليًا حتى تبقى دائرة التحديث ظاهرة
+              // إلى أن تصل البيانات الجديدة، بدل أن تختفي فورًا.
+              onRefresh: () async {
+                ref.invalidate(todayPaymentsProvider);
+                ref.invalidate(todayExpensesProvider);
+                await Future.wait<void>([
+                  ref.read(todayPaymentsProvider.future),
+                  ref.read(todayExpensesProvider.future),
+                ]);
+              },
+              child: _buildBody(income, expenses, balance),
             );
           },
         ),
@@ -79,24 +122,18 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     );
   }
 
-  Widget _buildBody(dynamic paymentsRepo, double income, double expenses, double balance) {
-    return StreamBuilder<List<db.Payment>>(
-      stream: paymentsRepo.watchAll() as Stream<List<db.Payment>>,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final payments = snapshot.data;
-
-        return StreamBuilder<List<db.Booking>>(
-          stream: ref.read(bookingsRepoProvider).watchList(),
-          builder: (context, bookingsSnapshot) {
-            final activeBookings = bookingsSnapshot.hasData
-                ? bookingsSnapshot.data!
-                    .where((b) => StatusUtils.isActiveBooking(b.status))
-                    .toList()
-                : <db.Booking>[];
+  Widget _buildBody(double income, double expenses, double balance) {
+    // ✅ P0: استخدام ValueListenableBuilder بدلاً من StreamBuilder المتداخل
+    // الأسرع للأجهزة الضعيفة — لا يعيد بناء كامل الشاشة
+    return ValueListenableBuilder<List<db.Payment>>(
+      valueListenable: _paymentsNotifier!,
+      builder: (context, payments, _) {
+        return ValueListenableBuilder<List<db.Booking>>(
+          valueListenable: _bookingsNotifier!,
+          builder: (context, bookings, _) {
+            final activeBookings = bookings
+                .where((b) => StatusUtils.isActiveBooking(b.status))
+                .toList();
 
             return ListView(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -112,7 +149,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 const SizedBox(height: 8),
 
                 // ─── مدفوعات اليوم ───
-                _buildTodayPayments(payments ?? []),
+                _buildTodayPayments(payments),
 
                 const SizedBox(height: 8),
 

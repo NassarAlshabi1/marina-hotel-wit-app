@@ -1,4 +1,5 @@
 // ignore_for_file: unused_element, prefer_final_locals, unnecessary_lambdas, curly_braces_in_flow_control_structures
+import 'dart:convert';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,7 @@ import 'appwrite_network_helper.dart';
 import 'appwrite_sync_utils.dart';
 import 'local_db.dart';
 import 'secondary_appwrite_config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// خدمة Appwrite الثانوية — تستخدم Appwrite SDK الرسمي (مثل Primary)
 ///
@@ -37,7 +39,7 @@ class SecondaryAppwriteService {
   Databases? _databases;
 
   /// تهيئة الاتصال بـ Secondary (lazy)
-  Future<void> _ensureInitialized() async {
+  Future<void> ensureInitialized() async {
     if (_databases != null) return;
 
     if (!SecondaryAppwriteConfig.isConfigured) {
@@ -68,7 +70,7 @@ class SecondaryAppwriteService {
   Future<ConnectionTestResult> testConnection() async {
     final stopwatch = Stopwatch()..start();
     try {
-      await _ensureInitialized();
+      await ensureInitialized();
       // ignore: deprecated_member_use
       await _databases!.listDocuments(
         databaseId: SecondaryAppwriteConfig.databaseId,
@@ -97,10 +99,10 @@ class SecondaryAppwriteService {
     required void Function(String collection, int current, int total) onProgress,
     required void Function(String collectionName, int successCount, int failureCount) onCollectionComplete,
   }) async {
-    await _ensureInitialized();
+    await ensureInitialized();
     final db = DatabaseManager.instance;
     final stats = FullBackupStats();
-    final collectionList = await _getAllCollections(db);
+    final collectionList = await getAllCollections(db);
 
     stats.totalCollections = collectionList.length;
 for (final coll in collectionList) {
@@ -128,24 +130,40 @@ for (final coll in collectionList) {
         }
 
         try {
-          final filteredData = AppwriteSyncUtils.filterPayloadForCollection(
-            coll.collectionId,
+          // ✅ P0: استخدام sanitizePayload بدلاً من filterPayloadForCollection
+          // لضمان تحويل الأنواع (double→int), تحويل camelCase, إزالة الحقول الداخلية.
+          final sanitized = AppwriteSyncUtils.sanitizePayload(
+            coll.name,
             record,
+            collectionId: coll.collectionId,
           );
+          // ✅ P1: إضافة syncTimestamp + idempotencyKey—حقول كانت مفقودة من ToMaps
+          final enhancedData = Map<String, dynamic>.from(sanitized);
+          final now = DateTime.now().millisecondsSinceEpoch;
+          enhancedData['syncTimestamp'] ??= now;
+          enhancedData['idempotencyKey'] ??=
+              'backup_${coll.name}_${documentId}_$now';
+          enhancedData['sync_origin'] ??= 'secondary_backup';
           await upsertDocument(
             collectionId: coll.collectionId,
             documentId: documentId,
-            data: filteredData,
+            data: enhancedData,
           );
           successCount++;
         } catch (e) {
           failureCount++;
           final reason = e.toString();
-          stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(
-            FullBackupFailure(documentId: documentId, reason: reason, collectionName: coll.name),
+          final failure = FullBackupFailure(
+            documentId: documentId,
+            reason: reason,
+            collectionName: coll.name,
+            timestamp: DateTime.now(),
           );
-          // ✅ إحصائيات الأخطاء حسب السبب
-          final reasonShort = reason.length > 100 ? reason.substring(0, 100) : reason;
+          stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(failure);
+          // ✅ P3: failedRecords كانت تبقى فارغة—الآن تُملأ بكل فشل
+          stats.failedRecords.add(failure);
+          // ✅ توسيع error truncation من 100→500 حرف لتحليل أفضل
+          final reasonShort = reason.length > 500 ? reason.substring(0, 500) : reason;
           stats.errorsByReason[reasonShort] = (stats.errorsByReason[reasonShort] ?? 0) + 1;
         }
       }
@@ -171,13 +189,63 @@ for (final coll in collectionList) {
     return stats;
   }
 
-  /// Upsert مستند في Secondary — معالجة ID بدون شرطات (مثل Primary)
+  static final RegExp _unknownAttrPattern =
+      RegExp(r'Unknown attribute:\s*"([^"]+)"');
+
+  /// استخراج اسم السمة غير المعروفة من خطأ Appwrite (إن وُجد).
+  String? _extractUnknownAttribute(AppwriteException e) {
+    final type = e.type ?? '';
+    final msg = e.message ?? e.toString();
+    final isStructureError = e.code == 400 &&
+        (type.contains('document_invalid_structure') ||
+            msg.contains('Invalid document structure') ||
+            msg.contains('Unknown attribute'));
+    if (!isStructureError) return null;
+    return _unknownAttrPattern.firstMatch(msg)?.group(1);
+  }
+
+  /// Upsert مستند في Secondary — غلاف صامد أمام انحراف المخطط: إذا رفض
+  /// الخادم حقلاً غير معروف (Unknown attribute) نُزيله ونعيد المحاولة، بدل
+  /// فشل السجل كاملاً (نفس سلوك Primary).
   Future<models.Document> upsertDocument({
     required String collectionId,
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    await _ensureInitialized();
+    var workingData = Map<String, dynamic>.from(data);
+    final maxRetries = workingData.length + 1;
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await _upsertDocumentOnce(
+          collectionId: collectionId,
+          documentId: documentId,
+          data: workingData,
+        );
+      } on AppwriteException catch (e) {
+        final unknownAttr = _extractUnknownAttribute(e);
+        if (unknownAttr != null &&
+            workingData.containsKey(unknownAttr) &&
+            attempt < maxRetries) {
+          workingData = Map<String, dynamic>.from(workingData)
+            ..remove(unknownAttr);
+          _logger.warning(
+            '⚠️ [Secondary] حقل غير معروف في المخطط — أُزيل وأُعيدت المحاولة: '
+            '$collectionId.$unknownAttr',
+            tag: 'SCHEMA_DRIFT',
+          );
+          continue;
+        }
+        rethrow;
+      }
+    }
+  }
+
+  Future<models.Document> _upsertDocumentOnce({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) async {
+    await ensureInitialized();
     final dbId = SecondaryAppwriteConfig.databaseId;
 
     bool isNotFound(AppwriteException e) =>
@@ -289,7 +357,7 @@ for (final coll in collectionList) {
     required String collectionId,
     required String documentId,
   }) async {
-    await _ensureInitialized();
+    await ensureInitialized();
     try {
       await _networkHelper.withRetryAndTimeout(
         // ignore: deprecated_member_use
@@ -327,63 +395,81 @@ for (final coll in collectionList) {
   Map<String, Future<List<Map<String, dynamic>>> Function()> _backupFetchers(
     AppDatabase db,
   ) {
+    // ✅ إصلاح تطابق الحقول مع Primary:
+    // نستخدم `row.toJson()` لكل كيان — تماماً مثل DeltaSyncService في Primary
+    // (`_entityConfigs()` → `toJson: (row) => row.toJson()`).
+    // سابقاً كانت هذه الدالة تعتمد على مُحوّلات يدوية (_roomToMap, _bookingToMap…)
+    // تختار مجموعة فرعية من الأعمدة، فكانت تتباعد عن مخطط Primary وتُسقط حقولاً
+    // صامتاً (لأن فلتر المخطط في sanitizePayload يُبقي فقط الحقول الموجودة أصلاً
+    // في المدخلات). باستخدام toJson تُرسَل نفس أعمدة Primary بالضبط، ثم تمرّ عبر
+    // نفس sanitizePayload/collectionSchema — فيتطابق ناتج الحقول حرفياً مع Primary.
     return {
       'rooms': () async =>
-          (await db.select(db.rooms).get()).map(_roomToMap).toList(),
+          (await db.select(db.rooms).get()).map((e) => e.toJson()).toList(),
       'bookings': () async =>
-          (await db.select(db.bookings).get()).map(_bookingToMap).toList(),
+          (await db.select(db.bookings).get()).map((e) {
+            final j = e.toJson();
+            // ✅ حقل amount الموحّد لجدول bookings (مشتق من المبلغ المستحق)
+            // حتى يطابق Primary تماماً في الحقول المُرسَلة.
+            j['amount'] = e.totalDueCached;
+            return j;
+          }).toList(),
       'payments': () async =>
-          (await db.select(db.payments).get()).map(_paymentToMap).toList(),
+          (await db.select(db.payments).get()).map((e) => e.toJson()).toList(),
       'expenses': () async =>
-          (await db.select(db.expenses).get()).map(_expenseToMap).toList(),
+          (await db.select(db.expenses).get()).map((e) => e.toJson()).toList(),
       'debts': () async =>
-          (await db.select(db.debts).get()).map(_debtToMap).toList(),
+          (await db.select(db.debts).get()).map((e) => e.toJson()).toList(),
       'employees': () async =>
-          (await db.select(db.employees).get()).map(_employeeToMap).toList(),
+          (await db.select(db.employees).get()).map((e) => e.toJson()).toList(),
       'booking_notes': () async =>
-          (await db.select(db.bookingNotes).get()).map(_bookingNoteToMap).toList(),
+          (await db.select(db.bookingNotes).get()).map((e) => e.toJson()).toList(),
       'booking_nights': () async =>
-          (await db.select(db.bookingNights).get()).map(_nightToMap).toList(),
+          (await db.select(db.bookingNights).get()).map((e) => e.toJson()).toList(),
       'cash_transactions': () async => (await db.select(db.cashTransactions).get())
-          .map(_cashTransactionToMap)
+          .map((e) => e.toJson())
           .toList(),
       'salary_cycles': () async =>
-          (await db.select(db.salaryCycles).get()).map(_salaryCycleToMap).toList(),
+          (await db.select(db.salaryCycles).get()).map((e) => e.toJson()).toList(),
       'salary_payments': () async => (await db.select(db.salaryPayments).get())
-          .map(_salaryPaymentToMap)
+          .map((e) => e.toJson())
           .toList(),
       'salary_withdrawals': () async =>
           (await db.select(db.salaryWithdrawals).get())
-              .map(_salaryWithdrawalToMap)
+              .map((e) => e.toJson())
               .toList(),
       'salary_carry_over_logs': () async =>
           (await db.select(db.salaryCarryOverLogs).get())
-              .map(_salaryCarryOverLogToMap)
+              .map((e) => e.toJson())
               .toList(),
       'shift_notes': () async =>
-          (await db.select(db.shiftNotes).get()).map(_shiftNoteToMap).toList(),
+          (await db.select(db.shiftNotes).get()).map((e) => e.toJson()).toList(),
       'price_adjustments': () async => (await db.select(db.priceAdjustments).get())
-          .map(_priceAdjustmentToMap)
+          .map((e) => e.toJson())
           .toList(),
       'booking_price_adjustments': () async =>
           (await db.select(db.bookingPriceAdjustments).get())
-              .map(_bookingPriceAdjustmentToMap)
+              .map((e) => e.toJson())
               .toList(),
       'audit_logs': () async =>
-          (await db.select(db.auditLogs).get()).map(_auditLogToMap).toList(),
+          (await db.select(db.auditLogs).get()).map((e) => e.toJson()).toList(),
       'payment_voids': () async =>
-          (await db.select(db.paymentVoids).get()).map(_paymentVoidToMap).toList(),
+          (await db.select(db.paymentVoids).get()).map((e) => e.toJson()).toList(),
+      // app_settings ليس جدول Drift — يُبنى من SharedPreferences كما في السابق.
+      'app_settings': () async => [
+            await _appSettingsToMap(),
+          ],
       'guest_infos': () async =>
-          (await db.select(db.guestInfos).get()).map(_guestInfoToMap).toList(),
+          (await db.select(db.guestInfos).get()).map((e) => e.toJson()).toList(),
     };
   }
 
   /// تجميع كل بيانات الجداول المحلية للرفع الشامل
   /// ✅ P0-3 إصلاح: استخدام اجراءات Drift الفعلية بدلاً من قائمة ثابتة فارغة
   /// ✅ يُبنى من `_backupFetchers` (مصدر حقيقة واحد) بدل قائمة + switch منفصلين.
-  Future<List<_CollectionData>> _getAllCollections(AppDatabase db) async {
+  Future<List<CollectionData>> getAllCollections(AppDatabase db) async {
     final fetchers = _backupFetchers(db);
-    final result = <_CollectionData>[];
+    final result = <CollectionData>[];
 
     for (final entry in fetchers.entries) {
       final entity = entry.key;
@@ -395,7 +481,7 @@ for (final coll in collectionList) {
       }
 
       final records = await entry.value();
-      result.add(_CollectionData(
+      result.add(CollectionData(
         name: entity,
         collectionId: collectionId,
         records: records,
@@ -406,574 +492,70 @@ for (final coll in collectionList) {
   }
 
   // ── Entity to Map converters ──
-    Map<String, dynamic> _roomToMap(Room r) => {
-        'localUuid': r.localUuid,
-        'serverId': r.serverId,
-        'createdAt': r.createdAt,
-        'updatedAt': r.updatedAt,
-        'deletedAt': r.deletedAt,
-        'lastModified': r.lastModified,
-        'createdAtIso': r.createdAtIso,
-        'updatedAtIso': r.updatedAtIso,
-        'deletedAtIso': r.deletedAtIso,
-        'createdAtEpoch': r.createdAtEpoch,
-        'lastModifiedEpoch': r.lastModifiedEpoch,
-        'version': r.version,
-        'origin': r.origin,
-        'vectorClock': r.vectorClock,
-        'deviceId': r.deviceId,
-        'id': r.id,
-        'roomNumber': r.roomNumber,
-        'type': r.type,
-        'price': r.price,
-        'status': r.status,
-        'imageUrl': r.imageUrl,
-        'cleaningStatus': r.cleaningStatus,
-        'lastCleanedHotelDay': r.lastCleanedHotelDay,
-        'lastOccupiedHotelDay': r.lastOccupiedHotelDay,
-        'requiresMaintenance': r.requiresMaintenance,
+  // ✅ لم تعد هناك مُحوّلات يدوية لكل كيان — نستخدم row.toJson() في
+  //    _backupFetchers تماماً مثل Primary. يبقى فقط app_settings لأنه
+  //    ليس جدول Drift.
+
+    /// تحويل إعدادات التطبيق من SharedPreferences إلى خريطة للرفع
+    /// app_settings مخزّن في SharedPreferences (ليس Drift) كمستند واحد
+    /// بمعرّف ثابت 'whatsapp_settings' — نفس النمط المستخدم في Primary sync.
+    Future<Map<String, dynamic>> _appSettingsToMap() async {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final deviceId = prefs.getString('appwrite_delta_device_id') ?? 'default';
+
+      final map = <String, dynamic>{
+        'localUuid': 'whatsapp_settings',
+        'value': '',
+        'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
+        'hotel_cutoff_hour': prefs.getInt('hotel_cutoff_hour') ?? 14,
+        'dark_mode': prefs.getBool('dark_mode') ?? false,
+        'wa_api_type': prefs.getString('wa_api_type') ?? 'greenapi',
+        'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
+        'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',
+        'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
+        'wa_sendzen_api_key': prefs.getString('wa_sendzen_api_key') ?? '',
+        'wa_sendzen_from_number': prefs.getString('wa_sendzen_from_number') ?? '',
+        'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
+        'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '',
+        'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
+        'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
+        'telegram_daily_report_time': prefs.getString('telegram_daily_report_time') ?? '',
+        'appwrite_sync_interval': prefs.getInt('appwrite_sync_interval') ?? 15,
+        // حقول المزامنة الأساسية (SyncFields)
+        'deviceId': deviceId,
+        'serverId': null,
+        'createdAt': now,
+        'updatedAt': now,
+        'deletedAt': null,
+        'lastModified': now,
+        'lastModifiedEpoch': now,
+        'createdAtEpoch': now,
+        'createdAtIso': DateTime.now().toIso8601String(),
+        'updatedAtIso': DateTime.now().toIso8601String(),
+        'deletedAtIso': null,
+        'version': 1,
+        'origin': 'local',
+        'vectorClock': '{}',
+        'idempotencyKey': null,
+        'syncTimestamp': now,
+        'sync_origin': 'secondary_backup',
       };
 
-    Map<String, dynamic> _bookingToMap(Booking b) => {
-        'localUuid': b.localUuid,
-        'serverId': b.serverId,
-        'createdAt': b.createdAt,
-        'updatedAt': b.updatedAt,
-        'deletedAt': b.deletedAt,
-        'lastModified': b.lastModified,
-        'createdAtIso': b.createdAtIso,
-        'updatedAtIso': b.updatedAtIso,
-        'deletedAtIso': b.deletedAtIso,
-        'createdAtEpoch': b.createdAtEpoch,
-        'lastModifiedEpoch': b.lastModifiedEpoch,
-        'version': b.version,
-        'origin': b.origin,
-        'vectorClock': b.vectorClock,
-        'deviceId': b.deviceId,
-        'id': b.id,
-        'serverBookingId': b.serverBookingId,
-        'roomNumber': b.roomNumber,
-        'guestName': b.guestName,
-        'guestPhone': b.guestPhone,
-        'guestIdType': b.guestIdType,
-        'guestIdNumber': b.guestIdNumber,
-        'guestIdIssueDate': b.guestIdIssueDate,
-        'guestIdIssuePlace': b.guestIdIssuePlace,
-        'guestNationality': b.guestNationality,
-        'guestEmail': b.guestEmail,
-        'guestAddress': b.guestAddress,
-        'checkinDate': b.checkinDate,
-        'checkoutDate': b.checkoutDate,
-        'actualCheckout': b.actualCheckout,
-        'status': b.status,
-        'notes': b.notes,
-        'discount': b.discount,
-        'discountType': b.discountType,
-        'discountStartDate': b.discountStartDate,
-        'expectedNights': b.expectedNights,
-        'calculatedNights': b.calculatedNights,
-        'totalNightsCached': b.totalNightsCached,
-        'stayDurationIso': b.stayDurationIso,
-        'lastNightEpoch': b.lastNightEpoch,
-        'isOverdue': b.isOverdue,
-        'needsCheckoutReview': b.needsCheckoutReview,
-        'totalDueCached': b.totalDueCached,
-        'totalPaidCached': b.totalPaidCached,
-        'remainingBalanceCached': b.remainingBalanceCached,
-        'isFullyPaid': b.isFullyPaid,
-        'hotelDayCheckin': b.hotelDayCheckin,
-        'hotelDayCheckout': b.hotelDayCheckout,
-      };
+      // ✅ الخيار 2: تجميع مفاتيح WhatsApp/Telegram النصّية في config_json واحد
+      // (مطابق لـ Primary) لتفادي تجاوز حدّ حجم الصف في Appwrite.
+      // ⚠️ نُعيد استخدام `AppwriteSyncUtils.appSettingsConfigKeys` (DRY) — مصدر
+      //    وحيد للقائمة بين Primary و Secondary لتفادي الانحراف مستقبلاً.
+      final configMap = <String, dynamic>{};
+      for (final k in AppwriteSyncUtils.appSettingsConfigKeys) {
+        if (map.containsKey(k)) {
+          configMap[k] = map.remove(k);
+        }
+      }
+      map['config_json'] = jsonEncode(configMap);
 
-    Map<String, dynamic> _paymentToMap(Payment p) => {
-        'localUuid': p.localUuid,
-        'serverId': p.serverId,
-        'createdAt': p.createdAt,
-        'updatedAt': p.updatedAt,
-        'deletedAt': p.deletedAt,
-        'lastModified': p.lastModified,
-        'createdAtIso': p.createdAtIso,
-        'updatedAtIso': p.updatedAtIso,
-        'deletedAtIso': p.deletedAtIso,
-        'createdAtEpoch': p.createdAtEpoch,
-        'lastModifiedEpoch': p.lastModifiedEpoch,
-        'version': p.version,
-        'origin': p.origin,
-        'vectorClock': p.vectorClock,
-        'deviceId': p.deviceId,
-        'id': p.id,
-        'serverPaymentId': p.serverPaymentId,
-        'bookingLocalId': p.bookingLocalId,
-        'serverBookingId': p.serverBookingId,
-        'roomNumber': p.roomNumber,
-        'amount': p.amount,
-        'paymentDate': p.paymentDate,
-        'notes': p.notes,
-        'paymentMethod': p.paymentMethod,
-        'revenueType': p.revenueType,
-        'cashTransactionLocalId': p.cashTransactionLocalId,
-        'cashTransactionServerId': p.cashTransactionServerId,
-        'referenceNumber': p.referenceNumber,
-        'hotelDayKey': p.hotelDayKey,
-        'isPendingBalance': p.isPendingBalance,
-        'linkedDebtUuid': p.linkedDebtUuid,
-        'bookingUuidCache': p.bookingUuidCache,
-        'discountAmount': p.discountAmount,
-        'discountStartDate': p.discountStartDate,
-        'isVoided': p.isVoided,
-        'voidedAt': p.voidedAt,
-        'voidedBy': p.voidedBy,
-      };
-
-    Map<String, dynamic> _expenseToMap(Expense e) => {
-        'localUuid': e.localUuid,
-        'serverId': e.serverId,
-        'createdAt': e.createdAt,
-        'updatedAt': e.updatedAt,
-        'deletedAt': e.deletedAt,
-        'lastModified': e.lastModified,
-        'createdAtIso': e.createdAtIso,
-        'updatedAtIso': e.updatedAtIso,
-        'deletedAtIso': e.deletedAtIso,
-        'createdAtEpoch': e.createdAtEpoch,
-        'lastModifiedEpoch': e.lastModifiedEpoch,
-        'version': e.version,
-        'origin': e.origin,
-        'vectorClock': e.vectorClock,
-        'deviceId': e.deviceId,
-        'id': e.id,
-        'expenseType': e.expenseType,
-        'relatedId': e.relatedId,
-        'description': e.description,
-        'amount': e.amount,
-        'date': e.date,
-        'cashTransactionId': e.cashTransactionId,
-        'hotelDayKey': e.hotelDayKey,
-        'categoryUuid': e.categoryUuid,
-        'cashFlowUuid': e.cashFlowUuid,
-        'isAutoGenerated': e.isAutoGenerated,
-      };
-
-    Map<String, dynamic> _debtToMap(Debt d) => {
-        'localUuid': d.localUuid,
-        'serverId': d.serverId,
-        'createdAt': d.createdAt,
-        'updatedAt': d.updatedAt,
-        'deletedAt': d.deletedAt,
-        'lastModified': d.lastModified,
-        'createdAtIso': d.createdAtIso,
-        'updatedAtIso': d.updatedAtIso,
-        'deletedAtIso': d.deletedAtIso,
-        'createdAtEpoch': d.createdAtEpoch,
-        'lastModifiedEpoch': d.lastModifiedEpoch,
-        'version': d.version,
-        'origin': d.origin,
-        'vectorClock': d.vectorClock,
-        'deviceId': d.deviceId,
-        'id': d.id,
-        'bookingLocalId': d.bookingLocalId,
-        'guestName': d.guestName,
-        'checkinDate': d.checkinDate,
-        'checkoutDate': d.checkoutDate,
-        'dateRecorded': d.dateRecorded,
-        'debtReason': d.debtReason,
-        'totalAmount': d.totalAmount,
-        'paidAmount': d.paidAmount,
-        'remainingAmount': d.remainingAmount,
-        'paymentDate': d.paymentDate,
-        'isSettled': d.isSettled,
-        'pledge': d.pledge,
-        'pledgeType': d.pledgeType,
-        'note': d.note,
-        'debtUuid': d.debtUuid,
-        'hotelDayOpened': d.hotelDayOpened,
-        'hotelDayClosed': d.hotelDayClosed,
-        'isFromAutoFix': d.isFromAutoFix,
-        'settlementConfirmed': d.settlementConfirmed,
-      };
-
-    Map<String, dynamic> _employeeToMap(Employee e) => {
-        'localUuid': e.localUuid,
-        'serverId': e.serverId,
-        'createdAt': e.createdAt,
-        'updatedAt': e.updatedAt,
-        'deletedAt': e.deletedAt,
-        'lastModified': e.lastModified,
-        'createdAtIso': e.createdAtIso,
-        'updatedAtIso': e.updatedAtIso,
-        'deletedAtIso': e.deletedAtIso,
-        'createdAtEpoch': e.createdAtEpoch,
-        'lastModifiedEpoch': e.lastModifiedEpoch,
-        'version': e.version,
-        'origin': e.origin,
-        'vectorClock': e.vectorClock,
-        'deviceId': e.deviceId,
-        'id': e.id,
-        'name': e.name,
-        'basicSalary': e.basicSalary,
-        'position': e.position,
-        'phone': e.phone,
-        'hireDate': e.hireDate,
-        'status': e.status,
-        'terminationDate': e.terminationDate,
-        'terminationReason': e.terminationReason,
-      };
-
-    Map<String, dynamic> _bookingNoteToMap(BookingNote b) => {
-        'localUuid': b.localUuid,
-        'serverId': b.serverId,
-        'createdAt': b.createdAt,
-        'updatedAt': b.updatedAt,
-        'deletedAt': b.deletedAt,
-        'lastModified': b.lastModified,
-        'createdAtIso': b.createdAtIso,
-        'updatedAtIso': b.updatedAtIso,
-        'deletedAtIso': b.deletedAtIso,
-        'createdAtEpoch': b.createdAtEpoch,
-        'lastModifiedEpoch': b.lastModifiedEpoch,
-        'version': b.version,
-        'origin': b.origin,
-        'vectorClock': b.vectorClock,
-        'deviceId': b.deviceId,
-        'id': b.id,
-        'bookingId': b.bookingId,
-        'noteText': b.noteText,
-        'alertType': b.alertType,
-        'alertUntil': b.alertUntil,
-        'isActive': b.isActive,
-      };
-
-    Map<String, dynamic> _nightToMap(BookingNight n) => {
-        'localUuid': n.localUuid,
-        'serverId': n.serverId,
-        'createdAt': n.createdAt,
-        'updatedAt': n.updatedAt,
-        'deletedAt': n.deletedAt,
-        'lastModified': n.lastModified,
-        'createdAtIso': n.createdAtIso,
-        'updatedAtIso': n.updatedAtIso,
-        'deletedAtIso': n.deletedAtIso,
-        'createdAtEpoch': n.createdAtEpoch,
-        'lastModifiedEpoch': n.lastModifiedEpoch,
-        'version': n.version,
-        'origin': n.origin,
-        'vectorClock': n.vectorClock,
-        'deviceId': n.deviceId,
-        'id': n.id,
-        'bookingLocalId': n.bookingLocalId,
-        'hotelDayKey': n.hotelDayKey,
-        'nightStart': n.nightStart,
-        'nightEnd': n.nightEnd,
-        'nightlyRate': n.nightlyRate,
-        'sequence': n.sequence,
-        'isProcessedByAutoFix': n.isProcessedByAutoFix,
-        'baseRate': n.baseRate,
-        'adjustment': n.adjustment,
-        'finalRate': n.finalRate,
-        'appliedAdjustmentUuid': n.appliedAdjustmentUuid,
-        'appliedAdjustmentsJson': n.appliedAdjustmentsJson,
-      };
-
-    Map<String, dynamic> _cashTransactionToMap(CashTransaction c) => {
-        'localUuid': c.localUuid,
-        'serverId': c.serverId,
-        'createdAt': c.createdAt,
-        'updatedAt': c.updatedAt,
-        'deletedAt': c.deletedAt,
-        'lastModified': c.lastModified,
-        'createdAtIso': c.createdAtIso,
-        'updatedAtIso': c.updatedAtIso,
-        'deletedAtIso': c.deletedAtIso,
-        'createdAtEpoch': c.createdAtEpoch,
-        'lastModifiedEpoch': c.lastModifiedEpoch,
-        'version': c.version,
-        'origin': c.origin,
-        'vectorClock': c.vectorClock,
-        'deviceId': c.deviceId,
-        'id': c.id,
-        'registerId': c.registerId,
-        'transactionType': c.transactionType,
-        'amount': c.amount,
-        'referenceType': c.referenceType,
-        'referenceId': c.referenceId,
-        'description': c.description,
-        'transactionTime': c.transactionTime,
-        'createdBy': c.createdBy,
-      };
-
-    Map<String, dynamic> _salaryCycleToMap(SalaryCycle s) => {
-        'localUuid': s.localUuid,
-        'serverId': s.serverId,
-        'createdAt': s.createdAt,
-        'updatedAt': s.updatedAt,
-        'deletedAt': s.deletedAt,
-        'lastModified': s.lastModified,
-        'createdAtIso': s.createdAtIso,
-        'updatedAtIso': s.updatedAtIso,
-        'deletedAtIso': s.deletedAtIso,
-        'createdAtEpoch': s.createdAtEpoch,
-        'lastModifiedEpoch': s.lastModifiedEpoch,
-        'version': s.version,
-        'origin': s.origin,
-        'vectorClock': s.vectorClock,
-        'deviceId': s.deviceId,
-        'id': s.id,
-        'employeeId': s.employeeId,
-        'cycleKey': s.cycleKey,
-        'hotelDayStart': s.hotelDayStart,
-        'hotelDayEnd': s.hotelDayEnd,
-        'expectedAmount': s.expectedAmount,
-        'actualPaid': s.actualPaid,
-        'remainingAmount': s.remainingAmount,
-        'status': s.status,
-      };
-
-    Map<String, dynamic> _salaryPaymentToMap(SalaryPayment s) => {
-        'localUuid': s.localUuid,
-        'serverId': s.serverId,
-        'createdAt': s.createdAt,
-        'updatedAt': s.updatedAt,
-        'deletedAt': s.deletedAt,
-        'lastModified': s.lastModified,
-        'createdAtIso': s.createdAtIso,
-        'updatedAtIso': s.updatedAtIso,
-        'deletedAtIso': s.deletedAtIso,
-        'createdAtEpoch': s.createdAtEpoch,
-        'lastModifiedEpoch': s.lastModifiedEpoch,
-        'version': s.version,
-        'origin': s.origin,
-        'vectorClock': s.vectorClock,
-        'deviceId': s.deviceId,
-        'id': s.id,
-        'cycleId': s.cycleId,
-        'amount': s.amount,
-        'hotelDayKey': s.hotelDayKey,
-        'paymentDateIso': s.paymentDateIso,
-        'method': s.method,
-        'isAutoGenerated': s.isAutoGenerated,
-      };
-
-    Map<String, dynamic> _salaryWithdrawalToMap(SalaryWithdrawal s) => {
-        'localUuid': s.localUuid,
-        'serverId': s.serverId,
-        'createdAt': s.createdAt,
-        'updatedAt': s.updatedAt,
-        'deletedAt': s.deletedAt,
-        'lastModified': s.lastModified,
-        'createdAtIso': s.createdAtIso,
-        'updatedAtIso': s.updatedAtIso,
-        'deletedAtIso': s.deletedAtIso,
-        'createdAtEpoch': s.createdAtEpoch,
-        'lastModifiedEpoch': s.lastModifiedEpoch,
-        'version': s.version,
-        'origin': s.origin,
-        'vectorClock': s.vectorClock,
-        'deviceId': s.deviceId,
-        'id': s.id,
-        'employeeId': s.employeeId,
-        'amount': s.amount,
-        'withdrawDate': s.withdrawDate,
-        'reason': s.reason,
-        'hotelDayKey': s.hotelDayKey,
-        'withdrawalType': s.withdrawalType,
-        'description': s.description,
-        'expenseId': s.expenseId,
-      };
-
-    Map<String, dynamic> _salaryCarryOverLogToMap(SalaryCarryOverLog s) => {
-        'localUuid': s.localUuid,
-        'serverId': s.serverId,
-        'createdAt': s.createdAt,
-        'updatedAt': s.updatedAt,
-        'deletedAt': s.deletedAt,
-        'lastModified': s.lastModified,
-        'createdAtIso': s.createdAtIso,
-        'updatedAtIso': s.updatedAtIso,
-        'deletedAtIso': s.deletedAtIso,
-        'createdAtEpoch': s.createdAtEpoch,
-        'lastModifiedEpoch': s.lastModifiedEpoch,
-        'version': s.version,
-        'origin': s.origin,
-        'vectorClock': s.vectorClock,
-        'deviceId': s.deviceId,
-        'id': s.id,
-        'employeeId': s.employeeId,
-        'amount': s.amount,
-        'previousCycleStart': s.previousCycleStart,
-        'previousCycleEnd': s.previousCycleEnd,
-        'newCycleStart': s.newCycleStart,
-        'newCycleEnd': s.newCycleEnd,
-        'reason': s.reason,
-        'carriedAt': s.carriedAt,
-      };
-
-    Map<String, dynamic> _shiftNoteToMap(ShiftNote s) => {
-        'localUuid': s.localUuid,
-        'serverId': s.serverId,
-        'createdAt': s.createdAt,
-        'updatedAt': s.updatedAt,
-        'deletedAt': s.deletedAt,
-        'lastModified': s.lastModified,
-        'createdAtIso': s.createdAtIso,
-        'updatedAtIso': s.updatedAtIso,
-        'deletedAtIso': s.deletedAtIso,
-        'createdAtEpoch': s.createdAtEpoch,
-        'lastModifiedEpoch': s.lastModifiedEpoch,
-        'version': s.version,
-        'origin': s.origin,
-        'vectorClock': s.vectorClock,
-        'deviceId': s.deviceId,
-        'id': s.id,
-        'title': s.title,
-        'content': s.content,
-        'priority': s.priority,
-        'shiftType': s.shiftType,
-        'isRead': s.isRead,
-        'expiresAt': s.expiresAt,
-        'createdBy': s.createdBy,
-      };
-
-    Map<String, dynamic> _priceAdjustmentToMap(PriceAdjustment p) => {
-        'localUuid': p.localUuid,
-        'serverId': p.serverId,
-        'createdAt': p.createdAt,
-        'updatedAt': p.updatedAt,
-        'deletedAt': p.deletedAt,
-        'lastModified': p.lastModified,
-        'createdAtIso': p.createdAtIso,
-        'updatedAtIso': p.updatedAtIso,
-        'deletedAtIso': p.deletedAtIso,
-        'createdAtEpoch': p.createdAtEpoch,
-        'lastModifiedEpoch': p.lastModifiedEpoch,
-        'version': p.version,
-        'origin': p.origin,
-        'vectorClock': p.vectorClock,
-        'deviceId': p.deviceId,
-        'id': p.id,
-        'targetType': p.targetType,
-        'targetUuid': p.targetUuid,
-        'adjustmentType': p.adjustmentType,
-        'previousValue': p.previousValue,
-        'newValue': p.newValue,
-        'reason': p.reason,
-        'effectiveDate': p.effectiveDate,
-        'appliedBy': p.appliedBy,
-        'hotelDayKey': p.hotelDayKey,
-        'isReversed': p.isReversed,
-        'reversedAt': p.reversedAt,
-        'reversedBy': p.reversedBy,
-      };
-
-    Map<String, dynamic> _bookingPriceAdjustmentToMap(BookingPriceAdjustment b) => {
-        'localUuid': b.localUuid,
-        'serverId': b.serverId,
-        'createdAt': b.createdAt,
-        'updatedAt': b.updatedAt,
-        'deletedAt': b.deletedAt,
-        'lastModified': b.lastModified,
-        'createdAtIso': b.createdAtIso,
-        'updatedAtIso': b.updatedAtIso,
-        'deletedAtIso': b.deletedAtIso,
-        'createdAtEpoch': b.createdAtEpoch,
-        'lastModifiedEpoch': b.lastModifiedEpoch,
-        'version': b.version,
-        'origin': b.origin,
-        'vectorClock': b.vectorClock,
-        'deviceId': b.deviceId,
-        'id': b.id,
-        'bookingLocalUuid': b.bookingLocalUuid,
-        'bookingLocalId': b.bookingLocalId,
-        'roomNumber': b.roomNumber,
-        'adjustmentType': b.adjustmentType,
-        'adjustmentMode': b.adjustmentMode,
-        'amount': b.amount,
-        'effectiveHotelDay': b.effectiveHotelDay,
-        'endHotelDay': b.endHotelDay,
-        'isActive': b.isActive,
-        'reason': b.reason,
-        'appliedBy': b.appliedBy,
-        'cancelledAt': b.cancelledAt,
-        'cancelledBy': b.cancelledBy,
-      };
-
-    Map<String, dynamic> _auditLogToMap(AuditLog a) => {
-        'id': a.id,
-        'localUuid': a.localUuid,
-        'operationType': a.operationType,
-        'entityType': a.entityType,
-        'entityUuid': a.entityUuid,
-        'entityId': a.entityId,
-        'previousState': a.previousState,
-        'newState': a.newState,
-        'changedFields': a.changedFields,
-        'performedBy': a.performedBy,
-        'deviceId': a.deviceId,
-        'ipAddress': a.ipAddress,
-        'hotelDayKey': a.hotelDayKey,
-        'timestamp': a.timestamp,
-        'timestampIso': a.timestampIso,
-        'isFinancial': a.isFinancial,
-        'amountImpact': a.amountImpact,
-        'createdAt': a.createdAt,
-      };
-
-    Map<String, dynamic> _paymentVoidToMap(PaymentVoid p) => {
-        'localUuid': p.localUuid,
-        'serverId': p.serverId,
-        'createdAt': p.createdAt,
-        'updatedAt': p.updatedAt,
-        'deletedAt': p.deletedAt,
-        'lastModified': p.lastModified,
-        'createdAtIso': p.createdAtIso,
-        'updatedAtIso': p.updatedAtIso,
-        'deletedAtIso': p.deletedAtIso,
-        'createdAtEpoch': p.createdAtEpoch,
-        'lastModifiedEpoch': p.lastModifiedEpoch,
-        'version': p.version,
-        'origin': p.origin,
-        'vectorClock': p.vectorClock,
-        'deviceId': p.deviceId,
-        'id': p.id,
-        'originalPaymentUuid': p.originalPaymentUuid,
-        'originalPaymentId': p.originalPaymentId,
-        'bookingUuid': p.bookingUuid,
-        'voidedAmount': p.voidedAmount,
-        'voidReason': p.voidReason,
-        'voidedBy': p.voidedBy,
-        'voidedAt': p.voidedAt,
-        'voidedAtIso': p.voidedAtIso,
-        'hotelDayKey': p.hotelDayKey,
-        'reversalPaymentUuid': p.reversalPaymentUuid,
-        'approvedBy': p.approvedBy,
-      };
-
-    Map<String, dynamic> _guestInfoToMap(GuestInfo g) => {
-        'localUuid': g.localUuid,
-        'serverId': g.serverId,
-        'createdAt': g.createdAt,
-        'updatedAt': g.updatedAt,
-        'deletedAt': g.deletedAt,
-        'lastModified': g.lastModified,
-        'createdAtIso': g.createdAtIso,
-        'updatedAtIso': g.updatedAtIso,
-        'deletedAtIso': g.deletedAtIso,
-        'createdAtEpoch': g.createdAtEpoch,
-        'lastModifiedEpoch': g.lastModifiedEpoch,
-        'version': g.version,
-        'origin': g.origin,
-        'vectorClock': g.vectorClock,
-        'deviceId': g.deviceId,
-        'id': g.id,
-        'roomNumber': g.roomNumber,
-        'guestName': g.guestName,
-        'nationality': g.nationality,
-        'idNumber': g.idNumber,
-        'idType': g.idType,
-        'issueDate': g.issueDate,
-        'issuePlace': g.issuePlace,
-        'governorate': g.governorate,
-        'notes': g.notes,
-      };
+      return map;
+    }
 }
 
 /// نتيجة اختبار الاتصال
@@ -997,28 +579,119 @@ class FullBackupStats {
   final Map<String, List<FullBackupFailure>> failuresByCollection = {};
   final List<FullBackupFailure> failedRecords = [];
   final Map<String, int> errorsByReason = {};
+
+  /// ملخص نصي جاهز للنسخ إلى الحافظة
+  String get textSummary {
+    final buf = StringBuffer();
+    buf.writeln('📊 تقرير النسخة الشاملة — Secondary Appwrite');
+    buf.writeln('═══════════════════════════════════════');
+    buf.writeln('');
+    buf.writeln('✅ نجح: $successCount');
+    buf.writeln('❌ فشل: $failureCount');
+    buf.writeln('📁 الجداول: $fullySuccessfulCollections مكتمل / $failedCollections فاشل');
+    if (error != null) {
+      buf.writeln('⚠️ خطأ عام: $error');
+    }
+    buf.writeln('');
+
+    if (collectionDetails.isNotEmpty) {
+      buf.writeln('── تفاصيل الجداول ──');
+      for (final detail in collectionDetails) {
+        final name = detail['name'] ?? '?';
+        final total = detail['total'] ?? 0;
+        final success = detail['success'] ?? 0;
+        final failure = detail['failure'] ?? 0;
+        final icon = (failure as int) == 0 ? '✅' : '⚠️';
+        buf.writeln('  $icon $name: $success/$total (فشل: $failure)');
+      }
+      buf.writeln('');
+    }
+
+    if (errorsByReason.isNotEmpty) {
+      buf.writeln('── الأخطاء حسب السبب ──');
+      for (final entry in errorsByReason.entries) {
+        buf.writeln('  [${entry.value}] ${entry.key}');
+      }
+      buf.writeln('');
+    }
+
+    if (failuresByCollection.isNotEmpty) {
+      buf.writeln('── الأخطاء حسب الجدول ──');
+      for (final entry in failuresByCollection.entries) {
+        buf.writeln('  📁 ${entry.key} (${entry.value.length} خطأ):');
+        for (final failure in entry.value) {
+          final id = failure.documentId ?? 'بدون معرّف';
+          final reason = failure.reason.length > 200
+              ? '${failure.reason.substring(0, 200)}...'
+              : failure.reason;
+          buf.writeln('    · [$id] $reason');
+        }
+      }
+    }
+
+    buf.writeln('');
+    buf.writeln('🕐 ${DateTime.now().toLocal().toIso8601String()}');
+    buf.writeln('Marina Hotel — Backup Report');
+    return buf.toString();
+  }
+
+  /// تحويل إلى Map للتصدير
+  Map<String, dynamic> toJson() {
+    return {
+      'totalCollections': totalCollections,
+      'fullySuccessfulCollections': fullySuccessfulCollections,
+      'failedCollections': failedCollections,
+      'successCount': successCount,
+      'failureCount': failureCount,
+      'error': error,
+      'collectionNames': collectionNames,
+      'collectionDetails': collectionDetails,
+      'failuresByCollection': failuresByCollection.map(
+        (k, v) => MapEntry(k, v.map((f) => f.toJson()).toList()),
+      ),
+      'failedRecords': failedRecords.map((f) => f.toJson()).toList(),
+      'errorsByReason': errorsByReason,
+      'timestamp': DateTime.now().toLocal().toIso8601String(),
+    };
+  }
 }
 
 /// خطأ في رفع سجل واحد
 class FullBackupFailure {
-  FullBackupFailure({this.documentId, required this.reason, this.collectionName});
+  FullBackupFailure({
+    this.documentId,
+    required this.reason,
+    this.collectionName,
+    this.timestamp,
+  });
   final String? documentId;
   final String reason;
   final String? collectionName;
+  final DateTime? timestamp;
+
+  @override
+  String toString() {
+    final coll = collectionName ?? '?';
+    final id = documentId ?? 'بدون معرّف';
+    return '❌ [$coll] $id: $reason';
+  }
+
+  /// تحويل إلى Map للتصدير والنسخ
+  Map<String, dynamic> toJson() {
+    return {
+      'documentId': documentId,
+      'reason': reason,
+      'collectionName': collectionName,
+      'timestamp': timestamp?.toLocal().toIso8601String(),
+    };
+  }
 }
 
 /// بيانات جدول للرفع الشامل
-class _CollectionData {
-  _CollectionData({required this.name, required this.collectionId, required this.records});
+class CollectionData {
+  CollectionData({required this.name, required this.collectionId, required this.records});
   final String name;
   final String collectionId;
   final List<Map<String, dynamic>> records;
 }
 
-/// خطأ في رفع سجل واحد (للإحصائيات)
-final class FullBackupRecordError {
-  FullBackupRecordError({required this.documentId, required this.reason, required this.collectionName});
-  final String? documentId;
-  final String reason;
-  final String collectionName;
-}

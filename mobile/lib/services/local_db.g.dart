@@ -29382,6 +29382,187 @@ class $AuditLogsTable extends AuditLogs
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $AuditLogsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localUuidMeta = const VerificationMeta(
+    'localUuid',
+  );
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+    'local_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastModifiedMeta = const VerificationMeta(
+    'lastModified',
+  );
+  @override
+  late final GeneratedColumn<int> lastModified = GeneratedColumn<int>(
+    'last_modified',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtIsoMeta = const VerificationMeta(
+    'createdAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> createdAtIso = GeneratedColumn<String>(
+    'created_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtIsoMeta = const VerificationMeta(
+    'updatedAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAtIso = GeneratedColumn<String>(
+    'updated_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtIsoMeta = const VerificationMeta(
+    'deletedAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAtIso = GeneratedColumn<String>(
+    'deleted_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtEpochMeta = const VerificationMeta(
+    'createdAtEpoch',
+  );
+  @override
+  late final GeneratedColumn<int> createdAtEpoch = GeneratedColumn<int>(
+    'created_at_epoch',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastModifiedEpochMeta = const VerificationMeta(
+    'lastModifiedEpoch',
+  );
+  @override
+  late final GeneratedColumn<int> lastModifiedEpoch = GeneratedColumn<int>(
+    'last_modified_epoch',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+    'origin',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('local'),
+  );
+  static const VerificationMeta _vectorClockMeta = const VerificationMeta(
+    'vectorClock',
+  );
+  @override
+  late final GeneratedColumn<String> vectorClock = GeneratedColumn<String>(
+    'vector_clock',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -29394,18 +29575,6 @@ class $AuditLogsTable extends AuditLogs
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
     ),
-  );
-  static const VerificationMeta _localUuidMeta = const VerificationMeta(
-    'localUuid',
-  );
-  @override
-  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
-    'local_uuid',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
   );
   static const VerificationMeta _operationTypeMeta = const VerificationMeta(
     'operationType',
@@ -29495,17 +29664,6 @@ class $AuditLogsTable extends AuditLogs
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
-    'deviceId',
-  );
-  @override
-  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
-    'device_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
   static const VerificationMeta _ipAddressMeta = const VerificationMeta(
     'ipAddress',
   );
@@ -29576,21 +29734,25 @@ class $AuditLogsTable extends AuditLogs
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
   @override
   List<GeneratedColumn> get $columns => [
-    id,
     localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    vectorClock,
+    deviceId,
+    idempotencyKey,
+    id,
     operationType,
     entityType,
     entityUuid,
@@ -29599,14 +29761,12 @@ class $AuditLogsTable extends AuditLogs
     newState,
     changedFields,
     performedBy,
-    deviceId,
     ipAddress,
     hotelDayKey,
     timestamp,
     timestampIso,
     isFinancial,
     amountImpact,
-    createdAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -29620,9 +29780,6 @@ class $AuditLogsTable extends AuditLogs
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
     if (data.containsKey('local_uuid')) {
       context.handle(
         _localUuidMeta,
@@ -29630,6 +29787,129 @@ class $AuditLogsTable extends AuditLogs
       );
     } else if (isInserting) {
       context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+        _lastModifiedMeta,
+        lastModified.isAcceptableOrUnknown(
+          data['last_modified']!,
+          _lastModifiedMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastModifiedMeta);
+    }
+    if (data.containsKey('created_at_iso')) {
+      context.handle(
+        _createdAtIsoMeta,
+        createdAtIso.isAcceptableOrUnknown(
+          data['created_at_iso']!,
+          _createdAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at_iso')) {
+      context.handle(
+        _updatedAtIsoMeta,
+        updatedAtIso.isAcceptableOrUnknown(
+          data['updated_at_iso']!,
+          _updatedAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_at_iso')) {
+      context.handle(
+        _deletedAtIsoMeta,
+        deletedAtIso.isAcceptableOrUnknown(
+          data['deleted_at_iso']!,
+          _deletedAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at_epoch')) {
+      context.handle(
+        _createdAtEpochMeta,
+        createdAtEpoch.isAcceptableOrUnknown(
+          data['created_at_epoch']!,
+          _createdAtEpochMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_modified_epoch')) {
+      context.handle(
+        _lastModifiedEpochMeta,
+        lastModifiedEpoch.isAcceptableOrUnknown(
+          data['last_modified_epoch']!,
+          _lastModifiedEpochMeta,
+        ),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('origin')) {
+      context.handle(
+        _originMeta,
+        origin.isAcceptableOrUnknown(data['origin']!, _originMeta),
+      );
+    }
+    if (data.containsKey('vector_clock')) {
+      context.handle(
+        _vectorClockMeta,
+        vectorClock.isAcceptableOrUnknown(
+          data['vector_clock']!,
+          _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
     if (data.containsKey('operation_type')) {
       context.handle(
@@ -29699,14 +29979,6 @@ class $AuditLogsTable extends AuditLogs
     } else if (isInserting) {
       context.missing(_performedByMeta);
     }
-    if (data.containsKey('device_id')) {
-      context.handle(
-        _deviceIdMeta,
-        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_deviceIdMeta);
-    }
     if (data.containsKey('ip_address')) {
       context.handle(
         _ipAddressMeta,
@@ -29761,14 +30033,6 @@ class $AuditLogsTable extends AuditLogs
         ),
       );
     }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
     return context;
   }
 
@@ -29778,13 +30042,73 @@ class $AuditLogsTable extends AuditLogs
   AuditLog map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return AuditLog(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
       localUuid: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}local_uuid'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      lastModified: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_modified'],
+      )!,
+      createdAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at_iso'],
+      ),
+      updatedAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at_iso'],
+      ),
+      deletedAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at_iso'],
+      ),
+      createdAtEpoch: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at_epoch'],
+      )!,
+      lastModifiedEpoch: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_modified_epoch'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      origin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin'],
+      )!,
+      vectorClock: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vector_clock'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
       )!,
       operationType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -29818,10 +30142,6 @@ class $AuditLogsTable extends AuditLogs
         DriftSqlType.string,
         data['${effectivePrefix}performed_by'],
       )!,
-      deviceId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}device_id'],
-      )!,
       ipAddress: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}ip_address'],
@@ -29846,10 +30166,6 @@ class $AuditLogsTable extends AuditLogs
         DriftSqlType.int,
         data['${effectivePrefix}amount_impact'],
       ),
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}created_at'],
-      )!,
     );
   }
 
@@ -29860,8 +30176,23 @@ class $AuditLogsTable extends AuditLogs
 }
 
 class AuditLog extends DataClass implements Insertable<AuditLog> {
-  final int id;
   final String localUuid;
+  final int? serverId;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  final int lastModified;
+  final String? createdAtIso;
+  final String? updatedAtIso;
+  final String? deletedAtIso;
+  final int createdAtEpoch;
+  final int lastModifiedEpoch;
+  final int version;
+  final String origin;
+  final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
+  final int id;
   final String operationType;
   final String entityType;
   final String entityUuid;
@@ -29870,17 +30201,30 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
   final String? newState;
   final String? changedFields;
   final String performedBy;
-  final String deviceId;
   final String? ipAddress;
   final String hotelDayKey;
   final int timestamp;
   final String timestampIso;
   final bool isFinancial;
   final int? amountImpact;
-  final int createdAt;
   const AuditLog({
-    required this.id,
     required this.localUuid,
+    this.serverId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.lastModified,
+    this.createdAtIso,
+    this.updatedAtIso,
+    this.deletedAtIso,
+    required this.createdAtEpoch,
+    required this.lastModifiedEpoch,
+    required this.version,
+    required this.origin,
+    required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
+    required this.id,
     required this.operationType,
     required this.entityType,
     required this.entityUuid,
@@ -29889,20 +30233,45 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     this.newState,
     this.changedFields,
     required this.performedBy,
-    required this.deviceId,
     this.ipAddress,
     required this.hotelDayKey,
     required this.timestamp,
     required this.timestampIso,
     required this.isFinancial,
     this.amountImpact,
-    required this.createdAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
     map['local_uuid'] = Variable<String>(localUuid);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    map['last_modified'] = Variable<int>(lastModified);
+    if (!nullToAbsent || createdAtIso != null) {
+      map['created_at_iso'] = Variable<String>(createdAtIso);
+    }
+    if (!nullToAbsent || updatedAtIso != null) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso);
+    }
+    if (!nullToAbsent || deletedAtIso != null) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso);
+    }
+    map['created_at_epoch'] = Variable<int>(createdAtEpoch);
+    map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch);
+    map['version'] = Variable<int>(version);
+    map['origin'] = Variable<String>(origin);
+    map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
+    map['id'] = Variable<int>(id);
     map['operation_type'] = Variable<String>(operationType);
     map['entity_type'] = Variable<String>(entityType);
     map['entity_uuid'] = Variable<String>(entityUuid);
@@ -29919,7 +30288,6 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       map['changed_fields'] = Variable<String>(changedFields);
     }
     map['performed_by'] = Variable<String>(performedBy);
-    map['device_id'] = Variable<String>(deviceId);
     if (!nullToAbsent || ipAddress != null) {
       map['ip_address'] = Variable<String>(ipAddress);
     }
@@ -29930,14 +30298,40 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     if (!nullToAbsent || amountImpact != null) {
       map['amount_impact'] = Variable<int>(amountImpact);
     }
-    map['created_at'] = Variable<int>(createdAt);
     return map;
   }
 
   AuditLogsCompanion toCompanion(bool nullToAbsent) {
     return AuditLogsCompanion(
-      id: Value(id),
       localUuid: Value(localUuid),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModified: Value(lastModified),
+      createdAtIso: createdAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAtIso),
+      updatedAtIso: updatedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAtIso),
+      deletedAtIso: deletedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAtIso),
+      createdAtEpoch: Value(createdAtEpoch),
+      lastModifiedEpoch: Value(lastModifiedEpoch),
+      version: Value(version),
+      origin: Value(origin),
+      vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
+      id: Value(id),
       operationType: Value(operationType),
       entityType: Value(entityType),
       entityUuid: Value(entityUuid),
@@ -29954,7 +30348,6 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
           ? const Value.absent()
           : Value(changedFields),
       performedBy: Value(performedBy),
-      deviceId: Value(deviceId),
       ipAddress: ipAddress == null && nullToAbsent
           ? const Value.absent()
           : Value(ipAddress),
@@ -29965,7 +30358,6 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       amountImpact: amountImpact == null && nullToAbsent
           ? const Value.absent()
           : Value(amountImpact),
-      createdAt: Value(createdAt),
     );
   }
 
@@ -29975,8 +30367,23 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AuditLog(
-      id: serializer.fromJson<int>(json['id']),
       localUuid: serializer.fromJson<String>(json['localUuid']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      lastModified: serializer.fromJson<int>(json['lastModified']),
+      createdAtIso: serializer.fromJson<String?>(json['createdAtIso']),
+      updatedAtIso: serializer.fromJson<String?>(json['updatedAtIso']),
+      deletedAtIso: serializer.fromJson<String?>(json['deletedAtIso']),
+      createdAtEpoch: serializer.fromJson<int>(json['createdAtEpoch']),
+      lastModifiedEpoch: serializer.fromJson<int>(json['lastModifiedEpoch']),
+      version: serializer.fromJson<int>(json['version']),
+      origin: serializer.fromJson<String>(json['origin']),
+      vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
+      id: serializer.fromJson<int>(json['id']),
       operationType: serializer.fromJson<String>(json['operationType']),
       entityType: serializer.fromJson<String>(json['entityType']),
       entityUuid: serializer.fromJson<String>(json['entityUuid']),
@@ -29985,22 +30392,35 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       newState: serializer.fromJson<String?>(json['newState']),
       changedFields: serializer.fromJson<String?>(json['changedFields']),
       performedBy: serializer.fromJson<String>(json['performedBy']),
-      deviceId: serializer.fromJson<String>(json['deviceId']),
       ipAddress: serializer.fromJson<String?>(json['ipAddress']),
       hotelDayKey: serializer.fromJson<String>(json['hotelDayKey']),
       timestamp: serializer.fromJson<int>(json['timestamp']),
       timestampIso: serializer.fromJson<String>(json['timestampIso']),
       isFinancial: serializer.fromJson<bool>(json['isFinancial']),
       amountImpact: serializer.fromJson<int?>(json['amountImpact']),
-      createdAt: serializer.fromJson<int>(json['createdAt']),
     );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'id': serializer.toJson<int>(id),
       'localUuid': serializer.toJson<String>(localUuid),
+      'serverId': serializer.toJson<int?>(serverId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+      'lastModified': serializer.toJson<int>(lastModified),
+      'createdAtIso': serializer.toJson<String?>(createdAtIso),
+      'updatedAtIso': serializer.toJson<String?>(updatedAtIso),
+      'deletedAtIso': serializer.toJson<String?>(deletedAtIso),
+      'createdAtEpoch': serializer.toJson<int>(createdAtEpoch),
+      'lastModifiedEpoch': serializer.toJson<int>(lastModifiedEpoch),
+      'version': serializer.toJson<int>(version),
+      'origin': serializer.toJson<String>(origin),
+      'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
+      'id': serializer.toJson<int>(id),
       'operationType': serializer.toJson<String>(operationType),
       'entityType': serializer.toJson<String>(entityType),
       'entityUuid': serializer.toJson<String>(entityUuid),
@@ -30009,20 +30429,33 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       'newState': serializer.toJson<String?>(newState),
       'changedFields': serializer.toJson<String?>(changedFields),
       'performedBy': serializer.toJson<String>(performedBy),
-      'deviceId': serializer.toJson<String>(deviceId),
       'ipAddress': serializer.toJson<String?>(ipAddress),
       'hotelDayKey': serializer.toJson<String>(hotelDayKey),
       'timestamp': serializer.toJson<int>(timestamp),
       'timestampIso': serializer.toJson<String>(timestampIso),
       'isFinancial': serializer.toJson<bool>(isFinancial),
       'amountImpact': serializer.toJson<int?>(amountImpact),
-      'createdAt': serializer.toJson<int>(createdAt),
     };
   }
 
   AuditLog copyWith({
-    int? id,
     String? localUuid,
+    Value<int?> serverId = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+    int? lastModified,
+    Value<String?> createdAtIso = const Value.absent(),
+    Value<String?> updatedAtIso = const Value.absent(),
+    Value<String?> deletedAtIso = const Value.absent(),
+    int? createdAtEpoch,
+    int? lastModifiedEpoch,
+    int? version,
+    String? origin,
+    String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
+    int? id,
     String? operationType,
     String? entityType,
     String? entityUuid,
@@ -30031,17 +30464,32 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     Value<String?> newState = const Value.absent(),
     Value<String?> changedFields = const Value.absent(),
     String? performedBy,
-    String? deviceId,
     Value<String?> ipAddress = const Value.absent(),
     String? hotelDayKey,
     int? timestamp,
     String? timestampIso,
     bool? isFinancial,
     Value<int?> amountImpact = const Value.absent(),
-    int? createdAt,
   }) => AuditLog(
-    id: id ?? this.id,
     localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
+    id: id ?? this.id,
     operationType: operationType ?? this.operationType,
     entityType: entityType ?? this.entityType,
     entityUuid: entityUuid ?? this.entityUuid,
@@ -30054,19 +30502,48 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
         ? changedFields.value
         : this.changedFields,
     performedBy: performedBy ?? this.performedBy,
-    deviceId: deviceId ?? this.deviceId,
     ipAddress: ipAddress.present ? ipAddress.value : this.ipAddress,
     hotelDayKey: hotelDayKey ?? this.hotelDayKey,
     timestamp: timestamp ?? this.timestamp,
     timestampIso: timestampIso ?? this.timestampIso,
     isFinancial: isFinancial ?? this.isFinancial,
     amountImpact: amountImpact.present ? amountImpact.value : this.amountImpact,
-    createdAt: createdAt ?? this.createdAt,
   );
   AuditLog copyWithCompanion(AuditLogsCompanion data) {
     return AuditLog(
-      id: data.id.present ? data.id.value : this.id,
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+      createdAtIso: data.createdAtIso.present
+          ? data.createdAtIso.value
+          : this.createdAtIso,
+      updatedAtIso: data.updatedAtIso.present
+          ? data.updatedAtIso.value
+          : this.updatedAtIso,
+      deletedAtIso: data.deletedAtIso.present
+          ? data.deletedAtIso.value
+          : this.deletedAtIso,
+      createdAtEpoch: data.createdAtEpoch.present
+          ? data.createdAtEpoch.value
+          : this.createdAtEpoch,
+      lastModifiedEpoch: data.lastModifiedEpoch.present
+          ? data.lastModifiedEpoch.value
+          : this.lastModifiedEpoch,
+      version: data.version.present ? data.version.value : this.version,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      vectorClock: data.vectorClock.present
+          ? data.vectorClock.value
+          : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
+      id: data.id.present ? data.id.value : this.id,
       operationType: data.operationType.present
           ? data.operationType.value
           : this.operationType,
@@ -30087,7 +30564,6 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       performedBy: data.performedBy.present
           ? data.performedBy.value
           : this.performedBy,
-      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
       ipAddress: data.ipAddress.present ? data.ipAddress.value : this.ipAddress,
       hotelDayKey: data.hotelDayKey.present
           ? data.hotelDayKey.value
@@ -30102,15 +30578,29 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       amountImpact: data.amountImpact.present
           ? data.amountImpact.value
           : this.amountImpact,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
 
   @override
   String toString() {
     return (StringBuffer('AuditLog(')
-          ..write('id: $id, ')
           ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('id: $id, ')
           ..write('operationType: $operationType, ')
           ..write('entityType: $entityType, ')
           ..write('entityUuid: $entityUuid, ')
@@ -30119,22 +30609,35 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
           ..write('newState: $newState, ')
           ..write('changedFields: $changedFields, ')
           ..write('performedBy: $performedBy, ')
-          ..write('deviceId: $deviceId, ')
           ..write('ipAddress: $ipAddress, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('timestamp: $timestamp, ')
           ..write('timestampIso: $timestampIso, ')
           ..write('isFinancial: $isFinancial, ')
-          ..write('amountImpact: $amountImpact, ')
-          ..write('createdAt: $createdAt')
+          ..write('amountImpact: $amountImpact')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-    id,
+  int get hashCode => Object.hashAll([
     localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    vectorClock,
+    deviceId,
+    idempotencyKey,
+    id,
     operationType,
     entityType,
     entityUuid,
@@ -30143,21 +30646,34 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     newState,
     changedFields,
     performedBy,
-    deviceId,
     ipAddress,
     hotelDayKey,
     timestamp,
     timestampIso,
     isFinancial,
     amountImpact,
-    createdAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AuditLog &&
-          other.id == this.id &&
           other.localUuid == this.localUuid &&
+          other.serverId == this.serverId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModified == this.lastModified &&
+          other.createdAtIso == this.createdAtIso &&
+          other.updatedAtIso == this.updatedAtIso &&
+          other.deletedAtIso == this.deletedAtIso &&
+          other.createdAtEpoch == this.createdAtEpoch &&
+          other.lastModifiedEpoch == this.lastModifiedEpoch &&
+          other.version == this.version &&
+          other.origin == this.origin &&
+          other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
+          other.id == this.id &&
           other.operationType == this.operationType &&
           other.entityType == this.entityType &&
           other.entityUuid == this.entityUuid &&
@@ -30166,19 +30682,32 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
           other.newState == this.newState &&
           other.changedFields == this.changedFields &&
           other.performedBy == this.performedBy &&
-          other.deviceId == this.deviceId &&
           other.ipAddress == this.ipAddress &&
           other.hotelDayKey == this.hotelDayKey &&
           other.timestamp == this.timestamp &&
           other.timestampIso == this.timestampIso &&
           other.isFinancial == this.isFinancial &&
-          other.amountImpact == this.amountImpact &&
-          other.createdAt == this.createdAt);
+          other.amountImpact == this.amountImpact);
 }
 
 class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
-  final Value<int> id;
   final Value<String> localUuid;
+  final Value<int?> serverId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> lastModified;
+  final Value<String?> createdAtIso;
+  final Value<String?> updatedAtIso;
+  final Value<String?> deletedAtIso;
+  final Value<int> createdAtEpoch;
+  final Value<int> lastModifiedEpoch;
+  final Value<int> version;
+  final Value<String> origin;
+  final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
+  final Value<int> id;
   final Value<String> operationType;
   final Value<String> entityType;
   final Value<String> entityUuid;
@@ -30187,17 +30716,30 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
   final Value<String?> newState;
   final Value<String?> changedFields;
   final Value<String> performedBy;
-  final Value<String> deviceId;
   final Value<String?> ipAddress;
   final Value<String> hotelDayKey;
   final Value<int> timestamp;
   final Value<String> timestampIso;
   final Value<bool> isFinancial;
   final Value<int?> amountImpact;
-  final Value<int> createdAt;
   const AuditLogsCompanion({
-    this.id = const Value.absent(),
     this.localUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.id = const Value.absent(),
     this.operationType = const Value.absent(),
     this.entityType = const Value.absent(),
     this.entityUuid = const Value.absent(),
@@ -30206,18 +30748,31 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     this.newState = const Value.absent(),
     this.changedFields = const Value.absent(),
     this.performedBy = const Value.absent(),
-    this.deviceId = const Value.absent(),
     this.ipAddress = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
     this.timestamp = const Value.absent(),
     this.timestampIso = const Value.absent(),
     this.isFinancial = const Value.absent(),
     this.amountImpact = const Value.absent(),
-    this.createdAt = const Value.absent(),
   });
   AuditLogsCompanion.insert({
-    this.id = const Value.absent(),
     required String localUuid,
+    this.serverId = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    required int lastModified,
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.id = const Value.absent(),
     required String operationType,
     required String entityType,
     required String entityUuid,
@@ -30226,27 +30781,41 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     this.newState = const Value.absent(),
     this.changedFields = const Value.absent(),
     required String performedBy,
-    required String deviceId,
     this.ipAddress = const Value.absent(),
     required String hotelDayKey,
     required int timestamp,
     required String timestampIso,
     this.isFinancial = const Value.absent(),
     this.amountImpact = const Value.absent(),
-    required int createdAt,
   }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
        operationType = Value(operationType),
        entityType = Value(entityType),
        entityUuid = Value(entityUuid),
        performedBy = Value(performedBy),
-       deviceId = Value(deviceId),
        hotelDayKey = Value(hotelDayKey),
        timestamp = Value(timestamp),
-       timestampIso = Value(timestampIso),
-       createdAt = Value(createdAt);
+       timestampIso = Value(timestampIso);
   static Insertable<AuditLog> custom({
-    Expression<int>? id,
     Expression<String>? localUuid,
+    Expression<int>? serverId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? lastModified,
+    Expression<String>? createdAtIso,
+    Expression<String>? updatedAtIso,
+    Expression<String>? deletedAtIso,
+    Expression<int>? createdAtEpoch,
+    Expression<int>? lastModifiedEpoch,
+    Expression<int>? version,
+    Expression<String>? origin,
+    Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
+    Expression<int>? id,
     Expression<String>? operationType,
     Expression<String>? entityType,
     Expression<String>? entityUuid,
@@ -30255,18 +30824,31 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     Expression<String>? newState,
     Expression<String>? changedFields,
     Expression<String>? performedBy,
-    Expression<String>? deviceId,
     Expression<String>? ipAddress,
     Expression<String>? hotelDayKey,
     Expression<int>? timestamp,
     Expression<String>? timestampIso,
     Expression<bool>? isFinancial,
     Expression<int>? amountImpact,
-    Expression<int>? createdAt,
   }) {
     return RawValuesInsertable({
-      if (id != null) 'id': id,
       if (localUuid != null) 'local_uuid': localUuid,
+      if (serverId != null) 'server_id': serverId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (createdAtIso != null) 'created_at_iso': createdAtIso,
+      if (updatedAtIso != null) 'updated_at_iso': updatedAtIso,
+      if (deletedAtIso != null) 'deleted_at_iso': deletedAtIso,
+      if (createdAtEpoch != null) 'created_at_epoch': createdAtEpoch,
+      if (lastModifiedEpoch != null) 'last_modified_epoch': lastModifiedEpoch,
+      if (version != null) 'version': version,
+      if (origin != null) 'origin': origin,
+      if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      if (id != null) 'id': id,
       if (operationType != null) 'operation_type': operationType,
       if (entityType != null) 'entity_type': entityType,
       if (entityUuid != null) 'entity_uuid': entityUuid,
@@ -30275,20 +30857,33 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
       if (newState != null) 'new_state': newState,
       if (changedFields != null) 'changed_fields': changedFields,
       if (performedBy != null) 'performed_by': performedBy,
-      if (deviceId != null) 'device_id': deviceId,
       if (ipAddress != null) 'ip_address': ipAddress,
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
       if (timestamp != null) 'timestamp': timestamp,
       if (timestampIso != null) 'timestamp_iso': timestampIso,
       if (isFinancial != null) 'is_financial': isFinancial,
       if (amountImpact != null) 'amount_impact': amountImpact,
-      if (createdAt != null) 'created_at': createdAt,
     });
   }
 
   AuditLogsCompanion copyWith({
-    Value<int>? id,
     Value<String>? localUuid,
+    Value<int?>? serverId,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? lastModified,
+    Value<String?>? createdAtIso,
+    Value<String?>? updatedAtIso,
+    Value<String?>? deletedAtIso,
+    Value<int>? createdAtEpoch,
+    Value<int>? lastModifiedEpoch,
+    Value<int>? version,
+    Value<String>? origin,
+    Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
+    Value<int>? id,
     Value<String>? operationType,
     Value<String>? entityType,
     Value<String>? entityUuid,
@@ -30297,18 +30892,31 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     Value<String?>? newState,
     Value<String?>? changedFields,
     Value<String>? performedBy,
-    Value<String>? deviceId,
     Value<String?>? ipAddress,
     Value<String>? hotelDayKey,
     Value<int>? timestamp,
     Value<String>? timestampIso,
     Value<bool>? isFinancial,
     Value<int?>? amountImpact,
-    Value<int>? createdAt,
   }) {
     return AuditLogsCompanion(
-      id: id ?? this.id,
       localUuid: localUuid ?? this.localUuid,
+      serverId: serverId ?? this.serverId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModified: lastModified ?? this.lastModified,
+      createdAtIso: createdAtIso ?? this.createdAtIso,
+      updatedAtIso: updatedAtIso ?? this.updatedAtIso,
+      deletedAtIso: deletedAtIso ?? this.deletedAtIso,
+      createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+      lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+      version: version ?? this.version,
+      origin: origin ?? this.origin,
+      vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+      id: id ?? this.id,
       operationType: operationType ?? this.operationType,
       entityType: entityType ?? this.entityType,
       entityUuid: entityUuid ?? this.entityUuid,
@@ -30317,25 +30925,68 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
       newState: newState ?? this.newState,
       changedFields: changedFields ?? this.changedFields,
       performedBy: performedBy ?? this.performedBy,
-      deviceId: deviceId ?? this.deviceId,
       ipAddress: ipAddress ?? this.ipAddress,
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
       timestamp: timestamp ?? this.timestamp,
       timestampIso: timestampIso ?? this.timestampIso,
       isFinancial: isFinancial ?? this.isFinancial,
       amountImpact: amountImpact ?? this.amountImpact,
-      createdAt: createdAt ?? this.createdAt,
     );
   }
 
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<int>(id.value);
-    }
     if (localUuid.present) {
       map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<int>(lastModified.value);
+    }
+    if (createdAtIso.present) {
+      map['created_at_iso'] = Variable<String>(createdAtIso.value);
+    }
+    if (updatedAtIso.present) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso.value);
+    }
+    if (deletedAtIso.present) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso.value);
+    }
+    if (createdAtEpoch.present) {
+      map['created_at_epoch'] = Variable<int>(createdAtEpoch.value);
+    }
+    if (lastModifiedEpoch.present) {
+      map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (vectorClock.present) {
+      map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
     }
     if (operationType.present) {
       map['operation_type'] = Variable<String>(operationType.value);
@@ -30361,9 +31012,6 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     if (performedBy.present) {
       map['performed_by'] = Variable<String>(performedBy.value);
     }
-    if (deviceId.present) {
-      map['device_id'] = Variable<String>(deviceId.value);
-    }
     if (ipAddress.present) {
       map['ip_address'] = Variable<String>(ipAddress.value);
     }
@@ -30382,17 +31030,29 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     if (amountImpact.present) {
       map['amount_impact'] = Variable<int>(amountImpact.value);
     }
-    if (createdAt.present) {
-      map['created_at'] = Variable<int>(createdAt.value);
-    }
     return map;
   }
 
   @override
   String toString() {
     return (StringBuffer('AuditLogsCompanion(')
-          ..write('id: $id, ')
           ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('id: $id, ')
           ..write('operationType: $operationType, ')
           ..write('entityType: $entityType, ')
           ..write('entityUuid: $entityUuid, ')
@@ -30401,14 +31061,12 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
           ..write('newState: $newState, ')
           ..write('changedFields: $changedFields, ')
           ..write('performedBy: $performedBy, ')
-          ..write('deviceId: $deviceId, ')
           ..write('ipAddress: $ipAddress, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('timestamp: $timestamp, ')
           ..write('timestampIso: $timestampIso, ')
           ..write('isFinancial: $isFinancial, ')
-          ..write('amountImpact: $amountImpact, ')
-          ..write('createdAt: $createdAt')
+          ..write('amountImpact: $amountImpact')
           ..write(')'))
         .toString();
   }
@@ -52280,8 +52938,23 @@ typedef $$BookingPriceAdjustmentsTableProcessedTableManager =
     >;
 typedef $$AuditLogsTableCreateCompanionBuilder =
     AuditLogsCompanion Function({
-      Value<int> id,
       required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
+      Value<int> id,
       required String operationType,
       required String entityType,
       required String entityUuid,
@@ -52290,19 +52963,32 @@ typedef $$AuditLogsTableCreateCompanionBuilder =
       Value<String?> newState,
       Value<String?> changedFields,
       required String performedBy,
-      required String deviceId,
       Value<String?> ipAddress,
       required String hotelDayKey,
       required int timestamp,
       required String timestampIso,
       Value<bool> isFinancial,
       Value<int?> amountImpact,
-      required int createdAt,
     });
 typedef $$AuditLogsTableUpdateCompanionBuilder =
     AuditLogsCompanion Function({
-      Value<int> id,
       Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
+      Value<int> id,
       Value<String> operationType,
       Value<String> entityType,
       Value<String> entityUuid,
@@ -52311,14 +52997,12 @@ typedef $$AuditLogsTableUpdateCompanionBuilder =
       Value<String?> newState,
       Value<String?> changedFields,
       Value<String> performedBy,
-      Value<String> deviceId,
       Value<String?> ipAddress,
       Value<String> hotelDayKey,
       Value<int> timestamp,
       Value<String> timestampIso,
       Value<bool> isFinancial,
       Value<int?> amountImpact,
-      Value<int> createdAt,
     });
 
 class $$AuditLogsTableFilterComposer
@@ -52330,13 +53014,88 @@ class $$AuditLogsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
+  ColumnFilters<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get localUuid => $composableBuilder(
-    column: $table.localUuid,
+  ColumnFilters<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -52380,11 +53139,6 @@ class $$AuditLogsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get deviceId => $composableBuilder(
-    column: $table.deviceId,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<String> get ipAddress => $composableBuilder(
     column: $table.ipAddress,
     builder: (column) => ColumnFilters(column),
@@ -52414,11 +53168,6 @@ class $$AuditLogsTableFilterComposer
     column: $table.amountImpact,
     builder: (column) => ColumnFilters(column),
   );
-
-  ColumnFilters<int> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
 }
 
 class $$AuditLogsTableOrderingComposer
@@ -52430,13 +53179,88 @@ class $$AuditLogsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
+  ColumnOrderings<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get localUuid => $composableBuilder(
-    column: $table.localUuid,
+  ColumnOrderings<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -52480,11 +53304,6 @@ class $$AuditLogsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get deviceId => $composableBuilder(
-    column: $table.deviceId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get ipAddress => $composableBuilder(
     column: $table.ipAddress,
     builder: (column) => ColumnOrderings(column),
@@ -52514,11 +53333,6 @@ class $$AuditLogsTableOrderingComposer
     column: $table.amountImpact,
     builder: (column) => ColumnOrderings(column),
   );
-
-  ColumnOrderings<int> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
 }
 
 class $$AuditLogsTableAnnotationComposer
@@ -52530,11 +53344,72 @@ class $$AuditLogsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
   GeneratedColumn<String> get localUuid =>
       $composableBuilder(column: $table.localUuid, builder: (column) => column);
+
+  GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get operationType => $composableBuilder(
     column: $table.operationType,
@@ -52572,9 +53447,6 @@ class $$AuditLogsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get deviceId =>
-      $composableBuilder(column: $table.deviceId, builder: (column) => column);
-
   GeneratedColumn<String> get ipAddress =>
       $composableBuilder(column: $table.ipAddress, builder: (column) => column);
 
@@ -52600,9 +53472,6 @@ class $$AuditLogsTableAnnotationComposer
     column: $table.amountImpact,
     builder: (column) => column,
   );
-
-  GeneratedColumn<int> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
 
 class $$AuditLogsTableTableManager
@@ -52633,8 +53502,23 @@ class $$AuditLogsTableTableManager
               $$AuditLogsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
                 Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
+                Value<int> id = const Value.absent(),
                 Value<String> operationType = const Value.absent(),
                 Value<String> entityType = const Value.absent(),
                 Value<String> entityUuid = const Value.absent(),
@@ -52643,17 +53527,30 @@ class $$AuditLogsTableTableManager
                 Value<String?> newState = const Value.absent(),
                 Value<String?> changedFields = const Value.absent(),
                 Value<String> performedBy = const Value.absent(),
-                Value<String> deviceId = const Value.absent(),
                 Value<String?> ipAddress = const Value.absent(),
                 Value<String> hotelDayKey = const Value.absent(),
                 Value<int> timestamp = const Value.absent(),
                 Value<String> timestampIso = const Value.absent(),
                 Value<bool> isFinancial = const Value.absent(),
                 Value<int?> amountImpact = const Value.absent(),
-                Value<int> createdAt = const Value.absent(),
               }) => AuditLogsCompanion(
-                id: id,
                 localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
+                id: id,
                 operationType: operationType,
                 entityType: entityType,
                 entityUuid: entityUuid,
@@ -52662,19 +53559,32 @@ class $$AuditLogsTableTableManager
                 newState: newState,
                 changedFields: changedFields,
                 performedBy: performedBy,
-                deviceId: deviceId,
                 ipAddress: ipAddress,
                 hotelDayKey: hotelDayKey,
                 timestamp: timestamp,
                 timestampIso: timestampIso,
                 isFinancial: isFinancial,
                 amountImpact: amountImpact,
-                createdAt: createdAt,
               ),
           createCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
                 required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
+                Value<int> id = const Value.absent(),
                 required String operationType,
                 required String entityType,
                 required String entityUuid,
@@ -52683,17 +53593,30 @@ class $$AuditLogsTableTableManager
                 Value<String?> newState = const Value.absent(),
                 Value<String?> changedFields = const Value.absent(),
                 required String performedBy,
-                required String deviceId,
                 Value<String?> ipAddress = const Value.absent(),
                 required String hotelDayKey,
                 required int timestamp,
                 required String timestampIso,
                 Value<bool> isFinancial = const Value.absent(),
                 Value<int?> amountImpact = const Value.absent(),
-                required int createdAt,
               }) => AuditLogsCompanion.insert(
-                id: id,
                 localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
+                id: id,
                 operationType: operationType,
                 entityType: entityType,
                 entityUuid: entityUuid,
@@ -52702,14 +53625,12 @@ class $$AuditLogsTableTableManager
                 newState: newState,
                 changedFields: changedFields,
                 performedBy: performedBy,
-                deviceId: deviceId,
                 ipAddress: ipAddress,
                 hotelDayKey: hotelDayKey,
                 timestamp: timestamp,
                 timestampIso: timestampIso,
                 isFinancial: isFinancial,
                 amountImpact: amountImpact,
-                createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

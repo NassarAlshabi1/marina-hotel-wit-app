@@ -326,4 +326,50 @@ class TelegramNotificationService {
       eventTime: DateTime.now(),
     ),);
   }
+
+  /// إشعار خطأ مزامنة حرج — يرسل فوراً عبر Telegram
+  /// لا يتطلب تفعيل الإشعارات العادية (إشعارات خطأ دائماً مفعلة)
+  Future<bool> notifySyncError({
+    required String operation,
+    required String error,
+    int? recordsPushed,
+    int? recordsPulled,
+  }) async {
+    try {
+      if (!await TelegramConfig.isConfigured()) {
+        debugPrint('⚠️ Telegram: لا يمكن إرسال تنبيه المزامنة - البوت غير مضبوط');
+        return false;
+      }
+
+      final buffer = StringBuffer();
+      buffer.writeln('🔴 <b>خطأ مزامنة حرج</b>');
+      buffer.writeln('━━━━━━━━━━━━━━━━━');
+      buffer.writeln('⚙️ العملية: <b>$operation</b>');
+      buffer.writeln('❌ الخطأ: $error');
+      if (recordsPushed != null) {
+        buffer.writeln('📤 تم رفع: $recordsPushed');
+      }
+      if (recordsPulled != null) {
+        buffer.writeln('📥 تم سحب: $recordsPulled');
+      }
+      buffer.writeln();
+      buffer.writeln('🕐 ${DateTime.now().toIso8601String()}');
+      buffer.writeln();
+      buffer.writeln('<i>Marina Hotel App — Crashlytics Alert</i>');
+
+      final success = await _api.sendToDefaultChat(
+        text: buffer.toString().trimRight(),
+      );
+
+      if (success) {
+        debugPrint('✅ Telegram: تم إرسال تنبيه خطأ مزامنة — $operation');
+      } else {
+        debugPrint('⚠️ Telegram: فشل إرسال تنبيه المزامنة');
+      }
+      return success;
+    } catch (e) {
+      debugPrint('❌ Telegram: فشل إرسال تنبيه المزامنة — $e');
+      return false;
+    }
+  }
 }

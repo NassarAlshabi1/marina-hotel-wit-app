@@ -242,6 +242,7 @@ class AppwriteFullPull {
     int totalCount = 0;
     int offset = 0;
     int errorCount = 0;
+    int skippedCount = 0;
 
     _logger.info(
       '📥 بدء سحب ${entity.name} من collection: ${entity.collectionId}',
@@ -314,6 +315,20 @@ class AppwriteFullPull {
               }
             }
 
+            // ✅ LWW: حل التعارضات تلقائياً - المحلي الأحدث يفوز للمبالغ المالية
+            // يمنع طمس مبلغ محلي أحدث بمبلغ بعيد أقدم عند السحب الشامل
+            final localUuid = remoteData['localUuid']?.toString() ??
+                remoteData['local_uuid']?.toString();
+            if (localUuid != null && localUuid.isNotEmpty && _isFinancialEntity(entity.name)) {
+              final localTs = await _getLocalLastModified(entity.name, localUuid);
+              final remoteTs = _extractRemoteLastModified(remoteData);
+              if (localTs != null && remoteTs != null && localTs >= remoteTs) {
+                skippedCount++;
+                totalCount++;
+                continue;
+              }
+            }
+
             // حفظ السجل (upsert)
             await entity.repo!.upsertFromJson(remoteData, src: Source.appwrite);
             totalCount++;
@@ -357,7 +372,7 @@ class AppwriteFullPull {
     }
 
     _logger.info(
-      '✅ انتهى سحب ${entity.name}: $totalCount سجل (أخطاء: $errorCount)',
+      '✅ انتهى سحب ${entity.name}: $totalCount سجل (أخطاء: $errorCount، تم تجاوز: $skippedCount)',
       tag: 'FULL_PULL',
     );
 
@@ -537,6 +552,52 @@ class AppwriteFullPull {
     if (!data.containsKey('serverDocId')) {
       data['serverDocId'] = docId;
     }
+  }
+
+  /// هل هذا الكيان يحتوي على بيانات مالية تحتاج حماية LWW؟
+  bool _isFinancialEntity(String entityName) {
+    return switch (entityName) {
+      'payments' ||
+      'expenses' ||
+      'debts' ||
+      'salary_cycles' ||
+      'salary_payments' ||
+      'salary_withdrawals' ||
+      'cash_transactions' ||
+      'booking_price_adjustments' ||
+      'price_adjustments' ||
+      'booking_nights' => true,
+      _ => false,
+    };
+  }
+
+  /// جلب آخر تعديل محلي لكي المقارنة مع البعيد (LWW)
+  Future<int?> _getLocalLastModified(String tableName, String localUuid) async {
+    try {
+      final db = _database!;
+      final sanitized = tableName.replaceAll("'", "''");
+      final result = await db.customSelect(
+        "SELECT last_modified FROM '$sanitized' WHERE local_uuid = ? LIMIT 1",
+        variables: [Variable.withString(localUuid)],
+        readsFrom: Set.unmodifiable({}),
+      ).getSingleOrNull();
+      final raw = result?.data['last_modified'];
+      if (raw is int) return raw;
+      if (raw is num) return raw.toInt();
+      if (raw is String) return int.tryParse(raw);
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// استخراج طابع زمني من البيانات البعيدة
+  int? _extractRemoteLastModified(Map<String, dynamic> data) {
+    final v = data['lastModified'] ?? data['last_modified'] ?? data['lastModifiedEpoch'];
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v);
+    return null;
   }
 
   /// تحديث حالة إشغال الغرف

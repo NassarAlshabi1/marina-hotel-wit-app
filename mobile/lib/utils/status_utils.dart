@@ -53,6 +53,16 @@ class StatusUtils {
     'active',
   }.map(_normalize).toSet();
 
+  /// ✅ حالات الغرف تحت الصيانة — عربية + إنجليزية، مُطبَّعة (trim+lowercase).
+  /// تُستخدم في isUnderMaintenance() — مصدر وحيد للحقيقة (DRY) يمنع التشتت
+  /// بين 'صيانة' و 'maintenance' في عدة providers/getters.
+  static final Set<String> _maintenanceRoomStatuses = {
+    'صيانة',
+    'maintenance',
+    'under_maintenance',
+    'under maintenance',
+  }.map(_normalize).toSet();
+
   static const List<String> activeEmployeeStatuses = [
     'نشط',
     'active',
@@ -86,6 +96,12 @@ class StatusUtils {
 
   static bool isRoomAvailable(String status) =>
       _availableRoomStatuses.contains(_normalize(status));
+
+  /// ✅ هل الغرفة تحت الصيانة؟ يفحص 'صيانة' و 'maintenance' (مع variants) بشكل
+  /// مُطبَّع (trim+lowercase). استخدم هذا بدلاً من `status == 'صيانة' || status ==
+  /// 'maintenance'` المكرر في عدة أماكن — يضمن اتساقاً كاملاً ويمنع bugs الترجمة.
+  static bool isUnderMaintenance(String status) =>
+      _maintenanceRoomStatuses.contains(_normalize(status));
 
   static bool isRoomOccupied(String status) =>
       _occupiedRoomStatuses.contains(_normalize(status));

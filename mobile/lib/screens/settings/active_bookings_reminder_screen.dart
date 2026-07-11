@@ -10,7 +10,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
-import '../../utils/whatsapp_template_manager.dart';
+// ✅ whatsapp_template_manager ملغي — البناء مباشر
 
 /// شاشة إرسال تذكير واتساب بالمبلغ المتبقي للحجوزات النشطة
 /// تعرض جميع الحجوزات النشطة التي لديها مبلغ متبقي مع إمكانية إرسال رسالة تذكير
@@ -123,23 +123,26 @@ class _ActiveBookingsReminderScreenState
         ? '\nتنبيه: تجاوزتم موعد المغادرة بـ $daysSinceCheckout يوم\n'
         : '';
 
-    // استخدام النموذج المركزي
-    final message = await WhatsAppTemplateManager.buildMessage(
-      WhatsAppTemplateType.activeBookingReminder,
-      {
-        'guestName': booking.guestName,
-        'roomNumber': booking.roomNumber,
-        'checkin': checkin,
-        'checkout': checkout,
-        'nights': '$nights',
-        'total': CurrencyFormatter.formatAmount(total),
-        'paid': CurrencyFormatter.formatAmount(paid),
-        'remaining': CurrencyFormatter.formatAmount(remaining),
-        'overdueWarning': overdueWarning,
-      },
-    );
+    // بناء الرسالة مباشرة (بدون WhatsAppTemplateManager — ملغي)
+    final message = 
+        'عزيزي/عزيزتي ${booking.guestName}\n'
+        '━━━━━━━━━━━━━━━\n\n'
+        'تحية طيبة من فندق مارينا\n\n'
+        'نتوجه لكم بتذكير بخصوص المبلغ المتبقي لإقامتكم:\n\n'
+        'رقم الغرفة: ${booking.roomNumber}\n'
+        'تاريخ الوصول: $checkin\n'
+        'تاريخ المغادرة: $checkout\n'
+        'عدد الليالي: $nights\n\n'
+        'الإجمالي: ${CurrencyFormatter.formatAmount(total)}\n'
+        'المدفوع: ${CurrencyFormatter.formatAmount(paid)}\n'
+        'المبلغ المتبقي: ${CurrencyFormatter.formatAmount(remaining)}\n'
+        '${overdueWarning}\n\n'
+        'نرجو منكم التكرم بتسديد المبلغ المتبقي في أقرب وقت ممكن.\n\n'
+        'مع خالص التحية والتقدير\n'
+        'فندق مارينا\n'
+        'للاستفسار: 9677734587456';
 
-    return message ?? _buildFallbackMessage(booking);
+    return message;
   }
 
   /// رسالة بديلة إذا كان النموذج معطّل

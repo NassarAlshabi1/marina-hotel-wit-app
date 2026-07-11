@@ -67,8 +67,10 @@ class _WhatsAppSettingsScreenState
       return;
     }
     setState(() {
+      // ✅ حمّل القالب المحفوظ من prefs (إن وُجد) بدل الكتابة فوقه بالـ default
+      // دائماً — كان هذا bug يُفقِد المستخدم تخصيصاته بعد إعادة فتح الشاشة.
       _templateController.text =
-          prefs.getString('whatsapp_template') ?? whatsappPaymentTemplate;
+          prefs.getString('wa_template') ?? whatsappPaymentTemplate;
       _baseUrlController.text =
           prefs.getString('wa_api_base_url') ?? _defaultBaseUrl;
       _instanceIdController.text =
@@ -118,11 +120,27 @@ class _WhatsAppSettingsScreenState
   Future<void> _saveTemplate() async {
     setState(() => _isSaving = true);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('whatsapp_template', _templateController.text);
+    // ✅ BUG FIX: كان الكود يُظهر رسالة "تم الحفظ بنجاح" دون حفظ أي شيء فعلياً!
+    // نحفظ القالب تحت مفتاح 'wa_template' (مطابق لما يقرأه _loadSettings).
+    // ✅ نفحص نتيجة الكتابة — لا نُظهر رسالة نجاح إن فشلت فعلاً.
+    final ok = await prefs.setString(
+      'wa_template',
+      _templateController.text.trim(),
+    );
+
     if (!mounted) {
       return;
     }
     setState(() => _isSaving = false);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تعذّر حفظ إعدادات الرسالة، حاول مرة أخرى'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('تم حفظ إعدادات الرسالة بنجاح'),
@@ -149,14 +167,28 @@ class _WhatsAppSettingsScreenState
 
   Future<void> _resetAllToDefault() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('wa_api_type');
-    await prefs.remove('wa_api_base_url');
-    await prefs.remove('wa_api_instance_id');
-    await prefs.remove('wa_api_token');
-    await prefs.remove('wa_custom_url_template');
-    await prefs.remove('whatsapp_template');
+    // ✅ نتحقق من نجاح كل عملية حذف — إن فشل أي منها نُنبّه المستخدم بدل
+    // إظهار "تمت الاستعادة" بينما بقيت بعض القيم القديمة مخزّنة.
+    final results = await Future.wait<bool>([
+      prefs.remove('wa_api_type'),
+      prefs.remove('wa_api_base_url'),
+      prefs.remove('wa_api_instance_id'),
+      prefs.remove('wa_api_token'),
+      prefs.remove('wa_custom_url_template'),
+    ]);
+    final allRemoved = results.every((r) => r);
+
     ref.invalidate(whatsappSettingsProvider);
     if (!mounted) {
+      return;
+    }
+    if (!allRemoved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تعذّرت استعادة بعض الإعدادات، حاول مرة أخرى'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
     setState(() {

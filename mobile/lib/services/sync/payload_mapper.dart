@@ -117,6 +117,10 @@ class PayloadMapper {
     data['actualCheckout'] = booking.actualCheckout;
     putIfStringNotEmpty(data, 'notes', booking.notes);
     data['discount'] = booking.discount;
+    // ✅ حقل amount الموحّد لجدول bookings (مثل payments/expenses/cash_transactions).
+    // القيمة المشتقّة = المبلغ المستحق للمُطالبة (totalDueCached). هذا الحقل يُرسَل
+    // لكل من Primary و Secondary فيطابق الحقول تماماً.
+    data['amount'] = booking.totalDueCached;
     putIfStringNotEmpty(data, 'discountType', booking.discountType);
     putIfStringNotEmpty(data, 'discountStartDate', booking.discountStartDate);
     data['totalDueCached'] = booking.totalDueCached;
@@ -325,9 +329,13 @@ class PayloadMapper {
   /// يحوّل [Employee] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> employeeToRemote(Employee employee) {
     final now = Time.nowEpoch();
+    // ✅ salary و basicSalary يجب أن تكونا دائماً قيمتين فعليتين (وليس null)
+    // لأن Appwrite الثانوي يطلبهما كـ required. نضمن قيمة 0.0 كاحتياطي.
+    final basicSalary = employee.basicSalary ?? 0.0;
     final data = <String, dynamic>{
       'name': employee.name,
-      'basicSalary': employee.basicSalary,
+      'basicSalary': basicSalary,
+      'salary': basicSalary,
       'position': employee.position,
       'phone': employee.phone,
       'hireDate': employee.hireDate,
@@ -514,18 +522,23 @@ class PayloadMapper {
       note.createdAt * 1000,
     );
     final shiftDate = createdDate.toIso8601String().substring(0, 10);
+    final createdAtIso = note.createdAtIso ??
+        createdDate.toIso8601String();
+    final updatedAtIso = note.updatedAtIso ??
+        DateTime.fromMillisecondsSinceEpoch(note.updatedAt * 1000)
+            .toIso8601String();
     final data = <String, dynamic>{
       'localUuid': note.localUuid,
       'title': note.title,
       'content': note.content,
       'priority': note.priority,
       'shiftType': note.shiftType,
-      // ✅ إصلاح (P0-1): Appwrite schema يُعرّف isRead كـ boolean.
-      // Drift model يخزّنه كـ integer (0/1) — نُحوّله إلى boolean للمخطط.
-      // توحيد مع ShiftNotesAdapter.toJson الذي يُرسل boolean.
       'isRead': note.isRead == 1,
-      'createdAt': note.createdAt,
-      'updatedAt': note.updatedAt,
+      // ✅ إصلاح: shift_notes schema يُعرّف createdAt/updatedAt كـ string (ISO)
+      'createdAt': createdAtIso,
+      'createdAtIso': createdAtIso,
+      'updatedAt': updatedAtIso,
+      'updatedAtIso': updatedAtIso,
       'lastModified': note.lastModified,
       'createdBy': note.createdBy,
       'shiftDate': shiftDate,
@@ -616,11 +629,12 @@ class PayloadMapper {
       'addedBy': (extra['reportedBy'] as String?) ?? 'police',
 
       'localUuid': item.localUuid,
-      // ✅ إصلاح: createdAt/updatedAt/deletedAt كـ integer (epoch seconds)
-      // مطابقة لكل الكيانات الأخرى مع SyncFields
-      'createdAt': item.createdAt,
+      // ✅ إصلاح: blacklist schema يُعرّف createdAt/updatedAt/deletedAt كـ string (ISO)
+      // وليس integer (epoch) مثل باقي الكيانات — نرسل ISO string لتجنب
+      // خطأ "createdAt has invalid type. Value must be a valid string"
+      'createdAt': createdAtIso,
       'createdAtIso': createdAtIso,
-      'updatedAt': item.updatedAt,
+      'updatedAt': updatedAtIso,
       'updatedAtIso': updatedAtIso,
       'lastModified': item.lastModified,
       // ✅ إصلاح: version/origin/vectorClock من السجل (كانت ثوابت 'mobile')
@@ -706,6 +720,7 @@ class PayloadMapper {
       'employeeId': withdrawal.employeeId,
       'amount': withdrawal.amount.round(), 
       'withdrawDate': effectiveWithdrawDate,
+      'withdrawalDate': effectiveWithdrawDate,
     };
     putIfNotNull(data, 'serverId', withdrawal.serverId);
     putIfNotNull(data, 'deletedAt', withdrawal.deletedAt);

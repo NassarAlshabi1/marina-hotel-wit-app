@@ -136,35 +136,52 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                   onRefresh: () async {
                     _refreshExpensesStream();
                   },
-                  child: ListView(
-                    padding: const EdgeInsets.all(12),
-                    children: [
-                      _buildSearchBar(),
-                      const SizedBox(height: 8),
-                      _buildTypeFilterRow(),
-                      const SizedBox(height: 6),
-                      _buildCompactFiltersCard(),
-                      const SizedBox(height: 8),
-                      _buildCompactSummaryCard(
-                        totalAmount: filteredTotal,
-                        count: filteredCount,
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            children: [
+                              _buildSearchBar(),
+                              const SizedBox(height: 8),
+                              _buildTypeFilterRow(),
+                              const SizedBox(height: 6),
+                              _buildCompactFiltersCard(),
+                              const SizedBox(height: 8),
+                              _buildCompactSummaryCard(
+                                totalAmount: filteredTotal,
+                                count: filteredCount,
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 10),
                       if (filteredExpenses.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 48),
-                          child: Center(
-                            child: Text('لا توجد مصروفات ضمن الفترة'),
+                        const SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Padding(
+                            padding: EdgeInsets.only(top: 48),
+                            child: Center(
+                              child: Text('لا توجد مصروفات ضمن الفترة'),
+                            ),
                           ),
                         )
                       else
-                        ...filteredExpenses.map(
-                          (expense) => RepaintBoundary(
-                            child: _buildExpenseCard(
-                              expense,
-                              employeeNames[expense.relatedId],
-                              employees,
-                            ),
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final expense = filteredExpenses[index];
+                              return RepaintBoundary(
+                                child: _buildExpenseCard(
+                                  expense,
+                                  employeeNames[expense.relatedId],
+                                  employees,
+                                ),
+                              );
+                            },
+                            childCount: filteredExpenses.length,
                           ),
                         ),
                     ],
@@ -988,7 +1005,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final isSalaryExpense = selectedType == _salaryType;
     final savedType = isSalaryExpense
         ? _deriveSalaryExpenseType(dialogSalaryAction)
-        : selectedType;
+        : (selectedType ?? 'اخرى');
 
     if (parsedAmount <= 0) {
       return;

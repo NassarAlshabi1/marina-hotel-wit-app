@@ -7,6 +7,7 @@ import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/stream_helpers.dart';
 
 class PaymentsListScreen extends ConsumerStatefulWidget {
   const PaymentsListScreen({super.key});
@@ -108,8 +109,27 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
             // ─── قائمة المدفوعات ───
             Expanded(
               child: StreamBuilder(
-                stream: repo.watchAll(),
+                stream: debounceStream(repo.watchAll(), const Duration(milliseconds: 150)),
                 builder: (context, snapshot) {
+                  // ✅ معالجة حالة الخطأ قبل ConnectionState.waiting — بدونها
+                  // قد لا يظهر للمستخدم أي feedback عند انفجار الـ stream.
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                          const SizedBox(height: 16),
+                          const Text('حدث خطأ أثناء تحميل المدفوعات',
+                              style: TextStyle(fontSize: 16)),
+                          const SizedBox(height: 8),
+                          const Text('تحقّق من اتصال الشبكة وحاول مرة أخرى.',
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                              textAlign: TextAlign.center),
+                        ],
+                      ),
+                    );
+                  }
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
                       child: CircularProgressIndicator(
