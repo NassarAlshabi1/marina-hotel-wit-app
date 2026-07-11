@@ -116,6 +116,7 @@ class PaymentVoidService {
           voidedBy: drift.Value(voidedBy),
           updatedAt: drift.Value(nowEpoch),
           lastModified: drift.Value(nowEpoch),
+          version: drift.Value(payment.version + 1),
         ));
 
         // 4) تسجيل PaymentVoid في outbox للمزامنة

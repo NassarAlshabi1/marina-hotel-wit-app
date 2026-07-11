@@ -212,6 +212,7 @@ class BlacklistRepository {
             content: d.Value(jsonEncode(payload)),
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
+            version: d.Value(row.version + 1),
           ),
         );
 
@@ -269,6 +270,7 @@ class BlacklistRepository {
             ),
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
+            version: d.Value(row.version + 1),
           ),
         );
 
