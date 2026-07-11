@@ -609,7 +609,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                       Expanded(
                         flex: 2,
                         child: _CheckoutPaymentsList(
-                          bookingId: widget.booking.id,
+                          payments: snapshot.data ?? const <Payment>[],
                           totalDue: totalDue,
                           onRefresh: _refreshBookingNights,
                         ),
@@ -1228,54 +1228,41 @@ class _CheckoutSummaryCard extends StatelessWidget {
 /// الأربعة المتداخلة في الشاشة الرئيسية.
 ///
 /// يستخدم ref.watch(paymentsRepoProvider.select((repo) => repo)) للحصول
-/// على مستودع الدفعات وعمل StreamBuilder خاص به.
+/// على مستودع الدفعات وعرض قائمة المدفوعات.
 class _CheckoutPaymentsList extends ConsumerWidget {
   const _CheckoutPaymentsList({
-    required this.bookingId,
+    required this.payments,
     required this.totalDue,
     required this.onRefresh,
   });
 
-  final int bookingId;
+  final List<Payment> payments;
   final double totalDue;
   final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final paymentsRepo =
-        ref.watch(paymentsRepoProvider.select((repo) => repo));
+    if (payments.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text(
+            'لا توجد مدفوعات سابقة',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
 
-    return StreamBuilder<List<Payment>>(
-      stream: paymentsRepo.paymentsByBooking(bookingId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-
-        final payments = snapshot.data ?? const <Payment>[];
-        if (payments.isEmpty) {
-          return const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'لا توجد مدفوعات سابقة',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-
-        // ✅ استبعاد المدفوعات الملغاة
-        final totalPaid = payments
-            .where((p) => !p.isVoided)
-            .fold<double>(
-              0,
-              (sum, payment) => sum + payment.amount,
-            );
-        final remainingAmount =
-            (totalDue - totalPaid).clamp(0, totalDue).toDouble();
+    // ✅ استبعاد المدفوعات الملغاة
+    final totalPaid = payments
+        .where((p) => !p.isVoided)
+        .fold<double>(
+          0,
+          (sum, payment) => sum + payment.amount,
+        );
+    final remainingAmount =
+        (totalDue - totalPaid).clamp(0, totalDue).toDouble();
 
         return Column(
           children: [
