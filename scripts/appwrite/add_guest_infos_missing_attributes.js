@@ -61,13 +61,9 @@ const missingAttributes = [
 ];
 
 async function attributeExists(attrKey) {
-  try {
-    // محاولة listAttributes تحتاج API key — نستخدم محاولة create
-    // ونلتقط خطأ "already exists"
-    return false; // سنجرب الإنشاء ونلتقط الخطأ
-  } catch (e) {
-    return false;
-  }
+  // محاولة listAttributes تحتاج API key — نستخدم محاولة create
+  // ونلتقط خطأ "already exists"
+  return false;
 }
 
 async function createAttribute(attr) {
