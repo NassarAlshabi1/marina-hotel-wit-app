@@ -133,6 +133,7 @@ class GuestInfosRepository {
           updatedAt: d.Value(now),
           lastModified: d.Value(now),
           updatedAtIso: d.Value(nowIso),
+          version: d.Value(existing.version + 1),
         ),
       );
 

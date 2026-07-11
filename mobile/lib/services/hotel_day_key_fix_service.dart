@@ -68,6 +68,25 @@ class HotelDayKeyFixService {
     }
   }
 
+  Future<void> _createOutboxEntry(
+    OutboxDao outboxDao,
+    String entity,
+    String localUuid,
+    String payload,
+  ) async {
+    try {
+      await outboxDao.merge(
+        entity: entity,
+        op: 'update',
+        localUuid: localUuid,
+        payload: {'hotelDayKey': payload},
+        clientTs: Time.nowEpoch(),
+      );
+    } catch (e) {
+      debugPrint('⚠️ HotelDayKeyFixService outbox: فشل إنشاء outbox لـ $entity/$localUuid: $e');
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // حساب hotelDayKey الصحيح من التاريخ
   // ═══════════════════════════════════════════════════════════════
@@ -119,7 +138,14 @@ class HotelDayKeyFixService {
                 ..where((t) => t.id.equals(row.id)))
               .write(ExpensesCompanion(
             hotelDayKey: d.Value(correctKey),
+            version: d.Value(row.version + 1),
           ));
+          await _createOutboxEntry(
+            OutboxDao(db),
+            'expenses',
+            row.localUuid,
+            correctKey,
+          );
           fixed++;
         }
       }
@@ -147,7 +173,14 @@ class HotelDayKeyFixService {
                 ..where((t) => t.id.equals(row.id)))
               .write(SalaryWithdrawalsCompanion(
             hotelDayKey: d.Value(correctKey),
+            version: d.Value(row.version + 1),
           ));
+          await _createOutboxEntry(
+            OutboxDao(db),
+            'salary_withdrawals',
+            row.localUuid,
+            correctKey,
+          );
           fixed++;
         }
       }
@@ -417,7 +450,14 @@ class HotelDayKeyFixService {
                 ..where((t) => t.id.equals(row.id)))
               .write(PaymentsCompanion(
             hotelDayKey: d.Value(correctKey),
+            version: d.Value(row.version + 1),
           ));
+          await _createOutboxEntry(
+            OutboxDao(db),
+            'payments',
+            row.localUuid,
+            correctKey,
+          );
           fixed++;
         }
       }
@@ -444,7 +484,14 @@ class HotelDayKeyFixService {
                 ..where((t) => t.id.equals(row.id)))
               .write(BookingNightsCompanion(
             hotelDayKey: d.Value(correctKey),
+            version: d.Value(row.version + 1),
           ));
+          await _createOutboxEntry(
+            OutboxDao(db),
+            'booking_nights',
+            row.localUuid,
+            correctKey,
+          );
           fixed++;
         }
       }
@@ -471,7 +518,14 @@ class HotelDayKeyFixService {
                 ..where((t) => t.id.equals(row.id)))
               .write(SalaryPaymentsCompanion(
             hotelDayKey: d.Value(correctKey),
+            version: d.Value(row.version + 1),
           ));
+          await _createOutboxEntry(
+            OutboxDao(db),
+            'salary_payments',
+            row.localUuid,
+            correctKey,
+          );
           fixed++;
         }
       }
@@ -498,7 +552,14 @@ class HotelDayKeyFixService {
                 ..where((t) => t.id.equals(row.id)))
               .write(PaymentVoidsCompanion(
             hotelDayKey: d.Value(correctKey),
+            version: d.Value(row.version + 1),
           ));
+          await _createOutboxEntry(
+            OutboxDao(db),
+            'payment_voids',
+            row.localUuid,
+            correctKey,
+          );
           fixed++;
         }
       }
@@ -525,7 +586,14 @@ class HotelDayKeyFixService {
                 ..where((t) => t.id.equals(row.id)))
               .write(AuditLogsCompanion(
             hotelDayKey: d.Value(correctKey),
+            version: d.Value(row.version + 1),
           ));
+          await _createOutboxEntry(
+            OutboxDao(db),
+            'audit_logs',
+            row.localUuid,
+            correctKey,
+          );
           fixed++;
         }
       }

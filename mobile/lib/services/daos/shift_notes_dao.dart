@@ -114,6 +114,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
         expiresAt: expiresAt != null ? Value(expiresAt) : const Value.absent(),
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
+        version: Value(existing.version + 1),
       );
 
       final rows = await (update(
@@ -176,6 +177,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
               isRead: const Value(1),
               updatedAt: Value(now),
               lastModified: effectiveLastModified,
+              version: Value(existing.version + 1),
             ),
           );
 
@@ -216,6 +218,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
               isRead: const Value(0),
               updatedAt: Value(now),
               lastModified: effectiveLastModified,
+              version: Value(existing.version + 1),
             ),
           );
 

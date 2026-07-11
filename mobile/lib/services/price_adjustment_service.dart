@@ -93,6 +93,7 @@ class PriceAdjustmentService {
           price: Value(newPrice),
           updatedAt: Value(Time.nowEpoch()),
           lastModified: Value(Time.nowEpoch()),
+          version: Value(room.version + 1),
         ),);
 
     // إنشاء outbox entry لتحديث سعر الغرفة
