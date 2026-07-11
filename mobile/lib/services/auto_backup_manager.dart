@@ -207,8 +207,14 @@ class AutoBackupManager {
       _deltaSyncDebounceTimer = Timer(
         const Duration(milliseconds: _instantSyncDebounceMilliseconds),
         () async {
-          await performDeltaSync();
-          _pendingChanges = 0;
+          // ملاحظة: performDeltaSync() يحمي نفسه داخلياً ضد التزامن عبر
+          // _isDeltaSyncing، فلا يمكن أن تعمل مزامنتان تفاضليتان معاً.
+          // ✅ لا نصفّر العدّاد إلا إذا نُفّذت المزامنة فعلاً (لم تُتخطَّ لأن
+          // أخرى جارية) حتى يبقى عدد التغييرات المعلّقة دقيقاً.
+          final result = await performDeltaSync();
+          if (result['success'] == true) {
+            _pendingChanges = 0;
+          }
         },
       );
     }
