@@ -21,6 +21,10 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
   LogLevel? _filterLevel;
   String _searchQuery = '';
   Timer? _debounceTimer;
+  List<LogEntry>? _lastFilteredLogs;
+  List<LogEntry>? _lastLogs;
+  LogLevel? _lastFilterLevel;
+  String? _lastSearchQuery;
 
   @override
   void dispose() {
@@ -28,11 +32,33 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
     super.dispose();
   }
 
+  List<LogEntry> _filterLogs(List<LogEntry> logs) {edLogs(List<LogEntry> logs) {
+    if (_lastFilteredLogs != null &&
+        identical(_lastLogs, logs) &&
+        _lastFilterLevel == _filterLevel &&
+        _lastSearchQuery == _searchQuery) {
+      return _lastFilteredLogs!;
+    }
+    _lastLogs = logs;
+    _lastFilterLevel = _filterLevel;
+    _lastSearchQuery = _searchQuery;
+    _lastFilteredLogs = logs.where((log) {
+      final matchesLevel = _filterLevel == null || log.level == _filterLevel;
+      final matchesQuery =
+          _searchQuery.isEmpty ||
+          log.message.toLowerCase().contains(_searchQuery) ||
+          log.tag.toLowerCase().contains(_searchQuery) ||
+          (log.error?.toString().toLowerCase().contains(_searchQuery) ?? false);
+      return matchesLevel && matchesQuery;
+    }).toList();
+    return _lastFilteredLogs!;
+  }
+
   @override
   Widget build(BuildContext context) {
     final logs = ref.watch(googleDriveLogsProvider);
     final logStats = ref.watch(googleDriveLogStatsProvider);
-    final filteredLogs = _filterLogs(logs);
+    final filteredLogs = _getFilteredLogs(logs);
 
     return AppScaffold(
       title: 'سجلات Google Drive',
@@ -318,17 +344,6 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
         return Icons.warning_amber;
     }
   }
-
-  List<LogEntry> _filterLogs(List<LogEntry> logs) {
-    return logs.where((log) {
-      final matchesLevel = _filterLevel == null || log.level == _filterLevel;
-      final matchesQuery =
-          _searchQuery.isEmpty ||
-          log.message.toLowerCase().contains(_searchQuery) ||
-          log.tag.toLowerCase().contains(_searchQuery) ||
-          (log.error?.toString().toLowerCase().contains(_searchQuery) ?? false);
-      return matchesLevel && matchesQuery;
-    }).toList();
   }
 
   void _showLogDetails(LogEntry log) {
