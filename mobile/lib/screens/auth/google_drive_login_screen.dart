@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/backup_provider.dart';
-import '../../services/auto_backup_manager.dart';
+import '../../providers/auto_backup_provider.dart';
 import '../../utils/theme.dart';
 
 class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
@@ -38,8 +38,7 @@ class _GoogleDriveLoginScreenState
       if (state.isSignedIn && mounted) {
         // نجح تسجيل الدخول الصامت — الانتقال مباشرة
         try {
-          final autoBackupManager = AutoBackupManager.instance;
-          await autoBackupManager.setEnabled(true);
+          await ref.read(autoBackupManagerProvider).setEnabled(true);
         } catch (_) {}
       }
     } catch (_) {
@@ -62,8 +61,7 @@ class _GoogleDriveLoginScreenState
 
       if (state.isSignedIn) {
         try {
-          final autoBackupManager = AutoBackupManager.instance;
-          await autoBackupManager.setEnabled(true);
+          await ref.read(autoBackupManagerProvider).setEnabled(true);
           debugPrint('✅ تم تفعيل المزامنة التلقائية');
         } catch (e) {
           debugPrint('⚠️ خطأ في تفعيل المزامنة التلقائية: $e');

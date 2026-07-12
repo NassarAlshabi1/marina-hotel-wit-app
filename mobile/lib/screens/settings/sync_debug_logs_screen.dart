@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
-import '../../services/smart_sync_manager.dart';
+import '../../providers/smart_sync_provider.dart';
 import '../../utils/debug_logs.dart';
 
 class SyncDebugLogsScreen extends ConsumerStatefulWidget {
@@ -25,7 +25,7 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
   }
 
   Future<void> _loadStatus() async {
-    final status = await SmartSyncManager.instance.getStatus();
+    final status = await ref.read(smartSyncManagerProvider).getStatus();
     if (mounted) {
       setState(() => _status = status);
     }
@@ -47,21 +47,21 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
 
   Future<void> _forceSync() async {
     await _withBusy(() async {
-      await SmartSyncManager.instance.forceSyncNow();
+      await ref.read(smartSyncManagerProvider).forceSyncNow();
       await _loadStatus();
     });
   }
 
   Future<void> _pushLocal() async {
     await _withBusy(() async {
-      await SmartSyncManager.instance.pushLocalChanges();
+      await ref.read(smartSyncManagerProvider).pushLocalChanges();
       await _loadStatus();
     });
   }
 
   Future<void> _pullRemote() async {
     await _withBusy(() async {
-      await SmartSyncManager.instance.pullRemoteChanges();
+      await ref.read(smartSyncManagerProvider).pullRemoteChanges();
       await _loadStatus();
     });
   }

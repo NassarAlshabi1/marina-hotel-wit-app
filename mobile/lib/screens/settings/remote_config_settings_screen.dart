@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/remote_config_provider.dart';
-import '../../services/remote_config_service.dart';
 
 class RemoteConfigSettingsScreen extends ConsumerStatefulWidget {
   const RemoteConfigSettingsScreen({super.key});
@@ -21,7 +20,7 @@ class _RemoteConfigSettingsScreenState
 
   Future<void> _forceFetch() async {
     setState(() => _isFetching = true);
-    final success = await RemoteConfigService.instance.forceFetch();
+    final success = await ref.read(remoteConfigServiceProvider).forceFetch();
     if (mounted) {
       setState(() => _isFetching = false);
       ScaffoldMessenger.of(context).showSnackBar(

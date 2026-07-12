@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../components/app_scaffold.dart';
 import '../../../core/core.dart';
 import '../../../providers/repository_providers.dart';
-import '../../../services/sync_health_monitor.dart';
+import '../../../providers/service_providers.dart';
 
 /// شاشة مراقبة صحة نظام المزامنة.
 ///
@@ -48,7 +48,7 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
   Future<void> _loadReport() async {
     try {
       final db = ref.read(databaseProvider);
-      final report = await SyncHealthMonitor.instance.getHealthReport(db);
+      final report = await ref.read(syncHealthMonitorProvider).getHealthReport(db);
       if (mounted) {
         setState(() {
           _report = report;

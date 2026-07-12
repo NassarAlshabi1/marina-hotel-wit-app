@@ -11,16 +11,11 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../providers/auto_sync_engine_providers.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/booking_derived_fields_service.dart';
-import '../../services/daos/outbox_dao.dart';
-import '../../services/diagnostics/diagnostics_logger.dart';
-import '../../services/google_drive_auto_sync_engine.dart';
+import '../../providers/service_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sqlite_backup_restore.dart';
-import '../../services/sync_guardian.dart';
-import '../../services/sync_orchestrator.dart';
-import '../../services/unified_sync_orchestrator.dart';
 import '../../utils/env.dart';
 
 // ═══════════════════════════════════════════════════════════════
@@ -99,7 +94,7 @@ class _SettingsMaintenanceScreenState
 
   Future<_SystemInfo> _collectSystemInfo() async {
     final prefs = await SharedPreferences.getInstance();
-    final db = DatabaseManager.instance;
+    final db = ref.read(databaseProvider);
 
     // حجم ملف قاعدة البيانات
     final dbDir = await sqflite.getDatabasesPath();
@@ -148,11 +143,11 @@ class _SettingsMaintenanceScreenState
     // Outbox
     int outboxCount = 0;
     try {
-      outboxCount = await OutboxDao(db).count();
+      outboxCount = await ref.read(outboxDaoProvider).count();
     } catch (_) {}
 
     // Logs
-    final logStats = DiagnosticsLogger.instance.getStats();
+    final logStats = ref.read(diagnosticsLoggerProvider).getStats();
 
     // Device info + App version
     String deviceModel = 'غير معروف';
@@ -545,7 +540,7 @@ class _SettingsMaintenanceScreenState
               _showLoading('جاري التنظيف...');
               try {
                 await ref.read(backupStatusProvider.notifier).cleanupTempFiles();
-                DiagnosticsLogger.instance.clear();
+                ref.read(diagnosticsLoggerProvider).clear();
                 _hideLoading();
                 _showSnack('تم التنظيف بنجاح', color: Colors.green);
                 unawaited(_loadSystemInfo());
@@ -576,7 +571,7 @@ class _SettingsMaintenanceScreenState
               Navigator.pop(ctx);
               _showLoading('جاري فحص قاعدة البيانات...');
               try {
-                final checks = await SyncOrchestrator.instance.verifyDataIntegrity();
+                final checks = await ref.read(syncOrchestratorProvider).verifyDataIntegrity();
                 _hideLoading();
                 if (mounted) {
                   _showIntegrityResults(checks);
@@ -731,8 +726,8 @@ class _SettingsMaintenanceScreenState
               _showLoading('جاري إعادة تعيين المزامنة...');
               try {
                 await ref.read(appwriteSyncManagerProvider).resetSyncState();
-                await OutboxDao(DatabaseManager.instance).resetErrors();
-                await UnifiedSyncOrchestrator.instance.syncNow(
+                await ref.read(outboxDaoProvider).resetErrors();
+                await ref.read(unifiedSyncOrchestratorProvider).syncNow(
                   reason: 'maintenance_reset',
                 );
                 _hideLoading();
@@ -942,8 +937,7 @@ class _SettingsMaintenanceScreenState
               Navigator.pop(ctx);
               _showLoading('جاري إعادة تعيين Outbox...');
               try {
-                final db = ref.read(databaseProvider);
-                final outboxDao = OutboxDao(db);
+                final outboxDao = ref.read(outboxDaoProvider);
                 await outboxDao.resetErrors();
                 final stuckCount = await outboxDao.cleanupStuckEntries();
                 _hideLoading();
@@ -983,8 +977,8 @@ class _SettingsMaintenanceScreenState
               Navigator.pop(ctx);
               _showLoading('جاري إعادة تشغيل الخدمات...');
               try {
-                await SyncGuardian.instance.restart();
-                await AutoSyncEngine.instance.restart();
+                await ref.read(syncGuardianProvider).restart();
+                await ref.read(autoSyncEngineProvider).restart();
                 _hideLoading();
                 _showSnack('تم إعادة تشغيل الخدمات بنجاح', color: Colors.green);
                 unawaited(_loadSystemInfo());
@@ -1078,7 +1072,7 @@ class _SettingsMaintenanceScreenState
 
                 // ✅ إصلاح P1: إعادة تهيئة المزامنة بعد reset
                 try {
-                  await SyncGuardian.instance.restart();
+                  await ref.read(syncGuardianProvider).restart();
                 } catch (_) {}
 
                 _hideLoading();

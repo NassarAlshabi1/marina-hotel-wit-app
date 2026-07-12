@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
-import '../../services/remote_config_service.dart';
+import '../../providers/remote_config_provider.dart';
 import '../../utils/currency_formatter.dart';
 
 /// شاشة إرسال تنبيه واتساب للمبالغ المتأخرة
@@ -101,7 +101,7 @@ class _LatePaymentWhatsAppScreenState
     message += 'نرجو منكم التكرم بتسديد المبلغ المتبقي في أقرب وقت ممكن.\n\n';
     message += 'مع خالص التحية والتقدير\n';
     message += 'فندق مارينا\n';
-    message += 'للاستفسار: ${RemoteConfigService.instance.hotelContactPhone}';
+    message += 'للاستفسار: ${ref.read(remoteConfigServiceProvider).hotelContactPhone}';
 
     return message;
   }
@@ -117,7 +117,7 @@ class _LatePaymentWhatsAppScreenState
   }
 
   bool _isOverdue(Debt debt) {
-    final threshold = RemoteConfigService.instance.latePaymentThresholdDays;
+    final threshold = ref.read(remoteConfigServiceProvider).latePaymentThresholdDays;
     return _getDaysPassed(debt) > threshold && debt.isSettled == 0;
   }
 
