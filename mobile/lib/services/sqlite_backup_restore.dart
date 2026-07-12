@@ -142,7 +142,6 @@ class SqliteBackupRestore {
       // للتشغيل المتزامن لأنه داخلياً يأخذ lock على WAL.
       final db = await sqflite.openDatabase(
         dbPath,
-        readOnly: false,
         singleInstance: false,
       );
       try {

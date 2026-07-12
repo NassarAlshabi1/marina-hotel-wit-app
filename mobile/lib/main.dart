@@ -97,19 +97,19 @@ Future<void> main() async {
   await Future.wait<void>([
     _safeInit(
       'CrashlyticsService',
-      () => CrashlyticsService.instance.initialize(),
+      CrashlyticsService.instance.initialize,
     ),
     _safeInit(
       'RemoteConfigService',
-      () => RemoteConfigService.instance.initialize(),
+      RemoteConfigService.instance.initialize,
     ),
     _safeInit(
       'DiagnosticsLogger',
-      () => DiagnosticsLogger.instance.initialize(),
+      DiagnosticsLogger.instance.initialize,
     ),
     _safeInit(
       'ApiConfigService',
-      () => ApiConfigService.instance.initialize(),
+      ApiConfigService.instance.initialize,
     ),
   ]);
 
@@ -770,6 +770,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint('⚠️ Error disposing BatteryOptimizer: $e');
     }
     try {
+      // ignore: deprecated_member_use_from_same_package
       await AppwriteRealtimeService.disposeInstance();
     } catch (e) {
       debugPrint('⚠️ Error disposing AppwriteRealtimeService: $e');

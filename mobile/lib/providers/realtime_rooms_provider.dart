@@ -10,6 +10,13 @@ import '../utils/status_utils.dart';
 /// Provider للغرف مع دعم Realtime Updates
 ///
 /// يدير حالة الغرف ويستمع للتحديثات الفورية من Appwrite
+///
+/// ⚠️ **DEPRECATED** — هذا الـ provider غير مستخدم في أي مسار إنتاجي،
+/// ويعتمد على `AppwriteRealtimeService` المُهملة. استخدم `roomsListProvider`
+/// (Riverpod StreamProvider) بدلاً منه للغرف مع التحديثات الفورية عبر
+/// `AppwriteRealtimeSync`.
+@Deprecated('استخدم roomsListProvider (Riverpod) بدلاً من ذلك')
+// ignore_for_file: deprecated_member_use_from_same_package
 class RealTimeRoomsProvider extends ChangeNotifier {
 
   RealTimeRoomsProvider({
