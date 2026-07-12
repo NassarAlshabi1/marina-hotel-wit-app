@@ -1353,7 +1353,7 @@ class AppwriteSyncManager {
         // ✅ إضافة إشعار Telegram لخطأ المزامنة
         await TelegramNotificationService.instance.notifySyncError(
         operation: 'sync',
-        error: errorMessage ?? e.toString(),
+        error: errorMessage,
         recordsPushed: recordsPushed,
         recordsPulled: recordsPulled,
       );
@@ -6153,7 +6153,7 @@ class AppwriteSyncManager {
     try {
       final prefs = await SharedPreferences.getInstance();
       final deviceId = await _getDeviceIdForPrefs();
-      final encryptionKey = await SecureStorage.getEncryptionKey(null);
+      final encryptionKey = SecureStorage.getEncryptionKey(null);
       final now = Time.nowEpoch();
 
       // ⚠️ حقول app_settings الفعلية في Appwrite Cloud (25 حقل فقط — الحد الأقصى)

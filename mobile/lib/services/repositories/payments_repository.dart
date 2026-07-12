@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 
 import '../../utils/hotel_time_engine.dart';
 import '../auto_backup_manager.dart';
@@ -9,8 +9,8 @@ import '../booking_derived_fields_service.dart';
 import '../crashlytics_service.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
-import '../telegram/telegram_notification_service.dart';
 import '../local_db.dart';
+import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
 
 class PaymentsRepository {
@@ -113,7 +113,7 @@ class PaymentsRepository {
         recordData: {'amount': amount},
       ),);
       // إشعارات فورية (fire-and-forget)
-      _notifyPaymentReceived(result);
+      unawaited(_notifyPaymentReceived(result));
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
@@ -320,7 +320,7 @@ class PaymentsRepository {
   }
 
   /// إرسال إشعارات (WhatsApp + Telegram) عند استلام دفعة
-  void _notifyPaymentReceived(int paymentId) async {
+  Future<void> _notifyPaymentReceived(int paymentId) async {
     try {
       final payment = await (db.select(db.payments)
             ..where((p) => p.id.equals(paymentId)))

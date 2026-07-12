@@ -2,8 +2,6 @@
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
-
 import 'appwrite_sync_utils.dart';
 import 'local_db.dart';
 import 'secondary_appwrite_service.dart';
@@ -37,8 +35,9 @@ enum BackupPhase {
   uploadingBlacklist('رفع القائمة السوداء...'),
   completed('اكتمل!');
 
-  final String label;
   const BackupPhase(this.label);
+
+  final String label;
 }
 
 /// حالة التقدم في النسخة الشاملة
@@ -157,7 +156,7 @@ class SecondaryBackupService {
 
     _isRunning = true;
     _cancelled = false;
-    _progressController.add(const BackupProgress(phase: BackupPhase.preparing));
+    _progressController.add(const BackupProgress());
 
     try {
       await _service.ensureInitialized();
@@ -182,7 +181,6 @@ class SecondaryBackupService {
           totalRecords: coll.records.length,
           totalCollections: totalCollections,
           completedCollections: completedCollections,
-          isBookingNightsPhase: false,
         ));
 
         await _uploadCollection(coll, stats, (record, current) {
@@ -197,7 +195,6 @@ class SecondaryBackupService {
             completedCollections: completedCollections,
             successCount: stats.successCount,
             failureCount: stats.failureCount,
-            isBookingNightsPhase: false,
           ));
         });
 
@@ -213,7 +210,6 @@ class SecondaryBackupService {
             completedCollections: completedCollections,
             successCount: stats.successCount,
             failureCount: stats.failureCount,
-            isBookingNightsPhase: false,
           ));
         }
       }
@@ -301,8 +297,6 @@ class SecondaryBackupService {
     int successCount = 0;
     int failureCount = 0;
 
-    int runningFailureCount = 0;
-
     for (int i = 0; i < coll.records.length; i++) {
       if (_cancelled) return;
 
@@ -339,7 +333,6 @@ class SecondaryBackupService {
         );
         successCount++;
       } catch (e) {
-        runningFailureCount++;
         failureCount++;
         final reason = e.toString();
         final failure = FullBackupFailure(

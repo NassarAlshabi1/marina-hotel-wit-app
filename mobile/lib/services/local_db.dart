@@ -116,6 +116,10 @@ class Bookings extends Table with SyncFields {
       'idx_bookings_deleted',
       'CREATE INDEX idx_bookings_deleted ON bookings (deleted_at)',
     ),
+    Index(
+      'idx_bookings_checkin',
+      'CREATE INDEX idx_bookings_checkin ON bookings (checkin_date)',
+    ),
   ];
 }
 
@@ -311,6 +315,10 @@ class Debts extends Table with SyncFields {
     Index(
       'idx_debts_booking',
       'CREATE INDEX idx_debts_booking ON debts (booking_local_id)',
+    ),
+    Index(
+      'idx_debts_payment_date',
+      'CREATE INDEX idx_debts_payment_date ON debts (payment_date)',
     ),
   ];
 }
@@ -645,6 +653,10 @@ class SalaryWithdrawals extends Table with SyncFields {
       'idx_salary_withdrawals_employee',
       'CREATE INDEX idx_salary_withdrawals_employee ON salary_withdrawals (employee_id)',
     ),
+    Index(
+      'idx_salary_withdrawals_expense',
+      'CREATE INDEX idx_salary_withdrawals_expense ON salary_withdrawals (expense_id)',
+    ),
   ];
 }
 
@@ -789,6 +801,13 @@ class SyncLog extends Table {
   TextColumn get status => text().withDefault(const Constant('success'))();
   TextColumn get createdAt => text()();
   TextColumn get completedAt => text().nullable()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_sync_log_created',
+      'CREATE INDEX idx_sync_log_created ON sync_log (created_at)',
+    ),
+  ];
 }
 
 @DataClassName('SyncConflictRow')
@@ -862,7 +881,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 48;
+  int get schemaVersion => 49;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2337,6 +2356,34 @@ class AppDatabase extends _$AppDatabase {
         }
         developer.log(
           'Migration 48: added SyncFields columns to audit_logs',
+          name: 'db.migration',
+        );
+      }
+
+      // === Migration 49: Performance indexes for sorted queries ===
+      if (from < 49) {
+        const perfIndexes = [
+          'CREATE INDEX IF NOT EXISTS idx_bookings_checkin ON bookings (checkin_date)',
+          'CREATE INDEX IF NOT EXISTS idx_debts_payment_date ON debts (payment_date)',
+          'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense ON salary_withdrawals (expense_id)',
+          'CREATE INDEX IF NOT EXISTS idx_sync_log_created ON sync_log (created_at)',
+        ];
+        for (final sql in perfIndexes) {
+          try {
+            await m.database.customStatement(sql);
+            developer.log(
+              'Migration 49: created index: $sql',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 49: index already exists or failed: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        developer.log(
+          'Migration 49: performance indexes created successfully',
           name: 'db.migration',
         );
       }

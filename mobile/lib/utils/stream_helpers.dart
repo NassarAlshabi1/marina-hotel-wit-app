@@ -40,8 +40,6 @@ Stream<T> debounceStream<T>(Stream<T> source, Duration duration) {
 /// ✅ P0: بديل StreamBuilder — Stream → ValueNotifier مع debounce.
 /// أسرع من StreamBuilder لأنه لا يعيد بناء Widget tree بالكامل.
 class StreamToValueNotifier<T> extends ValueNotifier<T> {
-  StreamSubscription<T>? _subscription;
-
   StreamToValueNotifier({
     required Stream<T> source,
     required T initialValue,
@@ -60,6 +58,8 @@ class StreamToValueNotifier<T> extends ValueNotifier<T> {
       },
     );
   }
+
+  StreamSubscription<T>? _subscription;
 
   @override
   void dispose() {
@@ -87,12 +87,6 @@ class StreamToValueNotifier<T> extends ValueNotifier<T> {
 /// Watch((context) => myWidget(signal.signal.value))
 /// ```
 class StreamToSignal<T> {
-  StreamSubscription<T>? _subscription;
-  // ✅ استخدمنا _signal (خاص) بدلاً من signal لتجنّب تعارض الاسم مع الدالة
-  // signal<T>() من signals_flutter — كان يسبب 4 أخطاء compilation لأن Dart
-  // يُفسّر `signal = signal<T>(...)` كمرجع للـ field نفسه (recursive) وليس للدالة.
-  final signals.Signal<T> _signal;
-
   StreamToSignal({
     required Stream<T> source,
     required T initialValue,
@@ -111,6 +105,12 @@ class StreamToSignal<T> {
       },
     );
   }
+
+  StreamSubscription<T>? _subscription;
+  // ✅ استخدمنا _signal (خاص) بدلاً من signal لتجنّب تعارض الاسم مع الدالة
+  // signal<T>() من signals_flutter — كان يسبب 4 أخطاء compilation لأن Dart
+  // يُفسّر `signal = signal<T>(...)` كمرجع للـ field نفسه (recursive) وليس للدالة.
+  final signals.Signal<T> _signal;
 
   /// وصول للـ Signal للقراءة فقط (للاستخدام مع Watch/effect في signals_flutter).
   signals.Signal<T> get signal => _signal;

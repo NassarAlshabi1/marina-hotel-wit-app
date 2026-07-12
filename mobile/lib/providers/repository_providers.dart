@@ -2,6 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_local_store.dart';
+import '../services/daos/bookings_dao.dart';
+import '../services/daos/debts_dao.dart';
+import '../services/daos/employees_dao.dart';
+import '../services/daos/expenses_dao.dart';
+import '../services/daos/outbox_dao.dart';
+import '../services/daos/payments_dao.dart';
 import '../services/diagnostics/diagnostics_logger.dart';
 import '../services/local_db.dart';
 import '../services/repositories/blacklist_repository.dart';
@@ -45,6 +51,25 @@ final diagnosticsLoggerProvider = ChangeNotifierProvider<DiagnosticsLogger>(
 
 final databaseProvider = Provider<AppDatabase>(
   (ref) => DatabaseManager.instance,
+);
+
+final outboxDaoProvider = Provider<OutboxDao>(
+  (ref) => OutboxDao(ref.read(databaseProvider)),
+);
+final bookingsDaoProvider = Provider<BookingsDao>(
+  (ref) => BookingsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+);
+final paymentsDaoProvider = Provider<PaymentsDao>(
+  (ref) => PaymentsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+);
+final expensesDaoProvider = Provider<ExpensesDao>(
+  (ref) => ExpensesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+);
+final debtsDaoProvider = Provider<DebtsDao>(
+  (ref) => DebtsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+);
+final employeesDaoProvider = Provider<EmployeesDao>(
+  (ref) => EmployeesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
 );
 
 final roomsRepoProvider = Provider<RoomsRepository>(

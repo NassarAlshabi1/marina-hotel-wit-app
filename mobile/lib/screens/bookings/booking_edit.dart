@@ -8,8 +8,7 @@ import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/custom_list_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart';
-import '../../services/auto_backup_manager.dart';
-import '../../services/central_sync_coordinator.dart';
+import '../../providers/service_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/screen_sync_controller.dart';
 import '../../utils/status_utils.dart';
@@ -1021,11 +1020,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       await roomsRepo.refreshAllRoomOccupancy();
 
       // إشعار أنظمة المزامنة والنسخ الاحتياطي بالتغييرات
-      await AutoBackupManager.instance.onDataChange(
+      await ref.read(autoBackupManagerProvider).onDataChange(
         'rooms',
         'batch_update_status',
       );
-      CentralSyncCoordinator.instance.notifyLocalChange(
+      ref.read(centralSyncCoordinatorProvider).notifyLocalChange(
         table: 'rooms',
         operation: 'batch_update_status',
       );

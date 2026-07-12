@@ -1,9 +1,10 @@
+// ignore_for_file: prefer_constructors_over_static_methods
 /// تتبّع أخطاء المزامنة الثانوية
 ///
 /// يخزّن الأخطاء في الذاكرة مع إمكانية تصديرها إلى نص.
 /// يُستخدم من SecondarySyncManager لجمع معلومات الإخفاقات
 /// وعرضها في شاشة الإعدادات.
-import 'dart:collection';
+library;
 
 import 'package:flutter/foundation.dart';
 
@@ -66,12 +67,12 @@ class SyncSessionSummary {
     final buf = StringBuffer();
     buf.writeln('🔄 تقرير المزامنة الثانوية');
     buf.writeln('════════════════════════════');
-    buf.writeln('');
+    buf.writeln();
     buf.writeln('${isSuccess ? "✅" : "❌"} $message');
     buf.writeln('📤 تم الرفع: $totalPushed');
     buf.writeln('❌ فشل: $totalFailed');
     buf.writeln('☠️ Dead: $totalDead');
-    buf.writeln('');
+    buf.writeln();
 
     if (errors.isNotEmpty) {
       // تجميع حسب الكيان
@@ -91,7 +92,7 @@ class SyncSessionSummary {
           buf.writeln('    $type [${err.localUuid}] $reason');
         }
       }
-      buf.writeln('');
+      buf.writeln();
     }
 
     buf.writeln('🕐 ${sessionTime?.toLocal().toIso8601String() ?? DateTime.now().toLocal().toIso8601String()}');
@@ -210,7 +211,7 @@ class SecondarySyncTracker {
     final buf = StringBuffer();
     if (_lastSession != null) {
       buf.writeln(_lastSession!.textSummary);
-      buf.writeln('');
+      buf.writeln();
     }
     if (_currentSessionErrors.isNotEmpty) {
       buf.writeln('── أخطاء الجلسة الحالية ──');

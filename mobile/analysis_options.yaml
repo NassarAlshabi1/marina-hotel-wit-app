@@ -29,7 +29,7 @@ analyzer:
     # Undefined methods should be errors - they cause build failures
     undefined_method: error
     # Type issues should be warnings
-    wrong_number_of_type_arguments_method: warning
+    # wrong_number_of_type_arguments_method: warning  # removed: not recognized in Dart 3.12
     type_argument_not_matching_bounds: warning
     return_of_invalid_type_from_closure: warning
 

@@ -136,21 +136,13 @@ class _ActiveBookingsReminderScreenState
         'الإجمالي: ${CurrencyFormatter.formatAmount(total)}\n'
         'المدفوع: ${CurrencyFormatter.formatAmount(paid)}\n'
         'المبلغ المتبقي: ${CurrencyFormatter.formatAmount(remaining)}\n'
-        '${overdueWarning}\n\n'
+        '$overdueWarning\n\n'
         'نرجو منكم التكرم بتسديد المبلغ المتبقي في أقرب وقت ممكن.\n\n'
         'مع خالص التحية والتقدير\n'
         'فندق مارينا\n'
         'للاستفسار: 9677734587456';
 
     return message;
-  }
-
-  /// رسالة بديلة إذا كان النموذج معطّل
-  String _buildFallbackMessage(Booking booking) {
-    return 'عزيزي/عزيزتي ${booking.guestName}\n'
-        'رقم الغرفة: ${booking.roomNumber}\n'
-        'المبلغ المتبقي: ${CurrencyFormatter.formatAmount(booking.remainingBalanceCached)} ريال\n'
-        'فندق مارينا';
   }
 
   /// إرسال رسالة واتساب لحجز واحد

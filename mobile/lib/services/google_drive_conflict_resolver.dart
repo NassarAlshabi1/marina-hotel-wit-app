@@ -332,26 +332,50 @@ class GoogleDriveConflictResolver {
   }) async {
     final merged = Map<String, dynamic>.from(remoteData);
 
-    for (final entry in resolutions) {
-      if (entry.resolved && entry.selectedRecord != null) {
-        final tableName = _findTableName(entry.selectedRecord!, remoteData);
-        if (tableName != null) {
-          final recordsList = (merged[tableName] as List<dynamic>?) ?? [];
-          final uuid = entry.selectedRecord!['local_uuid'];
-
-          final existingIndex = recordsList.indexWhere(
-            (r) => r is Map && r['local_uuid'] == uuid,
-          );
-
-          if (existingIndex >= 0) {
-            recordsList[existingIndex] = entry.selectedRecord;
-          } else {
-            recordsList.add(entry.selectedRecord);
-          }
-
-          merged[tableName] = recordsList;
-        }
+    final tableUuidMaps = <String, Map<int, dynamic>>{};
+    for (final tableName in merged.keys) {
+      final recordsList = merged[tableName];
+      if (recordsList is List) {
+        tableUuidMaps[tableName] = {for (int i = 0; i < recordsList.length; i++) i: recordsList[i]};
       }
+    }
+
+    final uuidIndex = <String, Map<String, int>>{};
+    for (final entry in resolutions) {
+      if (!entry.resolved || entry.selectedRecord == null) continue;
+      final tableName = _findTableName(entry.selectedRecord!, remoteData);
+      if (tableName == null) {
+        debugPrint('⚠️ mergeRecords: skipping resolution — table not found for record');
+        continue;
+      }
+
+      final recordsList = (merged[tableName] as List<dynamic>?) ?? [];
+      final uuid = entry.selectedRecord!['local_uuid'] as String?;
+      if (uuid == null) {
+        debugPrint('⚠️ mergeRecords: skipping record in $tableName — missing local_uuid');
+        continue;
+      }
+
+      if (!uuidIndex.containsKey(tableName)) {
+        final map = <String, int>{};
+        for (int i = 0; i < recordsList.length; i++) {
+          final r = recordsList[i];
+          if (r is Map && r['local_uuid'] != null) {
+            map[r['local_uuid'] as String] = i;
+          }
+        }
+        uuidIndex[tableName] = map;
+      }
+
+      final existingIndex = uuidIndex[tableName]![uuid];
+      if (existingIndex != null) {
+        recordsList[existingIndex] = entry.selectedRecord;
+      } else {
+        recordsList.add(entry.selectedRecord);
+        uuidIndex[tableName]![uuid] = recordsList.length - 1;
+      }
+
+      merged[tableName] = recordsList;
     }
 
     return merged;

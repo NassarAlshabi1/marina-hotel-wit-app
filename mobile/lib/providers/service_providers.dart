@@ -10,12 +10,21 @@
 // 3. يمكنك استخدام المزودات الجديدة تدريجياً في الشاشات الجديدة.
 // 4. عند استخدام مزود جديد، تأكد أن الخدمة تُهيأ عبر ref.onDispose عند الحاجة.
 //
-// 📋 الخدمات المُغطاة (أكثر 5 خدمات استخداماً):
+// 📋 الخدمات المُغطاة:
 // 1. AppwriteService       — CRUD مع Appwrite (مُعرَّف أصلاً في appwrite_providers)
 // 2. GoogleDriveBackupService — نسخ احتياطي على Google Drive
 // 3. AnalyticsService       — تحليلات Firebase ومراقبة المزامنة
 // 4. ConnectivityService    — مراقبة حالة الاتصال بالشبكة
 // 5. DiagnosticsLogger      — تسجيل الأخطاء والتشخيصات
+// 6. GeminiService          — خدمة الذكاء الاصطناعي Gemini
+// 7. CrashlyticsService     — تسجيل الأخطاء عبر Crashlytics
+// 8. NightAuditService      — خدمة التدقيق الليلي
+// 9. SyncOrchestrator       — منسق المزامنة العام
+// 10. SyncPerformanceOptimizer — مُحسّن أداء المزامنة
+// 11. DataUsageManager      — مُدير استخدام البيانات
+// 12. CentralSyncCoordinator — منسق المزامنة المركزي
+// 13. SyncHealthMonitor     — مراقب صحة المزامنة
+// 14. SecondaryBackupService — خدمة النسخ الاحتياطي الثانوي
 //
 // 🔗 للانتقال: استبدل `ServiceName.instance` بـ `ref.read(serviceNameProvider)`
 // ============================================================================
@@ -23,7 +32,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/analytics_service.dart';
+import '../services/central_sync_coordinator.dart';
 import '../services/connectivity_service.dart';
+import '../services/crashlytics_service.dart';
+import '../services/data_usage_manager.dart';
+import '../services/gemini_service.dart';
+import '../services/night_audit_service.dart';
+import '../services/secondary_backup_service.dart';
+import '../services/sync_health_monitor.dart';
+import '../services/sync_orchestrator.dart';
+import '../services/sync_performance_optimizer.dart';
 
 // إعادة تصدير appwriteServiceProvider من appwrite_providers لتجنب التعارض
 // لأنه مُعرَّف هناك بالفعل مع مزودات أخرى تعتمد عليه.
@@ -36,21 +54,8 @@ export 'backup_provider.dart' show googleDriveBackupServiceProvider;
 export 'repository_providers.dart' show diagnosticsLoggerProvider;
 
 // ============================================================================
-// مزود خدمة Google Drive للنسخ الاحتياطي — مُعادة تصديره من backup_provider
-// ============================================================================
-// googleDriveBackupServiceProvider مُعرَّف في backup_provider.dart
-// مع ref.keepAlive() للمحافظة على حالة واحدة.
-// يُستخدم حالياً في: backupStatusProvider، auto_backup، smart_sync.
-//
-// استخدام:
-//   final backupService = ref.read(googleDriveBackupServiceProvider);
-// ============================================================================
-
-// ============================================================================
 // مزود خدمة التحليلات
 // ============================================================================
-// خدمة التحليلات والتتبع عبر Firebase Analytics.
-// ملاحظة: يجب استدعاء initialize() قبل الاستخدام (يتم عادةً في main.dart).
 final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
   return AnalyticsService();
 });
@@ -58,9 +63,6 @@ final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
 // ============================================================================
 // مزود خدمة الاتصال
 // ============================================================================
-// مراقبة حالة الاتصال بالشبكة (WiFi/Mobile/Ethernet).
-// يتتبع تغييرات الاتصال عبر Stream ويوفر تنفيذ عند الاتصال.
-// ملاحظة: يجب استدعاء initialize() بعد إنشاء المزود.
 final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
   final service = ConnectivityService.instance;
   ref.onDispose(service.dispose);
@@ -68,14 +70,64 @@ final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
 });
 
 // ============================================================================
-// مزود مسجل التشخيصات — مُعادة تصديره من repository_providers
+// مزود خدمة Gemini AI
 // ============================================================================
-// diagnosticsLoggerProvider مُعرَّف في repository_providers.dart كـ
-// ChangeNotifierProvider<DiagnosticsLogger> — يوفر دعم ChangeNotifier
-// كاملاً مع إمكانية مراقبة التغييرات من الواجهة.
-//
-// استخدام:
-//   final logger = ref.watch(diagnosticsLoggerProvider);
-//
-// ملاحظة: يجب استدعاء logger.initialize() بعد الحصول على المزود.
+final geminiServiceProvider = Provider<GeminiService>((ref) {
+  return GeminiService.instance;
+});
+
 // ============================================================================
+// مزود خدمة Crashlytics
+// ============================================================================
+final crashlyticsServiceProvider = Provider<CrashlyticsService>((ref) {
+  return CrashlyticsService.instance;
+});
+
+// ============================================================================
+// مزود خدمة التدقيق الليلي
+// ============================================================================
+final nightAuditServiceProvider = Provider<NightAuditService>((ref) {
+  return NightAuditService.instance;
+});
+
+// ============================================================================
+// مزود منسق المزامنة العام
+// ============================================================================
+final syncOrchestratorProvider = Provider<SyncOrchestrator>((ref) {
+  return SyncOrchestrator.instance;
+});
+
+// ============================================================================
+// مزود مُحسّن أداء المزامنة
+// ============================================================================
+final syncPerformanceOptimizerProvider = Provider<SyncPerformanceOptimizer>((ref) {
+  return SyncPerformanceOptimizer.instance;
+});
+
+// ============================================================================
+// مزود مُدير استخدام البيانات
+// ============================================================================
+final dataUsageManagerProvider = Provider<DataUsageManager>((ref) {
+  return DataUsageManager.instance;
+});
+
+// ============================================================================
+// مزود منسق المزامنة المركزي
+// ============================================================================
+final centralSyncCoordinatorProvider = Provider<CentralSyncCoordinator>((ref) {
+  return CentralSyncCoordinator.instance;
+});
+
+// ============================================================================
+// مزود مراقب صحة المزامنة
+// ============================================================================
+final syncHealthMonitorProvider = Provider<SyncHealthMonitor>((ref) {
+  return SyncHealthMonitor.instance;
+});
+
+// ============================================================================
+// مزود خدمة النسخ الاحتياطي الثانوي
+// ============================================================================
+final secondaryBackupServiceProvider = Provider<SecondaryBackupService>((ref) {
+  return SecondaryBackupService.instance;
+});

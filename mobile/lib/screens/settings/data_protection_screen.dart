@@ -4,11 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../providers/appwrite_providers.dart' as ap;
 import '../../providers/auto_backup_provider.dart';
+import '../../providers/auto_sync_engine_providers.dart';
 import '../../providers/backup_provider.dart';
 import '../../providers/smart_sync_provider.dart';
 import '../../services/alarm_backup.dart';
-import '../../services/auto_backup_manager.dart';
-import '../../services/google_drive_unified_sync_coordinator.dart';
 import '../../services/smart_sync_manager.dart';
 import 'appwrite_settings_screen.dart';
 
@@ -54,7 +53,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   }
 
   Future<void> _loadBackupForm() async {
-    final manager = AutoBackupManager.instance;
+    final manager = ref.read(autoBackupManagerProvider);
     final maxBackups = await manager.getMaxBackupCount();
     final retentionDays = await manager.getRetentionDays();
     final prefs = await SharedPreferences.getInstance();
@@ -87,7 +86,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   Future<void> _saveBackupSettings() async {
     setState(() => _backupBusy = true);
     try {
-      final manager = AutoBackupManager.instance;
+      final manager = ref.read(autoBackupManagerProvider);
       final maxBackups = int.tryParse(_maxBackupsController.text) ?? 25;
       final retentionDays = int.tryParse(_retentionDaysController.text) ?? 45;
       await manager.setMaxBackupCount(maxBackups);
@@ -118,7 +117,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   Future<void> _toggleAutoBackup(bool enabled) async {
     setState(() => _backupBusy = true);
     try {
-      final manager = AutoBackupManager.instance;
+      final manager = ref.read(autoBackupManagerProvider);
       await manager.setEnabled(enabled);
       ref.invalidate(autoBackupStatusProvider);
       if (!mounted) {
@@ -151,7 +150,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
   Future<void> _cleanupBackups() async {
     setState(() => _backupBusy = true);
     try {
-      await AutoBackupManager.instance.cleanupNow();
+      await ref.read(autoBackupManagerProvider).cleanupNow();
       if (!mounted) {
         return;
       }
@@ -248,7 +247,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('google_drive_sync_enabled', enabled);
       if (!enabled) {
-        await GoogleDriveUnifiedSyncCoordinator.instance.setPushEnabled(false);
+        await ref.read(unifiedSyncCoordinatorProvider).setPushEnabled(false);
       }
       if (!mounted) {
         return;
@@ -332,7 +331,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     }
     setState(() => _syncBusy = true);
     try {
-      await GoogleDriveUnifiedSyncCoordinator.instance.setPushEnabled(enabled);
+      await ref.read(unifiedSyncCoordinatorProvider).setPushEnabled(enabled);
       if (!mounted) {
         return;
       }

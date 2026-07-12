@@ -27,6 +27,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     bool includeDeleted = false,
     bool excludeVoided = false,
     bool excludePendingBalance = false,
+    int? limit,
+    int? offset,
   }) async {
     final q = select(payments);
     if (!includeDeleted) {
@@ -54,6 +56,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     q.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
+    if (limit != null) {
+      q.limit(limit, offset: offset);
+    }
     return q.get();
   }
 
@@ -62,6 +67,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     String? to,
     String? roomNumber,
     bool includeDeleted = false,
+    int? limit,
+    int? offset,
   }) async {
     final q = select(payments);
     if (!includeDeleted) {
@@ -86,6 +93,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     q.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
+    if (limit != null) {
+      q.limit(limit, offset: offset);
+    }
     return q.get();
   }
 

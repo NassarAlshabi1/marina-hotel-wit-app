@@ -232,12 +232,16 @@ class AlarmBackup {
       debugPrint('❌ Telegram report alarm error: $e');
     } finally {
       // أعد جدولة لليوم التالي
-      final prefs = await SharedPreferences.getInstance();
-      final timeString = prefs.getString('telegram_daily_report_time') ?? '02:00';
-      final parts = timeString.split(':');
-      final hour = int.tryParse(parts[0]) ?? 0;
-      final minute = int.tryParse(parts[1]) ?? 1;
-      await scheduleTelegramReportAlarm(hour, minute);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final timeString = prefs.getString('telegram_daily_report_time') ?? '02:00';
+        final parts = timeString.split(':');
+        final hour = int.tryParse(parts[0]) ?? 0;
+        final minute = int.tryParse(parts[1]) ?? 1;
+        await scheduleTelegramReportAlarm(hour, minute);
+      } catch (e) {
+        debugPrint('❌ Failed to reschedule telegram report alarm: $e');
+      }
     }
   }
 }

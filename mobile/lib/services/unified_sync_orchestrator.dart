@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -405,20 +406,20 @@ class UnifiedSyncOrchestrator {
       db.select(db.shiftNotes).get(),
     ]);
 
-    final snapshot = {
-      'rooms': (results[0] as List).map((e) => e.toJson()).toList(),
-      'bookings': (results[1] as List).map((e) => e.toJson()).toList(),
-      'booking_notes': (results[2] as List).map((e) => e.toJson()).toList(),
-      'employees': (results[3] as List).map((e) => e.toJson()).toList(),
-      'expenses': (results[4] as List).map((e) => e.toJson()).toList(),
-      'cash_transactions': (results[5] as List).map((e) => e.toJson()).toList(),
-      'payments': (results[6] as List).map((e) => e.toJson()).toList(),
-      'debts': (results[7] as List).map((e) => e.toJson()).toList(),
-      'booking_nights': (results[8] as List).map((e) => e.toJson()).toList(),
-      'hotel_day_ledger': (results[9] as List).map((e) => e.toJson()).toList(),
-      'shift_notes': (results[10] as List).map((e) => e.toJson()).toList(),
+    final tablesPayload = <String, List<Map<String, dynamic>>>{
+      'rooms': (results[0] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
+      'bookings': (results[1] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
+      'booking_notes': (results[2] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
+      'employees': (results[3] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
+      'expenses': (results[4] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
+      'cash_transactions': (results[5] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
+      'payments': (results[6] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
+      'debts': (results[7] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
+      'booking_nights': (results[8] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
+      'hotel_day_ledger': (results[9] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
+      'shift_notes': (results[10] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
     };
-    return models.SyncChecksum.compute({'tables': snapshot});
+    return Isolate.run(() => models.SyncChecksum.compute({'tables': tablesPayload}));
   }
 
   Future<bool> _syncAppwrite({required bool push, required bool pull}) async {

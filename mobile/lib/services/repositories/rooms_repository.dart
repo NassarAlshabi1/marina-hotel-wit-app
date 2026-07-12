@@ -206,15 +206,13 @@ class RoomsRepository {
   }
 
   Future<void> refreshAllRoomOccupancy({bool originIsServer = false}) async {
+    const activeStatuses = StatusUtils.activeBookingStatuses;
     final bookings = await (db.select(
       db.bookings,
-    )..where((tbl) => tbl.deletedAt.isNull())).get();
+    )..where((tbl) => tbl.deletedAt.isNull() & tbl.status.isIn(activeStatuses))).get();
     final occupiedRooms = <String>{};
-
     for (final booking in bookings) {
-      if (StatusUtils.isActiveBooking(booking.status)) {
-        occupiedRooms.add(booking.roomNumber);
-      }
+      occupiedRooms.add(booking.roomNumber);
     }
 
     final rooms = await (db.select(

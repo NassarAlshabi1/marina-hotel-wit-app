@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
 
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
@@ -12,7 +13,6 @@ import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
-import 'package:flutter/foundation.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db) {
@@ -104,7 +104,7 @@ class BookingsRepository {
         recordData: {'id': result},
       ),);
       // إشعارات فورية (fire-and-forget)
-      _notifyNewBooking(result);
+      unawaited(_notifyNewBooking(result));
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
@@ -229,7 +229,7 @@ class BookingsRepository {
           recordData: {'id': id},
         ),);
         if (status != null) {
-          _notifyBookingUpdate(id, status);
+          unawaited(_notifyBookingUpdate(id, status));
         }
       }
       return result;
@@ -392,7 +392,7 @@ class BookingsRepository {
   }
 
   /// إرسال إشعارات (WhatsApp + Telegram) لحجز جديد
-  void _notifyNewBooking(int id) async {
+  Future<void> _notifyNewBooking(int id) async {
     try {
       final booking = await (db.select(db.bookings)
             ..where((b) => b.id.equals(id)))
@@ -428,7 +428,7 @@ class BookingsRepository {
   }
 
   /// إرسال إشعارات (WhatsApp + Telegram) عند تغيير حالة الحجز
-  void _notifyBookingUpdate(int id, String newStatus) async {
+  Future<void> _notifyBookingUpdate(int id, String newStatus) async {
     try {
       final booking = await (db.select(db.bookings)
             ..where((b) => b.id.equals(id)))
@@ -459,14 +459,14 @@ class BookingsRepository {
         unawaited(WhatsAppNotificationService.instance.notifyCheckOut(
           roomNumber: roomNumber,
           guestName: guestName,
-          actualNights: booking.calculatedNights ?? booking.expectedNights,
+          actualNights: booking.calculatedNights,
           totalPaid: totalPaid,
           remaining: remaining > 0 ? remaining : null,
         ));
         unawaited(TelegramNotificationService.instance.notifyCheckOut(
           roomNumber: roomNumber,
           guestName: guestName,
-          actualNights: booking.calculatedNights ?? booking.expectedNights,
+          actualNights: booking.calculatedNights,
           totalPaid: totalPaid,
           remaining: remaining > 0 ? remaining : null,
         ));

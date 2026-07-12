@@ -4,10 +4,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
+import '../../providers/service_providers.dart';
 import '../../providers/theme_provider.dart';
-import '../../services/crashlytics_service.dart';
 import '../../services/local_db.dart';
-import '../../services/night_audit_service.dart';
 import '../../utils/status_utils.dart';
 import '../ai/ai_chat_screen.dart';
 import '../security/blacklist_screen.dart';
@@ -540,7 +539,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// اهتزاز الشاشة أثناء المزامنة (الـ header في Dashboard يُعاد بناؤه
   /// باستمرار مع تحديث حالة المزامنة).
   Future<void> _performNightAudit(BuildContext context) async {
-    final service = NightAuditService.instance;
+    final service = ref.read(nightAuditServiceProvider);
     final isClosed = await service.isDayClosed(null);
     // ✅ فحص mounted بعد await لمنع استخدام context إذا أُغلقت الشاشة.
     // نتحقق أيضاً من context.mounted لأن context بارامتر (قد يختلف عن this.context).
@@ -671,7 +670,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showCrashlyticsDialog(BuildContext context) {
-    final crashlytics = CrashlyticsService.instance;
+    final crashlytics = ref.read(crashlyticsServiceProvider);
     final isInitialized = crashlytics.isInitialized;
     final isFirebaseConnected = crashlytics.isFirebaseConnected;
     final errorCount = crashlytics.errorCount;

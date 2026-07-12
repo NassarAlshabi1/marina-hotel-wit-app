@@ -54,28 +54,29 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
         builder: (context, roomsWithStatusAsync, _) {
           return roomsWithStatusAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, st) => Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  // 🔒 لا نُظهر `$e` للمستخدم — قد يحتوي على أسماء جداول/حقول
-                  // داخلية أو رسائل Appwrite. نسجّل التفاصيل للمطورين فقط.
-                  const Text(
-                    'حدث خطأ أثناء تحميل الغرف',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'تحقّق من اتصال الشبكة وحاول مرة أخرى.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
+            error: (e, st) {
+              debugPrint('❌ RoomsDashboard error: $e\n$st');
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error, size: 64, color: Colors.red),
+                    SizedBox(height: 16),
+                    Text(
+                      'حدث خطأ أثناء تحميل الغرف',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'تحقّق من اتصال الشبكة وحاول مرة أخرى.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              );
+            },
             data: (roomsWithStatus) {
               if (roomsWithStatus.isEmpty) {
                 return const Center(

@@ -3,13 +3,14 @@ import 'dart:convert';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
 import 'appwrite_sync_utils.dart';
 import 'local_db.dart';
 import 'secondary_appwrite_config.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 /// خدمة Appwrite الثانوية — تستخدم Appwrite SDK الرسمي (مثل Primary)
 ///
@@ -322,7 +323,7 @@ for (final coll in collectionList) {
             if (isAlreadyExists(e2)) {
               try { return await doUpdate(documentId); }
               catch (e3) { rethrow; }
-            }
+}
             rethrow;
           }
         }
@@ -601,14 +602,14 @@ class FullBackupStats {
     final buf = StringBuffer();
     buf.writeln('📊 تقرير النسخة الشاملة — Secondary Appwrite');
     buf.writeln('═══════════════════════════════════════');
-    buf.writeln('');
+    buf.writeln();
     buf.writeln('✅ نجح: $successCount');
     buf.writeln('❌ فشل: $failureCount');
     buf.writeln('📁 الجداول: $fullySuccessfulCollections مكتمل / $failedCollections فاشل');
     if (error != null) {
       buf.writeln('⚠️ خطأ عام: $error');
     }
-    buf.writeln('');
+    buf.writeln();
 
     if (collectionDetails.isNotEmpty) {
       buf.writeln('── تفاصيل الجداول ──');
@@ -620,7 +621,7 @@ class FullBackupStats {
         final icon = (failure as int) == 0 ? '✅' : '⚠️';
         buf.writeln('  $icon $name: $success/$total (فشل: $failure)');
       }
-      buf.writeln('');
+      buf.writeln();
     }
 
     if (errorsByReason.isNotEmpty) {
@@ -628,7 +629,7 @@ class FullBackupStats {
       for (final entry in errorsByReason.entries) {
         buf.writeln('  [${entry.value}] ${entry.key}');
       }
-      buf.writeln('');
+      buf.writeln();
     }
 
     if (failuresByCollection.isNotEmpty) {
@@ -645,7 +646,7 @@ class FullBackupStats {
       }
     }
 
-    buf.writeln('');
+    buf.writeln();
     buf.writeln('🕐 ${DateTime.now().toLocal().toIso8601String()}');
     buf.writeln('Marina Hotel — Backup Report');
     return buf.toString();
@@ -710,4 +711,3 @@ class CollectionData {
   final String collectionId;
   final List<Map<String, dynamic>> records;
 }
-

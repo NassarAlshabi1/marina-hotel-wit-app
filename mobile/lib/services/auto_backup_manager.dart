@@ -155,16 +155,20 @@ class AutoBackupManager {
       if (_batchDirty) {
         _batchDirty = false;
         // شغّل المزامنة بعد إنهاء الدفعة
+        var syncSucceeded = true;
         if (_currentMode == BackupMode.deltaSync || _currentMode == BackupMode.both) {
-          await performDeltaSync();
+          final result = await performDeltaSync();
+          syncSucceeded = result['success'] == true;
         }
         if (_currentMode == BackupMode.fullBackup || _currentMode == BackupMode.both) {
-          _performAutoBackup(
+          unawaited(_performAutoBackup(
             reason: 'تغييرات مجمّعة',
             changesCount: _pendingChanges,
-          );
+          ),);
         }
-        _pendingChanges = 0;
+        if (syncSucceeded) {
+          _pendingChanges = 0;
+        }
       }
     }
   }

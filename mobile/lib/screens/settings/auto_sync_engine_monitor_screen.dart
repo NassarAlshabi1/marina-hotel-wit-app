@@ -323,7 +323,7 @@ class _AutoSyncEngineMonitorScreenState
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  await AutoSyncEngine.instance.resetFailedAttempts();
+                  await ref.read(autoSyncEngineProvider).resetFailedAttempts();
                   // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('✅ تم إعادة تعيين المحاولات')),
@@ -656,7 +656,7 @@ class _AutoSyncEngineMonitorScreenState
     ),);
 
     try {
-      final result = await AutoSyncEngine.instance.forceSyncNow();
+      final result = await ref.read(autoSyncEngineProvider).forceSyncNow();
 
       if (mounted) {
         // ignore: use_build_context_synchronously
@@ -703,7 +703,7 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   Future<void> _resetFailedAttempts(BuildContext context) async {
-    await AutoSyncEngine.instance.resetFailedAttempts();
+                  await ref.read(autoSyncEngineProvider).resetFailedAttempts();
     if (mounted) {
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
@@ -872,7 +872,7 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   Future<void> _showDebounceSettings(BuildContext context) async {
-    final current = await AutoSyncEngine.instance.getEngineStatus();
+    final current = await ref.read(autoSyncEngineProvider).getEngineStatus();
     final currentDebounce =
         (current['coordinator']?['debounce_seconds'] as int?) ?? 5;
 
@@ -897,7 +897,7 @@ class _AutoSyncEngineMonitorScreenState
                   // ignore: deprecated_member_use
                   onChanged: (value) async {
                     if (value != null) {
-                      await AutoSyncEngine.instance.setDebounceSeconds(value);
+                      await ref.read(autoSyncEngineProvider).setDebounceSeconds(value);
                       if (mounted) {
                         // ignore: use_build_context_synchronously
                         Navigator.pop(context);
@@ -924,7 +924,7 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   Future<void> _showPullIntervalSettings(BuildContext context) async {
-    final current = await AutoSyncEngine.instance.getEngineStatus();
+    final current = await ref.read(autoSyncEngineProvider).getEngineStatus();
     final currentInterval =
         (current['coordinator']?['pull_interval_minutes'] as int?) ?? 2;
 
@@ -949,7 +949,7 @@ class _AutoSyncEngineMonitorScreenState
                   // ignore: deprecated_member_use
                   onChanged: (value) async {
                     if (value != null) {
-                      await AutoSyncEngine.instance.setPullInterval(value);
+                      await ref.read(autoSyncEngineProvider).setPullInterval(value);
                       if (mounted) {
                         // ignore: use_build_context_synchronously
                         Navigator.pop(context);
@@ -976,7 +976,7 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   Future<void> _showConflictStrategySettings(BuildContext context) async {
-    final resolver = GoogleDriveConflictResolver.instance;
+    final resolver = ref.read(conflictResolverProvider);
     final currentStrategy = await resolver.getStrategy();
 
     if (mounted) {
@@ -998,7 +998,7 @@ class _AutoSyncEngineMonitorScreenState
                   // ignore: deprecated_member_use
                   onChanged: (value) async {
                     if (value != null) {
-                      await AutoSyncEngine.instance.setConflictStrategy(value);
+                      await ref.read(autoSyncEngineProvider).setConflictStrategy(value);
                       if (mounted) {
                         // ignore: use_build_context_synchronously
                         Navigator.pop(context);

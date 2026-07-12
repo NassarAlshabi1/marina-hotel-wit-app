@@ -26,22 +26,22 @@ class ShiftNotesRepository {
 
   /// جلب جميع الملاحظات العامة النشطة
   Future<List<ShiftNote>> listAllActive() async {
-    final bookingNotes = await dao.list(
+    final bookingNotes = await dao.listFiltered(
       bookingId: ShiftNoteAdapter.generalNotesBookingId,
+      isActive: true,
     );
     return bookingNotes
-        .where((note) => note.isActive == 1)
         .map(ShiftNoteAdapter.fromBookingNote)
         .toList();
   }
 
   /// جلب الملاحظات غير المقروءة
   Future<List<ShiftNote>> listUnread() async {
-    final bookingNotes = await dao.list(
+    final bookingNotes = await dao.listFiltered(
       bookingId: ShiftNoteAdapter.generalNotesBookingId,
+      isActive: true,
     );
     return bookingNotes
-        .where((note) => note.isActive == 1) // غير مقروءة = نشطة
         .map(ShiftNoteAdapter.fromBookingNote)
         .toList();
   }
@@ -153,8 +153,10 @@ class ShiftNotesRepository {
 
   /// عدد الملاحظات غير المقروءة
   Future<int> getUnreadCount() async {
-    final unreadNotes = await listUnread();
-    return unreadNotes.length;
+    return dao.countFiltered(
+      bookingId: ShiftNoteAdapter.generalNotesBookingId,
+      isActive: true,
+    );
   }
 
   /// عدد الملاحظات عالية الأولوية

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../services/data_usage_manager.dart';
-import '../../services/sync_performance_optimizer.dart';
+import '../../providers/service_providers.dart';
 import '../../services/sync_performance_settings.dart';
 
 class SyncPerformanceSettingsScreen extends ConsumerStatefulWidget {
@@ -264,7 +263,7 @@ class _SyncPerformanceSettingsScreenState
                   onChanged: _isLoading
                       ? null
                       : (value) async {
-                          await SyncPerformanceOptimizer.instance
+                          await ref.read(syncPerformanceOptimizerProvider)
                               .setAdaptiveInterval(value);
                           setState(() {});
                         },
@@ -276,7 +275,7 @@ class _SyncPerformanceSettingsScreenState
                   onChanged: _isLoading
                       ? null
                       : (value) async {
-                          await SyncPerformanceOptimizer.instance
+                          await ref.read(syncPerformanceOptimizerProvider)
                               .setBatteryOptimization(value);
                           setState(() {});
                         },
@@ -288,7 +287,7 @@ class _SyncPerformanceSettingsScreenState
                   onChanged: _isLoading
                       ? null
                       : (value) async {
-                          await SyncPerformanceOptimizer.instance
+                          await ref.read(syncPerformanceOptimizerProvider)
                               .setWifiOnlySync(value);
                           setState(() {});
                         },
@@ -414,7 +413,7 @@ class _SyncPerformanceSettingsScreenState
   }
 
   Future<Map<String, bool>> _loadCustomSettings() async {
-    final optimizer = SyncPerformanceOptimizer.instance;
+    final optimizer = ref.read(syncPerformanceOptimizerProvider);
 
     return {
       'adaptive_interval': await optimizer.isAdaptiveIntervalEnabled(),
@@ -424,9 +423,9 @@ class _SyncPerformanceSettingsScreenState
   }
 
   Future<Map<String, dynamic>> _loadPerformanceStats() async {
-    final performanceStats = SyncPerformanceOptimizer.instance
+    final performanceStats = ref.read(syncPerformanceOptimizerProvider)
         .getPerformanceStatus();
-    final usageStats = await DataUsageManager.instance.getUsageStats();
+    final usageStats = await ref.read(dataUsageManagerProvider).getUsageStats();
 
     return {...performanceStats, ...usageStats};
   }

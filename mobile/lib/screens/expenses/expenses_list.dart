@@ -1005,7 +1005,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     final isSalaryExpense = selectedType == _salaryType;
     final savedType = isSalaryExpense
         ? _deriveSalaryExpenseType(dialogSalaryAction)
-        : (selectedType ?? 'اخرى');
+        : selectedType;
 
     if (parsedAmount <= 0) {
       return;

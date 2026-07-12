@@ -73,12 +73,12 @@ class SalaryWithdrawalsRepository {
     // إشعارات فورية (fire-and-forget)
     unawaited(WhatsAppNotificationService.instance.notifyNewExpense(
       category: 'سحب راتب',
-      amount: amount.toDouble(),
+      amount: amount,
       description: reason,
     ));
     unawaited(TelegramNotificationService.instance.notifyNewExpense(
       category: 'سحب راتب',
-      amount: amount.toDouble(),
+      amount: amount,
       description: reason,
     ));
 
@@ -249,12 +249,12 @@ class SalaryWithdrawalsRepository {
         // إشعارات فورية (fire-and-forget) عند التحديث
         unawaited(WhatsAppNotificationService.instance.notifyNewExpense(
           category: 'سحب راتب',
-          amount: amount.toDouble(),
+          amount: amount,
           description: note ?? reasonText,
         ));
         unawaited(TelegramNotificationService.instance.notifyNewExpense(
           category: 'سحب راتب',
-          amount: amount.toDouble(),
+          amount: amount,
           description: note ?? reasonText,
         ));
       } else {
@@ -287,12 +287,12 @@ class SalaryWithdrawalsRepository {
         await _setExpenseIdRaw(newId, expenseId);
         unawaited(WhatsAppNotificationService.instance.notifyNewExpense(
           category: 'سحب راتب',
-          amount: amount.toDouble(),
+          amount: amount,
           description: note,
         ));
         unawaited(TelegramNotificationService.instance.notifyNewExpense(
           category: 'سحب راتب',
-          amount: amount.toDouble(),
+          amount: amount,
           description: note,
         ));
 
@@ -385,15 +385,17 @@ class SalaryWithdrawalsRepository {
     });
   }
 
-  /// جلب كل سحوبات الرواتب
+  /// جلب كل سحوبات الرواتب (غير المحذوفة فقط)
   Future<List<SalaryWithdrawal>> listAll() async {
-    return _db.select(_db.salaryWithdrawals).get();
+    return (_db.select(_db.salaryWithdrawals)
+          ..where((t) => t.deletedAt.isNull()))
+        .get();
   }
 
   /// جلب سحوبات موظف معين
   Future<List<SalaryWithdrawal>> listByEmployeeId(int employeeId) async {
     return (_db.select(_db.salaryWithdrawals)
-          ..where((t) => t.employeeId.equals(employeeId)))
+          ..where((t) => t.employeeId.equals(employeeId) & t.deletedAt.isNull()))
         .get();
   }
 

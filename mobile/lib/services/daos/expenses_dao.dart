@@ -24,6 +24,8 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     String? from,
     String? to,
     bool includeDeleted = false,
+    int? limit,
+    int? offset,
   }) async {
     final q = select(expenses);
     if (!includeDeleted) {
@@ -40,6 +42,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       final s = '%${search.trim()}%';
       q.where((t) => t.description.like(s) | t.expenseType.like(s));
     }
+    if (limit != null) {
+      q.limit(limit, offset: offset);
+    }
     return q.get();
   }
 
@@ -48,6 +53,8 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     String? to,
     String? expenseType,
     bool includeDeleted = false,
+    int? limit,
+    int? offset,
   }) async {
     final q = select(expenses);
     if (!includeDeleted) {
@@ -74,6 +81,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     }
 
     q.orderBy([(t) => OrderingTerm.desc(t.date)]);
+    if (limit != null) {
+      q.limit(limit, offset: offset);
+    }
     return q.get();
   }
 

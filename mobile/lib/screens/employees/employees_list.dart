@@ -8,8 +8,8 @@ import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
-import '../../utils/theme.dart';
 import '../../utils/stream_helpers.dart';
+import '../../utils/theme.dart';
 
 class EmployeesListScreen extends ConsumerStatefulWidget {
   const EmployeesListScreen({super.key});
