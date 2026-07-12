@@ -27,6 +27,42 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
+  Future<List<BookingNote>> listFiltered({
+    int? bookingId,
+    bool? isActive,
+    int? limit,
+  }) async {
+    final q = select(bookingNotes)
+      ..where((t) => t.deletedAt.isNull());
+    if (bookingId != null) {
+      q.where((t) => t.bookingId.equals(bookingId));
+    }
+    if (isActive != null) {
+      q.where((t) => t.isActive.equals(isActive ? 1 : 0));
+    }
+    if (limit != null) {
+      q.limit(limit);
+    }
+    return q.get();
+  }
+
+  Future<int> countFiltered({
+    int? bookingId,
+    bool? isActive,
+  }) async {
+    final query = selectOnly(bookingNotes)
+      ..addColumns([bookingNotes.id.count()])
+      ..where(bookingNotes.deletedAt.isNull());
+    if (bookingId != null) {
+      query.where(bookingNotes.bookingId.equals(bookingId));
+    }
+    if (isActive != null) {
+      query.where(bookingNotes.isActive.equals(isActive ? 1 : 0));
+    }
+    final result = await query.getSingle();
+    return result.read(bookingNotes.id.count()) ?? 0;
+  }
+
   Stream<List<BookingNote>> watchByBooking(
     int bookingId, {
     bool includeDeleted = false,

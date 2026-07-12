@@ -18,6 +18,8 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     String? from,
     String? to,
     bool includeDeleted = false,
+    int? limit,
+    int? offset,
   }) async {
     final q = select(cashTransactions);
     if (!includeDeleted) {
@@ -37,6 +39,9 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       (t) =>
           OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc),
     ]);
+    if (limit != null) {
+      q.limit(limit, offset: offset);
+    }
     return q.get();
   }
 
@@ -44,6 +49,8 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     required String referenceType,
     required int referenceId,
     bool includeDeleted = false,
+    int? limit,
+    int? offset,
   }) async {
     final q = select(cashTransactions)
       ..where(
@@ -58,6 +65,9 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       (t) =>
           OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc),
     ]);
+    if (limit != null) {
+      q.limit(limit, offset: offset);
+    }
     return q.get();
   }
 

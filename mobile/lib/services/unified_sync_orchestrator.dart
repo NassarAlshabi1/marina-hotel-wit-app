@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -405,7 +406,7 @@ class UnifiedSyncOrchestrator {
       db.select(db.shiftNotes).get(),
     ]);
 
-    final snapshot = {
+    final tablesPayload = <String, List<Map<String, dynamic>>>{
       'rooms': (results[0] as List).map((e) => e.toJson()).toList(),
       'bookings': (results[1] as List).map((e) => e.toJson()).toList(),
       'booking_notes': (results[2] as List).map((e) => e.toJson()).toList(),
@@ -418,7 +419,7 @@ class UnifiedSyncOrchestrator {
       'hotel_day_ledger': (results[9] as List).map((e) => e.toJson()).toList(),
       'shift_notes': (results[10] as List).map((e) => e.toJson()).toList(),
     };
-    return models.SyncChecksum.compute({'tables': snapshot});
+    return Isolate.run(() => models.SyncChecksum.compute({'tables': tablesPayload}));
   }
 
   Future<bool> _syncAppwrite({required bool push, required bool pull}) async {

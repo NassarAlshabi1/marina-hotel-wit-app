@@ -12,7 +12,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
   DebtsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
-  Future<List<Debt>> list({bool includeDeleted = false}) {
+  Future<List<Debt>> list({bool includeDeleted = false, int? limit, int? offset}) {
     final query = select(debts);
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
@@ -20,12 +20,17 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     query.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
+    if (limit != null) {
+      query.limit(limit, offset: offset);
+    }
     return query.get();
   }
 
   Future<List<Debt>> listByBookingLocalId(
     int bookingLocalId, {
     bool includeDeleted = false,
+    int? limit,
+    int? offset,
   }) {
     final query = select(debts)
       ..where((t) => t.bookingLocalId.equals(bookingLocalId));
@@ -35,6 +40,9 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     query.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
+    if (limit != null) {
+      query.limit(limit, offset: offset);
+    }
     return query.get();
   }
 

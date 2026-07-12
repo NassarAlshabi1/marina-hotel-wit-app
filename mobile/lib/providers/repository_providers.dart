@@ -24,6 +24,12 @@ import '../utils/env.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
 import '../utils/stream_helpers.dart';
+import '../services/daos/outbox_dao.dart';
+import '../services/daos/bookings_dao.dart';
+import '../services/daos/payments_dao.dart';
+import '../services/daos/expenses_dao.dart';
+import '../services/daos/debts_dao.dart';
+import '../services/daos/employees_dao.dart';
 
 // إضافة Auto Backup Providers
 export '../providers/auto_backup_provider.dart';
@@ -45,6 +51,25 @@ final diagnosticsLoggerProvider = ChangeNotifierProvider<DiagnosticsLogger>(
 
 final databaseProvider = Provider<AppDatabase>(
   (ref) => DatabaseManager.instance,
+);
+
+final outboxDaoProvider = Provider<OutboxDao>(
+  (ref) => OutboxDao(ref.read(databaseProvider)),
+);
+final bookingsDaoProvider = Provider<BookingsDao>(
+  (ref) => BookingsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+);
+final paymentsDaoProvider = Provider<PaymentsDao>(
+  (ref) => PaymentsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+);
+final expensesDaoProvider = Provider<ExpensesDao>(
+  (ref) => ExpensesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+);
+final debtsDaoProvider = Provider<DebtsDao>(
+  (ref) => DebtsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+);
+final employeesDaoProvider = Provider<EmployeesDao>(
+  (ref) => EmployeesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
 );
 
 final roomsRepoProvider = Provider<RoomsRepository>(

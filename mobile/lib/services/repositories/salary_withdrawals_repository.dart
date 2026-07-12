@@ -385,15 +385,17 @@ class SalaryWithdrawalsRepository {
     });
   }
 
-  /// جلب كل سحوبات الرواتب
+  /// جلب كل سحوبات الرواتب (غير المحذوفة فقط)
   Future<List<SalaryWithdrawal>> listAll() async {
-    return _db.select(_db.salaryWithdrawals).get();
+    return (_db.select(_db.salaryWithdrawals)
+          ..where((t) => t.deletedAt.isNull()))
+        .get();
   }
 
   /// جلب سحوبات موظف معين
   Future<List<SalaryWithdrawal>> listByEmployeeId(int employeeId) async {
     return (_db.select(_db.salaryWithdrawals)
-          ..where((t) => t.employeeId.equals(employeeId)))
+          ..where((t) => t.employeeId.equals(employeeId) & t.deletedAt.isNull()))
         .get();
   }
 
