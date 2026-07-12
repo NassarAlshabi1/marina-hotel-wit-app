@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +9,7 @@ import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../models/payment_models.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/analytics_service.dart';
 import '../../services/crashlytics_service.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
@@ -35,6 +38,13 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     CrashlyticsService.instance.setCurrentScreen('PaymentsMainScreen');
+    // ✅ Analytics: تتبّع مشاهدة شاشة المدفوعات
+    unawaited(
+      AnalyticsService().logScreenView(
+        screenName: 'payments_main',
+        screenClass: 'PaymentsMainScreen',
+      ),
+    );
   }
 
   @override

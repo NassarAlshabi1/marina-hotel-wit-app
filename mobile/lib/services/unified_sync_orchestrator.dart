@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart' as models;
+import 'analytics_service.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
 import 'google_drive_backup_service.dart';
@@ -267,6 +268,11 @@ class UnifiedSyncOrchestrator {
     }
 
     _syncing = true;
+    // ✅ Analytics: تتبّع بدء المزامنة مع سببها (manual/foreground/periodic)
+    final syncStartTime = DateTime.now();
+    unawaited(
+      AnalyticsService().logSyncStart(trigger: reason),
+    );
 
     _emit(
       _state.copyWith(
@@ -310,6 +316,15 @@ class UnifiedSyncOrchestrator {
         ),
       );
 
+      // ✅ Analytics: تسجيل اكتمال المزامنة مع المدة وعدد العناصر
+      final syncDuration = DateTime.now().difference(syncStartTime);
+      unawaited(
+        AnalyticsService().logSyncComplete(
+          itemsProcessed: 0, // ملاحظة: عدد العناصر الفعلي غير متاح هنا
+          duration: syncDuration,
+        ),
+      );
+
       return success;
     } catch (e) {
       _emit(
@@ -320,6 +335,16 @@ class UnifiedSyncOrchestrator {
           lastError: e.toString(),
         ),
       );
+      // ✅ Analytics: تسجيل فشل المزامنة
+      final syncDuration = DateTime.now().difference(syncStartTime);
+      unawaited(
+        AnalyticsService().logSyncFailure(
+          error: e.toString(),
+          operation: 'syncNow',
+          attempt: 1,
+        ),
+      );
+      debugPrint('📊 Analytics: sync failed after ${syncDuration.inMilliseconds}ms');
       return false;
     } finally {
       _syncing = false;

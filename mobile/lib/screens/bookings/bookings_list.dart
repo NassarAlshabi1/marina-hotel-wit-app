@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +8,7 @@ import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/analytics_service.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
@@ -27,7 +30,23 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
   String get screenId => 'bookings_list';
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
 
+  @override
+  void initState() {
+    super.initState();
+    // ✅ Analytics: تتبّع مشاهدة شاشة الحجوزات
+    unawaited(
+      AnalyticsService().logScreenView(
+        screenName: 'bookings_list',
+        screenClass: 'BookingsListScreen',
+      ),
+    );
+  }
+
   Future<void> _navigateToAddBooking() async {
+    // ✅ Analytics: تتبّع محاولة إنشاء حجز جديد
+    unawaited(
+      AnalyticsService().logCustomEvent(name: 'booking_create_started'),
+    );
     await Navigator.push<void>(
       context,
       MaterialPageRoute<void>(builder: (_) => const BookingEditScreen(),

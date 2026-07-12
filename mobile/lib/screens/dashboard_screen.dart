@@ -10,6 +10,7 @@ import '../providers/appwrite_providers.dart';
 import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
+import '../services/analytics_service.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/local_db.dart';
 import '../services/remote_config_service.dart';
@@ -56,6 +57,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    // ✅ Analytics: تتبّع مشاهدة الشاشة لفهم سلوك المستخدم
+    unawaited(
+      AnalyticsService().logScreenView(
+        screenName: 'dashboard',
+        screenClass: 'DashboardScreen',
+      ),
+    );
     // سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoPullFromAppwrite();
