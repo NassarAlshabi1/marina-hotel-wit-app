@@ -207,13 +207,14 @@ class RoomsRepository {
 
   Future<void> refreshAllRoomOccupancy({bool originIsServer = false}) async {
     const activeStatuses = StatusUtils.activeBookingStatuses;
-    final bookings = await (db.select(
-      db.bookings,
-    )..where((tbl) => tbl.deletedAt.isNull() & tbl.status.isIn(activeStatuses))).get();
-    final occupiedRooms = <String>{};
-    for (final booking in bookings) {
-      occupiedRooms.add(booking.roomNumber);
-    }
+    // استعلام roomNumber فقط بدلاً من صفوف كاملة لتقليل استهلاك الذاكرة
+    final occupiedRoomsQuery = db.selectOnly(db.bookings)
+      ..addColumns([db.bookings.roomNumber])
+      ..where(db.bookings.deletedAt.isNull() & db.bookings.status.isIn(activeStatuses));
+    final occupiedRows = await occupiedRoomsQuery.get();
+    final occupiedRooms = <String>{
+      for (final row in occupiedRows) row.read(db.bookings.roomNumber)!,
+    };
 
     final rooms = await (db.select(
       db.rooms,

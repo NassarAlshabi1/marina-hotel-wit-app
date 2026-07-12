@@ -32,14 +32,8 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     bool? isActive,
     int? limit,
   }) async {
-    final q = select(bookingNotes)
-      ..where((t) => t.deletedAt.isNull());
-    if (bookingId != null) {
-      q.where((t) => t.bookingId.equals(bookingId));
-    }
-    if (isActive != null) {
-      q.where((t) => t.isActive.equals(isActive ? 1 : 0));
-    }
+    final q = select(bookingNotes);
+    _applyCommonFilters(q, bookingId: bookingId, isActive: isActive);
     if (limit != null) {
       q.limit(limit);
     }
@@ -52,16 +46,39 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     bool? isActive,
   }) async {
     final query = selectOnly(bookingNotes)
-      ..addColumns([bookingNotes.id.count()])
-      ..where(bookingNotes.deletedAt.isNull());
+      ..addColumns([bookingNotes.id.count()]);
+    _applyCommonFiltersToSelectOnly(query, bookingId: bookingId, isActive: isActive);
+    final result = await query.getSingle();
+    return result.read(bookingNotes.id.count()) ?? 0;
+  }
+
+  /// فلاتر مشتركة بين listFiltered و countFiltered
+  void _applyCommonFilters(
+    SimpleSelectStatement<BookingNotes, BookingNote> q, {
+    int? bookingId,
+    bool? isActive,
+  }) {
+    q.where((t) => t.deletedAt.isNull());
+    if (bookingId != null) {
+      q.where((t) => t.bookingId.equals(bookingId));
+    }
+    if (isActive != null) {
+      q.where((t) => t.isActive.equals(isActive ? 1 : 0));
+    }
+  }
+
+  void _applyCommonFiltersToSelectOnly(
+    SelectQuery query, {
+    int? bookingId,
+    bool? isActive,
+  }) {
+    query.where(bookingNotes.deletedAt.isNull());
     if (bookingId != null) {
       query.where(bookingNotes.bookingId.equals(bookingId));
     }
     if (isActive != null) {
       query.where(bookingNotes.isActive.equals(isActive ? 1 : 0));
     }
-    final result = await query.getSingle();
-    return result.read(bookingNotes.id.count()) ?? 0;
   }
 
   Stream<List<BookingNote>> watchByBooking(

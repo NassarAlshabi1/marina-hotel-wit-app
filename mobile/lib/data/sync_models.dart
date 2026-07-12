@@ -220,23 +220,36 @@ class SyncChecksum {
   SyncChecksum._();
 
   static String compute(Map<String, dynamic> data) {
-    final normalized = _normalize(data);
+    final normalized = normalize(data);
     final bytes = utf8.encode(jsonEncode(normalized));
     final digest = sha256.convert(bytes);
     return digest.toString();
   }
 
-  static Map<String, dynamic> _normalize(Map<String, dynamic> input) {
+  /// حساب checksum وطول البيانات الخام في method واحد
+  /// لتجنب تسلسل الـ JSON مرتين.
+  static ({String checksum, int rawByteLength}) computeWithLength(
+    Map<String, dynamic> data,
+  ) {
+    final normalized = normalize(data);
+    final normalizedBytes = utf8.encode(jsonEncode(normalized));
+    final checksum = sha256.convert(normalizedBytes).toString();
+    final rawBytes = utf8.encode(jsonEncode(data));
+    return (checksum: checksum, rawByteLength: rawBytes.length);
+  }
+
+  /// تطبيع البيانات (ترتيب المفاتيح بشكل تكراري) لضمان تناسق الـ checksum.
+  static Map<String, dynamic> normalize(Map<String, dynamic> input) {
     final sortedKeys = input.keys.toList()..sort();
     final result = <String, dynamic>{};
     for (final key in sortedKeys) {
       final value = input[key];
       if (value is Map) {
-        result[key] = _normalize(Map<String, dynamic>.from(value));
+        result[key] = normalize(Map<String, dynamic>.from(value));
       } else if (value is List) {
         result[key] = value.map((item) {
           if (item is Map) {
-            return _normalize(Map<String, dynamic>.from(item));
+            return normalize(Map<String, dynamic>.from(item));
           }
           return item;
         }).toList();
