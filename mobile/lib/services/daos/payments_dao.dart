@@ -120,9 +120,10 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
 
   /// مراقبة المدفوعات ليوم فندقي محدد (فلتر على مستوى قاعدة البيانات)
   ///
-  /// يتضمن المدفوعات التي:
-  /// 1. hotelDayKey == [hotelDayKey]
-  /// 2. hotelDayKey == null وتاريخها ضمن نطاق اليوم الفندقي
+  /// ⚠️ **DEPRECATED** — استخدم `PaymentsRepository.watchTotalByHotelDayKey`
+  /// الذي يستخدم SQL SUM() بدلاً من تحميل جميع صفوف المدفوعات (38 عمود)
+  /// ثم جمعها في Dart. هذا الأسلوب القديم يستهلك ذاكرة و I/O مضاعف.
+  @Deprecated('استخدم PaymentsRepository.watchTotalByHotelDayKey (SQL SUM) بدلاً من ذلك')
   Stream<List<Payment>> watchByHotelDayKey(
     String hotelDayKey, {
     bool includeVoided = false,

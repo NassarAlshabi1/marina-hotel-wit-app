@@ -18,6 +18,7 @@ class AppwriteRealtimeSync {
   RealtimeSubscription? _subscription;
   String? _currentDeviceId;
   bool _isListening = false;
+  bool _intentionallyStopped = false;
   Timer? _debounceTimer;
 
   // ✅ تحسين: عداد التغييرات المعلقة من السيرفر (للـ Badge)
@@ -72,6 +73,9 @@ class AppwriteRealtimeSync {
       return;
     }
 
+    // ✅ إعادة تعيين علامة التوقف الإرادي — start() تعني أن المستخدم يريد الاستماع
+    _intentionallyStopped = false;
+
     final channels = _collections
         .map(
           (c) =>
@@ -99,6 +103,14 @@ class AppwriteRealtimeSync {
       },
       onDone: () {
         _isListening = false;
+        // ✅ إصلاح P2-13: إعادة الاتصال عند إغلاق WebSocket (مثل انقطاع الشبكة
+        // أو إغلاق الخادم للاتصال). سابقاً كان `onDone` يكتفي بتعيين _isListening
+        // = false دون محاولة إعادة الاتصال، مما يترك التطبيق بدون تحديثات فورية
+        // حتى يُعاد تشغيله. نتحقق من _intentionallyStopped لتجنب إعادة الاتصال
+        // بعد استدعاء stop() الإرادي.
+        if (!_intentionallyStopped) {
+          _reconnect();
+        }
       },
     );
   }
@@ -106,6 +118,10 @@ class AppwriteRealtimeSync {
   void _onEvent(RealtimeMessage message) {
     final payload = message.payload;
     final sourceDevice = payload['device_id'] ?? payload['lastModifiedBy'];
+
+    // ✅ إصلاح P2-13: تصفير عداد إعادة الاتصال عند استلام حدث صحي — يعني
+    // الاتصال سليم، لذا أي انقطاع مستقبلي يبدأ من backoff قصير.
+    _reconnectAttempts = 0;
 
     // تجاهل التغييرات من نفس الجهاز (لأنها محلية بالفعل)
     if (sourceDevice == _currentDeviceId) {
@@ -175,34 +191,57 @@ class AppwriteRealtimeSync {
   }
 
     int _reconnectAttempts = 0;
+    static const int _maxReconnectAttempts = 6;
 
     void _reconnect() {
+      // ✅ إصلاح P2-13: عدم إعادة الاتصال بعد stop() الإرادي
+      if (_intentionallyStopped) {
+        return;
+      }
+
       _reconnectAttempts++;
+
+      // ✅ إصلاح P2-13: حد أقصى لمحاولات إعادة الاتصال لتجنب إهدار البطارية
+      // بعد 6 محاولات (5s → 10s → 20s → 40s → 60s → 60s = ~3.5 min total)
+      if (_reconnectAttempts > _maxReconnectAttempts) {
+        debugPrint('📡 Realtime: max reconnect attempts ($_maxReconnectAttempts) reached — giving up');
+        CrashlyticsService.instance.recordSyncError(
+          operation: 'realtime_reconnect_giveup',
+          error: 'Max reconnect attempts reached after $_maxReconnectAttempts tries',
+          severity: CrashlyticsSeverity.warning,
+          context: {'deviceId': _currentDeviceId ?? 'unknown'},
+        );
+        return;
+      }
+
       // ✅ P1-14 fix: backoff أسّي محدود (5s → 10s → 20s → 40s → 60s capped)
       final delaySeconds = (_reconnectAttempts == 1)
           ? 5
           : (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 60);
-      
+
       CrashlyticsService.instance.recordSyncError(
         operation: 'realtime_reconnect',
-        error: 'Connection lost — reconnecting in ${delaySeconds}s (attempt $_reconnectAttempts)',
+        error: 'Connection lost — reconnecting in ${delaySeconds}s (attempt $_reconnectAttempts/$_maxReconnectAttempts)',
         severity: CrashlyticsSeverity.info,
         context: {'deviceId': _currentDeviceId ?? 'unknown', 'attempt': _reconnectAttempts},
       );
-      
+
       // ✅ P1-14 fix: إغلاق الاشتراك القديم قبل إعادة الاشتراك
       _subscription?.close().catchError((_) {});
       _subscription = null;
       _isListening = false;
 
       Future<void>.delayed(Duration(seconds: delaySeconds), () {
-        if (!_isListening) {
+        // ✅ تحقق مزدوج: عدم إعادة الاتصال إذا تم استدعاء stop() أثناء الانتظار
+        if (!_isListening && !_intentionallyStopped) {
           start();
         }
       });
     }
 
   Future<void> stop() async {
+    // ✅ إصلاح P2-13: تعليم التوقف كإرادي لمنع _reconnect من إعادة الاتصال
+    _intentionallyStopped = true;
     unawaited(_subscription?.close());
     _subscription = null;
     _isListening = false;

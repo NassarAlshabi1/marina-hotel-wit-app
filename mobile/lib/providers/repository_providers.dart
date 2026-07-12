@@ -259,6 +259,16 @@ final bookingPaymentsProvider = StreamProvider.family.autoDispose<List<Payment>,
   },
 );
 
+/// إجمالي المدفوع لحجز محدد عبر SQL SUM() — بديل خفيف الوزن لـ [bookingPaymentsProvider]
+/// عندما يحتاج المستهلك فقط للمجموع (مثل بطاقة الحجز في القائمة). يتجنب تحميل
+/// جميع صفوف المدفوعات (38 عمود لكل صف) وفك تشفيرها فقط لجمع `amount`.
+/// استخدم [bookingPaymentsProvider] إذا كنت تحتاج لتفاصيل كل دفعة.
+final bookingPaidAmountProvider =
+    StreamProvider.family.autoDispose<double, int>((ref, bookingId) {
+  final paymentsRepo = ref.watch(paymentsRepoProvider);
+  return paymentsRepo.watchTotalPaidForBooking(bookingId);
+});
+
 final debtsListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(ref.watch(debtsRepoProvider).watchAll(), const Duration(milliseconds: 150)),
 );

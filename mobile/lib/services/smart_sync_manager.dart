@@ -14,6 +14,7 @@ import 'google_drive_delta_sync.dart';
 import 'local_db.dart';
 import 'sync_conflict_event_bus.dart';
 import 'sync_constants.dart';
+import 'sync_guard.dart';
 import 'sync_locks.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
@@ -162,6 +163,14 @@ class SmartSyncManager {
     final optimizer = SyncPerformanceOptimizer.instance;
     final dataManager = DataUsageManager.instance;
 
+    // ✅ إصلاح P2-10: حارس مشترك لمنع تداخل المزامنة مع خدمات أخرى
+    // (GoogleDriveUnifiedSyncCoordinator, AppwriteSyncManager) التي تعمل
+    // على Timer.periodic منفصلة. إذا كانت مزامنة أخرى نشطة، نتخطى هذه الدورة.
+    if (!SyncGuard.canStart(label: 'smart_sync')) {
+      _log('⏸️ تم تخطي المزامنة — خدمة أخرى نشطة (${SyncGuard.activeLabel})');
+      return;
+    }
+
     // تحقق من قيود الأداء
     if (await optimizer.shouldSkipSync()) {
       _log('⏸️ تم تخطي المزامنة لتوفير الطاقة');
@@ -174,6 +183,7 @@ class SmartSyncManager {
       return;
     }
 
+    SyncGuard.markStarted(label: 'smart_sync');
     try {
       await _performSyncCheck();
 
@@ -183,6 +193,8 @@ class SmartSyncManager {
       // تسجيل فشل المزامنة
       optimizer.recordSyncFailure();
       rethrow;
+    } finally {
+      SyncGuard.markFinished();
     }
   }
 

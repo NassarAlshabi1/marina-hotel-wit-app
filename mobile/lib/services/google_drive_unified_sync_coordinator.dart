@@ -13,6 +13,7 @@ import 'google_drive_logger.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart';
 import 'sync_constants.dart';
+import 'sync_guard.dart';
 import 'sync_locks.dart';
 import 'sync_performance_optimizer.dart';
 
@@ -431,11 +432,22 @@ class GoogleDriveUnifiedSyncCoordinator {
   Future<void> _handlePeriodicPull() async {
     if (!_isSyncing && (_backupService?.isSignedIn ?? false)) {
       if (_pullEnabled) {
+        // ✅ إصلاح P2-10: حارس مشترك لمنع تداخل المزامنة مع SmartSyncManager
+        // أو AppwriteSyncManager. إذا كانت مزامنة أخرى نشطة، نتخطى هذه الدورة.
+        if (!SyncGuard.canStart(label: 'gd_unified_pull')) {
+          _log('⏸️ Periodic pull skipped — another sync active (${SyncGuard.activeLabel})');
+          return;
+        }
         _log('🔄 Periodic pull check triggered');
-        await performSync(
-          trigger: SyncTrigger.periodic,
-          mode: SyncMode.deltaOnly,
-        );
+        SyncGuard.markStarted(label: 'gd_unified_pull');
+        try {
+          await performSync(
+            trigger: SyncTrigger.periodic,
+            mode: SyncMode.deltaOnly,
+          );
+        } finally {
+          SyncGuard.markFinished();
+        }
       }
     }
   }

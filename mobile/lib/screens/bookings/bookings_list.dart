@@ -469,7 +469,7 @@ class _BookingRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final paymentsAsync = ref.watch(bookingPaymentsProvider(booking.id));
+    final paidAsync = ref.watch(bookingPaidAmountProvider(booking.id));
     final baseTextStyle = TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black);
     final smallTextStyle = baseTextStyle.copyWith(fontSize: 12);
     final boldTextStyle = baseTextStyle.copyWith(fontWeight: FontWeight.w600);
@@ -497,8 +497,8 @@ class _BookingRow extends ConsumerWidget {
     ];
     final guestTooltip = guestTooltipLines.join('\n');
 
-    final paid = paymentsAsync.maybeWhen(
-      data: (payments) => payments.fold<double>(0, (s, p) => s + p.amount),
+    final paid = paidAsync.maybeWhen(
+      data: (total) => total,
       orElse: () => 0.0,
     );
     final remaining = (totalAmount - paid)

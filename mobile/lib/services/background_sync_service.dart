@@ -35,6 +35,13 @@ class BackgroundSyncService {
   final bool _requiresStorageNotLow = true;
 
   /// تهيئة خدمة المزامنة في الخلفية
+  ///
+  /// ⚠️ **DEPRECATED** — تحليل P2-10 أظهر أن هذه الطريقة لا تُستدعى من أي
+  /// مسار إنتاجي. المزامنة الدورية تتم عبر `SmartSyncManager` و
+  /// `GoogleDriveUnifiedSyncCoordinator` و `AppwriteSyncManager` التي تستخدم
+  /// `SyncGuard` كحارس مشترك. `Workmanager` لا يُستخدم للتسجيل الدوري.
+  /// يُترك مؤقتاً للتوافق مع أي استدعاءات مخفية.
+  @Deprecated('لم يعد يُستدعى من الإنتاج — راجع SyncGuard للبنية الحالية')
   Future<void> initialize() async {
     if (_isInitialized) {
       return;

@@ -34,6 +34,13 @@ class RealtimeEvent {
 typedef RealtimeEventHandler = void Function(RealtimeEvent event);
 
 /// خدمة Appwrite Realtime - التحديثات الفورية
+///
+/// ⚠️ **DEPRECATED** — تحليل P2-13 أظهر أن هذه الخدمة لا تُستدعى من أي مسار
+/// إنتاجي (لا `initialize()` ولا `subscribeToAllCollections()` تُستدعى).
+/// الخدمة الفعلية هي `AppwriteRealtimeSync` التي تستخدم اتصال WebSocket واحد
+/// (بدلاً من 18 اتصالاً منفصلاً هنا). يُترك هذا الملف للتوافق مع أي استدعاءات
+/// مخفية. لا تُضف استدعاءات جديدة — استخدم `AppwriteRealtimeSync` بدلاً من ذلك.
+@Deprecated('استخدم AppwriteRealtimeSync بدلاً من ذلك — هذه الخدمة غير مستخدمة في الإنتاج')
 class AppwriteRealtimeService {
   factory AppwriteRealtimeService() => _instance;
   AppwriteRealtimeService._internal();

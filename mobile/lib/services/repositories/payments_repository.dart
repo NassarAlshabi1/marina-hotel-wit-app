@@ -50,16 +50,39 @@ class PaymentsRepository {
       dao.watchList(includeDeleted: includeDeleted);
   Stream<Payment?> watchOne(int id) => dao.watchById(id);
 
-  /// مراقبة مدفوعات يوم فندقي محدد (فلتر على مستوى قاعدة البيانات - أداء أفضل)
-  /// يتضمن المدفوعات التي لها hotelDayKey مطابق أو التي hotelDayKey فارغ وتاريخها ضمن اليوم
+  /// مراقبة إجمالي المدفوعات ليوم فندقي محدد عبر SQL SUM() — أداء أفضل
+  /// من تحميل جميع صفوف المدفوعات (38 عمود لكل صف) ثم جمعها في Dart.
+  /// يُحدَّث تلقائياً عند أي تغيير في جدول المدفوعات بفضل Stream من Drift.
+  /// يطابق المنطق السابق: hotelDayKey مطابق OR (hotelDayKey فارغ AND paymentDate ضمن النطاق).
   Stream<double> watchTotalByHotelDayKey(String hotelDayKey) {
-    return dao.watchByHotelDayKey(hotelDayKey).map((payments) {
-      int totalAmount = 0;
-      for (final p in payments) {
-        totalAmount += p.amount.round();
-      }
-      return totalAmount.toDouble();
-    });
+    return db
+        .customSelect(
+          'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
+          'WHERE deleted_at IS NULL AND is_voided = 0 AND '
+          '(hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?))',
+          variables: [
+            d.Variable.withString(hotelDayKey),
+            d.Variable.withString('$hotelDayKey%'),
+          ],
+          readsFrom: {db.payments},
+        )
+        .watchSingle()
+        .map((result) => (result.data['total'] as num).toDouble());
+  }
+
+  /// مراقبة إجمالي المدفوعات لحجز محدد عبر SQL SUM() — بديل خفيف الوزن
+  /// لـ [paymentsByBooking] عندما يحتاج المستهلك فقط للمجموع (مثل قائمة الحجوزات).
+  /// يتجنب تحميل جميع صفوف المدفوعات (38 عمود) وفك تشفيرها فقط لجمع `amount`.
+  Stream<double> watchTotalPaidForBooking(int bookingLocalId) {
+    return db
+        .customSelect(
+          'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
+          'WHERE deleted_at IS NULL AND is_voided = 0 AND booking_local_id = ?',
+          variables: [d.Variable.withInt(bookingLocalId)],
+          readsFrom: {db.payments},
+        )
+        .watchSingle()
+        .map((result) => (result.data['total'] as num).toDouble());
   }
 
   Future<int> create({

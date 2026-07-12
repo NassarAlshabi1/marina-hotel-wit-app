@@ -39,6 +39,7 @@ import 'repositories/rooms_repository.dart';
 import 'salary_fix_helper.dart';
 import 'secondary_appwrite_config.dart';
 import 'sync_constants.dart';
+import 'sync_guard.dart';
 import 'sync/payload_mapper.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_error_service.dart';
@@ -482,7 +483,22 @@ class AppwriteSyncManager {
   }) {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
-      await sync();
+      // ✅ إصلاح P2-10: حارس مشترك لمنع تداخل المزامنة مع SmartSyncManager
+      // أو GoogleDriveUnifiedSyncCoordinator. إذا كانت مزامنة أخرى نشطة،
+      // نتخطى هذه الدورة لتجنب تضارب عمليات SQLite و API calls.
+      if (!SyncGuard.canStart(label: 'appwrite_sync')) {
+        _logger.info(
+          'Auto sync skipped — another sync active (${SyncGuard.activeLabel})',
+          tag: 'SYNC',
+        );
+        return;
+      }
+      SyncGuard.markStarted(label: 'appwrite_sync');
+      try {
+        await sync();
+      } finally {
+        SyncGuard.markFinished();
+      }
     });
     _logger.info(
       'Auto sync started (interval: ${interval.inMinutes} min)',

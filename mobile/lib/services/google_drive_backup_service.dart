@@ -1117,19 +1117,23 @@ class GoogleDriveBackupService {
     });
   }
 
-  Future<void> restoreFromBackup(Map<String, dynamic> backupData) async {
+  Future<void> restoreFromBackup(
+    Map<String, dynamic> backupData, {
+    void Function(int current, int total, String tableName)? onProgress,
+  }) async {
     if (!DatabaseManager.isRestoring) {
       // Self-guard to avoid accidental destructive calls while keeping safety
       return DatabaseManager.runWithRestoreGuard(
-        () => _restoreFromBackupInternal(backupData),
+        () => _restoreFromBackupInternal(backupData, onProgress: onProgress),
       );
     }
-    return _restoreFromBackupInternal(backupData);
+    return _restoreFromBackupInternal(backupData, onProgress: onProgress);
   }
 
   Future<void> _restoreFromBackupInternal(
-    Map<String, dynamic> backupData,
-  ) async {
+    Map<String, dynamic> backupData, {
+    void Function(int current, int total, String tableName)? onProgress,
+  }) async {
     try {
       final db = DatabaseManager.instance;
       final adapterRegistry = AdapterRegistry(db);
