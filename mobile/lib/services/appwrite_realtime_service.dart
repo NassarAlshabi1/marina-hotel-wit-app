@@ -132,8 +132,9 @@ class AppwriteRealtimeService {
             error: error,
             tag: 'REALTIME',
           );
-          // ✅ محاولة إعادة الاتصال عند الخطأ — exponential backoff
-          _scheduleReconnect(collectionId, events: events, handler: handler);
+          // ✅ إصلاح PR review: لا نُعيد الاتصال هنا — onDone يُستدعى دائماً
+          // بعد onError (Stream protocol)، وسيُعيد الاتصال هناك. سابقاً كان
+          // _scheduleReconnect يُستدعى مرتين → timer مزدوج → reconnect عشوائي.
         },
         onDone: () {
           _logger.info(

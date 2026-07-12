@@ -166,6 +166,11 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
     }
+    // ✅ إصلاح PR review: ترتيب deterministic قبل LIMIT
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc),
+      (t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc),
+    ]);
     if (limit != null) {
       q.limit(limit, offset: offset);
     }
@@ -236,18 +241,20 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     ExpensesCompanion data, {
     bool originIsServer = false,
   }) async {
-    return db.transaction(() async {
-      final now = Time.nowEpoch();
-      final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
-      final comp = data.copyWith(
-        localUuid: Value(uu),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-        origin: Value(originIsServer ? 'server' : 'local'),
-        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
-      );
-      final id = await into(expenses).insert(comp);
+    final now = Time.nowEpoch();
+    final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
+    final comp = data.copyWith(
+      localUuid: Value(uu),
+      createdAt: Value(now),
+      updatedAt: Value(now),
+      lastModified: Value(now),
+      origin: Value(originIsServer ? 'server' : 'local'),
+      deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+    );
+
+    // ✅ إصلاح PR review: إخراج FCM خارج transaction
+    final id = await db.transaction(() async {
+      final insertedId = await into(expenses).insert(comp);
       if (!originIsServer) {
         await _mergeOutbox(
           op: 'create',
@@ -255,20 +262,23 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
           serverId: comp.serverId.present ? comp.serverId.value : null,
           clientTs: now,
         );
-        // ✅ FCM: إشعار الأجهزة الأخرى بمصروف جديد (fire-and-forget)
-        if (comp.amount.present) {
-          unawaited(
-            FcmSender().notifyExpenseAdded(
-              amount: comp.amount.value,
-              expenseType: comp.expenseType.present
-                  ? comp.expenseType.value
-                  : 'مصروف',
-            ),
-          );
-        }
       }
-      return id;
+      return insertedId;
     });
+
+    // ✅ FCM: إشعار الأجهزة الأخرى بمصروف جديد (fire-and-forget)
+    // بعد نجاح الـ transaction.
+    if (!originIsServer && comp.amount.present) {
+      unawaited(
+        FcmSender().notifyExpenseAdded(
+          amount: comp.amount.value,
+          expenseType: comp.expenseType.present
+              ? comp.expenseType.value
+              : 'مصروف',
+        ),
+      );
+    }
+    return id;
   }
 
   Future<int> updateById(

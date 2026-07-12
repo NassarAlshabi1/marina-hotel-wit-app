@@ -23,7 +23,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:appwrite/appwrite.dart';
+import 'package:appwrite/appwrite.dart' show Query;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -224,14 +224,17 @@ class FcmSender {
 
   /// قراءة جميع fcmToken من Appwrite.devices collection
   /// (يستثني جهاز المُرسِل تلقائياً عبر senderDeviceId field)
+  ///
+  /// ✅ إصلاح PR review: نستخدم AppwriteService.listAllDocuments() بدلاً من
+  /// Databases.listDocuments() مباشرة. هذا يوفّر:
+  /// 1. Automatic failover إلى secondary Appwrite instance عند فشل primary
+  /// 2. Cursor pagination صحيح (يجلب كل الصفحات، ليس فقط أول 25)
+  /// 3. Caching مدمج لتقليل الـ round-trips
   Future<List<String>> _getAllDeviceTokens() async {
     try {
-      final databases = Databases(AppwriteService().client);
       final myDeviceId = await _getMyDeviceId();
 
-      // ignore: deprecated_member_use
-      final result = await databases.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
+      final documents = await AppwriteService().listAllDocuments(
         collectionId: AppwriteConfig.devicesCollectionId,
         queries: [
           // فقط الأجهزة النشطة
@@ -240,7 +243,7 @@ class FcmSender {
       );
 
       final tokens = <String>[];
-      for (final doc in result.documents) {
+      for (final doc in documents) {
         final token = doc.data['fcmToken'] as String?;
         final deviceId = doc.data['localUuid'] as String? ?? doc.$id;
 

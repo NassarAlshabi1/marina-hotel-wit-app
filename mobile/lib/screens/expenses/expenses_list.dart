@@ -81,9 +81,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   void initState() {
     super.initState();
     // ✅ Analytics: تتبّع مشاهدة شاشة المصروفات
+    // ✅ إصلاح PR review: إعادة استخدام screenId getter (مصدر واحد للحقيقة)
     unawaited(
       AnalyticsService().logScreenView(
-        screenName: 'expenses_list',
+        screenName: screenId,
         screenClass: 'ExpensesListScreen',
       ),
     );

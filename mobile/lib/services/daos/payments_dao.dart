@@ -115,6 +115,12 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (bookingLocalId != null) {
       q.where((t) => t.bookingLocalId.equals(bookingLocalId));
     }
+    // ✅ إصلاح PR review: ترتيب deterministic قبل LIMIT لمنع تذبذب الصفحات
+    // عبر التحديثات. id كـ tie-breaker يضمن استقرار الترتيب.
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+      (t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc),
+    ]);
     if (limit != null) {
       q.limit(limit, offset: offset);
     }
@@ -256,21 +262,23 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     PaymentsCompanion data, {
     bool originIsServer = false,
   }) async {
-    return db.transaction(() async {
-      final now = Time.nowEpoch();
-      final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
-      final comp = data.copyWith(
-        localUuid: Value(uu),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-        origin: Value(originIsServer ? 'server' : 'local'),
-        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
-        serverId: data.serverPaymentId.present
-            ? Value(data.serverPaymentId.value)
-            : const Value.absent(),
-      );
-      final id = await into(payments).insert(comp);
+    final now = Time.nowEpoch();
+    final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
+    final comp = data.copyWith(
+      localUuid: Value(uu),
+      createdAt: Value(now),
+      updatedAt: Value(now),
+      lastModified: Value(now),
+      origin: Value(originIsServer ? 'server' : 'local'),
+      deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+      serverId: data.serverPaymentId.present
+          ? Value(data.serverPaymentId.value)
+          : const Value.absent(),
+    );
+
+    // ✅ إصلاح PR review: إخراج FCM خارج transaction
+    final id = await db.transaction(() async {
+      final insertedId = await into(payments).insert(comp);
       if (!originIsServer) {
         await _mergeOutbox(
           op: 'create',
@@ -278,30 +286,33 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
           serverId: comp.serverId.present ? comp.serverId.value : null,
           clientTs: now,
         );
-        // ✅ FCM: إشعار الأجهزة الأخرى بدفعة جديدة (fire-and-forget)
-        if (comp.amount.present) {
-          // قراءة roomNumber من booking المرتبط (اختياري،best-effort)
-          String? roomNumber;
-          if (comp.bookingLocalId.present && comp.bookingLocalId.value != null) {
-            try {
-              final booking = await (db.select(db.bookings)
-                    ..where((b) => b.id.equals(comp.bookingLocalId.value!)))
-                  .getSingleOrNull();
-              roomNumber = booking?.roomNumber;
-            } catch (_) {
-              // تجاهل — roomNumber اختياري في الإشعار
-            }
-          }
-          unawaited(
-            FcmSender().notifyPaymentAdded(
-              amount: comp.amount.value,
-              roomNumber: roomNumber ?? 'غير محدد',
-            ),
-          );
+      }
+      return insertedId;
+    });
+
+    // ✅ FCM: إشعار الأجهزة الأخرى بدفعة جديدة (fire-and-forget)
+    // بعد نجاح الـ transaction — لن يُرسل لدفعة لم تُحفظ.
+    if (!originIsServer && comp.amount.present) {
+      // قراءة roomNumber من booking المرتبط (اختياري، best-effort)
+      String? roomNumber;
+      if (comp.bookingLocalId.present && comp.bookingLocalId.value != null) {
+        try {
+          final booking = await (db.select(db.bookings)
+                ..where((b) => b.id.equals(comp.bookingLocalId.value!)))
+              .getSingleOrNull();
+          roomNumber = booking?.roomNumber;
+        } catch (_) {
+          // تجاهل — roomNumber اختياري في الإشعار
         }
       }
-      return id;
-    });
+      unawaited(
+        FcmSender().notifyPaymentAdded(
+          amount: comp.amount.value,
+          roomNumber: roomNumber ?? 'غير محدد',
+        ),
+      );
+    }
+    return id;
   }
 
   Future<int> updateById(

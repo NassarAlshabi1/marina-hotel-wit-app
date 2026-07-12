@@ -16,11 +16,11 @@ import '../utils/status_utils.dart';
 /// (Riverpod StreamProvider) بدلاً منه للغرف مع التحديثات الفورية عبر
 /// `AppwriteRealtimeSync`.
 @Deprecated('استخدم roomsListProvider (Riverpod) بدلاً من ذلك')
-// ignore_for_file: deprecated_member_use_from_same_package
 class RealTimeRoomsProvider extends ChangeNotifier {
 
   RealTimeRoomsProvider({
     required RoomRepository repository,
+    // ignore: deprecated_member_use_from_same_package
     required AppwriteRealtimeService realtimeService,
   }) : _repository = repository,
        _realtimeService = realtimeService;

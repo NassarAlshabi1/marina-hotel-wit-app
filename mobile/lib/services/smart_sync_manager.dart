@@ -163,28 +163,34 @@ class SmartSyncManager {
     final optimizer = SyncPerformanceOptimizer.instance;
     final dataManager = DataUsageManager.instance;
 
-    // ✅ إصلاح P2-10: حارس مشترك لمنع تداخل المزامنة مع خدمات أخرى
+    // ✅ إصلاح P2-10 + PR review: حارس مشترك لمنع تداخل المزامنة مع خدمات أخرى
     // (GoogleDriveUnifiedSyncCoordinator, AppwriteSyncManager) التي تعمل
     // على Timer.periodic منفصلة. إذا كانت مزامنة أخرى نشطة، نتخطى هذه الدورة.
+    //
+    // ⚠️ إصلاح race condition (TOCTOU): canStart + markStarted يجب أن تكونا
+    // متتاليتين بدون أي await بينهما. سابقاً كان هناك await points
+    // (shouldSkipSync, isLimitExceeded) بين canStart و markStarted، مما
+    // يسمح لخدمة أخرى بالدخول في الفجوة وبدء مزامنة متزامنة.
     if (!SyncGuard.canStart(label: 'smart_sync')) {
       _log('⏸️ تم تخطي المزامنة — خدمة أخرى نشطة (${SyncGuard.activeLabel})');
       return;
     }
-
-    // تحقق من قيود الأداء
-    if (await optimizer.shouldSkipSync()) {
-      _log('⏸️ تم تخطي المزامنة لتوفير الطاقة');
-      return;
-    }
-
-    // تحقق من حد البيانات
-    if (await dataManager.isLimitExceeded()) {
-      _log('📊 تم تجاوز حد البيانات اليومي - تخطي المزامنة');
-      return;
-    }
-
+    // ✅ احجز الـ lock فوراً قبل أي await
     SyncGuard.markStarted(label: 'smart_sync');
+
     try {
+      // تحقق من قيود الأداء (بعد حجز الـ lock)
+      if (await optimizer.shouldSkipSync()) {
+        _log('⏸️ تم تخطي المزامنة لتوفير الطاقة');
+        return;
+      }
+
+      // تحقق من حد البيانات (بعد حجز الـ lock)
+      if (await dataManager.isLimitExceeded()) {
+        _log('📊 تم تجاوز حد البيانات اليومي - تخطي المزامنة');
+        return;
+      }
+
       await _performSyncCheck();
 
       // تسجيل نجاح المزامنة

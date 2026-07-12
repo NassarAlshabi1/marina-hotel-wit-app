@@ -1234,14 +1234,13 @@ class GoogleDriveBackupService {
 
           if (backupData.containsKey('bookings')) {
             final bookingsData = backupData['bookings'] as List<dynamic>;
-            // ✅ إصلاح P3-16: استخدام batchUpsertFromJson لإدراج آلاف الحجوزات
-            // في batch واحد بدلاً من INSERT منفصل لكل صف. يقلّل round-trips
-            // من N إلى ~N/500. العزل لكل صف محفوظ عبر pre-resolve phase
-            // التي تتخطى الصفوف ذات FK غير محلول.
+            // ✅ إصلاح P3-16 + PR review: استخدام batchUpsertFromJson لإدراج
+            // آلاف الحجوزات في batch واحد بدلاً من INSERT منفصل لكل صف.
+            // ✅ إصلاح PR review: استبدلنا Map.from بـ cast لتجنب استنساخ
+            // الـ list بالكامل (يضاعف الذاكرة لـ 8K+ صف). batchUpsertFromJson
+            // لا يُعدّل الـ Maps الأصلية (يستخدم jsonCopy داخلياً).
             final result = await adapterRegistry.bookings.batchUpsertFromJson(
-              bookingsData
-                  .map((b) => Map<String, dynamic>.from(b as Map))
-                  .toList(),
+              bookingsData.cast<Map<String, dynamic>>().toList(),
               src: Source.drive,
             );
             if (result.skipped > 0) {
@@ -1330,10 +1329,9 @@ class GoogleDriveBackupService {
           if (backupData.containsKey('expenses')) {
             final expensesData = backupData['expenses'] as List<dynamic>;
             // ✅ إصلاح P3-16: batch insert للمصروفات (قد تكون آلاف السجلات)
+            // ✅ إصلاح PR review: استبدلنا Map.from بـ cast (تجنب استنساخ list)
             final result = await adapterRegistry.expenses.batchUpsertFromJson(
-              expensesData
-                  .map((e) => Map<String, dynamic>.from(e as Map))
-                  .toList(),
+              expensesData.cast<Map<String, dynamic>>().toList(),
               src: Source.drive,
             );
             if (result.skipped > 0) {
@@ -1357,10 +1355,9 @@ class GoogleDriveBackupService {
           if (backupData.containsKey('payments')) {
             final paymentsData = backupData['payments'] as List<dynamic>;
             // ✅ إصلاح P3-16: batch insert للمدفوعات (عادةً أكبر جدول — آلاف السجلات)
+            // ✅ إصلاح PR review: استبدلنا Map.from بـ cast (تجنب استنساخ list)
             final result = await adapterRegistry.payments.batchUpsertFromJson(
-              paymentsData
-                  .map((p) => Map<String, dynamic>.from(p as Map))
-                  .toList(),
+              paymentsData.cast<Map<String, dynamic>>().toList(),
               src: Source.drive,
             );
             if (result.skipped > 0) {

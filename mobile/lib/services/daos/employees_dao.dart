@@ -51,6 +51,11 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       final s = '%${search.trim()}%';
       q.where((t) => t.name.like(s) | t.status.like(s));
     }
+    // ✅ إصلاح PR review: ترتيب deterministic قبل LIMIT
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.name),
+      (t) => OrderingTerm(expression: t.id),
+    ]);
     if (limit != null) {
       q.limit(limit, offset: offset);
     }

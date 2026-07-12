@@ -228,6 +228,51 @@ bool _isUniqueConstraintError(Object error) {
     return result.data['id'] as int?;
   }
 
+  /// ✅ إصلاح PR review (N+1 query): استعلام دفعي (batch) لكل localUuids.
+  ///
+  /// يُعيد Map<localUuid, id> لكل UUID موجود في الجدول. هذا يقلّل من
+  /// N استعلام منفصل (واحد لكل صف في batchUpsertFromJson) إلى استعلام
+  /// واحد بـ IN clause.
+  ///
+  /// ملاحظة: SQLite يدعم IN clause بأي عدد من القيم، لكن لمنع تجاوز حد
+  /// SQLITE_MAX_VARIABLE_COUNT (999 افتراضياً)، نقسّم إلى chunks من 500.
+  Future<Map<String, int>> _batchFindByLocalUuid(List<String> uuids) async {
+    if (uuids.isEmpty) return {};
+
+    final tableName = table.actualTableName;
+    final sanitized = tableName.replaceAll("'", "''");
+    final result = <String, int>{};
+
+    // chunking لتجنب SQLITE_MAX_VARIABLE_COUNT
+    const chunkSize = 500;
+    for (var i = 0; i < uuids.length; i += chunkSize) {
+      final end = (i + chunkSize < uuids.length) ? i + chunkSize : uuids.length;
+      final chunk = uuids.sublist(i, end);
+
+      // بناء placeholders (?, ?, ?, ...)
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      final variables = chunk.map(Variable.withString).toList();
+
+      final rows = await db
+          .customSelect(
+            "SELECT local_uuid, id FROM '$sanitized' WHERE local_uuid IN ($placeholders)",
+            variables: variables,
+            readsFrom: {table},
+          )
+          .get();
+
+      for (final row in rows) {
+        final uuid = row.data['local_uuid'] as String?;
+        final id = row.data['id'] as int?;
+        if (uuid != null && id != null) {
+          result[uuid] = id;
+        }
+      }
+    }
+
+    return result;
+  }
+
   // ✅ تمت إزالة getByLocalUuid و buildAppwritePayload (PR #451):
   // كانت هاتان الدالتان dead code — غير مستخدمتين في أي مكان.
   // كما أن getByLocalUuid كان يُسبب تحذير flutter analyze
@@ -268,8 +313,33 @@ bool _isUniqueConstraintError(Object error) {
       return (inserted: 0, skipped: 0);
     }
 
+    // ✅ إصلاح PR review (N+1 query): اقرأ جميع UUIDs دفعة واحدة بدلاً من
+    // استدعاء _findByLocalUuid لكل صف. هذا يقلّل N round-trips إلى 1.
+    // نُجمع كل localUuids من الـ jsons، نستعلم مرة واحدة بـ IN clause،
+    // ثم نُخزّن النتائج في Map للوصول O(1) داخل الحلقة.
+    Map<String, int> existingUuidToId = {};
+    if (src == Source.appwrite || src == Source.drive) {
+      try {
+        final allUuids = jsons
+            .map((j) => j['localUuid'] as String? ?? j['local_uuid'] as String?)
+            .whereType<String>()
+            .toSet()
+            .toList();
+        if (allUuids.isNotEmpty) {
+          existingUuidToId = await _batchFindByLocalUuid(allUuids);
+        }
+      } catch (e) {
+        developer.log(
+          'Batch UUID lookup failed for ${table.actualTableName}, '
+          'falling back to per-row lookup: $e',
+          name: 'BaseRepository.batch',
+        );
+        // fallback: per-row lookup سيُستخدم (existingUuidToId فارغة)
+      }
+    }
+
     // المرحلة 1: pre-resolve لكل صف (UUID + FK) على حدة
-    // هذا ضروري لأن كل صف له UUID مختلف و FK references مختلفة
+    // هذا ضروري لأن كل صف له FK references مختلفة
     final companions = <C>[];
     var skipped = 0;
 
@@ -278,12 +348,16 @@ bool _isUniqueConstraintError(Object error) {
         // نسخة احتياطية لعدم تعديل الـ Map الأصلي
         final jsonCopy = Map<String, dynamic>.from(json);
 
-        // نفس منطق upsertFromJson لحل localUuid + id
+        // حل localUuid + id باستخدام الـ batch lookup المُسبق
         if (src == Source.appwrite || src == Source.drive) {
           final localUuid = jsonCopy['localUuid'] as String? ??
               jsonCopy['local_uuid'] as String?;
           if (localUuid != null) {
-            final existing = await _findByLocalUuid(localUuid);
+            // ✅ استخدم الـ Map المُسبق التحضير (O(1)) بدلاً من استعلام SQL
+            final existing = existingUuidToId[localUuid] ??
+                (existingUuidToId.isEmpty
+                    ? await _findByLocalUuid(localUuid)
+                    : null);
             if (existing == null) {
               jsonCopy.remove('id');
             } else {

@@ -96,18 +96,22 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     BookingsCompanion data, {
     bool originIsServer = false,
   }) async {
-    return db.transaction(() async {
-      final now = Time.nowEpoch();
-      final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
-      final comp = data.copyWith(
-        localUuid: Value(uu),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-        origin: Value(originIsServer ? 'server' : 'local'),
-        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
-      );
-      final id = await into(bookings).insert(comp);
+    final now = Time.nowEpoch();
+    final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
+    final comp = data.copyWith(
+      localUuid: Value(uu),
+      createdAt: Value(now),
+      updatedAt: Value(now),
+      lastModified: Value(now),
+      origin: Value(originIsServer ? 'server' : 'local'),
+      deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+    );
+
+    // ✅ إصلاح PR review: إخراج FCM خارج transaction لمنع إشعارات كاذبة
+    // عند rollback، ولمنع إطالة مدة الـ transaction.
+    // الـ transaction يُنفّذ insert + outbox فقط (atomic)، ثم نُرسل FCM بعدها.
+    final id = await db.transaction(() async {
+      final insertedId = await into(bookings).insert(comp);
       if (!originIsServer) {
         await _mergeOutbox(
           op: 'create',
@@ -115,18 +119,21 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
           serverId: comp.serverId.present ? comp.serverId.value : null,
           clientTs: now,
         );
-        // ✅ FCM: إشعار الأجهزة الأخرى بإنشاء حجز جديد (fire-and-forget)
-        if (comp.roomNumber.present && comp.guestName.present) {
-          unawaited(
-            FcmSender().notifyBookingCreated(
-              roomNumber: comp.roomNumber.value,
-              guestName: comp.guestName.value,
-            ),
-          );
-        }
       }
-      return id;
+      return insertedId;
     });
+
+    // ✅ FCM: إشعار الأجهزة الأخرى بإنشاء حجز جديد (fire-and-forget)
+    // يتم بعد نجاح الـ transaction — لن يُرسل إشعار لحجز لم يُحفظ.
+    if (!originIsServer && comp.roomNumber.present && comp.guestName.present) {
+      unawaited(
+        FcmSender().notifyBookingCreated(
+          roomNumber: comp.roomNumber.value,
+          guestName: comp.guestName.value,
+        ),
+      );
+    }
+    return id;
   }
 
   Future<int> updateById(

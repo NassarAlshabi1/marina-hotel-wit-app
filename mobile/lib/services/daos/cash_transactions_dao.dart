@@ -80,6 +80,11 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
     }
+    // ✅ إصلاح PR review: ترتيب deterministic قبل LIMIT
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc),
+      (t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc),
+    ]);
     if (limit != null) {
       q.limit(limit, offset: offset);
     }
