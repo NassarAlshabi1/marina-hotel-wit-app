@@ -1,5 +1,6 @@
 // lib/services/vector_clock_service.dart
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 /// Vector Clock حقيقي لحل تعارضات المزامنة عبر الأجهزة.
 ///
@@ -28,7 +29,12 @@ import 'dart:convert';
 class VectorClock {
   VectorClock(Map<String, int>? counters) : _counters = counters ?? {};
 
-  /// إنشاء من JSON string (المخزن في DB)
+  /// إنشاء من JSON string (المخزن في DB).
+  ///
+  /// ✅ تحسين: تسجيل تحذير عند JSON تالف بدلاً من التجاهل الصامت.
+  /// سابقاً كان JSON التالف يُتجاهل بصمت ويُعاد vector clock فارغ، مما
+  /// يُخفي مشاكل البيانات. الآن نُسجّل التحذير (في debug mode) لمراقبة
+  /// صحة البيانات، مع الحفاظ على نفس السلوك (إعادة ساعة فارغة آمنة).
   factory VectorClock.fromString(String json) {
     if (json.isEmpty || json == '{}') return VectorClock({});
     try {
@@ -38,8 +44,20 @@ class VectorClock {
           decoded.map((k, v) => MapEntry(k, (v as num).toInt())),
         );
       }
-    } catch (_) {
-      // JSON تالف — ابدأ بساعة فارغة
+      // ✅ تحسين: تسجيل نوع غير متوقع (ليس Map)
+      developer.log(
+        '⚠️ VectorClock.fromString: decoded JSON is not a Map '
+        '(type=${decoded.runtimeType}, value=$json)',
+        name: 'VectorClock',
+      );
+    } catch (e) {
+      // ✅ تحسين: تسجيل JSON التالف بدلاً من التجاهل الصامت
+      developer.log(
+        '⚠️ VectorClock.fromString: invalid JSON "$json" — $e. '
+        'Returning empty vector clock.',
+        name: 'VectorClock',
+        error: e,
+      );
     }
     return VectorClock({});
   }

@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../adapters/adapter_registry.dart';
 import '../appwrite_logger.dart';
 import '../appwrite_sync_manager.dart';
+import '../crashlytics_service.dart';
 import '../local_db.dart';
 import '../secondary_appwrite_config.dart';
 import '../vector_clock_service.dart';
@@ -903,7 +906,13 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     ));
   }
 
-  /// يُستدعى من merge() عند source='local' لضمان كشف كل التعديلات المتزامنة
+  /// يُستدعى من merge() عند source='local' لضمان كشف كل التعديلات المتزامنة.
+  ///
+  /// ✅ تحسين: استبدال silent catch بـ proper logging + Crashlytics reporting.
+  /// سابقاً كان أي خطأ (SQL فشل، JSON تالف، etc.) يُتجاهل بصمت، مما يجعل
+  /// debugging مستحيلاً ويُخفي مشاكل الـ vector clock في الإنتاج.
+  /// الآن نُسجّل الخطأ محلياً + نُرسله إلى Crashlytics (low severity لأن
+  /// الـ VC bump ليس حرجاً لدرجة تعطيل الكتابة، لكنه مهم لكشف التعارضات).
   Future<void> _bumpVectorClockForLocalWrite(String entity, String localUuid) async {
     final tableName = _entityTableMap[entity];
     if (tableName == null) return;
@@ -921,14 +930,48 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
       final currentVcStr = (rows.first.data['vc'] as String?) ?? '{}';
       final vc = VectorClock.fromString(currentVcStr);
+
+      // ✅ مراقبة: تسجيل السجلات ذات الـ VC الفارغ لإحصائيات الصحة
+      if (vc.isEmpty) {
+        developer.log(
+          'VC bump: initializing empty vector clock for $entity/$localUuid '
+          '(first local edit on device $deviceId)',
+          name: 'VectorClock',
+        );
+      }
+
       vc.increment(deviceId);
 
       await attachedDatabase.customStatement(
         'UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?',
         [vc.toString(), localUuid],
       );
-    } catch (_) {
-      // تجاهل الأخطاء — VC bump ليس حرجاً لدرجة تعطيل الكتابة
+    } catch (e, st) {
+      // ✅ تحسين: تسجيل الخطأ بدلاً من التجاهل الصامت
+      // الـ VC bump ليس حرجاً لدرجة تعطيل الكتابة، لكنه مهم لكشف التعارضات
+      // نسجّل محلياً + نُرسل إلى Crashlytics بـ low severity
+      developer.log(
+        '⚠️ VC bump failed for $entity/$localUuid: $e',
+        name: 'VectorClock',
+        error: e,
+        stackTrace: st,
+      );
+      debugPrint('⚠️ Vector clock bump failed for $entity (uuid=$localUuid): $e');
+
+      // إرسال إلى Crashlytics بدون انتظار (fire-and-forget)
+      unawaited(
+        CrashlyticsService.instance.recordSyncError(
+          operation: 'vc_bump_failed',
+          error: e.toString(),
+          stackTrace: st,
+          severity: CrashlyticsSeverity.warning,
+          context: {
+            'entity': entity,
+            'local_uuid': localUuid,
+            'device_id': deviceId,
+          },
+        ),
+      );
     }
   }
 }

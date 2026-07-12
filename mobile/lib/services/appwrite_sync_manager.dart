@@ -1721,6 +1721,20 @@ class AppwriteSyncManager {
     // مقارنة Vector Clock
     final localVc = VectorClock.fromString(localVectorClock ?? '{}');
     final remoteVc = VectorClock.fromString(remoteVcStr);
+
+    // ✅ Observability: تسجيل حالات الـ VC الفارغ لمراقبة صحة النظام.
+    // هذه ليست أخطاء (المنطق يتعامل معها بشكل صحيح)، لكنها تُشير إلى سجلات
+    // قديمة أو منشأة خارج التطبيق (Appwrite Console / PHP API).
+    // نُسجّل في debug mode فقط لتجنب noise في الإنتاج.
+    if (kDebugMode && (localVc.isEmpty || remoteVc.isEmpty)) {
+      _logger.info(
+        'VC empty state: entity=$entityName, uuid=$localUuid, '
+        'localVc=${localVc.isEmpty ? "empty" : "non-empty"}, '
+        'remoteVc=${remoteVc.isEmpty ? "empty" : "non-empty"}',
+        tag: 'VC_HEALTH',
+      );
+    }
+
     final comparison = VectorClockComparator.compare(localVc, remoteVc);
 
     switch (comparison) {
