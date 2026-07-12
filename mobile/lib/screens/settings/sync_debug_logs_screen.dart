@@ -15,20 +15,11 @@ class SyncDebugLogsScreen extends ConsumerStatefulWidget {
 }
 
 class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
-  Map<String, dynamic>? _status;
   bool _isBusy = false;
 
   @override
   void initState() {
     super.initState();
-    _loadStatus();
-  }
-
-  Future<void> _loadStatus() async {
-    final status = await ref.read(smartSyncManagerProvider).getStatus();
-    if (mounted) {
-      setState(() => _status = status);
-    }
   }
 
   Future<void> _withBusy(Future<void> Function() action) async {
@@ -48,21 +39,21 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
   Future<void> _forceSync() async {
     await _withBusy(() async {
       await ref.read(smartSyncManagerProvider).forceSyncNow();
-      await _loadStatus();
+      ref.invalidate(smartSyncStatusProvider);
     });
   }
 
   Future<void> _pushLocal() async {
     await _withBusy(() async {
       await ref.read(smartSyncManagerProvider).pushLocalChanges();
-      await _loadStatus();
+      ref.invalidate(smartSyncStatusProvider);
     });
   }
 
   Future<void> _pullRemote() async {
     await _withBusy(() async {
       await ref.read(smartSyncManagerProvider).pullRemoteChanges();
-      await _loadStatus();
+      ref.invalidate(smartSyncStatusProvider);
     });
   }
 
@@ -146,49 +137,51 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
   }
 
   Widget _buildStatusCard(BuildContext context) {
-    final status = _status;
+    final statusAsync = ref.watch(smartSyncStatusProvider);
     return Card(
       margin: const EdgeInsets.all(16),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: status == null
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: statusAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('خطأ: $e')),
+          data: (status) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.memory,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'حالة مدير المزامنة',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
+                  Icon(
+                    Icons.memory,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
-                  const SizedBox(height: 12),
-                  _buildStatusRow('معرف الجهاز', (status['device_id'] ?? '---') as String),
-                  _buildStatusRow(
-                    'تفعيل المزامنة',
-                    (status['enabled'] as bool? ?? false) ? 'مفعل' : 'معطل',
-                  ),
-                  _buildStatusRow(
-                    'تسجيل الدخول',
-                    (status['signed_in'] as bool? ?? false) ? 'متصل' : 'غير متصل',
-                  ),
-                  _buildStatusRow(
-                    'المراقبة الدورية',
-                    (status['monitoring_active'] as bool? ?? false) ? 'نشطة' : 'متوقفة',
-                  ),
-                  _buildStatusRow(
-                    'آخر فحص',
-                    (status['last_sync_check'] ?? '---') as String,
+                  const SizedBox(width: 8),
+                  const Text(
+                    'حالة مدير المزامنة',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              _buildStatusRow('معرف الجهاز', (status['device_id'] ?? '---') as String),
+              _buildStatusRow(
+                'تفعيل المزامنة',
+                (status['enabled'] as bool? ?? false) ? 'مفعل' : 'معطل',
+              ),
+              _buildStatusRow(
+                'تسجيل الدخول',
+                (status['signed_in'] as bool? ?? false) ? 'متصل' : 'غير متصل',
+              ),
+              _buildStatusRow(
+                'المراقبة الدورية',
+                (status['monitoring_active'] as bool? ?? false) ? 'نشطة' : 'متوقفة',
+              ),
+              _buildStatusRow(
+                'آخر فحص',
+                (status['last_sync_check'] ?? '---') as String,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

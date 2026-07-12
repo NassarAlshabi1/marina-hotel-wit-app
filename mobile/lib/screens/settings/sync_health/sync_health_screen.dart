@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../components/app_scaffold.dart';
 import '../../../core/core.dart';
-import '../../../providers/repository_providers.dart';
 import '../../../providers/service_providers.dart';
 import '../../../services/sync_health_monitor.dart';
 
@@ -27,17 +26,15 @@ class SyncHealthScreen extends ConsumerStatefulWidget {
 }
 
 class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
-  late SyncHealthReport _report;
-  bool _isLoading = true;
-  String? _error;
   Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-    _loadReport();
     // تحديث كل 30 ثانية
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) => _loadReport());
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      ref.invalidate(syncHealthReportProvider);
+    });
   }
 
   @override
@@ -46,69 +43,50 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
     super.dispose();
   }
 
-  Future<void> _loadReport() async {
-    try {
-      final db = ref.read(databaseProvider);
-      final report = await ref.read(syncHealthMonitorProvider).getHealthReport(db);
-      if (mounted) {
-        setState(() {
-          _report = report;
-          _isLoading = false;
-          _error = null;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final reportAsync = ref.watch(syncHealthReportProvider);
+
     return AppScaffold(
       title: 'حالة المزامنة',
       actions: [
         IconButton(
-          onPressed: _loadReport,
+          onPressed: () => ref.invalidate(syncHealthReportProvider),
           icon: const Icon(Icons.refresh),
           tooltip: 'تحديث',
         ),
       ],
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? _buildErrorView()
-              : RefreshIndicator(
-                  onRefresh: _loadReport,
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      _buildOverallStatusCard(),
-                      const SizedBox(height: 16),
-                      _buildOutboxStatsCard(),
-                      const SizedBox(height: 16),
-                      _buildEntityBreakdownCard(),
-                      const SizedBox(height: 16),
-                      _buildTableSizesCard(),
-                      const SizedBox(height: 16),
-                      _buildFkViolationsCard(),
-                      const SizedBox(height: 32),
-                      Text(
-                        'آخر تحديث: ${_report.timestamp.toIso8601String()}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
+      body: reportAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => _buildErrorView(e.toString()),
+        data: (report) => RefreshIndicator(
+          onRefresh: () async => ref.invalidate(syncHealthReportProvider),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _buildOverallStatusCard(report),
+              const SizedBox(height: 16),
+              _buildOutboxStatsCard(report),
+              const SizedBox(height: 16),
+              _buildEntityBreakdownCard(report),
+              const SizedBox(height: 16),
+              _buildTableSizesCard(report),
+              const SizedBox(height: 16),
+              _buildFkViolationsCard(report),
+              const SizedBox(height: 32),
+              Text(
+                'آخر تحديث: ${report.timestamp.toIso8601String()}',
+                style: Theme.of(context).textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildErrorView() {
+  Widget _buildErrorView(String error) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -123,13 +101,13 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              _error!,
+              error,
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _loadReport,
+              onPressed: () => ref.invalidate(syncHealthReportProvider),
               icon: const Icon(Icons.refresh),
               label: const Text('إعادة المحاولة'),
             ),
@@ -139,8 +117,8 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
     );
   }
 
-  Widget _buildOverallStatusCard() {
-    final status = _report.status;
+  Widget _buildOverallStatusCard(SyncHealthReport report) {
+    final status = report.status;
     return Card(
       color: _statusColor(status).withValues(alpha: 0.1),
       child: Padding(
@@ -169,8 +147,8 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
     );
   }
 
-  Widget _buildOutboxStatsCard() {
-    final r = _report;
+  Widget _buildOutboxStatsCard(SyncHealthReport report) {
+    final r = report;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -213,8 +191,8 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
     );
   }
 
-  Widget _buildEntityBreakdownCard() {
-    final breakdown = _report.entityBreakdown;
+  Widget _buildEntityBreakdownCard(SyncHealthReport report) {
+    final breakdown = report.entityBreakdown;
     if (breakdown.isEmpty) {
       return Card(
         child: Padding(
@@ -287,8 +265,8 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
     );
   }
 
-  Widget _buildTableSizesCard() {
-    final sizes = _report.tableSizes;
+  Widget _buildTableSizesCard(SyncHealthReport report) {
+    final sizes = report.tableSizes;
     final sorted = sizes.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     return Card(
@@ -329,8 +307,8 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
     );
   }
 
-  Widget _buildFkViolationsCard() {
-    final violations = _report.fkViolations;
+  Widget _buildFkViolationsCard(SyncHealthReport report) {
+    final violations = report.fkViolations;
     return Card(
       color: violations > 0
           ? Colors.red.withValues(alpha: 0.1)

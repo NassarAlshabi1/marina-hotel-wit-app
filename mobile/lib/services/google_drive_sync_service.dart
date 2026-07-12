@@ -26,28 +26,62 @@ const _kDefaultShardBytes = SyncConstants.googleDriveDefaultShardBytes;
 //  Isolate helpers — ترميز النسخة في خلفية isolate
 // ═══════════════════════════════════════════════════════════════
 
-class _ChecksumInput {
-  const _ChecksumInput({required this.tablesJson});
+class _SnapshotProcessInput {
+  const _SnapshotProcessInput({
+    required this.tablesJson,
+    required this.expectedVersion,
+    required this.nowIso,
+    required this.devicePriority,
+    required this.lastSyncId,
+    required this.deviceId,
+  });
   final Map<String, dynamic> tablesJson;
+  final int expectedVersion;
+  final String nowIso;
+  final int devicePriority;
+  final String lastSyncId;
+  final String deviceId;
 }
 
-class _ChecksumOutput {
-  const _ChecksumOutput({required this.checksum, required this.rawByteLength});
+class _SnapshotProcessOutput {
+  const _SnapshotProcessOutput({
+    required this.checksum,
+    required this.rawByteLength,
+    required this.compressedBytes,
+  });
   final String checksum;
   final int rawByteLength;
+  final Uint8List compressedBytes;
 }
 
-/// حساب checksum وطول raw في خلفية isolate
-_ChecksumOutput _computeChecksumInIsolate(_ChecksumInput input) {
-  final checksum = SyncChecksum.compute(input.tablesJson);
-  final rawByteLength = utf8.encode(jsonEncode(input.tablesJson)).length;
-  return _ChecksumOutput(checksum: checksum, rawByteLength: rawByteLength);
-}
+/// حساب checksum + طول البيانات + ضغط النسخة في isolate واحد
+/// لتجنب تسلسل الـ payload مرتين ونقلها مرة واحدة فقط.
+_SnapshotProcessOutput _processSnapshotInIsolate(_SnapshotProcessInput input) {
+  final result = SyncChecksum.computeWithLength(input.tablesJson);
 
-/// ترميز وضغط النسخة في خلفية isolate (json + gzip)
-Uint8List _compressSnapshotInIsolate(Map<String, dynamic> snapshotJson) {
-  final encoded = utf8.encode(jsonEncode(snapshotJson));
-  return Uint8List.fromList(gzip.encode(encoded));
+  final normalizedMetadata = SyncMetadata(
+    version: input.expectedVersion + 1,
+    lastUpdatedAt: input.nowIso,
+    devicePriority: input.devicePriority,
+    snapshotSize: result.rawByteLength,
+    lastSyncId: input.lastSyncId,
+    checksum: result.checksum,
+    lastDeviceId: input.deviceId,
+  );
+
+  final normalizedSnapshot = SyncSnapshot(
+    metadata: normalizedMetadata,
+    tables: SyncChecksum.normalize(input.tablesJson) as Map<String, List<Map<String, dynamic>>>,
+  );
+
+  final encoded = utf8.encode(jsonEncode(normalizedSnapshot.toJson()));
+  final compressed = Uint8List.fromList(gzip.encode(encoded));
+
+  return _SnapshotProcessOutput(
+    checksum: result.checksum,
+    rawByteLength: result.rawByteLength,
+    compressedBytes: compressed,
+  );
 }
 
 /// نتيجة التحميل من Google Drive بعد فك الضغط والتشفير
@@ -352,16 +386,23 @@ class GoogleDriveSyncService {
     final nowIso = DateTime.now().toUtc().toIso8601String();
     final tablesPayload = {'tables': snapshot.tables};
 
-    // Phase 1: حساب checksum وطول البيانات في خلفية isolate
-    final checksumResult = await Isolate.run(
-      () => _computeChecksumInIsolate(
-        _ChecksumInput(tablesJson: tablesPayload),
+    // حساب checksum + طول البيانات + ضغط النسخة في isolate واحد
+    // لتجنب تسلسل الـ payload مرتين ونقلها إلى isolate مرتين.
+    final processResult = await Isolate.run(
+      () => _processSnapshotInIsolate(
+        _SnapshotProcessInput(
+          tablesJson: tablesPayload,
+          expectedVersion: expectedVersion,
+          nowIso: nowIso,
+          devicePriority: snapshot.metadata.devicePriority,
+          lastSyncId: snapshot.metadata.lastSyncId,
+          deviceId: deviceId,
+        ),
       ),
     );
-    final checksum = checksumResult.checksum;
-    final rawLength = checksumResult.rawByteLength;
+    final checksum = processResult.checksum;
+    final rawLength = processResult.rawByteLength;
 
-    // Phase 2: بناء النسخة المُوحّدة بالبيانات الصحيحة
     final normalizedMetadata = SyncMetadata(
       version: expectedVersion + 1,
       lastUpdatedAt: nowIso,
@@ -372,17 +413,7 @@ class GoogleDriveSyncService {
       lastDeviceId: deviceId,
     );
 
-    final normalizedSnapshot = SyncSnapshot(
-      metadata: normalizedMetadata,
-      tables: snapshot.tables,
-    );
-
-    // Phase 3: ترميز وضغط في خلفية isolate (json + gzip)
-    final compressed = await Isolate.run(
-      () => _compressSnapshotInIsolate(normalizedSnapshot.toJson()),
-    );
-
-    final processed = await _encodePayload(compressed);
+    final processed = await _encodePayload(processResult.compressedBytes);
 
     final shards = _splitIntoShards(processed);
     final uploadedShards = await _uploadShards(

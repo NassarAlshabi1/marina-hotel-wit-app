@@ -10,7 +10,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import '../../components/app_scaffold.dart';
-import '../../providers/appwrite_providers.dart';
 import '../../providers/auto_sync_engine_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
@@ -726,10 +725,8 @@ class _SettingsMaintenanceScreenState
               Navigator.pop(ctx);
               _showLoading('جاري إعادة تعيين المزامنة...');
               try {
-                await ref.read(appwriteSyncManagerProvider).resetSyncState();
-                await ref.read(outboxDaoProvider).resetErrors();
-                await ref.read(unifiedSyncOrchestratorProvider).syncNow(
-                  reason: 'maintenance_reset',
+                await ref.read(maintenanceServiceProvider).resetSyncAndResync(
+                  resetOutboxErrors: () => ref.read(outboxDaoProvider).resetErrors(),
                 );
                 _hideLoading();
                 _showSnack('تم إعادة تعيين المزامنة بنجاح', color: Colors.green);

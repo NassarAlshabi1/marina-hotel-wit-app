@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
+import 'auto_backup_manager.dart';
 import 'unified_sync_orchestrator.dart';
 
 class CentralSyncCoordinator {
@@ -26,6 +27,16 @@ class CentralSyncCoordinator {
     _debounceTimer = Timer(unifiedDebounce, () async {
       await _performSync(reason: 'local_change:$table:$operation');
     });
+  }
+
+  /// إشعار موحد للأنظمة: يُبلغ AutoBackupManager ويلغي المزامنة التفاضلية.
+  /// يستبدل النمط المتكرر في الشاشات الذي يستدعي كل خدمة على حدة.
+  Future<void> notifyTableChange({
+    required String table,
+    required String operation,
+  }) async {
+    await AutoBackupManager.instance.onDataChange(table, operation);
+    notifyLocalChange(table: table, operation: operation);
   }
 
   Future<bool> syncNow({

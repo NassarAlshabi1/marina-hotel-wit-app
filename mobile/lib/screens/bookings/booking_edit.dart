@@ -1019,12 +1019,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       final roomsRepo = ref.read(roomsRepoProvider);
       await roomsRepo.refreshAllRoomOccupancy();
 
-      // إشعار أنظمة المزامنة والنسخ الاحتياطي بالتغييرات
-      await ref.read(autoBackupManagerProvider).onDataChange(
-        'rooms',
-        'batch_update_status',
-      );
-      ref.read(centralSyncCoordinatorProvider).notifyLocalChange(
+      // إشعار أنظمة المزامنة والنسخ الاحتياطي بالتغييرات (method واحد موحد)
+      await ref.read(centralSyncCoordinatorProvider).notifyTableChange(
         table: 'rooms',
         operation: 'batch_update_status',
       );
