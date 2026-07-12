@@ -17,8 +17,8 @@ import 'sync_constants.dart';
 import 'sync_locks.dart';
 import 'sync_notification_manager.dart';
 import 'sync_performance_optimizer.dart';
-import 'telegram/whatsapp_notification_service.dart';
 import 'telegram/telegram_notification_service.dart';
+import 'telegram/whatsapp_notification_service.dart';
 
 /// استراتيجيات حل التضارب
 enum ConflictResolution {
@@ -597,7 +597,7 @@ class SmartSyncManager {
     _log('❌ فشلت المزامنة التلقائية - إرسال إشعار خطأ');
 
     try {
-      final errorMsg = 'فشلت المزامنة التلقائية - خطأ غير متوقع';
+      const errorMsg = 'فشلت المزامنة التلقائية - خطأ غير متوقع';
 
       // إرسال عبر WhatsApp
       unawaited(WhatsAppNotificationService.instance.notifySyncError(

@@ -10,9 +10,9 @@ import '../../models/payment_models.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
-import '../../utils/stream_helpers.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
+import '../../utils/stream_helpers.dart';
 import '../../utils/time.dart';
 import '../payments/booking_checkout_screen.dart';
 
@@ -42,7 +42,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   void _initNotifiers() {
     final paymentsRepo = ref.read(paymentsRepoProvider);
     _paymentsNotifier = StreamToValueNotifier(
-      source: paymentsRepo.watchAll() as Stream<List<db.Payment>>,
+      source: paymentsRepo.watchAll(),
       debounce: const Duration(milliseconds: 150),
       initialValue: <db.Payment>[],
     );

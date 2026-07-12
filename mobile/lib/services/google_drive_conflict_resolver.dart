@@ -344,11 +344,17 @@ class GoogleDriveConflictResolver {
     for (final entry in resolutions) {
       if (!entry.resolved || entry.selectedRecord == null) continue;
       final tableName = _findTableName(entry.selectedRecord!, remoteData);
-      if (tableName == null) continue;
+      if (tableName == null) {
+        debugPrint('⚠️ mergeRecords: skipping resolution — table not found for record');
+        continue;
+      }
 
       final recordsList = (merged[tableName] as List<dynamic>?) ?? [];
-      final uuid = entry.selectedRecord!['local_uuid'];
-      if (uuid == null) continue;
+      final uuid = entry.selectedRecord!['local_uuid'] as String?;
+      if (uuid == null) {
+        debugPrint('⚠️ mergeRecords: skipping record in $tableName — missing local_uuid');
+        continue;
+      }
 
       if (!uuidIndex.containsKey(tableName)) {
         final map = <String, int>{};

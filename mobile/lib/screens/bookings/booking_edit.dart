@@ -8,7 +8,6 @@ import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/custom_list_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart';
-import '../../providers/auto_backup_provider.dart';
 import '../../providers/service_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/screen_sync_controller.dart';

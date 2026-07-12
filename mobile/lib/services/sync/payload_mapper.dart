@@ -331,7 +331,7 @@ class PayloadMapper {
     final now = Time.nowEpoch();
     // ✅ salary و basicSalary يجب أن تكونا دائماً قيمتين فعليتين (وليس null)
     // لأن Appwrite الثانوي يطلبهما كـ required. نضمن قيمة 0.0 كاحتياطي.
-    final basicSalary = employee.basicSalary ?? 0.0;
+    final basicSalary = employee.basicSalary;
     final data = <String, dynamic>{
       'name': employee.name,
       'basicSalary': basicSalary,

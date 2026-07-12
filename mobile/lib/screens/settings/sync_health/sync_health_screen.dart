@@ -8,6 +8,7 @@ import '../../../components/app_scaffold.dart';
 import '../../../core/core.dart';
 import '../../../providers/repository_providers.dart';
 import '../../../providers/service_providers.dart';
+import '../../../services/sync_health_monitor.dart';
 
 /// شاشة مراقبة صحة نظام المزامنة.
 ///

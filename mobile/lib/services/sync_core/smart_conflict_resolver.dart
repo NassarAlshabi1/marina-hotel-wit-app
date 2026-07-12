@@ -7,8 +7,6 @@
 // - تعديل نفس الحقول → طبّق سياسة الحقل (newerWins, concat, maxValue, إلخ)
 // - لا يوجد تصعيد يدوي — كل تعارض يُحل ويسجّل للتدقيق فقط
 
-import 'package:flutter/foundation.dart';
-
 import '../vector_clock_service.dart';
 import 'conflict_detector.dart';
 

@@ -206,7 +206,7 @@ class RoomsRepository {
   }
 
   Future<void> refreshAllRoomOccupancy({bool originIsServer = false}) async {
-    final activeStatuses = StatusUtils.activeBookingStatuses;
+    const activeStatuses = StatusUtils.activeBookingStatuses;
     final bookings = await (db.select(
       db.bookings,
     )..where((tbl) => tbl.deletedAt.isNull() & tbl.status.isIn(activeStatuses))).get();

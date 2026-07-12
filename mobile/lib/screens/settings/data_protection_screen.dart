@@ -4,9 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../providers/appwrite_providers.dart' as ap;
 import '../../providers/auto_backup_provider.dart';
+import '../../providers/auto_sync_engine_providers.dart';
 import '../../providers/backup_provider.dart';
 import '../../providers/smart_sync_provider.dart';
-import '../../providers/auto_sync_engine_providers.dart';
 import '../../services/alarm_backup.dart';
 import '../../services/smart_sync_manager.dart';
 import 'appwrite_settings_screen.dart';

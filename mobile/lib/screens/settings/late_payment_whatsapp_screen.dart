@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../providers/remote_config_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
-import '../../providers/remote_config_provider.dart';
 import '../../utils/currency_formatter.dart';
 
 /// شاشة إرسال تنبيه واتساب للمبالغ المتأخرة
