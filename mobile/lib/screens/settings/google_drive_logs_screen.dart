@@ -32,7 +32,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
     super.dispose();
   }
 
-  List<LogEntry> _filterLogs(List<LogEntry> logs) {edLogs(List<LogEntry> logs) {
+  List<LogEntry> _getFilteredLogs(List<LogEntry> logs) {
     if (_lastFilteredLogs != null &&
         identical(_lastLogs, logs) &&
         _lastFilterLevel == _filterLevel &&
