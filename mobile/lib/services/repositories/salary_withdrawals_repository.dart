@@ -73,12 +73,12 @@ class SalaryWithdrawalsRepository {
     // إشعارات فورية (fire-and-forget)
     unawaited(WhatsAppNotificationService.instance.notifyNewExpense(
       category: 'سحب راتب',
-      amount: amount.toDouble(),
+      amount: amount,
       description: reason,
     ));
     unawaited(TelegramNotificationService.instance.notifyNewExpense(
       category: 'سحب راتب',
-      amount: amount.toDouble(),
+      amount: amount,
       description: reason,
     ));
 
@@ -249,12 +249,12 @@ class SalaryWithdrawalsRepository {
         // إشعارات فورية (fire-and-forget) عند التحديث
         unawaited(WhatsAppNotificationService.instance.notifyNewExpense(
           category: 'سحب راتب',
-          amount: amount.toDouble(),
+          amount: amount,
           description: note ?? reasonText,
         ));
         unawaited(TelegramNotificationService.instance.notifyNewExpense(
           category: 'سحب راتب',
-          amount: amount.toDouble(),
+          amount: amount,
           description: note ?? reasonText,
         ));
       } else {
@@ -287,12 +287,12 @@ class SalaryWithdrawalsRepository {
         await _setExpenseIdRaw(newId, expenseId);
         unawaited(WhatsAppNotificationService.instance.notifyNewExpense(
           category: 'سحب راتب',
-          amount: amount.toDouble(),
+          amount: amount,
           description: note,
         ));
         unawaited(TelegramNotificationService.instance.notifyNewExpense(
           category: 'سحب راتب',
-          amount: amount.toDouble(),
+          amount: amount,
           description: note,
         ));
 

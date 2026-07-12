@@ -344,7 +344,6 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
         return Icons.warning_amber;
     }
   }
-  }
 
   void _showLogDetails(LogEntry log) {
     showModalBottomSheet<void>(

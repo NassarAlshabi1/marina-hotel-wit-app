@@ -159,10 +159,10 @@ class AutoBackupManager {
           await performDeltaSync();
         }
         if (_currentMode == BackupMode.fullBackup || _currentMode == BackupMode.both) {
-          _performAutoBackup(
+          unawaited(_performAutoBackup(
             reason: 'تغييرات مجمّعة',
             changesCount: _pendingChanges,
-          );
+          ),);
         }
         _pendingChanges = 0;
       }

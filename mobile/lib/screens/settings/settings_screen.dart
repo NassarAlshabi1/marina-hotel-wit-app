@@ -6,7 +6,6 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
 import '../../providers/theme_provider.dart';
-import '../../providers/service_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
 import '../ai/ai_chat_screen.dart';

@@ -211,4 +211,3 @@ final maintenanceRoomsCountProvider = Provider<int>((ref) {
         StatusUtils.isUnderMaintenance(r.room.status)).length ?? 0,
   ));
 });
-

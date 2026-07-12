@@ -14,6 +14,7 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/auto_sync_engine_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
+import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../services/sqlite_backup_restore.dart';
 import '../../utils/env.dart';

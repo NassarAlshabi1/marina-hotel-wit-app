@@ -755,20 +755,20 @@ class SecondarySyncResult {
     final buf = StringBuffer();
     buf.writeln('🔄 تقرير المزامنة الثانوية');
     buf.writeln('════════════════════════════');
-    buf.writeln('');
+    buf.writeln();
     final statusIcon = success ? '✅' : '❌';
     buf.writeln('$statusIcon الحالة: $message');
     buf.writeln('📤 تم الرفع: $pushed');
     buf.writeln('❌ فشل: $failed');
     buf.writeln('☠️ Dead: $dead');
-    buf.writeln('');
+    buf.writeln();
 
     if (failures.isNotEmpty) {
       buf.writeln('── تفاصيل الإخفاقات ──');
       for (final f in failures) {
         buf.writeln('  · [${f.entity}] ${f.localUuid}: ${f.reason}');
       }
-      buf.writeln('');
+      buf.writeln();
     }
 
     buf.writeln('🕐 ${DateTime.now().toLocal().toIso8601String()}');

@@ -347,7 +347,7 @@ class GoogleDriveConflictResolver {
       if (tableName == null) continue;
 
       final recordsList = (merged[tableName] as List<dynamic>?) ?? [];
-      final uuid = entry.selectedRecord!['local_uuid'];
+      final uuid = entry.selectedRecord!['local_uuid'] as String?;
       if (uuid == null) continue;
 
       if (!uuidIndex.containsKey(tableName)) {

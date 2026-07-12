@@ -114,16 +114,16 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                   // ✅ معالجة حالة الخطأ قبل ConnectionState.waiting — بدونها
                   // قد لا يظهر للمستخدم أي feedback عند انفجار الـ stream.
                   if (snapshot.hasError) {
-                    return Center(
+                    return const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                          const SizedBox(height: 16),
-                          const Text('حدث خطأ أثناء تحميل المدفوعات',
+                          Icon(Icons.error_outline, size: 64, color: Colors.red),
+                          SizedBox(height: 16),
+                          Text('حدث خطأ أثناء تحميل المدفوعات',
                               style: TextStyle(fontSize: 16)),
-                          const SizedBox(height: 8),
-                          const Text('تحقّق من اتصال الشبكة وحاول مرة أخرى.',
+                          SizedBox(height: 8),
+                          Text('تحقّق من اتصال الشبكة وحاول مرة أخرى.',
                               style: TextStyle(fontSize: 12, color: Colors.grey),
                               textAlign: TextAlign.center),
                         ],
