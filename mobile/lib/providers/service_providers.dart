@@ -37,11 +37,13 @@ import '../services/connectivity_service.dart';
 import '../services/crashlytics_service.dart';
 import '../services/data_usage_manager.dart';
 import '../services/gemini_service.dart';
+import '../services/maintenance_service.dart';
 import '../services/night_audit_service.dart';
 import '../services/secondary_backup_service.dart';
 import '../services/sync_health_monitor.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/sync_performance_optimizer.dart';
+import 'repository_providers.dart';
 
 // إعادة تصدير appwriteServiceProvider من appwrite_providers لتجنب التعارض
 // لأنه مُعرَّف هناك بالفعل مع مزودات أخرى تعتمد عليه.
@@ -57,7 +59,9 @@ export 'repository_providers.dart' show diagnosticsLoggerProvider;
 // مزود خدمة التحليلات
 // ============================================================================
 final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
-  return AnalyticsService();
+  final service = AnalyticsService();
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 // ============================================================================
@@ -73,49 +77,63 @@ final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
 // مزود خدمة Gemini AI
 // ============================================================================
 final geminiServiceProvider = Provider<GeminiService>((ref) {
-  return GeminiService.instance;
+  final service = GeminiService.instance;
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 // ============================================================================
 // مزود خدمة Crashlytics
 // ============================================================================
 final crashlyticsServiceProvider = Provider<CrashlyticsService>((ref) {
-  return CrashlyticsService.instance;
+  final service = CrashlyticsService.instance;
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 // ============================================================================
 // مزود خدمة التدقيق الليلي
 // ============================================================================
 final nightAuditServiceProvider = Provider<NightAuditService>((ref) {
-  return NightAuditService.instance;
+  final service = NightAuditService.instance;
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 // ============================================================================
 // مزود منسق المزامنة العام
 // ============================================================================
 final syncOrchestratorProvider = Provider<SyncOrchestrator>((ref) {
-  return SyncOrchestrator.instance;
+  final service = SyncOrchestrator.instance;
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 // ============================================================================
 // مزود مُحسّن أداء المزامنة
 // ============================================================================
 final syncPerformanceOptimizerProvider = Provider<SyncPerformanceOptimizer>((ref) {
-  return SyncPerformanceOptimizer.instance;
+  final service = SyncPerformanceOptimizer.instance;
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 // ============================================================================
 // مزود مُدير استخدام البيانات
 // ============================================================================
 final dataUsageManagerProvider = Provider<DataUsageManager>((ref) {
-  return DataUsageManager.instance;
+  final service = DataUsageManager.instance;
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 // ============================================================================
 // مزود منسق المزامنة المركزي
 // ============================================================================
 final centralSyncCoordinatorProvider = Provider<CentralSyncCoordinator>((ref) {
-  return CentralSyncCoordinator.instance;
+  final service = CentralSyncCoordinator.instance;
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 // ============================================================================
@@ -129,5 +147,24 @@ final syncHealthMonitorProvider = Provider<SyncHealthMonitor>((ref) {
 // مزود خدمة النسخ الاحتياطي الثانوي
 // ============================================================================
 final secondaryBackupServiceProvider = Provider<SecondaryBackupService>((ref) {
-  return SecondaryBackupService.instance;
+  final service = SecondaryBackupService.instance;
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+// ============================================================================
+// مزود خدمة الصيانة
+// ============================================================================
+final maintenanceServiceProvider = Provider<MaintenanceService>((ref) {
+  return MaintenanceService.instance;
+});
+
+// ============================================================================
+// مزود تقرير صحة المزامنة
+// ============================================================================
+final syncHealthReportProvider =
+    FutureProvider.autoDispose<SyncHealthReport>((ref) async {
+  final db = ref.read(databaseProvider);
+  final monitor = ref.read(syncHealthMonitorProvider);
+  return monitor.getHealthReport(db);
 });
