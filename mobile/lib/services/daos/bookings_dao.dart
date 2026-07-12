@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 
 import '../../utils/id.dart';
@@ -5,6 +7,7 @@ import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 import '../appwrite_sync_manager.dart';
+import '../fcm_sender.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
@@ -112,6 +115,15 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
           serverId: comp.serverId.present ? comp.serverId.value : null,
           clientTs: now,
         );
+        // ✅ FCM: إشعار الأجهزة الأخرى بإنشاء حجز جديد (fire-and-forget)
+        if (comp.roomNumber.present && comp.guestName.present) {
+          unawaited(
+            FcmSender().notifyBookingCreated(
+              roomNumber: comp.roomNumber.value,
+              guestName: comp.guestName.value,
+            ),
+          );
+        }
       }
       return id;
     });

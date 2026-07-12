@@ -1,4 +1,6 @@
 // ignore_for_file: comment_references
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 
 import '../../utils/id.dart';
@@ -6,6 +8,7 @@ import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 import '../appwrite_sync_manager.dart';
+import '../fcm_sender.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
@@ -275,6 +278,27 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
           serverId: comp.serverId.present ? comp.serverId.value : null,
           clientTs: now,
         );
+        // ✅ FCM: إشعار الأجهزة الأخرى بدفعة جديدة (fire-and-forget)
+        if (comp.amount.present) {
+          // قراءة roomNumber من booking المرتبط (اختياري،best-effort)
+          String? roomNumber;
+          if (comp.bookingLocalId.present && comp.bookingLocalId.value != null) {
+            try {
+              final booking = await (db.select(db.bookings)
+                    ..where((b) => b.id.equals(comp.bookingLocalId.value!)))
+                  .getSingleOrNull();
+              roomNumber = booking?.roomNumber;
+            } catch (_) {
+              // تجاهل — roomNumber اختياري في الإشعار
+            }
+          }
+          unawaited(
+            FcmSender().notifyPaymentAdded(
+              amount: comp.amount.value,
+              roomNumber: roomNumber ?? 'غير محدد',
+            ),
+          );
+        }
       }
       return id;
     });

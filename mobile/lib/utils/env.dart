@@ -93,6 +93,19 @@ class Env {
   );
 
   // ═══════════════════════════════════════════════════════════════
+  //  FCM Server Key (للإرسال المباشر من التطبيق)
+  // ═══════════════════════════════════════════════════════════════
+  // ⚠️ أمني: هذا المفتاح حساس! احصل عليه من:
+  // Firebase Console → Project Settings → Cloud Messaging → Server Key
+  // مرّره عبر --dart-define=FCM_SERVER_KEY=your_key
+  //
+  // ملاحظة: Legacy Server Key مُهمَل من Google لكنه يعمل للإرسال المباشر.
+  // للإنتاج، استبدل هذا بـ Appwrite Function + Firebase Admin SDK.
+  static const String fcmServerKey = String.fromEnvironment(
+    'FCM_SERVER_KEY',
+  );
+
+  // ═══════════════════════════════════════════════════════════════
   //  Convenience checks
   // ═══════════════════════════════════════════════════════════════
 
@@ -113,4 +126,7 @@ class Env {
 
   /// هل تم تكوين AgentRouter AI؟
   static bool get isAgentRouterConfigured => agentRouterApiKey.isNotEmpty;
+
+  /// هل تم تكوين FCM للإرسال المباشر؟
+  static bool get isFcmSendConfigured => fcmServerKey.isNotEmpty;
 }

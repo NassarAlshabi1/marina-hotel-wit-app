@@ -1,4 +1,6 @@
 // ignore_for_file: comment_references
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 
 import '../../utils/id.dart';
@@ -6,6 +8,7 @@ import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 import '../appwrite_sync_manager.dart';
+import '../fcm_sender.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
@@ -252,6 +255,17 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
           serverId: comp.serverId.present ? comp.serverId.value : null,
           clientTs: now,
         );
+        // ✅ FCM: إشعار الأجهزة الأخرى بمصروف جديد (fire-and-forget)
+        if (comp.amount.present) {
+          unawaited(
+            FcmSender().notifyExpenseAdded(
+              amount: comp.amount.value,
+              expenseType: comp.expenseType.present
+                  ? comp.expenseType.value
+                  : 'مصروف',
+            ),
+          );
+        }
       }
       return id;
     });
