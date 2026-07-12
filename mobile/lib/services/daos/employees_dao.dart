@@ -20,6 +20,8 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
   Future<List<Employee>> list({
     String? search,
     bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
   }) async {
     final q = select(employees);
     if (!includeDeleted) {
@@ -29,12 +31,17 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       final s = '%${search.trim()}%';
       q.where((t) => t.name.like(s) | t.status.like(s));
     }
+    if (limit != null) {
+      q.limit(limit, offset: offset);
+    }
     return q.get();
   }
 
   Stream<List<Employee>> watchList({
     String? search,
     bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
   }) {
     final q = select(employees);
     if (!includeDeleted) {
@@ -43,6 +50,9 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.name.like(s) | t.status.like(s));
+    }
+    if (limit != null) {
+      q.limit(limit, offset: offset);
     }
     return q.watch();
   }
@@ -301,33 +311,35 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     List<Map<String, dynamic>> data, {
     bool clearExisting = false,
   }) async {
-    if (clearExisting) {
-      await delete(employees).go();
-    }
+    await transaction(() async {
+      if (clearExisting) {
+        await delete(employees).go();
+      }
 
-    for (final employeeJson in data) {
-      final employee = Employee.fromJson(employeeJson);
-      await into(employees).insertOnConflictUpdate(
-        EmployeesCompanion(
-          name: Value(employee.name),
-          basicSalary: Value(employee.basicSalary),
-          position: Value(employee.position),
-          phone: Value(employee.phone),
-          hireDate: Value(employee.hireDate),
-          status: Value(employee.status),
-          terminationDate: Value(employee.terminationDate),
-          terminationReason: Value(employee.terminationReason),
-          localUuid: Value(employee.localUuid),
-          serverId: Value(employee.serverId),
-          createdAt: Value(employee.createdAt),
-          updatedAt: Value(employee.updatedAt),
-          deletedAt: Value(employee.deletedAt),
-          lastModified: Value(employee.lastModified),
-          version: Value(employee.version),
-          origin: Value(employee.origin),
-        ),
-      );
-    }
+      for (final employeeJson in data) {
+        final employee = Employee.fromJson(employeeJson);
+        await into(employees).insertOnConflictUpdate(
+          EmployeesCompanion(
+            name: Value(employee.name),
+            basicSalary: Value(employee.basicSalary),
+            position: Value(employee.position),
+            phone: Value(employee.phone),
+            hireDate: Value(employee.hireDate),
+            status: Value(employee.status),
+            terminationDate: Value(employee.terminationDate),
+            terminationReason: Value(employee.terminationReason),
+            localUuid: Value(employee.localUuid),
+            serverId: Value(employee.serverId),
+            createdAt: Value(employee.createdAt),
+            updatedAt: Value(employee.updatedAt),
+            deletedAt: Value(employee.deletedAt),
+            lastModified: Value(employee.lastModified),
+            version: Value(employee.version),
+            origin: Value(employee.origin),
+          ),
+        );
+      }
+    });
   }
 
   /// الحصول على عدد السجلات

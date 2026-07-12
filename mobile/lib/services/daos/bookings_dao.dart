@@ -62,6 +62,8 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     String? roomNumber,
     String? status,
     bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
   }) {
     final q = select(bookings);
     if (!includeDeleted) {
@@ -76,6 +78,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     q.orderBy([
       (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),
     ]);
+    if (limit != null) {
+      q.limit(limit, offset: offset);
+    }
     return q.watch();
   }
 
@@ -257,64 +262,66 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     List<Map<String, dynamic>> data, {
     bool clearExisting = false,
   }) async {
-    if (clearExisting) {
-      await delete(bookings).go();
-    }
+    await transaction(() async {
+      if (clearExisting) {
+        await delete(bookings).go();
+      }
 
-    for (final bookingJson in data) {
-      final booking = Booking.fromJson(bookingJson);
-      await into(bookings).insertOnConflictUpdate(
-        BookingsCompanion(
-          id: Value(booking.id),
-          serverBookingId: Value(booking.serverBookingId),
-          roomNumber: Value(booking.roomNumber),
-          guestName: Value(booking.guestName),
-          guestPhone: Value(booking.guestPhone),
-          guestIdType: Value(booking.guestIdType),
-          guestIdNumber: Value(booking.guestIdNumber),
-          guestIdIssueDate: Value(booking.guestIdIssueDate),
-          guestIdIssuePlace: Value(booking.guestIdIssuePlace),
-          guestNationality: Value(booking.guestNationality),
-          guestEmail: Value(booking.guestEmail),
-          guestAddress: Value(booking.guestAddress),
-          checkinDate: Value(booking.checkinDate),
-          checkoutDate: Value(booking.checkoutDate),
-          actualCheckout: Value(booking.actualCheckout),
-          status: Value(booking.status),
-          notes: Value(booking.notes),
-          expectedNights: Value(booking.expectedNights),
-          calculatedNights: Value(booking.calculatedNights),
-          localUuid: Value(booking.localUuid),
-          serverId: Value(booking.serverId),
-          createdAt: Value(booking.createdAt),
-          updatedAt: Value(booking.updatedAt),
-          deletedAt: Value(booking.deletedAt),
-          lastModified: Value(booking.lastModified),
-          version: Value(booking.version),
-          origin: Value(booking.origin),
-          discount: Value(booking.discount),
-          discountType: Value(booking.discountType),
-          discountStartDate: Value(booking.discountStartDate),
-          totalNightsCached: Value(booking.totalNightsCached),
-          totalDueCached: Value(booking.totalDueCached),
-          totalPaidCached: Value(booking.totalPaidCached),
-          remainingBalanceCached: Value(booking.remainingBalanceCached),
-          isFullyPaid: Value(booking.isFullyPaid),
-          hotelDayCheckin: Value(booking.hotelDayCheckin),
-          hotelDayCheckout: Value(booking.hotelDayCheckout),
-          stayDurationIso: Value(booking.stayDurationIso),
-          lastNightEpoch: Value(booking.lastNightEpoch),
-          isOverdue: Value(booking.isOverdue),
-          needsCheckoutReview: Value(booking.needsCheckoutReview),
-          createdAtIso: Value(booking.createdAtIso),
-          updatedAtIso: Value(booking.updatedAtIso),
-          deletedAtIso: Value(booking.deletedAtIso),
-          createdAtEpoch: Value(booking.createdAtEpoch),
-          lastModifiedEpoch: Value(booking.lastModifiedEpoch),
-          vectorClock: Value(booking.vectorClock),
-        ),
-      );
-    }
+      for (final bookingJson in data) {
+        final booking = Booking.fromJson(bookingJson);
+        await into(bookings).insertOnConflictUpdate(
+          BookingsCompanion(
+            id: Value(booking.id),
+            serverBookingId: Value(booking.serverBookingId),
+            roomNumber: Value(booking.roomNumber),
+            guestName: Value(booking.guestName),
+            guestPhone: Value(booking.guestPhone),
+            guestIdType: Value(booking.guestIdType),
+            guestIdNumber: Value(booking.guestIdNumber),
+            guestIdIssueDate: Value(booking.guestIdIssueDate),
+            guestIdIssuePlace: Value(booking.guestIdIssuePlace),
+            guestNationality: Value(booking.guestNationality),
+            guestEmail: Value(booking.guestEmail),
+            guestAddress: Value(booking.guestAddress),
+            checkinDate: Value(booking.checkinDate),
+            checkoutDate: Value(booking.checkoutDate),
+            actualCheckout: Value(booking.actualCheckout),
+            status: Value(booking.status),
+            notes: Value(booking.notes),
+            expectedNights: Value(booking.expectedNights),
+            calculatedNights: Value(booking.calculatedNights),
+            localUuid: Value(booking.localUuid),
+            serverId: Value(booking.serverId),
+            createdAt: Value(booking.createdAt),
+            updatedAt: Value(booking.updatedAt),
+            deletedAt: Value(booking.deletedAt),
+            lastModified: Value(booking.lastModified),
+            version: Value(booking.version),
+            origin: Value(booking.origin),
+            discount: Value(booking.discount),
+            discountType: Value(booking.discountType),
+            discountStartDate: Value(booking.discountStartDate),
+            totalNightsCached: Value(booking.totalNightsCached),
+            totalDueCached: Value(booking.totalDueCached),
+            totalPaidCached: Value(booking.totalPaidCached),
+            remainingBalanceCached: Value(booking.remainingBalanceCached),
+            isFullyPaid: Value(booking.isFullyPaid),
+            hotelDayCheckin: Value(booking.hotelDayCheckin),
+            hotelDayCheckout: Value(booking.hotelDayCheckout),
+            stayDurationIso: Value(booking.stayDurationIso),
+            lastNightEpoch: Value(booking.lastNightEpoch),
+            isOverdue: Value(booking.isOverdue),
+            needsCheckoutReview: Value(booking.needsCheckoutReview),
+            createdAtIso: Value(booking.createdAtIso),
+            updatedAtIso: Value(booking.updatedAtIso),
+            deletedAtIso: Value(booking.deletedAtIso),
+            createdAtEpoch: Value(booking.createdAtEpoch),
+            lastModifiedEpoch: Value(booking.lastModifiedEpoch),
+            vectorClock: Value(booking.vectorClock),
+          ),
+        );
+      }
+    });
   }
 
   /// الحصول على عدد السجلات

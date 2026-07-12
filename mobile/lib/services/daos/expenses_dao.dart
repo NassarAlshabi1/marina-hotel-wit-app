@@ -154,10 +154,17 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
-  Stream<List<Expense>> watchList({bool includeDeleted = false}) {
+  Stream<List<Expense>> watchList({
+    bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
+  }) {
     final q = select(expenses);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
+    }
+    if (limit != null) {
+      q.limit(limit, offset: offset);
     }
     return q.watch();
   }

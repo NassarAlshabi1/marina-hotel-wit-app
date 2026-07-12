@@ -234,10 +234,9 @@ final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
   final expensesRepo = ref.watch(expensesRepoProvider);
   // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
   final hotelDay = HotelTimeEngine.getHotelDayKey();
-  // الفلتر على مستوى قاعدة البيانات — لا نحمّل جميع المصروفات
-  return expensesRepo.watchByHotelDayKey(hotelDay).map((expenses) {
-    return expenses.fold<double>(0, (sum, e) => sum + e.amount);
-  });
+  // ✅ SQL SUM() على مستوى قاعدة البيانات بدلاً من تحميل جميع المصروفات
+  // وجمعها في Dart. أداء أفضل بشكل ملحوظ خاصةً مع نمو البيانات.
+  return expensesRepo.watchTotalByHotelDayKey(hotelDay);
 });
 
 final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {

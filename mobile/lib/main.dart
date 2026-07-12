@@ -83,38 +83,35 @@ Future<void> main() async {
     debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
   }
 
-  // ─── Critical services: لفّ في try-catch لمنع crash كامل للتطبيق عند فشل أي
-  //     خدمة فرعية. كل خدمة هنا optional — التطبيق يكمل بدونها بقيم default.
-  //     (البوت ركّز على DiagnosticsLogger/ApiConfigService فقط، لكن نفس النمط
-  //     ينطبق على CrashlyticsService و RemoteConfigService.)
-  try {
-    await CrashlyticsService.instance.initialize();
-  } catch (e, stack) {
-    debugPrint('⚠️ CrashlyticsService initialization failed: $e\n$stack');
-  }
-
   // ─── SecondaryAppwriteConfig: تهيئة SharedPreferences قبل أي وصول للإعدادات ───
   // ⚠️ هذه SERVICE إلزامية — فشلها يعني فشل وصول كامل للإعدادات لاحقاً، فلا نلفّها
   // في try-catch (نُفضّل crash مبكر واضح على crash متأخر غامض عند أول وصول لـ prefs).
+  // يجب أن تنتهي قبل باقي الخدمات لأنها تُهيّئ SharedPreferences الذي تعتمد عليه
+  // بقية الخدمات (RemoteConfigService، ApiConfigService، DiagnosticsLogger).
   await SecondaryAppwriteConfig.ensureInitialized();
 
-  try {
-    await RemoteConfigService.instance.initialize();
-  } catch (e, stack) {
-    debugPrint('⚠️ RemoteConfigService initialization failed: $e — using defaults\n$stack');
-  }
-
-  // ✅ DiagnosticsLogger + ApiConfigService: نفس النمط — optional services.
-  try {
-    await DiagnosticsLogger.instance.initialize();
-  } catch (e, stack) {
-    debugPrint('⚠️ DiagnosticsLogger initialization failed: $e\n$stack');
-  }
-  try {
-    await ApiConfigService.instance.initialize();
-  } catch (e, stack) {
-    debugPrint('⚠️ ApiConfigService initialization failed: $e\n$stack');
-  }
+  // ─── Parallel initialization of optional services ───
+  // بعد اكتمال SecondaryAppwriteConfig (إلزامية)، نشغّل بقية الخدمات optional
+  // بالتوازي عبر Future.wait لتسريع إقلاع التطبيق. كل خدمة معزولة في try-catch
+  // محلياً لضمان استمرار التطبيق حتى لو فشلت إحداها.
+  await Future.wait<void>([
+    _safeInit(
+      'CrashlyticsService',
+      () => CrashlyticsService.instance.initialize(),
+    ),
+    _safeInit(
+      'RemoteConfigService',
+      () => RemoteConfigService.instance.initialize(),
+    ),
+    _safeInit(
+      'DiagnosticsLogger',
+      () => DiagnosticsLogger.instance.initialize(),
+    ),
+    _safeInit(
+      'ApiConfigService',
+      () => ApiConfigService.instance.initialize(),
+    ),
+  ]);
 
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)
   // ✅ catchError بدلاً من unawaited المُجرّد — لو فشل initAlarmSystem، نسجّل
@@ -181,6 +178,16 @@ Future<void> main() async {
 
   // ✅ بدء فحص صحة الوجهتين بشكل دوري (Failover detection)
   _startHealthChecker();
+}
+
+/// تهيئة آمنة لخدمة اختيارية — تلتقط الأخطاء وتسجّلها بدلاً من تعطيل التطبيق.
+/// تُستخدم مع Future.wait لتشغيل عدة خدمات بالتوازي أثناء إقلاع التطبيق.
+Future<void> _safeInit(String label, Future<void> Function() init) async {
+  try {
+    await init();
+  } catch (e, stack) {
+    debugPrint('⚠️ $label initialization failed: $e\n$stack');
+  }
 }
 
 /// بدء فحص صحة Primary و Secondary كل 30 ثانية.

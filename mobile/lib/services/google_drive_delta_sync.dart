@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
@@ -278,7 +280,8 @@ class GoogleDriveDeltaSync {
         '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
     final timeStr =
         '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}${now.millisecond.toString().padLeft(3, '0')}';
-    return '$deltaSyncPrefix${dateStr}_$timeStr.json';
+    // ✅ تغيير الامتداد من .json إلى .json.gz ليعكس الضغط الفعلي
+    return '$deltaSyncPrefix${dateStr}_$timeStr.json.gz';
   }
 
   Future<void> _uploadDeltaFile(
@@ -287,20 +290,27 @@ class GoogleDriveDeltaSync {
   ) async {
     final jsonStr = jsonEncode(payload);
     final bytes = utf8.encode(jsonStr);
+    // ✅ ضغط gzip — يقلّل حجم الملف 3-5 أضعاف، مطابق لـ uploadSnapshot() في
+    // google_drive_sync_service.dart. يقلل استهلاك الشبكة و storage على Drive.
+    final compressed = Uint8List.fromList(gzip.encode(bytes));
 
     await _driveService!.uploadBackupWithName(
       fileName,
-      bytes,
+      compressed,
       appProperties: {
         'type': 'delta_sync',
         'device_id': _deviceId ?? '',
         'changes_count': payload['changes_count'].toString(),
+        'content_encoding': 'gzip',
       },
     );
   }
 
   Future<Map<String, dynamic>?> _downloadDeltaFile(String fileId) async {
     try {
+      // ✅ downloadBackup يكتشف gzip magic bytes (0x1f 0x8b) تلقائياً ويفك الضغط
+      // بشفافية، مع دعم النسخ القديمة غير المضغوطة. لذا لا حاجة لأي معالجة إضافية
+      // هنا — الرفع المضغوط والتنزيل متوافقان تلقائياً.
       return await _driveService!.downloadBackup(fileId);
     } catch (e) {
       debugPrint('⚠️ خطأ في تحميل ملف المزامنة: $e');

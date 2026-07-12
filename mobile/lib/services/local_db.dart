@@ -2392,47 +2392,46 @@ class AppDatabase extends _$AppDatabase {
   );
 
   /// تجميع جميع الجداول المطلوب مزامنتها في خريطة JSON
+  ///
+  /// ✅ تحسين: استخراج JSON mapping إلى مساعد `_tableToJson` لتقليل duplication
+  /// ولتمكين إضافة pagination أو lazy loading مستقبلاً بشكل مركزي.
+  /// ملاحظة: sqflite يُنفّذ الاستعلامات تسلسلياً على نفس الاتصال، لذا البقاء
+  /// بالترتيب التسلسلي هو الأضمن. للتحسين المستقبلي: نقل هذه الدالة بالكامل
+  /// إلى Isolate (انظر توصية P3-15 في تقرير الأداء).
   Future<Map<String, dynamic>> getAllTablesAsJson() async {
-    final roomsData = await select(rooms).get();
-    final bookingsData = await select(bookings).get();
-    final bookingNotesData = await select(bookingNotes).get();
-    final shiftNotesData = await select(shiftNotes).get();
-    final employeesData = await select(employees).get();
-    final expensesData = await select(expenses).get();
-    final cashTransactionsData = await select(cashTransactions).get();
-    final paymentsData = await select(payments).get();
-    final debtsData = await select(debts).get();
-    final bookingNightsData = await select(bookingNights).get();
-    final ledgerData = await select(hotelDayLedger).get();
-    final autoFixRunsData = await select(autoFixRuns).get();
-    final violationsData = await select(integrityViolations).get();
-    final sessionsData = await select(appSessions).get();
-    final salaryCyclesData = await select(salaryCycles).get();
-    final salaryPaymentsData = await select(salaryPayments).get();
-    final bookingPriceAdjustmentsData = await select(bookingPriceAdjustments).get();
-
     return {
-      'rooms': roomsData.map((e) => e.toJson()).toList(),
-      'bookings': bookingsData.map((e) => e.toJson()).toList(),
-      'booking_notes': bookingNotesData.map((e) => e.toJson()).toList(),
-      'shift_notes': shiftNotesData.map((e) => e.toJson()).toList(),
-      'employees': employeesData.map((e) => e.toJson()).toList(),
-      'expenses': expensesData.map((e) => e.toJson()).toList(),
-      'cash_transactions': cashTransactionsData.map((e) => e.toJson()).toList(),
-      'payments': paymentsData.map((e) => e.toJson()).toList(),
-      'debts': debtsData.map((e) => e.toJson()).toList(),
-      'booking_nights': bookingNightsData.map((e) => e.toJson()).toList(),
-      'hotel_day_ledger': ledgerData.map((e) => e.toJson()).toList(),
-      'auto_fix_runs': autoFixRunsData.map((e) => e.toJson()).toList(),
-      'integrity_violations': violationsData.map((e) => e.toJson()).toList(),
-      'app_sessions': sessionsData.map((e) => e.toJson()).toList(),
-      'salary_cycles': salaryCyclesData.map((e) => e.toJson()).toList(),
-      'salary_payments': salaryPaymentsData.map((e) => e.toJson()).toList(),
-      'booking_price_adjustments': bookingPriceAdjustmentsData.map((e) => e.toJson()).toList(),
+      'rooms': await _tableToJson(rooms),
+      'bookings': await _tableToJson(bookings),
+      'booking_notes': await _tableToJson(bookingNotes),
+      'shift_notes': await _tableToJson(shiftNotes),
+      'employees': await _tableToJson(employees),
+      'expenses': await _tableToJson(expenses),
+      'cash_transactions': await _tableToJson(cashTransactions),
+      'payments': await _tableToJson(payments),
+      'debts': await _tableToJson(debts),
+      'booking_nights': await _tableToJson(bookingNights),
+      'hotel_day_ledger': await _tableToJson(hotelDayLedger),
+      'auto_fix_runs': await _tableToJson(autoFixRuns),
+      'integrity_violations': await _tableToJson(integrityViolations),
+      'app_sessions': await _tableToJson(appSessions),
+      'salary_cycles': await _tableToJson(salaryCycles),
+      'salary_payments': await _tableToJson(salaryPayments),
+      'booking_price_adjustments': await _tableToJson(bookingPriceAdjustments),
       'guests': <Map<String, dynamic>>[],
       'services': <Map<String, dynamic>>[],
       'settings': <Map<String, dynamic>>[],
     };
+  }
+
+  /// مساعد داخلي: تنفيذ SELECT على جدول وإرجاع صفوفه كـ List<Map<String, dynamic>>.
+  /// يعزل منطق JSON serialization عن الاستعلام لتسهيل الصيانة والتحسين المستقبلي.
+  Future<List<Map<String, dynamic>>> _tableToJson<T extends Table>(
+    TableInfo<T, dynamic> table,
+  ) async {
+    final rows = await select(table).get();
+    return rows
+        .map((e) => (e as dynamic).toJson() as Map<String, dynamic>)
+        .toList();
   }
 
   /// تطبيق البيانات المدمجة على قاعدة البيانات المحلية داخل معاملة واحدة

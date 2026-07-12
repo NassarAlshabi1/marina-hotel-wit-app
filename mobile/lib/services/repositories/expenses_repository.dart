@@ -294,6 +294,24 @@ class ExpensesRepository {
     return (result.data['total'] as num).toDouble();
   }
 
+  /// مراقبة إجمالي المصروفات ليوم فندقي محدد عبر SQL SUM() — أداء أفضل
+  /// من تحميل جميع المصروفات ثم جمعها في Dart. يُحدَّث تلقائياً عند أي تغيير
+  /// في جدول المصروفات بفضل Stream من Drift customSelectStream.
+  Stream<double> watchTotalByHotelDayKey(String hotelDayKey) {
+    return db
+        .customSelect(
+          'SELECT COALESCE(SUM(amount), 0.0) AS total FROM expenses '
+          'WHERE deleted_at IS NULL AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND date LIKE ?))',
+          variables: [
+            d.Variable.withString(hotelDayKey),
+            d.Variable.withString('$hotelDayKey%'),
+          ],
+          readsFrom: {db.expenses},
+        )
+        .watchSingle()
+        .map((result) => (result.data['total'] as num).toDouble());
+  }
+
   /// إصلاح سجلات المصروفات القديمة التي تحتوي على hotelDayKey خاطئ
   /// (كان يُعيَّن بالتاريخ التقويمي بدلاً من مفتاح اليوم الفندقي)
   ///

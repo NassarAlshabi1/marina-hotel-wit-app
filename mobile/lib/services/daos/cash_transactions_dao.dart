@@ -71,10 +71,17 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
-  Stream<List<CashTransaction>> watchList({bool includeDeleted = false}) {
+  Stream<List<CashTransaction>> watchList({
+    bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
+  }) {
     final q = select(cashTransactions);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
+    }
+    if (limit != null) {
+      q.limit(limit, offset: offset);
     }
     return q.watch();
   }
@@ -373,33 +380,35 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     List<Map<String, dynamic>> data, {
     bool clearExisting = false,
   }) async {
-    if (clearExisting) {
-      await delete(cashTransactions).go();
-    }
+    await transaction(() async {
+      if (clearExisting) {
+        await delete(cashTransactions).go();
+      }
 
-    for (final transactionJson in data) {
-      final transaction = CashTransaction.fromJson(transactionJson);
-      await into(cashTransactions).insertOnConflictUpdate(
-        CashTransactionsCompanion(
-          registerId: Value(transaction.registerId),
-          transactionType: Value(transaction.transactionType),
-          amount: Value(transaction.amount),
-          referenceType: Value(transaction.referenceType),
-          referenceId: Value(transaction.referenceId),
-          description: Value(transaction.description),
-          transactionTime: Value(transaction.transactionTime),
-          createdBy: Value(transaction.createdBy),
-          localUuid: Value(transaction.localUuid),
-          serverId: Value(transaction.serverId),
-          createdAt: Value(transaction.createdAt),
-          updatedAt: Value(transaction.updatedAt),
-          deletedAt: Value(transaction.deletedAt),
-          lastModified: Value(transaction.lastModified),
-          version: Value(transaction.version),
-          origin: Value(transaction.origin),
-        ),
-      );
-    }
+      for (final transactionJson in data) {
+        final transaction = CashTransaction.fromJson(transactionJson);
+        await into(cashTransactions).insertOnConflictUpdate(
+          CashTransactionsCompanion(
+            registerId: Value(transaction.registerId),
+            transactionType: Value(transaction.transactionType),
+            amount: Value(transaction.amount),
+            referenceType: Value(transaction.referenceType),
+            referenceId: Value(transaction.referenceId),
+            description: Value(transaction.description),
+            transactionTime: Value(transaction.transactionTime),
+            createdBy: Value(transaction.createdBy),
+            localUuid: Value(transaction.localUuid),
+            serverId: Value(transaction.serverId),
+            createdAt: Value(transaction.createdAt),
+            updatedAt: Value(transaction.updatedAt),
+            deletedAt: Value(transaction.deletedAt),
+            lastModified: Value(transaction.lastModified),
+            version: Value(transaction.version),
+            origin: Value(transaction.origin),
+          ),
+        );
+      }
+    });
   }
 
   /// الحصول على عدد السجلات

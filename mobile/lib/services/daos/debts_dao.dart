@@ -46,7 +46,11 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     return query.get();
   }
 
-  Stream<List<Debt>> watchList({bool includeDeleted = false}) {
+  Stream<List<Debt>> watchList({
+    bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
+  }) {
     final query = select(debts);
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
@@ -54,6 +58,9 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     query.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
+    if (limit != null) {
+      query.limit(limit, offset: offset);
+    }
     return query.watch();
   }
 
@@ -229,35 +236,37 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     List<Map<String, dynamic>> data, {
     bool clearExisting = false,
   }) async {
-    if (clearExisting) {
-      await delete(debts).go();
-    }
-    for (final json in data) {
-      final entity = Debt.fromJson(json);
-      await into(debts).insertOnConflictUpdate(
-        DebtsCompanion(
-          bookingLocalId: Value(entity.bookingLocalId),
-          guestName: Value(entity.guestName),
-          checkinDate: Value(entity.checkinDate),
-          checkoutDate: Value(entity.checkoutDate),
-          totalAmount: Value(entity.totalAmount),
-          paidAmount: Value(entity.paidAmount),
-          remainingAmount: Value(entity.remainingAmount),
-          paymentDate: Value(entity.paymentDate),
-          pledge: Value(entity.pledge),
-          pledgeType: Value(entity.pledgeType),
-          note: Value(entity.note),
-          localUuid: Value(entity.localUuid),
-          serverId: Value(entity.serverId),
-          createdAt: Value(entity.createdAt),
-          updatedAt: Value(entity.updatedAt),
-          deletedAt: Value(entity.deletedAt),
-          lastModified: Value(entity.lastModified),
-          version: Value(entity.version),
-          origin: Value(entity.origin),
-        ),
-      );
-    }
+    await transaction(() async {
+      if (clearExisting) {
+        await delete(debts).go();
+      }
+      for (final json in data) {
+        final entity = Debt.fromJson(json);
+        await into(debts).insertOnConflictUpdate(
+          DebtsCompanion(
+            bookingLocalId: Value(entity.bookingLocalId),
+            guestName: Value(entity.guestName),
+            checkinDate: Value(entity.checkinDate),
+            checkoutDate: Value(entity.checkoutDate),
+            totalAmount: Value(entity.totalAmount),
+            paidAmount: Value(entity.paidAmount),
+            remainingAmount: Value(entity.remainingAmount),
+            paymentDate: Value(entity.paymentDate),
+            pledge: Value(entity.pledge),
+            pledgeType: Value(entity.pledgeType),
+            note: Value(entity.note),
+            localUuid: Value(entity.localUuid),
+            serverId: Value(entity.serverId),
+            createdAt: Value(entity.createdAt),
+            updatedAt: Value(entity.updatedAt),
+            deletedAt: Value(entity.deletedAt),
+            lastModified: Value(entity.lastModified),
+            version: Value(entity.version),
+            origin: Value(entity.origin),
+          ),
+        );
+      }
+    });
   }
 
   Future<int> getRecordCount() async {

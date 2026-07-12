@@ -47,6 +47,12 @@ class AppwriteRealtimeService {
   bool _initialized = false;
   final Map<String, RealtimeSubscription> _subscriptions = {};
   final Map<String, List<RealtimeEventHandler>> _handlers = {};
+  // ✅ تتبع محاولات إعادة الاتصال لكل collection لتطبيق exponential backoff
+  // بدون نمو غير محدود (يُصفّر عند نجاح الاتصال).
+  final Map<String, int> _reconnectAttempts = {};
+  static const int _maxReconnectAttempts = 6;
+  static const Duration _baseReconnectDelay = Duration(seconds: 1);
+  static const Duration _maxReconnectDelay = Duration(seconds: 30);
 
   /// تهيئة خدمة Realtime
   Future<void> initialize(Client client) async {
@@ -99,12 +105,18 @@ class AppwriteRealtimeService {
         _subscriptions.remove(subscriptionKey);
       }
 
+      // ✅ مسح قائمة handlers القديمة قبل إضافة الجديدة لمنع النمو غير المحدود
+      // عند إعادة الاشتراك المتكرر (إصلاح P3-18 من تقرير الأداء).
+      _handlers[subscriptionKey] = [handler];
+
       // إنشاء اشتراك جديد
       final subscription = _realtime.subscribe(channels);
 
       // الاستماع للأحداث
       subscription.stream.listen(
         (response) {
+          // ✅ تصفير عداد إعادة الاتصال عند نجاح استلام حدث — يعني الاتصال صحي
+          _reconnectAttempts.remove(subscriptionKey);
           _handleRealtimeResponse(response, collectionId, handler);
         },
         onError: (Object error) {
@@ -113,18 +125,20 @@ class AppwriteRealtimeService {
             error: error,
             tag: 'REALTIME',
           );
+          // ✅ محاولة إعادة الاتصال عند الخطأ — exponential backoff
+          _scheduleReconnect(collectionId, events: events, handler: handler);
         },
         onDone: () {
           _logger.info(
             'Realtime subscription closed for $collectionId',
             tag: 'REALTIME',
           );
+          // ✅ إعادة الاتصال عند إغلاق الاتصال (مثل انقطاع الشبكة) — exponential backoff
+          _scheduleReconnect(collectionId, events: events, handler: handler);
         },
       );
 
       _subscriptions[subscriptionKey] = subscription;
-      _handlers[subscriptionKey] = _handlers[subscriptionKey] ?? [];
-      _handlers[subscriptionKey]!.add(handler);
 
       _logger.info(
         'Successfully subscribed to collection: $collectionId',
@@ -138,6 +152,63 @@ class AppwriteRealtimeService {
         tag: 'REALTIME',
       );
       rethrow;
+    }
+  }
+
+  /// إعادة الاتصال بتطبيق exponential backoff — يمنع إغراق الخادم بالمحاولات
+  /// عند الانقطاع. التأخير يتضاعف: 1s, 2s, 4s, 8s, 16s, 30s (capped).
+  /// بعد _maxReconnectAttempts محاولات، يتوقف لتجنب إهدار البطارية.
+  Future<void> _scheduleReconnect(
+    String collectionId, {
+    List<String>? events,
+    RealtimeEventHandler? handler,
+  }) async {
+    if (!_initialized || handler == null) return;
+
+    final subscriptionKey = 'collection_$collectionId';
+    final attempts = (_reconnectAttempts[subscriptionKey] ?? 0) + 1;
+
+    if (attempts > _maxReconnectAttempts) {
+      _logger.warning(
+        'Max reconnect attempts ($_maxReconnectAttempts) reached for $collectionId — giving up',
+        tag: 'REALTIME',
+      );
+      _reconnectAttempts.remove(subscriptionKey);
+      return;
+    }
+
+    _reconnectAttempts[subscriptionKey] = attempts;
+
+    // exponential backoff مع سقف أعلى — 2^(n-1) ثانية، max 30s
+    final delaySeconds = (_baseReconnectDelay.inSeconds *
+        (1 << (attempts - 1))).clamp(1, _maxReconnectDelay.inSeconds);
+
+    _logger.info(
+      'Scheduling reconnect #$attempts for $collectionId in ${delaySeconds}s',
+      tag: 'REALTIME',
+    );
+
+    await Future<void>.delayed(Duration(seconds: delaySeconds));
+
+    // تحقق أن الخدمة ما زالت مهيّأة وأن المستخدم لم يُلغِ الاشتراك يدوياً
+    if (!_initialized || !_handlers.containsKey(subscriptionKey)) {
+      _reconnectAttempts.remove(subscriptionKey);
+      return;
+    }
+
+    try {
+      await subscribeToCollection(
+        collectionId: collectionId,
+        handler: handler,
+        events: events,
+      );
+    } catch (e) {
+      _logger.error(
+        'Reconnect attempt #$attempts failed for $collectionId',
+        error: e,
+        tag: 'REALTIME',
+      );
+      // المحاولة التالية ستُجدول من داخل subscribeToCollection عند فشل الاتصال
     }
   }
 
@@ -167,6 +238,10 @@ class AppwriteRealtimeService {
         _subscriptions.remove(subscriptionKey);
       }
 
+      // ✅ مسح handlers القديمة (تم بالفعل في السطر التالي، لكن نُكرّر التأكيد
+      // لمنع نمو القائمة عند إعادة الاشتراك المتكرر).
+      _handlers[subscriptionKey] = [handler];
+
       // إنشاء اشتراك جديد
       final subscription = _realtime.subscribe([channel]);
 
@@ -184,7 +259,6 @@ class AppwriteRealtimeService {
       );
 
       _subscriptions[subscriptionKey] = subscription;
-      _handlers[subscriptionKey] = [handler];
 
       _logger.info(
         'Successfully subscribed to document: $collectionId/$documentId',

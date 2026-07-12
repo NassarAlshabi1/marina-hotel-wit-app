@@ -102,6 +102,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   Stream<List<Payment>> watchList({
     int? bookingLocalId,
     bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
   }) {
     final q = select(payments);
     if (!includeDeleted) {
@@ -109,6 +111,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     }
     if (bookingLocalId != null) {
       q.where((t) => t.bookingLocalId.equals(bookingLocalId));
+    }
+    if (limit != null) {
+      q.limit(limit, offset: offset);
     }
     return q.watch();
   }

@@ -101,17 +101,59 @@ class SqliteBackupRestore {
         throw Exception('Database not found at $srcPath');
       }
 
+      // ✅ WAL Checkpoint قبل النسخ — يضمن دمج كل التغييرات من ملف WAL (-wal)
+      // إلى قاعدة البيانات الرئيسية قبل النسخ. بدون هذا، قد تكون النسخة الاحتياطية
+      // غير متسقة إذا كانت هناك كتابة جارية. نستخدم TRUNCATE لمسح ملف WAL أيضاً.
+      await _performWalCheckpoint();
+
       final destDir = await _resolveUserAccessibleDir();
       final backupName = 'backup_${_ts()}.db';
       final destPath = p.join(destDir.path, backupName);
 
       await srcFile.copy(destPath);
 
+      // ✅ نسخ ملفي WAL و SHM إذا كانا موجودين — ضمان إضافي للاتساق في الوضع
+      // النادر الذي يفشل فيه checkpoint. هذه الملفات ستُستهلك تلقائياً عند الفتح.
+      final walFile = File('$srcPath-wal');
+      final shmFile = File('$srcPath-shm');
+      if (walFile.existsSync()) {
+        await walFile.copy('$destPath-wal');
+      }
+      if (shmFile.existsSync()) {
+        await shmFile.copy('$destPath-shm');
+      }
+
       debugPrint('✅ SQLite backup created at: $destPath');
       return destPath;
     } catch (e, st) {
       debugPrint('❌ Failed to backup database: $e\n$st');
       rethrow;
+    }
+  }
+
+  /// تنفيذ PRAGMA wal_checkpoint(TRUNCATE) عبر اتصال sqflite مستقل.
+  /// يدمج كل الصفحات المعدّلة من ملف WAL إلى قاعدة البيانات الرئيسية ثم يصفّر
+  /// ملف WAL. هذا يضمن أن نسخة .db تكون متسقة ومكتملة.
+  static Future<void> _performWalCheckpoint() async {
+    try {
+      final dbPath = await _resolveDefaultDbPath();
+      // نفتح اتصالاً مباشراً على نفس ملف قاعدة البيانات وننفّذ checkpoint.
+      // sqflite يدير اتصالًا مستقلاً عن Drift، لكن PRAGMA wal_checkpoint آمن
+      // للتشغيل المتزامن لأنه داخلياً يأخذ lock على WAL.
+      final db = await sqflite.openDatabase(
+        dbPath,
+        readOnly: false,
+        singleInstance: false,
+      );
+      try {
+        await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+      } finally {
+        await db.close();
+      }
+      debugPrint('✅ WAL checkpoint (TRUNCATE) completed before backup');
+    } catch (e) {
+      // checkpoint فشل — لا نمنع النسخة الاحتياطية، لكن نسجّل التحذير
+      debugPrint('⚠️ WAL checkpoint failed (proceeding with backup): $e');
     }
   }
 

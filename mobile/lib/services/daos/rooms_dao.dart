@@ -35,7 +35,12 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
-  Stream<List<Room>> watchList({String? search, bool includeDeleted = false}) {
+  Stream<List<Room>> watchList({
+    String? search,
+    bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
+  }) {
     final q = select(rooms);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
@@ -43,6 +48,9 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.roomNumber.like(s) | t.type.like(s) | t.status.like(s));
+    }
+    if (limit != null) {
+      q.limit(limit, offset: offset);
     }
     return q.watch();
   }
