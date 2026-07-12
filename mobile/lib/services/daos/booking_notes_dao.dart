@@ -43,6 +43,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     if (limit != null) {
       q.limit(limit);
     }
+    q.orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
     return q.get();
   }
 

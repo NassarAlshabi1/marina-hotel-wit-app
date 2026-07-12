@@ -39,7 +39,9 @@ class _GoogleDriveLoginScreenState
         // نجح تسجيل الدخول الصامت — الانتقال مباشرة
         try {
           await ref.read(autoBackupManagerProvider).setEnabled(true);
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('⚠️ Failed to enable auto backup after silent sign-in: $e');
+        }
       }
     } catch (_) {
       // فشل الصامت — يظهر الواجهة العادية
