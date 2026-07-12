@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
@@ -469,8 +470,19 @@ class GoogleDriveBackupService {
       // على الكيان المشار إليه → InvalidDataException أو تخطي السجل
       _enrichBackupWithFKUuids(backupData, employeesData, salaryCyclesData);
 
-      // حساب تجزئة SHA-256 للتحقق من سلامة البيانات
-      final dataHash = _computeBackupChecksum(backupData);
+      // حساب تجزئة SHA-256 للتحقق من سلامة البيانات — في خلفية isolate
+      final dataHash = await Isolate.run(() {
+        final metadata = Map<String, dynamic>.from(
+          backupData['metadata'] as Map,
+        )..remove('data_hash');
+        final dataForHash = <String, dynamic>{
+          ...backupData,
+          'metadata': metadata,
+        };
+        final jsonBytes = utf8.encode(jsonEncode(dataForHash));
+        final digest = sha256.convert(jsonBytes);
+        return digest.toString();
+      });
       (backupData['metadata'] as Map<String, dynamic>)['data_hash'] = dataHash;
 
       _log('🔐 تجزئة النسخة الاحتياطية: $dataHash');
@@ -630,9 +642,14 @@ class GoogleDriveBackupService {
       try {
         final folderId = await getOrCreateBackupFolder();
 
-        // JSON مضغوط بدون مسافات + gzip أقصى ضغط
-        final jsonBytes = utf8.encode(jsonEncode(backupData));
-        final compressedBytes = GZipCodec().encode(jsonBytes);
+        // JSON مضغوط بدون مسافات + gzip أقصى ضغط — في خلفية isolate
+        final compressedResult = await Isolate.run(() {
+          final jsonBytes = utf8.encode(jsonEncode(backupData));
+          final compressed = GZipCodec().encode(jsonBytes);
+          return (jsonBytes.length, compressed);
+        });
+        final jsonSize = compressedResult.$1;
+        final compressedBytes = compressedResult.$2;
 
         final timestamp = DateTime.now();
 
@@ -671,10 +688,10 @@ class GoogleDriveBackupService {
           compressedBytes.length,
         );
 
-        final compressionRatio = compressedBytes.length / jsonBytes.length;
+        final compressionRatio = compressedBytes.length / jsonSize;
         _log(
           '📤 بدء رفع $typeLabel: $fileName '
-          '(${(jsonBytes.length / 1024).toStringAsFixed(2)} KB → '
+          '(${(jsonSize / 1024).toStringAsFixed(2)} KB → '
           '${(compressedBytes.length / 1024).toStringAsFixed(2)} KB, '
           '${(compressionRatio * 100).toStringAsFixed(1)}%)',
         );

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -522,8 +523,11 @@ class SyncOrchestrator {
             )
             .get();
 
-        final dataString = dataResult.map((r) => jsonEncode(r.data)).join();
-        final checksum = md5.convert(utf8.encode(dataString)).toString();
+        final rowJsonList = dataResult.map((r) => jsonEncode(r.data)).toList();
+        final checksum = await Isolate.run(() {
+          final dataString = rowJsonList.join();
+          return md5.convert(utf8.encode(dataString)).toString();
+        });
 
         checks.add(
           DataIntegrityCheck(
