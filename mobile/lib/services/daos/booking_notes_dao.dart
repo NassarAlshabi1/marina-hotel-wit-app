@@ -46,8 +46,14 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     bool? isActive,
   }) async {
     final query = selectOnly(bookingNotes)
-      ..addColumns([bookingNotes.id.count()]);
-    _applyCommonFiltersToSelectOnly(query, bookingId: bookingId, isActive: isActive);
+      ..addColumns([bookingNotes.id.count()])
+      ..where(bookingNotes.deletedAt.isNull());
+    if (bookingId != null) {
+      query.where(bookingNotes.bookingId.equals(bookingId));
+    }
+    if (isActive != null) {
+      query.where(bookingNotes.isActive.equals(isActive ? 1 : 0));
+    }
     final result = await query.getSingle();
     return result.read(bookingNotes.id.count()) ?? 0;
   }
@@ -64,20 +70,6 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     }
     if (isActive != null) {
       q.where((t) => t.isActive.equals(isActive ? 1 : 0));
-    }
-  }
-
-  void _applyCommonFiltersToSelectOnly(
-    SelectQuery query, {
-    int? bookingId,
-    bool? isActive,
-  }) {
-    query.where(bookingNotes.deletedAt.isNull());
-    if (bookingId != null) {
-      query.where(bookingNotes.bookingId.equals(bookingId));
-    }
-    if (isActive != null) {
-      query.where(bookingNotes.isActive.equals(isActive ? 1 : 0));
     }
   }
 

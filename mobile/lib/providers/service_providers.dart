@@ -59,9 +59,7 @@ export 'repository_providers.dart' show diagnosticsLoggerProvider;
 // مزود خدمة التحليلات
 // ============================================================================
 final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
-  final service = AnalyticsService();
-  ref.onDispose(service.dispose);
-  return service;
+  return AnalyticsService();
 });
 
 // ============================================================================
@@ -77,27 +75,21 @@ final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
 // مزود خدمة Gemini AI
 // ============================================================================
 final geminiServiceProvider = Provider<GeminiService>((ref) {
-  final service = GeminiService.instance;
-  ref.onDispose(service.dispose);
-  return service;
+  return GeminiService.instance;
 });
 
 // ============================================================================
 // مزود خدمة Crashlytics
 // ============================================================================
 final crashlyticsServiceProvider = Provider<CrashlyticsService>((ref) {
-  final service = CrashlyticsService.instance;
-  ref.onDispose(service.dispose);
-  return service;
+  return CrashlyticsService.instance;
 });
 
 // ============================================================================
 // مزود خدمة التدقيق الليلي
 // ============================================================================
 final nightAuditServiceProvider = Provider<NightAuditService>((ref) {
-  final service = NightAuditService.instance;
-  ref.onDispose(service.dispose);
-  return service;
+  return NightAuditService.instance;
 });
 
 // ============================================================================

@@ -71,7 +71,7 @@ _SnapshotProcessOutput _processSnapshotInIsolate(_SnapshotProcessInput input) {
 
   final normalizedSnapshot = SyncSnapshot(
     metadata: normalizedMetadata,
-    tables: SyncChecksum.normalize(input.tablesJson),
+    tables: SyncChecksum.normalize(input.tablesJson) as Map<String, List<Map<String, dynamic>>>,
   );
 
   final encoded = utf8.encode(jsonEncode(normalizedSnapshot.toJson()));
