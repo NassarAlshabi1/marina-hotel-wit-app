@@ -234,4 +234,146 @@ bool _isUniqueConstraintError(Object error) {
   // (return_of_invalid_type_from_closure) بسبب التحويل لـ dynamic.
   // أي حاجة مستقبلية لهذه الوظائف يجب أن تستخدم TypedResult +
   // table.mapper بدل dynamic casting.
+
+  /// ✅ إصلاح P3-16: إدراج جماعي (batch upsert) لقائمة من سجلات JSON.
+  ///
+  /// هذا الأسلوب البديل لـ `upsertFromJson` (الذي يُعالج صف واحد في كل مرة)
+  /// مُحسَّن لحالة الاستعادة من نسخة احتياطية حيث نريد إدراج آلاف الصفوف
+  /// بكفاءة. بدلاً من تنفيذ INSERT منفصل لكل صف (مع round-trip كامل لـ SQLite)،
+  /// نُجمّع جميع الـ INSERTs في `db.batch` واحد — مما يقلّل round-trips من N
+  /// إلى 1 (لـ chunk واحد من 500 صف).
+  ///
+  /// **الفرق عن `upsertFromJson`:**
+  /// - `upsertFromJson` يُستخدم في المزامنة (sync) حيث قد يكون السجل موجوداً
+  ///   محلياً → يحتاج DoUpdate مع conflict targets متعددة
+  /// - `batchUpsertFromJson` يُستخدم في الاستعادة (restore) بعد DELETE كامل
+  ///   → الجدول فارغ → INSERT OR REPLACE كافٍ (لا توجد تعارضات محتملة)
+  ///
+  /// **الخطوات:**
+  /// 1. لكل صف: حل localUuid + FK references (SELECTs منفصلة لكل صف)
+  /// 2. تخطّي الصفوف ذات FK غير محلول (مع تسجيل السبب)
+  /// 3. تجميع الـ companions الناجحة في chunks من 500 صف
+  /// 4. تنفيذ `db.batch.insertAll` واحد لكل chunk (mode: insertOrReplace)
+  /// 5. عند فشل chunk كامل: التراجع إلى الإدراج صف-بصف للحفاظ على عزل الأخطاء
+  ///
+  /// **يُعيد:** ({int inserted, int skipped}) — عدد الصفوف المُدرجة والمتخطاة.
+  ///
+  /// **ملاحظة أمان:** يجب استدعاؤها داخل `db.transaction` من المُستدعي
+  /// (كما يفعل `_restoreFromBackupInternal`) لضمان atomicity مع حذف الجداول.
+  Future<({int inserted, int skipped})> batchUpsertFromJson(
+    List<Map<String, dynamic>> jsons, {
+    required Source src,
+  }) async {
+    if (jsons.isEmpty) {
+      return (inserted: 0, skipped: 0);
+    }
+
+    // المرحلة 1: pre-resolve لكل صف (UUID + FK) على حدة
+    // هذا ضروري لأن كل صف له UUID مختلف و FK references مختلفة
+    final companions = <C>[];
+    var skipped = 0;
+
+    for (final json in jsons) {
+      try {
+        // نسخة احتياطية لعدم تعديل الـ Map الأصلي
+        final jsonCopy = Map<String, dynamic>.from(json);
+
+        // نفس منطق upsertFromJson لحل localUuid + id
+        if (src == Source.appwrite || src == Source.drive) {
+          final localUuid = jsonCopy['localUuid'] as String? ??
+              jsonCopy['local_uuid'] as String?;
+          if (localUuid != null) {
+            final existing = await _findByLocalUuid(localUuid);
+            if (existing == null) {
+              jsonCopy.remove('id');
+            } else {
+              jsonCopy['id'] = existing;
+            }
+          } else {
+            jsonCopy.remove('id');
+          }
+        }
+
+        final refs = await adapter.resolveRefs(db, jsonCopy, src: src);
+
+        if (refs.shouldSkip) {
+          developer.log(
+            'Skipping row in batch upsert for ${table.actualTableName}: '
+            '${refs.skipReason ?? "unresolved FK reference"}',
+            name: 'BaseRepository.batch',
+          );
+          skipped++;
+          continue;
+        }
+
+        final comp = adapter.fromJson(jsonCopy, src: src, refs: refs);
+        companions.add(comp);
+      } catch (e, st) {
+        developer.log(
+          'Pre-resolve failed for row in ${table.actualTableName}',
+          error: e,
+          stackTrace: st,
+          name: 'BaseRepository.batch',
+        );
+        skipped++;
+      }
+    }
+
+    if (companions.isEmpty) {
+      return (inserted: 0, skipped: skipped);
+    }
+
+    // المرحلة 2: batch insert في chunks من 500
+    // chunking ضروري لأن SQLite له حد لعدد المتغيرات في استعلام واحد
+    // (SQLITE_MAX_VARIABLE_COUNT = 999 افتراضياً، وكل صف قد يستخدم 20-50 متغير)
+    const chunkSize = 500;
+    var inserted = 0;
+
+    for (var i = 0; i < companions.length; i += chunkSize) {
+      final end = (i + chunkSize < companions.length)
+          ? i + chunkSize
+          : companions.length;
+      final chunk = companions.sublist(i, end);
+
+      try {
+        await db.batch(
+          (b) => b.insertAll(
+            table,
+            chunk,
+            mode: InsertMode.insertOrReplace,
+          ),
+        );
+        inserted += chunk.length;
+      } catch (e, st) {
+        // ✅ fallback: عند فشل chunk كامل، نتراجع للإدراج صف-بصف
+        // للحفاظ على عزل الأخطاء (skip bad row, continue)
+        developer.log(
+          'Batch insert failed for ${table.actualTableName} chunk $i-$end, '
+          'falling back to per-row insert',
+          error: e,
+          stackTrace: st,
+          name: 'BaseRepository.batch',
+        );
+
+        for (final comp in chunk) {
+          try {
+            await db.into(table).insert(
+                  comp,
+                  mode: InsertMode.insertOrReplace,
+                );
+            inserted++;
+          } catch (e2) {
+            developer.log(
+              'Per-row fallback failed for a row in ${table.actualTableName}',
+              error: e2,
+              name: 'BaseRepository.batch',
+            );
+            skipped++;
+          }
+        }
+      }
+    }
+
+    return (inserted: inserted, skipped: skipped);
+  }
 }
