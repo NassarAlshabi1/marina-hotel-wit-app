@@ -488,15 +488,23 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         }
         showDialog<void>(
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('جاري الحفظ'),
-            content: const Text('يرجى الانتظار حتى يتم حفظ الدفعة...'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('حسناً'),
+          barrierDismissible: false,
+          builder: (ctx) => const PopScope(
+            canPop: false,
+            child: AlertDialog(
+              title: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 12),
+                  Text('جاري الحفظ'),
+                ],
               ),
-            ],
+              content: Text('يرجى الانتظار حتى يتم حفظ الدفعة...'),
+            ),
           ),
         );
       },

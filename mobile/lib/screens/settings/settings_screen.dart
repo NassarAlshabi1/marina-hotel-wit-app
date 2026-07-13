@@ -618,7 +618,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Text('جاري إقفال اليوم وإرسال التقرير...'),
           ],
         ),
-        duration: Duration(seconds: 10),
+        duration: Duration(minutes: 5),
       ),
     );
 

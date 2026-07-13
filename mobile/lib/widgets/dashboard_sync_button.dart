@@ -205,6 +205,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
     // ✅ P1-1 fix: كل الفحوص تتم قبل كتابة سجل in_progress
     // لا نكتب in_progress إلا بعد اجتياز كل فحوص ما-قبل-البدء
+    // ✅ معرّف قبل try ليكون متاحاً في catch
+    ScaffoldMessengerState? messenger;
+
     try {
       final appwriteEnabled = await _isAppwriteSyncEnabled();
       if (!appwriteEnabled) {
@@ -251,9 +254,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       unawaited(_pullAnimationController.repeat());
 
+      // ✅ إشعار دائم: استخدم messenger المعرّف قبل try
+      // ignore: use_build_context_synchronously
       if (mounted) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger = ScaffoldMessenger.of(context);
+        messenger.showSnackBar(
           const SnackBar(
             content: Row(
               children: [
@@ -272,8 +277,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ],
             ),
             backgroundColor: Colors.blue,
-            // ✅ يبقى ظاهراً حتى تنتهي المزامنة ثم يُستبدل بإشعار النتيجة
-            duration: Duration(minutes: 5),
+            // ✅ مدة طويلة كـ safety net فقط — سيُغلق برمجياً عند الانتهاء
+            duration: Duration(minutes: 10),
           ),
         );
       }
@@ -301,6 +306,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         setState(() {
           _lastSyncTime = DateTime.now();
         });
+        // ✅ إغلاق إشعار "جاري" فوراً قبل إظهار النتيجة
+        messenger?.hideCurrentSnackBar();
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -332,6 +339,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
     } catch (e) {
       debugPrint('❌ خطأ في سحب التغييرات: $e');
+
+      // ✅ إغلاق إشعار "جاري" فوراً عند الفشل
+      messenger?.hideCurrentSnackBar();
 
       // ✅ تسجيل فشل العملية
       stopwatch.stop();
@@ -523,9 +533,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         return;
       }
 
+      // ✅ إشعار دائم: يُحفظ مثيل ScaffoldMessengerState للتحكم بالإغلاق
+      ScaffoldMessengerState? pushMessenger;
       if (mounted) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
+        pushMessenger = ScaffoldMessenger.of(context);
+        pushMessenger.showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -546,8 +558,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ],
             ),
             backgroundColor: Colors.blue,
-            // ✅ يبقى ظاهراً حتى تنتهي عملية الرفع ثم يُستبدل بإشعار النتيجة
-            duration: const Duration(minutes: 5),
+            duration: const Duration(minutes: 10),
           ),
         );
       }
@@ -654,6 +665,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         });
 
         if (failedTargets.isEmpty) {
+          // ✅ إغلاق إشعار "جاري الرفع" فوراً قبل إظهار النتيجة
+          pushMessenger?.hideCurrentSnackBar();
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -688,6 +701,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             ),
           );
         } else if (successTargets.isEmpty) {
+          // ✅ إغلاق إشعار "جاري الرفع" فوراً عند الفشل
+          pushMessenger?.hideCurrentSnackBar();
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -711,6 +726,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             ),
           );
         } else {
+          // ✅ إغلاق إشعار "جاري الرفع" فوراً للنتيجة الجزئية
+          pushMessenger?.hideCurrentSnackBar();
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

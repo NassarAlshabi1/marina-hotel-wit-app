@@ -1383,7 +1383,22 @@ class _AppwriteSettingsScreenState
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('جاري إنشاء النسخة الاحتياطية الشاملة...'),
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text('جاري إنشاء النسخة الاحتياطية الشاملة...'),
+              ),
+            ],
+          ),
           duration: Duration(minutes: 5),
         ),
       );

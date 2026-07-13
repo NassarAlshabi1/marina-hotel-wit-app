@@ -539,7 +539,23 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
   void _exportLogs() {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('جاري تصدير السجلات...')));
+    ).showSnackBar(const SnackBar(
+      content: Row(
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ),
+          SizedBox(width: 12),
+          Text('جاري تصدير السجلات...'),
+        ],
+      ),
+      duration: Duration(minutes: 5),
+    ));
   }
 
   void _clearLogs() {
