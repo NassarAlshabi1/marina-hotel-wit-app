@@ -21,7 +21,7 @@
 
 import { Client, Databases, Query } from 'node-appwrite';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getMessaging, multicastMessage } from 'firebase-admin/messaging';
+import { getMessaging } from 'firebase-admin/messaging';
 
 // ═══════════════════════════════════════════════════════════════
 //  1. تهيئة Appwrite Client
@@ -227,14 +227,19 @@ async function sendFcmNotification(tokens, title, body, data) {
 //  6. استخراج معلومات من Appwrite event payload
 // ═══════════════════════════════════════════════════════════════
 
-function parseEvent(payload) {
-  // Appwrite يُرسل event data في حقول مختلفة حسب الإصدار
+function parseEvent(payload, headers) {
+  // ✅ Appwrite event triggers تُرسل نوع الحدث في header `x-appwrite-event`
+  // مثال: "databases.6a2b030d000445596163.tables.bookings.rows.create"
+  const headerEvent = headers?.['x-appwrite-event'] || headers?.['X-Appwrite-Event'] || '';
+
+  // للمقارنة: اختبار HTTP اليدوي يضع نوع الحدث في payload.event.type
   const event = payload.event || payload.$trigger || payload;
-  const eventType = event?.type || payload.type || '';
-  const data = event?.data || payload.data || {};
+  const eventType = headerEvent || event?.type || payload.type || '';
+  const data = event?.data || payload.data || payload;
 
   // استخراج اسم الجدول من event type
-  // مثال: databases.6a2b.tables.6a2b.rows.create
+  // مثال: databases.6a2b.tables.6a2b030d000445596163.rows.bookings.rows.create
+  // أو: databases.6a2b030d000445596163.tables.bookings.rows.create
   const tableMatch = eventType.match(/tables\.([^.]+)\.rows/);
   const tableId = tableMatch ? tableMatch[1] : '';
 
@@ -312,41 +317,52 @@ function buildNotification(tableId, operation, data) {
 //  8. نقطة الدخول الرئيسية
 // ═══════════════════════════════════════════════════════════════
 
-export default async function main(req, res) {
-  console.log('🚀 FCM Notifier function triggered');
+export default async function main(context) {
+  const { req, res, log, error } = context;
+  log('🚀 FCM Notifier function triggered');
 
   // تهيئة Firebase
   initializeFirebase();
   if (!messaging) {
-    if (res?.json) return res.json({ error: 'Firebase not initialized' });
-    return;
+    log('❌ Firebase messaging not initialized');
+    return res.json({ error: 'Firebase not initialized' }, 500);
   }
 
   try {
-    // قراءة payload من req.body أو req (حسب نوع trigger)
-    const payload = req.body || req || {};
-    console.log('📥 Event payload keys:', Object.keys(payload));
+    // قراءة payload من req.bodyJson (Appwrite v2 OpenRuntimes)
+    let payload = {};
+    try {
+      if (typeof req.bodyJson === 'string') {
+        payload = JSON.parse(req.bodyJson);
+      } else if (req.bodyJson) {
+        payload = req.bodyJson;
+      } else if (req.body) {
+        payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      }
+    } catch (e) {
+      log('⚠️ Could not parse body as JSON: ' + e.message);
+    }
 
-    const { tableId, operation, senderDeviceId, data, eventType } = parseEvent(payload);
+    log('📥 Event payload keys: ' + Object.keys(payload));
 
-    console.log(`📋 Event: ${eventType}`);
-    console.log(`   Table: ${tableId}, Operation: ${operation}`);
-    console.log(`   Sender device: ${senderDeviceId || 'unknown'}`);
+    const { tableId, operation, senderDeviceId, data, eventType } = parseEvent(payload, req.headers);
+
+    log(`📋 Event: ${eventType}`);
+    log(`   Table: ${tableId}, Operation: ${operation}`);
+    log(`   Sender device: ${senderDeviceId || 'unknown'}`);
 
     if (!tableId || !operation) {
-      console.log('⚠️ Could not parse table/operation from event — skipping');
-      if (res?.json) return res.json({ skipped: true, reason: 'unparseable event' });
-      return;
+      log('⚠️ Could not parse table/operation from event — skipping');
+      return res.json({ skipped: true, reason: 'unparseable event' });
     }
 
     // قراءة FCM tokens لكل الأجهزة (عدا المُرسِل)
     const tokens = await getDeviceTokens(senderDeviceId);
-    console.log(`📱 Found ${tokens.length} recipient devices`);
+    log(`📱 Found ${tokens.length} recipient devices`);
 
     if (tokens.length === 0) {
-      console.log('ℹ️ No recipients — skipping send');
-      if (res?.json) return res.json({ skipped: true, reason: 'no recipients' });
-      return;
+      log('ℹ️ No recipients — skipping send');
+      return res.json({ skipped: true, reason: 'no recipients' });
     }
 
     // بناء الإشعار
@@ -359,22 +375,18 @@ export default async function main(req, res) {
       senderDeviceId: senderDeviceId || '',
     });
 
-    console.log(`✅ Done: ${result.success} sent, ${result.failure} failed`);
+    log(`✅ Done: ${result.success} sent, ${result.failure} failed`);
 
-    if (res?.json) {
-      return res.json({
-        success: true,
-        recipients: tokens.length,
-        sent: result.success,
-        failed: result.failure,
-        title,
-        body,
-      });
-    }
+    return res.json({
+      success: true,
+      recipients: tokens.length,
+      sent: result.success,
+      failed: result.failure,
+      title,
+      body,
+    });
   } catch (e) {
-    console.error('❌ Function error:', e);
-    if (res?.json) {
-      return res.json({ error: e.message });
-    }
+    error('❌ Function error: ' + e.message);
+    return res.json({ error: e.message }, 500);
   }
 }
