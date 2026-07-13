@@ -94,6 +94,7 @@ class AppwriteSyncUtils {
       'wifi_only_sync'
     },
     'app_users': {
+      // الحقول الأساسية
       'active',
       'credentials_version',
       'fullName',
@@ -102,11 +103,29 @@ class AppwriteSyncUtils {
       'last_login',
       'password',
       'permissions',
+      'role',
       'sync_origin',
       'userType',
       'user_type',
       'username',
-      'version'
+      'version',
+      // حقول SyncFields
+      'localUuid',
+      'serverId',
+      'createdAt',
+      'updatedAt',
+      'deletedAt',
+      'lastModified',
+      'createdAtIso',
+      'updatedAtIso',
+      'deletedAtIso',
+      'createdAtEpoch',
+      'lastModifiedEpoch',
+      'origin',
+      'vectorClock',
+      'deviceId',
+      'idempotencyKey',
+      'syncTimestamp',
     },
     'audit_logs': {
       'action',

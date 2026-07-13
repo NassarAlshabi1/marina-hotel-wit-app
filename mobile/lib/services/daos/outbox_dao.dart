@@ -1018,4 +1018,6 @@ const _entityTableMap = <String, String>{
   'price_adjustments': 'price_adjustments',
   'payment_voids': 'payment_voids',
   'salary_carry_over_logs': 'salary_carry_over_logs',
+  // ✅ app_users — للمزامنة وحل التعارضات عبر vector clock
+  'app_users': 'app_users',
 };
