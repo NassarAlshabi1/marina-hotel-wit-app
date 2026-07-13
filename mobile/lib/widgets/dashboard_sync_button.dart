@@ -272,7 +272,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ],
             ),
             backgroundColor: Colors.blue,
-            duration: Duration(seconds: 3),
+            // ✅ يبقى ظاهراً حتى تنتهي المزامنة ثم يُستبدل بإشعار النتيجة
+            duration: Duration(minutes: 5),
           ),
         );
       }
@@ -545,7 +546,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ],
             ),
             backgroundColor: Colors.blue,
-            duration: const Duration(seconds: 5),
+            // ✅ يبقى ظاهراً حتى تنتهي عملية الرفع ثم يُستبدل بإشعار النتيجة
+            duration: const Duration(minutes: 5),
           ),
         );
       }

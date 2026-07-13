@@ -4070,7 +4070,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               Text('جاري إرسال كشف الحساب...'),
             ],
           ),
-          duration: Duration(seconds: 30),
+          // ✅ يبقى ظاهراً حتى تنتهي عملية الإرسال ثم يُستبدل بالنتيجة
+          duration: Duration(minutes: 5),
           backgroundColor: Colors.orange,
         ),
       );
