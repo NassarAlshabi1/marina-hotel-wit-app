@@ -13,6 +13,7 @@ import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../models/payment_models.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' as db;
@@ -1579,29 +1580,64 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       ),
                     ),
                   ),
-                // ✅ زر خصم مبلغ من الليالي الفعلية (أخضر) — يطبّق خصم على الحجز
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showDiscountAmountDialog(summary, booking),
-                      icon: const Icon(Icons.discount, size: 14),
-                      label: const Text(
-                        'خصم مبلغ',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.shade600,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        minimumSize: const Size(0, 32),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
+                // ✅ زر خصم مبلغ من الليالي الفعلية (أخضر) — للمدير فقط
+                // صلاحية الخصم محصورة على admin أو من يملك 'payments.discount'
+                if (ref.watch(authProvider).currentUser?.isAdmin ?? false) ...[
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showDiscountAmountDialog(summary, booking),
+                        icon: const Icon(Icons.discount, size: 14),
+                        label: const Text(
+                          'خصم مبلغ',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade600,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          minimumSize: const Size(0, 32),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
+                ] else ...[
+                  // ✅ زر معطّل للمستخدمين العاديين (يُظهر رسالة عند الضغط)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('⚠️ صلاحية الخصم متاحة للمدير فقط'),
+                              backgroundColor: Colors.red,
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.lock_outline, size: 14),
+                        label: const Text(
+                          'خصم (مقيد)',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey.shade400,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          minimumSize: const Size(0, 32),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 6),
@@ -3262,6 +3298,19 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     BookingPaymentSummary summary,
     db.Booking booking,
   ) async {
+    // ✅ Defense-in-depth: تحقق من صلاحية المدير حتى لو استُدعيت من مكان آخر
+    final currentUser = ref.read(authProvider).currentUser;
+    if (currentUser == null || !currentUser.isAdmin) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ صلاحية الخصم متاحة للمدير فقط'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final amountController = TextEditingController();
 
     final confirmed = await showDialog<bool>(
