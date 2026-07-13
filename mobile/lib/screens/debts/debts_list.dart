@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
@@ -560,19 +563,38 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               ),
             ],
 
+            // ✅ سجل الدفعات الجزئية (إذا وُجد)
+            ..._buildPaymentHistoryWidget(debt),
+
             const SizedBox(height: 6),
 
             // أزرار الإجراءات — مدمجة وصغيرة
             Row(
               children: [
                 if (!isSettled) ...[
+                  // ✅ زر سداد كامل (مسدد بالكامل)
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _markAsSettled(debt),
-                      icon: const Icon(Icons.check, size: 12),
-                      label: const Text('سداد', style: TextStyle(fontSize: 10)),
+                      icon: const Icon(Icons.check_circle, size: 12),
+                      label: const Text('سداد كامل', style: TextStyle(fontSize: 9)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        minimumSize: const Size(0, 28),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // ✅ زر سداد جزئي (دفع مبلغ من الدين)
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showPartialPaymentDialog(debt),
+                      icon: const Icon(Icons.payments, size: 12),
+                      label: const Text('سداد جزئي', style: TextStyle(fontSize: 9)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade600,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         minimumSize: const Size(0, 28),
@@ -805,6 +827,317 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  //  سجل الدفعات الجزئية — تخزين واسترجاع من حقل note كـ JSON
+  // ═══════════════════════════════════════════════════════════════
+
+  /// هيكل دفعة جزئية واحدة
+  /// {"amount": 5000, "date": "2026-01-01", "note": "دفعة أولى"}
+
+  /// استخراج سجل الدفعات من حقل note.
+  /// إذا كان note يبدأ بـ { → JSON مع payments array.
+  /// وإلا → لا يوجد سجل منظم (نص حر فقط).
+  List<Map<String, dynamic>> _parsePaymentHistory(Debt debt) {
+    final note = debt.note ?? '';
+    if (note.isEmpty || !note.startsWith('{')) return [];
+    try {
+      final decoded = jsonDecode(note) as Map<String, dynamic>;
+      final payments = decoded['payments'] as List<dynamic>?;
+      if (payments == null) return [];
+      return payments
+          .map((p) => p as Map<String, dynamic>)
+          .where((p) => p['amount'] != null)
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// بناء سجل الدفعات JSON لحفظه في note.
+  /// يحافظ على النص الأصلي (original_note) إن وُجد.
+  String _buildPaymentHistoryNote(
+    Debt debt,
+    List<Map<String, dynamic>> payments,
+  ) {
+    final existing = _parsePaymentHistory(debt);
+    String? originalNote;
+    if (existing.isNotEmpty) {
+      // استخرج النص الأصلي إن وُجد
+      try {
+        final decoded = jsonDecode(debt.note ?? '{}') as Map<String, dynamic>;
+        originalNote = decoded['original_note'] as String?;
+      } catch (_) {}
+    } else if (debt.note != null && debt.note!.isNotEmpty && !debt.note!.startsWith('{')) {
+      // النص القديم wasn't JSON → احفظه كـ original_note
+      originalNote = debt.note;
+    }
+
+    final data = <String, dynamic>{
+      'payments': payments,
+      if (originalNote != null && originalNote.isNotEmpty)
+        'original_note': originalNote,
+    };
+    return jsonEncode(data);
+  }
+
+  /// عرض سجل الدفعات في بطاقة الدين (Compact)
+  List<Widget> _buildPaymentHistoryWidget(Debt debt) {
+    final payments = _parsePaymentHistory(debt);
+    if (payments.isEmpty) return [];
+
+    final fmt = NumberFormat('#,##0', 'en_US');
+    final widgets = <Widget>[];
+
+    widgets.add(const SizedBox(height: 4));
+    widgets.add(Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.history, size: 12, color: Colors.blue.shade700),
+              const SizedBox(width: 4),
+              Text(
+                'سجل الدفعات (${payments.length})',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          ...payments.map((p) {
+            final amount = (p['amount'] as num?)?.toDouble() ?? 0;
+            final date = p['date'] as String? ?? '';
+            final note = p['note'] as String? ?? '';
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 1),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${_formatDate(date)}${note.isNotEmpty ? " — $note" : ""}',
+                      style: TextStyle(fontSize: 9, color: Colors.blue.shade800),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    '- ${fmt.format(amount)}',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    ));
+
+    return widgets;
+  }
+
+  /// ✅ سداد جزئي — يسجّل دفعة بمبلغ وتاريخ محددين.
+  ///
+  /// يُحدّث paidAmount + remainingAmount + isSettled في الدين،
+  /// ويضيف الدفعة إلى سجل الدفعات المخزّن في note كـ JSON.
+  /// مثال: دين 20,000 → دفع 5,000 في 1-1-2026 → دفع 4,000 في 10-2-2026.
+  Future<void> _showPartialPaymentDialog(Debt debt) async {
+    final amountController = TextEditingController();
+    // التاريخ الافتراضي = اليوم
+    DateTime selectedDate = DateTime.now();
+    final dateController = TextEditingController(
+      text: DateFormat('yyyy-MM-dd').format(selectedDate),
+    );
+    final noteController = TextEditingController();
+    final fmt = NumberFormat('#,##0', 'en_US');
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.payments, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text('سداد جزئي'),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'النزيل: ${debt.guestName}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('إجمالي الدين: ${fmt.format(debt.totalAmount)}'),
+                    Text('المدفوع: ${fmt.format(debt.paidAmount)}'),
+                    Text(
+                      'المتبقي: ${fmt.format(debt.remainingAmount)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                    ),
+                    const Divider(),
+                    const Text('مبلغ الدفعة:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        hintText: '0',
+                        suffixText: 'ريال',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        prefixIcon: Icon(Icons.attach_money, size: 18),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('تاريخ الدفعة:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: ctx,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now().add(const Duration(days: 1)),
+                        );
+                        if (picked != null) {
+                          setDialogState(() {
+                            selectedDate = picked;
+                            dateController.text = DateFormat('yyyy-MM-dd').format(picked);
+                          });
+                        }
+                      },
+                      child: IgnorePointer(
+                        child: TextField(
+                          controller: dateController,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            prefixIcon: Icon(Icons.calendar_today, size: 16),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('ملاحظة (اختياري):', style: TextStyle(fontSize: 12)),
+                    TextField(
+                      controller: noteController,
+                      decoration: const InputDecoration(
+                        hintText: 'مثلاً: دفعة أولى',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        isDense: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop<bool>(ctx, false),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop<bool>(ctx, true),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                  child: const Text('تسجيل الدفعة'),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final amountStr = amountController.text.replaceAll(RegExp('[^0-9.]'), '');
+    final amount = double.tryParse(amountStr) ?? 0;
+    if (amount <= 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⚠️ المبلغ غير صالح'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    if (amount > debt.remainingAmount) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⚠️ المبلغ يتجاوز المتبقي (${fmt.format(debt.remainingAmount)})'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final repo = ref.read(debtsRepoProvider);
+      final newPaidAmount = debt.paidAmount + amount;
+      final newRemaining = (debt.totalAmount - newPaidAmount)
+          .clamp(0, double.infinity)
+          .toDouble();
+      final isSettled = newRemaining <= 0 ? 1 : 0;
+
+      // ✅ تحديث سجل الدفعات في note
+      final payments = _parsePaymentHistory(debt);
+      payments.add({
+        'amount': amount,
+        'date': DateFormat('yyyy-MM-dd').format(selectedDate),
+        'note': noteController.text.trim(),
+      });
+      final newNote = _buildPaymentHistoryNote(debt, payments);
+
+      await repo.update(
+        id: debt.id,
+        paidAmount: newPaidAmount,
+        remainingAmount: newRemaining,
+        isSettled: isSettled,
+        paymentDate: DateFormat('yyyy-MM-dd').format(selectedDate),
+        note: newNote,
+      );
+
+      markDataChanged();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '✅ تم تسجيل دفعة ${fmt.format(amount)} بتاريخ ${DateFormat('yyyy-MM-dd').format(selectedDate)}'
+            '${isSettled == 1 ? " — تمت تسوية الدين بالكامل" : ""}',
+          ),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('فشل تسجيل الدفعة: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   Future<void> _openDebtForm(BuildContext context, {Debt? existing}) async {
     final guestNameCtrl = TextEditingController(
       text: existing?.guestName ?? '',
@@ -874,7 +1207,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         context: context,
         builder: (dialogContext) {
           return Directionality(
-            textDirection: TextDirection.rtl,
+            textDirection: ui.TextDirection.rtl,
             child: AlertDialog(
               title: Text(
                 existing == null ? 'إضافة دين جديد' : 'تعديل الدين',

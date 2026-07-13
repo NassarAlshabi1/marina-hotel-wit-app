@@ -48,6 +48,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   late String _currentGuestPhone;
   bool _isSavingPayment = false;
   double _debtAmount = 0;
+  // ✅ قائمة الديون غير المسددة لهذا الحجز (تُستخدم لزر خصم مبلغ من الدين)
+  List<db.Debt> _unsettledDebts = [];
   StreamSubscription<void>? _hotelDayTickerSub;
 
   /// معرّفات الليالي المشبوهة (المضافة بعد موعد المغادرة المتوقع بسبب نسيان الموظف)
@@ -170,13 +172,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final debts = await debtsRepo.listByBookingLocalId(widget.booking.id);
     if (mounted) {
       double totalDebt = 0;
+      // ✅ حفظ الديون غير المسددة لاستخدامها في زر خصم مبلغ من الدين
+      final unsettled = <db.Debt>[];
       for (final d in debts) {
         if (d.isSettled == 0 && d.remainingAmount > 0) {
           totalDebt += d.remainingAmount;
+          unsettled.add(d);
         }
       }
       setState(() {
         _debtAmount = totalDebt;
+        _unsettledDebts = unsettled;
       });
     }
   }
@@ -1492,64 +1498,113 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       ),
     ];
 
-    // ✅ رسالة تحذير المبلغ المتبقي + زر إنشاء دين
+    // ✅ رسالة تحذير المبلغ المتبقي + زر إنشاء دين + زر خصم من الليالي
     final hasRemainingBalance = summary.remainingAmount > 0;
+    // ✅ يوجد دين سابق غير مسدّد → نعرضه في التنبيه
+    final hasUnsettledDebt = _debtAmount > 0 && _unsettledDebts.isNotEmpty;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ✅ رسالة تحذير: النزيل عليه مبلغ متبقي
-          if (hasRemainingBalance) ...[
+          // ✅ تنبيه مدمج (compact): النزيل عليه مبلغ متبقي + أزرار إجراءات
+          if (hasRemainingBalance || hasUnsettledDebt) ...[
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              margin: const EdgeInsets.only(bottom: 6),
               decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade300),
+                color: hasUnsettledDebt
+                    ? Colors.red.shade50
+                    : Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: hasUnsettledDebt
+                      ? Colors.red.shade300
+                      : Colors.orange.shade300,
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded,
-                      color: Colors.orange.shade700, size: 24),
-                  const SizedBox(width: 8),
+                  Icon(
+                    hasUnsettledDebt ? Icons.error_outline : Icons.warning_amber_rounded,
+                    color: hasUnsettledDebt
+                        ? Colors.red.shade700
+                        : Colors.orange.shade700,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      '⚠️ النزيل عليه مبلغ متبقي: ${_currencyFmt.format(summary.remainingAmount)}',
+                      hasUnsettledDebt
+                          ? 'دين سابق: ${_currencyFmt.format(_debtAmount)} • متبقي: ${_currencyFmt.format(summary.remainingAmount)}'
+                          : 'متبقي: ${_currencyFmt.format(summary.remainingAmount)}',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: Colors.orange.shade900,
+                        color: hasUnsettledDebt
+                            ? Colors.red.shade900
+                            : Colors.orange.shade900,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            // ✅ زر إنشاء دين بالمبلغ المتبقي (برتقالي)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _createDebtFromRemainingBalance(summary, booking),
-                icon: const Icon(Icons.add_circle, size: 18),
-                label: Text(
-                  'إنشاء دين بالمبلغ المتبقي (${_currencyFmt.format(summary.remainingAmount)})',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+            // ✅ أزرار الإجراءات في صف واحد (compact)
+            Row(
+              children: [
+                // زر إنشاء دين بالمبلغ المتبقي (برتقالي)
+                if (hasRemainingBalance)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: ElevatedButton.icon(
+                        onPressed: () => _createDebtFromRemainingBalance(summary, booking),
+                        icon: const Icon(Icons.add_circle, size: 14),
+                        label: const Text(
+                          'إنشاء دين',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          minimumSize: const Size(0, 32),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // ✅ زر خصم مبلغ من الليالي الفعلية (أخضر) — يطبّق خصم على الحجز
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showDiscountAmountDialog(summary, booking),
+                      icon: const Icon(Icons.discount, size: 14),
+                      label: const Text(
+                        'خصم مبلغ',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade600,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        minimumSize: const Size(0, 32),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
           ],
           GridView.count(
             crossAxisCount: 2,
@@ -3193,6 +3248,180 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     }
+  }
+
+  /// ✅ خصم مبلغ من الليالي الفعلية (تخفيض على إجمالي الفاتورة)
+  ///
+  /// يطبّق خصم بمبلغ ثابت على الحجز عبر تحديث حقل `discount` و
+  /// `discountType = 'total'`. هذا يقلّل `totalAmount` وبالتالي
+  /// يقلّل `remainingAmount` — لا يؤثر على الديون السابقة.
+  ///
+  /// مثال: لو الإجمالي 50,000 والمدفوع 20,000 → المتبقي 30,000.
+  /// خصم 5,000 → الإجمالي الجديد 45,000 → المتبقي 25,000.
+  Future<void> _showDiscountAmountDialog(
+    BookingPaymentSummary summary,
+    db.Booking booking,
+  ) async {
+    final amountController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.discount, color: Colors.green),
+              SizedBox(width: 8),
+              Text('خصم مبلغ من الليالي الفعلية'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'النزيل: ${booking.guestName} (غرفة ${booking.roomNumber})',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                _infoRow('إجمالي الفاتورة', _currencyFmt.format(summary.totalAmount)),
+                _infoRow('المدفوع', _currencyFmt.format(summary.paidAmount)),
+                _infoRow('المتبقي', _currencyFmt.format(summary.remainingAmount)),
+                if (booking.discount > 0)
+                  _infoRow('خصم حالي', _currencyFmt.format(booking.discount)),
+                const Divider(),
+                const Text(
+                  'مبلغ الخصم الجديد:',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    hintText: '0',
+                    suffixText: 'ريال',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    prefixIcon: Icon(Icons.attach_money, size: 18),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'سيتم إضافة هذا المبلغ إلى الخصم الحالي وتقليل المتبقي.',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop<bool>(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop<bool>(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: const Text('تطبيق الخصم'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final amountStr = amountController.text.replaceAll(RegExp('[^0-9.]'), '');
+    final amount = double.tryParse(amountStr) ?? 0;
+    if (amount <= 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ المبلغ غير صالح'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (amount > summary.remainingAmount) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '⚠️ مبلغ الخصم يتجاوز المتبقي (${_currencyFmt.format(summary.remainingAmount)})',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      // ✅ أضف مبلغ الخصم الجديد إلى الخصم الحالي + اضبط discountType = 'total'
+      final newDiscount = booking.discount + amount;
+      await bookingsRepo.update(
+        booking.id,
+        discount: newDiscount,
+        discountType: 'total',
+      );
+
+      // ✅ تسجيل تغيير المزامنة + push فوري
+      markDataChanged();
+      unawaited(
+        ref
+            .read(appwriteSyncManagerProvider)
+            .pushLocalChanges()
+            .then((pushedCount) {
+          debugPrint(
+            '📤 [DiscountNights] push to Appwrite: '
+            '${pushedCount > 0 ? "success ($pushedCount)" : "deferred"}',
+          );
+        }).catchError((Object e) {
+          debugPrint('⚠️ [DiscountNights] push failed: $e');
+        }),
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '✅ تم خصم ${_currencyFmt.format(amount)} من الليالي الفعلية. '
+            'المتبقي الجديد: ${_currencyFmt.format(summary.remainingAmount - amount)}',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ خطأ في تطبيق الخصم: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل تطبيق الخصم: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// صف معلومات مدمج للـ dialog
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12)),
+          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
   }
 
   /// معالجة المغادرة العادية
