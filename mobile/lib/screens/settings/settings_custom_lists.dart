@@ -46,6 +46,9 @@ class _SettingsCustomListsScreenState
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: TabBar(
               controller: _tabController,
+              labelColor: Theme.of(context).colorScheme.primary,
+              unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              indicatorColor: Theme.of(context).colorScheme.primary,
               tabs: _tabs
                   .map((t) => Tab(icon: Icon(t.icon, size: 20), text: t.label))
                   .toList(),

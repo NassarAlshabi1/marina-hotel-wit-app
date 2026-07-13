@@ -68,6 +68,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
           children: [
             TabBar(
               controller: _tabController,
+              labelColor: Colors.green.shade800,
+              unselectedLabelColor: Colors.grey.shade600,
+              indicatorColor: Colors.green,
               labelStyle: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,

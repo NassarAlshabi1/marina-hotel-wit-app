@@ -43,6 +43,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     'بطاقة عائلية',
     'شهادة ميلاد',
     'بطاقة رقم جلوس',
+    'استبيان',
   ];
 
   @override
