@@ -158,32 +158,18 @@ class AuthLocalStore {
         final active = d['active'];
         if (active == false) continue;
         cloudAccounts[username] = {
-          // ═══ الحقول الأساسية ═══
           'password': (d['password'] ?? '').toString(),
-          'full_name': (d['full_name'] ?? d['fullName'] ?? username).toString(),
-          'user_type': (d['user_type'] ?? d['userType'] ?? d['role'] ?? 'employee').toString(),
+          'full_name': (d['full_name'] ?? username).toString(),
+          'user_type': (d['user_type'] ?? d['role'] ?? 'employee').toString(),
           'id': doc.$id.hashCode,
           'doc_id': doc.$id,
           'is_cloud': true,
           'permissions_json': (d['permissions'] ?? '[]').toString(),
           'active': d['active'] ?? true,
-          'last_login': d['last_login'] ?? d['lastLogin'] ?? 0,
           'credentials_version': d['credentials_version'] ?? 1,
           'role': (d['role'] ?? d['user_type'] ?? 'employee').toString(),
-
-          // ═══ حقول SyncFields (للمزامنة وحل التعارضات) ═══
-          'localUuid': (d['localUuid'] ?? doc.$id).toString(),
-          'serverId': d['serverId'],
-          'createdAt': d['createdAt'],
-          'updatedAt': d['updatedAt'],
-          'deletedAt': d['deletedAt'],
-          'lastModified': d['lastModified'],
           'version': d['version'] ?? 1,
-          'origin': (d['origin'] ?? 'local').toString(),
-          'vectorClock': (d['vectorClock'] ?? '{}').toString(),
-          'deviceId': (d['deviceId'] ?? '').toString(),
-          'syncTimestamp': d['syncTimestamp'],
-          'sync_origin': (d['sync_origin'] ?? '').toString(),
+          'lastModified': d['lastModified'],
         };
       }
       if (cloudAccounts.isNotEmpty) {
@@ -341,8 +327,10 @@ class AuthLocalStore {
 
   /// رفع مستخدم إلى Appwrite Cloud
   ///
-  /// ✅ يُرسل جميع حقول المزامنة (SyncFields) + الحقول الأساسية + camelCase duplicates
-  /// لمطابقة مخطط collection `app_users` في Appwrite Cloud (33 column).
+  /// ✅ يُرسل الحقول الأساسية فقط (16 من 33) — كافية للمصادقة + المزامنة.
+  /// الحقول المُستبعدة (serverId, deletedAt*, createdAtIso, epoch duplicates,
+  /// idempotencyKey, syncTimestamp, sync_origin, camelCase duplicates) ليست
+  /// ضرورية للمستخدمين — Appwrite يملأها بـ NULL تلقائياً.
   Future<void> _pushUserToCloud({
     required String username,
     required String password,
@@ -354,17 +342,14 @@ class AuthLocalStore {
       final appwrite = AppwriteService();
       await appwrite.initialize();
       final docId = 'user_$username';
-      // ✅ تشفير كلمة المرور قبل الرفع للسحابة
       final hashedPassword = PasswordHasher.hash(password);
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final nowIso = DateTime.now().toIso8601String();
-      final deviceId = await _getDeviceId();
 
       await appwrite.upsertDocument(
         collectionId: 'app_users',
         documentId: docId,
         data: {
-          // ═══ الحقول الأساسية ═══
+          // الحقول الأساسية (9)
           'username': username,
           'password': hashedPassword,
           'full_name': fullName,
@@ -373,32 +358,16 @@ class AuthLocalStore {
           'active': true,
           'last_login': 0,
           'credentials_version': 1,
-          'role': userType, // نسخة من user_type للتوافق
+          'role': userType,
 
-          // ═══ حقول SyncFields (snake_case) ═══
+          // حقول المزامنة الأساسية فقط (7)
           'localUuid': docId,
-          'serverId': null,
           'createdAt': now,
           'updatedAt': now,
-          'deletedAt': null,
           'lastModified': now,
-          'createdAtIso': nowIso,
-          'updatedAtIso': nowIso,
-          'deletedAtIso': null,
-          'createdAtEpoch': now,
-          'lastModifiedEpoch': now,
           'version': 1,
-          'origin': 'local',
           'vectorClock': '{}',
-          'deviceId': deviceId ?? '',
-          'idempotencyKey': null,
-          'syncTimestamp': now,
-          'sync_origin': 'local',
-
-          // ═══ camelCase duplicates (مطلوبة في Appwrite Cloud schema) ═══
-          'fullName': fullName,
-          'lastLogin': 0,
-          'userType': userType,
+          'deviceId': await _getDeviceId() ?? '',
         },
       );
       AppLogger.debug('User $username pushed to cloud (password hashed)', tag: 'AUTH');
@@ -487,30 +456,19 @@ class AuthLocalStore {
       if (newPassword != null && newPassword.isNotEmpty) {
         data['password'] = PasswordHasher.hash(newPassword);
       }
-      if (newFullName != null) {
-        data['full_name'] = newFullName;
-        data['fullName'] = newFullName; // camelCase duplicate
-      }
+      if (newFullName != null) data['full_name'] = newFullName;
       if (newUserType != null) {
         data['user_type'] = newUserType;
-        data['userType'] = newUserType; // camelCase duplicate
-        data['role'] = newUserType; // نسخة للتوافق
+        data['role'] = newUserType;
       }
       if (newPermissions != null) data['permissions'] = jsonEncode(newPermissions);
       if (active != null) data['active'] = active;
 
-      // ✅ تحديث جميع حقول SyncFields المطلوبة على Appwrite Cloud
+      // ✅ تحديث حقول المزامنة الأساسية فقط
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final nowIso = DateTime.now().toIso8601String();
       data['updatedAt'] = now;
       data['lastModified'] = now;
-      data['updatedAtIso'] = nowIso;
-      data['lastModifiedEpoch'] = now;
-      data['syncTimestamp'] = now;
-      // ✅ زيادة version للكشف عن التعارضات
-      final currentSyncVersion = currentDoc.data['version'] as int? ?? 1;
-      data['version'] = currentSyncVersion + 1;
-      if (newUserType != null) data['lastLogin'] = currentDoc.data['last_login'] ?? 0;
+      data['version'] = (currentDoc.data['version'] as int? ?? 1) + 1;
 
       await appwrite.updateDocument(
         collectionId: 'app_users',
