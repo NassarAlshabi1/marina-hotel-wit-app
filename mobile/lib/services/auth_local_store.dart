@@ -1,10 +1,13 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
 import 'appwrite_service.dart';
 import 'password_hasher.dart';
+import 'secondary_appwrite_config.dart';
+import 'secondary_appwrite_service.dart';
 
 enum AuthType { local }
 
@@ -371,12 +374,100 @@ class AuthLocalStore {
         },
       );
       AppLogger.debug('User $username pushed to cloud (password hashed)', tag: 'AUTH');
+
+      // ✅ مزامنة Secondary Appwrite: إرسال نفس البيانات للوجهة الثانوية
+      await _pushToSecondary(docId, {
+        'username': username,
+        'password': hashedPassword,
+        'full_name': fullName,
+        'user_type': userType,
+        'permissions': jsonEncode(permissions),
+        'active': true,
+        'last_login': 0,
+        'credentials_version': 1,
+        'role': userType,
+        'localUuid': docId,
+        'createdAt': now,
+        'updatedAt': now,
+        'lastModified': now,
+        'version': 1,
+        'vectorClock': '{}',
+        'deviceId': await _getDeviceId() ?? '',
+      });
     } catch (e) {
       AppLogger.warning(
         'Failed to push user $username to cloud',
         tag: 'AUTH',
         error: e,
       );
+    }
+  }
+
+  /// ✅ إرسال بيانات المستخدم للوجهة الثانوية (Secondary Appwrite)
+  ///
+  /// تعمل فقط إذا كان Secondary مُفعّلاً + Push مُفعّل.
+  /// الفشل هنا غير حرج — البيانات موجودة في Primary.
+  Future<void> _pushToSecondary(String docId, Map<String, dynamic> data) async {
+    try {
+      if (!SecondaryAppwriteConfig.isEnabled ||
+          !SecondaryAppwriteConfig.isPushEnabled ||
+          !SecondaryAppwriteConfig.isConfigured) {
+        return; // Secondary معطّل — لا شيء لنفعله
+      }
+
+      final service = SecondaryAppwriteService.instance;
+      await service.ensureInitialized();
+      await service.upsertDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+        data: data,
+      );
+      debugPrint('📤 [Auth] User synced to Secondary: $docId');
+    } catch (e) {
+      // فشل Secondary غير حرج — Primary لديه البيانات
+      debugPrint('⚠️ [Auth] Secondary sync failed for user $docId: $e');
+    }
+  }
+
+  /// ✅ تحديث مستخدم في الوجهة الثانوية
+  Future<void> _updateSecondary(String docId, Map<String, dynamic> data) async {
+    try {
+      if (!SecondaryAppwriteConfig.isEnabled ||
+          !SecondaryAppwriteConfig.isPushEnabled ||
+          !SecondaryAppwriteConfig.isConfigured) {
+        return;
+      }
+
+      final service = SecondaryAppwriteService.instance;
+      await service.ensureInitialized();
+      await service.upsertDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+        data: data,
+      );
+      debugPrint('📤 [Auth] User updated in Secondary: $docId');
+    } catch (e) {
+      debugPrint('⚠️ [Auth] Secondary update failed for user $docId: $e');
+    }
+  }
+
+  /// ✅ حذف مستخدم من الوجهة الثانوية
+  Future<void> _deleteFromSecondary(String docId) async {
+    try {
+      if (!SecondaryAppwriteConfig.isEnabled ||
+          !SecondaryAppwriteConfig.isConfigured) {
+        return;
+      }
+
+      final service = SecondaryAppwriteService.instance;
+      await service.ensureInitialized();
+      await service.deleteDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+      );
+      debugPrint('📤 [Auth] User deleted from Secondary: $docId');
+    } catch (e) {
+      debugPrint('⚠️ [Auth] Secondary delete failed for user $docId: $e');
     }
   }
 
@@ -480,6 +571,10 @@ class AuthLocalStore {
         'Cloud user $username updated (version $currentVersion → $nextVersion)',
         tag: 'AUTH',
       );
+
+      // ✅ مزامنة Secondary Appwrite: تحديث نفس البيانات في الوجهة الثانوية
+      await _updateSecondary(docId, data);
+
       return true;
     } catch (e) {
       AppLogger.error(
@@ -503,6 +598,10 @@ class AuthLocalStore {
         documentId: docId,
       );
       AppLogger.info('Cloud user deleted (doc: $docId)', tag: 'AUTH');
+
+      // ✅ مزامنة Secondary Appwrite: حذف من الوجهة الثانوية
+      await _deleteFromSecondary(docId);
+
       return true;
     } catch (e) {
       AppLogger.warning('Failed to delete cloud user', tag: 'AUTH', error: e);
@@ -795,6 +894,11 @@ class AuthLocalStore {
         'Permissions updated for $username in cloud',
         tag: 'AUTH',
       );
+
+      // ✅ مزامنة Secondary Appwrite: تحديث الصلاحيات في الوجهة الثانوية
+      await _updateSecondary(docId, {
+        'permissions': jsonEncode(permissions),
+      });
     } catch (e) {
       AppLogger.warning(
         'Failed to update cloud permissions for $username',
