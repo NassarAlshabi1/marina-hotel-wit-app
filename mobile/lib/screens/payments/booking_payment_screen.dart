@@ -3518,10 +3518,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       }
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
-        SnackBar(
-          content: const Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'),
+        const SnackBar(
+          content: Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
+          duration: Duration(seconds: 3),
         ),
       );
       Navigator.pop(context);

@@ -1029,10 +1029,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
 
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('تم إضافة الدفعة بنجاح'),
+          const SnackBar(
+            content: Text('تم إضافة الدفعة بنجاح'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
+            duration: Duration(seconds: 3),
           ),
         );
       } catch (e) {
@@ -1113,10 +1113,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         if (mounted) {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('تم إتمام الحجز بنجاح'),
+            const SnackBar(
+              content: Text('تم إتمام الحجز بنجاح'),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
+              duration: Duration(seconds: 3),
             ),
           );
           // ignore: use_build_context_synchronously
