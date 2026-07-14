@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
@@ -16,11 +18,20 @@ class FcmService {
   static final FcmService _instance = FcmService._internal();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
   String? _currentToken;
   bool _isInitialized = false;
-  StreamSubscription<String>? _tokenRefreshSubscription; // اشتراك تحديث التوكن — يجب إلغاؤه
+  StreamSubscription<String>? _tokenRefreshSubscription;
   StreamSubscription<RemoteMessage>? _onMessageSubscription;
   StreamSubscription<RemoteMessage>? _onMessageOpenedAppSubscription;
+
+  static const AndroidNotificationChannel _syncChannel = AndroidNotificationChannel(
+    'marina_sync_channel',
+    'مزامنة فندق مارينا',
+    description: 'إشعارات المزامنة والتحديثات',
+    importance: Importance.high,
+  );
 
   /// تهيئة FCM — تُستدعى من main.dart بعد تثبيت Appwrite
   Future<void> initialize() async {
@@ -29,6 +40,9 @@ class FcmService {
     }
 
     try {
+      // 0. ✅ تهيئة الإشعارات المحلية لعرض notifications في foreground
+      await _initLocalNotifications();
+
       // 1. Firebase تم تهيئته بالفعل في main.dart
       // لا حاجة لاستدعاء Firebase.initializeApp() هنا
 
@@ -116,6 +130,8 @@ class FcmService {
     // --- رسالة في المقدمة (التطبيق مفتوح) ---
     _onMessageSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('📩 FCM: foreground message received');
+      // ✅ عرض إشعار محلي مرئي للمستخدم في foreground
+      _showLocalNotification(message);
       _handleIncomingMessage(message);
     });
 
@@ -132,6 +148,61 @@ class FcmService {
         _handleIncomingMessage(message);
       }
     });
+  }
+
+  /// ✅ تهيئة الإشعارات المحلية لعرض notifications في foreground
+  Future<void> _initLocalNotifications() async {
+    try {
+      const androidSettings =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosSettings = DarwinInitializationSettings();
+      const settings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
+      await _localNotifications.initialize(settings);
+
+      // إنشاء قناة الإشعارات لأندرويد
+      if (Platform.isAndroid) {
+        await _localNotifications
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.createNotificationChannel(_syncChannel);
+      }
+      debugPrint('✅ Local notifications initialized');
+    } catch (e) {
+      debugPrint('⚠️ Local notifications init failed: $e');
+    }
+  }
+
+  /// ✅ عرض إشعار محلي مرئي للمستخدم
+  Future<void> _showLocalNotification(RemoteMessage message) async {
+    try {
+      final title = (message.notification?.title ?? message.data['title'] ?? 'إشعار') as String;
+      final body = (message.notification?.body ?? message.data['body'] ?? '') as String;
+
+      const androidDetails = AndroidNotificationDetails(
+        'marina_sync_channel',
+        'مزامنة فندق مارينا',
+        channelDescription: 'إشعارات المزامنة والتحديثات',
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+      );
+      const iosDetails = DarwinNotificationDetails();
+      const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+      await _localNotifications.show(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title,
+        body,
+        details,
+        payload: jsonEncode(message.data),
+      );
+      debugPrint('🔔 Local notification shown: $title');
+    } catch (e) {
+      debugPrint('⚠️ Show local notification failed: $e');
+    }
   }
 
   /// معالجة الرسالة الواردة — تشغيل sync
