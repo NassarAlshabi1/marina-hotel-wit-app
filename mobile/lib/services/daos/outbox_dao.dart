@@ -78,6 +78,81 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return row.read(countExp) ?? 0;
   }
 
+  /// ✅ عدد السجلات المحلية غير المُسلّمة للرئيسي بغضّ النظر عن حالتها الحالية
+  /// (`pending` أو `processing` عالقة أو `failed`).
+  ///
+  /// الفرق الحرج عن `countPendingPushable`:
+  ///   - `countPendingPushable` يحسب فقط `processing_status = 'pending'`.
+  ///   - لكن عند الضغط على "رفع التغييرات" يحجز `takeBatch` السجلات فيحوّلها
+  ///     إلى `processing`. إذا انقطع الرفع (إنترنت بطيء / إغلاق التطبيق قبل
+  ///     الانتهاء) تبقى السجلات عالقة في `processing` → تختفي من عدّاد
+  ///     `countPendingPushable` → يظهر 0 → يظنّ المستخدم أن الرفع نجح بينما
+  ///     البيانات لم تصل الخادم فعلياً.
+  ///
+  /// هذا العدّاد يشمل كل ما لم يُسلَّم للرئيسي (`delivered_to_primary = 0`)
+  /// وليس في حالة نهائية (`completed`/`dead`)، فتبقى التغييرات العالقة مرئية
+  /// للمستخدم ويبقى زر الرفع مُفعّلاً لإعادة المحاولة.
+  Future<int> countUndeliveredToPrimary({List<String>? sources}) async {
+    final countExp = outbox.id.count();
+    final query = selectOnly(outbox)
+      ..addColumns([countExp])
+      ..where(outbox.processingStatus.isIn(['pending', 'processing', 'failed']))
+      ..where(outbox.deliveredToPrimary.equals(false));
+    if (sources != null && sources.isNotEmpty) {
+      query.where(outbox.source.isIn(sources));
+    }
+    final row = await query.getSingle();
+    return row.read(countExp) ?? 0;
+  }
+
+  /// ✅ يُعيد السجلات العالقة في `processing` و/أو الفاشلة `failed` إلى
+  /// `pending` قبل بدء رفع يدوي، بحيث يلتقطها `takeBatch` فعلياً.
+  ///
+  /// يُستدعى في بداية طور الرفع (`_pushAllEntities`). بما أن الرفع مُسلسَل
+  /// عبر قفل المزامنة، لا توجد دفعة أخرى قيد المعالجة في نفس اللحظة، لذا
+  /// إعادة كل السجلات `processing` الأقدم من [stuckAfter] آمنة تماماً وتضمن
+  /// عدم ضياع أي تغيير عالق من جلسة رفع سابقة انقطعت.
+  ///
+  /// [maxFailedAttempts] — لا نُعيد محاولة السجلات الفاشلة التي تجاوزت هذا الحدّ
+  /// حفاظاً على منطق التراجع الأسّي (backoff) للسجلات ذات الفشل المزمن؛ تلك
+  /// تُترك للمؤقّت الدوري `retryFailedWithBackoff`.
+  ///
+  /// يُرجع عدد السجلات التي أُعيدت إلى `pending`.
+  Future<int> reclaimForPush({
+    Duration stuckAfter = const Duration(seconds: 30),
+    int maxFailedAttempts = 5,
+  }) async {
+    final cutoff =
+        (DateTime.now().millisecondsSinceEpoch ~/ 1000) - stuckAfter.inSeconds;
+
+    // 1) استعادة السجلات العالقة في 'processing' الأقدم من العتبة —
+    //    هذه هي جوهر الإصلاح: سجلات حُجزت لرفع انقطع ولم يكتمل.
+    final reclaimedProcessing = await (update(outbox)
+          ..where((t) =>
+              t.processingStatus.equals('processing') &
+              t.processingStartedAt.isSmallerOrEqualValue(cutoff)))
+        .write(const OutboxCompanion(
+      processingStatus: Value('pending'),
+      processingStartedAt: Value(null),
+      processingWorker: Value(null),
+    ));
+
+    // 2) إعادة السجلات الفاشلة قليلة المحاولات إلى 'pending' (المستخدم يطلب
+    //    إعادة المحاولة صراحةً بالضغط على الزر). لا نلمس 'dead' (فشل دائم)
+    //    ولا السجلات كثيرة المحاولات (تُترك لمنطق backoff الدوري).
+    final reclaimedFailed = await (update(outbox)
+          ..where((t) =>
+              t.processingStatus.equals('failed') &
+              t.attempts.isSmallerOrEqualValue(maxFailedAttempts)))
+        .write(const OutboxCompanion(
+      processingStatus: Value('pending'),
+      processingStartedAt: Value(null),
+      processingWorker: Value(null),
+    ));
+
+    return reclaimedProcessing + reclaimedFailed;
+  }
+
   Future<void> resetErrors() async {
     await (update(outbox)
           ..where(

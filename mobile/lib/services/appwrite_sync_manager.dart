@@ -199,8 +199,12 @@ class AppwriteSyncManager {
       await _loadSettings();
 
       // Fix potential stuck states
+      // ✅ إصلاح: عند بدء التطبيق لا يوجد أي رفع جارٍ، لذا نستعيد كل السجلات
+      // العالقة في 'processing' فوراً (Duration.zero) بدل انتظار 5 دقائق.
+      // هذا يعالج حالة إغلاق التطبيق أثناء رفع لم يكتمل: عند إعادة التشغيل
+      // تعود السجلات إلى 'pending' مباشرةً وتظهر في عدّاد التغييرات المعلّقة.
       try {
-        await outboxDao.cleanupStuckEntries();
+        await outboxDao.cleanupStuckEntries(timeout: Duration.zero);
         await outboxDao.retryFailed();
       } catch (e) {
         _logger.warning(
@@ -2462,6 +2466,24 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
       return 0;
+    }
+
+    // ✅ إصلاح فقدان التغييرات العالقة: قبل بدء الرفع نُعيد أي سجلات عالقة
+    // في 'processing' (من جلسة رفع سابقة انقطعت بسبب إنترنت بطيء أو إغلاق
+    // التطبيق) وكذلك السجلات 'failed' إلى 'pending'، بحيث يلتقطها takeBatch
+    // فعلياً. بدون هذا كان takeBatch (الذي يجلب 'pending' فقط) يتجاهلها،
+    // فلا تُرفع أبداً رغم أن المستخدم يضغط "رفع التغييرات" مراراً.
+    // الرفع مُسلسَل عبر قفل المزامنة، لذا لا توجد دفعة أخرى قيد المعالجة الآن.
+    try {
+      final reclaimed = await outboxDao.reclaimForPush();
+      if (reclaimed > 0) {
+        _logger.info(
+          '♻️ أُعيد $reclaimed سجل عالق/فاشل إلى pending قبل الرفع',
+          tag: 'SYNC',
+        );
+      }
+    } catch (e) {
+      _logger.warning('⚠️ فشلت استعادة السجلات العالقة قبل الرفع: $e', tag: 'SYNC');
     }
 
     int totalProcessed = 0;
