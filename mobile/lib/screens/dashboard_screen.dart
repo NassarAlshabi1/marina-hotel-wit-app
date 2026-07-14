@@ -13,6 +13,7 @@ import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/appwrite_realtime_sync.dart';
 import '../services/local_db.dart';
+import '../utils/loading_snackbar.dart';
 import '../services/remote_config_service.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
@@ -114,40 +115,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return;
       }
 
-      // إظهار إشعار "جاري السحب"
+      // ✅ إشعار تحميل قابل للإغلاق برمجياً
+      LoadingSnackBar? loading;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '📥 جاري سحب البيانات...',
-                    style: TextStyle(fontFamily: 'Tajawal'),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.blue.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            duration: const Duration(minutes: 5),
-          ),
-        );
+        loading = LoadingSnackBar.show(context,
+            message: '📥 جاري سحب البيانات...');
       }
 
       final syncManager = ref.read(appwriteSyncManagerProvider);
       final result = await syncManager.sync(push: false);
       final pulledCount = result.recordsPulled;
+
+      // ✅ إغلاق إشعار التحميل فور انتهاء السحب
+      loading?.close();
 
       // إعادة تعيين علامة التغييرات عن بعد
       AppwriteRealtimeSync().resetRemoteChangesFlag();

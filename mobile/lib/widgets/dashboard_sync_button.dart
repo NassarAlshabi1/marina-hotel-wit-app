@@ -14,6 +14,7 @@ import '../services/daos/sync_log_dao.dart';
 import '../services/secondary_appwrite_config.dart';
 import '../services/secondary_sync_manager.dart';
 import '../services/sync/sync_gate.dart';
+import '../utils/loading_snackbar.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
@@ -254,38 +255,19 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       unawaited(_pullAnimationController.repeat());
 
-      // ✅ إشعار دائم: استخدم messenger المعرّف قبل try
-      // ignore: use_build_context_synchronously
+      // ✅ إشعار تحميل قابل للإغلاق برمجياً
+      LoadingSnackBar? loading;
       if (mounted) {
-        messenger = ScaffoldMessenger.of(context);
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text('⬇️ جاري سحب التغييرات من السيرفر...'),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.blue,
-            // ✅ مدة طويلة كـ safety net فقط — سيُغلق برمجياً عند الانتهاء
-            duration: Duration(minutes: 10),
-          ),
-        );
+        loading = LoadingSnackBar.show(context,
+            message: '⬇️ جاري سحب التغييرات من السيرفر...');
       }
 
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
       final pullResult = await appwriteSyncManager.sync(push: false);
       final pulledCount = pullResult.recordsPulled;
+
+      // ✅ إغلاق إشعار التحميل فور انتهاء المزامنة
+      loading?.close();
 
       // إعادة تعيين علامة "توجد تغييرات من السيرفر"
       AppwriteRealtimeSync().resetRemoteChangesFlag();
@@ -535,32 +517,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       // ✅ إشعار دائم: يُحفظ مثيل ScaffoldMessengerState للتحكم بالإغلاق
       ScaffoldMessengerState? pushMessenger;
+      // ✅ إشعار تحميل قابل للإغلاق برمجياً
+      LoadingSnackBar? pushLoading;
       if (mounted) {
-        pushMessenger = ScaffoldMessenger.of(context);
-        pushMessenger.showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '⬆️ جاري رفع التغييرات إلى ${targets.join(' + ')}...',
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.blue,
-            duration: const Duration(minutes: 10),
-          ),
-        );
+        pushLoading = LoadingSnackBar.show(context,
+            message: '⬆️ جاري رفع التغييرات إلى ${targets.join(' + ')}...');
       }
 
       final results = <String, Map<String, dynamic>>{};
@@ -666,7 +627,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
         if (failedTargets.isEmpty) {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً قبل إظهار النتيجة
-          pushMessenger?.hideCurrentSnackBar();
+          pushLoading?.close();
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -702,7 +663,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           );
         } else if (successTargets.isEmpty) {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً عند الفشل
-          pushMessenger?.hideCurrentSnackBar();
+          pushLoading?.close();
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -727,7 +688,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           );
         } else {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً للنتيجة الجزئية
-          pushMessenger?.hideCurrentSnackBar();
+          pushLoading?.close();
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
