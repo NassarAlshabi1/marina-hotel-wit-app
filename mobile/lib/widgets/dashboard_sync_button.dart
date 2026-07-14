@@ -933,7 +933,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     BoxShadow(
                       color: Colors.blue.withValues(alpha: 0.5),
                       blurRadius: 6,
-                      spreadRadius: 1,
                     ),
                   ],
                 ),
@@ -1061,7 +1060,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     BoxShadow(
                       color: Colors.red.withValues(alpha: 0.5),
                       blurRadius: 6,
-                      spreadRadius: 1,
                     ),
                   ],
                 ),

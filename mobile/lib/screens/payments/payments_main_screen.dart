@@ -31,7 +31,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   @override
   String get screenId => 'payments_main';
   late TabController _tabController;
-  bool _isSavingPayment = false;
+  // ✅ ValueNotifier بدلاً من bool + setState — يمنع إعادة بناء الشاشة كاملة
+  // عند تغيير حالة الحفظ (يُعيد بناء الزر فقط)
+  final ValueNotifier<bool> _isSavingPayment = ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -50,6 +52,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _isSavingPayment.dispose();
     super.dispose();
   }
 
@@ -59,7 +62,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       child: AppScaffold(
         title: 'إدارة المدفوعات',
         fab: FloatingActionButton.extended(
-          onPressed: _isSavingPayment ? null : _showNewPaymentDialog,
+          onPressed: _isSavingPayment.value ? null : _showNewPaymentDialog,
           icon: const Icon(Icons.add_card),
           label: const Text('دفعة جديدة'),
           backgroundColor: Colors.green,
@@ -653,7 +656,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
-                onPressed: _isSavingPayment
+                onPressed: _isSavingPayment.value
                     ? null
                     : () => _saveStandalonePayment(
                           ctx,
@@ -663,14 +666,17 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                           selectedMethod,
                         ),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                child: _isSavingPayment
-                    ? const SizedBox(
-                        width: 20,
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _isSavingPayment,
+                  builder: (context, isSaving, _) => isSaving
+                      ? const SizedBox(
+                          width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white,),
                       )
                     : const Text('تسجيل الدفعة'),
+                ),
               ),
             ],
           ),
@@ -702,7 +708,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       return;
     }
 
-    setState(() => _isSavingPayment = true);
+    _isSavingPayment.value = true;
 
     try {
       final paymentsRepo = ref.read(paymentsRepoProvider);
@@ -761,7 +767,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       }
     } finally {
       if (mounted) {
-        setState(() => _isSavingPayment = false);
+        _isSavingPayment.value = false;
       }
     }
   }

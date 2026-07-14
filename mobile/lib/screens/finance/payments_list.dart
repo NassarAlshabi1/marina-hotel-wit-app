@@ -363,7 +363,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
         boxShadow: [
           BoxShadow(
             color: const Color(0xFFFFB74D).withValues(alpha: 0.3),
-            blurRadius: 8,
+            blurRadius: 4,
             offset: const Offset(0, 2),
           ),
         ],

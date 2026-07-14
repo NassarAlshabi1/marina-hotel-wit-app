@@ -670,7 +670,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                 boxShadow: [
                   BoxShadow(
                     color: buttonColor.withValues(alpha: 0.3),
-                    blurRadius: 8,
+                    blurRadius: 4,
                     offset: const Offset(0, 4),
                   ),
                 ],
