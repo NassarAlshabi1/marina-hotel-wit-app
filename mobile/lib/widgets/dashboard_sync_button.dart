@@ -260,6 +260,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       if (mounted) {
+        // ignore: use_build_context_synchronously
         loading = LoadingSnackBar.show(context,
             message: '⬇️ جاري سحب التغييرات من السيرفر...');
       }
@@ -521,6 +522,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       LoadingSnackBar? pushLoading;
       if (mounted) {
+        // ignore: use_build_context_synchronously
         pushLoading = LoadingSnackBar.show(context,
             message: '⬆️ جاري رفع التغييرات إلى ${targets.join(' + ')}...');
       }

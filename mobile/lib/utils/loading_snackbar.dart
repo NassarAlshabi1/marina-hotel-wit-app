@@ -1,46 +1,23 @@
 // lib/utils/loading_snackbar.dart
 //
 // ✅ Helper موحّد لإشعارات "جاري..." التي تختفي فور انتهاء العملية.
-//
-// بدلاً من ضبط duration طويل (5 دقائق) وانتظار انتهائه، نتحكم بالـ SnackBar
-// برمجياً: نُنشئه، نحفظ مثيله، ثم نُغلقه فور انتهاء العملية.
-//
-// الاستخدام:
-// ```dart
-// final loading = LoadingSnackBar.show(context, message: 'جاري المزامنة...');
-// try {
-//   await doWork();
-//   loading.close();
-//   LoadingSnackBar.showSuccess(context, 'تمت المزامنة بنجاح');
-// } catch (e) {
-//   loading.close();
-//   LoadingSnackBar.showError(context, 'فشلت المزامنة: $e');
-// }
-// ```
 
 import 'package:flutter/material.dart';
 
 /// إشعار تحميل قابل للإغلاق برمجياً.
-///
-/// يُنشئ SnackBar مع CircularProgressIndicator يبقى ظاهراً حتى يُستدعى
-/// [close] أو يُستبدل بإشعار آخر (نجاح/فشل).
 class LoadingSnackBar {
   LoadingSnackBar._(this._messenger);
 
   final ScaffoldMessengerState _messenger;
 
   /// عرض إشعار "جاري..." مع spinner.
-  ///
-  /// [message] النص (مثلاً: 'جاري المزامنة...')
-  /// [backgroundColor] لون الخلفية (افتراضي: أزرق)
-  /// يُعيد كائن LoadingSnackBar — استدعِ .close() عند انتهاء العملية.
+  // ignore: prefer_constructors_over_static_methods
   static LoadingSnackBar show(
     BuildContext context, {
     String message = 'جاري التحميل...',
     Color backgroundColor = Colors.blue,
   }) {
     final messenger = ScaffoldMessenger.of(context);
-    // إغلاق أي snackbar سابق
     messenger.clearSnackBars();
     messenger.showSnackBar(
       SnackBar(
@@ -59,8 +36,8 @@ class LoadingSnackBar {
           ],
         ),
         backgroundColor: backgroundColor,
-        duration: const Duration(minutes: 10), // safety net — لن يصل لها
-        dismissDirection: DismissDirection.none, // لا يمكن إغلاقه بالسحب
+        duration: const Duration(minutes: 10),
+        dismissDirection: DismissDirection.none,
       ),
     );
     return LoadingSnackBar._(messenger);
