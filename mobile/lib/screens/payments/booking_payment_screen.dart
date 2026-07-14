@@ -1,6 +1,7 @@
 // ignore_for_file: unused_element
 
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart' hide Column;
@@ -8,6 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
@@ -24,6 +28,7 @@ import '../../utils/date_parser.dart';
 import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/loading_snackbar.dart';
 import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 
@@ -3897,13 +3902,30 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               onPressed: () => Navigator.pop(context),
               child: const Text('إلغاء'),
             ),
+            // ✅ زر 1: إرسال كنص عبر واتساب (يفتح واتساب لاختيار الرقم)
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _sendStatementViaWhatsAppText(summary);
+              },
+              icon: const Icon(Icons.chat, size: 18),
+              label: const Text('واتساب (نص)'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.green,
+                side: const BorderSide(color: Colors.green),
+              ),
+            ),
+            // ✅ زر 2: إرسال PDF عبر واتساب (يولّد PDF ثم يفتح واتساب)
             FilledButton.icon(
               onPressed: () {
                 Navigator.pop(context);
-                _performSendAccountStatement(summary);
+                _sendStatementViaPdf(summary);
               },
-              icon: const Icon(Icons.send, size: 18),
-              label: const Text('إرسال واتساب'),
+              icon: const Icon(Icons.picture_as_pdf, size: 18),
+              label: const Text('واتساب (PDF)'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.orange,
+              ),
             ),
           ],
         ),
@@ -3912,6 +3934,107 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   bool _showFullPreview = false;
+
+  /// ✅ إرسال كشف الحساب كنص عبر واتساب — يفتح واتساب مباشرة
+  /// المستخدم يختار الرقم بنفسه (لا حاجة لـ API)
+  Future<void> _sendStatementViaWhatsAppText(BookingPaymentSummary summary) async {
+    final message = _buildAccountStatementMessage(summary);
+    final encodedMsg = Uri.encodeComponent(message);
+
+    // فتح واتساب مباشرة مع النص جاهزاً — المستخدم يختار جهة الاتصال
+    final whatsappUrl = 'https://wa.me/?text=$encodedMsg';
+
+    try {
+      final uri = Uri.parse(whatsappUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        // fallback: محاولة فتح تطبيق واتساب مباشرة
+        final appUri = Uri.parse('whatsapp://send?text=$encodedMsg');
+        if (await canLaunchUrl(appUri)) {
+          await launchUrl(appUri, mode: LaunchMode.externalApplication);
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تطبيق واتساب غير مثبت على الجهاز'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  /// ✅ إرسال كشف الحساب كـ PDF عبر واتساب
+  /// يولّد PDF محلياً ثم يستخدم share_plus لمشاركته عبر واتساب
+  Future<void> _sendStatementViaPdf(BookingPaymentSummary summary) async {
+    if (!mounted) return;
+
+    // ✅ إشعار تحميل
+    final loading = LoadingSnackBar.show(context,
+        message: 'جاري إنشاء كشف الحساب PDF...');
+
+    try {
+      // 1. توليد PDF
+      final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+      final plannedCheckout = widget.booking.checkoutDate != null
+          ? DateTime.tryParse(widget.booking.checkoutDate!)
+          : null;
+      final actualCheckout = widget.booking.actualCheckout != null
+          ? DateTime.tryParse(widget.booking.actualCheckout!)
+          : null;
+      final checkout = actualCheckout ?? plannedCheckout ?? checkin;
+
+      final roomsRepo = ref.read(roomsRepoProvider);
+      final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
+
+      final invoice = Invoice(
+        invoiceNumber: 'STMT${DateTime.now().millisecondsSinceEpoch}',
+        bookingId: widget.booking.localUuid,
+        guestName: widget.booking.guestName,
+        guestPhone: _currentGuestPhone,
+        roomNumber: widget.booking.roomNumber,
+        checkinDate: checkin,
+        checkoutDate: checkout,
+        nights: Time.nightsWithCutoff(checkin, checkout: checkout),
+        roomRate: room?.price ?? 0,
+        totalAmount: summary.totalAmount,
+        payments: summary.payments,
+        remainingAmount: summary.remainingAmount,
+        generatedAt: DateTime.now(),
+      );
+
+      // 2. حفظ PDF في ملف مؤقت
+      final pdfBytes = await invoice.generatePdfBytes();
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'كشف_حساب_${widget.booking.guestName}_${widget.booking.roomNumber}.pdf';
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsBytes(pdfBytes);
+
+      // 3. إغلاق إشعار التحميل
+      loading.close();
+
+      // 4. مشاركة الملف عبر واتساب (Share sheet — المستخدم يختار واتساب)
+      if (!mounted) return;
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'كشف حساب - ${widget.booking.guestName} - غرفة ${widget.booking.roomNumber}',
+        subject: 'كشف حساب - MARINA HOTEL',
+      );
+    } catch (e) {
+      loading.close();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ في إنشاء PDF: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
 
   /// بناء رسالة كشف حساب مختصرة (اقصى 1000 حرف)
   String _buildAccountStatementMessage(BookingPaymentSummary summary) {

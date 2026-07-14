@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart' hide PdfColors;
@@ -650,6 +652,25 @@ class Invoice {
     );
 
     await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+  }
+
+  /// ✅ توليد PDF وإرجاع bytes (للمشاركة عبر واتساب)
+  Future<Uint8List> generatePdfBytes() async {
+    final fonts = await EnhancedPdfUtils.loadArabicFonts();
+    final logo = await EnhancedPdfUtils.loadLogoImage();
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(20),
+        textDirection: pw.TextDirection.rtl,
+        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
+        build: (context) => _buildInvoiceContent(fonts, logo),
+      ),
+    );
+
+    return pdf.save();
   }
 
   pw.Widget _buildInvoiceContent(ArabicPdfFonts fonts, pw.ImageProvider? logo) {
