@@ -2217,11 +2217,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
         backgroundColor: Colors.green,
         duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'إغلاق',
-          textColor: Colors.white,
-          onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-        ),
       ),
     );
   }
@@ -2585,10 +2580,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         SnackBar(
           content: Text('تم تسجيل دفعة بقيمة ${_currencyFmt.format(amount)}'),
           duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            onPressed: messenger.hideCurrentSnackBar,
-          ),
         ),
       );
     } catch (e) {
@@ -3126,11 +3117,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            textColor: Colors.white,
-            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-          ),
         ),
       );
     } catch (e) {
@@ -3536,11 +3522,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           content: const Text('تم تسجيل المغادرة بنجاح وتحرير الغرفة'),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            textColor: Colors.white,
-            onPressed: messenger.hideCurrentSnackBar,
-          ),
         ),
       );
       Navigator.pop(context);
@@ -3743,11 +3724,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            textColor: Colors.white,
-            onPressed: messenger.hideCurrentSnackBar,
-          ),
         ),
       );
     } catch (e) {
@@ -4394,11 +4370,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            textColor: Colors.white,
-            onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-          ),
         ),
       );
     } catch (e) {

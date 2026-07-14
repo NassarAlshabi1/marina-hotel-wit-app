@@ -90,12 +90,6 @@ class _AppwriteConnectionSettingsScreenState
             content: const Text('تم حفظ الإعدادات بنجاح'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'إغلاق',
-              textColor: Colors.white,
-              onPressed: () =>
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-            ),
           ),
         );
         setState(() => _hasChanges = false);
@@ -179,12 +173,6 @@ class _AppwriteConnectionSettingsScreenState
           content: const Text('تم إعادة تعيين الإعدادات'),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            textColor: Colors.white,
-            onPressed: () =>
-                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-          ),
         ),
       );
 
@@ -206,12 +194,6 @@ class _AppwriteConnectionSettingsScreenState
             ),
             backgroundColor: Colors.orange,
             duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'إغلاق',
-              textColor: Colors.white,
-              onPressed: () =>
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-            ),
           ),
         );
       }

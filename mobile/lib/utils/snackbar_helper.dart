@@ -12,11 +12,6 @@ class SnackBarHelper {
         content: Text(message),
         backgroundColor: isError ? Colors.red : backgroundColor,
         duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'إغلاق',
-          textColor: Colors.white,
-          onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-        ),
       ),
     );
   }

@@ -874,12 +874,6 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             content: Text(message),
             backgroundColor: createDebt ? Colors.orange : Colors.grey,
             duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'إغلاق',
-              textColor: Colors.white,
-              onPressed: () =>
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-            ),
           ),
         );
         // ignore: use_build_context_synchronously
@@ -1039,12 +1033,6 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             content: const Text('تم إضافة الدفعة بنجاح'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'إغلاق',
-              textColor: Colors.white,
-              onPressed: () =>
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-            ),
           ),
         );
       } catch (e) {
@@ -1129,12 +1117,6 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
               content: const Text('تم إتمام الحجز بنجاح'),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 3),
-              action: SnackBarAction(
-                label: 'إغلاق',
-                textColor: Colors.white,
-                onPressed: () =>
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-              ),
             ),
           );
           // ignore: use_build_context_synchronously

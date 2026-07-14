@@ -210,11 +210,6 @@ class AppwriteErrorHandler {
           ],
         ),
         backgroundColor: error.isRecoverable ? Colors.orange : Colors.red,
-        action: SnackBarAction(
-          label: 'إغلاق',
-          textColor: Colors.white,
-          onPressed: () {},
-        ),
       ),
     );
   }

@@ -970,12 +970,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                         ),
                         backgroundColor: Theme.of(ctx).colorScheme.error,
                         duration: const Duration(seconds: 3),
-                        action: SnackBarAction(
-                          label: 'إغلاق',
-                          textColor: Colors.white,
-                          onPressed: () =>
-                              ScaffoldMessenger.of(ctx).hideCurrentSnackBar(),
-                        ),
                       ),
                     );
                     return;

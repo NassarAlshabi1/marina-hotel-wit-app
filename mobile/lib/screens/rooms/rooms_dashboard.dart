@@ -259,12 +259,6 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
           content: Text('خطأ في تحميل الحجز: $e'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            textColor: Colors.white,
-            onPressed: () =>
-                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-          ),
         ),
       );
     }
