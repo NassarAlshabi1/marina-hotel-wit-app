@@ -25,9 +25,8 @@ import 'package:flutter/material.dart';
 /// يُنشئ SnackBar مع CircularProgressIndicator يبقى ظاهراً حتى يُستدعى
 /// [close] أو يُستبدل بإشعار آخر (نجاح/فشل).
 class LoadingSnackBar {
-  LoadingSnackBar._(this._context, this._messenger);
+  LoadingSnackBar._(this._messenger);
 
-  final BuildContext _context;
   final ScaffoldMessengerState _messenger;
 
   /// عرض إشعار "جاري..." مع spinner.
@@ -64,7 +63,7 @@ class LoadingSnackBar {
         dismissDirection: DismissDirection.none, // لا يمكن إغلاقه بالسحب
       ),
     );
-    return LoadingSnackBar._(context, messenger);
+    return LoadingSnackBar._(messenger);
   }
 
   /// إغلاق إشعار التحميل فوراً.

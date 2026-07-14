@@ -208,9 +208,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
 
     // ✅ P1-1 fix: كل الفحوص تتم قبل كتابة سجل in_progress
-    // لا نكتب in_progress إلا بعد اجتياز كل فحوص ما-قبل-البدء
+    // لا نكتم في_progress إلا بعد اجتياز كل فحوص ما-قبل-البدء
     // ✅ معرّف قبل try ليكون متاحاً في catch
-    ScaffoldMessengerState? messenger;
+    LoadingSnackBar? loading;
 
     try {
       final appwriteEnabled = await _isAppwriteSyncEnabled();
@@ -259,7 +259,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       unawaited(_pullAnimationController.repeat());
 
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
-      LoadingSnackBar? loading;
       if (mounted) {
         loading = LoadingSnackBar.show(context,
             message: '⬇️ جاري سحب التغييرات من السيرفر...');
@@ -292,7 +291,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           _lastSyncTime = DateTime.now();
         });
         // ✅ إغلاق إشعار "جاري" فوراً قبل إظهار النتيجة
-        messenger?.hideCurrentSnackBar();
+        loading?.close();
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -326,7 +325,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       debugPrint('❌ خطأ في سحب التغييرات: $e');
 
       // ✅ إغلاق إشعار "جاري" فوراً عند الفشل
-      messenger?.hideCurrentSnackBar();
+      loading?.close();
 
       // ✅ تسجيل فشل العملية
       stopwatch.stop();
@@ -519,7 +518,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       // ✅ إشعار دائم: يُحفظ مثيل ScaffoldMessengerState للتحكم بالإغلاق
-      ScaffoldMessengerState? pushMessenger;
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       LoadingSnackBar? pushLoading;
       if (mounted) {
