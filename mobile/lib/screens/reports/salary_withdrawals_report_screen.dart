@@ -510,7 +510,7 @@ class _SalaryWithdrawalsReportScreenState
                               padding: const EdgeInsets.only(bottom: 8),
                               itemCount: filteredRows.length,
                               itemBuilder: (context, index) =>
-                                  _buildTransactionRow(filteredRows[index]),
+                                  RepaintBoundary(child: _buildTransactionRow(filteredRows[index])),
                             ),
             ),
           ],

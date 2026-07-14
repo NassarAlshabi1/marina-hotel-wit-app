@@ -510,7 +510,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             itemBuilder: (context, index) {
               final roomNumber = _dashboardRoomNumbers[index];
               final rws = roomsMap[roomNumber];
-              return _buildRoomButton(context, roomNumber, rws);
+              return RepaintBoundary(child: _buildRoomButton(context, roomNumber, rws));
             },
           ),
         ],

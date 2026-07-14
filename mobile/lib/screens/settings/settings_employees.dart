@@ -98,7 +98,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   itemCount: employees.length,
                   itemBuilder: (context, index) {
                     final employee = employees[index];
-                    return _buildEmployeeCard(context, ref, employee);
+                    return RepaintBoundary(child: _buildEmployeeCard(context, ref, employee));
                   },
                   ),
                 ),

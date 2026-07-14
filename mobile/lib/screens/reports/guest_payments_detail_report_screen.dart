@@ -540,7 +540,7 @@ double _getOverdueCost(Booking b) {
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             itemCount: filtered.length,
-            itemBuilder: (context, index) => _buildBookingCard(filtered[index]),
+            itemBuilder: (context, index) => RepaintBoundary(child: _buildBookingCard(filtered[index])),
           ),
         ),
       ],

@@ -532,7 +532,7 @@ class _AiChatScreenState extends State<AiChatScreen>
                     itemCount: _messages.length + (_isLoading ? 1 : 0),
                     itemBuilder: (context, index) {
                       if (index >= _messages.length) {
-                        return _buildLoadingBubble();
+                        return RepaintBoundary(child: _buildLoadingBubble());
                       }
                       return _buildMessageBubble(_messages[index]);
                     },
@@ -592,7 +592,7 @@ class _AiChatScreenState extends State<AiChatScreen>
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 6,
+              blurRadius: 4,
               offset: const Offset(0, 2),
             ),
           ],

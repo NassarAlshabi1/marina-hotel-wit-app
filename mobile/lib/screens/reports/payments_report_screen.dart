@@ -452,7 +452,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               separatorBuilder: (_, _) => const SizedBox(height: 5),
               itemBuilder: (context, index) {
                 final row = _rows[index];
-                return _buildPaymentCard(row);
+                return RepaintBoundary(child: _buildPaymentCard(row));
               },
             ),
     );
