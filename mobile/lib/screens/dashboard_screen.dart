@@ -395,7 +395,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           boxShadow: const [
             BoxShadow(
               color: Color(0x0D000000),
-              blurRadius: 10,
+              blurRadius: 4,
               offset: Offset(0, 2),
             ),
           ],
@@ -474,7 +474,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         boxShadow: const [
           BoxShadow(
             color: Color(0x0D000000),
-            blurRadius: 10,
+            blurRadius: 4,
             offset: Offset(0, 2),
           ),
         ],

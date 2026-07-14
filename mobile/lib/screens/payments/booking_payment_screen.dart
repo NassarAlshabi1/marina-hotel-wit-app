@@ -47,7 +47,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
   double _remainingAmount = 0;
   late String _currentGuestPhone;
-  bool _isSavingPayment = false;
+  // ✅ أداء: ValueNotifier بدلاً من bool + setState — يمنع إعادة بناء الشاشة كاملة
+  final _isSavingPaymentNotifier = ValueNotifier<bool>(false);
+  bool get _isSavingPayment => _isSavingPaymentNotifier.value;
+  set _isSavingPayment(bool v) => _isSavingPaymentNotifier.value = v;
   double _debtAmount = 0;
   // ✅ قائمة الديون غير المسددة لهذا الحجز (تُستخدم لزر خصم مبلغ من الدين)
   List<db.Debt> _unsettledDebts = [];
@@ -472,6 +475,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     _hotelDayTickerSub?.cancel();
     _tabController.dispose();
     _phoneController.dispose();
+    _isSavingPaymentNotifier.dispose();
     super.dispose();
   }
 
@@ -2364,9 +2368,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
     final double amount = parsedAmount;
 
-    setState(() {
-      _isSavingPayment = true;
-    });
+    _isSavingPayment = true;
 
     final paymentsRepo = ref.read(paymentsRepoProvider);
     final bookingsRepo = ref.read(bookingsRepoProvider);
@@ -2593,9 +2595,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isSavingPayment = false;
-        });
+        _isSavingPayment = false;
       } else {
         _isSavingPayment = false;
       }
