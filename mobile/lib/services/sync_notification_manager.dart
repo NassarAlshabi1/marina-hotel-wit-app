@@ -91,7 +91,7 @@ class SyncNotificationManager {
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 8,
+                  blurRadius: 4,
                   offset: const Offset(0, 4),
                 ),
               ],
@@ -189,7 +189,7 @@ class SyncNotificationManager {
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 8,
+                  blurRadius: 4,
                   offset: const Offset(0, 4),
                 ),
               ],
@@ -345,7 +345,7 @@ class SyncNotificationManager {
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 8,
+                  blurRadius: 4,
                   offset: const Offset(0, 4),
                 ),
               ],

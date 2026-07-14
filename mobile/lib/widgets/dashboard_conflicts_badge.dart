@@ -104,7 +104,7 @@ class _PulsingBadgeState extends State<_PulsingBadge>
           boxShadow: [
             BoxShadow(
               color: Colors.red.withValues(alpha: 0.4),
-              blurRadius: 6,
+              blurRadius: 4,
             ),
           ],
         ),

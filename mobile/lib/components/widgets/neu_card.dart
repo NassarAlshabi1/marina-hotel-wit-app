@@ -33,12 +33,12 @@ class NeuCard extends StatelessWidget {
           BoxShadow(
             color: shadowDark.withValues(alpha: 0.3),
             offset: const Offset(4, 4),
-            blurRadius: 8,
+            blurRadius: 4,
           ),
           BoxShadow(
             color: shadowLight.withValues(alpha: 0.8),
             offset: const Offset(-4, -4),
-            blurRadius: 8,
+            blurRadius: 4,
           ),
         ],
       ),
@@ -196,7 +196,7 @@ class NeuQuickFilterChip extends StatelessWidget {
               ? [
                   BoxShadow(
                     color: scheme.primary.withValues(alpha: 0.3),
-                    blurRadius: 8,
+                    blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
                 ]
