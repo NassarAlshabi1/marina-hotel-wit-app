@@ -31,7 +31,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     with SyncOnExitMixin {
   @override
   String get screenId => 'booking_checkout';
-  bool _isProcessing = false;
+  final ValueNotifier<bool> _isProcessing = ValueNotifier<bool>(false);
   StreamSubscription<void>? _hotelDayTickerSub;
 
   /// معرّفات الليالي المشبوهة (المضافة بعد موعد المغادرة المتوقع بسبب نسيان الموظف)
@@ -330,6 +330,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   @override
   void dispose() {
     _hotelDayTickerSub?.cancel();
+    _isProcessing.dispose();
     super.dispose();
   }
 
@@ -636,7 +637,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                 children: [
                                   Expanded(
                                     child: ElevatedButton.icon(
-                                      onPressed: _isProcessing
+                                      onPressed: _isProcessing.value
                                           ? null
                                           : () => _addPayment(context),
                                       icon: const Icon(Icons.add_circle),
@@ -651,7 +652,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: ElevatedButton.icon(
-                                        onPressed: _isProcessing
+                                        onPressed: _isProcessing.value
                                             ? null
                                             : () => _completeCheckout(context),
                                         icon: const Icon(Icons.check_circle),
@@ -666,7 +667,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: ElevatedButton.icon(
-                                        onPressed: _isProcessing
+                                        onPressed: _isProcessing.value
                                             ? null
                                             : () => _handleCheckout(context, remainingAmount, totalDue, suspiciousNights),
                                         icon: const Icon(Icons.logout),
@@ -791,7 +792,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
 
   /// تسجيل خروج النزيل مع خيار إنشاء دين
   Future<void> _completeCheckoutNow(BuildContext context, double remainingAmount, double totalDue, {required bool createDebt}) async {
-    setState(() => _isProcessing = true);
+    _isProcessing.value = true;
 
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
@@ -888,7 +889,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       }
     } finally {
       if (mounted) {
-        setState(() => _isProcessing = false);
+        _isProcessing.value = false;
       }
     }
   }
@@ -996,7 +997,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       // إدخال الكسور أصلاً، لذا فحص parsedAmount % 1 != 0 كان كوداً ميتاً.
       final double amount = parsedAmount;
 
-      setState(() => _isProcessing = true);
+      _isProcessing.value = true;
 
       try {
         final paymentsRepo = ref.read(paymentsRepoProvider);
@@ -1041,7 +1042,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
         );
       } finally {
-        if (mounted) setState(() => _isProcessing = false);
+        if (mounted) _isProcessing.value = false;
       }
     }
     } finally {
@@ -1076,7 +1077,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     );
 
     if ((result ?? false) && mounted) {
-      setState(() => _isProcessing = true);
+      _isProcessing.value = true;
 
       try {
         final bookingsRepo = ref.read(bookingsRepoProvider);
@@ -1131,7 +1132,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         }
       } finally {
         if (mounted) {
-          setState(() => _isProcessing = false);
+          _isProcessing.value = false;
         }
       }
     }

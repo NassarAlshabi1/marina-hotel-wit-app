@@ -18,8 +18,8 @@ class CreateDebtFromBookingScreen extends ConsumerStatefulWidget {
 class _CreateDebtFromBookingScreenState
     extends ConsumerState<CreateDebtFromBookingScreen> {
   Booking? _selectedBooking;
-  bool _isComputing = false;
-  bool _isProcessing = false;
+  final ValueNotifier<bool> _isComputing = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isProcessing = ValueNotifier<bool>(false);
   _DebtData? _debtData;
 
   DateTime _fromDate = DateTime.now();
@@ -44,6 +44,8 @@ class _CreateDebtFromBookingScreenState
   void dispose() {
     _amountController.dispose();
     _notesController.dispose();
+    _isComputing.dispose();
+    _isProcessing.dispose();
     super.dispose();
   }
 
@@ -289,15 +291,15 @@ class _CreateDebtFromBookingScreenState
 
   Widget _buildComputeButton() {
     return ElevatedButton.icon(
-      onPressed: _isComputing ? null : _computeDebt,
-      icon: _isComputing
+      onPressed: _isComputing.value ? null : _computeDebt,
+      icon: _isComputing.value
           ? const SizedBox(
               width: 20,
               height: 20,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.calculate),
-      label: Text(_isComputing ? 'جاري الحساب...' : 'احسب الدين'),
+      label: Text(_isComputing.value ? 'جاري الحساب...' : 'احسب الدين'),
     );
   }
 
@@ -306,7 +308,7 @@ class _CreateDebtFromBookingScreenState
       return;
     }
 
-    setState(() => _isComputing = true);
+    _isComputing.value = true;
 
     try {
       final booking = _selectedBooking!;
@@ -335,7 +337,7 @@ class _CreateDebtFromBookingScreenState
         );
       });
     } finally {
-      setState(() => _isComputing = false);
+      _isComputing.value = false;
     }
   }
 
@@ -403,13 +405,13 @@ class _CreateDebtFromBookingScreenState
 
   Widget _buildCreateButton() {
     return ElevatedButton.icon(
-      onPressed: _isProcessing ? null : _createDebt,
+      onPressed: _isProcessing.value ? null : _createDebt,
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 16),
       ),
-      icon: _isProcessing
+      icon: _isProcessing.value
           ? const SizedBox(
               width: 20,
               height: 20,
@@ -419,7 +421,7 @@ class _CreateDebtFromBookingScreenState
               ),
             )
           : const Icon(Icons.add),
-      label: Text(_isProcessing ? 'جاري الإنشاء...' : 'إنشاء الدين'),
+      label: Text(_isProcessing.value ? 'جاري الإنشاء...' : 'إنشاء الدين'),
     );
   }
 
@@ -434,7 +436,7 @@ class _CreateDebtFromBookingScreenState
       return;
     }
 
-    setState(() => _isProcessing = true);
+    _isProcessing.value = true;
 
     try {
       final booking = _selectedBooking!;
@@ -470,7 +472,7 @@ class _CreateDebtFromBookingScreenState
       _showError('حدث خطأ: $e');
     } finally {
       if (mounted) {
-        setState(() => _isProcessing = false);
+        _isProcessing.value = false;
       }
     }
   }
