@@ -71,11 +71,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       final db = ref.read(databaseProvider);
       final outboxDao = OutboxDao(db);
-      // ✅ P2-5 fix: العدد المعروض يطابق نطاق الرفع الفعلي
-      // لا نستخدم count() التي تحسب pending+failed — لأن الرفع
-      // (takeBatch) يأخذ فقط 'pending' و 'delivered_to_primary=0'.
-      // شارة "تغييرات معلّقة" يجب أن تعكس ما سيُرفع فعلاً.
-      final count = await outboxDao.countPendingPushable(sources: const ['local']);
+      // ✅ إصلاح فقدان التغييرات العالقة: نحسب كل السجلات غير المُسلّمة
+      // للرئيسي (pending + processing عالقة + failed) وليس 'pending' فقط.
+      // السبب: عند انقطاع الرفع (إنترنت بطيء / إغلاق التطبيق) تبقى السجلات
+      // عالقة في 'processing' وتختفي من countPendingPushable → تظهر 0 →
+      // يظنّ المستخدم أن الرفع نجح. countUndeliveredToPrimary يُبقيها مرئية
+      // ويُبقي زر الرفع مُفعّلاً لإعادة المحاولة.
+      final count =
+          await outboxDao.countUndeliveredToPrimary(sources: const ['local']);
       if (mounted) {
         setState(() {
           _pendingChangesCount = count;
