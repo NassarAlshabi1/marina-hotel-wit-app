@@ -229,7 +229,8 @@ async function sendFcmNotification(tokens, title, body, data) {
 
 function parseEvent(payload, headers) {
   // ✅ Appwrite event triggers تُرسل نوع الحدث في header `x-appwrite-event`
-  // مثال: "databases.6a2b030d000445596163.tables.bookings.rows.create"
+  // تنسيق جديد: "databases.X.tables.payments.rows.Y.create"
+  // تنسيق قديم: "databases.X.collections.payments.documents.Y.create"
   const headerEvent = headers?.['x-appwrite-event'] || headers?.['X-Appwrite-Event'] || '';
 
   // للمقارنة: اختبار HTTP اليدوي يضع نوع الحدث في payload.event.type
@@ -238,13 +239,15 @@ function parseEvent(payload, headers) {
   const data = event?.data || payload.data || payload;
 
   // استخراج اسم الجدول من event type
-  // مثال: databases.6a2b.tables.6a2b030d000445596163.rows.bookings.rows.create
-  // أو: databases.6a2b030d000445596163.tables.bookings.rows.create
-  const tableMatch = eventType.match(/tables\.([^.]+)\.rows/);
+  // ندعم الصيغتين: tables.X.rows و collections.X.documents
+  const tableMatch = eventType.match(/(?:tables|collections)\.([^.]+)\.(?:rows|documents)/);
   const tableId = tableMatch ? tableMatch[1] : '';
 
   // استخراج نوع العملية (create/update/delete)
-  const opMatch = eventType.match(/\.rows\.\w+\.(\w+)$/);
+  // الصيغة الجديدة: .rows.X.create
+  // الصيغة القديمة: .documents.X.create
+  // ملاحظة: document IDs تحتوي على hyphens (UUID) لذا نستخدم [\w-]+
+  const opMatch = eventType.match(/\.(?:rows|documents)\.[\w-]+\.(\w+)$/);
   const operation = opMatch ? opMatch[1] : '';
 
   // استخراج معرف الجهاز المُرسِل
