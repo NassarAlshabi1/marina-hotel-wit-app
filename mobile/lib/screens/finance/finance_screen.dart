@@ -135,28 +135,55 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 .where((b) => StatusUtils.isActiveBooking(b.status))
                 .toList();
 
-            return ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              children: [
+            return CustomScrollView(
+              slivers: [
                 // ─── بطاقة يوم الفندق ───
-                _buildHotelDayCard(),
+                SliverToBoxAdapter(
+                  child: RepaintBoundary(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      child: _buildHotelDayCard(),
+                    ),
+                  ),
+                ),
 
-                const SizedBox(height: 8),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
                 // ─── بطاقة الصندوق: الايراد / المصروفات / المتبقي ───
-                _buildCashDeskCard(income, expenses, balance),
+                SliverToBoxAdapter(
+                  child: RepaintBoundary(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: _buildCashDeskCard(income, expenses, balance),
+                    ),
+                  ),
+                ),
 
-                const SizedBox(height: 8),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
                 // ─── مدفوعات اليوم ───
-                _buildTodayPayments(payments),
+                SliverToBoxAdapter(
+                  child: RepaintBoundary(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: _buildTodayPayments(payments),
+                    ),
+                  ),
+                ),
 
-                const SizedBox(height: 8),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
                 // ─── الحجوزات النشطة ───
-                _buildActiveBookings(activeBookings),
+                SliverToBoxAdapter(
+                  child: RepaintBoundary(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: _buildActiveBookings(activeBookings),
+                    ),
+                  ),
+                ),
 
-                const SizedBox(height: 80),
+                const SliverToBoxAdapter(child: SizedBox(height: 80)),
               ],
             );
           },
