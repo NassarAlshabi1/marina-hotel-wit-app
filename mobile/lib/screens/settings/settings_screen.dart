@@ -68,29 +68,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             usersCountAsync,
           ),
 
-          // ✅ المحتوى: الأقسام (تمت إزالة شريط البحث)
+          // ✅ المحتوى: الأقسام مع CustomScrollView + RepaintBoundary
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // قسم إدارة البيانات
-                _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
-                _buildSettingsGrid(context, _getSectionItems(context, 'data')),
-                const SizedBox(height: 20),
-
-                // قسم المزامنة والنسخ الاحتياطي
-                _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
-                _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
-                const SizedBox(height: 20),
-
-                // ✅ قسم واتساب والإشعارات (مقسم من القسم العام)
-                _buildSectionTitle('واتساب والإشعارات', Icons.notifications),
-                _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
-                const SizedBox(height: 20),
-
-                // ✅ قسم التطبيق (مقسم من القسم العام)
-                _buildSectionTitle('التطبيق', Icons.apps),
-                _buildSettingsGrid(context, _getSectionItems(context, 'app')),
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: RepaintBoundary(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
+                          _buildSettingsGrid(context, _getSectionItems(context, 'data')),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
+                          _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('واتساب والإشعارات', Icons.notifications),
+                          _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('التطبيق', Icons.apps),
+                          _buildSettingsGrid(context, _getSectionItems(context, 'app')),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
