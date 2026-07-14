@@ -166,6 +166,23 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
     }
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc),
+      (t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc),
+    ]);
+    if (limit != null) {
+      q.limit(limit, offset: offset);
+    }
+    return q.watch();
+  }
+    bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
+  }) {
+    final q = select(expenses);
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
     // ✅ إصلاح PR review: ترتيب deterministic قبل LIMIT
     q.orderBy([
       (t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc),
