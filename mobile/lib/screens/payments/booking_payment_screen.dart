@@ -3902,27 +3902,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               onPressed: () => Navigator.pop(context),
               child: const Text('إلغاء'),
             ),
-            // ✅ زر 1: إرسال كنص عبر واتساب (يفتح واتساب لاختيار الرقم)
-            OutlinedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                _sendStatementViaWhatsAppText(summary);
-              },
-              icon: const Icon(Icons.chat, size: 18),
-              label: const Text('واتساب (نص)'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.green,
-                side: const BorderSide(color: Colors.green),
-              ),
-            ),
-            // ✅ زر 2: إرسال PDF عبر واتساب (يولّد PDF ثم يفتح واتساب)
+            // ✅ مشاركة PDF فقط عبر Share sheet
             FilledButton.icon(
               onPressed: () {
                 Navigator.pop(context);
                 _sendStatementViaPdf(summary);
               },
-              icon: const Icon(Icons.picture_as_pdf, size: 18),
-              label: const Text('واتساب (PDF)'),
+              icon: const Icon(Icons.share, size: 18),
+              label: const Text('مشاركة PDF'),
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.orange,
               ),
