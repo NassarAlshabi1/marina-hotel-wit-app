@@ -36,8 +36,7 @@ class SyncGuardian {
 
   static final SyncGuardian instance = SyncGuardian._();
 
-  final StreamController<SyncHealthSnapshot> _healthController =
-      StreamController.broadcast();
+  final StreamController<SyncHealthSnapshot> _healthController = StreamController.broadcast();
 
   Timer? _pendingMonitor;
   Timer? _debounceTimer;
@@ -69,9 +68,7 @@ class SyncGuardian {
     try {
       await _orchestrator!.initialize(database: database);
       await AutoSyncTask.initialize(debug: kDebugMode);
-      await AutoSyncTask.schedulePeriodicSync(
-        SyncConstants.defaultAutoSyncInterval,
-      );
+      await AutoSyncTask.schedulePeriodicSync(SyncConstants.defaultAutoSyncInterval);
       await _restoreDevicePriority();
       _startPendingMonitor();
       await _refreshPendingFlag();
@@ -94,12 +91,8 @@ class SyncGuardian {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(SyncConstants.guardianLocalChangeDebounce, () async {
       try {
-        debugPrint(
-          '📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation',
-        );
-        final ok = await _orchestrator!.syncNow(
-          reason: 'guardian_debounce',
-        );
+        debugPrint('📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation');
+        final ok = await _orchestrator!.syncNow(reason: 'guardian_debounce');
         if (!ok) {
           await AutoSyncTask.scheduleImmediateSync();
         }
@@ -152,9 +145,7 @@ class SyncGuardian {
 
   Future<void> forceSync() async {
     await _consumePending(force: true);
-    await _orchestrator?.syncNow(
-      reason: 'guardian_force',
-    );
+    await _orchestrator?.syncNow(reason: 'guardian_force');
   }
 
   Future<void> setDevicePriority(int priority) async {

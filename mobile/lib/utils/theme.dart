@@ -16,40 +16,40 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // ─── Primary: MarketKy Indigo #242476 ────────────────────────────────
-  static const Color primaryColor = Color(0xFF242476);   // MarketKy primary
-  static const Color primaryDark = Color(0xFF3D3D9E);    // أخف للوضع الداكن
-  static const Color primaryLight = Color(0xFFEAEAF2);   // MarketKy primarySoft
+  static const Color primaryColor = Color(0xFF242476); // MarketKy primary
+  static const Color primaryDark = Color(0xFF3D3D9E); // أخف للوضع الداكن
+  static const Color primaryLight = Color(0xFFEAEAF2); // MarketKy primarySoft
 
   // ─── Background colors ───────────────────────────────────────────────
   static const Color backgroundColor = Color(0xFFF8F8FC); // أبيض مائل لللافندر
   static const Color surfaceColor = Color(0xFFFFFFFF);
 
   // ─── Text colors ─────────────────────────────────────────────────────
-  static const Color textPrimary = Color(0xFF0A0E2F);    // MarketKy secondary
-  static const Color textSecondary = Color(0xFF6C6F8F);  // كحلي باهت
+  static const Color textPrimary = Color(0xFF0A0E2F); // MarketKy secondary
+  static const Color textSecondary = Color(0xFF6C6F8F); // كحلي باهت
 
   // ─── Status colors ───────────────────────────────────────────────────
   static const Color successColor = Color(0xFF2E7D5B);
   static const Color dangerColor = Color(0xFFE5484D);
-  static const Color warningColor = Color(0xFFFABA3E);   // MarketKy accent
-  static const Color infoColor = Color(0xFF242476);      // نفس primary
+  static const Color warningColor = Color(0xFFFABA3E); // MarketKy accent
+  static const Color infoColor = Color(0xFF242476); // نفس primary
 
   // ─── Gray colors ─────────────────────────────────────────────────────
-  static const Color lightGray = Color(0xFFEAEAF2);      // primarySoft
+  static const Color lightGray = Color(0xFFEAEAF2); // primarySoft
   static const Color mediumGray = Color(0xFF6C6F8F);
-  static const Color darkGray = Color(0xFF0A0E2F);       // secondary
+  static const Color darkGray = Color(0xFF0A0E2F); // secondary
 
   // ─── Card and component colors ───────────────────────────────────────
   static const Color cardBackground = Colors.white;
-  static const Color dividerColor = Color(0xFFD3D3E4);   // MarketKy border
+  static const Color dividerColor = Color(0xFFD3D3E4); // MarketKy border
 
   // ─── Admin sidebar colors ────────────────────────────────────────────
-  static const Color sidebarColor = Color(0xFF0A0E2F);   // MarketKy secondary
-  static const Color sidebarAccent = Color(0xFF242476);  // MarketKy primary
+  static const Color sidebarColor = Color(0xFF0A0E2F); // MarketKy secondary
+  static const Color sidebarAccent = Color(0xFF242476); // MarketKy primary
 
   // ─── MarketKy accent (جديد) ──────────────────────────────────────────
-  static const Color accentColor = Color(0xFFFABA3E);    // MarketKy accent
-  static const Color accentSoft = Color(0xFFFFF3DC);     // accent فاتح
+  static const Color accentColor = Color(0xFFFABA3E); // MarketKy accent
+  static const Color accentSoft = Color(0xFFFFF3DC); // accent فاتح
 }
 
 ThemeData buildTheme() {
@@ -110,11 +110,7 @@ ThemeData buildTheme() {
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: 14,
-          fontFamily: 'Tajawal',
-        ),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Tajawal'),
       ),
     ),
 
@@ -124,11 +120,7 @@ ThemeData buildTheme() {
         side: const BorderSide(color: AppColors.primaryColor),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: 14,
-          fontFamily: 'Tajawal',
-        ),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Tajawal'),
       ),
     ),
 
@@ -160,11 +152,7 @@ ThemeData buildTheme() {
         fontSize: 14,
         fontFamily: 'Tajawal',
       ),
-      dataTextStyle: TextStyle(
-        color: AppColors.textPrimary,
-        fontSize: 14,
-        fontFamily: 'Tajawal',
-      ),
+      dataTextStyle: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontFamily: 'Tajawal'),
       columnSpacing: 24,
       horizontalMargin: 16,
       dataRowMinHeight: 48,
@@ -187,11 +175,11 @@ ThemeData buildTheme() {
 
 ThemeData buildDarkTheme() {
   // ✅ MarketKy dark mode: كحلي داكن (#0A0E2F) + indigo أخف
-  const darkPrimary = AppColors.primaryDark;   // #3D3D9E
-  const darkSurface = Color(0xFF11142B);        // كحلي داكن للأسطح
-  const darkBackground = Color(0xFF0A0E2F);     // خلفية كحلي
-  const darkInputBorder = Color(0xFF2A2D4A);    // حدود داكنة
-  const darkAccent = AppColors.accentColor;     // #FABA3E
+  const darkPrimary = AppColors.primaryDark; // #3D3D9E
+  const darkSurface = Color(0xFF11142B); // كحلي داكن للأسطح
+  const darkBackground = Color(0xFF0A0E2F); // خلفية كحلي
+  const darkInputBorder = Color(0xFF2A2D4A); // حدود داكنة
+  const darkAccent = AppColors.accentColor; // #FABA3E
 
   final base = ThemeData(
     useMaterial3: false,
@@ -220,12 +208,7 @@ ThemeData buildDarkTheme() {
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: false,
-      titleTextStyle: TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w700,
-        color: Colors.white,
-        fontFamily: 'Tajawal',
-      ),
+      titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: 'Tajawal'),
       iconTheme: IconThemeData(color: darkAccent),
     ),
 
@@ -248,11 +231,7 @@ ThemeData buildDarkTheme() {
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: 14,
-          fontFamily: 'Tajawal',
-        ),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Tajawal'),
       ),
     ),
 
@@ -263,11 +242,7 @@ ThemeData buildDarkTheme() {
         side: const BorderSide(color: darkPrimary),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: 14,
-          fontFamily: 'Tajawal',
-        ),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Tajawal'),
       ),
     ),
 
@@ -299,11 +274,7 @@ ThemeData buildDarkTheme() {
         fontSize: 14,
         fontFamily: 'Tajawal',
       ),
-      dataTextStyle: TextStyle(
-        color: Color(0xFFE8E8F0),
-        fontSize: 14,
-        fontFamily: 'Tajawal',
-      ),
+      dataTextStyle: TextStyle(color: Color(0xFFE8E8F0), fontSize: 14, fontFamily: 'Tajawal'),
       columnSpacing: 24,
       horizontalMargin: 16,
       dataRowMinHeight: 48,

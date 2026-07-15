@@ -20,12 +20,7 @@ import '../sync_constants.dart';
 /// - cleanupTimer: تنظيف outbox المنجز (24 hours)
 /// - debouncePushTimer: دفع مؤجل بعد تغييرات outbox
 class SyncTimers {
-  SyncTimers({
-    required this.outboxDao,
-    required this.logger,
-    required this.onSync,
-    required this.onPushOnly,
-  });
+  SyncTimers({required this.outboxDao, required this.logger, required this.onSync, required this.onPushOnly});
 
   final OutboxDao outboxDao;
   final AppwriteLogger logger;
@@ -45,9 +40,7 @@ class SyncTimers {
   Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
 
   /// بدء المزامنة التلقائية
-  void startAutoSync({
-    Duration interval = SyncConstants.defaultAutoSyncInterval,
-  }) {
+  void startAutoSync({Duration interval = SyncConstants.defaultAutoSyncInterval}) {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
       // ✅ إصلاح جذري: Timer callback async بدون try-catch يُسبب
@@ -55,19 +48,11 @@ class SyncTimers {
       try {
         await onSync();
       } catch (e, st) {
-        logger.error(
-          '❌ Sync Timer: استثناء غير متوقع',
-          error: e,
-          stackTrace: st,
-          tag: 'SYNC',
-        );
+        logger.error('❌ Sync Timer: استثناء غير متوقع', error: e, stackTrace: st, tag: 'SYNC');
         // لا rethrow — نمنع fatal crash
       }
     });
-    logger.info(
-      'Auto sync started (interval: ${interval.inMinutes} min)',
-      tag: 'SYNC',
-    );
+    logger.info('Auto sync started (interval: ${interval.inMinutes} min)', tag: 'SYNC');
   }
 
   /// إيقاف المزامنة التلقائية
@@ -80,49 +65,38 @@ class SyncTimers {
   /// مؤقت إعادة محاولة العناصر الفاشلة — كل 5 دقائق
   void startFailedRetryTimer() {
     _failedRetryTimer?.cancel();
-    _failedRetryTimer = Timer.periodic(
-      const Duration(minutes: 5),
-      (_) async {
-        try {
-          final failedCount = await outboxDao.count();
-          if (failedCount == 0) return;
+    _failedRetryTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
+      try {
+        final failedCount = await outboxDao.count();
+        if (failedCount == 0) return;
 
-          final resetCount = await outboxDao.retryFailedWithBackoff();
-          if (resetCount == 0) return;
+        final resetCount = await outboxDao.retryFailedWithBackoff();
+        if (resetCount == 0) return;
 
-          debugPrint(
-            '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)',
-          );
+        debugPrint('🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)');
 
-          final result = await onPushOnly();
-          if (result) {
-            debugPrint('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
-          }
-        } catch (e) {
-          debugPrint('⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e');
+        final result = await onPushOnly();
+        if (result) {
+          debugPrint('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
         }
-      },
-    );
+      } catch (e) {
+        debugPrint('⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e');
+      }
+    });
     debugPrint('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
 
     // استعادة stuck 'processing' entries كل دقيقة
     _stuckRecoveryTimer?.cancel();
-    _stuckRecoveryTimer = Timer.periodic(
-      const Duration(minutes: 1),
-      (_) async {
-        try {
-          final recovered = await outboxDao.cleanupStuckEntries();
-          if (recovered > 0) {
-            logger.info(
-              '🔧 تم استعادة $recovered عنصر عالق في outbox من "processing" إلى "pending"',
-              tag: 'SYNC',
-            );
-          }
-        } catch (e) {
-          logger.warning('⚠️ فشل استعادة العناصر العالقة: $e', tag: 'SYNC');
+    _stuckRecoveryTimer = Timer.periodic(const Duration(minutes: 1), (_) async {
+      try {
+        final recovered = await outboxDao.cleanupStuckEntries();
+        if (recovered > 0) {
+          logger.info('🔧 تم استعادة $recovered عنصر عالق في outbox من "processing" إلى "pending"', tag: 'SYNC');
         }
-      },
-    );
+      } catch (e) {
+        logger.warning('⚠️ فشل استعادة العناصر العالقة: $e', tag: 'SYNC');
+      }
+    });
     debugPrint('🔧 تم تشغيل مؤقت استعادة العناصر العالقة (كل دقيقة)');
 
     // تنظيف outbox تلقائي كل 24 ساعة
@@ -148,10 +122,7 @@ class SyncTimers {
       try {
         final result = await onPushOnly();
         if (!result) {
-          logger.warning(
-            'Debounced push failed',
-            tag: 'SYNC',
-          );
+          logger.warning('Debounced push failed', tag: 'SYNC');
         }
       } catch (e) {
         logger.warning('Debounced push error: $e', tag: 'SYNC');

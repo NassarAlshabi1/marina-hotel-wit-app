@@ -53,8 +53,7 @@ class WhatsAppNotificationService {
   WhatsAppNotificationService._();
   static WhatsAppNotificationService? _instance;
   // ignore: prefer_constructors_over_static_methods
-  static WhatsAppNotificationService get instance =>
-      _instance ??= WhatsAppNotificationService._();
+  static WhatsAppNotificationService get instance => _instance ??= WhatsAppNotificationService._();
 
   // CallMeBot WhatsApp API
   static const String _callMeBotUrl = 'https://api.callmebot.com/whatsapp.php';
@@ -123,9 +122,7 @@ class WhatsAppNotificationService {
 
       // قص الرسالة إذا تجاوزت الحد الأقصى (CallMeBot ~1000 حرف)
       final maxLength = RemoteConfigService.instance.whatsappMessageMaxLength;
-      final trimmedMessage = message.length > maxLength
-          ? '${message.substring(0, maxLength - 3)}...'
-          : message;
+      final trimmedMessage = message.length > maxLength ? '${message.substring(0, maxLength - 3)}...' : message;
 
       final url = Uri.parse(
         '$_callMeBotUrl'
@@ -135,9 +132,7 @@ class WhatsAppNotificationService {
       );
 
       // timeout من Remote Config (افتراضي 15 ثانية)
-      final timeout = Duration(
-        seconds: RemoteConfigService.instance.whatsappApiTimeout,
-      );
+      final timeout = Duration(seconds: RemoteConfigService.instance.whatsappApiTimeout);
       final response = await _httpClient.get(url).timeout(timeout);
       final body = response.body;
 
@@ -211,7 +206,6 @@ class WhatsAppNotificationService {
       buffer.writeln();
       buffer.writeln('Marina Hotel App 🏨');
 
-
       final success = await _sendViaCallMeBot(buffer.toString().trimRight());
 
       if (success) {
@@ -253,14 +247,16 @@ class WhatsAppNotificationService {
       details.writeln('💰 الإجمالي: \$${totalDue.toStringAsFixed(2)}');
     }
 
-    return sendEventNotification(WhatsAppEvent(
-      type: WhatsAppEventType.newBooking,
-      roomNumber: roomNumber,
-      guestName: guestName,
-      guestPhone: guestPhone,
-      details: details.isEmpty ? null : details.toString().trimRight(),
-      eventTime: DateTime.now(),
-    ));
+    return sendEventNotification(
+      WhatsAppEvent(
+        type: WhatsAppEventType.newBooking,
+        roomNumber: roomNumber,
+        guestName: guestName,
+        guestPhone: guestPhone,
+        details: details.isEmpty ? null : details.toString().trimRight(),
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار تسجيل دخول
@@ -275,14 +271,16 @@ class WhatsAppNotificationService {
       details.writeln('🌙 الليالي المتوقعة: $expectedNights');
     }
 
-    return sendEventNotification(WhatsAppEvent(
-      type: WhatsAppEventType.checkIn,
-      roomNumber: roomNumber,
-      guestName: guestName,
-      guestPhone: guestPhone,
-      details: details.isEmpty ? null : details.toString().trimRight(),
-      eventTime: DateTime.now(),
-    ));
+    return sendEventNotification(
+      WhatsAppEvent(
+        type: WhatsAppEventType.checkIn,
+        roomNumber: roomNumber,
+        guestName: guestName,
+        guestPhone: guestPhone,
+        details: details.isEmpty ? null : details.toString().trimRight(),
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار تسجيل خروج
@@ -304,13 +302,15 @@ class WhatsAppNotificationService {
       details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
     }
 
-    return sendEventNotification(WhatsAppEvent(
-      type: WhatsAppEventType.checkOut,
-      roomNumber: roomNumber,
-      guestName: guestName,
-      details: details.isEmpty ? null : details.toString().trimRight(),
-      eventTime: DateTime.now(),
-    ));
+    return sendEventNotification(
+      WhatsAppEvent(
+        type: WhatsAppEventType.checkOut,
+        roomNumber: roomNumber,
+        guestName: guestName,
+        details: details.isEmpty ? null : details.toString().trimRight(),
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار استلام دفعة
@@ -331,44 +331,42 @@ class WhatsAppNotificationService {
       }
     }
 
-    return sendEventNotification(WhatsAppEvent(
-      type: WhatsAppEventType.paymentReceived,
-      roomNumber: roomNumber,
-      guestName: guestName,
-      amount: amount,
-      details: details.toString().trimRight(),
-      eventTime: DateTime.now(),
-    ));
+    return sendEventNotification(
+      WhatsAppEvent(
+        type: WhatsAppEventType.paymentReceived,
+        roomNumber: roomNumber,
+        guestName: guestName,
+        amount: amount,
+        details: details.toString().trimRight(),
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار طلب صيانة
-  Future<bool> notifyMaintenance({
-    required String roomNumber,
-    required String description,
-    String? reportedBy,
-  }) {
-    return sendEventNotification(WhatsAppEvent(
-      type: WhatsAppEventType.maintenance,
-      roomNumber: roomNumber,
-      guestName: reportedBy,
-      details: description,
-      eventTime: DateTime.now(),
-    ));
+  Future<bool> notifyMaintenance({required String roomNumber, required String description, String? reportedBy}) {
+    return sendEventNotification(
+      WhatsAppEvent(
+        type: WhatsAppEventType.maintenance,
+        roomNumber: roomNumber,
+        guestName: reportedBy,
+        details: description,
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار إلغاء حجز
-  Future<bool> notifyCancellation({
-    required String roomNumber,
-    required String guestName,
-    String? reason,
-  }) {
-    return sendEventNotification(WhatsAppEvent(
-      type: WhatsAppEventType.cancellation,
-      roomNumber: roomNumber,
-      guestName: guestName,
-      details: reason,
-      eventTime: DateTime.now(),
-    ));
+  Future<bool> notifyCancellation({required String roomNumber, required String guestName, String? reason}) {
+    return sendEventNotification(
+      WhatsAppEvent(
+        type: WhatsAppEventType.cancellation,
+        roomNumber: roomNumber,
+        guestName: guestName,
+        details: reason,
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار تأخير مغادرة
@@ -388,34 +386,34 @@ class WhatsAppNotificationService {
       details.writeln('💵 تكلفة إضافية: \$${extraCharge.toStringAsFixed(2)}');
     }
 
-    return sendEventNotification(WhatsAppEvent(
-      type: WhatsAppEventType.overstay,
-      roomNumber: roomNumber,
-      guestName: guestName,
-      details: details.toString().trimRight(),
-      eventTime: DateTime.now(),
-    ));
+    return sendEventNotification(
+      WhatsAppEvent(
+        type: WhatsAppEventType.overstay,
+        roomNumber: roomNumber,
+        guestName: guestName,
+        details: details.toString().trimRight(),
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار مصروف جديد
-  Future<bool> notifyNewExpense({
-    required String category,
-    required double amount,
-    String? description,
-  }) {
+  Future<bool> notifyNewExpense({required String category, required double amount, String? description}) {
     final details = StringBuffer();
     details.writeln('📂 التصنيف: $category');
     if (description != null && description.isNotEmpty) {
       details.writeln(description);
     }
 
-    return sendEventNotification(WhatsAppEvent(
-      type: WhatsAppEventType.newExpense,
-      roomNumber: '-',
-      amount: amount,
-      details: details.toString().trimRight(),
-      eventTime: DateTime.now(),
-    ));
+    return sendEventNotification(
+      WhatsAppEvent(
+        type: WhatsAppEventType.newExpense,
+        roomNumber: '-',
+        amount: amount,
+        details: details.toString().trimRight(),
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار خطأ مزامنة حرج — يرسل فوراً عبر WhatsApp
@@ -472,11 +470,7 @@ class WhatsAppNotificationService {
   }
 
   /// إشعار crash حرج في الشاشات — يرسل فوراً عبر WhatsApp
-  Future<bool> notifyCrash({
-    required String screen,
-    required String action,
-    required String error,
-  }) async {
+  Future<bool> notifyCrash({required String screen, required String action, required String error}) async {
     try {
       final phone = _phone;
       final apiKey = _apiKey;

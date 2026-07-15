@@ -4,7 +4,6 @@ import '../../utils/env.dart';
 
 /// مفاتيح التخزين المحلي لإعدادات Telegram
 class TelegramConfig {
-
   TelegramConfig._();
   static const String _enabledKey = 'telegram_enabled';
   static const String _botTokenKey = 'telegram_bot_token';

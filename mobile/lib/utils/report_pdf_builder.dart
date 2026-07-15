@@ -72,19 +72,14 @@ class ReportPdfBuilder {
     final fonts = await EnhancedPdfUtils.loadArabicFonts();
     final doc = pw.Document();
 
-    final header = config.customHeader != null
-        ? config.customHeader!(fonts)
-        : _buildDefaultHeader(fonts, config);
+    final header = config.customHeader != null ? config.customHeader!(fonts) : _buildDefaultHeader(fonts, config);
 
     doc.addPage(
       pw.MultiPage(
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
         footer: (context) => buildPageFooter(fonts, context),
-        build: (context) => [
-          header,
-          ...config.buildContent(fonts),
-        ],
+        build: (context) => [header, ...config.buildContent(fonts)],
       ),
     );
 
@@ -96,10 +91,7 @@ class ReportPdfBuilder {
   /// يُنشئ التقرير ويعرض خيارات المشاركة (حفظ، مشاركة، طباعة).
   static Future<void> buildAndShare(ReportPdfConfig config) async {
     final doc = await buildDocument(config);
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: config.fileName,
-    );
+    await Printing.sharePdf(bytes: await doc.save(), filename: config.fileName);
   }
 
   /// بناء رأس التقرير الافتراضي
@@ -128,40 +120,24 @@ class ReportPdfBuilder {
         children: [
           pw.Text(
             'فندق مارينا بلازا',
-            style: pw.TextStyle(
-              font: fonts.bold,
-              fontSize: 22,
-              color: PdfColors.textWhite,
-            ),
+            style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
           ),
           pw.SizedBox(height: 8),
           pw.Text(
             title,
-            style: pw.TextStyle(
-              font: fonts.bold,
-              fontSize: 20,
-              color: PdfColors.textWhite,
-            ),
+            style: pw.TextStyle(font: fonts.bold, fontSize: 20, color: PdfColors.textWhite),
           ),
           pw.SizedBox(height: 8),
           pw.Text(
             periodText,
-            style: pw.TextStyle(
-              font: fonts.regular,
-              fontSize: 12,
-              color: PdfColors.textWhite,
-            ),
+            style: pw.TextStyle(font: fonts.regular, fontSize: 12, color: PdfColors.textWhite),
             textAlign: pw.TextAlign.center,
           ),
           if (extraHeaderLine != null && extraHeaderLine.isNotEmpty) ...[
             pw.SizedBox(height: 4),
             pw.Text(
               extraHeaderLine,
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 12,
-                color: PdfColors.textWhite,
-              ),
+              style: pw.TextStyle(font: fonts.regular, fontSize: 12, color: PdfColors.textWhite),
             ),
           ],
         ],
@@ -197,14 +173,9 @@ class ReportPdfBuilder {
   // ======== طرق داخلية ========
 
   /// بناء رأس التقرير الافتراضي من الإعدادات
-  static pw.Widget _buildDefaultHeader(
-      ArabicPdfFonts fonts, ReportPdfConfig config,) {
-    final fromLabel = config.fromDate != null
-        ? DateFormat('yyyy-MM-dd').format(config.fromDate!)
-        : 'غير محدد';
-    final toLabel = config.toDate != null
-        ? DateFormat('yyyy-MM-dd').format(config.toDate!)
-        : 'غير محدد';
+  static pw.Widget _buildDefaultHeader(ArabicPdfFonts fonts, ReportPdfConfig config) {
+    final fromLabel = config.fromDate != null ? DateFormat('yyyy-MM-dd').format(config.fromDate!) : 'غير محدد';
+    final toLabel = config.toDate != null ? DateFormat('yyyy-MM-dd').format(config.toDate!) : 'غير محدد';
     final periodText = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
 
     return buildReportHeader(

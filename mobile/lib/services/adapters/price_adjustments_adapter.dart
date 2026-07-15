@@ -8,8 +8,7 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class PriceAdjustmentsAdapter
-    extends EntityAdapter<PriceAdjustment, PriceAdjustmentsCompanion> {
+class PriceAdjustmentsAdapter extends EntityAdapter<PriceAdjustment, PriceAdjustmentsCompanion> {
   PriceAdjustmentsAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -23,40 +22,21 @@ class PriceAdjustmentsAdapter
   String get tableName => 'price_adjustments';
 
   @override
-  Future<ResolveResult> resolveRefs(
-    AppDatabase db,
-    Map<String, dynamic> json, {
-    required Source src,
-  }) async {
+  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
-    return ResolveResult(
-      createdAtEpoch: createdAt,
-      lastModifiedEpoch: lastModified,
-    );
+    return ResolveResult(createdAtEpoch: createdAt, lastModifiedEpoch: lastModified);
   }
 
   @override
-  PriceAdjustmentsCompanion fromJson(
-    Map<String, dynamic> json, {
-    required Source src,
-    required ResolveResult refs,
-  }) {
+  PriceAdjustmentsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
     final now = Time.nowEpoch();
-    final createdAt =
-        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified =
-        refs.lastModifiedEpoch ??
-        _epoch(json, 'lastModified', src) ??
-        createdAt;
+    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
 
     return PriceAdjustmentsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(
-        _asString(json, 'localUuid', src) ??
-            _asString(json, 'local_uuid', src) ??
-            IdGen.uuid(),
-      ),
+      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
       targetType: _vStr(json, 'targetType', src, altKey: 'target_type', fallback: ''),
       targetUuid: _vStr(json, 'targetUuid', src, altKey: 'target_uuid', fallback: ''),
@@ -86,13 +66,7 @@ class PriceAdjustmentsAdapter
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(
-        json,
-        'vectorClock',
-        src,
-        altKey: 'vector_clock',
-        fallback: '{}',
-      ),
+      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
       idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
@@ -140,45 +114,18 @@ class PriceAdjustmentsAdapter
   }
 }
 
-d.Value<int> _vInt(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  int? fallback,
-}) {
-  final v =
-      _asInt(json, key, src) ??
-      (altKey != null ? _asInt(json, altKey, src) : null) ??
-      fallback;
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
+  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  String? fallback,
-}) {
-  final v =
-      _asString(json, key, src) ??
-      (altKey != null ? _asString(json, altKey, src) : null) ??
-      fallback;
+d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
+  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool> _vBool(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  bool? fallback,
-}) {
-  final v =
-      _asBool(json, key, src) ??
-      (altKey != null ? _asBool(json, altKey, src) : null) ??
-      fallback;
+d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src, {String? altKey, bool? fallback}) {
+  final v = _asBool(json, key, src) ?? (altKey != null ? _asBool(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -253,8 +200,7 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive

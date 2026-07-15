@@ -4,27 +4,19 @@ import '../../providers/repository_providers.dart';
 import '../../services/daos/sync_log_dao.dart';
 
 /// Provider لسجل المزامنة
-final syncHistoryProvider = FutureProvider.family<List<SyncLogEntry>, SyncFilter>(
-  (ref, filter) async {
-    final db = ref.read(databaseProvider);
-    final dao = SyncLogDao(db);
-    return dao.getSyncHistory(
-      limit: filter.limit,
-      offset: filter.offset,
-      direction: filter.direction,
-      status: filter.status,
-    );
-  },
-);
+final syncHistoryProvider = FutureProvider.family<List<SyncLogEntry>, SyncFilter>((ref, filter) async {
+  final db = ref.read(databaseProvider);
+  final dao = SyncLogDao(db);
+  return dao.getSyncHistory(
+    limit: filter.limit,
+    offset: filter.offset,
+    direction: filter.direction,
+    status: filter.status,
+  );
+});
 
 class SyncFilter {
-
-  const SyncFilter({
-    this.limit = 100,
-    this.offset = 0,
-    this.direction,
-    this.status,
-  });
+  const SyncFilter({this.limit = 100, this.offset = 0, this.direction, this.status});
   final int limit;
   final int offset;
   final String? direction;
@@ -44,10 +36,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filter = SyncFilter(
-      direction: _selectedDirection,
-      status: _selectedStatus,
-    );
+    final filter = SyncFilter(direction: _selectedDirection, status: _selectedStatus);
 
     final logsAsync = ref.watch(syncHistoryProvider(filter));
 
@@ -55,11 +44,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
       appBar: AppBar(
         title: const Text('سجل المزامنة'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: _showFilterDialog,
-            tooltip: 'تصفية',
-          ),
+          IconButton(icon: const Icon(Icons.filter_list), onPressed: _showFilterDialog, tooltip: 'تصفية'),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.invalidate(syncHistoryProvider),
@@ -76,10 +61,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                 children: [
                   Icon(Icons.history_toggle_off, size: 64, color: Colors.grey),
                   SizedBox(height: 16),
-                  Text(
-                    'لا توجد عمليات مزامنة مسجلة',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
+                  Text('لا توجد عمليات مزامنة مسجلة', style: TextStyle(fontSize: 18, color: Colors.grey)),
                 ],
               ),
             );
@@ -132,9 +114,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSuccess ? Colors.green.shade200 : Colors.red.shade200,
-          ),
+          border: Border.all(color: isSuccess ? Colors.green.shade200 : Colors.red.shade200),
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -146,10 +126,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
               shape: BoxShape.circle,
             ),
             child: Center(
-              child: Icon(
-                isPull ? Icons.download : Icons.upload,
-                color: isPull ? Colors.blue : Colors.purple,
-              ),
+              child: Icon(isPull ? Icons.download : Icons.upload, color: isPull ? Colors.blue : Colors.purple),
             ),
           ),
           title: Row(
@@ -162,10 +139,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(12)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -173,11 +147,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                     const SizedBox(width: 4),
                     Text(
                       statusText,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -192,13 +162,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                 children: [
                   Icon(Icons.access_time, size: 14, color: Colors.grey.shade600),
                   const SizedBox(width: 4),
-                  Text(
-                    _formatDateTime(log.createdAt),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
+                  Text(_formatDateTime(log.createdAt), style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                 ],
               ),
               const SizedBox(height: 4),
@@ -209,23 +173,14 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                     const SizedBox(width: 4),
                     Text(
                       '${log.recordsCount} سجل',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isPull ? Colors.blue.shade700 : Colors.purple.shade700,
-                      ),
+                      style: TextStyle(fontSize: 12, color: isPull ? Colors.blue.shade700 : Colors.purple.shade700),
                     ),
                   ],
                   if (log.durationMs != null) ...[
                     const SizedBox(width: 16),
                     Icon(Icons.timer, size: 14, color: Colors.grey.shade600),
                     const SizedBox(width: 4),
-                    Text(
-                      '${log.durationMs}ms',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
+                    Text('${log.durationMs}ms', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                   ],
                 ],
               ),
@@ -233,10 +188,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
                   child: Row(
                     children: [
                       Icon(Icons.error_outline, color: Colors.red.shade700, size: 16),
@@ -244,10 +196,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                       Expanded(
                         child: Text(
                           log.errorMessage!,
-                          style: TextStyle(
-                            color: Colors.red.shade700,
-                            fontSize: 11,
-                          ),
+                          style: TextStyle(color: Colors.red.shade700, fontSize: 11),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -267,9 +216,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
   void _showLogDetails(SyncLogEntry log) {
     showModalBottomSheet<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return Container(
           padding: const EdgeInsets.all(20),
@@ -283,9 +230,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: log.direction == 'pull'
-                          ? Colors.blue.shade50
-                          : Colors.purple.shade50,
+                      color: log.direction == 'pull' ? Colors.blue.shade50 : Colors.purple.shade50,
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -303,34 +248,29 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                       children: [
                         Text(
                           log.direction == 'pull' ? 'سحب من السيرفر' : 'رفع إلى السيرفر',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
-                        Text(
-                          log.syncId,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
+                        Text(log.syncId, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                       ],
                     ),
                   ),
                 ],
               ),
               const Divider(height: 32),
-              _buildDetailRow('الحالة', log.status == 'success' ? 'نجح' : log.status == 'partial' ? 'نجح جزئياً' : 'فشل'),
+              _buildDetailRow(
+                'الحالة',
+                log.status == 'success'
+                    ? 'نجح'
+                    : log.status == 'partial'
+                    ? 'نجح جزئياً'
+                    : 'فشل',
+              ),
               _buildDetailRow('الجهاز', log.deviceId),
               _buildDetailRow('الوجهة', log.target ?? 'غير معروف'),
               _buildDetailRow('وقت البدء', _formatFullDateTime(log.createdAt)),
-              if (log.completedAt != null)
-                _buildDetailRow('وقت الانتهاء', _formatFullDateTime(log.completedAt!)),
-              if (log.durationMs != null)
-                _buildDetailRow('المدة', '${log.durationMs} مللي ثانية'),
-              if (log.recordsCount != null)
-                _buildDetailRow('عدد السجول', '${log.recordsCount}'),
+              if (log.completedAt != null) _buildDetailRow('وقت الانتهاء', _formatFullDateTime(log.completedAt!)),
+              if (log.durationMs != null) _buildDetailRow('المدة', '${log.durationMs} مللي ثانية'),
+              if (log.recordsCount != null) _buildDetailRow('عدد السجول', '${log.recordsCount}'),
               if (log.errorMessage != null) ...[
                 const SizedBox(height: 16),
                 Container(
@@ -349,18 +289,12 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
                           const SizedBox(width: 8),
                           Text(
                             'رسالة الخطأ',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red.shade700,
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        log.errorMessage!,
-                        style: TextStyle(color: Colors.red.shade700),
-                      ),
+                      Text(log.errorMessage!, style: TextStyle(color: Colors.red.shade700)),
                     ],
                   ),
                 ),
@@ -368,10 +302,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('إغلاق'),
-                ),
+                child: ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
               ),
             ],
           ),
@@ -390,17 +321,11 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
             width: 100,
             child: Text(
               label,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey.shade600),
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
+            child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
           ),
         ],
       ),
@@ -462,10 +387,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
             ElevatedButton(
               onPressed: () {
                 setState(() {});

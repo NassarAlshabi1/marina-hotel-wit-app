@@ -11,8 +11,7 @@ import 'crashlytics_service.dart';
 class AppwriteRealtimeSync {
   factory AppwriteRealtimeSync() => _instance;
   AppwriteRealtimeSync._internal();
-  static final AppwriteRealtimeSync _instance =
-      AppwriteRealtimeSync._internal();
+  static final AppwriteRealtimeSync _instance = AppwriteRealtimeSync._internal();
 
   Realtime? _realtime;
   RealtimeSubscription? _subscription;
@@ -55,9 +54,7 @@ class AppwriteRealtimeSync {
     AppwriteConfig.paymentVoidsCollectionId,
   ];
 
-  Future<void> initialize({
-    required String deviceId,
-  }) async {
+  Future<void> initialize({required String deviceId}) async {
     _currentDeviceId = deviceId;
     _realtime = Realtime(AppwriteService().client);
     debugPrint('📡 AppwriteRealtimeSync initialized');
@@ -77,10 +74,7 @@ class AppwriteRealtimeSync {
     _intentionallyStopped = false;
 
     final channels = _collections
-        .map(
-          (c) =>
-              'databases.${AppwriteConfig.databaseId}.collections.$c.documents',
-        )
+        .map((c) => 'databases.${AppwriteConfig.databaseId}.collections.$c.documents')
         .toList();
 
     _subscription = _realtime!.subscribe(channels);
@@ -131,10 +125,7 @@ class AppwriteRealtimeSync {
     // ✅ تحسين: تصفية أنواع الأحداث (create/update/delete فقط)
     // لا نهتم بـ permissions.update أو أحداث النظام
     final eventTypes = message.events;
-    final isDataChange = eventTypes.any((e) =>
-        e.endsWith('.create') ||
-        e.endsWith('.update') ||
-        e.endsWith('.delete'),);
+    final isDataChange = eventTypes.any((e) => e.endsWith('.create') || e.endsWith('.update') || e.endsWith('.delete'));
 
     if (!isDataChange) {
       debugPrint('📡 Realtime: ignoring non-data event: $eventTypes');
@@ -190,54 +181,52 @@ class AppwriteRealtimeSync {
     debugPrint('📡 Realtime: remote changes flag reset - count cleared');
   }
 
-    int _reconnectAttempts = 0;
-    static const int _maxReconnectAttempts = 6;
+  int _reconnectAttempts = 0;
+  static const int _maxReconnectAttempts = 6;
 
-    void _reconnect() {
-      // ✅ إصلاح P2-13: عدم إعادة الاتصال بعد stop() الإرادي
-      if (_intentionallyStopped) {
-        return;
-      }
-
-      _reconnectAttempts++;
-
-      // ✅ إصلاح P2-13: حد أقصى لمحاولات إعادة الاتصال لتجنب إهدار البطارية
-      // بعد 6 محاولات (5s → 10s → 20s → 40s → 60s → 60s = ~3.5 min total)
-      if (_reconnectAttempts > _maxReconnectAttempts) {
-        debugPrint('📡 Realtime: max reconnect attempts ($_maxReconnectAttempts) reached — giving up');
-        CrashlyticsService.instance.recordSyncError(
-          operation: 'realtime_reconnect_giveup',
-          error: 'Max reconnect attempts reached after $_maxReconnectAttempts tries',
-          severity: CrashlyticsSeverity.warning,
-          context: {'deviceId': _currentDeviceId ?? 'unknown'},
-        );
-        return;
-      }
-
-      // ✅ P1-14 fix: backoff أسّي محدود (5s → 10s → 20s → 40s → 60s capped)
-      final delaySeconds = (_reconnectAttempts == 1)
-          ? 5
-          : (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 60);
-
-      CrashlyticsService.instance.recordSyncError(
-        operation: 'realtime_reconnect',
-        error: 'Connection lost — reconnecting in ${delaySeconds}s (attempt $_reconnectAttempts/$_maxReconnectAttempts)',
-        severity: CrashlyticsSeverity.info,
-        context: {'deviceId': _currentDeviceId ?? 'unknown', 'attempt': _reconnectAttempts},
-      );
-
-      // ✅ P1-14 fix: إغلاق الاشتراك القديم قبل إعادة الاشتراك
-      _subscription?.close().catchError((_) {});
-      _subscription = null;
-      _isListening = false;
-
-      Future<void>.delayed(Duration(seconds: delaySeconds), () {
-        // ✅ تحقق مزدوج: عدم إعادة الاتصال إذا تم استدعاء stop() أثناء الانتظار
-        if (!_isListening && !_intentionallyStopped) {
-          start();
-        }
-      });
+  void _reconnect() {
+    // ✅ إصلاح P2-13: عدم إعادة الاتصال بعد stop() الإرادي
+    if (_intentionallyStopped) {
+      return;
     }
+
+    _reconnectAttempts++;
+
+    // ✅ إصلاح P2-13: حد أقصى لمحاولات إعادة الاتصال لتجنب إهدار البطارية
+    // بعد 6 محاولات (5s → 10s → 20s → 40s → 60s → 60s = ~3.5 min total)
+    if (_reconnectAttempts > _maxReconnectAttempts) {
+      debugPrint('📡 Realtime: max reconnect attempts ($_maxReconnectAttempts) reached — giving up');
+      CrashlyticsService.instance.recordSyncError(
+        operation: 'realtime_reconnect_giveup',
+        error: 'Max reconnect attempts reached after $_maxReconnectAttempts tries',
+        severity: CrashlyticsSeverity.warning,
+        context: {'deviceId': _currentDeviceId ?? 'unknown'},
+      );
+      return;
+    }
+
+    // ✅ P1-14 fix: backoff أسّي محدود (5s → 10s → 20s → 40s → 60s capped)
+    final delaySeconds = (_reconnectAttempts == 1) ? 5 : (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 60);
+
+    CrashlyticsService.instance.recordSyncError(
+      operation: 'realtime_reconnect',
+      error: 'Connection lost — reconnecting in ${delaySeconds}s (attempt $_reconnectAttempts/$_maxReconnectAttempts)',
+      severity: CrashlyticsSeverity.info,
+      context: {'deviceId': _currentDeviceId ?? 'unknown', 'attempt': _reconnectAttempts},
+    );
+
+    // ✅ P1-14 fix: إغلاق الاشتراك القديم قبل إعادة الاشتراك
+    _subscription?.close().catchError((_) {});
+    _subscription = null;
+    _isListening = false;
+
+    Future<void>.delayed(Duration(seconds: delaySeconds), () {
+      // ✅ تحقق مزدوج: عدم إعادة الاتصال إذا تم استدعاء stop() أثناء الانتظار
+      if (!_isListening && !_intentionallyStopped) {
+        start();
+      }
+    });
+  }
 
   Future<void> stop() async {
     // ✅ إصلاح P2-13: تعليم التوقف كإرادي لمنع _reconnect من إعادة الاتصال

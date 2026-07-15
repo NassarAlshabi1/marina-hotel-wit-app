@@ -91,7 +91,7 @@ class AppwriteSyncUtils {
       'wa_custom_url_template',
       'wa_sendzen_api_key',
       'wa_sendzen_from_number',
-      'wifi_only_sync'
+      'wifi_only_sync',
     },
     'app_users': {
       'active',
@@ -144,7 +144,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'blacklist': {
       'active',
@@ -172,7 +172,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'booking_nights': {
       'adjustment',
@@ -206,7 +206,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'booking_notes': {
       'alertType',
@@ -233,7 +233,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'booking_price_adjustments': {
       'adjustmentMode',
@@ -268,7 +268,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'bookings': {
       'actualCheckout',
@@ -324,7 +324,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'cash_transactions': {
       'amount',
@@ -353,7 +353,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'debts': {
       'amount',
@@ -403,7 +403,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'devices': {
       'appVersion',
@@ -434,7 +434,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'employees': {
       'EmployeeID',
@@ -465,7 +465,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'expenses': {
       'amount',
@@ -497,7 +497,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'guest_infos': {
       'createdAt',
@@ -526,7 +526,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'payment_voids': {
       'approvedBy',
@@ -560,9 +560,9 @@ class AppwriteSyncUtils {
       'voidedAmount',
       'voidedAt',
       'voidedAtIso',
-      'voidedBy'
+      'voidedBy',
     },
-'payments': {
+    'payments': {
       'amount',
       'bookingLocalId',
       'bookingUuidCache',
@@ -606,7 +606,7 @@ class AppwriteSyncUtils {
       'version',
       'voidReason',
       'voidedAt',
-      'voidedBy'
+      'voidedBy',
     },
     'price_adjustments': {
       'adjustmentMode',
@@ -640,7 +640,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'rooms': {
       'basePrice',
@@ -674,7 +674,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'salary_carry_over_logs': {
       'amount',
@@ -702,7 +702,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'salary_cycles': {
       'actualPaid',
@@ -730,7 +730,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'salary_payments': {
       'amount',
@@ -757,7 +757,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'salary_withdrawals': {
       'action',
@@ -792,7 +792,7 @@ class AppwriteSyncUtils {
       'version',
       'withdrawDate',
       'withdrawalDate',
-      'withdrawalType'
+      'withdrawalType',
     },
     'shift_notes': {
       'content',
@@ -822,7 +822,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'sync_logs': {
       'action',
@@ -867,7 +867,7 @@ class AppwriteSyncUtils {
       'updatedAt',
       'updatedAtIso',
       'vectorClock',
-      'version'
+      'version',
     },
     'sync_state': {
       'createdAt',
@@ -880,7 +880,7 @@ class AppwriteSyncUtils {
       'serverId',
       'sync_origin',
       'updatedAt',
-      'version'
+      'version',
     },
   };
 
@@ -1019,7 +1019,6 @@ class AppwriteSyncUtils {
       'vectorClock': 'string',
       'sync_origin': 'string',
       'idempotencyKey': 'string',
-
     },
     'expenses': {
       'localUuid': 'string',
@@ -1569,10 +1568,7 @@ class AppwriteSyncUtils {
   /// تصفية الحمولة — إبقاء فقط الحقول الموجودة في مخطط Appwrite الفعلي
   /// ⚠️ هذا يمنع خطأ "Unknown attribute" نهائياً
   /// إذا لم يكن المجموعة معروفة، يتم إرجاع الحمولة كما هي (بدون تصفية)
-  static Map<String, dynamic> filterPayloadForCollection(
-    String collectionId,
-    Map<String, dynamic> payload,
-  ) {
+  static Map<String, dynamic> filterPayloadForCollection(String collectionId, Map<String, dynamic> payload) {
     final schema = collectionSchema[collectionId];
     if (schema == null) {
       // fallback to old behavior for backward compatibility
@@ -1641,11 +1637,7 @@ class AppwriteSyncUtils {
   }
 
   /// تطهير البيانات وإزالة الحقول غير المدعومة أو المحسوبة
-  static Map<String, dynamic> sanitizePayload(
-    String entity,
-    Map<String, dynamic> payload, {
-    String? collectionId,
-  }) {
+  static Map<String, dynamic> sanitizePayload(String entity, Map<String, dynamic> payload, {String? collectionId}) {
     var result = Map<String, dynamic>.from(payload);
 
     // 1. إزالة الحقول المحسوبة التي لا تُخزن في Appwrite
@@ -1662,8 +1654,8 @@ class AppwriteSyncUtils {
 
     // 3. إزالة حقول Delta Sync الداخلية التي لا وجود لها في مخطط Appwrite
     //    هذه الحقول تُضاف بواسطة DeltaSyncService.compute() و _preparePayload()
-    result.remove('row_hash');       // حقل داخلي — ليس في أي مجموعة Appwrite
-    result.remove('client_ts');      // حقل داخلي
+    result.remove('row_hash'); // حقل داخلي — ليس في أي مجموعة Appwrite
+    result.remove('client_ts'); // حقل داخلي
 
     // 4. تحويل أسماء الحقول من snake_case إلى camelCase
     //    ⚠️ حرج: Appwrite Cloud يستخدم camelCase في جميع المجموعات المتزامنة
@@ -1674,8 +1666,8 @@ class AppwriteSyncUtils {
     result = _convertKeysToCamelCase(result);
 
     // 5. بعد التحويل: إزالة الحقول الداخلية بأسمائها camelCase
-    result.remove('rowHash');        // من row_hash
-    result.remove('clientTs');       // من client_ts
+    result.remove('rowHash'); // من row_hash
+    result.remove('clientTs'); // من client_ts
 
     // 6. تحويل الأنواع المالية إذا لزم الأمر
     if (collectionId != null) {
@@ -1693,9 +1685,7 @@ class AppwriteSyncUtils {
 
   /// تحويل جميع مفاتيح الخريطة من snake_case إلى camelCase بشكل متكرر
   /// الحقول التي لا تحتوي على _ تُترك كما هي (مثل amount, notes)
-  static Map<String, dynamic> _convertKeysToCamelCase(
-    Map<String, dynamic> input,
-  ) {
+  static Map<String, dynamic> _convertKeysToCamelCase(Map<String, dynamic> input) {
     final result = <String, dynamic>{};
     for (final entry in input.entries) {
       final camelKey = toCamelCase(entry.key);
@@ -1717,10 +1707,7 @@ class AppwriteSyncUtils {
   }
 
   /// تحويل حقول المبالغ إلى أعداد صحيحة للمجموعات التي تتطلب ذلك
-  static Map<String, dynamic> convertAmountTypesForAppwrite(
-    String collectionId,
-    Map<String, dynamic> payload,
-  ) {
+  static Map<String, dynamic> convertAmountTypesForAppwrite(String collectionId, Map<String, dynamic> payload) {
     final intFields = _intAmountFields[collectionId];
     if (intFields == null || intFields.isEmpty) return payload;
 
@@ -1735,10 +1722,7 @@ class AppwriteSyncUtils {
 
   /// تحويل حقول المبالغ من أعداد صحيحة (Cloud) إلى double (محلي)
   /// يُستخدم عند سحب البيانات من Appwrite Cloud إلى قاعدة البيانات المحلية
-  static Map<String, dynamic> convertAmountTypesFromAppwrite(
-    String collectionId,
-    Map<String, dynamic> payload,
-  ) {
+  static Map<String, dynamic> convertAmountTypesFromAppwrite(String collectionId, Map<String, dynamic> payload) {
     final intFields = _intAmountFields[collectionId];
     if (intFields == null || intFields.isEmpty) return payload;
 
@@ -1757,7 +1741,7 @@ class AppwriteSyncUtils {
   /// فقط الحقول snake_case الموجودة فعلاً في مخطط Appwrite تُضاف هنا
   /// ❌ sync_vector_clock غير موجود في أي مجموعة — لا يُضاف
   static const Set<String> _preserveSnakeCase = {
-    'sync_origin',  // موجود فقط في: booking_notes, sync_state, app_users
+    'sync_origin', // موجود فقط في: booking_notes, sync_state, app_users
     // ═══════════════════════════════════════════════════════════════
     // حقول app_settings — كلها snake_case في Appwrite Cloud
     // عند إضافة حقل جديد إلى _appSettingsToMap، يجب إضافته هنا أيضاً
@@ -1793,9 +1777,7 @@ class AppwriteSyncUtils {
     if (_preserveSnakeCase.contains(input)) return input;
     final parts = input.split('_');
     final first = parts.first;
-    final rest = parts
-        .skip(1)
-        .map((p) => p.isEmpty ? '' : '${p[0].toUpperCase()}${p.substring(1)}');
+    final rest = parts.skip(1).map((p) => p.isEmpty ? '' : '${p[0].toUpperCase()}${p.substring(1)}');
     return '$first${rest.join()}';
   }
 }

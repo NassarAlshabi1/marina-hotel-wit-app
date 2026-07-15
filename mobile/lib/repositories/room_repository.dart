@@ -24,12 +24,9 @@ abstract class RoomRepository {
 
 /// تنفيذ Repository باستخدام Appwrite
 class AppwriteRoomRepository implements RoomRepository {
-
-  AppwriteRoomRepository({
-    AppwriteService? appwriteService,
-    AppwriteErrorHandler? errorHandler,
-  }) : _appwriteService = appwriteService ?? AppwriteService(),
-       _errorHandler = errorHandler ?? AppwriteErrorHandler();
+  AppwriteRoomRepository({AppwriteService? appwriteService, AppwriteErrorHandler? errorHandler})
+    : _appwriteService = appwriteService ?? AppwriteService(),
+      _errorHandler = errorHandler ?? AppwriteErrorHandler();
   final AppwriteService _appwriteService;
   final AppwriteErrorHandler _errorHandler;
 
@@ -38,10 +35,7 @@ class AppwriteRoomRepository implements RoomRepository {
   @override
   Future<Room?> getById(String id) async {
     try {
-      final doc = await _appwriteService.getDocument(
-        collectionId: _collectionId,
-        documentId: id,
-      );
+      final doc = await _appwriteService.getDocument(collectionId: _collectionId, documentId: id);
 
       return RoomAppwriteExtension.fromAppwriteDocument(doc);
     } catch (e) {
@@ -59,13 +53,9 @@ class AppwriteRoomRepository implements RoomRepository {
   @override
   Future<List<Room>> getAll() async {
     try {
-      final documents = await _appwriteService.listDocuments(
-        collectionId: _collectionId,
-      );
+      final documents = await _appwriteService.listDocuments(collectionId: _collectionId);
 
-      return documents
-          .map(RoomAppwriteExtension.fromAppwriteDocument)
-          .toList();
+      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getAll');
       throw Exception(error.message);
@@ -107,10 +97,7 @@ class AppwriteRoomRepository implements RoomRepository {
   @override
   Future<void> delete(String id) async {
     try {
-      await _appwriteService.deleteDocument(
-        collectionId: _collectionId,
-        documentId: id,
-      );
+      await _appwriteService.deleteDocument(collectionId: _collectionId, documentId: id);
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'delete($id)');
 
@@ -126,19 +113,11 @@ class AppwriteRoomRepository implements RoomRepository {
   @override
   Future<List<Room>> search(String query) async {
     try {
-      final queries = AdvancedQueryBuilder()
-          .search('room_number', query)
-          .orderAsc('room_number')
-          .build();
+      final queries = AdvancedQueryBuilder().search('room_number', query).orderAsc('room_number').build();
 
-      final documents = await _appwriteService.listDocuments(
-        collectionId: _collectionId,
-        queries: queries,
-      );
+      final documents = await _appwriteService.listDocuments(collectionId: _collectionId, queries: queries);
 
-      return documents
-          .map(RoomAppwriteExtension.fromAppwriteDocument)
-          .toList();
+      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'search($query)');
       throw Exception(error.message);
@@ -148,19 +127,11 @@ class AppwriteRoomRepository implements RoomRepository {
   @override
   Future<List<Room>> getAvailable() async {
     try {
-      final queries = AdvancedQueryBuilder()
-          .where('status', 'شاغرة')
-          .orderAsc('room_number')
-          .build();
+      final queries = AdvancedQueryBuilder().where('status', 'شاغرة').orderAsc('room_number').build();
 
-      final documents = await _appwriteService.listDocuments(
-        collectionId: _collectionId,
-        queries: queries,
-      );
+      final documents = await _appwriteService.listDocuments(collectionId: _collectionId, queries: queries);
 
-      return documents
-          .map(RoomAppwriteExtension.fromAppwriteDocument)
-          .toList();
+      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getAvailable');
       throw Exception(error.message);
@@ -170,24 +141,13 @@ class AppwriteRoomRepository implements RoomRepository {
   @override
   Future<List<Room>> getByPriceRange(double min, double max) async {
     try {
-      final queries = AdvancedQueryBuilder()
-          .whereBetween('price', min, max)
-          .orderAsc('price')
-          .build();
+      final queries = AdvancedQueryBuilder().whereBetween('price', min, max).orderAsc('price').build();
 
-      final documents = await _appwriteService.listDocuments(
-        collectionId: _collectionId,
-        queries: queries,
-      );
+      final documents = await _appwriteService.listDocuments(collectionId: _collectionId, queries: queries);
 
-      return documents
-          .map(RoomAppwriteExtension.fromAppwriteDocument)
-          .toList();
+      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
     } catch (e) {
-      final error = _errorHandler.handleError(
-        e,
-        context: 'getByPriceRange($min, $max)',
-      );
+      final error = _errorHandler.handleError(e, context: 'getByPriceRange($min, $max)');
       throw Exception(error.message);
     }
   }
@@ -195,25 +155,13 @@ class AppwriteRoomRepository implements RoomRepository {
   @override
   Future<List<Room>> getPaginated({int limit = 25, int offset = 0}) async {
     try {
-      final queries = AdvancedQueryBuilder()
-          .limit(limit)
-          .offset(offset)
-          .orderAsc('room_number')
-          .build();
+      final queries = AdvancedQueryBuilder().limit(limit).offset(offset).orderAsc('room_number').build();
 
-      final documents = await _appwriteService.listDocuments(
-        collectionId: _collectionId,
-        queries: queries,
-      );
+      final documents = await _appwriteService.listDocuments(collectionId: _collectionId, queries: queries);
 
-      return documents
-          .map(RoomAppwriteExtension.fromAppwriteDocument)
-          .toList();
+      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
     } catch (e) {
-      final error = _errorHandler.handleError(
-        e,
-        context: 'getPaginated(limit: $limit, offset: $offset)',
-      );
+      final error = _errorHandler.handleError(e, context: 'getPaginated(limit: $limit, offset: $offset)');
       throw Exception(error.message);
     }
   }
@@ -235,9 +183,7 @@ class AppwriteRoomRepository implements RoomRepository {
         occupied: occupied,
         minPrice: prices.isNotEmpty ? prices.first : 0,
         maxPrice: prices.isNotEmpty ? prices.last : 0,
-        avgPrice: prices.isNotEmpty
-            ? prices.reduce((a, b) => a + b) / prices.length
-            : 0,
+        avgPrice: prices.isNotEmpty ? prices.reduce((a, b) => a + b) / prices.length : 0,
       );
     } catch (e) {
       final error = _errorHandler.handleError(e, context: 'getStatistics');
@@ -248,7 +194,6 @@ class AppwriteRoomRepository implements RoomRepository {
 
 /// إحصائيات الغرف
 class RoomStatistics {
-
   RoomStatistics({
     required this.total,
     required this.available,

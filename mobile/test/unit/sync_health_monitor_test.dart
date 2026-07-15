@@ -3,10 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/sync_health_monitor.dart';
 
 // مساعد لإنشاء تقرير للاختبار
-SyncHealthReport _makeReport({
-  Duration? oldestPendingAge,
-  SyncHealthStatus status = SyncHealthStatus.healthy,
-}) {
+SyncHealthReport _makeReport({Duration? oldestPendingAge, SyncHealthStatus status = SyncHealthStatus.healthy}) {
   return SyncHealthReport(
     pendingCount: 0,
     processingCount: 0,
@@ -50,18 +47,12 @@ void main() {
     });
 
     test('oldestPendingAgeFormatted formats minutes correctly', () {
-      final report = _makeReport(
-        oldestPendingAge: const Duration(minutes: 5),
-        status: SyncHealthStatus.ok,
-      );
+      final report = _makeReport(oldestPendingAge: const Duration(minutes: 5), status: SyncHealthStatus.ok);
       expect(report.oldestPendingAgeFormatted, equals('5 دقيقة'));
     });
 
     test('oldestPendingAgeFormatted formats hours correctly', () {
-      final report = _makeReport(
-        oldestPendingAge: const Duration(minutes: 90),
-        status: SyncHealthStatus.warning,
-      );
+      final report = _makeReport(oldestPendingAge: const Duration(minutes: 90), status: SyncHealthStatus.warning);
       expect(report.oldestPendingAgeFormatted, contains('ساعة'));
     });
 

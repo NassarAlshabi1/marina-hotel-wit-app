@@ -25,12 +25,7 @@ bool _listsEqual(List<RoomWithPaymentStatus> a, List<RoomWithPaymentStatus> b) {
 
 /// نموذج بيانات يجمع بين الغرفة وحالة تأخر السداد
 class RoomWithPaymentStatus {
-
-  RoomWithPaymentStatus({
-    required this.room,
-    required this.isPaymentOverdue,
-    this.activeBooking,
-  });
+  RoomWithPaymentStatus({required this.room, required this.isPaymentOverdue, this.activeBooking});
   final Room room;
   final bool isPaymentOverdue;
 
@@ -74,8 +69,7 @@ class RoomWithPaymentStatus {
 }
 
 /// بروفايدر يدمج الغرف مع حالة تأخر السداد — يتحدث تلقائياً مع تغييرات DB
-final roomsWithPaymentStatusProvider =
-    StreamProvider.autoDispose<List<RoomWithPaymentStatus>>((ref) {
+final roomsWithPaymentStatusProvider = StreamProvider.autoDispose<List<RoomWithPaymentStatus>>((ref) {
   // استخدام الـ repositories مباشرة للحصول على Streams حقيقية
   final roomsStream = ref.watch(roomsRepoProvider).watchAll();
   final bookingsStream = ref.watch(bookingsRepoProvider).watch();
@@ -116,8 +110,7 @@ final roomsWithPaymentStatusProvider =
       final activeBooking = bookingByRoom[room.roomNumber];
 
       if (activeBooking != null) {
-        final hasRemainingBalance =
-            activeBooking.remainingBalanceCached.round() > 0;
+        final hasRemainingBalance = activeBooking.remainingBalanceCached.round() > 0;
 
         if (hasRemainingBalance) {
           final hour = currentTime.hour;
@@ -128,11 +121,7 @@ final roomsWithPaymentStatusProvider =
         }
       }
 
-      return RoomWithPaymentStatus(
-        room: room,
-        isPaymentOverdue: isPaymentOverdue,
-        activeBooking: activeBooking,
-      );
+      return RoomWithPaymentStatus(room: room, isPaymentOverdue: isPaymentOverdue, activeBooking: activeBooking);
     }).toList();
 
     // ✅ إصلاح الوميض: لا نُرسل بيانات جديدة إذا كانت مطابقة للسابقة
@@ -181,33 +170,38 @@ final roomsWithPaymentStatusProvider =
 
 /// عدد الغرف المشغولة — يُحدّث فقط عندما يتغير العدد (وليس عند تغيير حالات فردية)
 final occupiedRoomsCountProvider = Provider<int>((ref) {
-  return ref.watch(roomsWithPaymentStatusProvider.select(
-    (rooms) => rooms.valueOrNull?.where((r) => r.hasActiveBooking).length ?? 0,
-  ));
+  return ref.watch(
+    roomsWithPaymentStatusProvider.select((rooms) => rooms.valueOrNull?.where((r) => r.hasActiveBooking).length ?? 0),
+  );
 });
 
 /// عدد الغرف المتاحة — يُحدّث فقط عندما يتغير العدد
 final availableRoomsCountProvider = Provider<int>((ref) {
-  return ref.watch(roomsWithPaymentStatusProvider.select(
-    (rooms) => rooms.valueOrNull?.where((r) =>
-        !r.hasActiveBooking &&
-        !StatusUtils.isUnderMaintenance(r.room.status)).length ?? 0,
-  ));
+  return ref.watch(
+    roomsWithPaymentStatusProvider.select(
+      (rooms) =>
+          rooms.valueOrNull
+              ?.where((r) => !r.hasActiveBooking && !StatusUtils.isUnderMaintenance(r.room.status))
+              .length ??
+          0,
+    ),
+  );
 });
 
 /// عدد الغرف المتأخرة السداد — يُحدّث فقط عندما يتغير العدد
 final overdueRoomsCountProvider = Provider<int>((ref) {
-  return ref.watch(roomsWithPaymentStatusProvider.select(
-    (rooms) => rooms.valueOrNull?.where((r) => r.isPaymentOverdue).length ?? 0,
-  ));
+  return ref.watch(
+    roomsWithPaymentStatusProvider.select((rooms) => rooms.valueOrNull?.where((r) => r.isPaymentOverdue).length ?? 0),
+  );
 });
 
 /// عدد الغرف تحت الصيانة — يُحدّث فقط عندما يتغير العدد
 /// ✅ استخدام StatusUtils.isUnderMaintenance (DRY) — كان قبل ذلك يفحص
 /// 'صيانة' فقط بدون 'maintenance'، فكانت الغرف الإنجليزية لا تُحسب!
 final maintenanceRoomsCountProvider = Provider<int>((ref) {
-  return ref.watch(roomsWithPaymentStatusProvider.select(
-    (rooms) => rooms.valueOrNull?.where((r) =>
-        StatusUtils.isUnderMaintenance(r.room.status)).length ?? 0,
-  ));
+  return ref.watch(
+    roomsWithPaymentStatusProvider.select(
+      (rooms) => rooms.valueOrNull?.where((r) => StatusUtils.isUnderMaintenance(r.room.status)).length ?? 0,
+    ),
+  );
 });

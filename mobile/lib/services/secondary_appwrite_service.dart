@@ -23,8 +23,7 @@ import 'secondary_appwrite_config.dart';
 /// مثل Primary. كتم أخطاء 404 المتوقعة في upsert probe.
 class SecondaryAppwriteService {
   /// Factory singleton — يُرجع نفس الكائن دائماً.
-  factory SecondaryAppwriteService() =>
-      _instance ??= SecondaryAppwriteService._();
+  factory SecondaryAppwriteService() => _instance ??= SecondaryAppwriteService._();
 
   SecondaryAppwriteService._();
   static SecondaryAppwriteService? _instance;
@@ -51,9 +50,7 @@ class SecondaryAppwriteService {
     }
 
     final apiKey = SecondaryAppwriteConfig.apiKey;
-    _client = Client()
-        .setEndpoint(SecondaryAppwriteConfig.endpoint)
-        .setProject(SecondaryAppwriteConfig.projectId);
+    _client = Client().setEndpoint(SecondaryAppwriteConfig.endpoint).setProject(SecondaryAppwriteConfig.projectId);
     if (apiKey.isNotEmpty) {
       _client!.addHeader('X-Appwrite-Key', apiKey);
     }
@@ -87,11 +84,7 @@ class SecondaryAppwriteService {
     } catch (e) {
       stopwatch.stop();
       debugPrint('❌ [Secondary] testConnection failed: $e');
-      return ConnectionTestResult(
-        success: false,
-        message: '❌ فشل: $e',
-        latencyMs: stopwatch.elapsedMilliseconds,
-      );
+      return ConnectionTestResult(success: false, message: '❌ فشل: $e', latencyMs: stopwatch.elapsedMilliseconds);
     }
   }
 
@@ -106,7 +99,7 @@ class SecondaryAppwriteService {
     final collectionList = await getAllCollections(db);
 
     stats.totalCollections = collectionList.length;
-for (final coll in collectionList) {
+    for (final coll in collectionList) {
       int successCount = 0;
       int failureCount = 0;
       int total = coll.records.length;
@@ -123,9 +116,9 @@ for (final coll in collectionList) {
         if (documentId == null || documentId.isEmpty) {
           failureCount++;
           const reason = 'تخطّي سجل بلا localUuid صالح (معرّف فارغ)';
-          stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(
-            FullBackupFailure(reason: reason, collectionName: coll.name),
-          );
+          stats.failuresByCollection
+              .putIfAbsent(coll.name, () => [])
+              .add(FullBackupFailure(reason: reason, collectionName: coll.name));
           stats.errorsByReason[reason] = (stats.errorsByReason[reason] ?? 0) + 1;
           continue;
         }
@@ -133,23 +126,14 @@ for (final coll in collectionList) {
         try {
           // ✅ P0: استخدام sanitizePayload بدلاً من filterPayloadForCollection
           // لضمان تحويل الأنواع (double→int), تحويل camelCase, إزالة الحقول الداخلية.
-          final sanitized = AppwriteSyncUtils.sanitizePayload(
-            coll.name,
-            record,
-            collectionId: coll.collectionId,
-          );
+          final sanitized = AppwriteSyncUtils.sanitizePayload(coll.name, record, collectionId: coll.collectionId);
           // ✅ P1: إضافة syncTimestamp + idempotencyKey—حقول كانت مفقودة من ToMaps
           final enhancedData = Map<String, dynamic>.from(sanitized);
           final now = DateTime.now().millisecondsSinceEpoch;
           enhancedData['syncTimestamp'] ??= now;
-          enhancedData['idempotencyKey'] ??=
-              'backup_${coll.name}_${documentId}_$now';
+          enhancedData['idempotencyKey'] ??= 'backup_${coll.name}_${documentId}_$now';
           enhancedData['sync_origin'] ??= 'secondary_backup';
-          await upsertDocument(
-            collectionId: coll.collectionId,
-            documentId: documentId,
-            data: enhancedData,
-          );
+          await upsertDocument(collectionId: coll.collectionId, documentId: documentId, data: enhancedData);
           successCount++;
         } catch (e) {
           failureCount++;
@@ -190,14 +174,14 @@ for (final coll in collectionList) {
     return stats;
   }
 
-  static final RegExp _unknownAttrPattern =
-      RegExp(r'Unknown attribute:\s*"([^"]+)"');
+  static final RegExp _unknownAttrPattern = RegExp(r'Unknown attribute:\s*"([^"]+)"');
 
   /// استخراج اسم السمة غير المعروفة من خطأ Appwrite (إن وُجد).
   String? _extractUnknownAttribute(AppwriteException e) {
     final type = e.type ?? '';
     final msg = e.message ?? e.toString();
-    final isStructureError = e.code == 400 &&
+    final isStructureError =
+        e.code == 400 &&
         (type.contains('document_invalid_structure') ||
             msg.contains('Invalid document structure') ||
             msg.contains('Unknown attribute'));
@@ -217,18 +201,11 @@ for (final coll in collectionList) {
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-        return await _upsertDocumentOnce(
-          collectionId: collectionId,
-          documentId: documentId,
-          data: workingData,
-        );
+        return await _upsertDocumentOnce(collectionId: collectionId, documentId: documentId, data: workingData);
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
-        if (unknownAttr != null &&
-            workingData.containsKey(unknownAttr) &&
-            attempt < maxRetries) {
-          workingData = Map<String, dynamic>.from(workingData)
-            ..remove(unknownAttr);
+        if (unknownAttr != null && workingData.containsKey(unknownAttr) && attempt < maxRetries) {
+          workingData = Map<String, dynamic>.from(workingData)..remove(unknownAttr);
           _logger.warning(
             '⚠️ [Secondary] حقل غير معروف في المخطط — أُزيل وأُعيدت المحاولة: '
             '$collectionId.$unknownAttr',
@@ -250,9 +227,7 @@ for (final coll in collectionList) {
     final dbId = SecondaryAppwriteConfig.databaseId;
 
     bool isNotFound(AppwriteException e) =>
-        e.code == 404 ||
-        (e.type ?? '').contains('document_not_found') ||
-        e.toString().contains('document_not_found');
+        e.code == 404 || (e.type ?? '').contains('document_not_found') || e.toString().contains('document_not_found');
 
     bool isAlreadyExists(AppwriteException e) =>
         e.code == 409 ||
@@ -268,22 +243,13 @@ for (final coll in collectionList) {
         e.toString().contains('rate limit');
 
     // ✅ معالجة ID بدون شرطات (نفس Primary)
-    final altDocumentId = documentId.contains('-')
-        ? documentId.replaceAll('-', '')
-        : '';
+    final altDocumentId = documentId.contains('-') ? documentId.replaceAll('-', '') : '';
 
-    Future<models.Document> doUpdate(
-      String id, {
-      bool suppressErrorLog = false,
-    }) async {
+    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false}) async {
       return _networkHelper.withRetryAndTimeout(
-        // ignore: deprecated_member_use
-        operation: () => _databases!.updateDocument(
-          databaseId: dbId,
-          collectionId: collectionId,
-          documentId: id,
-          data: data,
-        ),
+        operation: () =>
+            // ignore: deprecated_member_use
+            _databases!.updateDocument(databaseId: dbId, collectionId: collectionId, documentId: id, data: data),
         operationName: 'secondary_updateDocument',
         suppressErrorLog: suppressErrorLog,
       );
@@ -310,20 +276,21 @@ for (final coll in collectionList) {
       return await doUpdate(documentId, suppressErrorLog: true);
     } on AppwriteException catch (updateError) {
       if (isRateLimit(updateError)) {
-        _logger.warning(
-          'secondary_upsert: 429 on update $documentId — waiting 65s then create',
-          tag: 'RATE_LIMIT',
-        );
+        _logger.warning('secondary_upsert: 429 on update $documentId — waiting 65s then create', tag: 'RATE_LIMIT');
         await Future<void>.delayed(const Duration(seconds: 65));
         // انتقل مباشرة للخطوة 2 (create) — لا إعادة try update
       } else if (!isNotFound(updateError)) {
         if (isAlreadyExists(updateError)) {
-          try { return await doCreate(); }
-          on AppwriteException catch (e2) {
+          try {
+            return await doCreate();
+          } on AppwriteException catch (e2) {
             if (isAlreadyExists(e2)) {
-              try { return await doUpdate(documentId); }
-              catch (e3) { rethrow; }
-}
+              try {
+                return await doUpdate(documentId);
+              } catch (e3) {
+                rethrow;
+              }
+            }
             rethrow;
           }
         }
@@ -338,7 +305,9 @@ for (final coll in collectionList) {
       try {
         return await doUpdate(altDocumentId, suppressErrorLog: true);
       } on AppwriteException catch (altError) {
-        if (!isNotFound(altError)) { rethrow; }
+        if (!isNotFound(altError)) {
+          rethrow;
+        }
       }
     }
 
@@ -352,13 +321,18 @@ for (final coll in collectionList) {
           try {
             return await doUpdate(altDocumentId, suppressErrorLog: true);
           } on AppwriteException catch (altError) {
-            if (!isNotFound(altError)) { rethrow; }
+            if (!isNotFound(altError)) {
+              rethrow;
+            }
           }
         }
         // ✅ P1-4 fix: إضافة await هنا — بدونه يُعاد الـ Future فوراً ولا
         // يلتقط catch أي فشل async (النظام الأساسي يستخدم return await).
-        try { return await doUpdate(documentId, suppressErrorLog: true); }
-        catch (_) { rethrow; }
+        try {
+          return await doUpdate(documentId, suppressErrorLog: true);
+        } catch (_) {
+          rethrow;
+        }
       }
       rethrow;
     }
@@ -370,10 +344,7 @@ for (final coll in collectionList) {
   /// في upsertDocument بدل فحص `code == 404` فقط. الثانوي يُملأ كسولاً
   /// (سجلات كثيرة لم تُدفَع إليه بعد)، فحذف سجل غير موجود شائع جداً
   /// ولا يجب أن يُعامل كخطأ.
-  Future<void> deleteDocument({
-    required String collectionId,
-    required String documentId,
-  }) async {
+  Future<void> deleteDocument({required String collectionId, required String documentId}) async {
     await ensureInitialized();
     try {
       await _networkHelper.withRetryAndTimeout(
@@ -409,9 +380,7 @@ for (final coll in collectionList) {
   /// إضافة/إزالة جدول من النسخة الشاملة = تعديل سطر واحد هنا فقط.
   /// (سابقاً كانت قائمة `entities` و`switch` منفصلين يتباعدان مع الوقت،
   /// مما أدى لإسقاط `salary_carry_over_logs` صامتاً من النسخة "الشاملة".)
-  Map<String, Future<List<Map<String, dynamic>>> Function()> _backupFetchers(
-    AppDatabase db,
-  ) {
+  Map<String, Future<List<Map<String, dynamic>>> Function()> _backupFetchers(AppDatabase db) {
     // ✅ إصلاح تطابق الحقول مع Primary:
     // نستخدم `row.toJson()` لكل كيان — تماماً مثل DeltaSyncService في Primary
     // (`_entityConfigs()` → `toJson: (row) => row.toJson()`).
@@ -421,63 +390,35 @@ for (final coll in collectionList) {
     // في المدخلات). باستخدام toJson تُرسَل نفس أعمدة Primary بالضبط، ثم تمرّ عبر
     // نفس sanitizePayload/collectionSchema — فيتطابق ناتج الحقول حرفياً مع Primary.
     return {
-      'rooms': () async =>
-          (await db.select(db.rooms).get()).map((e) => e.toJson()).toList(),
-      'bookings': () async =>
-          (await db.select(db.bookings).get()).map((e) {
-            final j = e.toJson();
-            // ✅ حقل amount الموحّد لجدول bookings (مشتق من المبلغ المستحق)
-            // حتى يطابق Primary تماماً في الحقول المُرسَلة.
-            j['amount'] = e.totalDueCached;
-            return j;
-          }).toList(),
-      'payments': () async =>
-          (await db.select(db.payments).get()).map((e) => e.toJson()).toList(),
-      'expenses': () async =>
-          (await db.select(db.expenses).get()).map((e) => e.toJson()).toList(),
-      'debts': () async =>
-          (await db.select(db.debts).get()).map((e) => e.toJson()).toList(),
-      'employees': () async =>
-          (await db.select(db.employees).get()).map((e) => e.toJson()).toList(),
-      'booking_notes': () async =>
-          (await db.select(db.bookingNotes).get()).map((e) => e.toJson()).toList(),
-      'booking_nights': () async =>
-          (await db.select(db.bookingNights).get()).map((e) => e.toJson()).toList(),
-      'cash_transactions': () async => (await db.select(db.cashTransactions).get())
-          .map((e) => e.toJson())
-          .toList(),
-      'salary_cycles': () async =>
-          (await db.select(db.salaryCycles).get()).map((e) => e.toJson()).toList(),
-      'salary_payments': () async => (await db.select(db.salaryPayments).get())
-          .map((e) => e.toJson())
-          .toList(),
-      'salary_withdrawals': () async =>
-          (await db.select(db.salaryWithdrawals).get())
-              .map((e) => e.toJson())
-              .toList(),
+      'rooms': () async => (await db.select(db.rooms).get()).map((e) => e.toJson()).toList(),
+      'bookings': () async => (await db.select(db.bookings).get()).map((e) {
+        final j = e.toJson();
+        // ✅ حقل amount الموحّد لجدول bookings (مشتق من المبلغ المستحق)
+        // حتى يطابق Primary تماماً في الحقول المُرسَلة.
+        j['amount'] = e.totalDueCached;
+        return j;
+      }).toList(),
+      'payments': () async => (await db.select(db.payments).get()).map((e) => e.toJson()).toList(),
+      'expenses': () async => (await db.select(db.expenses).get()).map((e) => e.toJson()).toList(),
+      'debts': () async => (await db.select(db.debts).get()).map((e) => e.toJson()).toList(),
+      'employees': () async => (await db.select(db.employees).get()).map((e) => e.toJson()).toList(),
+      'booking_notes': () async => (await db.select(db.bookingNotes).get()).map((e) => e.toJson()).toList(),
+      'booking_nights': () async => (await db.select(db.bookingNights).get()).map((e) => e.toJson()).toList(),
+      'cash_transactions': () async => (await db.select(db.cashTransactions).get()).map((e) => e.toJson()).toList(),
+      'salary_cycles': () async => (await db.select(db.salaryCycles).get()).map((e) => e.toJson()).toList(),
+      'salary_payments': () async => (await db.select(db.salaryPayments).get()).map((e) => e.toJson()).toList(),
+      'salary_withdrawals': () async => (await db.select(db.salaryWithdrawals).get()).map((e) => e.toJson()).toList(),
       'salary_carry_over_logs': () async =>
-          (await db.select(db.salaryCarryOverLogs).get())
-              .map((e) => e.toJson())
-              .toList(),
-      'shift_notes': () async =>
-          (await db.select(db.shiftNotes).get()).map((e) => e.toJson()).toList(),
-      'price_adjustments': () async => (await db.select(db.priceAdjustments).get())
-          .map((e) => e.toJson())
-          .toList(),
+          (await db.select(db.salaryCarryOverLogs).get()).map((e) => e.toJson()).toList(),
+      'shift_notes': () async => (await db.select(db.shiftNotes).get()).map((e) => e.toJson()).toList(),
+      'price_adjustments': () async => (await db.select(db.priceAdjustments).get()).map((e) => e.toJson()).toList(),
       'booking_price_adjustments': () async =>
-          (await db.select(db.bookingPriceAdjustments).get())
-              .map((e) => e.toJson())
-              .toList(),
-      'audit_logs': () async =>
-          (await db.select(db.auditLogs).get()).map((e) => e.toJson()).toList(),
-      'payment_voids': () async =>
-          (await db.select(db.paymentVoids).get()).map((e) => e.toJson()).toList(),
+          (await db.select(db.bookingPriceAdjustments).get()).map((e) => e.toJson()).toList(),
+      'audit_logs': () async => (await db.select(db.auditLogs).get()).map((e) => e.toJson()).toList(),
+      'payment_voids': () async => (await db.select(db.paymentVoids).get()).map((e) => e.toJson()).toList(),
       // app_settings ليس جدول Drift — يُبنى من SharedPreferences كما في السابق.
-      'app_settings': () async => [
-            await _appSettingsToMap(),
-          ],
-      'guest_infos': () async =>
-          (await db.select(db.guestInfos).get()).map((e) => e.toJson()).toList(),
+      'app_settings': () async => [await _appSettingsToMap()],
+      'guest_infos': () async => (await db.select(db.guestInfos).get()).map((e) => e.toJson()).toList(),
     };
   }
 
@@ -498,11 +439,7 @@ for (final coll in collectionList) {
       }
 
       final records = await entry.value();
-      result.add(CollectionData(
-        name: entity,
-        collectionId: collectionId,
-        records: records,
-      ));
+      result.add(CollectionData(name: entity, collectionId: collectionId, records: records));
     }
 
     return result;
@@ -513,66 +450,66 @@ for (final coll in collectionList) {
   //    _backupFetchers تماماً مثل Primary. يبقى فقط app_settings لأنه
   //    ليس جدول Drift.
 
-    /// تحويل إعدادات التطبيق من SharedPreferences إلى خريطة للرفع
-    /// app_settings مخزّن في SharedPreferences (ليس Drift) كمستند واحد
-    /// بمعرّف ثابت 'whatsapp_settings' — نفس النمط المستخدم في Primary sync.
-    Future<Map<String, dynamic>> _appSettingsToMap() async {
-      final prefs = await SharedPreferences.getInstance();
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final deviceId = prefs.getString('appwrite_delta_device_id') ?? 'default';
+  /// تحويل إعدادات التطبيق من SharedPreferences إلى خريطة للرفع
+  /// app_settings مخزّن في SharedPreferences (ليس Drift) كمستند واحد
+  /// بمعرّف ثابت 'whatsapp_settings' — نفس النمط المستخدم في Primary sync.
+  Future<Map<String, dynamic>> _appSettingsToMap() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final deviceId = prefs.getString('appwrite_delta_device_id') ?? 'default';
 
-      final map = <String, dynamic>{
-        'localUuid': 'whatsapp_settings',
-        'value': '',
-        'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
-        'hotel_cutoff_hour': prefs.getInt('hotel_cutoff_hour') ?? 14,
-        'dark_mode': prefs.getBool('dark_mode') ?? false,
-        'wa_api_type': prefs.getString('wa_api_type') ?? 'greenapi',
-        'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
-        'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',
-        'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
-        'wa_sendzen_api_key': prefs.getString('wa_sendzen_api_key') ?? '',
-        'wa_sendzen_from_number': prefs.getString('wa_sendzen_from_number') ?? '',
-        'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
-        'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '',
-        'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
-        'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
-        'telegram_daily_report_time': prefs.getString('telegram_daily_report_time') ?? '',
-        'appwrite_sync_interval': prefs.getInt('appwrite_sync_interval') ?? 15,
-        // حقول المزامنة الأساسية (SyncFields)
-        'deviceId': deviceId,
-        'serverId': null,
-        'createdAt': now,
-        'updatedAt': now,
-        'deletedAt': null,
-        'lastModified': now,
-        'lastModifiedEpoch': now,
-        'createdAtEpoch': now,
-        'createdAtIso': DateTime.now().toIso8601String(),
-        'updatedAtIso': DateTime.now().toIso8601String(),
-        'deletedAtIso': null,
-        'version': 1,
-        'origin': 'local',
-        'vectorClock': '{}',
-        'idempotencyKey': null,
-        'syncTimestamp': now,
-        'sync_origin': 'secondary_backup',
-      };
+    final map = <String, dynamic>{
+      'localUuid': 'whatsapp_settings',
+      'value': '',
+      'hotel_name': prefs.getString('hotel_name') ?? 'فندق مارينا بلازا',
+      'hotel_cutoff_hour': prefs.getInt('hotel_cutoff_hour') ?? 14,
+      'dark_mode': prefs.getBool('dark_mode') ?? false,
+      'wa_api_type': prefs.getString('wa_api_type') ?? 'greenapi',
+      'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
+      'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',
+      'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
+      'wa_sendzen_api_key': prefs.getString('wa_sendzen_api_key') ?? '',
+      'wa_sendzen_from_number': prefs.getString('wa_sendzen_from_number') ?? '',
+      'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
+      'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '',
+      'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
+      'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
+      'telegram_daily_report_time': prefs.getString('telegram_daily_report_time') ?? '',
+      'appwrite_sync_interval': prefs.getInt('appwrite_sync_interval') ?? 15,
+      // حقول المزامنة الأساسية (SyncFields)
+      'deviceId': deviceId,
+      'serverId': null,
+      'createdAt': now,
+      'updatedAt': now,
+      'deletedAt': null,
+      'lastModified': now,
+      'lastModifiedEpoch': now,
+      'createdAtEpoch': now,
+      'createdAtIso': DateTime.now().toIso8601String(),
+      'updatedAtIso': DateTime.now().toIso8601String(),
+      'deletedAtIso': null,
+      'version': 1,
+      'origin': 'local',
+      'vectorClock': '{}',
+      'idempotencyKey': null,
+      'syncTimestamp': now,
+      'sync_origin': 'secondary_backup',
+    };
 
-      // ✅ الخيار 2: تجميع مفاتيح WhatsApp/Telegram النصّية في config_json واحد
-      // (مطابق لـ Primary) لتفادي تجاوز حدّ حجم الصف في Appwrite.
-      // ⚠️ نُعيد استخدام `AppwriteSyncUtils.appSettingsConfigKeys` (DRY) — مصدر
-      //    وحيد للقائمة بين Primary و Secondary لتفادي الانحراف مستقبلاً.
-      final configMap = <String, dynamic>{};
-      for (final k in AppwriteSyncUtils.appSettingsConfigKeys) {
-        if (map.containsKey(k)) {
-          configMap[k] = map.remove(k);
-        }
+    // ✅ الخيار 2: تجميع مفاتيح WhatsApp/Telegram النصّية في config_json واحد
+    // (مطابق لـ Primary) لتفادي تجاوز حدّ حجم الصف في Appwrite.
+    // ⚠️ نُعيد استخدام `AppwriteSyncUtils.appSettingsConfigKeys` (DRY) — مصدر
+    //    وحيد للقائمة بين Primary و Secondary لتفادي الانحراف مستقبلاً.
+    final configMap = <String, dynamic>{};
+    for (final k in AppwriteSyncUtils.appSettingsConfigKeys) {
+      if (map.containsKey(k)) {
+        configMap[k] = map.remove(k);
       }
-      map['config_json'] = jsonEncode(configMap);
-
-      return map;
     }
+    map['config_json'] = jsonEncode(configMap);
+
+    return map;
+  }
 }
 
 /// نتيجة اختبار الاتصال
@@ -638,9 +575,7 @@ class FullBackupStats {
         buf.writeln('  📁 ${entry.key} (${entry.value.length} خطأ):');
         for (final failure in entry.value) {
           final id = failure.documentId ?? 'بدون معرّف';
-          final reason = failure.reason.length > 200
-              ? '${failure.reason.substring(0, 200)}...'
-              : failure.reason;
+          final reason = failure.reason.length > 200 ? '${failure.reason.substring(0, 200)}...' : failure.reason;
           buf.writeln('    · [$id] $reason');
         }
       }
@@ -663,9 +598,7 @@ class FullBackupStats {
       'error': error,
       'collectionNames': collectionNames,
       'collectionDetails': collectionDetails,
-      'failuresByCollection': failuresByCollection.map(
-        (k, v) => MapEntry(k, v.map((f) => f.toJson()).toList()),
-      ),
+      'failuresByCollection': failuresByCollection.map((k, v) => MapEntry(k, v.map((f) => f.toJson()).toList())),
       'failedRecords': failedRecords.map((f) => f.toJson()).toList(),
       'errorsByReason': errorsByReason,
       'timestamp': DateTime.now().toLocal().toIso8601String(),
@@ -675,12 +608,7 @@ class FullBackupStats {
 
 /// خطأ في رفع سجل واحد
 class FullBackupFailure {
-  FullBackupFailure({
-    this.documentId,
-    required this.reason,
-    this.collectionName,
-    this.timestamp,
-  });
+  FullBackupFailure({this.documentId, required this.reason, this.collectionName, this.timestamp});
   final String? documentId;
   final String reason;
   final String? collectionName;

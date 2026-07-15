@@ -79,7 +79,7 @@ class SyncConflictResolver {
   String? _compareVectorClocks(Map<String, int> local, Map<String, int> remote) {
     bool remoteNewer = false;
     bool localNewer = false;
-    
+
     final allDevices = <String>{...local.keys, ...remote.keys};
     for (final device in allDevices) {
       final lv = local[device] ?? 0;
@@ -87,7 +87,7 @@ class SyncConflictResolver {
       if (rv > lv) remoteNewer = true;
       if (lv > rv) localNewer = true;
     }
-    
+
     if (remoteNewer && !localNewer) return 'remote';
     if (localNewer && !remoteNewer) return 'local';
     return null; // متعارض
@@ -109,20 +109,15 @@ class SyncConflictResolver {
 
       // إذا لم يكن هناك سجل محلي - لا يوجد تعارض، يمكن الإدراج مباشرة
       if (localRow == null) {
-        return const ConflictCheckResult(
-          reason: 'لا يوجد سجل محلي - لا يوجد تعارض',
-        );
+        return const ConflictCheckResult(reason: 'لا يوجد سجل محلي - لا يوجد تعارض');
       }
 
       // استخراج بيانات السجل المحلي
-      final localLastModified = _extractIntField(localRow, 'lastModified') ??
-          _extractIntField(localRow, 'last_modified') ??
-          0;
+      final localLastModified =
+          _extractIntField(localRow, 'lastModified') ?? _extractIntField(localRow, 'last_modified') ?? 0;
       final localVersion = _extractIntField(localRow, 'version') ?? 1;
       final localOrigin = _extractStringField(localRow, 'origin') ?? 'local';
-      final remoteLastModified = (remoteData['lastModified'] as int?) ??
-          (remoteData['last_modified'] as int?) ??
-          0;
+      final remoteLastModified = (remoteData['lastModified'] as int?) ?? (remoteData['last_modified'] as int?) ?? 0;
       final remoteVersion = (remoteData['version'] as int?) ?? 1;
 
       // حالة 1: السجل المحلي لم يتغير منذ آخر سحب - لا يوجد تعارض
@@ -186,16 +181,16 @@ class SyncConflictResolver {
       }
 
       // ✅ Vector Clock: فحص التعديلات المنطقية
-      final localVectorClockStr = _extractStringField(localRow, 'vectorClock') ?? 
-          _extractStringField(localRow, 'vector_clock') ?? '';
-      final remoteVectorClockStr = (remoteData['vectorClock'] as String?) ?? 
-          (remoteData['vector_clock'] as String?) ?? '';
-      
+      final localVectorClockStr =
+          _extractStringField(localRow, 'vectorClock') ?? _extractStringField(localRow, 'vector_clock') ?? '';
+      final remoteVectorClockStr =
+          (remoteData['vectorClock'] as String?) ?? (remoteData['vector_clock'] as String?) ?? '';
+
       if (localVectorClockStr.isNotEmpty && remoteVectorClockStr.isNotEmpty) {
         final localVC = _parseVectorClock(localVectorClockStr);
         final remoteVC = _parseVectorClock(remoteVectorClockStr);
         final vcResult = _compareVectorClocks(localVC, remoteVC);
-        
+
         if (vcResult == 'remote') {
           _log('🔧 حل تعارض $table/$localUuid: Vector Clock ← البعيد أحدث');
           return const ConflictCheckResult(
@@ -280,9 +275,7 @@ class SyncConflictResolver {
       );
 
       final id = await db.into(db.syncConflicts).insert(companion);
-      _log(
-        '📝 تم تسجيل تعارض #$id في $table/$localUuid للمراجعة اليدوية',
-      );
+      _log('📝 تم تسجيل تعارض #$id في $table/$localUuid للمراجعة اليدوية');
       return id;
     } catch (e) {
       _log('❌ فشل تسجيل التعارض $table/$localUuid: $e');
@@ -302,8 +295,7 @@ class SyncConflictResolver {
     final results = <ConflictCheckResult>[];
 
     for (final remoteData in remoteRecords) {
-      final localUuid = (remoteData['local_uuid'] ?? remoteData['localUuid'])
-          as String?;
+      final localUuid = (remoteData['local_uuid'] ?? remoteData['localUuid']) as String?;
       if (localUuid == null || localUuid.isEmpty) {
         continue;
       }
@@ -320,9 +312,7 @@ class SyncConflictResolver {
 
     final conflictCount = results.where((r) => r.isConflict).length;
     if (conflictCount > 0) {
-      _log(
-        '📊 كشف $conflictCount تعارض من ${remoteRecords.length} سجل في $table',
-      );
+      _log('📊 كشف $conflictCount تعارض من ${remoteRecords.length} سجل في $table');
     }
 
     return results;
@@ -330,16 +320,12 @@ class SyncConflictResolver {
 
   /// جلب جميع التعارضات غير المحلولة
   Future<List<SyncConflictRow>> getPendingConflicts() async {
-    return (db.select(db.syncConflicts)
-          ..where((t) => t.resolution.equals('')))
-        .get();
+    return (db.select(db.syncConflicts)..where((t) => t.resolution.equals(''))).get();
   }
 
   /// جلب التعارضات حسب الجدول
   Future<List<SyncConflictRow>> getConflictsByTable(String table) async {
-    return (db.select(db.syncConflicts)
-          ..where((t) => t.targetTable.equals(table)))
-        .get();
+    return (db.select(db.syncConflicts)..where((t) => t.targetTable.equals(table))).get();
   }
 
   /// حل تعارض يدوياً - اختيار البيانات المحلية أو البعيدة
@@ -347,42 +333,30 @@ class SyncConflictResolver {
   /// [conflictId] معرف التعارض
   /// [useRemote] true لاختيار البعيد، false للاحتفاظ بالمحلي
   /// [resolutionNote] ملاحظة اختيارية حول القرار
-  Future<void> resolveManually({
-    required int conflictId,
-    required bool useRemote,
-    String resolutionNote = '',
-  }) async {
+  Future<void> resolveManually({required int conflictId, required bool useRemote, String resolutionNote = ''}) async {
     final resolution = useRemote ? 'resolved_remote' : 'resolved_local';
-    final note =
-        resolutionNote.isNotEmpty ? resolutionNote : (useRemote ? 'تم اختيار البيانات البعيدة يدوياً' : 'تم الاحتفاظ بالبيانات المحلية يدوياً');
+    final note = resolutionNote.isNotEmpty
+        ? resolutionNote
+        : (useRemote ? 'تم اختيار البيانات البعيدة يدوياً' : 'تم الاحتفاظ بالبيانات المحلية يدوياً');
 
-    await (db.update(db.syncConflicts)..where((t) => t.id.equals(conflictId)))
-        .write(
-          SyncConflictsCompanion(
-            resolution: Value(resolution),
-          ),
-        );
+    await (db.update(
+      db.syncConflicts,
+    )..where((t) => t.id.equals(conflictId))).write(SyncConflictsCompanion(resolution: Value(resolution)));
 
-    _log(
-      '✅ تم حل التعارض #$conflictId يدوياً: $note',
-    );
+    _log('✅ تم حل التعارض #$conflictId يدوياً: $note');
   }
 
   /// حذف التعارضات القديمة (أقدم من [maxAgeDays] يوماً)
   Future<int> cleanupOldConflicts({int maxAgeDays = 30}) async {
-    final cutoff = DateTime.now()
-        .subtract(Duration(days: maxAgeDays))
-        .toUtc()
-        .toIso8601String();
+    final cutoff = DateTime.now().subtract(Duration(days: maxAgeDays)).toUtc().toIso8601String();
 
     // استخدام استعلام مخصص لحذف التعارضات القديمة لتجنب تعقيد أنواع Drift
-    final deleteResult = await db.customSelect(
-      'DELETE FROM sync_conflicts WHERE resolution != ? AND created_at < ?',
-      variables: [
-        const Variable<String>(''),
-        Variable<String>(cutoff),
-      ],
-    ).get();
+    final deleteResult = await db
+        .customSelect(
+          'DELETE FROM sync_conflicts WHERE resolution != ? AND created_at < ?',
+          variables: [const Variable<String>(''), Variable<String>(cutoff)],
+        )
+        .get();
 
     final resolvedConflicts = deleteResult.length;
 
@@ -422,16 +396,26 @@ class SyncConflictResolver {
   /// يستخدم استعلام مخصص لأن الجداول المختلفة لها حقول مختلفة
   /// ✅ إصلاح: استخدام قائمة بيضاء للجداول بدلاً من تنظيف بسيط لمنع حقن SQL
   static const _allowedTables = {
-    'rooms', 'bookings', 'booking_notes', 'shift_notes', 'employees',
-    'expenses', 'cash_transactions', 'payments', 'debts', 'booking_nights',
-    'hotel_day_ledger', 'booking_price_adjustments', 'salary_withdrawals',
-    'salary_cycles', 'salary_payments', 'guest_infos', 'payment_voids',
+    'rooms',
+    'bookings',
+    'booking_notes',
+    'shift_notes',
+    'employees',
+    'expenses',
+    'cash_transactions',
+    'payments',
+    'debts',
+    'booking_nights',
+    'hotel_day_ledger',
+    'booking_price_adjustments',
+    'salary_withdrawals',
+    'salary_cycles',
+    'salary_payments',
+    'guest_infos',
+    'payment_voids',
   };
 
-  Future<Map<String, dynamic>?> _findLocalRow(
-    String table,
-    String localUuid,
-  ) async {
+  Future<Map<String, dynamic>?> _findLocalRow(String table, String localUuid) async {
     // التحقق من أن اسم الجدول في القائمة البيضاء لمنع حقن SQL
     if (!_allowedTables.contains(table)) {
       _log('⚠️ اسم جدول غير مسموح: $table');
@@ -440,10 +424,7 @@ class SyncConflictResolver {
 
     try {
       final result = await db
-          .customSelect(
-            'SELECT * FROM "$table" WHERE local_uuid = ? LIMIT 1',
-            variables: [Variable<String>(localUuid)],
-          )
+          .customSelect('SELECT * FROM "$table" WHERE local_uuid = ? LIMIT 1', variables: [Variable<String>(localUuid)])
           .getSingleOrNull();
 
       return result?.data;

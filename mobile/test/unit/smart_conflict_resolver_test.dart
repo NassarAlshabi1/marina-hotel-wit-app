@@ -13,16 +13,8 @@ void main() {
       test('returns remoteWins when remote is causally newer', () {
         final result = SmartConflictResolver.resolve(
           entity: 'rooms',
-          localData: {
-            'vectorClock': '{"d1": 1}',
-            'status': 'old',
-            'lastModified': 1000,
-          },
-          remoteData: {
-            'vectorClock': '{"d1": 2}',
-            'status': 'new',
-            'lastModified': 2000,
-          },
+          localData: {'vectorClock': '{"d1": 1}', 'status': 'old', 'lastModified': 1000},
+          remoteData: {'vectorClock': '{"d1": 2}', 'status': 'new', 'lastModified': 2000},
           commonAncestor: null,
         );
         expect(result.strategy, equals(ResolutionStrategy.remoteWins));
@@ -32,16 +24,8 @@ void main() {
       test('returns localWins when local is causally newer', () {
         final result = SmartConflictResolver.resolve(
           entity: 'rooms',
-          localData: {
-            'vectorClock': '{"d1": 5}',
-            'status': 'local',
-            'lastModified': 1000,
-          },
-          remoteData: {
-            'vectorClock': '{"d1": 2}',
-            'status': 'remote',
-            'lastModified': 2000,
-          },
+          localData: {'vectorClock': '{"d1": 5}', 'status': 'local', 'lastModified': 1000},
+          remoteData: {'vectorClock': '{"d1": 2}', 'status': 'remote', 'lastModified': 2000},
           commonAncestor: null,
         );
         expect(result.strategy, equals(ResolutionStrategy.localWins));
@@ -51,14 +35,8 @@ void main() {
       test('returns localWins when VCs are equal', () {
         final result = SmartConflictResolver.resolve(
           entity: 'rooms',
-          localData: {
-            'vectorClock': '{"d1": 5}',
-            'status': 'local',
-          },
-          remoteData: {
-            'vectorClock': '{"d1": 5}',
-            'status': 'remote',
-          },
+          localData: {'vectorClock': '{"d1": 5}', 'status': 'local'},
+          remoteData: {'vectorClock': '{"d1": 5}', 'status': 'remote'},
           commonAncestor: null,
         );
         expect(result.strategy, equals(ResolutionStrategy.localWins));
@@ -95,15 +73,15 @@ void main() {
           entity: 'rooms',
           localData: {
             'vectorClock': '{"d1": 1, "d2": 0}',
-            'status': 'active',           // unchanged
-            'cleaningStatus': 'dirty',    // local changed
+            'status': 'active', // unchanged
+            'cleaningStatus': 'dirty', // local changed
             'lastModified': 1000,
           },
           remoteData: {
             'vectorClock': '{"d1": 0, "d2": 1}',
             'status': 'active',
-            'cleaningStatus': 'clean',    // remote didn't change (ancestor=clean)
-            'price': 150.0,               // remote changed
+            'cleaningStatus': 'clean', // remote didn't change (ancestor=clean)
+            'price': 150.0, // remote changed
             'lastModified': 2000,
           },
           commonAncestor: {
@@ -131,19 +109,11 @@ void main() {
           entity: 'rooms',
           localData: {
             'vectorClock': '{"d1": 1, "d2": 0}',
-            'status': 'local_status',    // both changed status
+            'status': 'local_status', // both changed status
             'lastModified': 1000,
           },
-          remoteData: {
-            'vectorClock': '{"d1": 0, "d2": 1}',
-            'status': 'remote_status',
-            'lastModified': 2000,
-          },
-          commonAncestor: {
-            'vectorClock': '{}',
-            'status': 'original',
-            'lastModified': 500,
-          },
+          remoteData: {'vectorClock': '{"d1": 0, "d2": 1}', 'status': 'remote_status', 'lastModified': 2000},
+          commonAncestor: {'vectorClock': '{}', 'status': 'original', 'lastModified': 500},
         );
         // rooms policy: status=newerWins
         // remote is newer (2000 > 1000) → remote status wins
@@ -156,19 +126,11 @@ void main() {
           entity: 'expenses',
           localData: {
             'vectorClock': '{"d1": 1, "d2": 0}',
-            'amount': 100.0,              // critical field, both changed
+            'amount': 100.0, // critical field, both changed
             'lastModified': 1000,
           },
-          remoteData: {
-            'vectorClock': '{"d1": 0, "d2": 1}',
-            'amount': 200.0,
-            'lastModified': 2000,
-          },
-          commonAncestor: {
-            'vectorClock': '{}',
-            'amount': 50.0,
-            'lastModified': 500,
-          },
+          remoteData: {'vectorClock': '{"d1": 0, "d2": 1}', 'amount': 200.0, 'lastModified': 2000},
+          commonAncestor: {'vectorClock': '{}', 'amount': 50.0, 'lastModified': 500},
         );
         expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
         // After commit fffa6a37 ("fully automatic conflict resolution"),
@@ -189,20 +151,15 @@ void main() {
           entity: 'rooms',
           localData: {
             'vectorClock': '{"d1": 1, "d2": 0}',
-            'lastModified': 5000,    // local is newer
+            'lastModified': 5000, // local is newer
             'cleaningStatus': 'dirty',
           },
           remoteData: {
             'vectorClock': '{"d1": 0, "d2": 1}',
-            'lastModified': 3000,    // remote is older
+            'lastModified': 3000, // remote is older
             'price': 150.0,
           },
-          commonAncestor: {
-            'vectorClock': '{}',
-            'lastModified': 1000,
-            'cleaningStatus': 'clean',
-            'price': 100.0,
-          },
+          commonAncestor: {'vectorClock': '{}', 'lastModified': 1000, 'cleaningStatus': 'clean', 'price': 100.0},
         );
         expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
         // lastModified should be max(5000, 3000) = 5000
@@ -212,22 +169,13 @@ void main() {
       test('merged lastModified is remote when remote is newer', () {
         final result = SmartConflictResolver.resolve(
           entity: 'rooms',
-          localData: {
-            'vectorClock': '{"d1": 1, "d2": 0}',
-            'lastModified': 1000,
-            'cleaningStatus': 'dirty',
-          },
+          localData: {'vectorClock': '{"d1": 1, "d2": 0}', 'lastModified': 1000, 'cleaningStatus': 'dirty'},
           remoteData: {
             'vectorClock': '{"d1": 0, "d2": 1}',
-            'lastModified': 9000,    // remote is newer
+            'lastModified': 9000, // remote is newer
             'price': 150.0,
           },
-          commonAncestor: {
-            'vectorClock': '{}',
-            'lastModified': 500,
-            'cleaningStatus': 'clean',
-            'price': 100.0,
-          },
+          commonAncestor: {'vectorClock': '{}', 'lastModified': 500, 'cleaningStatus': 'clean', 'price': 100.0},
         );
         expect(result.mergedData['lastModified'], equals(9000));
       });
@@ -241,12 +189,7 @@ void main() {
             'version': 5,
             'cleaningStatus': 'dirty',
           },
-          remoteData: {
-            'vectorClock': '{"d1": 0, "d2": 1}',
-            'lastModified': 2000,
-            'version': 3,
-            'price': 150.0,
-          },
+          remoteData: {'vectorClock': '{"d1": 0, "d2": 1}', 'lastModified': 2000, 'version': 3, 'price': 150.0},
           commonAncestor: {
             'vectorClock': '{}',
             'lastModified': 500,
@@ -265,21 +208,9 @@ void main() {
       test('concat merges two different notes', () {
         final result = SmartConflictResolver.resolve(
           entity: 'booking_notes',
-          localData: {
-            'vectorClock': '{"d1": 1, "d2": 0}',
-            'noteText': 'Local note',
-            'lastModified': 1000,
-          },
-          remoteData: {
-            'vectorClock': '{"d1": 0, "d2": 1}',
-            'noteText': 'Remote note',
-            'lastModified': 2000,
-          },
-          commonAncestor: {
-            'vectorClock': '{}',
-            'noteText': '',
-            'lastModified': 500,
-          },
+          localData: {'vectorClock': '{"d1": 1, "d2": 0}', 'noteText': 'Local note', 'lastModified': 1000},
+          remoteData: {'vectorClock': '{"d1": 0, "d2": 1}', 'noteText': 'Remote note', 'lastModified': 2000},
+          commonAncestor: {'vectorClock': '{}', 'noteText': '', 'lastModified': 500},
         );
         expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
         final merged = result.mergedData['noteText'] as String;
@@ -290,21 +221,9 @@ void main() {
       test('concat does not duplicate identical notes', () {
         final result = SmartConflictResolver.resolve(
           entity: 'booking_notes',
-          localData: {
-            'vectorClock': '{"d1": 1, "d2": 0}',
-            'noteText': 'Same note',
-            'lastModified': 1000,
-          },
-          remoteData: {
-            'vectorClock': '{"d1": 0, "d2": 1}',
-            'noteText': 'Same note',
-            'lastModified': 2000,
-          },
-          commonAncestor: {
-            'vectorClock': '{}',
-            'noteText': '',
-            'lastModified': 500,
-          },
+          localData: {'vectorClock': '{"d1": 1, "d2": 0}', 'noteText': 'Same note', 'lastModified': 1000},
+          remoteData: {'vectorClock': '{"d1": 0, "d2": 1}', 'noteText': 'Same note', 'lastModified': 2000},
+          commonAncestor: {'vectorClock': '{}', 'noteText': '', 'lastModified': 500},
         );
         final merged = result.mergedData['noteText'] as String;
         expect(merged, equals('Same note'));
@@ -316,21 +235,9 @@ void main() {
         // Result should be "A\n---\nB\n---\nC" (no duplicate A)
         final result = SmartConflictResolver.resolve(
           entity: 'booking_notes',
-          localData: {
-            'vectorClock': '{"d1": 2, "d2": 0}',
-            'noteText': 'A\n---\nB',
-            'lastModified': 3000,
-          },
-          remoteData: {
-            'vectorClock': '{"d1": 0, "d2": 1}',
-            'noteText': 'A\n---\nC',
-            'lastModified': 4000,
-          },
-          commonAncestor: {
-            'vectorClock': '{"d1": 1, "d2": 0}',
-            'noteText': 'A',
-            'lastModified': 1000,
-          },
+          localData: {'vectorClock': '{"d1": 2, "d2": 0}', 'noteText': 'A\n---\nB', 'lastModified': 3000},
+          remoteData: {'vectorClock': '{"d1": 0, "d2": 1}', 'noteText': 'A\n---\nC', 'lastModified': 4000},
+          commonAncestor: {'vectorClock': '{"d1": 1, "d2": 0}', 'noteText': 'A', 'lastModified': 1000},
         );
         final merged = result.mergedData['noteText'] as String;
         // Should contain A, B, C each exactly once
@@ -347,21 +254,9 @@ void main() {
       test('rooms: status uses newerWins', () {
         final result = SmartConflictResolver.resolve(
           entity: 'rooms',
-          localData: {
-            'vectorClock': '{"d1": 1, "d2": 0}',
-            'status': 'local',
-            'lastModified': 1000,
-          },
-          remoteData: {
-            'vectorClock': '{"d1": 0, "d2": 1}',
-            'status': 'remote',
-            'lastModified': 2000,
-          },
-          commonAncestor: {
-            'vectorClock': '{}',
-            'status': 'original',
-            'lastModified': 500,
-          },
+          localData: {'vectorClock': '{"d1": 1, "d2": 0}', 'status': 'local', 'lastModified': 1000},
+          remoteData: {'vectorClock': '{"d1": 0, "d2": 1}', 'status': 'remote', 'lastModified': 2000},
+          commonAncestor: {'vectorClock': '{}', 'status': 'original', 'lastModified': 500},
         );
         // newerWins → remote (2000 > 1000)
         expect(result.mergedData['status'], equals('remote'));
@@ -370,21 +265,9 @@ void main() {
       test('rooms: price resolves via LWW (not manual)', () {
         final result = SmartConflictResolver.resolve(
           entity: 'rooms',
-          localData: {
-            'vectorClock': '{"d1": 1, "d2": 0}',
-            'price': 100.0,
-            'lastModified': 1000,
-          },
-          remoteData: {
-            'vectorClock': '{"d1": 0, "d2": 1}',
-            'price': 200.0,
-            'lastModified': 2000,
-          },
-          commonAncestor: {
-            'vectorClock': '{}',
-            'price': 50.0,
-            'lastModified': 500,
-          },
+          localData: {'vectorClock': '{"d1": 1, "d2": 0}', 'price': 100.0, 'lastModified': 1000},
+          remoteData: {'vectorClock': '{"d1": 0, "d2": 1}', 'price': 200.0, 'lastModified': 2000},
+          commonAncestor: {'vectorClock': '{}', 'price': 50.0, 'lastModified': 500},
         );
         expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
         // After commit fffa6a37, 'price' on rooms uses LWW instead of manual escalation.
@@ -396,21 +279,9 @@ void main() {
       test('payments: amount resolves via LWW (not manual)', () {
         final result = SmartConflictResolver.resolve(
           entity: 'payments',
-          localData: {
-            'vectorClock': '{"d1": 1, "d2": 0}',
-            'amount': 100.0,
-            'lastModified': 1000,
-          },
-          remoteData: {
-            'vectorClock': '{"d1": 0, "d2": 1}',
-            'amount': 200.0,
-            'lastModified': 2000,
-          },
-          commonAncestor: {
-            'vectorClock': '{}',
-            'amount': 50.0,
-            'lastModified': 500,
-          },
+          localData: {'vectorClock': '{"d1": 1, "d2": 0}', 'amount': 100.0, 'lastModified': 1000},
+          remoteData: {'vectorClock': '{"d1": 0, "d2": 1}', 'amount': 200.0, 'lastModified': 2000},
+          commonAncestor: {'vectorClock': '{}', 'amount': 50.0, 'lastModified': 500},
         );
         expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
         // After commit fffa6a37, 'amount' on payments uses LWW instead of manual escalation.
@@ -422,21 +293,9 @@ void main() {
       test('debts: all fields resolve via LWW (not manual)', () {
         final result = SmartConflictResolver.resolve(
           entity: 'debts',
-          localData: {
-            'vectorClock': '{"d1": 1, "d2": 0}',
-            'totalAmount': 100.0,
-            'lastModified': 1000,
-          },
-          remoteData: {
-            'vectorClock': '{"d1": 0, "d2": 1}',
-            'totalAmount': 200.0,
-            'lastModified': 2000,
-          },
-          commonAncestor: {
-            'vectorClock': '{}',
-            'totalAmount': 50.0,
-            'lastModified': 500,
-          },
+          localData: {'vectorClock': '{"d1": 1, "d2": 0}', 'totalAmount': 100.0, 'lastModified': 1000},
+          remoteData: {'vectorClock': '{"d1": 0, "d2": 1}', 'totalAmount': 200.0, 'lastModified': 2000},
+          commonAncestor: {'vectorClock': '{}', 'totalAmount': 50.0, 'lastModified': 500},
         );
         expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
         // After commit fffa6a37, 'totalAmount' on debts uses LWW instead of manual escalation.
@@ -448,21 +307,9 @@ void main() {
       test('unknown entity uses default policy (newerWins)', () {
         final result = SmartConflictResolver.resolve(
           entity: 'unknown_entity',
-          localData: {
-            'vectorClock': '{"d1": 1, "d2": 0}',
-            'someField': 'local',
-            'lastModified': 1000,
-          },
-          remoteData: {
-            'vectorClock': '{"d1": 0, "d2": 1}',
-            'someField': 'remote',
-            'lastModified': 2000,
-          },
-          commonAncestor: {
-            'vectorClock': '{}',
-            'someField': 'original',
-            'lastModified': 500,
-          },
+          localData: {'vectorClock': '{"d1": 1, "d2": 0}', 'someField': 'local', 'lastModified': 1000},
+          remoteData: {'vectorClock': '{"d1": 0, "d2": 1}', 'someField': 'remote', 'lastModified': 2000},
+          commonAncestor: {'vectorClock': '{}', 'someField': 'original', 'lastModified': 500},
         );
         // Default policy: newerWins → remote wins (2000 > 1000)
         expect(result.mergedData['someField'], equals('remote'));
@@ -473,28 +320,15 @@ void main() {
       test('merged VC is union of local and remote with max values', () {
         final result = SmartConflictResolver.resolve(
           entity: 'rooms',
-          localData: {
-            'vectorClock': '{"d1": 5, "d2": 3, "d3": 1}',
-            'lastModified': 1000,
-            'cleaningStatus': 'dirty',
-          },
-          remoteData: {
-            'vectorClock': '{"d1": 2, "d2": 7, "d4": 4}',
-            'lastModified': 2000,
-            'price': 150.0,
-          },
-          commonAncestor: {
-            'vectorClock': '{}',
-            'lastModified': 500,
-            'cleaningStatus': 'clean',
-            'price': 100.0,
-          },
+          localData: {'vectorClock': '{"d1": 5, "d2": 3, "d3": 1}', 'lastModified': 1000, 'cleaningStatus': 'dirty'},
+          remoteData: {'vectorClock': '{"d1": 2, "d2": 7, "d4": 4}', 'lastModified': 2000, 'price': 150.0},
+          commonAncestor: {'vectorClock': '{}', 'lastModified': 500, 'cleaningStatus': 'clean', 'price': 100.0},
         );
         final mergedVc = VectorClock.fromString(result.mergedData['vectorClock']);
-        expect(mergedVc.get('d1'), equals(5));  // max(5, 2)
-        expect(mergedVc.get('d2'), equals(7));  // max(3, 7)
-        expect(mergedVc.get('d3'), equals(1));  // only local
-        expect(mergedVc.get('d4'), equals(4));  // only remote
+        expect(mergedVc.get('d1'), equals(5)); // max(5, 2)
+        expect(mergedVc.get('d2'), equals(7)); // max(3, 7)
+        expect(mergedVc.get('d3'), equals(1)); // only local
+        expect(mergedVc.get('d4'), equals(4)); // only remote
       });
     });
   });

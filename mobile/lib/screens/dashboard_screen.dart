@@ -59,12 +59,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void initState() {
     super.initState();
     // ✅ Analytics: تتبّع مشاهدة الشاشة لفهم سلوك المستخدم
-    unawaited(
-      AnalyticsService().logScreenView(
-        screenName: 'dashboard',
-        screenClass: 'DashboardScreen',
-      ),
-    );
+    unawaited(AnalyticsService().logScreenView(screenName: 'dashboard', screenClass: 'DashboardScreen'));
     // سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoPullFromAppwrite();
@@ -118,8 +113,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       LoadingSnackBar? loading;
       if (mounted) {
-        loading = LoadingSnackBar.show(context,
-            message: '📥 جاري سحب البيانات...');
+        loading = LoadingSnackBar.show(context, message: '📥 جاري سحب البيانات...');
       }
 
       final syncManager = ref.read(appwriteSyncManagerProvider);
@@ -133,10 +127,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       AppwriteRealtimeSync().resetRemoteChangesFlag();
 
       // ─── تسجيل وقت هذا السحب التلقائي ───
-      await prefs.setInt(
-        SyncConstants.lastAppOpenPullKey,
-        DateTime.now().millisecondsSinceEpoch,
-      );
+      await prefs.setInt(SyncConstants.lastAppOpenPullKey, DateTime.now().millisecondsSinceEpoch);
 
       if (mounted && pulledCount > 0) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -207,9 +198,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.blue.shade600, Colors.blue.shade400],
-            ),
+            gradient: LinearGradient(colors: [Colors.blue.shade600, Colors.blue.shade400]),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(Icons.hotel, color: Colors.white, size: 18),
@@ -219,32 +208,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'فندق مارينا',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              const Text('فندق مارينا', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               Row(
                 children: [
-                  const Text(
-                    'لوحة التحكم',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
+                  const Text('لوحة التحكم', style: TextStyle(fontSize: 12, color: Colors.grey)),
                   const SizedBox(width: 6),
                   // ✅ رقم إصدار APK — يُقرأ ديناميكياً من package_info_plus.
                   // يظهر للمستخدم مباشرةً في الـ header حتى يسهل التحقق من
                   // النسخة المثبّتة دون فتح شاشة الإعدادات.
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 1,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                     decoration: BoxDecoration(
                       color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: Colors.blue.shade200,
-                        width: 0.5,
-                      ),
+                      border: Border.all(color: Colors.blue.shade200, width: 0.5),
                     ),
                     child: Text(
                       'v$versionLabel',
@@ -283,21 +260,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               final hasError = incomeAsync.hasError || expensesAsync.hasError;
 
               if (isLoading) {
-                return _buildStatCard(
-                  'المتبقي',
-                  '...',
-                  Icons.savings,
-                  Colors.indigo,
-                );
+                return _buildStatCard('المتبقي', '...', Icons.savings, Colors.indigo);
               }
 
               if (hasError) {
-                return _buildStatCard(
-                  'المتبقي',
-                  '--',
-                  Icons.savings,
-                  Colors.indigo,
-                );
+                return _buildStatCard('المتبقي', '--', Icons.savings, Colors.indigo);
               }
 
               final income = incomeAsync.valueOrNull ?? 0.0;
@@ -319,24 +286,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             builder: (context, ref, _) {
               final paymentsAsync = ref.watch(todayPaymentsProvider);
               return paymentsAsync.when(
-                loading: () => _buildStatCard(
-                  'مدفوعات اليوم',
-                  '...',
-                  Icons.payments_rounded,
-                  Colors.green,
-                ),
-                error: (e, _) => _buildStatCard(
-                  'مدفوعات اليوم',
-                  '--',
-                  Icons.payments_rounded,
-                  Colors.green,
-                ),
-                data: (total) => _buildStatCard(
-                  'مدفوعات اليوم',
-                  currencyFmt.format(total),
-                  Icons.payments_rounded,
-                  Colors.green,
-                ),
+                loading: () => _buildStatCard('مدفوعات اليوم', '...', Icons.payments_rounded, Colors.green),
+                error: (e, _) => _buildStatCard('مدفوعات اليوم', '--', Icons.payments_rounded, Colors.green),
+                data: (total) =>
+                    _buildStatCard('مدفوعات اليوم', currencyFmt.format(total), Icons.payments_rounded, Colors.green),
               );
             },
           ),
@@ -347,18 +300,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             builder: (context, ref, _) {
               final expensesAsync = ref.watch(todayExpensesProvider);
               return expensesAsync.when(
-                loading: () => _buildStatCard(
-                  'المصروفات',
-                  '...',
-                  Icons.money_off_rounded,
-                  Colors.red,
-                ),
-                error: (e, _) => _buildStatCard(
-                  'المصروفات',
-                  '--',
-                  Icons.money_off_rounded,
-                  Colors.red,
-                ),
+                loading: () => _buildStatCard('المصروفات', '...', Icons.money_off_rounded, Colors.red),
+                error: (e, _) => _buildStatCard('المصروفات', '--', Icons.money_off_rounded, Colors.red),
                 data: (total) => _buildStatCard(
                   'المصروفات',
                   currencyFmt.format(total),
@@ -366,8 +309,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Colors.red,
                   onTap: () => Navigator.push<void>(
                     context,
-                    MaterialPageRoute<void>(builder: (_) => const ExpensesReportScreen(),
-                    ),
+                    MaterialPageRoute<void>(builder: (_) => const ExpensesReportScreen()),
                   ),
                 ),
               );
@@ -378,13 +320,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color, {
-    VoidCallback? onTap,
-  }) {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, {VoidCallback? onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -392,13 +328,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0D000000),
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
+          boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,17 +337,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(height: 6),
             Text(
               value,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
             ),
             const SizedBox(height: 1),
-            Text(
-              title,
-              style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
-            ),
+            Text(title, style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
           ],
         ),
       ),
@@ -462,32 +385,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildRoomsCard(List<RoomWithPaymentStatus> roomsWithStatus) {
-    final Map<String, RoomWithPaymentStatus> roomsMap = {
-      for (final rws in roomsWithStatus) rws.room.roomNumber: rws,
-    };
+    final Map<String, RoomWithPaymentStatus> roomsMap = {for (final rws in roomsWithStatus) rws.room.roomNumber: rws};
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D000000),
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
+        boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text(
-                'حالة الغرف',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+              const Text('حالة الغرف', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const Spacer(),
               _buildLegendItem('محجوزة', Colors.red.shade600),
               const SizedBox(width: 8),
@@ -525,16 +437,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
         ),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-        ),
+        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
       ],
     );
   }
@@ -552,9 +458,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final Widget button = Tooltip(
       message: tooltipText,
       child: GestureDetector(
-        onLongPress: rws != null
-            ? () => _showRoomOptionsDialog(context, rws.room)
-            : null,
+        onLongPress: rws != null ? () => _showRoomOptionsDialog(context, rws.room) : null,
         child: Material(
           key: ValueKey('room_$roomNumber$keySuffix'),
           color: bgColor,
@@ -565,11 +469,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Center(
               child: Text(
                 roomNumber,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
           ),
@@ -637,12 +537,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء'))],
       ),
     );
   }
@@ -654,30 +549,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'تم تحديث حالة الغرفة ${room.roomNumber} إلى $newStatus',
-            ),
+            content: Text('تم تحديث حالة الغرفة ${room.roomNumber} إلى $newStatus'),
             backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في تحديث الحالة: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ في تحديث الحالة: $e'), backgroundColor: Colors.red));
       }
     }
   }
 
-  Future<void> _handleRoomTap(
-    BuildContext context,
-    String roomNumber,
-    Room? room,
-  ) async {
+  Future<void> _handleRoomTap(BuildContext context, String roomNumber, Room? room) async {
     if (room != null) {
       final isAvailable = StatusUtils.isRoomAvailable(room.status);
       final isOccupied = StatusUtils.isRoomOccupied(room.status);
@@ -694,39 +580,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('الغرفة $roomNumber غير مسجلة في النظام'),
-          duration: const Duration(seconds: 3),
-        ),
+        SnackBar(content: Text('الغرفة $roomNumber غير مسجلة في النظام'), duration: const Duration(seconds: 3)),
       );
     }
   }
 
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute<void>(builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber)));
   }
 
-  Future<void> _navigateToPaymentForRoom(
-    BuildContext context,
-    String roomNumber,
-  ) async {
+  Future<void> _navigateToPaymentForRoom(BuildContext context, String roomNumber) async {
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
-      final activeBooking = await bookingsRepo.getActiveBookingForRoom(
-        roomNumber,
-      );
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
 
       if (activeBooking == null) {
         if (mounted) {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'),
-              backgroundColor: Colors.orange,
-            ),
+            SnackBar(content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'), backgroundColor: Colors.orange),
           );
         }
         return;
@@ -734,17 +608,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
       if (mounted) {
         // ignore: use_build_context_synchronously
-        unawaited(Navigator.of(context).push<void>(
-          MaterialPageRoute<void>(builder: (context) => BookingPaymentScreen(booking: activeBooking),
-          ),
-        ),);
+        unawaited(
+          Navigator.of(
+            context,
+          ).push<void>(MaterialPageRoute<void>(builder: (context) => BookingPaymentScreen(booking: activeBooking))),
+        );
       }
     } catch (e) {
       if (mounted) {
         // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red));
       }
     }
   }
@@ -765,10 +638,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
           if (!StatusUtils.isRoomOccupied(room.status))
             ElevatedButton(
               onPressed: () {
@@ -805,19 +675,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Container(
           width: 6,
           height: 6,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
         ),
         const SizedBox(width: 3),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 8,
-            color: Colors.grey.shade500,
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 8, color: Colors.grey.shade500)),
       ],
     );
   }

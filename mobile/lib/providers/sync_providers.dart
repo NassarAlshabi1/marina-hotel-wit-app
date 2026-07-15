@@ -40,10 +40,7 @@ final syncPullServiceProvider = Provider<SyncPullService>((ref) {
 
 /// توفير AppwriteSyncManager
 final syncManagerProvider = Provider<AppwriteSyncManager>((ref) {
-  return AppwriteSyncManager(
-    appwriteService: ref.read(appwriteServiceProvider),
-    database: ref.read(databaseProvider),
-  );
+  return AppwriteSyncManager(appwriteService: ref.read(appwriteServiceProvider), database: ref.read(databaseProvider));
 });
 
 /// ✅ P3-6 (Conflict Visibility): عدد التعارضات المعلقة في قاعدة البيانات.
@@ -57,9 +54,8 @@ final syncManagerProvider = Provider<AppwriteSyncManager>((ref) {
 final pendingConflictsCountProvider = StreamProvider<int>((ref) {
   final db = ref.watch(databaseProvider);
   // count rows in syncConflicts where resolution = ''
-  final query = db
-      .selectOnly(db.syncConflicts)
-      ..addColumns([db.syncConflicts.id.count()])
-      ..where(db.syncConflicts.resolution.equals(''));
+  final query = db.selectOnly(db.syncConflicts)
+    ..addColumns([db.syncConflicts.id.count()])
+    ..where(db.syncConflicts.resolution.equals(''));
   return query.watchSingle().map((row) => row.read(db.syncConflicts.id.count()) ?? 0);
 });

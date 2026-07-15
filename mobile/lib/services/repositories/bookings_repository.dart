@@ -85,9 +85,7 @@ class BookingsRepository {
             status: d.Value(status),
             notes: d.Value(notes),
             expectedNights: d.Value(expectedNights),
-            calculatedNights: calculatedNights != null
-                ? d.Value(calculatedNights)
-                : const d.Value.absent(),
+            calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
             discount: d.Value(discount),
             discountType: d.Value(discountType),
             discountStartDate: d.Value(discountStartDate),
@@ -98,11 +96,7 @@ class BookingsRepository {
         return id;
       });
 
-      unawaited(AutoBackupManager.instance.onDataChange(
-        'bookings',
-        'INSERT',
-        recordData: {'id': result},
-      ),);
+      unawaited(AutoBackupManager.instance.onDataChange('bookings', 'INSERT', recordData: {'id': result}));
       // إشعارات فورية (fire-and-forget)
       unawaited(_notifyNewBooking(result));
       return result;
@@ -119,7 +113,7 @@ class BookingsRepository {
     }
   }
 
-    Future<int> update(
+  Future<int> update(
     int id, {
     String? roomNumber,
     String? guestName,
@@ -159,60 +153,26 @@ class BookingsRepository {
         final updated = await dao.updateById(
           id,
           BookingsCompanion(
-            roomNumber: roomNumber != null
-                ? d.Value(roomNumber)
-                : const d.Value.absent(),
-            guestName: guestName != null
-                ? d.Value(guestName)
-                : const d.Value.absent(),
-            guestPhone: guestPhone != null
-                ? d.Value(guestPhone)
-                : const d.Value.absent(),
-            guestIdType: guestIdType != null
-                ? d.Value(guestIdType)
-                : const d.Value.absent(),
-            guestIdNumber: guestIdNumber != null
-                ? d.Value(guestIdNumber)
-                : const d.Value.absent(),
-            guestIdIssueDate: guestIdIssueDate != null
-                ? d.Value(guestIdIssueDate)
-                : const d.Value.absent(),
-            guestIdIssuePlace: guestIdIssuePlace != null
-                ? d.Value(guestIdIssuePlace)
-                : const d.Value.absent(),
-            guestNationality: guestNationality != null
-                ? d.Value(guestNationality)
-                : const d.Value.absent(),
-            guestEmail: guestEmail != null
-                ? d.Value(guestEmail)
-                : const d.Value.absent(),
-            guestAddress: guestAddress != null
-                ? d.Value(guestAddress)
-                : const d.Value.absent(),
-            checkinDate: checkinDate != null
-                ? d.Value(checkinDate)
-                : const d.Value.absent(),
-            checkoutDate: checkoutDate != null
-                ? d.Value(checkoutDate)
-                : const d.Value.absent(),
-            actualCheckout: actualCheckout != null
-                ? d.Value(actualCheckout)
-                : const d.Value.absent(),
+            roomNumber: roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
+            guestName: guestName != null ? d.Value(guestName) : const d.Value.absent(),
+            guestPhone: guestPhone != null ? d.Value(guestPhone) : const d.Value.absent(),
+            guestIdType: guestIdType != null ? d.Value(guestIdType) : const d.Value.absent(),
+            guestIdNumber: guestIdNumber != null ? d.Value(guestIdNumber) : const d.Value.absent(),
+            guestIdIssueDate: guestIdIssueDate != null ? d.Value(guestIdIssueDate) : const d.Value.absent(),
+            guestIdIssuePlace: guestIdIssuePlace != null ? d.Value(guestIdIssuePlace) : const d.Value.absent(),
+            guestNationality: guestNationality != null ? d.Value(guestNationality) : const d.Value.absent(),
+            guestEmail: guestEmail != null ? d.Value(guestEmail) : const d.Value.absent(),
+            guestAddress: guestAddress != null ? d.Value(guestAddress) : const d.Value.absent(),
+            checkinDate: checkinDate != null ? d.Value(checkinDate) : const d.Value.absent(),
+            checkoutDate: checkoutDate != null ? d.Value(checkoutDate) : const d.Value.absent(),
+            actualCheckout: actualCheckout != null ? d.Value(actualCheckout) : const d.Value.absent(),
             status: status != null ? d.Value(status) : const d.Value.absent(),
             notes: notes != null ? d.Value(notes) : const d.Value.absent(),
-            expectedNights: expectedNights != null
-                ? d.Value(expectedNights)
-                : const d.Value.absent(),
-            calculatedNights: calculatedNights != null
-                ? d.Value(calculatedNights)
-                : const d.Value.absent(),
+            expectedNights: expectedNights != null ? d.Value(expectedNights) : const d.Value.absent(),
+            calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
             discount: discount != null ? d.Value(discount) : const d.Value.absent(),
-            discountType: discountType != null
-                ? d.Value(discountType)
-                : const d.Value.absent(),
-            discountStartDate: discountStartDate != null
-                ? d.Value(discountStartDate)
-                : const d.Value.absent(),
+            discountType: discountType != null ? d.Value(discountType) : const d.Value.absent(),
+            discountStartDate: discountStartDate != null ? d.Value(discountStartDate) : const d.Value.absent(),
           ),
         );
         if (updated > 0) {
@@ -223,11 +183,7 @@ class BookingsRepository {
       });
 
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange(
-          'bookings',
-          'UPDATE',
-          recordData: {'id': id},
-        ),);
+        unawaited(AutoBackupManager.instance.onDataChange('bookings', 'UPDATE', recordData: {'id': id}));
         if (status != null) {
           unawaited(_notifyBookingUpdate(id, status));
         }
@@ -245,15 +201,11 @@ class BookingsRepository {
     }
   }
 
-    Future<int> delete(int id) async {
+  Future<int> delete(int id) async {
     try {
       final result = await dao.softDelete(id);
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange(
-          'bookings',
-          'DELETE',
-          recordData: {'id': id},
-        ),);
+        unawaited(AutoBackupManager.instance.onDataChange('bookings', 'DELETE', recordData: {'id': id}));
       }
       return result;
     } catch (e, stack) {
@@ -281,9 +233,7 @@ class BookingsRepository {
   /// استيراد بيانات الحجوزات
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
-      await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data'] as List),
-      );
+      await dao.importFromJson(List<Map<String, dynamic>>.from(data['data'] as List));
     }
   }
 
@@ -308,9 +258,7 @@ class BookingsRepository {
   /// 1. إلغاء أي سجلات legacy_discount يتيمة (عند عدم وجود تخفيض)
   /// 2. عدم إنشاء سجلات جديدة (كانت ميتة ولا فائدة منها)
   Future<void> syncLegacyDiscountToAdjustments(int bookingId) async {
-    final booking = await (db.select(db.bookings)
-          ..where((b) => b.id.equals(bookingId)))
-        .getSingleOrNull();
+    final booking = await (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).getSingleOrNull();
     if (booking == null) {
       return;
     }
@@ -336,12 +284,13 @@ class BookingsRepository {
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
     // جلب السجلات قبل التحديث لإنشاء outbox entries
-    final orphans = await (db.select(db.bookingPriceAdjustments)
-          ..where((a) => a.bookingLocalId.equals(bookingId))
-          ..where((a) => a.isActive.equals(true))
-          ..where((a) => a.deletedAt.isNull())
-          ..where((a) => a.reason.equals('legacy_discount')))
-        .get();
+    final orphans =
+        await (db.select(db.bookingPriceAdjustments)
+              ..where((a) => a.bookingLocalId.equals(bookingId))
+              ..where((a) => a.isActive.equals(true))
+              ..where((a) => a.deletedAt.isNull())
+              ..where((a) => a.reason.equals('legacy_discount')))
+            .get();
 
     if (orphans.isEmpty) return;
 
@@ -351,16 +300,16 @@ class BookingsRepository {
           ..where((a) => a.deletedAt.isNull())
           ..where((a) => a.reason.equals('legacy_discount')))
         .write(
-      BookingPriceAdjustmentsCompanion(
-        isActive: const d.Value(false),
-        cancelledAt: d.Value(nowIso),
-        cancelledBy: const d.Value('auto_cleanup'),
-        updatedAt: d.Value(now),
-        lastModified: d.Value(now),
-        updatedAtIso: d.Value(nowIso),
-        lastModifiedEpoch: d.Value(now),
-      ),
-    );
+          BookingPriceAdjustmentsCompanion(
+            isActive: const d.Value(false),
+            cancelledAt: d.Value(nowIso),
+            cancelledBy: const d.Value('auto_cleanup'),
+            updatedAt: d.Value(now),
+            lastModified: d.Value(now),
+            updatedAtIso: d.Value(nowIso),
+            lastModifiedEpoch: d.Value(now),
+          ),
+        );
 
     // ─── إنشاء outbox entries لمزامنة التعديلات المُلغاة ───
     // بدون هذا، إلغاء legacy_discount لن يُزامن إلى الأجهزة الأخرى
@@ -370,11 +319,7 @@ class BookingsRepository {
         entity: 'booking_price_adjustments',
         op: 'update',
         localUuid: orphan.localUuid,
-        payload: {
-          'isActive': false,
-          'cancelledAt': nowIso,
-          'cancelledBy': 'auto_cleanup',
-        },
+        payload: {'isActive': false, 'cancelledAt': nowIso, 'cancelledBy': 'auto_cleanup'},
         clientTs: now,
       );
     }
@@ -394,9 +339,7 @@ class BookingsRepository {
   /// إرسال إشعارات (WhatsApp + Telegram) لحجز جديد
   Future<void> _notifyNewBooking(int id) async {
     try {
-      final booking = await (db.select(db.bookings)
-            ..where((b) => b.id.equals(id)))
-          .getSingleOrNull();
+      final booking = await (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingleOrNull();
       if (booking == null) return;
 
       final roomNumber = booking.roomNumber;
@@ -406,22 +349,26 @@ class BookingsRepository {
       final checkoutDate = booking.checkoutDate;
       final nights = booking.expectedNights;
 
-      unawaited(WhatsAppNotificationService.instance.notifyNewBooking(
-        roomNumber: roomNumber,
-        guestName: guestName,
-        guestPhone: guestPhone,
-        checkinDate: checkinDate,
-        checkoutDate: checkoutDate,
-        nights: nights,
-      ));
-      unawaited(TelegramNotificationService.instance.notifyNewBooking(
-        roomNumber: roomNumber,
-        guestName: guestName,
-        guestPhone: guestPhone,
-        checkinDate: checkinDate,
-        checkoutDate: checkoutDate,
-        nights: nights,
-      ));
+      unawaited(
+        WhatsAppNotificationService.instance.notifyNewBooking(
+          roomNumber: roomNumber,
+          guestName: guestName,
+          guestPhone: guestPhone,
+          checkinDate: checkinDate,
+          checkoutDate: checkoutDate,
+          nights: nights,
+        ),
+      );
+      unawaited(
+        TelegramNotificationService.instance.notifyNewBooking(
+          roomNumber: roomNumber,
+          guestName: guestName,
+          guestPhone: guestPhone,
+          checkinDate: checkinDate,
+          checkoutDate: checkoutDate,
+          nights: nights,
+        ),
+      );
     } catch (e) {
       debugPrint('⚠️ فشل إرسال إشعار الحجز الجديد: $e');
     }
@@ -430,9 +377,7 @@ class BookingsRepository {
   /// إرسال إشعارات (WhatsApp + Telegram) عند تغيير حالة الحجز
   Future<void> _notifyBookingUpdate(int id, String newStatus) async {
     try {
-      final booking = await (db.select(db.bookings)
-            ..where((b) => b.id.equals(id)))
-          .getSingleOrNull();
+      final booking = await (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingleOrNull();
       if (booking == null) return;
 
       final roomNumber = booking.roomNumber;
@@ -440,36 +385,44 @@ class BookingsRepository {
 
       // حالة تسجيل دخول (check-in): نشط/active/confirmed
       if (newStatus == 'نشط' || newStatus == 'active' || newStatus == 'confirmed') {
-        unawaited(WhatsAppNotificationService.instance.notifyCheckIn(
-          roomNumber: roomNumber,
-          guestName: guestName,
-          guestPhone: booking.guestPhone,
-          expectedNights: booking.expectedNights,
-        ));
-        unawaited(TelegramNotificationService.instance.notifyCheckIn(
-          roomNumber: roomNumber,
-          guestName: guestName,
-          guestPhone: booking.guestPhone,
-          expectedNights: booking.expectedNights,
-        ));
+        unawaited(
+          WhatsAppNotificationService.instance.notifyCheckIn(
+            roomNumber: roomNumber,
+            guestName: guestName,
+            guestPhone: booking.guestPhone,
+            expectedNights: booking.expectedNights,
+          ),
+        );
+        unawaited(
+          TelegramNotificationService.instance.notifyCheckIn(
+            roomNumber: roomNumber,
+            guestName: guestName,
+            guestPhone: booking.guestPhone,
+            expectedNights: booking.expectedNights,
+          ),
+        );
       } else if (newStatus == 'مكتمل') {
         final totalPaid = booking.totalPaidCached;
         final remaining = booking.remainingBalanceCached;
 
-        unawaited(WhatsAppNotificationService.instance.notifyCheckOut(
-          roomNumber: roomNumber,
-          guestName: guestName,
-          actualNights: booking.calculatedNights,
-          totalPaid: totalPaid,
-          remaining: remaining > 0 ? remaining : null,
-        ));
-        unawaited(TelegramNotificationService.instance.notifyCheckOut(
-          roomNumber: roomNumber,
-          guestName: guestName,
-          actualNights: booking.calculatedNights,
-          totalPaid: totalPaid,
-          remaining: remaining > 0 ? remaining : null,
-        ));
+        unawaited(
+          WhatsAppNotificationService.instance.notifyCheckOut(
+            roomNumber: roomNumber,
+            guestName: guestName,
+            actualNights: booking.calculatedNights,
+            totalPaid: totalPaid,
+            remaining: remaining > 0 ? remaining : null,
+          ),
+        );
+        unawaited(
+          TelegramNotificationService.instance.notifyCheckOut(
+            roomNumber: roomNumber,
+            guestName: guestName,
+            actualNights: booking.calculatedNights,
+            totalPaid: totalPaid,
+            remaining: remaining > 0 ? remaining : null,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('⚠️ فشل إرسال إشعار تحديث الحجز: $e');

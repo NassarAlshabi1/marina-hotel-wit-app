@@ -24,8 +24,7 @@ class InformationScreen extends ConsumerStatefulWidget {
   ConsumerState<InformationScreen> createState() => _InformationScreenState();
 }
 
-class _InformationScreenState extends ConsumerState<InformationScreen>
-    with SyncOnExitMixin {
+class _InformationScreenState extends ConsumerState<InformationScreen> with SyncOnExitMixin {
   bool _exportingPdf = false;
   final _verticalScrollController = ScrollController();
 
@@ -52,10 +51,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   @override
   Widget build(BuildContext context) {
     final guestInfosAsync = ref.watch(guestInfoListProvider);
-    final currentEntries = guestInfosAsync.maybeWhen(
-      data: (data) => data,
-      orElse: () => const <GuestInfo>[],
-    );
+    final currentEntries = guestInfosAsync.maybeWhen(data: (data) => data, orElse: () => const <GuestInfo>[]);
 
     return PopScope(
       canPop: !hasUnsyncedChanges,
@@ -70,15 +66,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         actions: [
           IconButton(
             tooltip: 'تصدير إلى PDF',
-            onPressed: _exportingPdf || currentEntries.isEmpty
-                ? null
-                : () => _handleExport(currentEntries),
+            onPressed: _exportingPdf || currentEntries.isEmpty ? null : () => _handleExport(currentEntries),
             icon: _exportingPdf
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.picture_as_pdf),
           ),
         ],
@@ -90,8 +80,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         body: guestInfosAsync.when(
           data: _buildContent,
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) =>
-              Center(child: Text('حدث خطأ أثناء تحميل البيانات: $error')),
+          error: (error, _) => Center(child: Text('حدث خطأ أثناء تحميل البيانات: $error')),
         ),
       ),
     );
@@ -104,10 +93,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         title: const Text('تغييرات غير محفوظة'),
         content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -155,10 +141,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       child: Scrollbar(
         controller: scrollCtrl,
         thumbVisibility: true,
-        child: SingleChildScrollView(
-          controller: scrollCtrl,
-          child: _buildTable(sorted),
-        ),
+        child: SingleChildScrollView(controller: scrollCtrl, child: _buildTable(sorted)),
       ),
     );
   }
@@ -168,9 +151,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          headingRowColor: WidgetStateProperty.all(
-            Theme.of(context).colorScheme.primary,
-          ),
+          headingRowColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
           headingTextStyle: const TextStyle(color: Colors.white),
           columns: const [
             DataColumn(
@@ -178,40 +159,31 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             ),
             DataColumn(label: SizedBox.shrink()),
             DataColumn(
-              label: Text('الغرفة',
-                  style: TextStyle(fontWeight: FontWeight.bold),),
+              label: Text('الغرفة', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
             DataColumn(
-              label: Text('اسم النزيل',
-                  style: TextStyle(fontWeight: FontWeight.bold),),
+              label: Text('اسم النزيل', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
             DataColumn(
-              label: Text('الجنسية',
-                  style: TextStyle(fontWeight: FontWeight.bold),),
+              label: Text('الجنسية', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
             DataColumn(
-              label: Text('رقم الهوية',
-                  style: TextStyle(fontWeight: FontWeight.bold),),
+              label: Text('رقم الهوية', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
             DataColumn(
-              label: Text('نوع الهوية',
-                  style: TextStyle(fontWeight: FontWeight.bold),),
+              label: Text('نوع الهوية', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
             DataColumn(
-              label: Text('تاريخ الإصدار',
-                  style: TextStyle(fontWeight: FontWeight.bold),),
+              label: Text('تاريخ الإصدار', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
             DataColumn(
-              label: Text('مكان الإصدار',
-                  style: TextStyle(fontWeight: FontWeight.bold),),
+              label: Text('مكان الإصدار', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
             DataColumn(
-              label: Text('المحافظة',
-                  style: TextStyle(fontWeight: FontWeight.bold),),
+              label: Text('المحافظة', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
             DataColumn(
-              label: Text('الملاحظات',
-                  style: TextStyle(fontWeight: FontWeight.bold),),
+              label: Text('الملاحظات', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
           rows: List.generate(entries.length, (index) {
@@ -233,33 +205,22 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                     itemBuilder: (context) => [
                       const PopupMenuItem(
                         value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, size: 18),
-                            SizedBox(width: 8),
-                            Text('تعديل'),
-                          ],
-                        ),
+                        child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('تعديل')]),
                       ),
                       const PopupMenuItem(
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline, size: 18,
-                                color: Colors.red,),
+                            Icon(Icons.delete_outline, size: 18, color: Colors.red),
                             SizedBox(width: 8),
-                            Text('حذف',
-                                style: TextStyle(color: Colors.red),),
+                            Text('حذف', style: TextStyle(color: Colors.red)),
                           ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                DataCell(Text(
-                  info.roomNumber,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),),
+                DataCell(Text(info.roomNumber, style: const TextStyle(fontWeight: FontWeight.bold))),
                 DataCell(Text(info.guestName)),
                 DataCell(Text(info.nationality)),
                 DataCell(Text(info.idNumber)),
@@ -278,32 +239,16 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
 
   Future<void> _openEditor(BuildContext context, {GuestInfo? existing}) async {
     final formKey = GlobalKey<FormState>();
-    final roomController = TextEditingController(
-      text: existing?.roomNumber ?? '',
-    );
-    final guestNameController = TextEditingController(
-      text: existing?.guestName ?? '',
-    );
+    final roomController = TextEditingController(text: existing?.roomNumber ?? '');
+    final guestNameController = TextEditingController(text: existing?.guestName ?? '');
     final nationalityController = TextEditingController(
-      text: existing?.nationality.isNotEmpty ?? false
-          ? existing!.nationality
-          : 'يمني',
+      text: existing?.nationality.isNotEmpty ?? false ? existing!.nationality : 'يمني',
     );
-    final idNumberController = TextEditingController(
-      text: existing?.idNumber ?? '',
-    );
-    final issueDateController = TextEditingController(
-      text: existing?.issueDate ?? '',
-    );
-    final issuePlaceController = TextEditingController(
-      text: existing?.issuePlace ?? '',
-    );
-    final governorateController = TextEditingController(
-      text: existing?.governorate ?? '',
-    );
-    final notesController = TextEditingController(
-      text: existing?.notes ?? '',
-    );
+    final idNumberController = TextEditingController(text: existing?.idNumber ?? '');
+    final issueDateController = TextEditingController(text: existing?.issueDate ?? '');
+    final issuePlaceController = TextEditingController(text: existing?.issuePlace ?? '');
+    final governorateController = TextEditingController(text: existing?.governorate ?? '');
+    final notesController = TextEditingController(text: existing?.notes ?? '');
 
     String selectedIdType = existing?.idType ?? _idTypes.first;
     if (!_idTypes.contains(selectedIdType)) {
@@ -324,16 +269,12 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                   children: [
                     TextFormField(
                       controller: roomController,
-                      decoration: const InputDecoration(
-                        labelText: 'رقم الغرفة',
-                      ),
+                      decoration: const InputDecoration(labelText: 'رقم الغرفة'),
                       validator: _requiredValidator,
                     ),
                     TextFormField(
                       controller: guestNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'اسم النزيل',
-                      ),
+                      decoration: const InputDecoration(labelText: 'اسم النزيل'),
                       validator: _requiredValidator,
                     ),
                     TextFormField(
@@ -343,24 +284,13 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                     ),
                     TextFormField(
                       controller: idNumberController,
-                      decoration: const InputDecoration(
-                        labelText: 'رقم الهوية',
-                      ),
+                      decoration: const InputDecoration(labelText: 'رقم الهوية'),
                       validator: _requiredValidator,
                     ),
                     DropdownButtonFormField<String>(
                       initialValue: _idTypes.contains(selectedIdType) ? selectedIdType : null,
-                      decoration: const InputDecoration(
-                        labelText: 'نوع الهوية',
-                      ),
-                      items: _idTypes
-                          .map(
-                            (type) => DropdownMenuItem(
-                              value: type,
-                              child: Text(type),
-                            ),
-                          )
-                          .toList(),
+                      decoration: const InputDecoration(labelText: 'نوع الهوية'),
+                      items: _idTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
                       onChanged: (value) {
                         if (value != null) {
                           selectedIdType = value;
@@ -380,9 +310,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                     ),
                     TextFormField(
                       controller: issuePlaceController,
-                      decoration: const InputDecoration(
-                        labelText: 'مكان الإصدار',
-                      ),
+                      decoration: const InputDecoration(labelText: 'مكان الإصدار'),
                     ),
                     TextFormField(
                       controller: governorateController,
@@ -391,10 +319,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: notesController,
-                      decoration: const InputDecoration(
-                        labelText: 'الملاحظات',
-                        alignLabelWithHint: true,
-                      ),
+                      decoration: const InputDecoration(labelText: 'الملاحظات', alignLabelWithHint: true),
                       maxLines: 3,
                       minLines: 1,
                     ),
@@ -404,10 +329,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('إلغاء'),
-            ),
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('إلغاء')),
             FilledButton(
               onPressed: () {
                 if (formKey.currentState?.validate() ?? false) {
@@ -442,9 +364,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           nationality: nationalityController.text,
           idNumber: idNumberController.text,
           idType: selectedIdType,
-          issueDate: issueDateController.text.isEmpty
-              ? null
-              : issueDateController.text,
+          issueDate: issueDateController.text.isEmpty ? null : issueDateController.text,
           issuePlace: issuePlaceController.text,
           governorate: governorateController.text,
           notes: notesController.text,
@@ -473,12 +393,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         return;
       }
       // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('فشل حفظ السجل: $e'),
-          backgroundColor: Colors.red.shade900,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل حفظ السجل: $e'), backgroundColor: Colors.red.shade900));
     }
   }
 
@@ -489,10 +406,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         title: const Text('حذف السجل'),
         content: Text('سيتم حذف سجل النزيل "${info.guestName}"، هل أنت متأكد؟'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('إلغاء')),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
@@ -515,19 +429,14 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('فشل حذف السجل: $e'),
-          backgroundColor: Colors.red.shade900,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل حذف السجل: $e'), backgroundColor: Colors.red.shade900));
     }
   }
 
   Future<void> _pickIssueDate(TextEditingController controller) async {
-    final initial = controller.text.isEmpty
-        ? DateTime.now()
-        : DateTime.tryParse(controller.text) ?? DateTime.now();
+    final initial = controller.text.isEmpty ? DateTime.now() : DateTime.tryParse(controller.text) ?? DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -575,6 +484,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         final s = v.toString().trim();
         return s.isEmpty ? '-' : s;
       }
+
       final data = List.generate(entries.length, (i) {
         final info = entries[i];
         return [
@@ -597,12 +507,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         pw.MultiPage(
           pageFormat: pdf.PdfPageFormat.a4.landscape,
           textDirection: pw.TextDirection.rtl,
-          margin: const pw.EdgeInsets.only(
-            top: 10,
-            left: 20,
-            right: 20,
-            bottom: 20,
-          ),
+          margin: const pw.EdgeInsets.only(top: 10, left: 20, right: 20, bottom: 20),
           theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
           header: (context) {
             return pw.Column(
@@ -618,21 +523,13 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                         children: [
                           pw.Text(
                             hotelName,
-                            style: pw.TextStyle(
-                              font: fonts.bold,
-                              fontSize: 18,
-                              color: pdf.PdfColors.blue900,
-                            ),
+                            style: pw.TextStyle(font: fonts.bold, fontSize: 18, color: pdf.PdfColors.blue900),
                             textAlign: pw.TextAlign.right,
                           ),
                           pw.SizedBox(height: 2),
                           pw.Text(
                             'القاهرة - شارع أحمد قاسم',
-                            style: pw.TextStyle(
-                              font: fonts.base,
-                              fontSize: 12,
-                              color: pdf.PdfColors.grey800,
-                            ),
+                            style: pw.TextStyle(font: fonts.base, fontSize: 12, color: pdf.PdfColors.grey800),
                             textAlign: pw.TextAlign.right,
                           ),
                         ],
@@ -643,11 +540,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                       child: pw.Center(
                         child: pw.Text(
                           'سجل المعلومية',
-                          style: pw.TextStyle(
-                            font: fonts.bold,
-                            fontSize: 16,
-                            color: pdf.PdfColors.grey800,
-                          ),
+                          style: pw.TextStyle(font: fonts.bold, fontSize: 16, color: pdf.PdfColors.grey800),
                         ),
                       ),
                     ),
@@ -657,11 +550,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                         alignment: pw.Alignment.centerLeft,
                         child: pw.Text(
                           'تاريخ التقرير: $printDate',
-                          style: pw.TextStyle(
-                            font: fonts.bold,
-                            fontSize: 12,
-                            color: pdf.PdfColors.grey800,
-                          ),
+                          style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: pdf.PdfColors.grey800),
                           textAlign: pw.TextAlign.left,
                         ),
                       ),
@@ -681,10 +570,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text(
-                    'تاريخ الطباعة: $printDate',
-                    style: pw.TextStyle(font: fonts.base, fontSize: 10),
-                  ),
+                  pw.Text('تاريخ الطباعة: $printDate', style: pw.TextStyle(font: fonts.base, fontSize: 10)),
                   pw.Text(
                     'صفحة ${context.pageNumber} من ${context.pagesCount}',
                     style: pw.TextStyle(font: fonts.base, fontSize: 10),
@@ -697,20 +583,11 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             pw.TableHelper.fromTextArray(
               headers: headers,
               data: data,
-              headerDecoration: const pw.BoxDecoration(
-                color: pdf.PdfColors.blue800,
-              ),
-              headerStyle: pw.TextStyle(
-                font: fonts.bold,
-                color: pdf.PdfColors.white,
-                fontSize: 10,
-              ),
+              headerDecoration: const pw.BoxDecoration(color: pdf.PdfColors.blue800),
+              headerStyle: pw.TextStyle(font: fonts.bold, color: pdf.PdfColors.white, fontSize: 10),
               cellStyle: pw.TextStyle(font: fonts.base, fontSize: 9),
               cellAlignment: pw.Alignment.center,
-              border: pw.TableBorder.all(
-                color: pdf.PdfColors.grey400,
-                width: 0.5,
-              ),
+              border: pw.TableBorder.all(color: pdf.PdfColors.grey400, width: 0.5),
               headerAlignments: {
                 0: pw.Alignment.centerRight,
                 1: pw.Alignment.centerRight,
@@ -755,9 +632,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// مزامنة فورية إلى Appwrite بعد كل عملية CRUD

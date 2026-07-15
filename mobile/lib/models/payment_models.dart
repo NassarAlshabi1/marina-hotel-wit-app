@@ -37,7 +37,6 @@ enum PaymentStatus {
 
 /// نموذج بيانات الدفعة
 class Payment {
-
   Payment({
     required this.id,
     required this.bookingId,
@@ -138,7 +137,6 @@ class Payment {
 
 /// نموذج ملخص المدفوعات للحجز
 class BookingPaymentSummary {
-
   BookingPaymentSummary({
     required this.bookingId,
     required this.totalAmount,
@@ -155,13 +153,11 @@ class BookingPaymentSummary {
   final PaymentStatus overallStatus;
 
   bool get isFullyPaid => remainingAmount <= 0;
-  double get paidPercentage =>
-      totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
+  double get paidPercentage => totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
 }
 
 /// نموذج الإيصال
 class Receipt {
-
   Receipt({
     required this.receiptNumber,
     required this.payment,
@@ -219,10 +215,7 @@ class Receipt {
         pw.Container(
           width: double.infinity,
           padding: const pw.EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-          decoration: pw.BoxDecoration(
-            color: PdfColors.primary,
-            borderRadius: pw.BorderRadius.circular(8),
-          ),
+          decoration: pw.BoxDecoration(color: PdfColors.primary, borderRadius: pw.BorderRadius.circular(8)),
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
@@ -231,28 +224,18 @@ class Receipt {
                 pw.Container(
                   width: 48,
                   height: 48,
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.textWhite,
-                    borderRadius: pw.BorderRadius.circular(24),
-                  ),
+                  decoration: pw.BoxDecoration(color: PdfColors.textWhite, borderRadius: pw.BorderRadius.circular(24)),
                   child: pw.Center(child: pw.Image(logo, width: 40, height: 40)),
                 )
               else
                 pw.Container(
                   width: 48,
                   height: 48,
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.textWhite,
-                    borderRadius: pw.BorderRadius.circular(24),
-                  ),
+                  decoration: pw.BoxDecoration(color: PdfColors.textWhite, borderRadius: pw.BorderRadius.circular(24)),
                   child: pw.Center(
                     child: pw.Text(
                       'M',
-                      style: pw.TextStyle(
-                        font: fonts.bold,
-                        fontSize: 22,
-                        color: PdfColors.primary,
-                      ),
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.primary),
                     ),
                   ),
                 ),
@@ -262,37 +245,21 @@ class Receipt {
                   children: [
                     pw.Text(
                       hotelName,
-                      style: pw.TextStyle(
-                        font: fonts.bold,
-                        fontSize: 16,
-                        color: PdfColors.textWhite,
-                      ),
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 16, color: PdfColors.textWhite),
                     ),
                     pw.SizedBox(height: 3),
                     pw.Text(
                       'MARINA PLAZA HOTEL',
-                      style: pw.TextStyle(
-                        font: fonts.regular,
-                        fontSize: 10,
-                        color: const PdfColor(0.7, 0.85, 1.0),
-                      ),
+                      style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: const PdfColor(0.7, 0.85, 1.0)),
                     ),
                     pw.SizedBox(height: 3),
                     pw.Text(
                       hotelAddress,
-                      style: pw.TextStyle(
-                        font: fonts.regular,
-                        fontSize: 9,
-                        color: const PdfColor(0.8, 0.9, 1.0),
-                      ),
+                      style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: const PdfColor(0.8, 0.9, 1.0)),
                     ),
                     pw.Text(
                       hotelPhone,
-                      style: pw.TextStyle(
-                        font: fonts.regular,
-                        fontSize: 9,
-                        color: const PdfColor(0.8, 0.9, 1.0),
-                      ),
+                      style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: const PdfColor(0.8, 0.9, 1.0)),
                     ),
                   ],
                 ),
@@ -301,18 +268,11 @@ class Receipt {
               pw.Container(
                 width: 48,
                 height: 48,
-                decoration: pw.BoxDecoration(
-                  color: PdfColors.secondary,
-                  borderRadius: pw.BorderRadius.circular(8),
-                ),
+                decoration: pw.BoxDecoration(color: PdfColors.secondary, borderRadius: pw.BorderRadius.circular(8)),
                 child: pw.Center(
                   child: pw.Text(
                     '\$',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 22,
-                      color: PdfColors.textWhite,
-                    ),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
                   ),
                 ),
               ),
@@ -336,19 +296,11 @@ class Receipt {
             children: [
               pw.Text(
                 'إيصال استلام نقدي',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 13,
-                  color: PdfColors.primary,
-                ),
+                style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: PdfColors.primary),
               ),
               pw.Text(
                 'رقم: $receiptNumber',
-                style: pw.TextStyle(
-                  font: fonts.regular,
-                  fontSize: 10,
-                  color: PdfColors.textLight,
-                ),
+                style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textLight),
               ),
             ],
           ),
@@ -374,26 +326,15 @@ class Receipt {
               _receiptDetailRow(fonts, 'تاريخ الدفع', formattedPaymentDate),
               _receiptDivider(),
               _receiptDetailRow(fonts, 'استلم من', guestName),
-              if (trimmedPhone.isNotEmpty) ...[
-                _receiptDivider(),
-                _receiptDetailRow(fonts, 'رقم الهاتف', trimmedPhone),
-              ],
-              if (trimmedRoom.isNotEmpty) ...[
-                _receiptDivider(),
-                _receiptDetailRow(fonts, 'رقم الغرفة', trimmedRoom),
-              ],
+              if (trimmedPhone.isNotEmpty) ...[_receiptDivider(), _receiptDetailRow(fonts, 'رقم الهاتف', trimmedPhone)],
+              if (trimmedRoom.isNotEmpty) ...[_receiptDivider(), _receiptDetailRow(fonts, 'رقم الغرفة', trimmedRoom)],
               _receiptDivider(),
               _receiptDetailRow(fonts, 'مقابل', purpose),
               _receiptDivider(),
               _receiptDetailRow(fonts, 'طريقة الدفع', payment.method.displayName),
-              if (payment.referenceNumber != null &&
-                  payment.referenceNumber!.trim().isNotEmpty) ...[
+              if (payment.referenceNumber != null && payment.referenceNumber!.trim().isNotEmpty) ...[
                 _receiptDivider(),
-                _receiptDetailRow(
-                  fonts,
-                  'رقم المرجع',
-                  payment.referenceNumber!.trim(),
-                ),
+                _receiptDetailRow(fonts, 'رقم المرجع', payment.referenceNumber!.trim()),
               ],
               _receiptDivider(),
               _receiptDetailRow(fonts, 'الموظف المسؤول', payment.receivedBy),
@@ -409,10 +350,7 @@ class Receipt {
           padding: const pw.EdgeInsets.symmetric(vertical: 14, horizontal: 16),
           decoration: pw.BoxDecoration(
             gradient: const pw.LinearGradient(
-              colors: [
-                PdfColor(0.02, 0.33, 0.66),
-                PdfColor(0.05, 0.45, 0.78),
-              ],
+              colors: [PdfColor(0.02, 0.33, 0.66), PdfColor(0.05, 0.45, 0.78)],
               begin: pw.Alignment.centerRight,
               end: pw.Alignment.centerLeft,
             ),
@@ -422,29 +360,17 @@ class Receipt {
             children: [
               pw.Text(
                 'المبلغ المدفوع',
-                style: pw.TextStyle(
-                  font: fonts.regular,
-                  fontSize: 11,
-                  color: const PdfColor(0.8, 0.9, 1.0),
-                ),
+                style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: const PdfColor(0.8, 0.9, 1.0)),
               ),
               pw.SizedBox(height: 6),
               pw.Text(
                 '$formattedAmount ريال يمني',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 22,
-                  color: PdfColors.textWhite,
-                ),
+                style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
               ),
               pw.SizedBox(height: 6),
               pw.Text(
                 amountInWords,
-                style: pw.TextStyle(
-                  font: fonts.regular,
-                  fontSize: 9,
-                  color: const PdfColor(0.85, 0.92, 1.0),
-                ),
+                style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: const PdfColor(0.85, 0.92, 1.0)),
               ),
             ],
           ),
@@ -463,27 +389,15 @@ class Receipt {
                 children: [
                   pw.Text(
                     'توقيع النزيل',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 11,
-                      color: PdfColors.textDark,
-                    ),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: PdfColors.textDark),
                   ),
                   pw.SizedBox(height: 6),
                   pw.Text(
                     guestName,
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 10,
-                      color: PdfColors.textLight,
-                    ),
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textLight),
                   ),
                   pw.SizedBox(height: 24),
-                  pw.Container(
-                    height: 1,
-                    width: 120,
-                    color: PdfColors.textLight,
-                  ),
+                  pw.Container(height: 1, width: 120, color: PdfColors.textLight),
                 ],
               ),
             ),
@@ -493,31 +407,20 @@ class Receipt {
                 children: [
                   pw.Text(
                     'ختم الفندق',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 11,
-                      color: PdfColors.textDark,
-                    ),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: PdfColors.textDark),
                   ),
                   pw.SizedBox(height: 8),
                   pw.Container(
                     width: 64,
                     height: 64,
                     decoration: pw.BoxDecoration(
-                      border: pw.Border.all(
-                        color: PdfColors.primary,
-                        width: 2,
-                      ),
+                      border: pw.Border.all(color: PdfColors.primary, width: 2),
                       borderRadius: pw.BorderRadius.circular(32),
                     ),
                     child: pw.Center(
                       child: pw.Text(
                         'ختم',
-                        style: pw.TextStyle(
-                          font: fonts.regular,
-                          fontSize: 9,
-                          color: PdfColors.textLight,
-                        ),
+                        style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: PdfColors.textLight),
                       ),
                     ),
                   ),
@@ -533,18 +436,11 @@ class Receipt {
         pw.Container(
           width: double.infinity,
           padding: const pw.EdgeInsets.symmetric(vertical: 6),
-          decoration: pw.BoxDecoration(
-            color: PdfColors.backgroundLight,
-            borderRadius: pw.BorderRadius.circular(4),
-          ),
+          decoration: pw.BoxDecoration(color: PdfColors.backgroundLight, borderRadius: pw.BorderRadius.circular(4)),
           child: pw.Center(
             child: pw.Text(
               'شكراً لتعاملكم معنا - نتطلع لخدمتكم مرة أخرى',
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 9,
-                color: PdfColors.textLight,
-              ),
+              style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: PdfColors.textLight),
             ),
           ),
         ),
@@ -562,11 +458,7 @@ class Receipt {
             flex: 2,
             child: pw.Text(
               label,
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 11,
-                color: PdfColors.textDark,
-              ),
+              style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: PdfColors.textDark),
             ),
           ),
           pw.SizedBox(width: 10),
@@ -574,11 +466,7 @@ class Receipt {
             flex: 3,
             child: pw.Text(
               value,
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 11,
-                color: PdfColors.textDark,
-              ),
+              style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: PdfColors.textDark),
             ),
           ),
         ],
@@ -589,10 +477,7 @@ class Receipt {
   pw.Widget _receiptDivider() {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 1),
-      child: pw.Divider(
-        color: const PdfColor(0.92, 0.92, 0.92),
-        thickness: 0.5,
-      ),
+      child: pw.Divider(color: const PdfColor(0.92, 0.92, 0.92), thickness: 0.5),
     );
   }
 
@@ -605,7 +490,6 @@ class Receipt {
 
 /// نموذج الفاتورة الشاملة
 class Invoice {
-
   Invoice({
     required this.invoiceNumber,
     required this.bookingId,
@@ -682,10 +566,7 @@ class Invoice {
         pw.Container(
           width: double.infinity,
           padding: const pw.EdgeInsets.all(20),
-          decoration: pw.BoxDecoration(
-            color: PdfColors.primary,
-            borderRadius: pw.BorderRadius.circular(10),
-          ),
+          decoration: pw.BoxDecoration(color: PdfColors.primary, borderRadius: pw.BorderRadius.circular(10)),
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
@@ -694,28 +575,18 @@ class Invoice {
                 pw.Container(
                   width: 56,
                   height: 56,
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.textWhite,
-                    borderRadius: pw.BorderRadius.circular(28),
-                  ),
+                  decoration: pw.BoxDecoration(color: PdfColors.textWhite, borderRadius: pw.BorderRadius.circular(28)),
                   child: pw.Center(child: pw.Image(logo, width: 48, height: 48)),
                 )
               else
                 pw.Container(
                   width: 56,
                   height: 56,
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.textWhite,
-                    borderRadius: pw.BorderRadius.circular(28),
-                  ),
+                  decoration: pw.BoxDecoration(color: PdfColors.textWhite, borderRadius: pw.BorderRadius.circular(28)),
                   child: pw.Center(
                     child: pw.Text(
                       'M',
-                      style: pw.TextStyle(
-                        font: fonts.bold,
-                        fontSize: 26,
-                        color: PdfColors.primary,
-                      ),
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 26, color: PdfColors.primary),
                     ),
                   ),
                 ),
@@ -725,29 +596,17 @@ class Invoice {
                   children: [
                     pw.Text(
                       'فندق مارينا بلازا',
-                      style: pw.TextStyle(
-                        font: fonts.bold,
-                        fontSize: 22,
-                        color: PdfColors.textWhite,
-                      ),
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
                     ),
                     pw.SizedBox(height: 4),
                     pw.Text(
                       'MARINA PLAZA HOTEL',
-                      style: pw.TextStyle(
-                        font: fonts.regular,
-                        fontSize: 11,
-                        color: const PdfColor(0.7, 0.85, 1.0),
-                      ),
+                      style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: const PdfColor(0.7, 0.85, 1.0)),
                     ),
                     pw.SizedBox(height: 3),
                     pw.Text(
                       'عدن - اليمن - شارع أحمد قاسم',
-                      style: pw.TextStyle(
-                        font: fonts.regular,
-                        fontSize: 10,
-                        color: const PdfColor(0.8, 0.9, 1.0),
-                      ),
+                      style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: const PdfColor(0.8, 0.9, 1.0)),
                     ),
                   ],
                 ),
@@ -757,39 +616,21 @@ class Invoice {
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
                   pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(
-                      vertical: 4,
-                      horizontal: 12,
-                    ),
-                    decoration: pw.BoxDecoration(
-                      color: PdfColors.secondary,
-                      borderRadius: pw.BorderRadius.circular(6),
-                    ),
+                    padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                    decoration: pw.BoxDecoration(color: PdfColors.secondary, borderRadius: pw.BorderRadius.circular(6)),
                     child: pw.Text(
                       'فاتورة',
-                      style: pw.TextStyle(
-                        font: fonts.bold,
-                        fontSize: 16,
-                        color: PdfColors.textWhite,
-                      ),
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 16, color: PdfColors.textWhite),
                     ),
                   ),
                   pw.SizedBox(height: 6),
                   pw.Text(
                     'رقم: $invoiceNumber',
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 11,
-                      color: const PdfColor(0.8, 0.9, 1.0),
-                    ),
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: const PdfColor(0.8, 0.9, 1.0)),
                   ),
                   pw.Text(
                     _formatDate(generatedAt),
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 10,
-                      color: const PdfColor(0.7, 0.85, 1.0),
-                    ),
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: const PdfColor(0.7, 0.85, 1.0)),
                   ),
                 ],
               ),
@@ -815,21 +656,11 @@ class Invoice {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(
-                        vertical: 4,
-                        horizontal: 10,
-                      ),
-                      decoration: pw.BoxDecoration(
-                        color: PdfColors.primary,
-                        borderRadius: pw.BorderRadius.circular(4),
-                      ),
+                      padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 10),
+                      decoration: pw.BoxDecoration(color: PdfColors.primary, borderRadius: pw.BorderRadius.circular(4)),
                       child: pw.Text(
                         'بيانات العميل',
-                        style: pw.TextStyle(
-                          font: fonts.bold,
-                          fontSize: 12,
-                          color: PdfColors.textWhite,
-                        ),
+                        style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.textWhite),
                       ),
                     ),
                     pw.SizedBox(height: 10),
@@ -855,43 +686,21 @@ class Invoice {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(
-                        vertical: 4,
-                        horizontal: 10,
-                      ),
-                      decoration: pw.BoxDecoration(
-                        color: PdfColors.accent,
-                        borderRadius: pw.BorderRadius.circular(4),
-                      ),
+                      padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 10),
+                      decoration: pw.BoxDecoration(color: PdfColors.accent, borderRadius: pw.BorderRadius.circular(4)),
                       child: pw.Text(
                         'تفاصيل الإقامة',
-                        style: pw.TextStyle(
-                          font: fonts.bold,
-                          fontSize: 12,
-                          color: PdfColors.textWhite,
-                        ),
+                        style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.textWhite),
                       ),
                     ),
                     pw.SizedBox(height: 10),
-                    _invoiceInfoRow(
-                      fonts,
-                      'تاريخ الوصول',
-                      _formatDate(checkinDate),
-                    ),
+                    _invoiceInfoRow(fonts, 'تاريخ الوصول', _formatDate(checkinDate)),
                     pw.SizedBox(height: 6),
-                    _invoiceInfoRow(
-                      fonts,
-                      'تاريخ المغادرة',
-                      _formatDate(checkoutDate),
-                    ),
+                    _invoiceInfoRow(fonts, 'تاريخ المغادرة', _formatDate(checkoutDate)),
                     pw.SizedBox(height: 6),
                     _invoiceInfoRow(fonts, 'عدد الليالي', '$nights'),
                     pw.SizedBox(height: 6),
-                    _invoiceInfoRow(
-                      fonts,
-                      'سعر الليلة',
-                      '${EnhancedPdfUtils.formatNumber(roomRate)} ريال',
-                    ),
+                    _invoiceInfoRow(fonts, 'سعر الليلة', '${EnhancedPdfUtils.formatNumber(roomRate)} ريال'),
                   ],
                 ),
               ),
@@ -909,53 +718,43 @@ class Invoice {
             border: pw.Border.all(color: const PdfColor(0.88, 0.88, 0.88)),
           ),
           child: pw.Table(
-              border: pw.TableBorder.all(color: const PdfColor(0.88, 0.88, 0.88)),
-              columnWidths: {
-                0: const pw.FlexColumnWidth(3),
-                1: const pw.FlexColumnWidth(2),
-                2: const pw.FlexColumnWidth(2),
-                3: const pw.FlexColumnWidth(2),
-              },
-              children: [
-                // رأس الجدول
-                pw.TableRow(
-                  decoration: const pw.BoxDecoration(color: PdfColors.primary),
-                  children: [
-                    _invoiceHeaderCell(fonts, 'البيان'),
-                    _invoiceHeaderCell(fonts, 'الكمية'),
-                    _invoiceHeaderCell(fonts, 'السعر'),
-                    _invoiceHeaderCell(fonts, 'الإجمالي'),
-                  ],
-                ),
-                // بيانات الإقامة
-                pw.TableRow(
-                  children: [
-                    _invoiceDataCell(fonts, 'إقامة - غرفة $roomNumber'),
-                    _invoiceDataCell(fonts, '$nights ليلة'),
-                    _invoiceDataCell(
-                      fonts,
-                      '${EnhancedPdfUtils.formatNumber(roomRate)} ريال',
-                    ),
-                    _invoiceDataCell(
-                      fonts,
-                      '${EnhancedPdfUtils.formatNumber(totalAmount)} ريال',
-                    ),
-                  ],
-                ),
-              ],
-            ),
+            border: pw.TableBorder.all(color: const PdfColor(0.88, 0.88, 0.88)),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(3),
+              1: const pw.FlexColumnWidth(2),
+              2: const pw.FlexColumnWidth(2),
+              3: const pw.FlexColumnWidth(2),
+            },
+            children: [
+              // رأس الجدول
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfColors.primary),
+                children: [
+                  _invoiceHeaderCell(fonts, 'البيان'),
+                  _invoiceHeaderCell(fonts, 'الكمية'),
+                  _invoiceHeaderCell(fonts, 'السعر'),
+                  _invoiceHeaderCell(fonts, 'الإجمالي'),
+                ],
+              ),
+              // بيانات الإقامة
+              pw.TableRow(
+                children: [
+                  _invoiceDataCell(fonts, 'إقامة - غرفة $roomNumber'),
+                  _invoiceDataCell(fonts, '$nights ليلة'),
+                  _invoiceDataCell(fonts, '${EnhancedPdfUtils.formatNumber(roomRate)} ريال'),
+                  _invoiceDataCell(fonts, '${EnhancedPdfUtils.formatNumber(totalAmount)} ريال'),
+                ],
+              ),
+            ],
           ),
+        ),
 
         // === سجل المدفوعات ===
         if (payments.isNotEmpty) ...[
           pw.SizedBox(height: 16),
           pw.Text(
             'سجل المدفوعات',
-            style: pw.TextStyle(
-              font: fonts.bold,
-              fontSize: 14,
-              color: PdfColors.textDark,
-            ),
+            style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.textDark),
           ),
           pw.SizedBox(height: 8),
           pw.Container(
@@ -965,38 +764,32 @@ class Invoice {
               border: pw.Border.all(color: const PdfColor(0.88, 0.88, 0.88)),
             ),
             child: pw.Table(
-                border: pw.TableBorder.all(color: const PdfColor(0.88, 0.88, 0.88)),
-                columnWidths: {
-                  0: const pw.FlexColumnWidth(3),
-                  1: const pw.FlexColumnWidth(3),
-                  2: const pw.FlexColumnWidth(3),
-                },
-                children: [
-                  pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.accent),
+              border: pw.TableBorder.all(color: const PdfColor(0.88, 0.88, 0.88)),
+              columnWidths: {
+                0: const pw.FlexColumnWidth(3),
+                1: const pw.FlexColumnWidth(3),
+                2: const pw.FlexColumnWidth(3),
+              },
+              children: [
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.accent),
+                  children: [
+                    _invoiceHeaderCell(fonts, 'التاريخ'),
+                    _invoiceHeaderCell(fonts, 'طريقة الدفع'),
+                    _invoiceHeaderCell(fonts, 'المبلغ'),
+                  ],
+                ),
+                ...payments.map(
+                  (payment) => pw.TableRow(
                     children: [
-                      _invoiceHeaderCell(fonts, 'التاريخ'),
-                      _invoiceHeaderCell(fonts, 'طريقة الدفع'),
-                      _invoiceHeaderCell(fonts, 'المبلغ'),
+                      _invoiceDataCell(fonts, _formatDate(payment.paymentDate)),
+                      _invoiceDataCell(fonts, payment.method.displayName),
+                      _invoiceDataCell(fonts, '${EnhancedPdfUtils.formatNumber(payment.amount)} ريال'),
                     ],
                   ),
-                  ...payments.map(
-                    (payment) => pw.TableRow(
-                      children: [
-                        _invoiceDataCell(
-                          fonts,
-                          _formatDate(payment.paymentDate),
-                        ),
-                        _invoiceDataCell(fonts, payment.method.displayName),
-                        _invoiceDataCell(
-                          fonts,
-                          '${EnhancedPdfUtils.formatNumber(payment.amount)} ريال',
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
+            ),
           ),
         ],
 
@@ -1013,24 +806,14 @@ class Invoice {
           ),
           child: pw.Column(
             children: [
-              _invoiceSummaryRow(
-                fonts,
-                'إجمالي الفاتورة',
-                '${EnhancedPdfUtils.formatNumber(totalAmount)} ريال',
-              ),
+              _invoiceSummaryRow(fonts, 'إجمالي الفاتورة', '${EnhancedPdfUtils.formatNumber(totalAmount)} ريال'),
               pw.Divider(color: const PdfColor(0.92, 0.92, 0.92)),
-              _invoiceSummaryRow(
-                fonts,
-                'المدفوع',
-                '${EnhancedPdfUtils.formatNumber(paidAmount)} ريال',
-              ),
+              _invoiceSummaryRow(fonts, 'المدفوع', '${EnhancedPdfUtils.formatNumber(paidAmount)} ريال'),
               pw.Divider(color: const PdfColor(0.92, 0.92, 0.92)),
               pw.Container(
                 padding: const pw.EdgeInsets.symmetric(vertical: 6),
                 decoration: pw.BoxDecoration(
-                  color: remainingAmount > 0
-                      ? const PdfColor(1.0, 0.95, 0.95)
-                      : const PdfColor(0.95, 1.0, 0.95),
+                  color: remainingAmount > 0 ? const PdfColor(1.0, 0.95, 0.95) : const PdfColor(0.95, 1.0, 0.95),
                   borderRadius: pw.BorderRadius.circular(6),
                 ),
                 child: _invoiceSummaryRow(
@@ -1038,9 +821,7 @@ class Invoice {
                   'المتبقي',
                   '${EnhancedPdfUtils.formatNumber(remainingAmount)} ريال',
                   isBold: true,
-                  valueColor: remainingAmount > 0
-                      ? PdfColors.danger
-                      : PdfColors.success,
+                  valueColor: remainingAmount > 0 ? PdfColors.danger : PdfColors.success,
                 ),
               ),
             ],
@@ -1061,19 +842,11 @@ class Invoice {
               children: [
                 pw.Text(
                   'شكراً لاختياركم فندق مارينا بلازا',
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 12,
-                    color: PdfColors.primary,
-                  ),
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.primary),
                 ),
                 pw.Text(
                   'نتطلع لخدمتكم مرة أخرى',
-                  style: pw.TextStyle(
-                    font: fonts.regular,
-                    fontSize: 10,
-                    color: PdfColors.textLight,
-                  ),
+                  style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textLight),
                 ),
               ],
             ),
@@ -1082,25 +855,13 @@ class Invoice {
               children: [
                 pw.Text(
                   'تاريخ الإصدار: ${_formatDate(generatedAt)}',
-                  style: pw.TextStyle(
-                    font: fonts.regular,
-                    fontSize: 10,
-                    color: PdfColors.textLight,
-                  ),
+                  style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textLight),
                 ),
                 pw.SizedBox(height: 20),
-                pw.Container(
-                  height: 1,
-                  width: 120,
-                  color: PdfColors.textLight,
-                ),
+                pw.Container(height: 1, width: 120, color: PdfColors.textLight),
                 pw.Text(
                   'ختم وتوقيع الفندق',
-                  style: pw.TextStyle(
-                    font: fonts.regular,
-                    fontSize: 9,
-                    color: PdfColors.textLight,
-                  ),
+                  style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: PdfColors.textLight),
                 ),
               ],
             ),
@@ -1115,11 +876,7 @@ class Invoice {
       padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 10),
       child: pw.Text(
         text,
-        style: pw.TextStyle(
-          font: fonts.bold,
-          fontSize: 11,
-          color: PdfColors.textDark,
-        ),
+        style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: PdfColors.textDark),
       ),
     );
   }
@@ -1129,20 +886,12 @@ class Invoice {
       padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 10),
       child: pw.Text(
         text,
-        style: pw.TextStyle(
-          font: fonts.regular,
-          fontSize: 10,
-          color: PdfColors.textDark,
-        ),
+        style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textDark),
       ),
     );
   }
 
-  pw.Widget _invoiceInfoRow(
-    ArabicPdfFonts fonts,
-    String label,
-    String value,
-  ) {
+  pw.Widget _invoiceInfoRow(ArabicPdfFonts fonts, String label, String value) {
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -1150,11 +899,7 @@ class Invoice {
           flex: 2,
           child: pw.Text(
             label,
-            style: pw.TextStyle(
-              font: fonts.bold,
-              fontSize: 10,
-              color: PdfColors.textLight,
-            ),
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: PdfColors.textLight),
           ),
         ),
         pw.SizedBox(width: 8),
@@ -1162,11 +907,7 @@ class Invoice {
           flex: 3,
           child: pw.Text(
             value,
-            style: pw.TextStyle(
-              font: fonts.regular,
-              fontSize: 11,
-              color: PdfColors.textDark,
-            ),
+            style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: PdfColors.textDark),
           ),
         ),
       ],

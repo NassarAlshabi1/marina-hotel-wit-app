@@ -6,8 +6,7 @@ class ServerIdFixerScreen extends ConsumerStatefulWidget {
   const ServerIdFixerScreen({super.key});
 
   @override
-  ConsumerState<ServerIdFixerScreen> createState() =>
-      _ServerIdFixerScreenState();
+  ConsumerState<ServerIdFixerScreen> createState() => _ServerIdFixerScreenState();
 }
 
 class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
@@ -17,44 +16,25 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
   final List<String> _logs = [];
 
   final Map<String, String> _roomsMapping = {
-    '82f73ed9-7c51-4696-93a8-c3fa753725f7':
-        '82f73ed9-7c51-4696-93a8-c3fa753725f7',
-    '6f10eef5-f834-4415-9db3-2d9d6791ce14':
-        '6f10eef5-f834-4415-9db3-2d9d6791ce14',
-    'fedc0bce-4b4f-48b2-87d2-e5a9a3a12168':
-        'fedc0bce-4b4f-48b2-87d2-e5a9a3a12168',
-    '23294cb8-f317-42c5-ab80-b3adc4c89b25':
-        '23294cb8-f317-42c5-ab80-b3adc4c89b25',
-    'e4d01db4-b6fd-4e6d-bcdc-80b5377a4a9b':
-        'e4d01db4-b6fd-4e6d-bcdc-80b5377a4a9b',
-    '1bb8f3de-a3e7-4b2b-baa3-ebea289dda8f':
-        '1bb8f3de-a3e7-4b2b-baa3-ebea289dda8f',
-    'cc95aada-bd9f-4dc8-a3ed-a63b66c06d96':
-        'cc95aada-bd9f-4dc8-a3ed-a63b66c06d96',
-    'ad485411-9a2e-4aa0-b571-a245e9932ef3':
-        'ad485411-9a2e-4aa0-b571-a245e9932ef3',
-    '6e723b44-79d9-4bff-b9c4-e4a72996a9c6':
-        '6e723b44-79d9-4bff-b9c4-e4a72996a9c6',
-    '598fbc3f-4ca4-4818-9c0f-303c00c83750':
-        '598fbc3f-4ca4-4818-9c0f-303c00c83750',
-    'cf47209b-7220-49f0-b8a3-b159e25db887':
-        'cf47209b-7220-49f0-b8a3-b159e25db887',
-    '5d2beb07-5253-46b3-a407-e74dc0eec880':
-        '5d2beb07-5253-46b3-a407-e74dc0eec880',
-    '7ebe6dd7-0644-4e3a-bc79-cd081f1757a6':
-        '7ebe6dd7-0644-4e3a-bc79-cd081f1757a6',
-    'ce686a8e-7e9b-452a-9908-7dbc8235b748':
-        'ce686a8e-7e9b-452a-9908-7dbc8235b748',
-    'c46defab-a53d-4366-832d-d85ced1f22fb':
-        'c46defab-a53d-4366-832d-d85ced1f22fb',
-    '9b7f6abb-af0c-4a92-a7f1-9d8ebadfc956':
-        '9b7f6abb-af0c-4a92-a7f1-9d8ebadfc956',
-    '7a82b56a-57a7-4032-8f8b-87a67f8f2186':
-        '7a82b56a-57a7-4032-8f8b-87a67f8f2186',
-    '20acc60c-4d0b-4728-b010-9e8328c39587':
-        '20acc60c-4d0b-4728-b010-9e8328c39587',
-    'a68ffc2a-c9d8-4ecd-87ec-65ddc8acd8f1':
-        'a68ffc2a-c9d8-4ecd-87ec-65ddc8acd8f1',
+    '82f73ed9-7c51-4696-93a8-c3fa753725f7': '82f73ed9-7c51-4696-93a8-c3fa753725f7',
+    '6f10eef5-f834-4415-9db3-2d9d6791ce14': '6f10eef5-f834-4415-9db3-2d9d6791ce14',
+    'fedc0bce-4b4f-48b2-87d2-e5a9a3a12168': 'fedc0bce-4b4f-48b2-87d2-e5a9a3a12168',
+    '23294cb8-f317-42c5-ab80-b3adc4c89b25': '23294cb8-f317-42c5-ab80-b3adc4c89b25',
+    'e4d01db4-b6fd-4e6d-bcdc-80b5377a4a9b': 'e4d01db4-b6fd-4e6d-bcdc-80b5377a4a9b',
+    '1bb8f3de-a3e7-4b2b-baa3-ebea289dda8f': '1bb8f3de-a3e7-4b2b-baa3-ebea289dda8f',
+    'cc95aada-bd9f-4dc8-a3ed-a63b66c06d96': 'cc95aada-bd9f-4dc8-a3ed-a63b66c06d96',
+    'ad485411-9a2e-4aa0-b571-a245e9932ef3': 'ad485411-9a2e-4aa0-b571-a245e9932ef3',
+    '6e723b44-79d9-4bff-b9c4-e4a72996a9c6': '6e723b44-79d9-4bff-b9c4-e4a72996a9c6',
+    '598fbc3f-4ca4-4818-9c0f-303c00c83750': '598fbc3f-4ca4-4818-9c0f-303c00c83750',
+    'cf47209b-7220-49f0-b8a3-b159e25db887': 'cf47209b-7220-49f0-b8a3-b159e25db887',
+    '5d2beb07-5253-46b3-a407-e74dc0eec880': '5d2beb07-5253-46b3-a407-e74dc0eec880',
+    '7ebe6dd7-0644-4e3a-bc79-cd081f1757a6': '7ebe6dd7-0644-4e3a-bc79-cd081f1757a6',
+    'ce686a8e-7e9b-452a-9908-7dbc8235b748': 'ce686a8e-7e9b-452a-9908-7dbc8235b748',
+    'c46defab-a53d-4366-832d-d85ced1f22fb': 'c46defab-a53d-4366-832d-d85ced1f22fb',
+    '9b7f6abb-af0c-4a92-a7f1-9d8ebadfc956': '9b7f6abb-af0c-4a92-a7f1-9d8ebadfc956',
+    '7a82b56a-57a7-4032-8f8b-87a67f8f2186': '7a82b56a-57a7-4032-8f8b-87a67f8f2186',
+    '20acc60c-4d0b-4728-b010-9e8328c39587': '20acc60c-4d0b-4728-b010-9e8328c39587',
+    'a68ffc2a-c9d8-4ecd-87ec-65ddc8acd8f1': 'a68ffc2a-c9d8-4ecd-87ec-65ddc8acd8f1',
   };
 
   Future<void> _fixServerIds() async {
@@ -100,10 +80,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
         final serverId = entry.value;
 
         try {
-          await db.customStatement(
-            'UPDATE rooms SET server_id = ? WHERE local_uuid = ?',
-            [serverId, localUuid],
-          );
+          await db.customStatement('UPDATE rooms SET server_id = ? WHERE local_uuid = ?', [serverId, localUuid]);
 
           _updatedCount++;
           _addLog('✅ تم تحديث: $localUuid');
@@ -122,12 +99,9 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
       ref.invalidate(roomsListProvider);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ تم تحديث $_updatedCount غرفة بنجاح'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('✅ تم تحديث $_updatedCount غرفة بنجاح'), backgroundColor: Colors.green));
       }
     } catch (e) {
       _addLog('❌ خطأ عام: $e');
@@ -136,9 +110,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) {
@@ -161,10 +133,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('إصلاح Server IDs للغرف'),
-        backgroundColor: Colors.blue,
-      ),
+      appBar: AppBar(title: const Text('إصلاح Server IDs للغرف'), backgroundColor: Colors.blue),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -181,13 +150,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
                       children: [
                         Icon(Icons.info_outline, color: Colors.blue),
                         SizedBox(width: 8),
-                        Text(
-                          'حول هذه الأداة',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
+                        Text('حول هذه الأداة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -198,10 +161,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
                     const SizedBox(height: 8),
                     Text(
                       'عدد الغرف المطلوب تحديثها: ${_roomsMapping.length}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
                     ),
                   ],
                 ),
@@ -252,24 +212,15 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
                             : Colors.orange,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'الحالة: $_status',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      if (_updatedCount > 0) ...[
-                        const Spacer(),
-                        Text('$_updatedCount/${_roomsMapping.length}'),
-                      ],
+                      Text('الحالة: $_status', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      if (_updatedCount > 0) ...[const Spacer(), Text('$_updatedCount/${_roomsMapping.length}')],
                     ],
                   ),
                 ),
               ),
             ],
             const SizedBox(height: 16),
-            const Text(
-              'سجل التنفيذ:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            const Text('سجل التنفيذ:', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Expanded(
               child: DecoratedBox(
@@ -280,10 +231,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
                 ),
                 child: _logs.isEmpty
                     ? const Center(
-                        child: Text(
-                          'لم يتم البدء بعد',
-                          style: TextStyle(color: Colors.grey),
-                        ),
+                        child: Text('لم يتم البدء بعد', style: TextStyle(color: Colors.grey)),
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.all(8),
@@ -292,13 +240,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
                           final log = _logs[index];
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Text(
-                              log,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontFamily: 'monospace',
-                              ),
-                            ),
+                            child: Text(log, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
                           );
                         },
                       ),

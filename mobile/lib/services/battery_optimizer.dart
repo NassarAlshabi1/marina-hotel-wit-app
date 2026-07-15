@@ -10,15 +10,14 @@ import 'package:flutter/material.dart';
 
 /// مستويات توفير البطارية
 enum BatteryOptimizationLevel {
-  none,       // لا تحسين - المزامنة العادية
-  light,      // تحسين خفيف - تقليل التردد
-  moderate,   // تحسين متوسط - المزامنة عند الشحن فقط
+  none, // لا تحسين - المزامنة العادية
+  light, // تحسين خفيف - تقليل التردد
+  moderate, // تحسين متوسط - المزامنة عند الشحن فقط
   aggressive, // تحسين عالي - إيقاف المزامنة التلقائية
 }
 
 /// إعدادات المزامنة بناءً على مستوى البطارية
 class BatterySyncSettings {
-
   const BatterySyncSettings({
     required this.syncInterval,
     required this.batchSize,
@@ -126,10 +125,7 @@ class BatteryOptimizer extends ChangeNotifier {
       // بدء المراقبة
       await startMonitoring();
 
-      developer.log(
-        '🔋 BatteryOptimizer initialized: $_batteryLevel% ($_batteryState)',
-        name: 'BatteryOptimizer',
-      );
+      developer.log('🔋 BatteryOptimizer initialized: $_batteryLevel% ($_batteryState)', name: 'BatteryOptimizer');
     } catch (e) {
       developer.log('⚠️ BatteryOptimizer init error: $e', name: 'BatteryOptimizer');
     }
@@ -150,10 +146,7 @@ class BatteryOptimizer extends ChangeNotifier {
       _updateOptimizationLevel();
       notifyListeners();
 
-      developer.log(
-        '🔋 Battery state changed: $state (Level: $_batteryLevel%)',
-        name: 'BatteryOptimizer',
-      );
+      developer.log('🔋 Battery state changed: $state (Level: $_batteryLevel%)', name: 'BatteryOptimizer');
     });
 
     // مراقبة مستوى البطارية — حفظ المؤقت في حقل لإلغائه لاحقاً
@@ -171,10 +164,7 @@ class BatteryOptimizer extends ChangeNotifier {
       _connectionState = result;
       notifyListeners();
 
-      developer.log(
-        '📡 Connectivity changed: $result',
-        name: 'BatteryOptimizer',
-      );
+      developer.log('📡 Connectivity changed: $result', name: 'BatteryOptimizer');
     });
   }
 
@@ -214,10 +204,7 @@ class BatteryOptimizer extends ChangeNotifier {
     _optimizationLevel = level;
     notifyListeners();
 
-    developer.log(
-      '🔋 Optimization level set to: $level',
-      name: 'BatteryOptimizer',
-    );
+    developer.log('🔋 Optimization level set to: $level', name: 'BatteryOptimizer');
   }
 
   /// التحقق مما إذا كان يجب المزامنة
@@ -235,7 +222,8 @@ class BatteryOptimizer extends ChangeNotifier {
     }
 
     // التحقق من الاتصال
-    if (_connectionState.contains(ConnectivityResult.none) && !_connectionState.any((r) => r != ConnectivityResult.none)) {
+    if (_connectionState.contains(ConnectivityResult.none) &&
+        !_connectionState.any((r) => r != ConnectivityResult.none)) {
       return false;
     }
 

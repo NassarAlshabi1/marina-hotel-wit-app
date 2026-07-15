@@ -1,6 +1,6 @@
 class Time {
   static const int earlyCheckinGraceHour = 8;
-  
+
   static int nowEpoch() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
   static String nowIso() => DateTime.now().toIso8601String();
   static String nowDateString() {
@@ -25,11 +25,7 @@ class Time {
     final raw = isoString.trim();
     final normalized = raw.contains('T') ? raw : raw.replaceFirst(' ', 'T');
     try {
-      return hotelDayKey(
-        now: DateTime.parse(normalized),
-        cutoffHour: cutoffHour,
-        cutoffMinute: cutoffMinute,
-      );
+      return hotelDayKey(now: DateTime.parse(normalized), cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
     } catch (_) {
       return hotelDayKey(cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
     }
@@ -101,22 +97,11 @@ class Time {
   /// قاعدة احتساب اليوم: يُحتسب اليوم الواحد بدءاً من وقت تسجيل الدخول الفعلي
   /// وحتى الساعة 14:01 من اليوم التالي.
   /// أي مغادرة عند أو بعد الساعة 14:01، حتى لو بدقيقة واحدة، تؤدي إلى احتساب يوم إضافي كامل.
-  static int nightsWithCutoff(
-    DateTime checkin, {
-    DateTime? checkout,
-    int cutoffHour = 14,
-    int cutoffMinute = 1,
-  }) {
+  static int nightsWithCutoff(DateTime checkin, {DateTime? checkout, int cutoffHour = 14, int cutoffMinute = 1}) {
     final end = checkout ?? DateTime.now();
 
     // تحديد بداية "يوم الفندق" لعملية تسجيل الدخول
-    DateTime startOfCheckinHotelDay = DateTime(
-      checkin.year,
-      checkin.month,
-      checkin.day,
-      cutoffHour,
-      cutoffMinute,
-    );
+    DateTime startOfCheckinHotelDay = DateTime(checkin.year, checkin.month, checkin.day, cutoffHour, cutoffMinute);
     if (checkin.isBefore(startOfCheckinHotelDay)) {
       startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(const Duration(days: 1));
     }
@@ -130,11 +115,11 @@ class Time {
     }
 
     const int secondsInDay = 24 * 3600;
-    
+
     // عدد الليالي هو ناتج قسمة الثواني الكلية على ثواني اليوم الواحد + 1
     // إذا كان الوقت بالضبط 14:00 (أي مضاعفات 24 ساعة)، لا يتم احتساب يوم جديد
     int nights = (totalSeconds ~/ secondsInDay) + 1;
-    
+
     if (totalSeconds > 0 && totalSeconds % secondsInDay == 0) {
       nights -= 1;
     }

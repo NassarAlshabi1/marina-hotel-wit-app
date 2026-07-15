@@ -8,8 +8,7 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class BookingPriceAdjustmentsAdapter
-    extends EntityAdapter<BookingPriceAdjustment, BookingPriceAdjustmentsCompanion> {
+class BookingPriceAdjustmentsAdapter extends EntityAdapter<BookingPriceAdjustment, BookingPriceAdjustmentsCompanion> {
   BookingPriceAdjustmentsAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -23,22 +22,13 @@ class BookingPriceAdjustmentsAdapter
   String get tableName => 'booking_price_adjustments';
 
   @override
-  Future<ResolveResult> resolveRefs(
-    AppDatabase db,
-    Map<String, dynamic> json, {
-    required Source src,
-  }) async {
+  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
     final bookingUuid =
         _asString(json, 'bookingLocalUuid', src) ??
         _asString(json, 'booking_local_uuid', src) ??
         _asString(json, 'booking_uuid', src);
-    final localId =
-        _asInt(json, 'bookingLocalId', src) ??
-        _asInt(json, 'booking_local_id', src);
-    final resolvedId = await resolver.resolveBooking(
-      localId: localId,
-      uuid: bookingUuid,
-    );
+    final localId = _asInt(json, 'bookingLocalId', src) ?? _asInt(json, 'booking_local_id', src);
+    final resolvedId = await resolver.resolveBooking(localId: localId, uuid: bookingUuid);
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
 
@@ -46,11 +36,10 @@ class BookingPriceAdjustmentsAdapter
     // بدل إدراجه كسجل يتيم (bookingLocalId = null) لا علاقة له بحجز فعلي.
     // bookingLocalId nullable أصلاً، لكن ترك سجل بلا حجز مرتبط يُفسد البيانات
     // عند السحب من Appwrite/Drive، لذا نتخطّى دوماً عند فشل الحل للمدخل البعيد.
-    final shouldSkip = resolvedId == null &&
-        (src == Source.appwrite || src == Source.drive);
+    final shouldSkip = resolvedId == null && (src == Source.appwrite || src == Source.drive);
     final skipReason = shouldSkip
         ? 'booking_price_adjustment: لا يمكن العثور على الحجز المرتبط '
-            '(uuid=$bookingUuid, localId=$localId) — تم التخطي لتجنب FK constraint failed'
+              '(uuid=$bookingUuid, localId=$localId) — تم التخطي لتجنب FK constraint failed'
         : null;
 
     return ResolveResult(
@@ -70,19 +59,11 @@ class BookingPriceAdjustmentsAdapter
     required ResolveResult refs,
   }) {
     final now = Time.nowEpoch();
-    final createdAt =
-        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified =
-        refs.lastModifiedEpoch ??
-        _epoch(json, 'lastModified', src) ??
-        createdAt;
+    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
     return BookingPriceAdjustmentsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(
-        _asString(json, 'localUuid', src) ??
-            _asString(json, 'local_uuid', src) ??
-            IdGen.uuid(),
-      ),
+      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
       bookingLocalUuid: _vStr(
         json,
@@ -101,39 +82,16 @@ class BookingPriceAdjustmentsAdapter
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId)
           : (src == Source.appwrite || src == Source.drive)
-              ? const d.Value.absent()
-              : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+          ? const d.Value.absent()
+          : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
       roomNumber: _vStr(json, 'roomNumber', src, altKey: 'room_number'),
-      adjustmentType: _vInt(
-        json,
-        'adjustmentType',
-        src,
-        altKey: 'adjustment_type',
-        fallback: 0,
-      ),
-      adjustmentMode: _vStr(
-        json,
-        'adjustmentMode',
-        src,
-        altKey: 'adjustment_mode',
-        fallback: 'per_night',
-      ),
+      adjustmentType: _vInt(json, 'adjustmentType', src, altKey: 'adjustment_type', fallback: 0),
+      adjustmentMode: _vStr(json, 'adjustmentMode', src, altKey: 'adjustment_mode', fallback: 'per_night'),
       // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
       // نقرأه كـ double للمحلي (integer على Cloud → double محلياً)
       amount: _vDouble(json, 'amount', src),
-      effectiveHotelDay: _vStr(
-        json,
-        'effectiveHotelDay',
-        src,
-        altKey: 'effective_hotel_day',
-        fallback: '',
-      ),
-      endHotelDay: _vStr(
-        json,
-        'endHotelDay',
-        src,
-        altKey: 'end_hotel_day',
-      ),
+      effectiveHotelDay: _vStr(json, 'effectiveHotelDay', src, altKey: 'effective_hotel_day', fallback: ''),
+      endHotelDay: _vStr(json, 'endHotelDay', src, altKey: 'end_hotel_day'),
       isActive: _vBool(json, 'isActive', src, altKey: 'is_active', fallback: true),
       reason: _vStr(json, 'reason', src),
       appliedBy: _vStr(json, 'appliedBy', src, altKey: 'applied_by'),
@@ -147,12 +105,7 @@ class BookingPriceAdjustmentsAdapter
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
-      lastModifiedEpoch: _vInt(
-        json,
-        'lastModifiedEpoch',
-        src,
-        fallback: lastModified,
-      ),
+      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
       version: _vInt(json, 'version', src, fallback: 1),
       // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
       // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
@@ -160,13 +113,7 @@ class BookingPriceAdjustmentsAdapter
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(
-        json,
-        'vectorClock',
-        src,
-        altKey: 'vector_clock',
-        fallback: '{}',
-      ),
+      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
       idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
@@ -211,59 +158,23 @@ class BookingPriceAdjustmentsAdapter
   }
 }
 
-d.Value<int> _vInt(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  int? fallback,
-}) {
-  final v =
-      _asInt(json, key, src) ??
-      (altKey != null ? _asInt(json, altKey, src) : null) ??
-      fallback;
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
+  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  String? fallback,
-}) {
-  final v =
-      _asString(json, key, src) ??
-      (altKey != null ? _asString(json, altKey, src) : null) ??
-      fallback;
+d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
+  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double> _vDouble(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  double? fallback,
-}) {
-  final v =
-      _asDouble(json, key, src) ??
-      (altKey != null ? _asDouble(json, altKey, src) : null) ??
-      fallback;
+d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src, {String? altKey, double? fallback}) {
+  final v = _asDouble(json, key, src) ?? (altKey != null ? _asDouble(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool> _vBool(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  bool? fallback,
-}) {
-  final v =
-      _asBool(json, key, src) ??
-      (altKey != null ? _asBool(json, altKey, src) : null) ??
-      fallback;
+d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src, {String? altKey, bool? fallback}) {
+  final v = _asBool(json, key, src) ?? (altKey != null ? _asBool(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -355,8 +266,7 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive

@@ -6,15 +6,14 @@ import '../crashlytics_service.dart';
 /// خدمة موحدة للتعامل مع الأخطاء في نظام المزامنة
 /// تجمع AppwriteLogger + CrashlyticsService + AppwriteErrorHandler تحت واجهة واحدة
 class SyncErrorService {
-
   SyncErrorService({
     required this.tag,
     AppwriteLogger? logger,
     AppwriteErrorHandler? errorHandler,
     CrashlyticsService? crashlytics,
-  })  : _logger = logger ?? AppwriteLogger(),
-        _errorHandler = errorHandler ?? AppwriteErrorHandler(),
-        _crashlytics = crashlytics ?? CrashlyticsService.instance;
+  }) : _logger = logger ?? AppwriteLogger(),
+       _errorHandler = errorHandler ?? AppwriteErrorHandler(),
+       _crashlytics = crashlytics ?? CrashlyticsService.instance;
   final AppwriteLogger _logger;
   final AppwriteErrorHandler _errorHandler;
   final CrashlyticsService _crashlytics;
@@ -26,12 +25,7 @@ class SyncErrorService {
   }
 
   /// تسجيل تحذير
-  void warning(
-    String message, {
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? context,
-  }) {
+  void warning(String message, {Object? error, StackTrace? stackTrace, Map<String, dynamic>? context}) {
     _logger.warning(message, error: error, stackTrace: stackTrace, tag: tag);
   }
 
@@ -63,48 +57,23 @@ class SyncErrorService {
   }
 
   /// معالجة خطأ Appwrite وإرجاع الرسالة المنسقة
-  AppwriteErrorResult handleAppwriteError(
-    Object error, {
-    String? context,
-    StackTrace? stackTrace,
-  }) {
-    final appwriteError = _errorHandler.handleError(
-      error,
-      context: context ?? tag,
-      stackTrace: stackTrace,
-    );
-    _logger.warning(
-      appwriteError.message,
-      error: error,
-      stackTrace: stackTrace,
-      tag: tag,
-    );
-    return AppwriteErrorResult(
-      message: appwriteError.message,
-      isRetryable: appwriteError.isRecoverable,
-    );
+  AppwriteErrorResult handleAppwriteError(Object error, {String? context, StackTrace? stackTrace}) {
+    final appwriteError = _errorHandler.handleError(error, context: context ?? tag, stackTrace: stackTrace);
+    _logger.warning(appwriteError.message, error: error, stackTrace: stackTrace, tag: tag);
+    return AppwriteErrorResult(message: appwriteError.message, isRetryable: appwriteError.isRecoverable);
   }
 
   /// إظهار SnackBar للمستخدم مع رسالة الخطأ
   void showError(BuildContext context, String message) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
     }
   }
 }
 
 /// نتيجة معالجة خطأ Appwrite
 class AppwriteErrorResult {
-
-  const AppwriteErrorResult({
-    required this.message,
-    this.isRetryable = false,
-  });
+  const AppwriteErrorResult({required this.message, this.isRetryable = false});
   final String message;
   final bool isRetryable;
 }

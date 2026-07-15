@@ -36,13 +36,9 @@ class ShiftNoteAdapter {
       priority: priority,
       shiftType: shiftType,
       createdAt: DateTime.fromMillisecondsSinceEpoch(bookingNote.createdAt),
-      expiresAt: bookingNote.alertUntil != null
-          ? DateTime.tryParse(bookingNote.alertUntil!)
-          : null,
+      expiresAt: bookingNote.alertUntil != null ? DateTime.tryParse(bookingNote.alertUntil!) : null,
       isRead: bookingNote.isActive == 0, // عكس المنطق
-      status: bookingNote.isActive == 1
-          ? NoteStatus.active
-          : NoteStatus.completed,
+      status: bookingNote.isActive == 1 ? NoteStatus.active : NoteStatus.completed,
       createdBy: 'user', // قيمة افتراضية
     );
   }
@@ -98,7 +94,6 @@ class ShiftNoteAdapter {
 
 // نماذج البيانات للملاحظات
 class ShiftNote {
-
   ShiftNote({
     required this.id,
     required this.title,

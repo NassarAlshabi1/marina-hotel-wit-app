@@ -24,9 +24,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
   // ✅ ValueNotifier — يمنع إعادة بناء AppScaffold مع كل تغيير
   // يستخدم ref.listen (بدون StreamSubscription) للأداء الأقصى
   final ValueNotifier<AsyncValue<List<RoomWithPaymentStatus>>> _roomsNotifier =
-      ValueNotifier<AsyncValue<List<RoomWithPaymentStatus>>>(
-    const AsyncValue<List<RoomWithPaymentStatus>>.loading(),
-  );
+      ValueNotifier<AsyncValue<List<RoomWithPaymentStatus>>>(const AsyncValue<List<RoomWithPaymentStatus>>.loading());
 
   @override
   void dispose() {
@@ -62,11 +60,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
                   children: [
                     Icon(Icons.error, size: 64, color: Colors.red),
                     SizedBox(height: 16),
-                    Text(
-                      'حدث خطأ أثناء تحميل الغرف',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16),
-                    ),
+                    Text('حدث خطأ أثناء تحميل الغرف', textAlign: TextAlign.center, style: TextStyle(fontSize: 16)),
                     SizedBox(height: 8),
                     Text(
                       'تحقّق من اتصال الشبكة وحاول مرة أخرى.',
@@ -98,11 +92,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
     );
   }
 
-  Widget _buildFloorsView(
-    BuildContext context,
-    WidgetRef ref,
-    List<RoomWithPaymentStatus> roomsWithStatus,
-  ) {
+  Widget _buildFloorsView(BuildContext context, WidgetRef ref, List<RoomWithPaymentStatus> roomsWithStatus) {
     // تنظيم الغرف حسب الطوابق
     final Map<String, List<RoomWithPaymentStatus>> floorMap = {};
 
@@ -125,9 +115,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
     // ترتيب الطوابق والغرف
     final sortedFloors = floorMap.keys.toList()..sort();
     for (final floor in sortedFloors) {
-      floorMap[floor]!.sort(
-        (a, b) => _compareRoomNumbers(a.room.roomNumber, b.room.roomNumber),
-      );
+      floorMap[floor]!.sort((a, b) => _compareRoomNumbers(a.room.roomNumber, b.room.roomNumber));
     }
 
     return RefreshIndicator(
@@ -170,8 +158,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
       showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text('غرفة ${room.roomNumber}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -179,19 +166,10 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
             children: [
               _buildDetailRow('الحالة', room.status),
               if (room.type.isNotEmpty) _buildDetailRow('النوع', room.type),
-              if (room.price > 0)
-                _buildDetailRow(
-                  'السعر',
-                  '${room.price.toStringAsFixed(0)} ريال',
-                ),
+              if (room.price > 0) _buildDetailRow('السعر', '${room.price.toStringAsFixed(0)} ريال'),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إغلاق'),
-            ),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))],
         ),
       );
     }
@@ -202,10 +180,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Text(
-            '$label: ',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
           Text(value),
         ],
       ),
@@ -213,30 +188,20 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
   }
 
   void _navigateToBooking(BuildContext context, String roomNumber) {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute<void>(builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber)));
   }
 
-  Future<void> _showRoomBookings(
-    BuildContext context,
-    WidgetRef ref,
-    String roomNumber,
-  ) async {
+  Future<void> _showRoomBookings(BuildContext context, WidgetRef ref, String roomNumber) async {
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
-      final activeBooking = await bookingsRepo.getActiveBookingForRoom(
-        roomNumber,
-      );
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
 
       if (activeBooking == null) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'),
-              backgroundColor: Colors.orange,
-            ),
+            SnackBar(content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'), backgroundColor: Colors.orange),
           );
         }
         return;
@@ -246,10 +211,11 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
         return;
       }
 
-      unawaited(Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(builder: (_) => BookingPaymentScreen(booking: activeBooking),
-        ),
-      ),);
+      unawaited(
+        Navigator.of(
+          context,
+        ).push<void>(MaterialPageRoute<void>(builder: (_) => BookingPaymentScreen(booking: activeBooking))),
+      );
     } catch (e) {
       if (!context.mounted) {
         return;

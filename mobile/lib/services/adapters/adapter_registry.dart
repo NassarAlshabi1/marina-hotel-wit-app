@@ -39,16 +39,8 @@ class AdapterRegistry {
         table: db.expenses,
         adapter: ExpensesAdapter(IdResolver(db)),
       ),
-      debts = BaseRepository<Debt, DebtsCompanion>(
-        db: db,
-        table: db.debts,
-        adapter: DebtsAdapter(IdResolver(db)),
-      ),
-      rooms = BaseRepository<Room, RoomsCompanion>(
-        db: db,
-        table: db.rooms,
-        adapter: RoomsAdapter(IdResolver(db)),
-      ),
+      debts = BaseRepository<Debt, DebtsCompanion>(db: db, table: db.debts, adapter: DebtsAdapter(IdResolver(db))),
+      rooms = BaseRepository<Room, RoomsCompanion>(db: db, table: db.rooms, adapter: RoomsAdapter(IdResolver(db))),
       nights = BaseRepository<BookingNight, BookingNightsCompanion>(
         db: db,
         table: db.bookingNights,
@@ -74,23 +66,21 @@ class AdapterRegistry {
         table: db.bookingNotes,
         adapter: BookingNotesAdapter(IdResolver(db)),
       ),
-      cashTransactions =
-          BaseRepository<CashTransaction, CashTransactionsCompanion>(
-            db: db,
-            table: db.cashTransactions,
-            adapter: CashTransactionsAdapter(IdResolver(db)),
-          ),
+      cashTransactions = BaseRepository<CashTransaction, CashTransactionsCompanion>(
+        db: db,
+        table: db.cashTransactions,
+        adapter: CashTransactionsAdapter(IdResolver(db)),
+      ),
       shiftNotes = BaseRepository<ShiftNote, ShiftNotesCompanion>(
         db: db,
         table: db.shiftNotes,
         adapter: ShiftNotesAdapter(IdResolver(db)),
       ),
-      priceAdjustments =
-          BaseRepository<PriceAdjustment, PriceAdjustmentsCompanion>(
-            db: db,
-            table: db.priceAdjustments,
-            adapter: PriceAdjustmentsAdapter(IdResolver(db)),
-          ),
+      priceAdjustments = BaseRepository<PriceAdjustment, PriceAdjustmentsCompanion>(
+        db: db,
+        table: db.priceAdjustments,
+        adapter: PriceAdjustmentsAdapter(IdResolver(db)),
+      ),
       auditLogs = BaseRepository<AuditLog, AuditLogsCompanion>(
         db: db,
         table: db.auditLogs,
@@ -101,12 +91,11 @@ class AdapterRegistry {
         table: db.paymentVoids,
         adapter: PaymentVoidsAdapter(IdResolver(db)),
       ),
-      bookingPriceAdjustments =
-          BaseRepository<BookingPriceAdjustment, BookingPriceAdjustmentsCompanion>(
-            db: db,
-            table: db.bookingPriceAdjustments,
-            adapter: BookingPriceAdjustmentsAdapter(IdResolver(db)),
-          ),
+      bookingPriceAdjustments = BaseRepository<BookingPriceAdjustment, BookingPriceAdjustmentsCompanion>(
+        db: db,
+        table: db.bookingPriceAdjustments,
+        adapter: BookingPriceAdjustmentsAdapter(IdResolver(db)),
+      ),
       guestInfos = BaseRepository<GuestInfo, GuestInfosCompanion>(
         db: db,
         table: db.guestInfos,
@@ -135,15 +124,12 @@ class AdapterRegistry {
   final BaseRepository<SalaryCycle, SalaryCyclesCompanion> salaryCycles;
   final BaseRepository<SalaryPayment, SalaryPaymentsCompanion> salaryPayments;
   final BaseRepository<BookingNote, BookingNotesCompanion> bookingNotes;
-  final BaseRepository<CashTransaction, CashTransactionsCompanion>
-  cashTransactions;
+  final BaseRepository<CashTransaction, CashTransactionsCompanion> cashTransactions;
   final BaseRepository<ShiftNote, ShiftNotesCompanion> shiftNotes;
-  final BaseRepository<PriceAdjustment, PriceAdjustmentsCompanion>
-      priceAdjustments;
+  final BaseRepository<PriceAdjustment, PriceAdjustmentsCompanion> priceAdjustments;
   final BaseRepository<AuditLog, AuditLogsCompanion> auditLogs;
   final BaseRepository<PaymentVoid, PaymentVoidsCompanion> paymentVoids;
-  final BaseRepository<BookingPriceAdjustment, BookingPriceAdjustmentsCompanion>
-      bookingPriceAdjustments;
+  final BaseRepository<BookingPriceAdjustment, BookingPriceAdjustmentsCompanion> bookingPriceAdjustments;
   final BaseRepository<GuestInfo, GuestInfosCompanion> guestInfos;
   final BaseRepository<SalaryWithdrawal, SalaryWithdrawalsCompanion> salaryWithdrawals;
   final BaseRepository<SalaryCarryOverLog, SalaryCarryOverLogsCompanion> salaryCarryOverLogs;

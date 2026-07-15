@@ -71,9 +71,7 @@ class MockHiveLazyBox<T> extends MockHiveBox<T> {
 
   Future<T?> getAsync(String key) async => get(key);
 
-  Future<Map<String, T>> toMap() async => Map.fromEntries(
-    keys.map((k) => MapEntry(k, get(k)!)),
-  );
+  Future<Map<String, T>> toMap() async => Map.fromEntries(keys.map((k) => MapEntry(k, get(k)!)));
 }
 
 /// Mock لـ Hive
@@ -184,9 +182,7 @@ abstract class MockHiveTypeAdapter<T> {
 /// Helper للاختبارات
 class HiveTestHelper {
   /// إنشاء Mock Box جاهز للاختبار
-  static MockHiveBox<T> createMockBox<T>(String name, {
-    Map<String, T>? initialData,
-  }) {
+  static MockHiveBox<T> createMockBox<T>(String name, {Map<String, T>? initialData}) {
     final box = MockHiveBox<T>(name);
     if (initialData != null) {
       initialData.forEach((key, value) {
@@ -197,9 +193,7 @@ class HiveTestHelper {
   }
 
   /// إنشاء Mock Lazy Box جاهز للاختبار
-  static MockHiveLazyBox<T> createMockLazyBox<T>(String name, {
-    Map<String, T>? initialData,
-  }) {
+  static MockHiveLazyBox<T> createMockLazyBox<T>(String name, {Map<String, T>? initialData}) {
     final box = MockHiveLazyBox<T>(name);
     if (initialData != null) {
       initialData.forEach((key, value) {

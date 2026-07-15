@@ -74,13 +74,17 @@ void main() {
     }
 
     if (missingAdapters.isEmpty) {
-      print('✅ All adapter.collectionId values are present in '
-          'validFieldsPerCollection.');
+      print(
+        '✅ All adapter.collectionId values are present in '
+        'validFieldsPerCollection.',
+      );
     } else {
       print('❌ Adapters without schema entry:');
       for (final c in missingAdapters) {
-        print('  ⚠️  "$c" — adapter is registered but collection is NOT in '
-            'validFieldsPerCollection');
+        print(
+          '  ⚠️  "$c" — adapter is registered but collection is NOT in '
+          'validFieldsPerCollection',
+        );
       }
     }
 
@@ -146,8 +150,10 @@ void main() {
     // ملاحظة: بعض المجموعات (مثل audit_logs) قد لا تتبع SyncFields mixin
     // بشكل كامل، لذا نُصدر تحذيراً فقط دون فشل الاختبار.
     if (missingFieldsByCollection.isNotEmpty) {
-      print('⚠️  Warning: Some collections are missing required sync fields. '
-          'This may be intentional for non-synced tables (e.g., audit_logs).');
+      print(
+        '⚠️  Warning: Some collections are missing required sync fields. '
+        'This may be intentional for non-synced tables (e.g., audit_logs).',
+      );
     }
   });
 }

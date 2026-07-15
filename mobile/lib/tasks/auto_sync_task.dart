@@ -21,16 +21,13 @@ void autoSyncCallbackDispatcher() {
       DartPluginRegistrant.ensureInitialized();
 
       final prefs = await SharedPreferences.getInstance();
-      final googleDriveEnabled =
-          prefs.getBool('google_drive_sync_enabled') ?? false;
+      final googleDriveEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
 
       if (!googleDriveEnabled) {
         return true;
       }
 
-      final success = await UnifiedSyncOrchestrator.instance.syncNow(
-        reason: 'google_drive_background_task',
-      );
+      final success = await UnifiedSyncOrchestrator.instance.syncNow(reason: 'google_drive_background_task');
 
       if (success) {
         await prefs.setBool(_kPendingFlagKey, false);
@@ -72,9 +69,7 @@ class AutoSyncTask {
   }
 
   /// جدولة مزامنة فورية مع Debounce لمنع التكرار المتتابع
-  static Future<void> scheduleImmediateSync({
-    Duration delay = _kDebounceWindow,
-  }) async {
+  static Future<void> scheduleImmediateSync({Duration delay = _kDebounceWindow}) async {
     if (!_initialized) {
       throw StateError('لم يتم تهيئة AutoSyncTask. استدع initialize أولاً.');
     }
@@ -126,9 +121,7 @@ class AutoSyncTask {
     if (!pending && !force) {
       return;
     }
-    await UnifiedSyncOrchestrator.instance.syncNow(
-      reason: 'pending_sync',
-    );
+    await UnifiedSyncOrchestrator.instance.syncNow(reason: 'pending_sync');
     await prefs.setBool(_kPendingFlagKey, false);
   }
 }

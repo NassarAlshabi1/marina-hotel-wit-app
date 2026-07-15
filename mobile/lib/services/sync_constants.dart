@@ -56,8 +56,7 @@ class SyncConstants {
 
   static List<String> get allTablesInOrder => tableOrder;
 
-  static List<String> get allTablesInReverseOrder =>
-      allTablesInOrder.reversed.toList();
+  static List<String> get allTablesInReverseOrder => allTablesInOrder.reversed.toList();
 
   static const int maxErrorMessageLength = 500;
   static const int maxMetricsPayloadLength = 4000;
@@ -68,9 +67,7 @@ class SyncConstants {
   static const Duration guardianLocalChangeDebounce = Duration(seconds: 5);
   static const Duration shortPollingDelay = Duration(milliseconds: 500);
   static const Duration appForegroundDelay = Duration(milliseconds: 500);
-  static const Duration appForegroundAppwriteDelay = Duration(
-    milliseconds: 1000,
-  );
+  static const Duration appForegroundAppwriteDelay = Duration(milliseconds: 1000);
 
   /// الفترة الزمنية الدنيا بين سحبين تلقائيين عند فتح التطبيق
   /// إذا مرت أقل من هذه المدة منذ آخر سحب تلقائي، يتم تخطي السحب

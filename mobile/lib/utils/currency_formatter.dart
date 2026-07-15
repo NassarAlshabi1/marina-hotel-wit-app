@@ -23,10 +23,7 @@ class CurrencyFormatter {
       formatCurrency(amount, showDecimals: showDecimals);
 
   /// تنسيق المبلغ بالفواصل — مرادف لـ formatCurrency (للحفاظ على التوافق)
-  static String formatCurrencyEnglish(
-    double amount, {
-    bool showDecimals = false,
-  }) =>
+  static String formatCurrencyEnglish(double amount, {bool showDecimals = false}) =>
       formatCurrency(amount, showDecimals: showDecimals);
 
   /// تنسيق المبلغ للعرض — مرادف لـ formatCurrency
@@ -41,11 +38,7 @@ class CurrencyFormatter {
   static double? parseAmount(String text) {
     var cleanText = text.trim();
 
-    cleanText = cleanText
-        .replaceAll('٬', '')
-        .replaceAll('،', '')
-        .replaceAll(',', '')
-        .replaceAll('٫', '.');
+    cleanText = cleanText.replaceAll('٬', '').replaceAll('،', '').replaceAll(',', '').replaceAll('٫', '.');
 
     const digitMap = {
       '٠': '0',

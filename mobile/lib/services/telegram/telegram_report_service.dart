@@ -10,7 +10,6 @@ import 'telegram_config.dart';
 
 /// بيانات التقرير اليومي
 class TelegramDailyReportData {
-
   const TelegramDailyReportData({
     required this.reportDate,
     required this.totalRooms,
@@ -49,12 +48,10 @@ class TelegramDailyReportData {
 
 /// خدمة التقارير اليومية عبر Telegram
 class TelegramReportService {
-
   TelegramReportService._();
   static TelegramReportService? _instance;
   // ignore: prefer_constructors_over_static_methods
-  static TelegramReportService get instance =>
-      _instance ??= TelegramReportService._();
+  static TelegramReportService get instance => _instance ??= TelegramReportService._();
 
   // الإرسال عبر CallMeBot WhatsApp
   static const String _callMeBotUrl = 'https://api.callmebot.com/whatsapp.php';
@@ -168,9 +165,7 @@ class TelegramReportService {
         }
       }
 
-      final occupancyRate = totalRooms > 0
-          ? (occupiedRooms / totalRooms * 100)
-          : 0.0;
+      final occupancyRate = totalRooms > 0 ? (occupiedRooms / totalRooms * 100) : 0.0;
 
       // ── حجوزات اليوم ──
       final bookingsQuery = await db.select(db.bookings).get();
@@ -192,8 +187,7 @@ class TelegramReportService {
         }
 
         // حجوزات جديدة اليوم
-        if (booking.checkinDate == hotelDayKey ||
-            booking.createdAtIso?.substring(0, 10) == hotelDayKey) {
+        if (booking.checkinDate == hotelDayKey || booking.createdAtIso?.substring(0, 10) == hotelDayKey) {
           newBookingsToday++;
         }
 
@@ -203,8 +197,7 @@ class TelegramReportService {
         }
 
         // تسجيلات خروج اليوم
-        if (booking.hotelDayCheckout == hotelDayKey ||
-            booking.actualCheckout?.substring(0, 10) == hotelDayKey) {
+        if (booking.hotelDayCheckout == hotelDayKey || booking.actualCheckout?.substring(0, 10) == hotelDayKey) {
           checkOutsToday++;
         }
       }
@@ -250,11 +243,8 @@ class TelegramReportService {
           if (booking.checkoutDate != null &&
               booking.actualCheckout == null &&
               booking.checkoutDate!.compareTo(hotelDayKey) < 0) {
-            final room = roomsQuery
-                .where((r) => r.roomNumber == booking.roomNumber)
-                .firstOrNull;
-            alerts.add(
-                '⏰ تأخير مغادرة — غرفة ${room?.roomNumber ?? '?'} (${booking.guestName})',);
+            final room = roomsQuery.where((r) => r.roomNumber == booking.roomNumber).firstOrNull;
+            alerts.add('⏰ تأخير مغادرة — غرفة ${room?.roomNumber ?? '?'} (${booking.guestName})');
           }
         }
       }
@@ -296,9 +286,7 @@ class TelegramReportService {
     try {
       // قص الرسالة إذا تجاوزت الحد الأقصى (CallMeBot ~1000 حرف)
       final maxLength = RemoteConfigService.instance.whatsappMessageMaxLength;
-      final trimmedMessage = message.length > maxLength
-          ? '${message.substring(0, maxLength - 3)}...'
-          : message;
+      final trimmedMessage = message.length > maxLength ? '${message.substring(0, maxLength - 3)}...' : message;
 
       final url = Uri.parse(
         '$_callMeBotUrl'
@@ -308,9 +296,7 @@ class TelegramReportService {
       );
 
       // timeout من Remote Config (افتراضي 15 ثانية)
-      final timeout = Duration(
-        seconds: RemoteConfigService.instance.whatsappApiTimeout,
-      );
+      final timeout = Duration(seconds: RemoteConfigService.instance.whatsappApiTimeout);
       final response = await _httpClient.get(url).timeout(timeout);
       final body = response.body;
 
@@ -356,8 +342,7 @@ class TelegramReportService {
     buffer.writeln('├ 🟢 متاحة: ${data.availableRooms}');
     buffer.writeln('├ 🟡 تنظيف: ${data.cleaningRooms}');
     buffer.writeln('└ 🔧 صيانة: ${data.maintenanceRooms}');
-    buffer.writeln(
-        '📈 نسبة الإشغال: ${data.occupancyRate.toStringAsFixed(1)}%',);
+    buffer.writeln('📈 نسبة الإشغال: ${data.occupancyRate.toStringAsFixed(1)}%');
 
     // حجوزات اليوم
     buffer.writeln();
@@ -370,12 +355,9 @@ class TelegramReportService {
     // ملخص مالي
     buffer.writeln();
     buffer.writeln('💰 ملخص مالي');
-    buffer.writeln(
-        '┌ الإيرادات: \$${data.todayRevenue.toStringAsFixed(2)}',);
-    buffer.writeln(
-        '├ المصروفات: \$${data.todayExpenses.toStringAsFixed(2)}',);
-    buffer.writeln(
-        '└ صافي الربح: \$${data.netProfit.toStringAsFixed(2)}',);
+    buffer.writeln('┌ الإيرادات: \$${data.todayRevenue.toStringAsFixed(2)}');
+    buffer.writeln('├ المصروفات: \$${data.todayExpenses.toStringAsFixed(2)}');
+    buffer.writeln('└ صافي الربح: \$${data.netProfit.toStringAsFixed(2)}');
 
     // الديون
     buffer.writeln();

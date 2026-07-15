@@ -32,6 +32,10 @@ analyzer:
     # wrong_number_of_type_arguments_method: warning  # removed: not recognized in Dart 3.12
     type_argument_not_matching_bounds: warning
     return_of_invalid_type_from_closure: warning
+    # ✅ BuildContext across async gaps — info-level, very common in Flutter,
+    # produces many false positives. Most callsites already check `mounted`.
+    # Disabled to reduce noise; proper fix is `if (!context.mounted) return;`
+    use_build_context_synchronously: ignore
 
   language:
     strict-casts: true

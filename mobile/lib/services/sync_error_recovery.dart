@@ -8,7 +8,6 @@ enum RecoveryAction { retry, skip, rollback, escalate, pause }
 enum ErrorSeverity { low, medium, high, critical }
 
 class SyncError {
-
   SyncError({
     required this.id,
     required this.operation,
@@ -46,13 +45,7 @@ class SyncError {
 }
 
 class RecoveryResult {
-
-  const RecoveryResult({
-    required this.success,
-    required this.actionTaken,
-    this.message,
-    required this.duration,
-  });
+  const RecoveryResult({required this.success, required this.actionTaken, this.message, required this.duration});
   final bool success;
   final RecoveryAction actionTaken;
   final String? message;
@@ -60,13 +53,7 @@ class RecoveryResult {
 }
 
 class RollbackPoint {
-
-  const RollbackPoint({
-    required this.id,
-    required this.description,
-    required this.timestamp,
-    required this.snapshot,
-  });
+  const RollbackPoint({required this.id, required this.description, required this.timestamp, required this.snapshot});
   final String id;
   final String description;
   final DateTime timestamp;
@@ -74,7 +61,6 @@ class RollbackPoint {
 }
 
 class SyncErrorRecovery {
-
   SyncErrorRecovery._();
   static SyncErrorRecovery? _instance;
   // ignore: prefer_constructors_over_static_methods
@@ -165,7 +151,10 @@ class SyncErrorRecovery {
 
     // fallback
     final message = exception.toString().toLowerCase();
-    if (message.contains('network') || message.contains('connection') || message.contains('timeout') || message.contains('temporary')) {
+    if (message.contains('network') ||
+        message.contains('connection') ||
+        message.contains('timeout') ||
+        message.contains('temporary')) {
       return true;
     }
     if (message.contains('permission') || message.contains('corrupt') || message.contains('invalid')) {
@@ -287,9 +276,7 @@ class SyncErrorRecovery {
         id: id,
         description: description,
         timestamp: DateTime.now(),
-        snapshot: snapshot.map(
-          (k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v as List)),
-        ),
+        snapshot: snapshot.map((k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v as List))),
       );
 
       _rollbackPoints.insert(0, rollbackPoint);
@@ -303,10 +290,7 @@ class SyncErrorRecovery {
     }
   }
 
-  Future<bool> restoreFromRollbackPoint(
-    String pointId,
-    AppDatabase database,
-  ) async {
+  Future<bool> restoreFromRollbackPoint(String pointId, AppDatabase database) async {
     final point = _rollbackPoints.firstWhere(
       (p) => p.id == pointId,
       orElse: () => throw Exception('نقطة الاستعادة غير موجودة'),
@@ -322,8 +306,7 @@ class SyncErrorRecovery {
     }
   }
 
-  List<RollbackPoint> get availableRollbackPoints =>
-      List.unmodifiable(_rollbackPoints);
+  List<RollbackPoint> get availableRollbackPoints => List.unmodifiable(_rollbackPoints);
 
   Map<ErrorSeverity, int> getErrorSummary() {
     final summary = <ErrorSeverity, int>{};

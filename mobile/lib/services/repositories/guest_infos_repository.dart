@@ -6,24 +6,19 @@ import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 
 class GuestInfosRepository {
-  GuestInfosRepository(this._db)
-      : _outboxDao = OutboxDao(_db);
+  GuestInfosRepository(this._db) : _outboxDao = OutboxDao(_db);
 
   final AppDatabase _db;
   final OutboxDao _outboxDao;
 
   /// جلب كل السجلات (بدون المحذوفة)
   Future<List<GuestInfo>> listAll() async {
-    return (_db.select(_db.guestInfos)
-          ..where((t) => t.deletedAt.isNull()))
-        .get();
+    return (_db.select(_db.guestInfos)..where((t) => t.deletedAt.isNull())).get();
   }
 
   /// مراقبة التغييرات (بدون المحذوفة)
   Stream<List<GuestInfo>> watchAll() {
-    return (_db.select(_db.guestInfos)
-          ..where((t) => t.deletedAt.isNull()))
-        .watch();
+    return (_db.select(_db.guestInfos)..where((t) => t.deletedAt.isNull())).watch();
   }
 
   /// إنشاء سجل جديد + كتابة outbox للمزامنة
@@ -44,7 +39,9 @@ class GuestInfosRepository {
       final nowIso = Time.nowIso();
       final uuid = IdGen.uuid();
 
-      final id = await _db.into(_db.guestInfos).insert(
+      final id = await _db
+          .into(_db.guestInfos)
+          .insert(
             GuestInfosCompanion(
               roomNumber: d.Value(roomNumber),
               guestName: d.Value(guestName),
@@ -110,9 +107,7 @@ class GuestInfosRepository {
       final nowIso = Time.nowIso();
 
       // جلب السجل الحالي
-      final existing = await (_db.select(_db.guestInfos)
-            ..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
+      final existing = await (_db.select(_db.guestInfos)..where((t) => t.id.equals(id))).getSingleOrNull();
 
       if (existing == null) {
         return;
@@ -121,9 +116,7 @@ class GuestInfosRepository {
       // ✅ OCC: فحص version في WHERE لمنع lost update
       // إذا عدّل جهاز آخر السجل بين القراءة والكتابة، لن يطابق الشرط
       // وسيُرجع 0 صفوف → نكتشف التعارض بدلاً من طمس التعديل الآخر
-      await (_db.update(_db.guestInfos)
-            ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
-          .write(
+      await (_db.update(_db.guestInfos)..where((t) => t.id.equals(id) & t.version.equals(existing.version))).write(
         GuestInfosCompanion(
           roomNumber: d.Value(roomNumber),
           guestName: d.Value(guestName),
@@ -170,9 +163,7 @@ class GuestInfosRepository {
       final now = Time.nowEpoch();
       final nowIso = Time.nowIso();
 
-      final existing = await (_db.select(_db.guestInfos)
-            ..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
+      final existing = await (_db.select(_db.guestInfos)..where((t) => t.id.equals(id))).getSingleOrNull();
 
       if (existing == null) {
         return;
@@ -180,9 +171,7 @@ class GuestInfosRepository {
 
       // soft delete: تعيين deletedAt بدلاً من حذف فعلي
       // ✅ OCC: فحص version في WHERE لمنع lost update
-      await (_db.update(_db.guestInfos)
-            ..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
-          .write(
+      await (_db.update(_db.guestInfos)..where((t) => t.id.equals(id) & t.version.equals(existing.version))).write(
         GuestInfosCompanion(
           deletedAt: d.Value(now),
           updatedAt: d.Value(now),

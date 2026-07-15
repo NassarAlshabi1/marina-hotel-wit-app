@@ -50,12 +50,10 @@ class SalaryWithdrawalsReportScreen extends ConsumerStatefulWidget {
   const SalaryWithdrawalsReportScreen({super.key});
 
   @override
-  ConsumerState<SalaryWithdrawalsReportScreen> createState() =>
-      _SalaryWithdrawalsReportScreenState();
+  ConsumerState<SalaryWithdrawalsReportScreen> createState() => _SalaryWithdrawalsReportScreenState();
 }
 
-class _SalaryWithdrawalsReportScreenState
-    extends ConsumerState<SalaryWithdrawalsReportScreen> {
+class _SalaryWithdrawalsReportScreenState extends ConsumerState<SalaryWithdrawalsReportScreen> {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd');
@@ -119,14 +117,11 @@ class _SalaryWithdrawalsReportScreenState
 
   Future<_SalaryReportData> _loadSalaryData(AppDatabase db) async {
     // جلب كل الموظفين للقائمة المنسدلة
-    final allEmployees = await (db.select(db.employees)
-          ..where((tbl) => tbl.deletedAt.isNull()))
-        .get();
+    final allEmployees = await (db.select(db.employees)..where((tbl) => tbl.deletedAt.isNull())).get();
     allEmployees.sort((a, b) => a.name.compareTo(b.name));
 
     // جلب سجلات salary_withdrawals مع فلترة التاريخ
-    var query = db.select(db.salaryWithdrawals)
-      ..where((tbl) => tbl.deletedAt.isNull());
+    var query = db.select(db.salaryWithdrawals)..where((tbl) => tbl.deletedAt.isNull());
 
     // ✅ إصلاح: فلترة بـ hotelDayKey بدلاً من withdrawDate التقويمي
     // لمنع إدراج سحوبات الصباح من اليوم السابق خطأً
@@ -141,22 +136,25 @@ class _SalaryWithdrawalsReportScreenState
     //   _toDate  = 19-May 13:59 → toHotelDay   = "2026-05-18" ✓
     //   → فقط سحبيات hotelDayKey="2026-05-18" ✅
     final fromHotelDay = _fromDate != null
-        ? HotelTimeEngine.getHotelDayKey(
-            dateTime: _fromDate!.add(const Duration(seconds: 1)))
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _fromDate!.add(const Duration(seconds: 1)))
         : null;
-    final toHotelDay = _toDate != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
-        : null;
+    final toHotelDay = _toDate != null ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate) : null;
 
     if (fromHotelDay != null) {
-      query = query..where((tbl) =>
-          (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-          (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)));
+      query = query
+        ..where(
+          (tbl) =>
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)),
+        );
     }
     if (toHotelDay != null) {
-      query = query..where((tbl) =>
-          (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-          (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)));
+      query = query
+        ..where(
+          (tbl) =>
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)),
+        );
     }
 
     // فلترة حسب الموظف المحدد
@@ -177,15 +175,17 @@ class _SalaryWithdrawalsReportScreenState
     for (final sw in withdrawals) {
       final employee = employeeMap[sw.employeeId];
       final date = _parseDate(sw.withdrawDate);
-      rows.add(_SalaryTxRow(
-        id: sw.id,
-        date: date,
-        amount: sw.amount,
-        withdrawalType: sw.withdrawalType ?? '',
-        reason: sw.reason ?? '',
-        description: sw.description ?? '',
-        employee: employee,
-      ),);
+      rows.add(
+        _SalaryTxRow(
+          id: sw.id,
+          date: date,
+          amount: sw.amount,
+          withdrawalType: sw.withdrawalType ?? '',
+          reason: sw.reason ?? '',
+          description: sw.description ?? '',
+          employee: employee,
+        ),
+      );
     }
 
     // ترتيب حسب التاريخ الأحدث
@@ -202,11 +202,7 @@ class _SalaryWithdrawalsReportScreenState
       group.txCount++;
     }
 
-    return _SalaryReportData(
-      rows: rows,
-      groups: groups,
-      allEmployees: allEmployees,
-    );
+    return _SalaryReportData(rows: rows, groups: groups, allEmployees: allEmployees);
   }
 
   // ─── PDF ───
@@ -248,84 +244,70 @@ class _SalaryWithdrawalsReportScreenState
 
     final totalAmount = rows.fold<double>(0, (sum, r) => sum + r.amount);
     final emptyCells = List.filled(headers.length, '');
-    dataRows.add([
-      'الإجمالي',
-      EnhancedPdfUtils.formatNumber(totalAmount),
-      ...emptyCells.sublist(2),
-    ]);
+    dataRows.add(['الإجمالي', EnhancedPdfUtils.formatNumber(totalAmount), ...emptyCells.sublist(2)]);
 
-    await ReportPdfBuilder.buildAndShare(ReportPdfConfig(
-      title: 'تقرير سحبيات الرواتب',
-      fromDate: _fromDate,
-      toDate: _toDate,
-      buildContent: (fonts) {
-        final fromLabel = _fromDate != null
-            ? DateFormat('yyyy-MM-dd').format(_fromDate!)
-            : 'غير محدد';
-        final toLabel = _toDate != null
-            ? DateFormat('yyyy-MM-dd').format(_toDate!)
-            : 'غير محدد';
+    await ReportPdfBuilder.buildAndShare(
+      ReportPdfConfig(
+        title: 'تقرير سحبيات الرواتب',
+        fromDate: _fromDate,
+        toDate: _toDate,
+        buildContent: (fonts) {
+          final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
+          final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
 
-        return [
-          pw.SizedBox(height: 16),
-          EnhancedPdfUtils.buildInfoCard(
-            title: 'تقرير سحبيات الرواتب',
-            fonts: fonts,
-            content: [
-              pw.Padding(
-                padding: const pw.EdgeInsets.only(bottom: 6),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('الفترة',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 11),),
-                    pw.Text('من $fromLabel إلى $toLabel',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 11),),
-                  ],
+          return [
+            pw.SizedBox(height: 16),
+            EnhancedPdfUtils.buildInfoCard(
+              title: 'تقرير سحبيات الرواتب',
+              fonts: fonts,
+              content: [
+                pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 6),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('الفترة', style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
+                      pw.Text('من $fromLabel إلى $toLabel', style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
+                    ],
+                  ),
                 ),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.only(bottom: 6),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('الموظف',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 11),),
-                    pw.Text(selectedEmpName ?? 'الكل',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 11),),
-                  ],
+                pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 6),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('الموظف', style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
+                      pw.Text(selectedEmpName ?? 'الكل', style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
+                    ],
+                  ),
                 ),
-              ),
-              pw.Padding(
-                padding: const pw.EdgeInsets.only(bottom: 6),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('عدد السجلات',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 11),),
-                    pw.Text('${rows.length}',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 11),),
-                  ],
+                pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 6),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('عدد السجلات', style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
+                      pw.Text('${rows.length}', style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 12),
-          EnhancedPdfUtils.buildProfessionalTable(
-            headers: headers,
-            data: dataRows,
-            fonts: fonts,
-            headerColor: PdfColors.primary,
-            alternateRowColor: PdfColors.backgroundLight,
-          ),
-        ];
-      },
-      fileName: ReportPdfBuilder.generateFileName(
-        selectedEmpName != null
-            ? 'سحبيات راتب $selectedEmpName'
-            : 'تقرير سحبيات الرواتب',
+              ],
+            ),
+            pw.SizedBox(height: 12),
+            EnhancedPdfUtils.buildProfessionalTable(
+              headers: headers,
+              data: dataRows,
+              fonts: fonts,
+              headerColor: PdfColors.primary,
+              alternateRowColor: PdfColors.backgroundLight,
+            ),
+          ];
+        },
+        fileName: ReportPdfBuilder.generateFileName(
+          selectedEmpName != null ? 'سحبيات راتب $selectedEmpName' : 'تقرير سحبيات الرواتب',
+        ),
       ),
-    ),);
+    );
   }
 
   List<_SalaryTxRow> get _filteredRows {
@@ -396,10 +378,7 @@ class _SalaryWithdrawalsReportScreenState
                       child: DropdownButton<int?>(
                         value: _selectedEmployeeId,
                         isExpanded: true,
-                        hint: const Text(
-                          'عرض بحسب الموظف',
-                          style: TextStyle(fontSize: 13),
-                        ),
+                        hint: const Text('عرض بحسب الموظف', style: TextStyle(fontSize: 13)),
                         icon: const Icon(Icons.arrow_drop_down, size: 20),
                         items: [
                           const DropdownMenuItem<int?>(
@@ -470,20 +449,12 @@ class _SalaryWithdrawalsReportScreenState
                         _selectedEmployeeId != null
                             ? 'سحبيات: ${_allEmployees.where((e) => e.id == _selectedEmployeeId).firstOrNull?.name ?? ""} — ${filteredRows.length} عملية'
                             : 'جميع الموظفين — ${filteredRows.length} عملية',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.blue.shade700,
-                        ),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue.shade700),
                       ),
                     ),
                     Text(
                       '${_currencyFmt.format(totalFiltered)} ريال',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade800,
-                      ),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blue.shade800),
                     ),
                   ],
                 ),
@@ -496,22 +467,19 @@ class _SalaryWithdrawalsReportScreenState
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : filteredRows.isEmpty
-                      ? const EmptyState(
-                          title: 'لا توجد بيانات',
-                          message: 'لم يتم العثور على سحبيات رواتب ضمن النطاق المحدد.',
-                          icon: Icons.account_balance_wallet,
-                        )
-                      : _selectedEmployeeId == null
-                          ? ListView(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              children: _buildGroupedList(filteredGroups),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              itemCount: filteredRows.length,
-                              itemBuilder: (context, index) =>
-                                  RepaintBoundary(child: _buildTransactionRow(filteredRows[index])),
-                            ),
+                  ? const EmptyState(
+                      title: 'لا توجد بيانات',
+                      message: 'لم يتم العثور على سحبيات رواتب ضمن النطاق المحدد.',
+                      icon: Icons.account_balance_wallet,
+                    )
+                  : _selectedEmployeeId == null
+                  ? ListView(padding: const EdgeInsets.only(bottom: 8), children: _buildGroupedList(filteredGroups))
+                  : ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      itemCount: filteredRows.length,
+                      itemBuilder: (context, index) =>
+                          RepaintBoundary(child: _buildTransactionRow(filteredRows[index])),
+                    ),
             ),
           ],
         ),
@@ -538,12 +506,8 @@ class _SalaryWithdrawalsReportScreenState
       default:
         // ترتيب حسب أحدث معاملة
         entries.sort((a, b) {
-          final aDate = a.value.transactions.isNotEmpty
-              ? a.value.transactions.first.date
-              : DateTime(2000);
-          final bDate = b.value.transactions.isNotEmpty
-              ? b.value.transactions.first.date
-              : DateTime(2000);
+          final aDate = a.value.transactions.isNotEmpty ? a.value.transactions.first.date : DateTime(2000);
+          final bDate = b.value.transactions.isNotEmpty ? b.value.transactions.first.date : DateTime(2000);
           return bDate.compareTo(aDate);
         });
     }
@@ -593,49 +557,27 @@ class _SalaryWithdrawalsReportScreenState
             alignment: Alignment.center,
             child: Text(
               '$rank',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
             ),
           ),
           title: Row(
             children: [
               Expanded(
-                child: Text(
-                  empName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: Text(empName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     _currencyFmt.format(group.totalAmount),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.purple.shade700,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.purple.shade700),
                   ),
-                  Text(
-                    '${group.txCount} عملية',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
+                  Text('${group.txCount} عملية', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
                 ],
               ),
             ],
           ),
-          children: [
-            ...group.transactions.map(_buildTransactionRow),
-          ],
+          children: [...group.transactions.map(_buildTransactionRow)],
         ),
       ),
     );
@@ -643,8 +585,7 @@ class _SalaryWithdrawalsReportScreenState
 
   /// صف معاملة واحد
   Widget _buildTransactionRow(_SalaryTxRow tx) {
-    final isDeduction = tx.withdrawalType.contains('deduction') ||
-        tx.withdrawalType.contains('خصم');
+    final isDeduction = tx.withdrawalType.contains('deduction') || tx.withdrawalType.contains('خصم');
     final accentColor = isDeduction ? Colors.red : Colors.orange;
     final typeLabel = isDeduction ? 'خصم' : 'سحب';
     final typeIcon = isDeduction ? Icons.remove_circle_outline : Icons.account_balance_wallet;
@@ -656,13 +597,7 @@ class _SalaryWithdrawalsReportScreenState
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey.shade100),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 1))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -685,11 +620,7 @@ class _SalaryWithdrawalsReportScreenState
                     const SizedBox(width: 4),
                     Text(
                       typeLabel,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: accentColor,
-                      ),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: accentColor),
                     ),
                   ],
                 ),
@@ -703,22 +634,12 @@ class _SalaryWithdrawalsReportScreenState
                     const SizedBox(width: 3),
                     Text(
                       _dateLabelFormat.format(tx.date),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(width: 6),
                     Icon(Icons.access_time, size: 11, color: Colors.grey.shade300),
                     const SizedBox(width: 3),
-                    Text(
-                      _timeFormat.format(tx.date),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
+                    Text(_timeFormat.format(tx.date), style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
                   ],
                 ),
               ),
@@ -731,11 +652,7 @@ class _SalaryWithdrawalsReportScreenState
                 ),
                 child: Text(
                   _currencyFmt.format(tx.amount),
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: accentColor,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: accentColor),
                 ),
               ),
             ],
@@ -751,11 +668,7 @@ class _SalaryWithdrawalsReportScreenState
                 Expanded(
                   child: Text(
                     tx.reason,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade700,
-                      height: 1.4,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.4),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -774,11 +687,7 @@ class _SalaryWithdrawalsReportScreenState
                 Expanded(
                   child: Text(
                     tx.description,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade500,
-                      height: 1.4,
-                    ),
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500, height: 1.4),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -797,9 +706,7 @@ class _SalaryWithdrawalsReportScreenState
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
     final hasTime = trimmed.length > 10;
-    final normalized = hasTime
-        ? trimmed.replaceFirst(' ', 'T')
-        : '${trimmed}T00:00:00';
+    final normalized = hasTime ? trimmed.replaceFirst(' ', 'T') : '${trimmed}T00:00:00';
     try {
       return DateTime.parse(normalized);
     } catch (e) {
@@ -811,11 +718,7 @@ class _SalaryWithdrawalsReportScreenState
 
 /// نتيجة تحميل بيانات التقرير
 class _SalaryReportData {
-  _SalaryReportData({
-    required this.rows,
-    required this.groups,
-    required this.allEmployees,
-  });
+  _SalaryReportData({required this.rows, required this.groups, required this.allEmployees});
 
   final List<_SalaryTxRow> rows;
   final Map<int, _EmployeeSalaryGroup> groups;

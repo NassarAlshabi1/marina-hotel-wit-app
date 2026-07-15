@@ -10,10 +10,7 @@ enum SyncQueueStatus {
   final String value;
 
   static SyncQueueStatus fromString(String value) {
-    return SyncQueueStatus.values.firstWhere(
-      (e) => e.value == value,
-      orElse: () => SyncQueueStatus.pending,
-    );
+    return SyncQueueStatus.values.firstWhere((e) => e.value == value, orElse: () => SyncQueueStatus.pending);
   }
 }
 
@@ -26,10 +23,7 @@ enum DeviceStatus {
   final String value;
 
   static DeviceStatus fromString(String value) {
-    return DeviceStatus.values.firstWhere(
-      (e) => e.value == value,
-      orElse: () => DeviceStatus.active,
-    );
+    return DeviceStatus.values.firstWhere((e) => e.value == value, orElse: () => DeviceStatus.active);
   }
 }
 
@@ -43,10 +37,7 @@ enum SyncLogStatus {
   final String value;
 
   static SyncLogStatus fromString(String value) {
-    return SyncLogStatus.values.firstWhere(
-      (e) => e.value == value,
-      orElse: () => SyncLogStatus.success,
-    );
+    return SyncLogStatus.values.firstWhere((e) => e.value == value, orElse: () => SyncLogStatus.success);
   }
 }
 
@@ -60,9 +51,6 @@ enum SyncOperationType {
   final String value;
 
   static SyncOperationType fromString(String value) {
-    return SyncOperationType.values.firstWhere(
-      (e) => e.value == value,
-      orElse: () => SyncOperationType.upsert,
-    );
+    return SyncOperationType.values.firstWhere((e) => e.value == value, orElse: () => SyncOperationType.upsert);
   }
 }

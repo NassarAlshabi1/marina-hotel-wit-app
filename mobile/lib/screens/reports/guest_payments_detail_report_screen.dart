@@ -25,12 +25,10 @@ class GuestPaymentsDetailReportScreen extends ConsumerStatefulWidget {
   const GuestPaymentsDetailReportScreen({super.key});
 
   @override
-  ConsumerState<GuestPaymentsDetailReportScreen> createState() =>
-      _GuestPaymentsDetailReportScreenState();
+  ConsumerState<GuestPaymentsDetailReportScreen> createState() => _GuestPaymentsDetailReportScreenState();
 }
 
-class _GuestPaymentsDetailReportScreenState
-    extends ConsumerState<GuestPaymentsDetailReportScreen> {
+class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsDetailReportScreen> {
   String _searchQuery = '';
   String _filterStatus = 'all'; // all, partial, unpaid, overpaid
   String _sortBy = 'room'; // room, name, remaining
@@ -50,19 +48,19 @@ class _GuestPaymentsDetailReportScreenState
   /// الذي يُنتج نتائج خاطئة (0 أيام، تاريخ خروج خاطئ)
   static StayBalanceResult _safeFallback(Booking b) {
     final checkin = DateTime.tryParse(b.checkinDate);
-    final checkout = (b.checkoutDate != null && b.checkoutDate!.isNotEmpty)
-        ? DateTime.tryParse(b.checkoutDate!)
-        : null;
+    final checkout = (b.checkoutDate != null && b.checkoutDate!.isNotEmpty) ? DateTime.tryParse(b.checkoutDate!) : null;
     // ✅ إصلاح: إذا فشل تحليل تاريخ الدخول، نستخدم بداية اليوم الفندقي الحالي
     // بدلاً من DateTime.now() الذي يُسبب حسابات خاطئة
     final hotelDay = HotelTimeEngine.getHotelDay(DateTime.now());
-    final safeCheckin = checkin ?? DateTime(
-      hotelDay.year,
-      hotelDay.month,
-      hotelDay.day,
-      HotelTimeEngine.boundaryHour,
-      HotelTimeEngine.boundaryMinute,
-    );
+    final safeCheckin =
+        checkin ??
+        DateTime(
+          hotelDay.year,
+          hotelDay.month,
+          hotelDay.day,
+          HotelTimeEngine.boundaryHour,
+          HotelTimeEngine.boundaryMinute,
+        );
     return StayBalanceResult(
       checkinDate: safeCheckin,
       manualCheckoutDate: checkout,
@@ -98,7 +96,7 @@ class _GuestPaymentsDetailReportScreenState
 
   /// حساب الأيام المتبقية حتى تاريخ المغادرة المخطط
   // ignore: unused_element
-int _getDaysUntilCheckout(Booking b) {
+  int _getDaysUntilCheckout(Booking b) {
     if (b.checkoutDate == null || b.checkoutDate!.isEmpty) {
       return 0;
     }
@@ -125,7 +123,7 @@ int _getDaysUntilCheckout(Booking b) {
   /// حساب التكلفة الفعلية حتى الآن (مع مراعاة تعديلات الأسعار)
   /// يُستخدم consumedCost من StayBalanceCalculator بدلاً من حساب بسيط
   // ignore: unused_element
-double _getConsumedCost(Booking b) {
+  double _getConsumedCost(Booking b) {
     final coverage = _calculateCoverage(b);
     return coverage.consumedCost;
   }
@@ -172,7 +170,7 @@ double _getConsumedCost(Booking b) {
 
   /// تكلفة أيام التأخير
   // ignore: unused_element
-double _getOverdueCost(Booking b) {
+  double _getOverdueCost(Booking b) {
     final days = _getOverdueDays(b);
     if (days <= 0) {
       return 0;
@@ -198,10 +196,11 @@ double _getOverdueCost(Booking b) {
       // التي تم تحديثها آخر مرة تم فيها فتح الشاشة أو إجراء عملية.
 
       // جلب جميع تعديلات الأسعار النشطة وتجميعها حسب معرّف الحجز فقط
-      final allAdjustments = await (db.select(db.bookingPriceAdjustments)
-            ..where((a) => a.isActive.equals(true))
-            ..where((a) => a.deletedAt.isNull()))
-          .get();
+      final allAdjustments =
+          await (db.select(db.bookingPriceAdjustments)
+                ..where((a) => a.isActive.equals(true))
+                ..where((a) => a.deletedAt.isNull()))
+              .get();
 
       final grouped = <int, List<BookingPriceAdjustment>>{};
       for (final adj in allAdjustments) {
@@ -295,16 +294,8 @@ double _getOverdueCost(Booking b) {
       titleColor: Colors.black,
       subtitleColor: Colors.black,
       actions: [
-        IconButton(
-          icon: const Icon(Icons.print_outlined),
-          onPressed: _exportAllBookingsPdf,
-          tooltip: 'طباعة التقرير',
-        ),
-        IconButton(
-          icon: const Icon(Icons.refresh),
-          onPressed: _refreshData,
-          tooltip: 'تحديث البيانات',
-        ),
+        IconButton(icon: const Icon(Icons.print_outlined), onPressed: _exportAllBookingsPdf, tooltip: 'طباعة التقرير'),
+        IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData, tooltip: 'تحديث البيانات'),
       ],
       body: Column(
         children: [
@@ -319,7 +310,10 @@ double _getOverdueCost(Booking b) {
                       children: [
                         CircularProgressIndicator(),
                         SizedBox(height: 12),
-                        Text('جاري حساب البيانات...', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                        Text(
+                          'جاري حساب البيانات...',
+                          style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                        ),
                       ],
                     ),
                   )
@@ -333,9 +327,16 @@ double _getOverdueCost(Booking b) {
                           children: [
                             const Icon(Icons.error_outline, size: 48, color: Colors.red),
                             const SizedBox(height: 12),
-                            const Text('خطأ في تحميل البيانات', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                            const Text(
+                              'خطأ في تحميل البيانات',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                            ),
                             const SizedBox(height: 8),
-                            Text('$e', style: const TextStyle(fontSize: 12, color: Colors.grey), textAlign: TextAlign.center),
+                            Text(
+                              '$e',
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              textAlign: TextAlign.center,
+                            ),
                             const SizedBox(height: 16),
                             FilledButton(onPressed: _refreshData, child: const Text('إعادة المحاولة')),
                           ],
@@ -357,9 +358,7 @@ double _getOverdueCost(Booking b) {
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2)),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
       ),
       child: Column(
         children: [
@@ -370,7 +369,10 @@ double _getOverdueCost(Booking b) {
               hintStyle: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey[500]),
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(icon: const Icon(Icons.clear, size: 20), onPressed: () => setState(() => _searchQuery = ''))
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: () => setState(() => _searchQuery = ''),
+                    )
                   : null,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -411,9 +413,20 @@ double _getOverdueCost(Booking b) {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(_showOnlyActive ? Icons.check_circle : Icons.circle_outlined, size: 16, color: _showOnlyActive ? Colors.blue : Colors.grey),
+                        Icon(
+                          _showOnlyActive ? Icons.check_circle : Icons.circle_outlined,
+                          size: 16,
+                          color: _showOnlyActive ? Colors.blue : Colors.grey,
+                        ),
                         const SizedBox(width: 8),
-                        Text('النزلاء الحاليين فقط', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _showOnlyActive ? Colors.blue.shade700 : Colors.grey.shade700)),
+                        Text(
+                          'النزلاء الحاليين فقط',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: _showOnlyActive ? Colors.blue.shade700 : Colors.grey.shade700,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -482,9 +495,17 @@ double _getOverdueCost(Booking b) {
             children: [
               const Icon(Icons.error_outline, size: 48, color: Colors.orange),
               const SizedBox(height: 12),
-              const Text('حدث خطأ أثناء عرض التقرير', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+              const Text(
+                'حدث خطأ أثناء عرض التقرير',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+              ),
               const SizedBox(height: 8),
-              Text('$e', style: const TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center, maxLines: 3),
+              Text(
+                '$e',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                textAlign: TextAlign.center,
+                maxLines: 3,
+              ),
               const SizedBox(height: 16),
               FilledButton(onPressed: _refreshData, child: const Text('إعادة المحاولة')),
             ],
@@ -504,7 +525,10 @@ double _getOverdueCost(Booking b) {
           children: [
             Icon(Icons.search_off, size: 48, color: Colors.grey.shade300),
             const SizedBox(height: 12),
-            const Text('لا توجد بيانات تطابق معايير البحث', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            const Text(
+              'لا توجد بيانات تطابق معايير البحث',
+              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
       );
@@ -512,8 +536,14 @@ double _getOverdueCost(Booking b) {
 
     final totalDue = filtered.fold(0.0, (s, b) => s + b.totalDueCached);
     final totalPaid = filtered.fold(0.0, (s, b) => s + b.totalPaidCached);
-    final totalRemaining = filtered.fold(0.0, (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0));
-    final totalCredit = filtered.fold(0.0, (s, b) => s + (b.remainingBalanceCached < 0 ? -b.remainingBalanceCached : 0));
+    final totalRemaining = filtered.fold(
+      0.0,
+      (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0),
+    );
+    final totalCredit = filtered.fold(
+      0.0,
+      (s, b) => s + (b.remainingBalanceCached < 0 ? -b.remainingBalanceCached : 0),
+    );
 
     return Column(
       children: [
@@ -552,7 +582,10 @@ double _getOverdueCost(Booking b) {
       children: [
         Text(label, style: const TextStyle(color: Colors.white70, fontSize: 9)),
         const SizedBox(height: 2),
-        Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.bold, fontSize: 12)),
+        Text(
+          value,
+          style: TextStyle(color: valueColor, fontWeight: FontWeight.bold, fontSize: 12),
+        ),
       ],
     );
   }
@@ -624,15 +657,25 @@ double _getOverdueCost(Booking b) {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(color: Colors.blue.shade700, borderRadius: BorderRadius.circular(8)),
-            child: Text('غرفة ${b.roomNumber}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+            child: Text(
+              'غرفة ${b.roomNumber}',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(b.guestName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis),
-                Text('سعر الليلة: ${CurrencyFormatter.formatAmount(nightlyRate)} ريال', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                Text(
+                  b.guestName,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'سعر الليلة: ${CurrencyFormatter.formatAmount(nightlyRate)} ريال',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                ),
               ],
             ),
           ),
@@ -646,8 +689,14 @@ double _getOverdueCost(Booking b) {
             ),
             child: Column(
               children: [
-                Text(remainingLabel, style: TextStyle(fontSize: 8, color: remainingColor, fontWeight: FontWeight.bold)),
-                Text(CurrencyFormatter.formatAmount(displayRemaining), style: TextStyle(fontSize: 12, color: remainingColor, fontWeight: FontWeight.bold)),
+                Text(
+                  remainingLabel,
+                  style: TextStyle(fontSize: 8, color: remainingColor, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  CurrencyFormatter.formatAmount(displayRemaining),
+                  style: TextStyle(fontSize: 12, color: remainingColor, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
@@ -685,9 +734,7 @@ double _getOverdueCost(Booking b) {
           decoration: BoxDecoration(
             color: isAutoOverdue ? Colors.orange.shade50 : Colors.blue.shade50,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isAutoOverdue ? Colors.orange.shade200 : Colors.blue.shade200,
-            ),
+            border: Border.all(color: isAutoOverdue ? Colors.orange.shade200 : Colors.blue.shade200),
           ),
           child: Row(
             children: [
@@ -728,10 +775,7 @@ double _getOverdueCost(Booking b) {
               if (isAutoOverdue && autoOverdueDays > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade700,
-                    borderRadius: BorderRadius.circular(5),
-                  ),
+                  decoration: BoxDecoration(color: Colors.orange.shade700, borderRadius: BorderRadius.circular(5)),
                   child: Text(
                     '+$autoOverdueDays يوم تمديد',
                     style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
@@ -783,9 +827,18 @@ double _getOverdueCost(Booking b) {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('تغطية التكاليف الحالية', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
-              Text('${paidPercent.toStringAsFixed(0)}%',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: paidPercent >= 100 ? Colors.green : Colors.orange),),
+              Text(
+                'تغطية التكاليف الحالية',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+              ),
+              Text(
+                '${paidPercent.toStringAsFixed(0)}%',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: paidPercent >= 100 ? Colors.green : Colors.orange,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 3),
@@ -870,8 +923,14 @@ double _getOverdueCost(Booking b) {
       ),
       child: Column(
         children: [
-          Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
-          Text(label, style: TextStyle(fontSize: 9, color: color.withValues(alpha: 0.8), fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color),
+          ),
+          Text(
+            label,
+            style: TextStyle(fontSize: 9, color: color.withValues(alpha: 0.8), fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
@@ -880,9 +939,15 @@ double _getOverdueCost(Booking b) {
   Widget _buildAmountDetail(String label, double value, Color color) {
     return Column(
       children: [
-        Text(CurrencyFormatter.formatAmount(value), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+        Text(
+          CurrencyFormatter.formatAmount(value),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+        ),
         const SizedBox(height: 1),
-        Text(label, style: const TextStyle(fontSize: 8, color: Colors.black54, fontWeight: FontWeight.w500)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 8, color: Colors.black54, fontWeight: FontWeight.w500),
+        ),
       ],
     );
   }
@@ -908,10 +973,18 @@ double _getOverdueCost(Booking b) {
             fonts: fonts,
             content: [
               _buildPdfInfoRow(fonts, 'تاريخ الوصول:', _dateFormatter.format(coverage.checkinDate)),
-              _buildPdfInfoRow(fonts, 'تاريخ المغادرة المتوقع (يدوي):', coverage.formatDate(coverage.manualCheckoutDate)),
+              _buildPdfInfoRow(
+                fonts,
+                'تاريخ المغادرة المتوقع (يدوي):',
+                coverage.formatDate(coverage.manualCheckoutDate),
+              ),
               _buildPdfInfoRow(fonts, 'عدد الأيام المقضية حتى الآن:', '$actualDays يوم'),
               _buildPdfInfoRow(fonts, 'الأيام المتبقية حتى المغادرة:', '${coverage.manualNightsRemaining} يوم'),
-              _buildPdfInfoRow(fonts, 'سعر الغرفة لليلة الواحدة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
+              _buildPdfInfoRow(
+                fonts,
+                'سعر الغرفة لليلة الواحدة:',
+                '${CurrencyFormatter.formatAmount(nightlyRate)} ريال',
+              ),
               pw.Divider(color: const PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
               // ✅ عرض الإجمالي والمبلغ المتبقي في سطر واحد
               pw.Row(
@@ -921,8 +994,18 @@ double _getOverdueCost(Booking b) {
                     child: pw.Row(
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                       children: [
-                        pw.Text('إجمالي تكلفة الإقامة:', style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: const PdfColor(0.15, 0.15, 0.15))),
-                        pw.Text('${CurrencyFormatter.formatAmount(consumedCost)} ريال', style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: const PdfColor(0, 0, 0))),
+                        pw.Text(
+                          'إجمالي تكلفة الإقامة:',
+                          style: pw.TextStyle(
+                            font: fonts.regular,
+                            fontSize: 11,
+                            color: const PdfColor(0.15, 0.15, 0.15),
+                          ),
+                        ),
+                        pw.Text(
+                          '${CurrencyFormatter.formatAmount(consumedCost)} ريال',
+                          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: const PdfColor(0, 0, 0)),
+                        ),
                       ],
                     ),
                   ),
@@ -933,11 +1016,23 @@ double _getOverdueCost(Booking b) {
                       children: [
                         pw.Text(
                           b.remainingBalanceCached < 0 ? 'المتبقي (له):' : 'المتبقي (عليه):',
-                          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.7, 0.3) : const PdfColor(0.9, 0.2, 0.2)),
+                          style: pw.TextStyle(
+                            font: fonts.bold,
+                            fontSize: 11,
+                            color: b.remainingBalanceCached < 0
+                                ? const PdfColor(0.0, 0.7, 0.3)
+                                : const PdfColor(0.9, 0.2, 0.2),
+                          ),
                         ),
                         pw.Text(
                           '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
-                          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.7, 0.3) : const PdfColor(0.9, 0.2, 0.2)),
+                          style: pw.TextStyle(
+                            font: fonts.bold,
+                            fontSize: 11,
+                            color: b.remainingBalanceCached < 0
+                                ? const PdfColor(0.0, 0.7, 0.3)
+                                : const PdfColor(0.9, 0.2, 0.2),
+                          ),
                         ),
                       ],
                     ),
@@ -945,7 +1040,12 @@ double _getOverdueCost(Booking b) {
                 ],
               ),
               pw.Divider(color: const PdfColor(0.85, 0.85, 0.85), thickness: 0.3),
-              _buildPdfInfoRow(fonts, 'إجمالي المبالغ المدفوعة:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: const PdfColor(0.0, 0.5, 0.2)),
+              _buildPdfInfoRow(
+                fonts,
+                'إجمالي المبالغ المدفوعة:',
+                '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال',
+                valueColor: const PdfColor(0.0, 0.5, 0.2),
+              ),
             ],
           ),
         ];
@@ -960,12 +1060,15 @@ double _getOverdueCost(Booking b) {
 
         pdfContent.add(
           epdf.EnhancedPdfUtils.buildInfoCard(
-            title: isAutoOverdue
-                ? 'المغادرة المخططة (مُمدَّدة تلقائياً)'
-                : 'المغادرة المخططة (محسوبة من المدفوعات)',
+            title: isAutoOverdue ? 'المغادرة المخططة (مُمدَّدة تلقائياً)' : 'المغادرة المخططة (محسوبة من المدفوعات)',
             fonts: fonts,
             content: [
-              _buildPdfInfoRow(fonts, 'إجمالي المدفوع:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: const PdfColor(0.0, 0.5, 0.8)),
+              _buildPdfInfoRow(
+                fonts,
+                'إجمالي المدفوع:',
+                '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال',
+                valueColor: const PdfColor(0.0, 0.5, 0.8),
+              ),
               _buildPdfInfoRow(fonts, 'سعر الليلة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
               _buildPdfInfoRow(fonts, 'الليالي المدفوعة:', '${coverage.totalPaidNights} ليلة'),
               _buildPdfInfoRow(
@@ -974,17 +1077,47 @@ double _getOverdueCost(Booking b) {
                 _dateFormatter.format(plannedCheckout),
                 valueColor: const PdfColor(0.0, 0.6, 0.3),
               ),
-              _buildPdfInfoRow(fonts, 'تكلفة الإقامة المستهلكة:', '${CurrencyFormatter.formatAmount(coverage.consumedCost)} ريال'),
-              _buildPdfInfoRow(fonts, 'الرصيد الفعلي:', '${CurrencyFormatter.formatAmount(coverage.effectiveBalance)} ريال',
-                  valueColor: coverage.effectiveBalance >= 0 ? const PdfColor(0.0, 0.7, 0.3) : const PdfColor(0.9, 0.3, 0.1),),
+              _buildPdfInfoRow(
+                fonts,
+                'تكلفة الإقامة المستهلكة:',
+                '${CurrencyFormatter.formatAmount(coverage.consumedCost)} ريال',
+              ),
+              _buildPdfInfoRow(
+                fonts,
+                'الرصيد الفعلي:',
+                '${CurrencyFormatter.formatAmount(coverage.effectiveBalance)} ريال',
+                valueColor: coverage.effectiveBalance >= 0
+                    ? const PdfColor(0.0, 0.7, 0.3)
+                    : const PdfColor(0.9, 0.3, 0.1),
+              ),
               if (isAutoOverdue && autoOverdueDays > 0) ...[
                 pw.Divider(color: const PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
-                _buildPdfInfoRow(fonts, 'تمديد تلقائي:', '+$autoOverdueDays يوم', valueColor: const PdfColor(0.9, 0.5, 0.1)),
-                _buildPdfInfoRow(fonts, 'تكلفة التمديد:', '${CurrencyFormatter.formatAmount(autoOverdueCost)} ريال', valueColor: const PdfColor(0.9, 0.3, 0.1)),
-                _buildPdfInfoRow(fonts, 'ملاحظة:', 'المغادرة يدوياً فقط — لا يتم إخراج النزيل تلقائياً', valueColor: const PdfColor(0.4, 0.4, 0.4)),
+                _buildPdfInfoRow(
+                  fonts,
+                  'تمديد تلقائي:',
+                  '+$autoOverdueDays يوم',
+                  valueColor: const PdfColor(0.9, 0.5, 0.1),
+                ),
+                _buildPdfInfoRow(
+                  fonts,
+                  'تكلفة التمديد:',
+                  '${CurrencyFormatter.formatAmount(autoOverdueCost)} ريال',
+                  valueColor: const PdfColor(0.9, 0.3, 0.1),
+                ),
+                _buildPdfInfoRow(
+                  fonts,
+                  'ملاحظة:',
+                  'المغادرة يدوياً فقط — لا يتم إخراج النزيل تلقائياً',
+                  valueColor: const PdfColor(0.4, 0.4, 0.4),
+                ),
               ],
               if (coverage.surplusAfterAllNights > 0)
-                _buildPdfInfoRow(fonts, 'فائض:', '${CurrencyFormatter.formatAmount(coverage.surplusAfterAllNights)} ريال', valueColor: const PdfColor(0.0, 0.7, 0.3)),
+                _buildPdfInfoRow(
+                  fonts,
+                  'فائض:',
+                  '${CurrencyFormatter.formatAmount(coverage.surplusAfterAllNights)} ريال',
+                  valueColor: const PdfColor(0.0, 0.7, 0.3),
+                ),
             ],
           ),
         );
@@ -993,18 +1126,25 @@ double _getOverdueCost(Booking b) {
           pw.SizedBox(height: 20),
 
           // ─── جدول المدفوعات ───
-          pw.Text('سجل المدفوعات التفصيلي', style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: const PdfColor(0.0, 0.12, 0.36))),
+          pw.Text(
+            'سجل المدفوعات التفصيلي',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: const PdfColor(0.0, 0.12, 0.36)),
+          ),
           pw.SizedBox(height: 10),
           epdf.EnhancedPdfUtils.buildProfessionalTable(
             fonts: fonts,
             headers: ['التاريخ', 'المبلغ', 'طريقة الدفع', 'رقم المرجع', 'ملاحظات'],
-            data: payments.map((p) => [
-              p.paymentDate.split('T').first,
-              CurrencyFormatter.formatAmount(p.amount),
-              p.paymentMethod,
-              p.referenceNumber ?? '---',
-              p.notes ?? '',
-            ],).toList(),
+            data: payments
+                .map(
+                  (p) => [
+                    p.paymentDate.split('T').first,
+                    CurrencyFormatter.formatAmount(p.amount),
+                    p.paymentMethod,
+                    p.referenceNumber ?? '---',
+                    p.notes ?? '',
+                  ],
+                )
+                .toList(),
             columnWidths: [80, 80, 70, 70, -1],
           ),
 
@@ -1018,9 +1158,18 @@ double _getOverdueCost(Booking b) {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text('ملاحظات:', style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
-                  pw.Text('يُحتسب اليوم الفندقي من الساعة 2:00 ظهراً.', style: pw.TextStyle(font: fonts.regular, fontSize: 9)),
-                  pw.Text('تاريخ المغادرة التلقائي يُحسب من إجمالي المدفوعات التراكمية مقسومة على سعر الليلة.', style: pw.TextStyle(font: fonts.regular, fontSize: 9)),
-                  pw.Text('أي دفعة جديدة تُحدّث تاريخ المغادرة التلقائي فوراً.', style: pw.TextStyle(font: fonts.regular, fontSize: 9)),
+                  pw.Text(
+                    'يُحتسب اليوم الفندقي من الساعة 2:00 ظهراً.',
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 9),
+                  ),
+                  pw.Text(
+                    'تاريخ المغادرة التلقائي يُحسب من إجمالي المدفوعات التراكمية مقسومة على سعر الليلة.',
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 9),
+                  ),
+                  pw.Text(
+                    'أي دفعة جديدة تُحدّث تاريخ المغادرة التلقائي فوراً.',
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 9),
+                  ),
                 ],
               ),
               pw.Column(
@@ -1037,7 +1186,12 @@ double _getOverdueCost(Booking b) {
           pw.Center(
             child: pw.Text(
               'شكراً لاختياركم فندق مارينا - نتمنى لكم إقامة سعيدة',
-              style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: const PdfColor(0.4, 0.4, 0.4), fontStyle: pw.FontStyle.italic),
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: 10,
+                color: const PdfColor(0.4, 0.4, 0.4),
+                fontStyle: pw.FontStyle.italic,
+              ),
             ),
           ),
         ]);
@@ -1055,8 +1209,14 @@ double _getOverdueCost(Booking b) {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(label, style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: const PdfColor(0.15, 0.15, 0.15))),
-          pw.Text(value, style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: valueColor ?? const PdfColor(0, 0, 0))),
+          pw.Text(
+            label,
+            style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: const PdfColor(0.15, 0.15, 0.15)),
+          ),
+          pw.Text(
+            value,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: valueColor ?? const PdfColor(0, 0, 0)),
+          ),
         ],
       ),
     );
@@ -1066,24 +1226,26 @@ double _getOverdueCost(Booking b) {
 
   Future<void> _exportAllBookingsPdf() async {
     final db = ref.read(databaseProvider);
-    final allBookings = await (db.select(db.bookings)
-          ..where((b) => b.deletedAt.isNull()))
-        .get();
+    final allBookings = await (db.select(db.bookings)..where((b) => b.deletedAt.isNull())).get();
 
     final filtered = _filterAndSort(allBookings);
     if (filtered.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('لا توجد بيانات للتصدير')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد بيانات للتصدير')));
       }
       return;
     }
 
     final totalDue = filtered.fold(0.0, (s, b) => s + b.totalDueCached);
     final totalPaid = filtered.fold(0.0, (s, b) => s + b.totalPaidCached);
-    final totalRemaining = filtered.fold(0.0, (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0));
-    final totalCredit = filtered.fold(0.0, (s, b) => s + (b.remainingBalanceCached < 0 ? -b.remainingBalanceCached : 0));
+    final totalRemaining = filtered.fold(
+      0.0,
+      (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0),
+    );
+    final totalCredit = filtered.fold(
+      0.0,
+      (s, b) => s + (b.remainingBalanceCached < 0 ? -b.remainingBalanceCached : 0),
+    );
 
     final now = DateTime.now();
     final dateStr = DateFormat('yyyy/MM/dd HH:mm').format(now);
@@ -1101,11 +1263,31 @@ double _getOverdueCost(Booking b) {
             content: [
               _buildPdfInfoRow(fonts, 'تاريخ التقرير:', dateStr),
               _buildPdfInfoRow(fonts, 'عدد النزلاء:', '${filtered.length}', valueColor: const PdfColor(0.0, 0.4, 0.8)),
-              _buildPdfInfoRow(fonts, 'إجمالي المستحق:', '${CurrencyFormatter.formatAmount(totalDue)} ريال', valueColor: const PdfColor(0.6, 0.4, 0.0)),
-              _buildPdfInfoRow(fonts, 'إجمالي المحصل:', '${CurrencyFormatter.formatAmount(totalPaid)} ريال', valueColor: const PdfColor(0.0, 0.6, 0.2)),
-              _buildPdfInfoRow(fonts, 'إجمالي المتبقي:', '${CurrencyFormatter.formatAmount(totalRemaining)} ريال', valueColor: const PdfColor(0.9, 0.3, 0.1)),
+              _buildPdfInfoRow(
+                fonts,
+                'إجمالي المستحق:',
+                '${CurrencyFormatter.formatAmount(totalDue)} ريال',
+                valueColor: const PdfColor(0.6, 0.4, 0.0),
+              ),
+              _buildPdfInfoRow(
+                fonts,
+                'إجمالي المحصل:',
+                '${CurrencyFormatter.formatAmount(totalPaid)} ريال',
+                valueColor: const PdfColor(0.0, 0.6, 0.2),
+              ),
+              _buildPdfInfoRow(
+                fonts,
+                'إجمالي المتبقي:',
+                '${CurrencyFormatter.formatAmount(totalRemaining)} ريال',
+                valueColor: const PdfColor(0.9, 0.3, 0.1),
+              ),
               if (totalCredit > 0)
-                _buildPdfInfoRow(fonts, 'إجمالي الزيادة:', '${CurrencyFormatter.formatAmount(totalCredit)} ريال', valueColor: const PdfColor(0.0, 0.6, 0.6)),
+                _buildPdfInfoRow(
+                  fonts,
+                  'إجمالي الزيادة:',
+                  '${CurrencyFormatter.formatAmount(totalCredit)} ريال',
+                  valueColor: const PdfColor(0.0, 0.6, 0.6),
+                ),
             ],
           ),
         ];
@@ -1134,8 +1316,18 @@ double _getOverdueCost(Booking b) {
                       child: pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
-                          pw.Text('إجمالي العقد:', style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: const PdfColor(0.15, 0.15, 0.15))),
-                          pw.Text('${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال', style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: const PdfColor(0, 0, 0))),
+                          pw.Text(
+                            'إجمالي العقد:',
+                            style: pw.TextStyle(
+                              font: fonts.regular,
+                              fontSize: 10,
+                              color: const PdfColor(0.15, 0.15, 0.15),
+                            ),
+                          ),
+                          pw.Text(
+                            '${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال',
+                            style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: const PdfColor(0, 0, 0)),
+                          ),
                         ],
                       ),
                     ),
@@ -1146,11 +1338,23 @@ double _getOverdueCost(Booking b) {
                         children: [
                           pw.Text(
                             b.remainingBalanceCached < 0 ? 'المتبقي (له):' : 'المتبقي (عليه):',
-                            style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.6, 0.3) : const PdfColor(0.9, 0.2, 0.2)),
+                            style: pw.TextStyle(
+                              font: fonts.bold,
+                              fontSize: 10,
+                              color: b.remainingBalanceCached < 0
+                                  ? const PdfColor(0.0, 0.6, 0.3)
+                                  : const PdfColor(0.9, 0.2, 0.2),
+                            ),
                           ),
                           pw.Text(
                             '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
-                            style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: b.remainingBalanceCached < 0 ? const PdfColor(0.0, 0.6, 0.3) : const PdfColor(0.9, 0.2, 0.2)),
+                            style: pw.TextStyle(
+                              font: fonts.bold,
+                              fontSize: 10,
+                              color: b.remainingBalanceCached < 0
+                                  ? const PdfColor(0.0, 0.6, 0.3)
+                                  : const PdfColor(0.9, 0.2, 0.2),
+                            ),
                           ),
                         ],
                       ),
@@ -1158,15 +1362,35 @@ double _getOverdueCost(Booking b) {
                   ],
                 ),
                 pw.Divider(color: const PdfColor(0.85, 0.85, 0.85), thickness: 0.3),
-                _buildPdfInfoRow(fonts, 'إجمالي المدفوع:', '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال', valueColor: const PdfColor(0.0, 0.5, 0.2)),
+                _buildPdfInfoRow(
+                  fonts,
+                  'إجمالي المدفوع:',
+                  '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال',
+                  valueColor: const PdfColor(0.0, 0.5, 0.2),
+                ),
                 if (coverage.hasPayments) ...[
                   pw.Divider(color: const PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
-                  _buildPdfInfoRow(fonts, 'المغادرة التلقائية:', _dateFormatter.format(coverage.autoCheckoutDate), valueColor: const PdfColor(0.0, 0.4, 0.7)),
+                  _buildPdfInfoRow(
+                    fonts,
+                    'المغادرة التلقائية:',
+                    _dateFormatter.format(coverage.autoCheckoutDate),
+                    valueColor: const PdfColor(0.0, 0.4, 0.7),
+                  ),
                   _buildPdfInfoRow(fonts, 'الليالي المدفوعة:', '${coverage.totalPaidNights} ليلة'),
                   if (coverage.isAutoExtended)
-                    _buildPdfInfoRow(fonts, 'تمديد تلقائي:', '+${coverage.extraNightsBeyondManual} يوم', valueColor: const PdfColor(0.0, 0.7, 0.3)),
+                    _buildPdfInfoRow(
+                      fonts,
+                      'تمديد تلقائي:',
+                      '+${coverage.extraNightsBeyondManual} يوم',
+                      valueColor: const PdfColor(0.0, 0.7, 0.3),
+                    ),
                   if (coverage.uncoveredDays > 0)
-                    _buildPdfInfoRow(fonts, 'أيام غير مغطاة:', '${coverage.uncoveredDays} ليلة', valueColor: const PdfColor(0.9, 0.3, 0.1)),
+                    _buildPdfInfoRow(
+                      fonts,
+                      'أيام غير مغطاة:',
+                      '${coverage.uncoveredDays} ليلة',
+                      valueColor: const PdfColor(0.9, 0.3, 0.1),
+                    ),
                 ],
               ],
             ),

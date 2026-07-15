@@ -3,7 +3,6 @@ import '../utils/theme.dart';
 import 'admin_sidebar.dart';
 
 class AdminLayout extends StatelessWidget {
-
   const AdminLayout({
     super.key,
     required this.body,
@@ -33,19 +32,13 @@ class AdminLayout extends StatelessWidget {
         child: Scaffold(
           body: Row(
             children: [
-              AdminSidebar(
-                currentRoute: currentRoute,
-                onRouteSelected: onRouteSelected ?? (route) {},
-              ),
+              AdminSidebar(currentRoute: currentRoute, onRouteSelected: onRouteSelected ?? (route) {}),
               Expanded(
                 child: Column(
                   children: [
                     if (title != null || actions != null) _buildTopBar(context),
                     Expanded(
-                      child: ColoredBox(
-                        color: Theme.of(context).scaffoldBackgroundColor,
-                        child: body,
-                      ),
+                      child: ColoredBox(color: Theme.of(context).scaffoldBackgroundColor, child: body),
                     ),
                   ],
                 ),
@@ -61,10 +54,7 @@ class AdminLayout extends StatelessWidget {
         textDirection: TextDirection.rtl,
         child: Scaffold(
           appBar: appBar ?? _buildMobileAppBar(context),
-          drawer: AdminSidebar(
-            currentRoute: currentRoute,
-            onRouteSelected: onRouteSelected ?? (route) {},
-          ),
+          drawer: AdminSidebar(currentRoute: currentRoute, onRouteSelected: onRouteSelected ?? (route) {}),
           body: ColoredBox(color: Theme.of(context).scaffoldBackgroundColor, child: body),
           floatingActionButton: floatingActionButton,
         ),
@@ -78,11 +68,7 @@ class AdminLayout extends StatelessWidget {
       height: 60,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: isDark ? const Color(0xFF3D2048) : const Color(0xFFE0D0EA),
-          ),
-        ),
+        border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF3D2048) : const Color(0xFFE0D0EA))),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
@@ -136,7 +122,6 @@ class AdminLayout extends StatelessWidget {
 
 // Bootstrap-like components for matching PHP design
 class AdminCard extends StatelessWidget {
-
   const AdminCard({
     super.key,
     required this.child,
@@ -169,21 +154,12 @@ class AdminCard extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF2C1E38) : AppColors.lightGray,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(8),
-                  topRight: Radius.circular(8),
-                ),
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
               ),
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      title!,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: Text(title!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                   if (trailing != null) trailing!,
                 ],
@@ -198,7 +174,6 @@ class AdminCard extends StatelessWidget {
 }
 
 class StatCard extends StatelessWidget {
-
   const StatCard({
     super.key,
     required this.title,
@@ -236,29 +211,13 @@ class StatCard extends StatelessWidget {
                 children: [
                   Text(
                     value,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
+                  Text(title, style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.9))),
                   if (subtitle != null) ...[
                     const SizedBox(height: 4),
-                    Text(
-                      subtitle!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
-                    ),
+                    Text(subtitle!, style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.7))),
                   ],
                 ],
               ),
@@ -279,7 +238,6 @@ class StatCard extends StatelessWidget {
 }
 
 class AdminTable extends StatefulWidget {
-
   const AdminTable({
     super.key,
     required this.headers,
@@ -325,31 +283,18 @@ class _AdminTableState extends State<AdminTable> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.chevron_right, size: 20),
-                      onPressed: _currentPage > 0
-                          ? () => setState(() => _currentPage--)
-                          : null,
+                      onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
                       tooltip: 'السابق',
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
-                      ),
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                     ),
-                    Text(
-                      '${_currentPage + 1}/$totalPages',
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                    Text('${_currentPage + 1}/$totalPages', style: const TextStyle(fontSize: 12)),
                     IconButton(
                       icon: const Icon(Icons.chevron_left, size: 20),
-                      onPressed: _currentPage < totalPages - 1
-                          ? () => setState(() => _currentPage++)
-                          : null,
+                      onPressed: _currentPage < totalPages - 1 ? () => setState(() => _currentPage++) : null,
                       tooltip: 'التالي',
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
-                      ),
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                     ),
                   ],
                 ),
@@ -360,14 +305,10 @@ class _AdminTableState extends State<AdminTable> {
           scrollDirection: Axis.horizontal,
           child: DataTable(
             headingRowColor: WidgetStateProperty.all(
-              Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF2C1E38)
-                  : AppColors.darkGray,
+              Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2C1E38) : AppColors.darkGray,
             ),
             headingTextStyle: TextStyle(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFFE0D5F0)
-                  : Colors.white,
+              color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFE0D5F0) : Colors.white,
               fontWeight: FontWeight.w600,
             ),
             decoration: widget.bordered
@@ -380,18 +321,14 @@ class _AdminTableState extends State<AdminTable> {
                     borderRadius: BorderRadius.circular(8),
                   )
                 : null,
-            columns: widget.headers
-                .map((header) => DataColumn(label: Text(header)))
-                .toList(),
+            columns: widget.headers.map((header) => DataColumn(label: Text(header))).toList(),
             rows: visibleRows
                 .asMap()
                 .entries
                 .map(
                   (entry) => DataRow(
                     color: widget.striped && (startIndex + entry.key).isOdd
-                        ? WidgetStateProperty.all(
-                            AppColors.lightGray.withValues(alpha: 0.3),
-                          )
+                        ? WidgetStateProperty.all(AppColors.lightGray.withValues(alpha: 0.3))
                         : null,
                     cells: entry.value.map(DataCell.new).toList(),
                   ),
@@ -405,7 +342,6 @@ class _AdminTableState extends State<AdminTable> {
 }
 
 class StatusBadge extends StatelessWidget {
-
   const StatusBadge({super.key, required this.text, required this.color});
 
   factory StatusBadge.success(String text) {
@@ -430,17 +366,10 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
       child: Text(
         text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
+        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
       ),
     );
   }

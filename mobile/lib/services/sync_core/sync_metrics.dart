@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// معلومات دورة مزامنة واحدة
 class SyncSession {
-
   SyncSession({
     required this.startTime,
     this.endTime,
@@ -44,7 +43,6 @@ class SyncSession {
 
 /// إحصائيات المزامنة
 class SyncStats {
-
   SyncStats({
     required this.totalSyncs,
     required this.successfulSyncs,
@@ -101,7 +99,6 @@ class SyncStats {
 /// metrics.recordSuccess(recordsSynced: 100);
 /// ```
 class SyncMetrics {
-
   SyncMetrics._();
   static SyncMetrics? _instance;
   // ignore: prefer_constructors_over_static_methods
@@ -161,9 +158,7 @@ class SyncMetrics {
     _addToHistory(session);
     _updateStats();
 
-    debugPrint(
-      '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error',
-    );
+    debugPrint('❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error');
   }
 
   /// إضافة إلى السجل
@@ -200,10 +195,7 @@ class SyncMetrics {
     final successful = _history.where((s) => s.success).toList();
     final failed = _history.where((s) => !s.success).toList();
 
-    final totalDuration = _history.fold<Duration>(
-      Duration.zero,
-      (sum, session) => sum + session.duration,
-    );
+    final totalDuration = _history.fold<Duration>(Duration.zero, (sum, session) => sum + session.duration);
 
     final avgDuration = totalDuration ~/ _history.length;
 
@@ -214,10 +206,7 @@ class SyncMetrics {
       averageDuration: avgDuration,
       successRate: successful.length / _history.length,
       totalRecordsSynced: _history.fold(0, (sum, s) => sum + s.recordsSynced),
-      totalConflictsResolved: _history.fold(
-        0,
-        (sum, s) => sum + s.conflictsResolved,
-      ),
+      totalConflictsResolved: _history.fold(0, (sum, s) => sum + s.conflictsResolved),
       lastSync: _history.last,
     );
   }

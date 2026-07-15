@@ -18,7 +18,6 @@ import 'sync_locks.dart';
 import 'unified_sync_orchestrator.dart';
 
 class RetryConfig {
-
   const RetryConfig({
     this.maxRetries = 5,
     this.baseDelaySeconds = 2,
@@ -31,14 +30,12 @@ class RetryConfig {
   final double backoffMultiplier;
 
   int calculateDelay(int attemptNumber) {
-    final delay =
-        baseDelaySeconds * pow(backoffMultiplier, attemptNumber).toInt();
+    final delay = baseDelaySeconds * pow(backoffMultiplier, attemptNumber).toInt();
     return min(delay, maxDelaySeconds);
   }
 }
 
 class AutoSyncEngineState {
-
   const AutoSyncEngineState({
     required this.isRunning,
     required this.hasNetworkConnection,
@@ -118,9 +115,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   static const String _prefsPullIntervalKey = 'auto_sync_engine_pull_interval';
   static const String _prefsRetryEnabledKey = 'auto_sync_engine_retry_enabled';
 
-  final RetryConfig _retryConfig = const RetryConfig(
-    
-  );
+  final RetryConfig _retryConfig = const RetryConfig();
 
   Stream<AutoSyncEngineState> get stateStream => _stateController.stream;
 
@@ -153,11 +148,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   ///
   /// يُرجع false إذا كانت البوّابة مشغولة (العملية لم تُنفّذ)، ويُرجع
   /// نتيجة syncNow الحقيقية إذا نُفّذت.
-  Future<bool> _guardedSyncNow({
-    bool push = true,
-    bool pull = true,
-    required String reason,
-  }) async {
+  Future<bool> _guardedSyncNow({bool push = true, bool pull = true, required String reason}) async {
     final result = await SyncGate.instance.runGuarded<bool>(
       operation: push && pull ? 'auto_sync' : (pull ? 'auto_pull' : 'auto_push'),
       source: 'google_drive_engine',
@@ -192,11 +183,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _logger = logger;
 
     _coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
-    await _coordinator!.initialize(
-      backupService: backupService,
-      database: database,
-      logger: logger,
-    );
+    await _coordinator!.initialize(backupService: backupService, database: database, logger: logger);
 
     _orchestrator = UnifiedSyncOrchestrator.instance;
     await _orchestrator.initialize(database: database);
@@ -257,9 +244,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     if (_isSignedIn && _hasNetworkConnection) {
       // ✅ نستخدم المنسق مباشرة بدلاً من _performInitialSync()
       // لتجنب تشغيل مزامنة Appwrite (outbox) عند بدء المحرك
-      await _coordinator!.performSync(
-        trigger: SyncTrigger.manual,
-      );
+      await _coordinator!.performSync(trigger: SyncTrigger.manual);
     }
 
     _log('✅ Auto Sync Engine started successfully');
@@ -315,9 +300,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
       (List<ConnectivityResult> results) async {
         final wasConnected = _hasNetworkConnection;
-        _hasNetworkConnection = results.any(
-          (r) => r != ConnectivityResult.none,
-        );
+        _hasNetworkConnection = results.any((r) => r != ConnectivityResult.none);
 
         _log('📡 Network status changed: $_hasNetworkConnection');
         _emitState();
@@ -354,27 +337,17 @@ class AutoSyncEngine with WidgetsBindingObserver {
           _lastError = null;
 
           if (result.pushedChanges != null && result.pushedChanges! > 0) {
-            _pendingChangesCount = max(
-              0,
-              _pendingChangesCount - result.pushedChanges!,
-            );
+            _pendingChangesCount = max(0, _pendingChangesCount - result.pushedChanges!);
           }
 
-          _log(
-            '✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}',
-          );
+          _log('✅ Sync succeeded: pushed=${result.pushedChanges}, pulled=${result.pulledChanges}');
         } else {
           _failedAttempts++;
           _lastError = result.error ?? result.message;
 
-          final errorDetails = result.error != null
-              ? '${result.message} - ${result.error}'
-              : result.message;
+          final errorDetails = result.error != null ? '${result.message} - ${result.error}' : result.message;
 
-          _log(
-            '❌ Sync failed (attempt $_failedAttempts): $errorDetails',
-            level: LogLevel.error,
-          );
+          _log('❌ Sync failed (attempt $_failedAttempts): $errorDetails', level: LogLevel.error);
 
           final prefs = SharedPreferences.getInstance();
           prefs.then((p) async {
@@ -382,10 +355,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
             if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
               await _scheduleRetry();
             } else if (_failedAttempts >= _retryConfig.maxRetries) {
-              _log(
-                '🚫 Max retries reached - stopping automatic retries',
-                level: LogLevel.warning,
-              );
+              _log('🚫 Max retries reached - stopping automatic retries', level: LogLevel.warning);
             }
           });
         }
@@ -403,9 +373,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
     _dataStreamSubscription?.cancel();
     _dataStreamSubscription = _coordinator!.syncResults.listen((result) {
-      if (result.success &&
-          result.pushedChanges != null &&
-          result.pushedChanges! > 0) {
+      if (result.success && result.pushedChanges != null && result.pushedChanges! > 0) {
         _log('📤 Data changes detected and pushed: ${result.pushedChanges}');
       }
     });
@@ -415,16 +383,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('❤️ Starting health check monitor...');
 
     _healthCheckTimer?.cancel();
-    _healthCheckTimer = Timer.periodic(
-      const Duration(minutes: 5),
-      (_) => _performHealthCheck(),
-    );
+    _healthCheckTimer = Timer.periodic(const Duration(minutes: 5), (_) => _performHealthCheck());
   }
 
   Future<void> _performHealthCheck() async {
-    final shouldRun = await SyncLocks.autoEngineLock.synchronized(
-      () => _isRunning,
-    );
+    final shouldRun = await SyncLocks.autoEngineLock.synchronized(() => _isRunning);
     if (!shouldRun) {
       return;
     }
@@ -454,10 +417,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
       if (!hadConnection || !wasSignedIn) {
         _log('❤️ Health check: connection/auth restored - triggering pull');
-        await _guardedSyncNow(
-          push: false,
-          reason: 'health_check_pull',
-        );
+        await _guardedSyncNow(push: false, reason: 'health_check_pull');
       }
     }
 
@@ -497,19 +457,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
     }
 
     if (_pendingChangesCount > 0) {
-      _log(
-        '📤 Syncing $_pendingChangesCount pending changes after network restore',
-      );
-      await _guardedSyncNow(
-        pull: false,
-        reason: 'network_restore_push',
-      );
+      _log('📤 Syncing $_pendingChangesCount pending changes after network restore');
+      await _guardedSyncNow(pull: false, reason: 'network_restore_push');
     } else {
       _log('📥 Checking for remote changes after network restore');
-      await _guardedSyncNow(
-        push: false,
-        reason: 'network_restore_pull',
-      );
+      await _guardedSyncNow(push: false, reason: 'network_restore_pull');
     }
   }
 
@@ -617,19 +569,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
     _emitState();
 
-    _log(
-      '💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)',
-    );
+    _log('💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)');
 
     _orchestrator.notifyLocalChange(table: table, operation: operation);
   }
 
   Future<void> _scheduleRetry() async {
     if (_failedAttempts >= _retryConfig.maxRetries) {
-      _log(
-        '🚫 Max retries reached - stopping retries',
-        level: LogLevel.warning,
-      );
+      _log('🚫 Max retries reached - stopping retries', level: LogLevel.warning);
       return;
     }
 
@@ -669,7 +616,6 @@ class AutoSyncEngine with WidgetsBindingObserver {
       await _guardedSyncNow(reason: 'auto_retry');
     });
   }
-
 
   Future<void> onSignInChanged(bool isSignedIn) async {
     _log('🔐 Sign-in status changed: $isSignedIn');
@@ -730,9 +676,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     await _orchestrator.setPullInterval(pullInterval);
 
     final strategy = await _conflictResolver!.getStrategy();
-    _log(
-      '⚙️ Settings loaded: debounce=${debounce}s, pull=${pullInterval}min, conflicts=$strategy',
-    );
+    _log('⚙️ Settings loaded: debounce=${debounce}s, pull=${pullInterval}min, conflicts=$strategy');
   }
 
   Future<void> setDebounceSeconds(int seconds) async {
@@ -776,31 +720,19 @@ class AutoSyncEngine with WidgetsBindingObserver {
     if (!syncEnabled) {
       const message = 'مزامنة Google Drive معطّلة';
       _log('⏸️ $message');
-      return SyncResult.failure(
-        message: message,
-        error: 'SyncDisabled',
-        phase: SyncPhase.idle,
-      );
+      return SyncResult.failure(message: message, error: 'SyncDisabled', phase: SyncPhase.idle);
     }
 
     if (!_hasNetworkConnection) {
       const message = 'لا يوجد اتصال بالإنترنت';
       _log('📴 $message');
-      return SyncResult.failure(
-        message: message,
-        error: 'NetworkUnavailable',
-        phase: SyncPhase.idle,
-      );
+      return SyncResult.failure(message: message, error: 'NetworkUnavailable', phase: SyncPhase.idle);
     }
 
     if (!_isSignedIn) {
       const message = 'غير مسجل الدخول في Google Drive';
       _log('🔐 $message');
-      return SyncResult.failure(
-        message: message,
-        error: 'NotSignedIn',
-        phase: SyncPhase.authenticating,
-      );
+      return SyncResult.failure(message: message, error: 'NotSignedIn', phase: SyncPhase.authenticating);
     }
 
     final ok = await _guardedSyncNow(reason: 'manual_force');
@@ -809,17 +741,12 @@ class AutoSyncEngine with WidgetsBindingObserver {
       return SyncResult.success(message: 'Sync completed successfully');
     }
 
-    return SyncResult.failure(
-      message: 'فشلت المزامنة',
-      error: 'UnifiedSyncFailed',
-      phase: SyncPhase.failed,
-    );
+    return SyncResult.failure(message: 'فشلت المزامنة', error: 'UnifiedSyncFailed', phase: SyncPhase.failed);
   }
 
   Future<Map<String, dynamic>> getEngineStatus() async {
     final coordinatorStatus = await _coordinator?.getStatus() ?? {};
-    final conflictStats =
-        await _conflictResolver?.getConflictStatistics() ?? {};
+    final conflictStats = await _conflictResolver?.getConflictStatistics() ?? {};
 
     return {
       'engine': {

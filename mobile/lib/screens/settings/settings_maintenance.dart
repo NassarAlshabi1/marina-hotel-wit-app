@@ -23,7 +23,6 @@ import '../../utils/env.dart';
 // ═══════════════════════════════════════════════════════════════
 
 class _SystemInfo {
-
   const _SystemInfo({
     required this.appVersion,
     required this.deviceModel,
@@ -58,12 +57,10 @@ class SettingsMaintenanceScreen extends ConsumerStatefulWidget {
   const SettingsMaintenanceScreen({super.key});
 
   @override
-  ConsumerState<SettingsMaintenanceScreen> createState() =>
-      _SettingsMaintenanceScreenState();
+  ConsumerState<SettingsMaintenanceScreen> createState() => _SettingsMaintenanceScreenState();
 }
 
-class _SettingsMaintenanceScreenState
-    extends ConsumerState<SettingsMaintenanceScreen> {
+class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceScreen> {
   _SystemInfo? _info;
   bool _isLoadingInfo = true;
   bool _isWorking = false;
@@ -109,17 +106,27 @@ class _SettingsMaintenanceScreenState
     // إجمالي السجلات (الجداول الرئيسية فقط)
     int totalRecords = 0;
     const mainTables = [
-      'rooms', 'bookings', 'booking_notes', 'employees',
-      'expenses', 'cash_transactions', 'payments', 'debts',
-      'booking_nights', 'hotel_day_ledger', 'shift_notes',
+      'rooms',
+      'bookings',
+      'booking_notes',
+      'employees',
+      'expenses',
+      'cash_transactions',
+      'payments',
+      'debts',
+      'booking_nights',
+      'hotel_day_ledger',
+      'shift_notes',
     ];
     for (final table in mainTables) {
       try {
-        final result = await db
-            .customSelect('SELECT COUNT(*) AS c FROM $table WHERE deleted_at IS NULL')
-            .getSingle();
+        final result = await db.customSelect('SELECT COUNT(*) AS c FROM $table WHERE deleted_at IS NULL').getSingle();
         final v = result.data['c'];
-        totalRecords += (v is int) ? v : (v is num) ? v.toInt() : 0;
+        totalRecords += (v is int)
+            ? v
+            : (v is num)
+            ? v.toInt()
+            : 0;
       } catch (_) {}
     }
 
@@ -287,9 +294,7 @@ class _SettingsMaintenanceScreenState
   Widget _buildSystemInfoCard() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -299,10 +304,7 @@ class _SettingsMaintenanceScreenState
               children: [
                 const Icon(Icons.info_outline, color: Colors.blue, size: 22),
                 const SizedBox(width: 8),
-                const Text(
-                  'معلومات النظام',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                ),
+                const Text('معلومات النظام', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                 const Spacer(),
                 if (!_isLoadingInfo)
                   IconButton(
@@ -316,10 +318,7 @@ class _SettingsMaintenanceScreenState
             const SizedBox(height: 12),
             if (_isLoadingInfo)
               const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: CircularProgressIndicator(),
-                ),
+                child: Padding(padding: EdgeInsets.symmetric(vertical: 20), child: CircularProgressIndicator()),
               )
             else if (_info != null)
               _buildRealSystemInfo(_info!)
@@ -344,18 +343,12 @@ class _SettingsMaintenanceScreenState
         _infoRow(
           Icons.storage,
           'قاعدة البيانات',
-          info.dbConnected
-              ? 'متصلة (إصدار ${info.dbSchemaVersion})'
-              : 'غير متصلة',
+          info.dbConnected ? 'متصلة (إصدار ${info.dbSchemaVersion})' : 'غير متصلة',
           valueColor: info.dbConnected ? Colors.green : Colors.red,
         ),
         _infoRow(Icons.sd_storage, 'حجم قاعدة البيانات', '$dbSizeMb MB'),
         _infoRow(Icons.table_chart, 'إجمالي السجلات', formattedRecords),
-        _infoRow(
-          Icons.sync,
-          'آخر مزامنة',
-          info.lastSyncTime ?? 'لم تتم بعد',
-        ),
+        _infoRow(Icons.sync, 'آخر مزامنة', info.lastSyncTime ?? 'لم تتم بعد'),
         _infoRow(
           Icons.outbox,
           'Outbox معلّق',
@@ -383,22 +376,14 @@ class _SettingsMaintenanceScreenState
           Expanded(
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade700,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
             ),
           ),
           Flexible(
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: valueColor ?? Colors.black87,
-              ),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: valueColor ?? Colors.black87),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -412,11 +397,7 @@ class _SettingsMaintenanceScreenState
   Widget _buildSectionTitle(String title, Color color) {
     return Text(
       title,
-      style: TextStyle(
-        fontSize: 17,
-        fontWeight: FontWeight.bold,
-        color: color,
-      ),
+      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: color),
     );
   }
 
@@ -470,10 +451,7 @@ class _SettingsMaintenanceScreenState
   }
 
   String _formatNumber(int n) {
-    return n.toString().replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]},',
-    );
+    return n.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
   }
 
   // ─── مساعد: مؤشر تقدم ─────────────────────────────────
@@ -507,9 +485,7 @@ class _SettingsMaintenanceScreenState
 
   void _showSnack(String message, {Color? color}) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: color),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
     }
   }
 
@@ -604,10 +580,7 @@ class _SettingsMaintenanceScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                '${checks.length} جدول تم فحصها',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
+              Text('${checks.length} جدول تم فحصها', style: const TextStyle(fontSize: 12, color: Colors.grey)),
               const SizedBox(height: 12),
               Flexible(
                 child: ListView.builder(
@@ -634,9 +607,7 @@ class _SettingsMaintenanceScreenState
             ],
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
       ),
     );
   }
@@ -673,10 +644,7 @@ class _SettingsMaintenanceScreenState
                 final sizeAfter = await _getTotalDbSizeBytes();
                 final saved = sizeBefore - sizeAfter;
                 _hideLoading();
-                _showSnack(
-                  'تم الضغط بنجاح — تم تحرير ${(saved / 1024).toStringAsFixed(0)} KB',
-                  color: Colors.green,
-                );
+                _showSnack('تم الضغط بنجاح — تم تحرير ${(saved / 1024).toStringAsFixed(0)} KB', color: Colors.green);
                 unawaited(_loadSystemInfo());
               } catch (e) {
                 _hideLoading();
@@ -714,8 +682,10 @@ class _SettingsMaintenanceScreenState
           children: [
             Icon(Icons.sync_problem, size: 40, color: Colors.orange),
             SizedBox(height: 12),
-            Text('سيتم إيقاف المزامنة الحالية ومسح ذاكرة التخزين المؤقت '
-                'ثم بدء مزامنة جديدة.'),
+            Text(
+              'سيتم إيقاف المزامنة الحالية ومسح ذاكرة التخزين المؤقت '
+              'ثم بدء مزامنة جديدة.',
+            ),
           ],
         ),
         actions: [
@@ -725,9 +695,9 @@ class _SettingsMaintenanceScreenState
               Navigator.pop(ctx);
               _showLoading('جاري إعادة تعيين المزامنة...');
               try {
-                await ref.read(maintenanceServiceProvider).resetSyncAndResync(
-                  resetOutboxErrors: () => ref.read(outboxDaoProvider).resetErrors(),
-                );
+                await ref
+                    .read(maintenanceServiceProvider)
+                    .resetSyncAndResync(resetOutboxErrors: () => ref.read(outboxDaoProvider).resetErrors());
                 _hideLoading();
                 _showSnack('تم إعادة تعيين المزامنة بنجاح', color: Colors.green);
                 unawaited(_loadSystemInfo());
@@ -794,10 +764,11 @@ class _SettingsMaintenanceScreenState
     final derivedService = BookingDerivedFieldsService(db);
     final results = <Map<String, dynamic>>[];
 
-    final pendingPayments = await (db.select(db.payments)
-          ..where((p) => p.isPendingBalance.equals(true))
-          ..where((p) => p.deletedAt.isNull()))
-        .get();
+    final pendingPayments =
+        await (db.select(db.payments)
+              ..where((p) => p.isPendingBalance.equals(true))
+              ..where((p) => p.deletedAt.isNull()))
+            .get();
 
     if (pendingPayments.isEmpty) {
       return results;
@@ -805,11 +776,7 @@ class _SettingsMaintenanceScreenState
 
     final affectedBookingIds = <int>{};
     for (final payment in pendingPayments) {
-      await paymentsRepo.update(
-        payment.id,
-        isPendingBalance: false,
-        revenueType: 'room',
-      );
+      await paymentsRepo.update(payment.id, isPendingBalance: false, revenueType: 'room');
       results.add({
         'id': payment.id,
         'roomNumber': payment.roomNumber ?? '—',
@@ -830,10 +797,7 @@ class _SettingsMaintenanceScreenState
     return results;
   }
 
-  void _showProcessingResultDialog(
-    BuildContext context,
-    List<Map<String, dynamic>> results,
-  ) {
+  void _showProcessingResultDialog(BuildContext context, List<Map<String, dynamic>> results) {
     final totalAmount = results.fold<double>(0, (s, r) => s + (r['amount'] as double));
 
     showDialog<void>(
@@ -888,11 +852,7 @@ class _SettingsMaintenanceScreenState
                         backgroundColor: Colors.teal.withValues(alpha: 0.1),
                         child: Text(
                           r['roomNumber'] as String,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal,
-                          ),
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.teal),
                         ),
                       ),
                       title: Text(
@@ -909,9 +869,7 @@ class _SettingsMaintenanceScreenState
               ),
             ],
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
         ),
       ),
     );
@@ -939,10 +897,7 @@ class _SettingsMaintenanceScreenState
                 await outboxDao.resetErrors();
                 final stuckCount = await outboxDao.cleanupStuckEntries();
                 _hideLoading();
-                _showSnack(
-                  'تم إعادة تعيين Outbox ($stuckCount عملية عالقة)',
-                  color: Colors.green,
-                );
+                _showSnack('تم إعادة تعيين Outbox ($stuckCount عملية عالقة)', color: Colors.green);
                 unawaited(_loadSystemInfo());
               } catch (e) {
                 _hideLoading();
@@ -1030,9 +985,7 @@ class _SettingsMaintenanceScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('تأكيد نهائي'),
-        content: const Text(
-          'هل أنت متأكد تماماً؟\nسيتم فقدان جميع البيانات.',
-        ),
+        content: const Text('هل أنت متأكد تماماً؟\nسيتم فقدان جميع البيانات.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
@@ -1041,10 +994,7 @@ class _SettingsMaintenanceScreenState
               _showLoading('جاري إعادة تعيين التطبيق...');
               try {
                 await DatabaseManager.close();
-                final dbPath = p.join(
-                  await sqflite.getDatabasesPath(),
-                  SqliteBackupRestore.kDefaultDbFileName,
-                );
+                final dbPath = p.join(await sqflite.getDatabasesPath(), SqliteBackupRestore.kDefaultDbFileName);
                 await sqflite.deleteDatabase(dbPath);
 
                 // ✅ إصلاح P0: حذف مختار للمفاتيح بدلاً من prefs.clear()

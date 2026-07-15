@@ -25,68 +25,71 @@ void main() {
   // Helper: إدراج موظف للاختبار
   // ═══════════════════════════════════════════════════════════════
   Future<int> insertEmployee({String uuid = 'emp-1', String name = 'أحمد'}) async {
-    return db.into(db.employees).insert(
-      EmployeesCompanion(
-        localUuid: d.Value(uuid),
-        name: d.Value(name),
-        position: d.Value('موظف'),
-        status: d.Value('active'),
-        basicSalary: d.Value(5000.0),
-        createdAt: const d.Value(0),
-        updatedAt: const d.Value(0),
-        lastModified: const d.Value(0),
-        createdAtEpoch: const d.Value(0),
-        lastModifiedEpoch: const d.Value(0),
-        version: const d.Value(1),
-        origin: const d.Value('local'),
-        vectorClock: const d.Value('{}'),
-      ),
-    );
+    return db
+        .into(db.employees)
+        .insert(
+          EmployeesCompanion(
+            localUuid: d.Value(uuid),
+            name: d.Value(name),
+            position: d.Value('موظف'),
+            status: d.Value('active'),
+            basicSalary: d.Value(5000.0),
+            createdAt: const d.Value(0),
+            updatedAt: const d.Value(0),
+            lastModified: const d.Value(0),
+            createdAtEpoch: const d.Value(0),
+            lastModifiedEpoch: const d.Value(0),
+            version: const d.Value(1),
+            origin: const d.Value('local'),
+            vectorClock: const d.Value('{}'),
+          ),
+        );
   }
 
   // ═══════════════════════════════════════════════════════════════
   // Helper: إدراج غرفة وحجز للاختبار
   // ═══════════════════════════════════════════════════════════════
-  Future<int> insertRoomAndBooking({
-    String roomUuid = 'room-1',
-    String bookingUuid = 'booking-1',
-  }) async {
-    await db.into(db.rooms).insert(
-      RoomsCompanion(
-        localUuid: d.Value(roomUuid),
-        roomNumber: const d.Value('101'),
-        type: const d.Value('single'),
-        price: const d.Value(100.0),
-        status: const d.Value('available'),
-        createdAt: const d.Value(0),
-        updatedAt: const d.Value(0),
-        lastModified: const d.Value(0),
-        createdAtEpoch: const d.Value(0),
-        lastModifiedEpoch: const d.Value(0),
-        version: const d.Value(1),
-        origin: const d.Value('local'),
-        vectorClock: const d.Value('{}'),
-      ),
-    );
-    return db.into(db.bookings).insert(
-      BookingsCompanion(
-        localUuid: d.Value(bookingUuid),
-        roomNumber: const d.Value('101'),
-        guestName: const d.Value('ضيف'),
-        guestPhone: const d.Value('123'),
-        guestNationality: const d.Value('YEM'),
-        checkinDate: const d.Value('2025-06-10'),
-        status: const d.Value('active'),
-        createdAt: const d.Value(0),
-        updatedAt: const d.Value(0),
-        lastModified: const d.Value(0),
-        createdAtEpoch: const d.Value(0),
-        lastModifiedEpoch: const d.Value(0),
-        version: const d.Value(1),
-        origin: const d.Value('local'),
-        vectorClock: const d.Value('{}'),
-      ),
-    );
+  Future<int> insertRoomAndBooking({String roomUuid = 'room-1', String bookingUuid = 'booking-1'}) async {
+    await db
+        .into(db.rooms)
+        .insert(
+          RoomsCompanion(
+            localUuid: d.Value(roomUuid),
+            roomNumber: const d.Value('101'),
+            type: const d.Value('single'),
+            price: const d.Value(100.0),
+            status: const d.Value('available'),
+            createdAt: const d.Value(0),
+            updatedAt: const d.Value(0),
+            lastModified: const d.Value(0),
+            createdAtEpoch: const d.Value(0),
+            lastModifiedEpoch: const d.Value(0),
+            version: const d.Value(1),
+            origin: const d.Value('local'),
+            vectorClock: const d.Value('{}'),
+          ),
+        );
+    return db
+        .into(db.bookings)
+        .insert(
+          BookingsCompanion(
+            localUuid: d.Value(bookingUuid),
+            roomNumber: const d.Value('101'),
+            guestName: const d.Value('ضيف'),
+            guestPhone: const d.Value('123'),
+            guestNationality: const d.Value('YEM'),
+            checkinDate: const d.Value('2025-06-10'),
+            status: const d.Value('active'),
+            createdAt: const d.Value(0),
+            updatedAt: const d.Value(0),
+            lastModified: const d.Value(0),
+            createdAtEpoch: const d.Value(0),
+            lastModifiedEpoch: const d.Value(0),
+            version: const d.Value(1),
+            origin: const d.Value('local'),
+            vectorClock: const d.Value('{}'),
+          ),
+        );
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -106,11 +109,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryCycles.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.salaryCycles.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isTrue);
       expect(refs.skipReason, isNotNull);
@@ -133,11 +132,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryCycles.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.salaryCycles.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isFalse);
       expect(refs.skipReason, isNull);
@@ -161,16 +156,8 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryCycles.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
-      final comp = adapters.salaryCycles.adapter.fromJson(
-        json,
-        src: Source.appwrite,
-        refs: refs,
-      );
+      final refs = await adapters.salaryCycles.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final comp = adapters.salaryCycles.adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.salaryCycles).insert(comp);
 
       final row = await db.select(db.salaryCycles).getSingle();
@@ -200,16 +187,8 @@ void main() {
         'last_modified': 200,
       };
 
-      final refs = await adapters.salaryCycles.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.drive,
-      );
-      final comp = adapters.salaryCycles.adapter.fromJson(
-        json,
-        src: Source.drive,
-        refs: refs,
-      );
+      final refs = await adapters.salaryCycles.adapter.resolveRefs(db, json, src: Source.drive);
+      final comp = adapters.salaryCycles.adapter.fromJson(json, src: Source.drive, refs: refs);
       await db.into(db.salaryCycles).insert(comp);
 
       final row = await db.select(db.salaryCycles).getSingle();
@@ -239,11 +218,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isTrue);
       expect(refs.skipReason, contains('لا يمكن العثور'));
@@ -263,11 +238,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isFalse);
       expect(refs.employeeLocalId, isNotNull);
@@ -289,16 +260,8 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
-      final comp = adapters.salaryWithdrawals.adapter.fromJson(
-        json,
-        src: Source.appwrite,
-        refs: refs,
-      );
+      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final comp = adapters.salaryWithdrawals.adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.salaryWithdrawals).insert(comp);
 
       final row = await db.select(db.salaryWithdrawals).getSingle();
@@ -324,16 +287,8 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
-      final comp = adapters.salaryWithdrawals.adapter.fromJson(
-        json,
-        src: Source.appwrite,
-        refs: refs,
-      );
+      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final comp = adapters.salaryWithdrawals.adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.salaryWithdrawals).insert(comp);
 
       final row = await db.select(db.salaryWithdrawals).getSingle();
@@ -362,11 +317,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.nights.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.nights.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isTrue);
       expect(refs.skipReason, contains('لا يمكن العثور على الحجز'));
@@ -387,11 +338,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.nights.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.nights.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isFalse);
       expect(refs.bookingLocalId, isNotNull);
@@ -416,16 +363,8 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.nights.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
-      final comp = adapters.nights.adapter.fromJson(
-        json,
-        src: Source.appwrite,
-        refs: refs,
-      );
+      final refs = await adapters.nights.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final comp = adapters.nights.adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.bookingNights).insert(comp);
 
       final row = await db.select(db.bookingNights).getSingle();
@@ -454,11 +393,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryPayments.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.salaryPayments.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isTrue);
       expect(refs.skipReason, contains('لا يمكن العثور على دورة الراتب'));
@@ -466,27 +401,29 @@ void main() {
 
     test('resolveRefs يرجع shouldSkip=false عند وجود الدورة', () async {
       final empId = await insertEmployee();
-      await db.into(db.salaryCycles).insert(
-        SalaryCyclesCompanion(
-          localUuid: const d.Value('cycle-1'),
-          employeeId: d.Value(empId),
-          cycleKey: const d.Value('2025-06'),
-          hotelDayStart: const d.Value('2025-06-01'),
-          hotelDayEnd: const d.Value('2025-06-30'),
-          expectedAmount: const d.Value(5000),
-          actualPaid: const d.Value(0),
-          remainingAmount: const d.Value(5000),
-          status: const d.Value('active'),
-          createdAt: const d.Value(0),
-          updatedAt: const d.Value(0),
-          lastModified: const d.Value(0),
-          createdAtEpoch: const d.Value(0),
-          lastModifiedEpoch: const d.Value(0),
-          version: const d.Value(1),
-          origin: const d.Value('local'),
-          vectorClock: const d.Value('{}'),
-        ),
-      );
+      await db
+          .into(db.salaryCycles)
+          .insert(
+            SalaryCyclesCompanion(
+              localUuid: const d.Value('cycle-1'),
+              employeeId: d.Value(empId),
+              cycleKey: const d.Value('2025-06'),
+              hotelDayStart: const d.Value('2025-06-01'),
+              hotelDayEnd: const d.Value('2025-06-30'),
+              expectedAmount: const d.Value(5000),
+              actualPaid: const d.Value(0),
+              remainingAmount: const d.Value(5000),
+              status: const d.Value('active'),
+              createdAt: const d.Value(0),
+              updatedAt: const d.Value(0),
+              lastModified: const d.Value(0),
+              createdAtEpoch: const d.Value(0),
+              lastModifiedEpoch: const d.Value(0),
+              version: const d.Value(1),
+              origin: const d.Value('local'),
+              vectorClock: const d.Value('{}'),
+            ),
+          );
 
       final json = {
         'localUuid': 'sp-1',
@@ -499,11 +436,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryPayments.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.salaryPayments.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isFalse);
       expect(refs.salaryCycleLocalId, isNotNull);
@@ -527,10 +460,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final result = await adapters.salaryCycles.upsertFromJson(
-        json,
-        src: Source.appwrite,
-      );
+      final result = await adapters.salaryCycles.upsertFromJson(json, src: Source.appwrite);
 
       expect(result, -1); // تم التخطي
     });
@@ -550,10 +480,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final result = await adapters.salaryCycles.upsertFromJson(
-        json,
-        src: Source.appwrite,
-      );
+      final result = await adapters.salaryCycles.upsertFromJson(json, src: Source.appwrite);
 
       expect(result, greaterThan(0)); // تم الإدراج بنجاح
     });
@@ -574,10 +501,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final result = await adapters.salaryCycles.upsertFromJson(
-        json,
-        src: Source.appwrite,
-      );
+      final result = await adapters.salaryCycles.upsertFromJson(json, src: Source.appwrite);
 
       // تم الإدراج بنجاح رغم وجود id بعيد
       expect(result, greaterThan(0));
@@ -673,13 +597,7 @@ void main() {
       final repo = SalaryWithdrawalsRepository(db);
 
       // إنشاء أول
-      await repo.saveFromExpense(
-        expenseId: 5,
-        employeeId: empId,
-        action: 'سحب راتب',
-        amount: 2000,
-        date: '2025-06-15',
-      );
+      await repo.saveFromExpense(expenseId: 5, employeeId: empId, action: 'سحب راتب', amount: 2000, date: '2025-06-15');
 
       // تحديث بنفس expenseId
       await repo.saveFromExpense(
@@ -701,13 +619,7 @@ void main() {
       final empId = await insertEmployee();
       final repo = SalaryWithdrawalsRepository(db);
 
-      await repo.createFromExpense(
-        expenseId: 10,
-        employeeId: empId,
-        reason: 'exp_10',
-        amount: 500,
-        date: '2025-06-15',
-      );
+      await repo.createFromExpense(expenseId: 10, employeeId: empId, reason: 'exp_10', amount: 500, date: '2025-06-15');
 
       // قبل الحذف
       expect((await repo.listActive()).length, 1);
@@ -729,20 +641,8 @@ void main() {
       final empId2 = await insertEmployee(uuid: 'emp-2', name: 'محمد');
       final repo = SalaryWithdrawalsRepository(db);
 
-      await repo.createFromExpense(
-        expenseId: 1,
-        employeeId: empId1,
-        reason: 'exp_1',
-        amount: 1000,
-        date: '2025-06-15',
-      );
-      await repo.createFromExpense(
-        expenseId: 2,
-        employeeId: empId2,
-        reason: 'exp_2',
-        amount: 2000,
-        date: '2025-06-15',
-      );
+      await repo.createFromExpense(expenseId: 1, employeeId: empId1, reason: 'exp_1', amount: 1000, date: '2025-06-15');
+      await repo.createFromExpense(expenseId: 2, employeeId: empId2, reason: 'exp_2', amount: 2000, date: '2025-06-15');
 
       final emp1Withdrawals = await repo.listByEmployeeId(empId1);
       expect(emp1Withdrawals.length, 1);

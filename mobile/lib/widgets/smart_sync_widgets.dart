@@ -30,13 +30,9 @@ class SmartSyncStatusWidget extends ConsumerWidget {
           margin: const EdgeInsets.all(8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: isSyncing
-                ? Colors.blue.withValues(alpha: 0.1)
-                : Colors.green.withValues(alpha: 0.1),
+            color: isSyncing ? Colors.blue.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isSyncing ? Colors.blue : Colors.green,
-            ),
+            border: Border.all(color: isSyncing ? Colors.blue : Colors.green),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -51,17 +47,11 @@ class SmartSyncStatusWidget extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Text(
-                  'مزامنة...',
-                  style: TextStyle(fontSize: 11, color: Colors.blue),
-                ),
+                const Text('مزامنة...', style: TextStyle(fontSize: 11, color: Colors.blue)),
               ] else ...[
                 const Icon(Icons.cloud_done, size: 12, color: Colors.green),
                 const SizedBox(width: 4),
-                const Text(
-                  'مُزامن',
-                  style: TextStyle(fontSize: 11, color: Colors.green),
-                ),
+                const Text('مُزامن', style: TextStyle(fontSize: 11, color: Colors.green)),
               ],
             ],
           ),
@@ -73,25 +63,19 @@ class SmartSyncStatusWidget extends ConsumerWidget {
 
 /// Widget لإشعارات المزامنة التفاعلية
 class SmartSyncNotificationListener extends ConsumerStatefulWidget {
-
   const SmartSyncNotificationListener({super.key, required this.child});
   final Widget child;
 
   @override
-  ConsumerState<SmartSyncNotificationListener> createState() =>
-      _SmartSyncNotificationListenerState();
+  ConsumerState<SmartSyncNotificationListener> createState() => _SmartSyncNotificationListenerState();
 }
 
-class _SmartSyncNotificationListenerState
-    extends ConsumerState<SmartSyncNotificationListener> {
+class _SmartSyncNotificationListenerState extends ConsumerState<SmartSyncNotificationListener> {
   DateTime? _lastSyncTime;
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<Map<String, dynamic>>>(smartSyncStatusProvider, (
-      previous,
-      next,
-    ) {
+    ref.listen<AsyncValue<Map<String, dynamic>>>(smartSyncStatusProvider, (previous, next) {
       if (next.hasValue) {
         final status = next.value!;
         final lastSyncString = status['last_sync_check'] as String?;
@@ -163,10 +147,7 @@ class SmartSyncFloatingButton extends ConsumerWidget {
             if (context.mounted) {
               // ignore: use_build_context_synchronously
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('🔄 بدأت المزامنة اليدوية...'),
-                  duration: Duration(seconds: 2),
-                ),
+                const SnackBar(content: Text('🔄 بدأت المزامنة اليدوية...'), duration: Duration(seconds: 2)),
               );
             }
           } catch (e) {
@@ -174,15 +155,9 @@ class SmartSyncFloatingButton extends ConsumerWidget {
               // ignore: use_build_context_synchronously
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text(
-                    'تعذر بدء المزامنة. تحقق من الاتصال ثم أعد المحاولة',
-                  ),
+                  content: const Text('تعذر بدء المزامنة. تحقق من الاتصال ثم أعد المحاولة'),
                   backgroundColor: Colors.red,
-                  action: SnackBarAction(
-                    label: 'إعادة',
-                    textColor: Colors.white,
-                    onPressed: runManualSync,
-                  ),
+                  action: SnackBarAction(label: 'إعادة', textColor: Colors.white, onPressed: runManualSync),
                 ),
               );
             }
@@ -216,12 +191,10 @@ class SmartSyncDashboardCard extends ConsumerStatefulWidget {
   const SmartSyncDashboardCard({super.key});
 
   @override
-  ConsumerState<SmartSyncDashboardCard> createState() =>
-      _SmartSyncDashboardCardState();
+  ConsumerState<SmartSyncDashboardCard> createState() => _SmartSyncDashboardCardState();
 }
 
-class _SmartSyncDashboardCardState
-    extends ConsumerState<SmartSyncDashboardCard> {
+class _SmartSyncDashboardCardState extends ConsumerState<SmartSyncDashboardCard> {
   @override
   void initState() {
     super.initState();
@@ -236,8 +209,7 @@ class _SmartSyncDashboardCardState
     final statusAsync = ref.watch(smartSyncStatusProvider);
 
     return statusAsync.when(
-      loading: () =>
-          const Card(child: ListTile(title: Text('تحميل حالة المزامنة...'))),
+      loading: () => const Card(child: ListTile(title: Text('تحميل حالة المزامنة...'))),
       error: (error, stack) => const SizedBox.shrink(),
       data: (status) {
         final isEnabled = status['enabled'] as bool;
@@ -252,10 +224,9 @@ class _SmartSyncDashboardCardState
           margin: EdgeInsets.zero,
           child: InkWell(
             onTap: () {
-              Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(builder: (_) => const SmartSyncSettingsScreen(),
-                ),
-              );
+              Navigator.of(
+                context,
+              ).push<void>(MaterialPageRoute<void>(builder: (_) => const SmartSyncSettingsScreen()));
             },
             borderRadius: BorderRadius.circular(8),
             child: Padding(
@@ -265,15 +236,8 @@ class _SmartSyncDashboardCardState
                   Container(
                     width: 32,
                     height: 32,
-                    decoration: BoxDecoration(
-                      color: isEnabled ? Colors.green : Colors.grey,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isEnabled ? Icons.sync : Icons.sync_disabled,
-                      color: Colors.white,
-                      size: 16,
-                    ),
+                    decoration: BoxDecoration(color: isEnabled ? Colors.green : Colors.grey, shape: BoxShape.circle),
+                    child: Icon(isEnabled ? Icons.sync : Icons.sync_disabled, color: Colors.white, size: 16),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -281,23 +245,14 @@ class _SmartSyncDashboardCardState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          'المزامنة بين الأجهزة',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        const Text('المزامنة بين الأجهزة', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         Text(
                           isSyncing
                               ? 'جارِ المزامنة...'
                               : isEnabled
                               ? 'مُفعلة'
                               : 'معطلة',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: isSyncing ? Colors.blue : Colors.grey,
-                          ),
+                          style: TextStyle(fontSize: 10, color: isSyncing ? Colors.blue : Colors.grey),
                         ),
                       ],
                     ),

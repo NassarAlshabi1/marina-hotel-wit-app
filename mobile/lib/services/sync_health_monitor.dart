@@ -94,11 +94,13 @@ class SyncHealthMonitor {
 
   Future<int> _countOutboxByStatus(AppDatabase db, String status) async {
     try {
-      final result = await db.customSelect(
-        'SELECT COUNT(*) AS cnt FROM outbox WHERE processing_status = ?',
-        variables: [Variable.withString(status)],
-        readsFrom: {db.outbox},
-      ).getSingle();
+      final result = await db
+          .customSelect(
+            'SELECT COUNT(*) AS cnt FROM outbox WHERE processing_status = ?',
+            variables: [Variable.withString(status)],
+            readsFrom: {db.outbox},
+          )
+          .getSingle();
       return result.read<int>('cnt');
     } catch (_) {
       return 0;
@@ -107,18 +109,20 @@ class SyncHealthMonitor {
 
   Future<Duration?> _getOldestPendingAge(AppDatabase db) async {
     try {
-      final result = await db.customSelect(
-        'SELECT MIN(client_ts) AS oldest FROM outbox WHERE processing_status = ?',
-        variables: [Variable.withString('pending')],
-        readsFrom: {db.outbox},
-      ).getSingle();
+      final result = await db
+          .customSelect(
+            'SELECT MIN(client_ts) AS oldest FROM outbox WHERE processing_status = ?',
+            variables: [Variable.withString('pending')],
+            readsFrom: {db.outbox},
+          )
+          .getSingle();
       final oldest = result.data['oldest'];
       if (oldest == null) return null;
       final oldestEpoch = (oldest is int)
           ? oldest
           : (oldest is num)
-              ? oldest.toInt()
-              : int.tryParse(oldest.toString()) ?? 0;
+          ? oldest.toInt()
+          : int.tryParse(oldest.toString()) ?? 0;
       if (oldestEpoch == 0) return null;
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       return Duration(seconds: now - oldestEpoch);
@@ -129,18 +133,15 @@ class SyncHealthMonitor {
 
   Future<int> _getStuckProcessingCount(AppDatabase db) async {
     try {
-      final thresholdSec = DateTime.now()
-          .subtract(processingStuckThreshold)
-          .millisecondsSinceEpoch ~/ 1000;
-      final result = await db.customSelect(
-        'SELECT COUNT(*) AS cnt FROM outbox WHERE processing_status = ? '
-        'AND processing_started_at < ?',
-        variables: [
-          Variable.withString('processing'),
-          Variable.withInt(thresholdSec),
-        ],
-        readsFrom: {db.outbox},
-      ).getSingle();
+      final thresholdSec = DateTime.now().subtract(processingStuckThreshold).millisecondsSinceEpoch ~/ 1000;
+      final result = await db
+          .customSelect(
+            'SELECT COUNT(*) AS cnt FROM outbox WHERE processing_status = ? '
+            'AND processing_started_at < ?',
+            variables: [Variable.withString('processing'), Variable.withInt(thresholdSec)],
+            readsFrom: {db.outbox},
+          )
+          .getSingle();
       return result.read<int>('cnt');
     } catch (_) {
       return 0;
@@ -149,16 +150,15 @@ class SyncHealthMonitor {
 
   Future<Map<String, int>> _getEntityBreakdown(AppDatabase db) async {
     try {
-      final result = await db.customSelect(
-        'SELECT entity, COUNT(*) AS cnt FROM outbox '
-        'WHERE processing_status IN (?, ?) GROUP BY entity',
-        variables: [Variable.withString('pending'), Variable.withString('failed')],
-        readsFrom: {db.outbox},
-      ).get();
-      return {
-        for (final row in result)
-          row.read<String>('entity'): row.read<int>('cnt'),
-      };
+      final result = await db
+          .customSelect(
+            'SELECT entity, COUNT(*) AS cnt FROM outbox '
+            'WHERE processing_status IN (?, ?) GROUP BY entity',
+            variables: [Variable.withString('pending'), Variable.withString('failed')],
+            readsFrom: {db.outbox},
+          )
+          .get();
+      return {for (final row in result) row.read<String>('entity'): row.read<int>('cnt')};
     } catch (_) {
       return {};
     }
@@ -166,18 +166,31 @@ class SyncHealthMonitor {
 
   Future<Map<String, int>> _getTableSizes(AppDatabase db) async {
     final tables = [
-      'rooms', 'bookings', 'payments', 'debts', 'expenses',
-      'employees', 'booking_nights', 'booking_notes', 'booking_price_adjustments',
-      'cash_transactions', 'shift_notes', 'salary_cycles', 'salary_payments',
-      'salary_withdrawals', 'price_adjustments', 'audit_logs', 'payment_voids',
-      'guest_infos', 'hotel_day_ledger', 'outbox',
+      'rooms',
+      'bookings',
+      'payments',
+      'debts',
+      'expenses',
+      'employees',
+      'booking_nights',
+      'booking_notes',
+      'booking_price_adjustments',
+      'cash_transactions',
+      'shift_notes',
+      'salary_cycles',
+      'salary_payments',
+      'salary_withdrawals',
+      'price_adjustments',
+      'audit_logs',
+      'payment_voids',
+      'guest_infos',
+      'hotel_day_ledger',
+      'outbox',
     ];
     final sizes = <String, int>{};
     for (final table in tables) {
       try {
-        final result = await db.customSelect(
-          'SELECT COUNT(*) AS cnt FROM $table',
-        ).getSingle();
+        final result = await db.customSelect('SELECT COUNT(*) AS cnt FROM $table').getSingle();
         sizes[table] = result.read<int>('cnt');
       } catch (_) {
         sizes[table] = -1; // خطأ
@@ -188,9 +201,7 @@ class SyncHealthMonitor {
 
   Future<int> _getFkViolations(AppDatabase db) async {
     try {
-      final result = await db.customSelect(
-        'PRAGMA foreign_key_check',
-      ).get();
+      final result = await db.customSelect('PRAGMA foreign_key_check').get();
       return result.length;
     } catch (_) {
       return 0;
@@ -209,8 +220,7 @@ class SyncHealthMonitor {
       return SyncHealthStatus.critical;
     }
     // error: فشل كثير أو عناصر معلقة قديمة جداً
-    if (failedCount > 20 ||
-        (oldestPendingAge != null && oldestPendingAge > stuckThreshold)) {
+    if (failedCount > 20 || (oldestPendingAge != null && oldestPendingAge > stuckThreshold)) {
       return SyncHealthStatus.error;
     }
     // warning: فشل متوسط أو عناصر معلقة كثيرة
@@ -268,7 +278,8 @@ class SyncHealthReport {
   }
 
   @override
-  String toString() => 'SyncHealthReport(status: $status, '
+  String toString() =>
+      'SyncHealthReport(status: $status, '
       'pending: $pendingCount, failed: $failedCount, '
       'stuck: $stuckProcessingCount, fkViolations: $fkViolations)';
 }

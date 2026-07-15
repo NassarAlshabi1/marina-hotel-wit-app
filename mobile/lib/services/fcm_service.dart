@@ -19,8 +19,7 @@ class FcmService {
   static final FcmService _instance = FcmService._internal();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications =
-      FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   String? _currentToken;
   bool _isInitialized = false;
   StreamSubscription<String>? _tokenRefreshSubscription;
@@ -99,14 +98,10 @@ class FcmService {
   /// طلب إذن الإشعارات من المستخدم
   Future<void> _requestPermission() async {
     if (Platform.isIOS) {
-      await _messaging.requestPermission(
-        
-      );
+      await _messaging.requestPermission();
     } else if (Platform.isAndroid) {
       // Android 13+ يحتاج إذن صريح
-      await _messaging.requestPermission(
-        
-      );
+      await _messaging.requestPermission();
     }
 
     final settings = await _messaging.getNotificationSettings();
@@ -122,9 +117,7 @@ class FcmService {
         token = await _messaging.getToken();
       } else {
         // Android: استخدم APNs sandbox key للتطوير والتحميل المباشر للإنتاج
-        token = await _messaging.getToken(
-          
-        );
+        token = await _messaging.getToken();
       }
       return token;
     } catch (e) {
@@ -161,20 +154,15 @@ class FcmService {
   /// ✅ تهيئة الإشعارات المحلية لعرض notifications في foreground
   Future<void> _initLocalNotifications() async {
     try {
-      const androidSettings =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosSettings = DarwinInitializationSettings();
-      const settings = InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
-      );
+      const settings = InitializationSettings(android: androidSettings, iOS: iosSettings);
       await _localNotifications.initialize(settings);
 
       // إنشاء قناة الإشعارات لأندرويد
       if (Platform.isAndroid) {
         await _localNotifications
-            .resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin>()
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
             ?.createNotificationChannel(_syncChannel);
       }
       debugPrint('✅ Local notifications initialized');
@@ -269,8 +257,7 @@ class FcmService {
   /// الحصول على معرف الجهاز الحالي
   Future<String?> _getMyDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('appwrite_device_id') ??
-        prefs.getString('appwrite_realtime_device_id');
+    return prefs.getString('appwrite_device_id') ?? prefs.getString('appwrite_realtime_device_id');
   }
 
   /// الحصول على SyncManager (import دائري لذلك نستخدم getter خارجي)
@@ -297,10 +284,7 @@ class FcmService {
   static dynamic _realtimeInstance;
 
   /// حقن SyncManager (يُستدعى من main.dart بعد الإنشاء)
-  static void injectDependencies({
-    required AppwriteSyncManager syncManager,
-    required dynamic realtimeSync,
-  }) {
+  static void injectDependencies({required AppwriteSyncManager syncManager, required dynamic realtimeSync}) {
     _syncManagerInstance = syncManager;
     _realtimeInstance = realtimeSync;
   }
@@ -321,9 +305,7 @@ class FcmService {
       if (!messagingService.isInitialized) {
         await messagingService.initialize();
       }
-      final targetId = await messagingService.registerDevice(
-        fcmToken: fcmToken,
-      );
+      final targetId = await messagingService.registerDevice(fcmToken: fcmToken);
       if (targetId != null) {
         debugPrint('✅ Device also registered in Appwrite Messaging: $targetId');
         // اشترك في Topics الافتراضية

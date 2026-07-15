@@ -5,7 +5,6 @@ import 'local_db.dart';
 
 /// نموذج تفصيلي لحسابات المدفوعات والأيام للنزيل الواحد
 class GuestPaymentCalculation {
-
   GuestPaymentCalculation({
     required this.booking,
     required this.payments,
@@ -62,7 +61,7 @@ class GuestPaymentCalculation {
     final df = DateFormat('yyyy/MM/dd');
     final checkinDate = DateTime.tryParse(booking.checkinDate);
     final checkoutDate = DateTime.tryParse(booking.checkoutDate ?? '');
-    
+
     final buffer = StringBuffer();
     buffer.writeln('=== كشف حساب النزيل ===');
     buffer.writeln('النزيل: ${booking.guestName}');
@@ -80,13 +79,13 @@ class GuestPaymentCalculation {
     buffer.writeln('إجمالي المدفوع: $totalPaid ريال');
     buffer.writeln('الرصيد المتبقي: $remainingBalance ريال');
     buffer.writeln('نسبة الدفع: ${paymentPercentage.toStringAsFixed(1)}%');
-    
+
     if (isOverdue && overdueDays > 0) {
       buffer.writeln();
       buffer.writeln('⚠️ التأخير: $overdueDays يوم');
       buffer.writeln('تكلفة التأخير: $overdueCost ريال');
     }
-    
+
     return buffer.toString();
   }
 }
@@ -98,44 +97,35 @@ class GuestPaymentCalculationService {
   final AppDatabase db;
 
   /// حساب تفصيلي كامل لمدفوعات نزيل واحد
-  Future<GuestPaymentCalculation> calculateForBooking(
-    Booking booking, {
-    DateTime? now,
-  }) async {
+  Future<GuestPaymentCalculation> calculateForBooking(Booking booking, {DateTime? now}) async {
     final moment = now ?? DateTime.now();
-    
+
     // جلب الغرفة لمعرفة السعر الأساسي
-    final room = await (db.select(db.rooms)
-          ..where((r) => r.roomNumber.equals(booking.roomNumber))
-          ..where((r) => r.deletedAt.isNull()))
-        .getSingleOrNull();
-    
+    final room =
+        await (db.select(db.rooms)
+              ..where((r) => r.roomNumber.equals(booking.roomNumber))
+              ..where((r) => r.deletedAt.isNull()))
+            .getSingleOrNull();
+
     // جلب المدفوعات الفعلية للحجز (استبعاد الملغاة والمعلّقة وغير المتعلقة بالغرف)
-    final payments = await (db.select(db.payments)
-          // الربط بـ UUID الثابت + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
-          ..where((p) =>
-              p.bookingLocalId.equals(booking.id) |
-              p.bookingUuidCache.equals(booking.localUuid))
-          ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false))
-          ..where((p) => p.isPendingBalance.equals(false))
-          ..where((p) =>
-              p.revenueType.equals('room') |
-              p.revenueType.equals('') |
-              p.revenueType.isNull(),)
-          ..orderBy([(p) => d.OrderingTerm(expression: p.paymentDate)]))
-        .get();
+    final payments =
+        await (db.select(db.payments)
+              // الربط بـ UUID الثابت + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
+              ..where((p) => p.bookingLocalId.equals(booking.id) | p.bookingUuidCache.equals(booking.localUuid))
+              ..where((p) => p.deletedAt.isNull())
+              ..where((p) => p.isVoided.equals(false))
+              ..where((p) => p.isPendingBalance.equals(false))
+              ..where((p) => p.revenueType.equals('room') | p.revenueType.equals('') | p.revenueType.isNull())
+              ..orderBy([(p) => d.OrderingTerm(expression: p.paymentDate)]))
+            .get();
 
     // حساب الأيام المقضية بناءً على قاعدة الساعة 14:00
     final checkin = DateTime.tryParse(booking.checkinDate) ?? moment;
     final actualCheckout = booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty
         ? DateTime.tryParse(booking.actualCheckout!)
         : null;
-    
-    final actualDaysSpent = Time.nightsWithCutoff(
-      checkin,
-      checkout: actualCheckout ?? moment,
-    );
+
+    final actualDaysSpent = Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? moment);
 
     // حساب الأيام المتبقية حتى موعد المغادرة المخطط
     final plannedCheckout = DateTime.tryParse(booking.checkoutDate ?? '');
@@ -196,10 +186,7 @@ class GuestPaymentCalculationService {
   }
 
   /// حساب تفصيلي لمجموعة من الحجوزات
-  Future<List<GuestPaymentCalculation>> calculateForMultipleBookings(
-    List<Booking> bookings, {
-    DateTime? now,
-  }) async {
+  Future<List<GuestPaymentCalculation>> calculateForMultipleBookings(List<Booking> bookings, {DateTime? now}) async {
     final results = <GuestPaymentCalculation>[];
     for (final booking in bookings) {
       final calc = await calculateForBooking(booking, now: now);
@@ -209,16 +196,19 @@ class GuestPaymentCalculationService {
   }
 
   /// إنشاء تقرير ملخص لمجموعة من الحجوزات
-  Future<PaymentsSummaryReport> generateSummaryReport(
-    List<Booking> bookings, {
-    DateTime? now,
-  }) async {
+  Future<PaymentsSummaryReport> generateSummaryReport(List<Booking> bookings, {DateTime? now}) async {
     final calculations = await calculateForMultipleBookings(bookings, now: now);
-    
+
     final totalGuests = calculations.length;
     final totalPaid = calculations.fold<double>(0, (sum, c) => sum + c.totalPaid);
-    final totalRemaining = calculations.fold<double>(0, (sum, c) => sum + (c.remainingBalance > 0 ? c.remainingBalance : 0));
-    final totalCredit = calculations.fold<double>(0, (sum, c) => sum + (c.remainingBalance < 0 ? -c.remainingBalance : 0));
+    final totalRemaining = calculations.fold<double>(
+      0,
+      (sum, c) => sum + (c.remainingBalance > 0 ? c.remainingBalance : 0),
+    );
+    final totalCredit = calculations.fold<double>(
+      0,
+      (sum, c) => sum + (c.remainingBalance < 0 ? -c.remainingBalance : 0),
+    );
     final overdueCount = calculations.where((c) => c.isOverdue).length;
     final fullyPaidCount = calculations.where((c) => c.remainingBalance <= 0 && !c.hasCredit).length;
 
@@ -237,7 +227,6 @@ class GuestPaymentCalculationService {
 
 /// نموذج تقرير ملخص المدفوعات
 class PaymentsSummaryReport {
-
   PaymentsSummaryReport({
     required this.generatedAt,
     required this.totalGuests,
@@ -267,7 +256,7 @@ class PaymentsSummaryReport {
   String getSummary() {
     final df = DateFormat('yyyy/MM/dd HH:mm');
     final buffer = StringBuffer();
-    
+
     buffer.writeln('=== تقرير ملخص المدفوعات ===');
     buffer.writeln('تم الإنشاء: ${df.format(generatedAt)}');
     buffer.writeln();
@@ -280,7 +269,7 @@ class PaymentsSummaryReport {
     buffer.writeln('--- الحالات ---');
     buffer.writeln('المسددة بالكامل: $fullyPaidCount (${fullyPaidPercentage.toStringAsFixed(1)}%)');
     buffer.writeln('المتأخرة: $overdueCount (${overduePercentage.toStringAsFixed(1)}%)');
-    
+
     return buffer.toString();
   }
 }

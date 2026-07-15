@@ -12,13 +12,15 @@ class OptimizedQueries {
   OptimizedQueries(this.db);
 
   final local_db.AppDatabase db;
-  
+
   // ─── DASHBOARD: Single query instead of 4-5 queries ───
-  
+
   /// Get all dashboard stats in ONE query
   Future<Map<String, dynamic>> getDashboardStats() async {
     final today = _todayKey();
-    final result = await db.customSelect('''
+    final result = await db
+        .customSelect(
+          '''
       SELECT 
         -- Room stats
         COUNT(r.id) as total_rooms,
@@ -36,18 +38,17 @@ class OptimizedQueries {
       LEFT JOIN expenses e ON e.hotel_day_key = ?
       LEFT JOIN bookings b ON b.status NOT IN ('checked_out', 'cancelled')
         AND b.hotel_day_checkin = ?
-    ''', variables: [
-      Variable<String>(today),
-      Variable<String>(today),
-      Variable<String>(today),
-    ],).getSingle();
-    
+    ''',
+          variables: [Variable<String>(today), Variable<String>(today), Variable<String>(today)],
+        )
+        .getSingle();
+
     final data = result.data;
     final totalRooms = data['total_rooms'] as int;
     final occupiedRooms = data['occupied_rooms'] as int;
     final totalIncome = (data['total_income'] as num).toDouble();
     final totalExpenses = (data['total_expenses'] as num).toDouble();
-    
+
     return {
       'totalRooms': totalRooms,
       'occupiedRooms': occupiedRooms,
@@ -55,24 +56,21 @@ class OptimizedQueries {
       'totalIncome': totalIncome,
       'totalExpenses': totalExpenses,
       'totalBookings': data['total_bookings'] as int,
-      'occupancyRate': totalRooms > 0
-          ? (occupiedRooms / totalRooms * 100)
-          : 0.0,
+      'occupancyRate': totalRooms > 0 ? (occupiedRooms / totalRooms * 100) : 0.0,
       'netProfit': totalIncome - totalExpenses,
     };
   }
-  
+
   // ─── REPORTS: Optimized queries ───
-  
+
   /// Get monthly income vs expense in single query
-  Future<List<Map<String, dynamic>>> getMonthlyIncomeExpense(
-    int year,
-    int month,
-  ) async {
+  Future<List<Map<String, dynamic>>> getMonthlyIncomeExpense(int year, int month) async {
     final from = '$year-${month.toString().padLeft(2, '0')}-01';
     final to = '$year-${month.toString().padLeft(2, '0')}-31';
-    
-    final rows = await db.customSelect('''
+
+    final rows = await db
+        .customSelect(
+          '''
       SELECT 
         date(payment_date) as day,
         SUM(amount) as income,
@@ -92,31 +90,25 @@ class OptimizedQueries {
       GROUP BY date(date)
       
       ORDER BY day
-    ''', variables: [
-      Variable<String>(from),
-      Variable<String>(to),
-      Variable<String>(from),
-      Variable<String>(to),
-    ],).get();
-    
+    ''',
+          variables: [Variable<String>(from), Variable<String>(to), Variable<String>(from), Variable<String>(to)],
+        )
+        .get();
+
     return rows.map((row) => row.data).toList();
   }
-  
+
   /// Get top rooms by revenue (covering index query)
-  Future<List<Map<String, dynamic>>> getTopRoomsByRevenue({
-    int limit = 10,
-    String? fromDate,
-    String? toDate,
-  }) async {
+  Future<List<Map<String, dynamic>>> getTopRoomsByRevenue({int limit = 10, String? fromDate, String? toDate}) async {
     final where = fromDate != null ? 'WHERE p.payment_date >= ?' : '';
-    final params = fromDate != null
-        ? <Variable<Object>>[Variable<String>(fromDate)]
-        : <Variable<Object>>[];
+    final params = fromDate != null ? <Variable<Object>>[Variable<String>(fromDate)] : <Variable<Object>>[];
     if (toDate != null) {
       params.add(Variable<String>(toDate));
     }
-    
-    final rows = await db.customSelect('''
+
+    final rows = await db
+        .customSelect(
+          '''
       SELECT 
         r.room_number,
         COUNT(p.id) as payment_count,
@@ -128,11 +120,14 @@ class OptimizedQueries {
       GROUP BY r.room_number, r.id
       ORDER BY total_revenue DESC
       LIMIT ?
-    ''', variables: [...params, Variable<int>(limit)],).get();
-    
+    ''',
+          variables: [...params, Variable<int>(limit)],
+        )
+        .get();
+
     return rows.map((row) => row.data).toList();
   }
-  
+
   /// Get occupancy trend (last 7 days) - optimized
   Future<List<Map<String, dynamic>>> getOccupancyTrend({int days = 7}) async {
     final rows = await db.customSelect('''
@@ -150,23 +145,24 @@ class OptimizedQueries {
       GROUP BY date(hotel_day_checkin)
       ORDER BY day
     ''').get();
-    
+
     return rows.map((row) => row.data).toList();
   }
-  
+
   /// Get guest debts - optimized with index hint
   Future<List<local_db.Debt>> getOverdueDebts() async {
     final query = db.select(db.debts)
-      ..where((d) => d.isSettled.equals(0) &
-                    d.remainingAmount.isBiggerThanValue(0),)
+      ..where((d) => d.isSettled.equals(0) & d.remainingAmount.isBiggerThanValue(0))
       ..orderBy([(d) => OrderingTerm.desc(d.id)])
       ..limit(100);
     return query.get();
   }
-  
+
   /// Get employee salary summary
   Future<Map<String, dynamic>> getEmployeeSalarySummary(int employeeId) async {
-    final result = await db.customSelect('''
+    final result = await db
+        .customSelect(
+          '''
       SELECT 
         e.name,
         e.basic_salary,
@@ -176,8 +172,11 @@ class OptimizedQueries {
       LEFT JOIN salary_cycles sc ON sc.employee_id = e.id
       WHERE e.id = ?
       GROUP BY e.id
-    ''', variables: [Variable<int>(employeeId)],).getSingle();
-    
+    ''',
+          variables: [Variable<int>(employeeId)],
+        )
+        .getSingle();
+
     final r = result.data;
     return {
       'name': r['name'],
@@ -186,12 +185,14 @@ class OptimizedQueries {
       'totalRemaining': r['total_remaining'],
     };
   }
-  
+
   // ─── ROOMS: Fast room status lookup ───
-  
+
   /// Get room with booking details (single join query)
   Future<Map<String, dynamic>?> getRoomWithBooking(String roomNumber) async {
-    final result = await db.customSelect('''
+    final result = await db
+        .customSelect(
+          '''
       SELECT 
         r.*,
         b.guest_name,
@@ -204,18 +205,18 @@ class OptimizedQueries {
         AND b.room_number = ?
       WHERE r.room_number = ?
       LIMIT 1
-    ''', variables: [
-      Variable<String>(roomNumber),
-      Variable<String>(roomNumber),
-    ],).getSingleOrNull();
-    
+    ''',
+          variables: [Variable<String>(roomNumber), Variable<String>(roomNumber)],
+        )
+        .getSingleOrNull();
+
     return result?.data;
   }
-  
+
   /// Get room occupancy rate quickly
   Future<double> getOccupancyRate(String? hotelDay) async {
     // hotelDay parameter reserved for future date-specific queries
-    
+
     final result = await db.customSelect('''
       SELECT 
         ROUND(
@@ -225,29 +226,26 @@ class OptimizedQueries {
       ) as rate
       FROM rooms
     ''').getSingle();
-    
+
     return (result.data['rate'] as num?)?.toDouble() ?? 0.0;
   }
-  
+
   // ─── PAYMENTS: Aggregations ───
-  
+
   /// Get today's total payments (uses index on payment_date)
   Future<double> getTodayPayments() async {
     final today = _todayKey();
-    final query = db.select(db.payments)
-      ..where((p) => p.paymentDate.equals(today) &
-                    p.isVoided.equals(false),);
+    final query = db.select(db.payments)..where((p) => p.paymentDate.equals(today) & p.isVoided.equals(false));
     final result = await query.get();
-    
+
     return result.fold<double>(0, (sum, p) => sum + p.amount);
   }
-  
+
   /// Get payments grouped by revenue type (uses composite index)
-  Future<Map<String, double>> getPaymentsByRevenueType({
-    required String from,
-    required String to,
-  }) async {
-    final results = await db.customSelect('''
+  Future<Map<String, double>> getPaymentsByRevenueType({required String from, required String to}) async {
+    final results = await db
+        .customSelect(
+          '''
       SELECT 
         revenue_type,
         SUM(amount) as total
@@ -255,52 +253,45 @@ class OptimizedQueries {
       WHERE payment_date BETWEEN ? AND ?
         AND is_voided = 0
       GROUP BY revenue_type
-    ''', variables: [
-      Variable<String>(from),
-      Variable<String>(to),
-    ],).get();
-    
-    return {
-      for (final r in results)
-        r.read<String>('revenue_type'): r.read<double>('total'),
-    };
+    ''',
+          variables: [Variable<String>(from), Variable<String>(to)],
+        )
+        .get();
+
+    return {for (final r in results) r.read<String>('revenue_type'): r.read<double>('total')};
   }
-  
+
   // ─── EXPENSES: Optimized queries ───
-  
+
   /// Get monthly expense summary
-  Future<Map<String, double>> getMonthlyExpenseSummary(
-    int year,
-    int month,
-  ) async {
+  Future<Map<String, double>> getMonthlyExpenseSummary(int year, int month) async {
     final from = '$year-${month.toString().padLeft(2, '0')}-01';
     final to = '$year-${month.toString().padLeft(2, '0')}-31';
-    
-    final results = await db.customSelect('''
+
+    final results = await db
+        .customSelect(
+          '''
       SELECT 
         expense_type,
         SUM(amount) as total
       FROM expenses
       WHERE date BETWEEN ? AND ?
       GROUP BY expense_type
-    ''', variables: [
-      Variable<String>(from),
-      Variable<String>(to),
-    ],).get();
-    
-    return {
-      for (final r in results)
-        r.read<String>('expense_type'): r.read<double>('total'),
-    };
+    ''',
+          variables: [Variable<String>(from), Variable<String>(to)],
+        )
+        .get();
+
+    return {for (final r in results) r.read<String>('expense_type'): r.read<double>('total')};
   }
-  
+
   // ─── UTILITIES ───
-  
+
   String _todayKey() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
-  
+
   /// Generic method for paginated queries with optimized limit.
   /// Uses raw SQL since Drift's typed select API requires compile-time
   /// table types, which is incompatible with a generic parameter.

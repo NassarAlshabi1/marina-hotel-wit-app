@@ -41,20 +41,12 @@ void main() {
           ),
         );
 
-    final snapshot = await SyncSafetyLayer.instance.captureSnapshot(
-      db: db,
-      syncId: 'sync_test',
-      phase: 'push',
-    );
+    final snapshot = await SyncSafetyLayer.instance.captureSnapshot(db: db, syncId: 'sync_test', phase: 'push');
 
     await db.delete(db.shiftNotes).go();
     expect((await db.select(db.shiftNotes).get()).isEmpty, isTrue);
 
-    await SyncSafetyLayer.instance.rollbackSnapshot(
-      db: db,
-      snapshot: snapshot,
-      error: 'simulated failure',
-    );
+    await SyncSafetyLayer.instance.rollbackSnapshot(db: db, snapshot: snapshot, error: 'simulated failure');
 
     final restoredNotes = await db.select(db.shiftNotes).get();
     expect(restoredNotes.length, 1);
@@ -62,11 +54,7 @@ void main() {
   });
 
   test('committing snapshot stores audit metadata', () async {
-    final snapshot = await SyncSafetyLayer.instance.captureSnapshot(
-      db: db,
-      syncId: 'sync_commit',
-      phase: 'pull',
-    );
+    final snapshot = await SyncSafetyLayer.instance.captureSnapshot(db: db, syncId: 'sync_commit', phase: 'pull');
 
     await SyncSafetyLayer.instance.commitSnapshot(
       db: db,
@@ -77,11 +65,8 @@ void main() {
       metadata: {'conflicts': 0},
     );
 
-    final result = await db
-        .customSelect('SELECT COUNT(*) as count FROM sync_audit')
-        .getSingle();
-    final count =
-        (result.data['count'] as int?) ?? (result.data['count'] as num).toInt();
+    final result = await db.customSelect('SELECT COUNT(*) as count FROM sync_audit').getSingle();
+    final count = (result.data['count'] as int?) ?? (result.data['count'] as num).toInt();
     expect(count, 1);
   });
 }

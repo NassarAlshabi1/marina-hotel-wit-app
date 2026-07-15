@@ -83,9 +83,7 @@ class ConflictDetector {
     final remoteDeleted = remoteData['deletedAt'] != null;
 
     if (localDeleted && remoteDeleted) {
-      return const ConflictDetectionResult(
-        type: ConflictType.deleteVsDelete,
-      );
+      return const ConflictDetectionResult(type: ConflictType.deleteVsDelete);
     }
     if (localDeleted && !remoteDeleted) {
       return ConflictDetectionResult(
@@ -95,17 +93,11 @@ class ConflictDetector {
       );
     }
     if (!localDeleted && remoteDeleted) {
-      return const ConflictDetectionResult(
-        type: ConflictType.noConflictRemoteNewer,
-      );
+      return const ConflictDetectionResult(type: ConflictType.noConflictRemoteNewer);
     }
 
-    final localVcStr = (localData['vectorClock'] as String?) ??
-        (localData['vector_clock'] as String?) ??
-        '{}';
-    final remoteVcStr = (remoteData['vectorClock'] as String?) ??
-        (remoteData['vector_clock'] as String?) ??
-        '{}';
+    final localVcStr = (localData['vectorClock'] as String?) ?? (localData['vector_clock'] as String?) ?? '{}';
+    final remoteVcStr = (remoteData['vectorClock'] as String?) ?? (remoteData['vector_clock'] as String?) ?? '{}';
 
     final localVc = VectorClock.fromString(localVcStr);
     final remoteVc = VectorClock.fromString(remoteVcStr);
@@ -129,11 +121,7 @@ class ConflictDetector {
 
     switch (comparison) {
       case VectorClockComparison.equal:
-        return ConflictDetectionResult(
-          type: ConflictType.noConflictEqual,
-          localVc: localVc,
-          remoteVc: remoteVc,
-        );
+        return ConflictDetectionResult(type: ConflictType.noConflictEqual, localVc: localVc, remoteVc: remoteVc);
 
       case VectorClockComparison.remoteNewer:
         return ConflictDetectionResult(
@@ -174,9 +162,7 @@ class ConflictDetector {
     final conflicting = localChanged.intersection(remoteChanged);
 
     return ConflictDetectionResult(
-      type: conflicting.isEmpty
-          ? ConflictType.concurrentDifferentFields
-          : ConflictType.concurrentSameFields,
+      type: conflicting.isEmpty ? ConflictType.concurrentDifferentFields : ConflictType.concurrentSameFields,
       localVc: localVc,
       remoteVc: remoteVc,
       localChangedFields: localChanged,
@@ -186,10 +172,7 @@ class ConflictDetector {
     );
   }
 
-  static Set<String> _findChangedFields(
-    Map<String, dynamic> current,
-    Map<String, dynamic>? ancestor,
-  ) {
+  static Set<String> _findChangedFields(Map<String, dynamic> current, Map<String, dynamic>? ancestor) {
     if (ancestor == null) return current.keys.toSet();
     final changed = <String>{};
     for (final key in current.keys) {

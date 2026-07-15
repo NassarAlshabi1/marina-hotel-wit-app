@@ -42,16 +42,16 @@ class AppwriteConfig {
   static const String salaryPaymentsCollectionId = 'salary_payments';
   static const String shiftNotesCollectionId = 'shift_notes';
   static const String blacklistCollectionId = 'blacklist';
-  
+
   // جداول التدقيق المالي والتعديلات
   static const String priceAdjustmentsCollectionId = 'price_adjustments';
   static const String bookingPriceAdjustmentsCollectionId = 'booking_price_adjustments';
   static const String auditLogsCollectionId = 'audit_logs';
   static const String paymentVoidsCollectionId = 'payment_voids';
-  
+
   // جدول معلومات النزلاء
   static const String guestInfosCollectionId = 'guest_infos';
-  
+
   // جدول سحوبات الرواتب
   static const String salaryWithdrawalsCollectionId = 'salary_withdrawals';
 
@@ -98,8 +98,7 @@ class AppwriteConfig {
   static const int maxCacheSizeMB = 20;
   static const int maxRetries = 3;
   static const Duration initialRetryDelay = Duration(seconds: 2);
-  static const double retryBackoffMultiplier =
-      2.0; // Exponential backoff multiplier
+  static const double retryBackoffMultiplier = 2.0; // Exponential backoff multiplier
 
   // إعدادات Timeout
   static const Duration defaultTimeout = Duration(seconds: 30);

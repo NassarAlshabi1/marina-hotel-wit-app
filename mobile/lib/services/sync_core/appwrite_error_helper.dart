@@ -163,13 +163,7 @@ class AppwriteErrorHelper {
     buffer.write('   الرسالة: ${e.message}');
 
     final level = _getLevelFromCode(e.code);
-    _logger.log(
-      buffer.toString(),
-      level: level,
-      tag: 'APPWRITE_EXCEPTION',
-      error: e,
-      stackTrace: stackTrace,
-    );
+    _logger.log(buffer.toString(), level: level, tag: 'APPWRITE_EXCEPTION', error: e, stackTrace: stackTrace);
   }
 
   LogLevel _getLevelFromCode(dynamic code) {

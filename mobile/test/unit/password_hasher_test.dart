@@ -71,10 +71,7 @@ void main() {
       test('rejects malformed hash gracefully', () {
         expect(PasswordHasher.verify('password', 'malformed'), isFalse);
         expect(PasswordHasher.verify('password', 'pbkdf2_sha256\$abc'), isFalse);
-        expect(
-          PasswordHasher.verify('password', 'pbkdf2_sha256\$abc\$def\$ghi\$extra'),
-          isFalse,
-        );
+        expect(PasswordHasher.verify('password', 'pbkdf2_sha256\$abc\$def\$ghi\$extra'), isFalse);
       });
 
       test('rejects corrupted base64 in hash', () {

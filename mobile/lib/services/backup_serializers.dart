@@ -281,39 +281,23 @@ Map<String, dynamic> buildBackupDataMap({
     'rooms': roomsData.map((room) => room.toJson()).toList(),
     'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
     'booking_notes': bookingNotesData.map((note) => note.toJson()).toList(),
-    'booking_nights': bookingNightsData
-        .map((night) => night.toJson())
-        .toList(),
+    'booking_nights': bookingNightsData.map((night) => night.toJson()).toList(),
     'hotel_day_ledger': ledgerData.map((entry) => entry.toJson()).toList(),
     'shift_notes': shiftNotesData.map((note) => note.toJson()).toList(),
     'employees': employeesData.map((employee) => employee.toJson()).toList(),
     'expenses': expensesData.map((expense) => expense.toJson()).toList(),
-    'cash_transactions': cashTransactionsData
-        .map((transaction) => transaction.toJson())
-        .toList(),
+    'cash_transactions': cashTransactionsData.map((transaction) => transaction.toJson()).toList(),
     'payments': paymentsData.map((payment) => payment.toJson()).toList(),
     'debts': debtsData.map((debt) => debt.toJson()).toList(),
-    'salary_cycles': salaryCyclesData
-        .map((cycle) => cycle.toJson())
-        .toList(),
-    'salary_payments': salaryPaymentsData
-        .map((payment) => payment.toJson())
-        .toList(),
-    'price_adjustments': priceAdjustmentsData
-        .map((adj) => adj.toJson())
-        .toList(),
-    'booking_price_adjustments': bookingPriceAdjData
-        .map((adj) => adj.toJson())
-        .toList(),
+    'salary_cycles': salaryCyclesData.map((cycle) => cycle.toJson()).toList(),
+    'salary_payments': salaryPaymentsData.map((payment) => payment.toJson()).toList(),
+    'price_adjustments': priceAdjustmentsData.map((adj) => adj.toJson()).toList(),
+    'booking_price_adjustments': bookingPriceAdjData.map((adj) => adj.toJson()).toList(),
     'audit_logs': auditLogsData.map((log) => log.toJson()).toList(),
     'payment_voids': paymentVoidsData.map((v) => v.toJson()).toList(),
     'guest_infos': guestInfosData.map((g) => g.toJson()).toList(),
-    'salary_withdrawals': salaryWithdrawalsData
-        .map((s) => s.toJson())
-        .toList(),
-    'salary_carry_over_logs': salaryCarryOverLogsData
-        .map((s) => s.toJson())
-        .toList(),
+    'salary_withdrawals': salaryWithdrawalsData.map((s) => s.toJson()).toList(),
+    'salary_carry_over_logs': salaryCarryOverLogsData.map((s) => s.toJson()).toList(),
   };
 
   // إعدادات الواتساب (اختياري)

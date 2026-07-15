@@ -29,8 +29,7 @@ class SqliteBackupRestore {
   /// Default database file name used by Drift/sqflite. Change if the DB name differs.
   /// The current app uses 'marina_hotel.db' in `SqfliteQueryExecutor.inDatabaseFolder`.
   static const String kDefaultDbFileName = 'marina_hotel.db';
-  static const String kAndroidDocumentsBackupPath =
-      '/storage/emulated/0/Documents/MarinaHotelBackups';
+  static const String kAndroidDocumentsBackupPath = '/storage/emulated/0/Documents/MarinaHotelBackups';
 
   static Future<String> _resolveDefaultDbPath() async {
     final dbDir = await sqflite.getDatabasesPath();
@@ -55,17 +54,11 @@ class SqliteBackupRestore {
           }
           return documentsTarget;
         } catch (e) {
-          debugPrint(
-            '⚠️ Failed to access default backup dir, falling back: $e',
-          );
+          debugPrint('⚠️ Failed to access default backup dir, falling back: $e');
         }
-        final fallbackDirs = await getExternalStorageDirectories(
-          type: StorageDirectory.documents,
-        );
+        final fallbackDirs = await getExternalStorageDirectories(type: StorageDirectory.documents);
         if (fallbackDirs != null && fallbackDirs.isNotEmpty) {
-          final fallbackTarget = Directory(
-            p.join(fallbackDirs.first.path, 'MarinaHotelBackups'),
-          );
+          final fallbackTarget = Directory(p.join(fallbackDirs.first.path, 'MarinaHotelBackups'));
           if (!fallbackTarget.existsSync()) {
             await fallbackTarget.create(recursive: true);
           }
@@ -140,10 +133,7 @@ class SqliteBackupRestore {
       // نفتح اتصالاً مباشراً على نفس ملف قاعدة البيانات وننفّذ checkpoint.
       // sqflite يدير اتصالًا مستقلاً عن Drift، لكن PRAGMA wal_checkpoint آمن
       // للتشغيل المتزامن لأنه داخلياً يأخذ lock على WAL.
-      final db = await sqflite.openDatabase(
-        dbPath,
-        singleInstance: false,
-      );
+      final db = await sqflite.openDatabase(dbPath, singleInstance: false);
       try {
         await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
       } finally {
@@ -162,10 +152,7 @@ class SqliteBackupRestore {
   /// - Closes the current Drift database before replacing the file to avoid locks.
   /// - Copies the file to the default database path and reopens the database.
   /// - Optionally accepts a `reopenCallback` for custom reinitialization flows.
-  static Future<void> restoreDatabase(
-    String sourcePath, {
-    Future<void> Function()? reopenCallback,
-  }) async {
+  static Future<void> restoreDatabase(String sourcePath, {Future<void> Function()? reopenCallback}) async {
     try {
       if (sourcePath.isEmpty) {
         throw ArgumentError('sourcePath must not be empty');
@@ -192,15 +179,15 @@ class SqliteBackupRestore {
       // نسخ الاحتياطي إلى ملف مؤقت أولاً، ثم إعادة تسميته إلى اسم DB الفعلي
       final tmpPath = '$dstPath.tmp';
       final tmpFile = File(tmpPath);
-      
+
       // حذف أي ملف مؤقت سابق
       if (tmpFile.existsSync()) {
         await tmpFile.delete();
       }
-      
+
       // نسخ الاحتياطي إلى الملف المؤقت
       await srcFile.copy(tmpPath);
-      
+
       // حذف ملف DB الحالي (بعد التأكد من وجود نسخة مؤقتة صالحة)
       if (dstFile.existsSync()) {
         final backupPath = '$dstPath.pre_restore';
@@ -211,7 +198,7 @@ class SqliteBackupRestore {
         }
         await dstFile.rename(backupPath);
       }
-      
+
       // إعادة تسمية الملف المؤقت إلى اسم DB
       // BUG-4 FIX: rollback to pre_restore backup on failure
       try {

@@ -105,8 +105,7 @@ class HotelTimeEngine {
     }
 
     // If checkout time is at or after 14:01:00, add 1 day.
-    if (end.hour > boundaryHour ||
-        (end.hour == boundaryHour && end.minute >= boundaryMinute)) {
+    if (end.hour > boundaryHour || (end.hour == boundaryHour && end.minute >= boundaryMinute)) {
       days += 1;
     }
 
@@ -147,12 +146,7 @@ class HotelTimeEngine {
   /// - [discount] – amount to subtract from the total (defaults to 0).
   ///
   /// The returned value is clamped to zero (never negative).
-  static int calculateTotalAmount(
-    int pricePerNight,
-    DateTime checkIn, {
-    DateTime? checkOut,
-    int discount = 0,
-  }) {
+  static int calculateTotalAmount(int pricePerNight, DateTime checkIn, {DateTime? checkOut, int discount = 0}) {
     final days = calculateDays(checkIn, checkOut: checkOut);
     final total = (days * pricePerNight) - discount;
     return total < 0 ? 0 : total;

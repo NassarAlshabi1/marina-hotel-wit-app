@@ -27,16 +27,10 @@ class SyncIndicator extends ConsumerWidget {
           SizedBox(
             width: 16,
             height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              value: state.progress > 0 ? state.progress / 100 : null,
-            ),
+            child: CircularProgressIndicator(strokeWidth: 2, value: state.progress > 0 ? state.progress / 100 : null),
           ),
           const SizedBox(width: 8),
-          Text(
-            state.message ?? 'جاري المزامنة...',
-            style: const TextStyle(fontSize: 12),
-          ),
+          Text(state.message ?? 'جاري المزامنة...', style: const TextStyle(fontSize: 12)),
         ],
       );
     }
@@ -82,16 +76,11 @@ class EnhancedSyncButton extends ConsumerWidget {
       data: (state) {
         return _SyncButtonContent(
           state: state,
-          onPressed: state.isSyncing
-              ? null
-              : () => _showSyncOptions(context, orchestrator),
+          onPressed: state.isSyncing ? null : () => _showSyncOptions(context, orchestrator),
         );
       },
       loading: () => const _SyncButtonContent(),
-      error: (_, __) => _SyncButtonContent(
-        onPressed: () => _showSyncOptions(context, orchestrator),
-        isError: true,
-      ),
+      error: (_, __) => _SyncButtonContent(onPressed: () => _showSyncOptions(context, orchestrator), isError: true),
     );
   }
 
@@ -137,12 +126,7 @@ class EnhancedSyncButton extends ConsumerWidget {
 }
 
 class _SyncButtonContent extends StatelessWidget {
-
-  const _SyncButtonContent({
-    this.state,
-    this.onPressed,
-    this.isError = false,
-  });
+  const _SyncButtonContent({this.state, this.onPressed, this.isError = false});
   final SyncState? state;
   final VoidCallback? onPressed;
   final bool isError;
@@ -182,10 +166,7 @@ class _SyncButtonContent extends StatelessWidget {
             ? SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(color),
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(color)),
               )
             : Icon(icon, color: color),
         onPressed: onPressed,
