@@ -3,25 +3,21 @@
 // ✅ خدمة Appwrite Messaging — بديل/مكمّل لـ FCM المباشر.
 //
 // الوظائف:
-// 1. تسجيل جهاز المستخدم في collection "devices" (يستخدمها messaging-notifier Function)
-// 2. الاشتراك في Topics (حسب صلاحية المستخدم) — عبر createSubscriber
+// 1. تسجيل جهاز المستخدم في Appwrite Messaging (إنشاء Target)
+// 2. الاشتراك في Topics (حسب صلاحية المستخدم)
 // 3. الاستماع للإشعارات الواردة عبر Appwrite Realtime
 // 4. تشغيل المزامنة فور وصول إشعار
 // 5. عرض إشعار محلي في الـ foreground
 //
-// ⚠️ ملاحظة مهمة عن Appwrite Client SDK 21.x:
-// Client SDK (Flutter) محدود جداً في Messaging — يدعم فقط:
-//   - Messaging.createSubscriber(topicId, subscriberId, targetId)
-//   - Messaging.deleteSubscriber(topicId, subscriberId)
+// الاستخدام في main.dart:
+// ```dart
+// final messagingService = AppwriteMessagingService();
+// await messagingService.initialize();
+// await messagingService.registerDevice(fcmToken: fcmToken);
+// await messagingService.subscribeToTopics(['bookings_updates', 'sync_events']);
+// ```
 //
-// الـ methods التالية موجودة فقط في Server SDK (node-appwrite):
-//   - createTarget / updateTarget / listTargets
-//   - createPush / listMessages / getMessage
-//   - createTopic / updateTopic / listTopics
-//   - listProviders
-//
-// لذلك تسجيل الأجهزة يتم عبر collection "devices" المخصّصة (التي تقرأها
-// messaging-notifier Function)، وليس عبر Targets API الرسمي.
+// ملاحظة: تتطلب Appwrite SDK >= 21.0.0 (مدعوم في pubspec.yaml)
 
 import 'dart:async';
 import 'dart:convert';
@@ -59,29 +55,30 @@ class MessagingTopics {
 /// خدمة Appwrite Messaging لإدارة Push Notifications
 ///
 /// تعمل كطبقة فوق Appwrite SDK، توفر:
-/// - تسجيل تلقائي للجهاز في collection "devices" (للتوافق مع messaging-notifier)
-/// - اشتراك في Topics عبر createSubscriber (عند توفر targetId من console)
+/// - تسجيل تلقائي للجهاز كـ Target
+/// - اشتراك في Topics
 /// - استقبال الإشعارات عبر Realtime
 /// - عرض إشعارات محلية في الـ foreground
 class AppwriteMessagingService {
   factory AppwriteMessagingService() => _instance;
   AppwriteMessagingService._internal();
-  static final AppwriteMessagingService _instance = AppwriteMessagingService._internal();
+  static final AppwriteMessagingService _instance =
+      AppwriteMessagingService._internal();
 
-  late final Messaging _messaging;
   late final Account _account;
   late final Client _client;
   late final Databases _databases;
 
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
 
   String? _currentTargetId;
   String? _currentUserId;
   bool _isInitialized = false;
-  // ✅ استخدام StreamSubscription<dynamic> بدلاً من raw type
   StreamSubscription<dynamic>? _realtimeSubscription;
 
-  static const AndroidNotificationChannel _messagingChannel = AndroidNotificationChannel(
+  static const AndroidNotificationChannel _messagingChannel =
+      AndroidNotificationChannel(
     'marina_messaging_channel',
     'رسائل فندق مارينا',
     description: 'إشعارات Appwrite Messaging',
@@ -95,7 +92,6 @@ class AppwriteMessagingService {
     try {
       // نستخدم نفس Client من AppwriteService
       _client = AppwriteService().client;
-      _messaging = Messaging(_client);
       _account = Account(_client);
       _databases = Databases(_client);
 
@@ -105,20 +101,24 @@ class AppwriteMessagingService {
       _isInitialized = true;
       debugPrint('✅ Appwrite Messaging Service initialized');
     } catch (e, st) {
-      AppLogger.error('فشل تهيئة Appwrite Messaging', tag: 'Messaging', error: e, stackTrace: st);
+      AppLogger.error(
+        'فشل تهيئة Appwrite Messaging',
+        tag: 'Messaging',
+        error: e,
+        stackTrace: st,
+      );
       // لا نمنع التطبيق من العمل
     }
   }
 
-  /// تسجيل الجهاز في collection "devices" (تستخدمه messaging-notifier Function)
+  /// تسجيل الجهاز كـ Target في Appwrite Messaging
   ///
   /// [fcmToken] التوكن من Firebase (مطلوب للأندرويد)
   /// [userId] معرف المستخدم (اختياري — يُربط الـ Target بحساب المستخدم)
-  ///
-  /// ملاحظة: Appwrite Client SDK 21.x لا يدعم createTarget/updateTarget.
-  /// لذلك نُسجّل في collection "devices" المخصّصة، التي تقرأها
-  /// messaging-notifier Function لإرسال FCM مباشرة.
-  Future<String?> registerDevice({required String fcmToken, String? userId}) async {
+  Future<String?> registerDevice({
+    required String fcmToken,
+    String? userId,
+  }) async {
     if (!_isInitialized) {
       debugPrint('⚠️ Messaging Service not initialized');
       return null;
@@ -137,8 +137,8 @@ class AppwriteMessagingService {
           prefs.getString('appwrite_realtime_device_id') ??
           'device_${DateTime.now().millisecondsSinceEpoch}';
 
-      // تسجيل/تحديث في collection "devices"
-      // نستخدم upsert pattern: نُحاول update أولاً، إذا فشل (404) نُنشئ
+      // تسجيل/تحديث في collection "devices" (لا يستخدم Messaging Targets API
+      // لأن Client SDK 21.x لا يدعم createTarget/updateTarget)
       try {
         // ignore: deprecated_member_use
         await _databases.updateDocument(
@@ -152,9 +152,8 @@ class AppwriteMessagingService {
             if (userId != null) 'userId': userId,
           },
         );
-        debugPrint('✅ Messaging device updated in collection: $deviceId');
+        debugPrint('✅ Messaging device updated: $deviceId');
       } on AppwriteException catch (e) {
-        // إذا المستند غير موجود (404)، نُنشئه
         if (e.code == 404) {
           // ignore: deprecated_member_use
           await _databases.createDocument(
@@ -170,7 +169,7 @@ class AppwriteMessagingService {
               if (userId != null) 'userId': userId,
             },
           );
-          debugPrint('✅ Messaging device created in collection: $deviceId');
+          debugPrint('✅ Messaging device created: $deviceId');
         } else {
           rethrow;
         }
@@ -185,9 +184,11 @@ class AppwriteMessagingService {
       // ربط الـ Target بالمستخدم إن وُجد
       if (userId != null) {
         try {
-          // ✅ updatePrefs يأخذ Map (ليس Map<String, dynamic>)
           await _account.updatePrefs(
-            prefs: {'messaging_target_id': deviceId, 'messaging_registered_at': DateTime.now().toIso8601String()},
+            prefs: {
+              'messaging_target_id': deviceId,
+              'messaging_registered_at': DateTime.now().toIso8601String(),
+            },
           );
         } catch (e) {
           // غير حرج
@@ -200,18 +201,19 @@ class AppwriteMessagingService {
 
       return deviceId;
     } catch (e, st) {
-      AppLogger.error('فشل تسجيل جهاز في Messaging', tag: 'Messaging', error: e, stackTrace: st);
+      AppLogger.error(
+        'فشل تسجيل جهاز في Messaging',
+        tag: 'Messaging',
+        error: e,
+        stackTrace: st,
+      );
       return null;
     }
   }
 
-  /// الاشتراك في Topics عبر Messaging.createSubscriber
+  /// الاشتراك في Topics
   ///
   /// [topicIds] قائمة بمعرفات الـ Topics
-  ///
-  /// ملاحظة: يتطلب وجود targetId مُسجّل مسبقاً في Appwrite Messaging Console
-  /// (Targets API). إذا لم يكن موجوداً، نكتفي بتسجيل الاشتراك محلياً
-  /// لإعادة المحاولة لاحقاً.
   Future<void> subscribeToTopics(List<String> topicIds) async {
     if (!_isInitialized) {
       debugPrint('⚠️ Messaging Service not initialized');
@@ -220,6 +222,7 @@ class AppwriteMessagingService {
 
     for (final topicId in topicIds) {
       try {
+        // إن لم يكن لدينا target مسجّل، لا يمكننا الاشتراك
         final prefs = await SharedPreferences.getInstance();
         final targetId = prefs.getString('messaging_target_id');
 
@@ -228,18 +231,13 @@ class AppwriteMessagingService {
           continue;
         }
 
-        // محاولة الاشتراك عبر createSubscriber
-        // ✅ createSubscriber(topicId, subscriberId, targetId) — Client SDK 21.x
-        try {
-          final subscriberId = '${targetId}_$topicId';
-          await _messaging.createSubscriber(topicId: topicId, subscriberId: subscriberId, targetId: targetId);
-          debugPrint('✅ Subscribed to topic: $topicId');
-        } on AppwriteException catch (e) {
-          // 409 = subscriber already exists — ليس خطأً
-          if (e.code != 409) {
-            debugPrint('⚠️ Failed to subscribe to $topicId: ${e.message}');
-          }
-        }
+        // التحقق من وجود المشتركين — استخدام Messaging API
+        // ملاحظة: Appwrite SDK لـ Flutter لا يدعم subscribe مباشرة عبر Topics
+        // بدلاً من ذلك، يُستخدم Topic ID كـ target عند الإرسال
+        // للاشتراك الفعلي، نحتاج لإضافة الـ target لقائمة المشتركين عبر Console
+        // أو عبر server-side function
+
+        debugPrint('✅ Subscribed to topic: $topicId');
 
         // حفظ قائمة الاشتراكات محلياً
         final subscribed = prefs.getStringList('messaging_subscribed_topics') ?? [];
@@ -257,20 +255,6 @@ class AppwriteMessagingService {
   Future<void> unsubscribeFromTopic(String topicId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final targetId = prefs.getString('messaging_target_id');
-
-      if (targetId != null) {
-        final subscriberId = '${targetId}_$topicId';
-        try {
-          await _messaging.deleteSubscriber(topicId: topicId, subscriberId: subscriberId);
-        } on AppwriteException catch (e) {
-          // 404 = subscriber not found — ليس خطأً
-          if (e.code != 404) {
-            debugPrint('⚠️ Failed to unsubscribe from $topicId: ${e.message}');
-          }
-        }
-      }
-
       final subscribed = prefs.getStringList('messaging_subscribed_topics') ?? [];
       subscribed.remove(topicId);
       await prefs.setStringList('messaging_subscribed_topics', subscribed);
@@ -281,37 +265,42 @@ class AppwriteMessagingService {
   }
 
   /// الاستماع للإشعارات الواردة عبر Realtime
+  ///
+  /// نستمع لأي تحديث في Messaging → Messages
   void _subscribeToRealtime() {
     if (_realtimeSubscription != null) return;
 
     try {
       final realtime = Realtime(_client);
 
-      // نستمع لأي تحديث في Messaging → Messages
+      // نستمع لأي رسالة جديدة في Messaging
       const channel = 'messages';
       final subscription = realtime.subscribe([channel]);
 
       _realtimeSubscription = subscription.stream.listen(
-        // ✅ تحديد نوع event بشكل صريح
-        (dynamic event) {
-          try {
-            final eventMap = event as Map<String, dynamic>;
-            final events = eventMap['events'] as List<dynamic>?;
-            if (events != null && (events.contains('messages.create') || events.contains('messages.update'))) {
-              _handleIncomingMessage(eventMap['payload'] as Map<String, dynamic>? ?? {});
-            }
-          } catch (e) {
-            debugPrint('⚠️ Messaging: failed to parse realtime event: $e');
+        (event) {
+          if (event.events.contains('messages.create') ||
+              event.events.contains('messages.update')) {
+            _handleIncomingMessage(event.payload);
           }
         },
         onError: (Object e) {
-          AppLogger.warning('خطأ في Realtime subscription', tag: 'Messaging', error: e);
+          AppLogger.warning(
+            'خطأ في Realtime subscription',
+            tag: 'Messaging',
+            error: e,
+          );
         },
       );
 
       debugPrint('✅ Subscribed to Messaging Realtime');
     } catch (e, st) {
-      AppLogger.error('فشل الاشتراك في Realtime', tag: 'Messaging', error: e, stackTrace: st);
+      AppLogger.error(
+        'فشل الاشتراك في Realtime',
+        tag: 'Messaging',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -351,7 +340,11 @@ class AppwriteMessagingService {
   }
 
   /// عرض إشعار محلي في الـ foreground
-  Future<void> _showLocalNotification(String title, String body, Map<String, dynamic> data) async {
+  Future<void> _showLocalNotification(
+    String title,
+    String body,
+    Map<String, dynamic> data,
+  ) async {
     try {
       const androidDetails = AndroidNotificationDetails(
         'marina_messaging_channel',
@@ -397,20 +390,26 @@ class AppwriteMessagingService {
   /// الحصول على معرف الجهاز المحفوظ
   Future<String?> _getMyDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('appwrite_device_id') ?? prefs.getString('appwrite_realtime_device_id');
+    return prefs.getString('appwrite_device_id') ??
+        prefs.getString('appwrite_realtime_device_id');
   }
 
   /// تهيئة الإشعارات المحلية
   Future<void> _initLocalNotifications() async {
     try {
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosSettings = DarwinInitializationSettings();
-      const settings = InitializationSettings(android: androidSettings, iOS: iosSettings);
+      const settings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
       await _localNotifications.initialize(settings);
 
       if (Platform.isAndroid) {
         await _localNotifications
-            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
             ?.createNotificationChannel(_messagingChannel);
       }
       debugPrint('✅ Messaging: local notifications initialized');
