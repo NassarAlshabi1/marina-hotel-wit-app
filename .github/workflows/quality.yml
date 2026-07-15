@@ -1,18 +1,20 @@
 name: Quality
 
 # ═══════════════════════════════════════════════════════════════
-#  Marina Hotel — Quality Gate (1 of 4)
+#  Marina Hotel — Quality Gate (الموحد)
 # ═══════════════════════════════════════════════════════════════
 #
-#  مراحل الفحص:
-#  1. Formatting            — dart format --set-exit-if-changed
-#  2. Static Analysis       — flutter analyze --fatal-infos --fatal-warnings
-#  3. Code Metrics          — dart_code_metrics (complexity, anti-patterns)
-#  4. Performance Rules     — قواعد Flutter Performance في analysis_options
-#  5. Architecture          — architecture-validator.py
-#  6. Dependency Audit      — dependency-audit.sh
+#  Pipeline شامل لضمان جودة الكود قبل الدمج.
 #
-#  أي فشل في أي مرحلة = رفض الـ PR.
+#  المراحل (6):
+#  1. Formatting            — dart format --set-exit-if-changed (blocking)
+#  2. Static Analysis       — flutter analyze --fatal-infos --fatal-warnings (blocking)
+#  3. Code Metrics          — dart_code_metrics (non-blocking)
+#  4. Performance Rules     — مُدمجة في analysis_options.yaml (blocking)
+#  5. Architecture          — architecture-validator.py (non-blocking)
+#  6. Dependency Audit      — dependency-audit.sh (non-blocking)
+#
+#  أي فشل في المراحل الـ blocking يمنع دمج الـ PR.
 
 concurrency:
   group: quality-${{ github.ref }}
@@ -64,12 +66,11 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       # ═══════════════════════════════════════════════════════════
-      #  Stage 1: Formatting
+      #  Stage 1: Formatting (BLOCKING)
       # ═══════════════════════════════════════════════════════════
       - name: 🎨 Stage 1 — Check formatting
         run: |
           set -e
-          # استثناء الملفات المُولّدة تلقائياً
           find lib test -name "*.dart" \
             ! -name "*.g.dart" \
             ! -name "*.freezed.dart" \
@@ -80,13 +81,13 @@ jobs:
               --output=none
 
       # ═══════════════════════════════════════════════════════════
-      #  Stage 2: Static Analysis (strict — fatal infos + warnings)
+      #  Stage 2: Static Analysis (BLOCKING)
       # ═══════════════════════════════════════════════════════════
       - name: 🔍 Stage 2 — Static analysis (fatal)
         run: flutter analyze --fatal-infos --fatal-warnings
 
       # ═══════════════════════════════════════════════════════════
-      #  Stage 3: Code Metrics
+      #  Stage 3: Code Metrics (non-blocking)
       # ═══════════════════════════════════════════════════════════
       - name: 📊 Stage 3 — Code metrics
         run: |
@@ -95,26 +96,22 @@ jobs:
           metrics analyze lib \
             --config=dart_code_metrics.yaml \
             --reporter=console
-        continue-on-error: true  # non-blocking في المرحلة الانتقالية
+        continue-on-error: true
 
       # ═══════════════════════════════════════════════════════════
-      #  Stage 4: Performance Rules
-      #  (مُدمجة في Stage 2 عبر analysis_options.yaml — قواعد:
-      #   avoid_unnecessary_containers, prefer_const_constructors,
-      #   avoid_returning_widgets, prefer_final_locals, etc.)
+      #  Stage 4: Performance Rules (مُدمجة في Stage 2)
       # ═══════════════════════════════════════════════════════════
       - name: ⚡ Stage 4 — Performance rules
         run: |
-          echo "Performance rules are enforced via flutter analyze (Stage 2):"
+          echo "Performance rules enforced via flutter analyze (Stage 2):"
           echo "- avoid_unnecessary_containers"
           echo "- prefer_const_constructors"
           echo "- avoid_returning_widgets"
           echo "- prefer_final_locals"
-          echo "- avoid_function_literals_in_foreach_calls"
           echo "All performance rules passed ✅"
 
       # ═══════════════════════════════════════════════════════════
-      #  Stage 5: Architecture Validation
+      #  Stage 5: Architecture Validation (non-blocking)
       # ═══════════════════════════════════════════════════════════
       - name: 🏗️ Stage 5 — Architecture validation
         working-directory: ${{ github.workspace }}
@@ -122,17 +119,17 @@ jobs:
           python3 scripts/architecture-validator.py \
             --project-root mobile \
             --strict
-        continue-on-error: true  # non-blocking في المرحلة الانتقالية
+        continue-on-error: true
 
       # ═══════════════════════════════════════════════════════════
-      #  Stage 6: Dependency Audit
+      #  Stage 6: Dependency Audit (non-blocking)
       # ═══════════════════════════════════════════════════════════
       - name: 📦 Stage 6 — Dependency audit
         working-directory: ${{ github.workspace }}
         run: |
           chmod +x scripts/dependency-audit.sh
           bash scripts/dependency-audit.sh mobile false
-        continue-on-error: true  # non-blocking في المرحلة الانتقالية
+        continue-on-error: true
 
       # ═══════════════════════════════════════════════════════════
       #  Summary
@@ -145,8 +142,8 @@ jobs:
             echo ""
             echo "| Stage | Status |"
             echo "|---|---|"
-            echo "| 🎨 Formatting | ${{ job.status }} |"
-            echo "| 🔍 Static Analysis | ${{ job.status }} |"
+            echo "| 🎨 Formatting (blocking) | ${{ job.status }} |"
+            echo "| 🔍 Static Analysis (blocking) | ${{ job.status }} |"
             echo "| 📊 Code Metrics | Non-blocking |"
             echo "| ⚡ Performance Rules | Included in Analysis |"
             echo "| 🏗️ Architecture | Non-blocking |"

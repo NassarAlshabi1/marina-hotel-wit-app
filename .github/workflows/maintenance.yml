@@ -1,0 +1,152 @@
+name: Maintenance
+
+# ═══════════════════════════════════════════════════════════════
+#  Marina Hotel — Maintenance Workflow
+# ═══════════════════════════════════════════════════════════════
+#
+#  مهام صيانة دورية:
+#  1. تنظيف Artifacts القديمة (أقدم من 30 يوم)
+#  2. تنظيف workflow runs الفاشلة (أحدث 100 فقط)
+#  3. تنظيف cache القديم
+#
+#  يعمل يومياً عند منتصف الليل UTC + يدوياً.
+
+concurrency:
+  group: maintenance-${{ github.ref }}
+  cancel-in-progress: true
+
+name: Maintenance
+
+on:
+  schedule:
+    # يومياً عند منتصف الليل UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  clean-artifacts:
+    name: 🧹 Clean Old Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v5
+
+      - name: 🧹 Delete artifacts older than 30 days
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+
+            // احسب تاريخ ما قبل 30 يوم
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - 30);
+
+            console.log(`🧹 Cleaning artifacts older than ${cutoffDate.toISOString()}`);
+
+            // اجلب كل الـ artifacts
+            const artifacts = execSync('gh api repos/${{ github.repository }}/actions/artifacts --paginate --jq ".artifacts[]"').toString().trim().split('\n').filter(line => line);
+
+            let deleted = 0;
+            for (const artifactJson of artifacts) {
+              if (!artifactJson) continue;
+              try {
+                const artifact = JSON.parse(artifactJson);
+                const createdAt = new Date(artifact.created_at);
+
+                if (createdAt < cutoffDate) {
+                  console.log(`🗑️  Deleting: ${artifact.name} (ID: ${artifact.id}, created: ${artifact.created_at})`);
+                  execSync(`gh api repos/${{ github.repository }}/actions/artifacts/${artifact.id} -X DELETE`);
+                  deleted++;
+                }
+              } catch (error) {
+                console.error(`⚠️  Error: ${error.message}`);
+              }
+            }
+
+            console.log(`✅ Artifact cleanup completed — ${deleted} deleted`);
+
+  clean-failed-runs:
+    name: 🧹 Clean Failed Workflow Runs
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v5
+
+      - name: 🧹 Delete failed runs (keep last 100)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+
+            console.log('🧹 Cleaning failed workflow runs (keeping last 100)...');
+
+            // احصل على كل الـ runs الفاشلة
+            const runs = execSync('gh api repos/${{ github.repository }}/actions/runs --paginate -X GET -f status=failure -f per_page=100 --jq ".workflow_runs[]"').toString().trim().split('\n').filter(line => line);
+
+            let totalFailed = runs.length;
+            let toDelete = Math.max(0, totalFailed - 100); // احتفظ بآخر 100
+            let deleted = 0;
+
+            console.log(`📊 Total failed runs: ${totalFailed}, will delete: ${toDelete}`);
+
+            for (const runJson of runs) {
+              if (deleted >= toDelete) break;
+              if (!runJson) continue;
+              try {
+                const run = JSON.parse(runJson);
+                console.log(`🗑️  Deleting failed run: ${run.name} #${run.run_number} (ID: ${run.id})`);
+                execSync(`gh api repos/${{ github.repository }}/actions/runs/${run.id} -X DELETE`);
+                deleted++;
+              } catch (error) {
+                console.error(`⚠️  Error: ${error.message}`);
+              }
+            }
+
+            console.log(`✅ Failed runs cleanup completed — ${deleted} deleted`);
+
+  clean-old-cache:
+    name: 🧹 Clean Old Cache
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v5
+
+      - name: 🧹 Delete old cache entries
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+
+            console.log('🧹 Cleaning old cache entries...');
+
+            try {
+              // احصل على كل الـ caches
+              const caches = execSync('gh cache list --repo ${{ github.repository }} --json id,key,lastAccessedAt --limit 100').toString().trim();
+              const cacheList = JSON.parse(caches || '[]');
+
+              // احذف caches لم تُستخدم منذ أكثر من 7 أيام
+              const cutoffDate = new Date();
+              cutoffDate.setDate(cutoffDate.getDate() - 7);
+
+              let deleted = 0;
+              for (const cache of cacheList) {
+                const lastAccess = new Date(cache.lastAccessedAt);
+                if (lastAccess < cutoffDate) {
+                  console.log(`🗑️  Deleting cache: ${cache.key} (ID: ${cache.id})`);
+                  try {
+                    execSync(`gh cache delete ${cache.id} --repo ${{ github.repository }}`);
+                    deleted++;
+                  } catch (e) {
+                    // تجاهل — بعض caches لا يمكن حذفها
+                  }
+                }
+              }
+
+              console.log(`✅ Cache cleanup completed — ${deleted} deleted`);
+            } catch (error) {
+              console.log(`ℹ️  Cache cleanup skipped: ${error.message}`);
+            }
