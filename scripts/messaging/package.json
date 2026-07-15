@@ -1,0 +1,16 @@
+{
+  "name": "marina-messaging-setup",
+  "version": "1.0.0",
+  "description": "Setup script for Appwrite Messaging — Marina Hotel",
+  "type": "module",
+  "main": "setup_messaging.js",
+  "scripts": {
+    "check": "node setup_messaging.js --check",
+    "topics": "node setup_messaging.js --topics",
+    "test": "node setup_messaging.js --test",
+    "status": "node setup_messaging.js --status"
+  },
+  "dependencies": {
+    "node-appwrite": "^14.0.0"
+  }
+}

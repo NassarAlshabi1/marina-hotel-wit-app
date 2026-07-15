@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:developer' as developer;
+import 'dart:ui' show DartPluginRegistrant;
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'components/admin_layout.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
@@ -59,6 +63,7 @@ import 'services/seed.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/sync_conflict_event_bus.dart';
 import 'services/sync_constants.dart';
+import 'services/sync_continuation_service.dart';
 import 'services/sync_guardian.dart';
 import 'services/sync_performance_optimizer.dart';
 import 'services/sync_queue_service.dart';
@@ -304,6 +309,25 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       debugPrint('✅ SyncGuardian initialized');
     } catch (e) {
       debugPrint('⚠️ SyncGuardian init failed (non-fatal): $e');
+    }
+
+    // ✅ تهيئة WorkManager + SyncContinuationService
+    // ضروري لـ:
+    //   - AutoSyncTask (Google Drive background sync)
+    //   - SyncContinuationService (إكمال المزامنة عند الخروج من الشاشة)
+    //   - AppSessionManager (backupAfterInactivity)
+    // بدون هذا، registerOneOffTask/registerPeriodicTask تفشل بصمت!
+    debugPrint('⚙️ [7.6/8] Initializing WorkManager + SyncContinuationService...');
+    try {
+      await Workmanager().initialize(
+        _unifiedCallbackDispatcher,
+      );
+      await SyncContinuationService.initialize(debug: kDebugMode);
+      // تسجيل فحص دوري للمزامنات المعلّقة (كل 15 دقيقة)
+      await SyncContinuationService.schedulePeriodicCheck();
+      debugPrint('✅ WorkManager + SyncContinuationService initialized');
+    } catch (e) {
+      debugPrint('⚠️ WorkManager init failed (non-fatal): $e');
     }
 
     debugPrint('🤖 [8/8] Initializing & Starting Auto Sync Engine...');
@@ -725,6 +749,14 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   /// رفع التغييرات المعلقة عند خروج التطبيق للخلفية
   /// البيانات محفوظة في SQLite (outbox) حتى لو قُتل التطبيق قبل الاكتمال
   /// عند العودة للتطبيق ستتم إعادة المحاولة تلقائياً
+  ///
+  /// ✅ إصلاح جذري: إضافة جدولة مهمة WorkManager لإكمال المزامنة
+  /// في الخلفية بدلاً من الاعتماد على timeout 10 ثوانٍ فقط.
+  /// السيناريو:
+  ///   1. المستخدم يضغط Push/Pull
+  ///   2. يخرج من الشاشة أو يُغلق التطبيق
+  ///   3. timeout 10 ثوانٍ قد لا يكفي للمزامنة الكاملة
+  ///   4. WorkManager يُكمل المزامنة في الخلفية مع constraints (network)
   Future<void> _pushPendingChangesOnPause() async {
     try {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
@@ -737,6 +769,16 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     } catch (e) {
       // البيانات محفوظة في outbox — لن تُفقد أبداً
       debugPrint('⚠️ Push on pause error (data safe in outbox): $e');
+
+      // ✅ جدولة مهمة WorkManager لإكمال المزامنة في الخلفية
+      // البيانات محفوظة في outbox، لكن push للسحابة لم يكتمل —
+      // WorkManager سيُحاول إكماله عند توفر الشبكة.
+      try {
+        await SyncContinuationService.scheduleSyncCompletion();
+        debugPrint('📅 Scheduled WorkManager to complete sync in background');
+      } catch (schedErr) {
+        debugPrint('⚠️ Failed to schedule sync continuation: $schedErr');
+      }
     }
   }
 
@@ -749,6 +791,14 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     _localAutoSyncDebounce?.cancel();
     if (_sessionConfigured) {
       unawaited(AppSessionManager.onAppCloseOrBackground());
+      // ✅ جدولة مهمة WorkManager لإكمال أي مزامنة معلّقة
+      // قبل تدمير الـ widget نهائياً. هذا يضمن أن البيانات
+      // ستُرفع للسحابة حتى لو قُتل التطبيق فوراً بعد dispose().
+      unawaited(
+        SyncContinuationService.scheduleSyncCompletion().catchError(
+            (Object e, StackTrace s) =>
+                debugPrint('Error scheduling sync continuation on dispose: $e\n$s')),
+      );
     }
     // تنظيف موارد الخدمات Singleton لمنع تسرب الذاكرة
     unawaited(_disposeSingletonServices());
@@ -837,6 +887,14 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           .refreshSignInStatus()
           .catchError((Object e, StackTrace s) => debugPrint('Error in refreshSignInStatus: $e\n$s'),
           );
+      // ✅ استهلاك أي عمليات مزامنة معلّقة من WorkManager
+      // قبل بدء مزامنة جديدة لتجنب التضارب
+      unawaited(
+        SyncContinuationService.consumePendingAndSync().catchError(
+          (Object e, StackTrace s) =>
+              debugPrint('Error in consumePendingAndSync: $e\n$s'),
+        ),
+      );
       // رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة
       unawaited(_syncOnResume());
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError((Object e, StackTrace s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
@@ -849,6 +907,13 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint('📱 التطبيق في الخلفية...');
       // مزامنة فورية عند الخروج لضمان عدم ضياع البيانات
       unawaited(_pushPendingChangesOnPause());
+      // ✅ جدولة مهمة WorkManager لإكمال المزامنة في الخلفية
+      // حتى لو قُتل التطبيق قبل اكتمال _pushPendingChangesOnPause
+      unawaited(
+        SyncContinuationService.scheduleSyncCompletion().catchError(
+            (Object e, StackTrace s) =>
+                debugPrint('Error scheduling sync continuation: $e\n$s')),
+      );
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(
         AppSessionManager.onAppCloseOrBackground,
@@ -1033,5 +1098,242 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         _currentRoute = route;
       });
     }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Unified WorkManager Callback Dispatcher
+// ═══════════════════════════════════════════════════════════════
+//
+// ✅ نقطة دخول موحّدة لكل مهام WorkManager في التطبيق.
+// ضرورية لأن Workmanager().initialize() يقبل callback واحد فقط.
+//
+// المهام المُغطّاة:
+// - marina_sync_completion_immediate (SyncContinuationService)
+// - marina_sync_completion (SyncContinuationService periodic)
+// - marina_auto_sync_now (AutoSyncTask)
+// - marina_auto_sync_periodic (AutoSyncTask)
+// - backupAfterInactivity (AppSessionManager)
+// - marina-hotel-background-sync (BackgroundSyncService legacy)
+// - marina-hotel-periodic-sync (BackgroundSyncService legacy)
+// - marina-hotel-battery-aware-sync (BackgroundSyncService legacy)
+// - autoBackup / autoBackupTask
+// - default → محاولة المزامنة كـ fallback
+
+@pragma('vm:entry-point')
+void _unifiedCallbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    // ✅ تهيئة إلزامية في بداية الـ callback — قبل أي عمل.
+    // WidgetsFlutterBinding: ضروري لـ MethodChannel, SharedPreferences, Firebase.
+    // DartPluginRegistrant: ضروري لـ plugins المُسجّلة (connectivity_plus,
+    // shared_preferences_android, firebase_*) في background context.
+    // بدونها: MissingPluginException عند أول استدعاء لـ SharedPreferences.
+    WidgetsFlutterBinding.ensureInitialized();
+    DartPluginRegistrant.ensureInitialized();
+
+    developer.log(
+      '📋 [WorkManager] Task executed: $task',
+      name: 'WorkManager',
+    );
+
+    try {
+      // توجيه المهمة بناءً على اسمها
+      switch (task) {
+        case kSyncCompletionImmediateTask:
+        case kSyncCompletionTask:
+          return _executeSyncCompletionTask(task, inputData);
+
+        case 'marina_auto_sync_now':
+        case 'marina_auto_sync_periodic':
+          return _executeAutoSyncTask(task, inputData);
+
+        case 'backupAfterInactivity':
+          return _executeBackupAfterInactivity(task, inputData);
+
+        case 'marina-hotel-background-sync':
+        case 'marina-hotel-periodic-sync':
+        case 'marina-hotel-battery-aware-sync':
+        case 'autoBackup':
+        case 'autoBackupTask':
+          return _executeLegacySyncTask(task, inputData);
+
+        default:
+          developer.log(
+            '⚠️ [WorkManager] Unknown task: $task → fallback to sync',
+            name: 'WorkManager',
+          );
+          return _executeLegacySyncTask(task, inputData);
+      }
+    } catch (e, st) {
+      developer.log(
+        '❌ [WorkManager] Task $task failed',
+        name: 'WorkManager',
+        error: e,
+        stackTrace: st,
+      );
+      return false;
+    }
+  });
+}
+
+/// تنفيذ مهمة إكمال المزامنة (SyncContinuationService)
+///
+/// ✅ تستخدم public constants من sync_continuation_service.dart (kSyncPendingPushFlag,
+/// kSyncPendingPullFlag, kSyncActiveFlag, kSyncStartTimeKey) — لا string literals.
+/// ✅ تتحقق من المدة المنقضية (kMaxSyncDuration) لتجنّب المزامنات القديمة جداً.
+/// ✅ تنظيف flags عند النجاح فقط — عند الفشل، WorkManager يُعيد المحاولة تلقائياً.
+Future<bool> _executeSyncCompletionTask(
+  String task,
+  Map<String, dynamic>? inputData,
+) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final hasPendingPush = prefs.getBool(kSyncPendingPushFlag) ?? false;
+    final hasPendingPull = prefs.getBool(kSyncPendingPullFlag) ?? false;
+
+    if (!hasPendingPush && !hasPendingPull) {
+      developer.log(
+        'ℹ️ [SyncContinuation] لا توجد عمليات معلّقة',
+        name: 'SyncContinuation',
+      );
+      return true;
+    }
+
+    // ✅ فحص المدة — إذا تجاوزت kMaxSyncDuration، نُلغي (المزامنة الدورية ستلتقط لاحقاً)
+    final startTimeMs = prefs.getInt(kSyncStartTimeKey) ?? 0;
+    if (startTimeMs > 0) {
+      final elapsedMs = DateTime.now().millisecondsSinceEpoch - startTimeMs;
+      if (elapsedMs > kMaxSyncDuration.inMilliseconds) {
+        developer.log(
+          '⚠️ [SyncContinuation] تجاوز الحد الزمني (${elapsedMs ~/ 1000}s) — إلغاء',
+          name: 'SyncContinuation',
+        );
+        // تنظيف flags لأن المهمة قديمة جداً
+        await prefs.setBool(kSyncActiveFlag, false);
+        await prefs.setBool(kSyncPendingPushFlag, false);
+        await prefs.setBool(kSyncPendingPullFlag, false);
+        await prefs.remove(kSyncStartTimeKey);
+        return true; // نجاح (ألغينا المهمة عمداً)
+      }
+    }
+
+    developer.log(
+      '🔄 [SyncContinuation] تنفيذ push=$hasPendingPush, pull=$hasPendingPull',
+      name: 'SyncContinuation',
+    );
+
+    // ✅ UnifiedSyncOrchestrator.instance هو singleton — syncNow() يُهيّئ
+    // _appwrite و _database داخلياً عبر _ensureAppwriteManager() إن كانا null.
+    final success = await UnifiedSyncOrchestrator.instance.syncNow(
+      push: hasPendingPush,
+      pull: hasPendingPull,
+      reason: 'workmanager_sync_completion',
+    );
+
+    if (success) {
+      // ✅ تنظيف flags باستخدام public constants (لا string literals)
+      await prefs.setBool(kSyncActiveFlag, false);
+      await prefs.setBool(kSyncPendingPushFlag, false);
+      await prefs.setBool(kSyncPendingPullFlag, false);
+      await prefs.remove(kSyncStartTimeKey);
+      developer.log(
+        '✅ [SyncContinuation] اكتملت المزامنة في الخلفية',
+        name: 'SyncContinuation',
+      );
+    } else {
+      developer.log(
+        '⚠️ [SyncContinuation] فشلت — سيُعيد WorkManager المحاولة',
+        name: 'SyncContinuation',
+      );
+    }
+
+    return success;
+  } catch (e, st) {
+    developer.log(
+      '❌ [SyncContinuation] فشل',
+      name: 'SyncContinuation',
+      error: e,
+      stackTrace: st,
+    );
+    return false;
+  }
+}
+
+/// تنفيذ مهمة AutoSyncTask (Google Drive)
+Future<bool> _executeAutoSyncTask(
+  String task,
+  Map<String, dynamic>? inputData,
+) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final googleDriveEnabled =
+        prefs.getBool('google_drive_sync_enabled') ?? false;
+
+    if (!googleDriveEnabled) {
+      developer.log(
+        'ℹ️ [AutoSyncTask] Google Drive معطّل — تخطّي',
+        name: 'AutoSyncTask',
+      );
+      return true;
+    }
+
+    final success = await UnifiedSyncOrchestrator.instance.syncNow(
+      reason: 'workmanager_auto_sync',
+    );
+
+    // ✅ تحديث flag المعلّق (يُستخدم من SyncGuardian)
+    await prefs.setBool('auto_sync_pending', !success);
+
+    return success;
+  } catch (e, st) {
+    developer.log(
+      '❌ [AutoSyncTask] فشل',
+      name: 'AutoSyncTask',
+      error: e,
+      stackTrace: st,
+    );
+    return false;
+  }
+}
+
+/// تنفيذ مهمة backupAfterInactivity (AppSessionManager)
+Future<bool> _executeBackupAfterInactivity(
+  String task,
+  Map<String, dynamic>? inputData,
+) async {
+  try {
+    final success = await UnifiedSyncOrchestrator.instance.syncNow(
+      reason: 'workmanager_backup_inactivity',
+    );
+    return success;
+  } catch (e, st) {
+    developer.log(
+      '❌ [BackupInactivity] فشل',
+      name: 'BackupInactivity',
+      error: e,
+      stackTrace: st,
+    );
+    return false;
+  }
+}
+
+/// تنفيذ مهمة legacy sync
+Future<bool> _executeLegacySyncTask(
+  String task,
+  Map<String, dynamic>? inputData,
+) async {
+  try {
+    final success = await UnifiedSyncOrchestrator.instance.syncNow(
+      reason: 'workmanager_legacy_$task',
+    );
+    return success;
+  } catch (e, st) {
+    developer.log(
+      '❌ [LegacySync] فشل ($task)',
+      name: 'LegacySync',
+      error: e,
+      stackTrace: st,
+    );
+    return false;
   }
 }

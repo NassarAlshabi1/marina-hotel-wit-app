@@ -11,6 +11,16 @@ class AppwriteConfig {
   // Database ID - من لوحة تحكم Appwrite
   static const String databaseId = '6a2b030d000445596163';
 
+  // ═══════════════════════════════════════════════════════════════
+  //  Messaging — Appwrite Messaging Provider ID
+  // ═══════════════════════════════════════════════════════════════
+  // يُستخدم في AppwriteMessagingService.registerDevice() لتسجيل الـ Target.
+  // احصل عليه من: Appwrite Console → Messaging → Providers → FCM → _id
+  // القيم الافتراضية الشائعة: 'fcm' أو مخصّص مثل '6702abcdef1234567890'
+  static const String messagingProviderId = String.fromEnvironment(
+    'APPWRITE_MESSAGING_PROVIDER_ID',
+    defaultValue: 'fcm',
+  );
 
   // Collections IDs
   static const String roomsCollectionId = 'rooms';
