@@ -1377,6 +1377,17 @@ class AppwriteService {
   }
 
   /// إنشاء مستند جديد
+  ///
+  /// ✅ إصلاح (2026-07-15): استخدام withRetryAndTimeout بدلاً من withTimeout
+  /// فقط. هذا يحمي من الأخطاء الشبكية العابرة مثل:
+  ///   - SocketException: Connection reset by peer (errno = 104)
+  ///   - TimeoutException
+  ///   - 5xx server errors
+  ///
+  /// قبل الإصلاح: أي خطأ شبكي عابر في createDocument (مثل كتابة sync_logs)
+  /// كان يصعد مباشرة كـ Exception إلى Crashlytics ويُسجّل كـ Fatal.
+  /// بعد الإصلاح: يُعاد المحاولة 3 مرات (default) مع exponential backoff
+  /// قبل رمي الاستثناء.
   Future<models.Document> createRow({
     required String collectionId,
     required String documentId,
@@ -1387,7 +1398,7 @@ class AppwriteService {
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-        return await _networkHelper.withTimeout(
+        return await _networkHelper.withRetryAndTimeout(
           // ignore: deprecated_member_use
           operation: () => _databases.createDocument(
             databaseId: AppwriteConfigManager.databaseId,
@@ -1417,6 +1428,11 @@ class AppwriteService {
   }
 
   /// تحديث مستند موجود
+  ///
+  /// ✅ إصلاح (2026-07-15): استخدام withRetryAndTimeout بدلاً من withTimeout
+  /// فقط — نفس إصلاح createRow. يحمي من الأخطاء الشبكية العابرة
+  /// (Connection reset by peer, TimeoutException) التي كانت تُسبّب
+  /// Fatal exceptions في Crashlytics.
   Future<models.Document> updateRow({
     required String collectionId,
     required String documentId,
@@ -1427,7 +1443,7 @@ class AppwriteService {
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-        return await _networkHelper.withTimeout(
+        return await _networkHelper.withRetryAndTimeout(
           // ignore: deprecated_member_use
           operation: () => _databases.updateDocument(
             databaseId: AppwriteConfigManager.databaseId,

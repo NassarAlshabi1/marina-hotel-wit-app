@@ -321,17 +321,29 @@ class GoogleDriveUnifiedSyncCoordinator {
 
     _periodicSyncTimer?.cancel();
     _periodicSyncTimer = Timer(delay, () async {
-      await performSync(
-        trigger: SyncTrigger.scheduled,
-        mode: SyncMode.fullBackup,
-      );
+      // ✅ إصلاح جذري: Timer callback async بدون try-catch يُسبب
+      // unhandled async error → Crashlytics Fatal.
+      try {
+        await performSync(
+          trigger: SyncTrigger.scheduled,
+          mode: SyncMode.fullBackup,
+        );
+      } catch (e) {
+        _log('❌ Scheduled full backup error: $e');
+      }
 
       _periodicSyncTimer = Timer.periodic(
         Duration(hours: _fullBackupIntervalHours),
-        (_) => performSync(
-          trigger: SyncTrigger.scheduled,
-          mode: SyncMode.fullBackup,
-        ),
+        (_) async {
+          try {
+            await performSync(
+              trigger: SyncTrigger.scheduled,
+              mode: SyncMode.fullBackup,
+            );
+          } catch (e) {
+            _log('❌ Periodic full backup error: $e');
+          }
+        },
       );
     });
   }
@@ -394,8 +406,14 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   Future<void> _triggerSync() async {
+    // ✅ إصلاح جذري: catch + finally — سابقاً try/finally فقط بدون catch.
+    // _triggerSync يُستدعى من Timer callback عبر unawaited، فأي استثناء
+    // يصبح unhandled async error → Crashlytics Fatal.
     try {
       await performSync(trigger: SyncTrigger.localChange);
+    } catch (e) {
+      _log('❌ Trigger sync error: $e');
+      // لا rethrow — نمنع fatal crash
     } finally {
       _firstChangeTime = null;
     }
@@ -440,11 +458,15 @@ class GoogleDriveUnifiedSyncCoordinator {
         }
         _log('🔄 Periodic pull check triggered');
         SyncGuard.markStarted(label: 'gd_unified_pull');
+        // ✅ إصلاح جذري: catch + finally — سابقاً try/finally فقط بدون catch.
         try {
           await performSync(
             trigger: SyncTrigger.periodic,
             mode: SyncMode.deltaOnly,
           );
+        } catch (e) {
+          _log('❌ Periodic pull error: $e');
+          // لا rethrow — نمنع fatal crash من Timer callback
         } finally {
           SyncGuard.markFinished();
         }

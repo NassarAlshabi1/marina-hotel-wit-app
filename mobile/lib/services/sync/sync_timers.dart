@@ -50,7 +50,19 @@ class SyncTimers {
   }) {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
-      await onSync();
+      // ✅ إصلاح جذري: Timer callback async بدون try-catch يُسبب
+      // unhandled async error → Crashlytics Fatal عند أي استثناء.
+      try {
+        await onSync();
+      } catch (e, st) {
+        logger.error(
+          '❌ Sync Timer: استثناء غير متوقع',
+          error: e,
+          stackTrace: st,
+          tag: 'SYNC',
+        );
+        // لا rethrow — نمنع fatal crash
+      }
     });
     logger.info(
       'Auto sync started (interval: ${interval.inMinutes} min)',

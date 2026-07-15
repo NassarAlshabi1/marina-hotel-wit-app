@@ -498,8 +498,19 @@ class AppwriteSyncManager {
         return;
       }
       SyncGuard.markStarted(label: 'appwrite_sync');
+      // ✅ إصلاح جذري: catch + finally — سابقاً كان try/finally فقط بدون catch،
+      // فأي استثناء من sync() (مثل Connection reset قبل الـ try الداخلي)
+      // كان يصبح unhandled async error → Crashlytics Fatal.
       try {
         await sync();
+      } catch (e, st) {
+        _logger.error(
+          '❌ Auto sync Timer: استثناء غير متوقع',
+          error: e,
+          stackTrace: st,
+          tag: 'SYNC',
+        );
+        // لا rethrow — نمنع fatal crash
       } finally {
         SyncGuard.markFinished();
       }
@@ -722,7 +733,15 @@ class AppwriteSyncManager {
       syncLogLocalUuid = IdGen.uuid();
       syncLogCreatedEpoch = Time.nowEpoch();
 
-      final syncLog = await appwriteService.createSyncLog({
+      // ✅ FIX (Crashlytics fatal "Connection reset by peer"):
+      // createSyncLog كان يرمي AppwriteException عند فشل الشبكة (مثل
+      // SocketException: Connection reset by peer) ويُسجّل كـ Fatal في
+      // Crashlytics. هذا غير مبرّر — سجل sync_logs ليس حرجاً لاستمرار
+      // المزامنة. الآن نلتقط الخطأ ونستمر بدون سجل سحابي (سيُكتب في
+      // المزامنة التالية).
+      String? localSyncLogId;
+      try {
+        final syncLog = await appwriteService.createSyncLog({
         'deviceId': effectiveDeviceId,
         'operation': push && pull
             ? 'full'
@@ -763,8 +782,18 @@ class AppwriteSyncManager {
         'sync_origin': 'mobile',
         'vectorClock': '{}',
       });
-      syncLogId = syncLog.$id;
-      hasSyncLog = true;
+        localSyncLogId = syncLog.$id;
+      } catch (logCreateError, logCreateStack) {
+        // ✅ سجل sync_logs فشل — لا نوقف المزامنة
+        _logger.warning(
+          '⚠️ فشل كتابة سجل sync_logs في البداية — استمرار المزامنة بدون سجل سحابي',
+          error: logCreateError,
+          stackTrace: logCreateStack,
+          tag: 'SYNC',
+        );
+      }
+      syncLogId = localSyncLogId ?? 'local_$syncLogLocalUuid';
+      hasSyncLog = localSyncLogId != null;
 
       if (push) {
         recordsPushed += await _timePhase(

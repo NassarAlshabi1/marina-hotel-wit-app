@@ -175,13 +175,20 @@ class SyncGuardian {
   void _startPendingMonitor() {
     _pendingMonitor?.cancel();
     _pendingMonitor = Timer.periodic(const Duration(minutes: 5), (_) async {
-      final prefs = await SharedPreferences.getInstance();
-      final pending = prefs.getBool('auto_sync_pending') ?? false;
-      _pendingEvents = pending;
-      if (pending) {
-        await _consumePending(force: false);
-      } else {
-        _emitHealth();
+      // ✅ إصلاح جذري: Timer callback async بدون try-catch يُسبب
+      // unhandled async error → Crashlytics Fatal عند أي استثناء.
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final pending = prefs.getBool('auto_sync_pending') ?? false;
+        _pendingEvents = pending;
+        if (pending) {
+          await _consumePending(force: false);
+        } else {
+          _emitHealth();
+        }
+      } catch (e) {
+        _log('⚠️ SyncGuardian pending monitor خطأ: $e');
+        // لا rethrow — نمنع fatal crash
       }
     });
   }

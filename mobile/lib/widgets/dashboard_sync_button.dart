@@ -362,11 +362,29 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
     } finally {
-      _pullAnimationController.stop();
-      _pullAnimationController.reset();
+      // ✅ FIX: قد يكون الـ controller قد تم dispose أثناء await
+      // (مثلاً إذا غادر المستخدم الشاشة). استدعاء .stop() على controller
+      // مُدمَّر يُطلق "Null check operator used on a null value" لأن
+      // _ticker الداخلي يصبح null بعد dispose.
+      _safeStopAnimation(_pullAnimationController);
       if (mounted) {
         setState(() => _isPulling = false);
       }
+    }
+  }
+
+  /// ✅ إيقاف وإعادة ضبط AnimationController بشكل آمن ضد Dispose.
+  ///
+  /// بعد dispose()، الـ controller الداخلي _ticker يصبح null، واستدعاء
+  /// stop()/reset() يُطلق NullCheckOperatorException. نلتفّ حول ذلك
+  /// بـ try-catch + فحص mounted.
+  void _safeStopAnimation(AnimationController controller) {
+    if (!mounted) return;
+    try {
+      controller.stop();
+      controller.reset();
+    } catch (_) {
+      // الـ controller تم dispose — تجاهل
     }
   }
 
@@ -769,8 +787,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
     } finally {
-      _pushAnimationController.stop();
-      _pushAnimationController.reset();
+      // ✅ FIX: قد يكون الـ controller قد تم dispose أثناء await
+      // (مثلاً إذا غادر المستخدم الشاشة أو ضغط back أثناء المزامنة).
+      // استدعاء .stop() على controller مُدمَّر يُطلق
+      // "Null check operator used on a null value" (animation_controller.dart:899)
+      // لأن _ticker الداخلي يصبح null بعد dispose.
+      _safeStopAnimation(_pushAnimationController);
       if (mounted) {
         setState(() => _isPushing = false);
       }

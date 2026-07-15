@@ -196,9 +196,12 @@ class SmartSyncManager {
       // تسجيل نجاح المزامنة
       optimizer.recordSyncSuccess();
     } catch (e) {
-      // تسجيل فشل المزامنة
+      // ✅ إصلاح جذري: لا نرمي rethrow — Timer callback لا يلتقط
+      // الاستثناءات، فإذا rethrow هنا يصبح unhandled async error
+      // ويصل لـ Crashlytics كـ Fatal. نسجّل الفشل محلياً فقط.
       optimizer.recordSyncFailure();
-      rethrow;
+      _log('⚠️ فشل فحص المزامنة المُحسَّن: $e');
+      // لا rethrow
     } finally {
       SyncGuard.markFinished();
     }
@@ -587,7 +590,14 @@ class SmartSyncManager {
   /// تنفيذ مزامنة كاملة
   Future<void> _performFullSync() async {
     _log('🔄 بدء المزامنة الكاملة الدورية...');
-    await _performSyncCheck();
+    // ✅ إصلاح جذري: حماية كاملة ضد أي استثناء — Timer callback
+    // في line 148-151 لا يلتقط الاستثناءات، فأي خطأ هنا يصبح fatal.
+    try {
+      await _performSyncCheck();
+    } catch (e) {
+      _log('⚠️ فشل المزامنة الكاملة الدورية: $e');
+      // لا rethrow — نمنع fatal crash
+    }
   }
 
   /// إشعار نجاح المزامنة

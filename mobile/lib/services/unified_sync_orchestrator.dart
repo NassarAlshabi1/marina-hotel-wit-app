@@ -212,10 +212,17 @@ class UnifiedSyncOrchestrator {
   Future<void> notifyLocalChange({String? table, String? operation}) async {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(seconds: 10), () async {
-      // رفع تلقائي إلى Appwrite فقط بعد كل تغيير
-      await _autoSyncToAppwrite(
-        reason: 'local_change:${table ?? 'unknown'}:${operation ?? 'unknown'}',
-      );
+      // ✅ إصلاح جذري: Timer callback async بدون try-catch يُسبب
+      // unhandled async error → Crashlytics Fatal عند أي استثناء شبكي.
+      try {
+        await _autoSyncToAppwrite(
+          reason: 'local_change:${table ?? 'unknown'}:${operation ?? 'unknown'}',
+        );
+      } catch (e, stackTrace) {
+        debugPrint('❌ UnifiedSyncOrchestrator: خطأ في debounce auto sync: $e');
+        debugPrint('Stack trace: $stackTrace');
+        // لا rethrow — نمنع fatal crash
+      }
     });
   }
 

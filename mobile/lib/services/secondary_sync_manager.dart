@@ -101,7 +101,16 @@ class SecondarySyncManager {
     }
 
     stopAutoSync();
-    _syncTimer = Timer.periodic(interval, (_) => sync());
+    // ✅ إصلاح جذري: Timer callback يستدعي sync() (async) بدون try-catch.
+    // سابقاً: (_) => sync() — أي استثناء يصبح unhandled async error → Fatal.
+    _syncTimer = Timer.periodic(interval, (_) async {
+      try {
+        await sync();
+      } catch (e) {
+        debugPrint('❌ [SecondarySync] Auto-sync Timer error: $e');
+        // لا rethrow — نمنع fatal crash
+      }
+    });
     debugPrint(
         '🔵 [SecondarySync] Auto-sync started (every ${interval.inMinutes} min)');
   }
