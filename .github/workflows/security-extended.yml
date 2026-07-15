@@ -147,7 +147,7 @@ jobs:
           for pattern in "${PATTERNS[@]}"; do
             MATCHES=$(grep -rE "$pattern" --include="*.dart" --include="*.yaml" --include="*.json" \
               --exclude-dir=".dart_tool" --exclude-dir="build" --exclude-dir=".git" \
-              . 2>/dev/null | grep -v "test/\|example/\|your_.*_here\|xxx\|placeholder\|template\|example\|$EXCLUDE_FILES" || true)
+              . 2>/dev/null | grep -vE "test/|example/|your_.*_here|xxx|placeholder|template|example|$EXCLUDE_FILES" || true)
             if [ -n "$MATCHES" ]; then
               echo "❌ Found potential secret matching: $pattern"
               echo "$MATCHES" | head -5

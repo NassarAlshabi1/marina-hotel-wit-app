@@ -26,7 +26,7 @@ paths = [
   '''google-services\.json''',
   # ملفات الاختبارات قد تحتوي tokens وهمية
   '''test/.*''',
-  '''*_test\.dart''',
+  '''.*_test\.dart''',
   # ملفات الأمثلة
   '''example/.*''',
   # README قد يحتوي placeholders
