@@ -25,7 +25,7 @@ jobs:
       run:
         working-directory: mobile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       
       - uses: subosito/flutter-action@v2
         with:
@@ -63,7 +63,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: mobile/coverage

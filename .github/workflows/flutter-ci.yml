@@ -28,7 +28,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -39,7 +39,7 @@ jobs:
           cache: true
 
       - name: Cache pub dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: |
             ~/.pub-cache
@@ -76,7 +76,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -86,7 +86,7 @@ jobs:
           cache: true
 
       - name: Cache pub dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: ~/.pub-cache
           key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
@@ -102,7 +102,7 @@ jobs:
         run: flutter build apk --debug
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: android-debug-apk
           path: mobile/build/app/outputs/flutter-apk/app-debug.apk
@@ -117,7 +117,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -127,7 +127,7 @@ jobs:
           cache: true
 
       - name: Cache pub dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: |
             ~/.pub-cache
@@ -145,7 +145,7 @@ jobs:
         run: flutter build ios --simulator --no-codesign
 
       - name: Upload iOS build
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: ios-build
           path: mobile/build/ios/iphonesimulator/
@@ -159,7 +159,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -169,7 +169,7 @@ jobs:
           cache: true
 
       - name: Cache pub dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: ~/.pub-cache
           key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
@@ -185,7 +185,7 @@ jobs:
         run: flutter build web
 
       - name: Upload web build
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: web-build
           path: mobile/build/web/
@@ -200,10 +200,10 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download web build
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v8
         with:
           name: web-build
           path: mobile/build/web/
