@@ -16,6 +16,7 @@ on:
   push:
     branches:
       - refactor/clean-v2
+      - '**'
     paths:
       - 'mobile/**'
       - '.github/workflows/debug-apk-clean-v2.yml'
