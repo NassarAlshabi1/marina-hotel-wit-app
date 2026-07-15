@@ -1,33 +1,59 @@
 {
   "name": "marina-hotel-e2e-tests",
   "version": "1.0.0",
-  "description": "E2E tests for Marina Hotel management system",
+  "private": true,
+  "description": "End-to-End tests and Appwrite management tools for Marina Hotel Management System",
+  "license": "MIT",
+
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11"
+  },
+
   "scripts": {
-    "test": "npx playwright test",
-    "test:ui": "npx playwright test --ui",
-    "test:debug": "npx playwright test --debug",
-    "test:expenses": "npx playwright test tests/expenses --reporter=line",
-    "install:playwright": "npx playwright install --with-deps",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:headed": "playwright test --headed",
+    "test:expenses": "playwright test tests/expenses --reporter=line",
+    "test:report": "playwright show-report",
+
+    "typecheck": "tsc --noEmit",
+
+    "lint": "tsc --noEmit",
+
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
+
+    "install:playwright": "playwright install --with-deps",
+
     "appwrite:create": "node scripts/appwrite/create_appwrite_collections.js",
     "appwrite:indexes": "node scripts/appwrite/create_unique_indexes.js",
     "appwrite:mobile-indexes": "node scripts/appwrite/create_mobile_indexes.js",
     "appwrite:sync-logs": "node scripts/appwrite/ensure_sync_logs_action.js",
     "appwrite:list": "node scripts/appwrite/list_appwrite_collections.js"
   },
-  "devDependencies": {
-    "@playwright/test": "^1.44.0",
-    "ts-node": "^10.9.0",
-    "typescript": "^5.0.0"
-  },
+
   "dependencies": {
     "@daytonaio/sdk": "^0.195.0",
     "node-appwrite": "^20.3.0"
   },
+
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "prettier": "^3.6.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  },
+
   "overrides": {
+    "@grpc/grpc-js": "^1.14.4",
+    "@opentelemetry/core": "^2.8.0",
     "protobufjs": "^7.6.3",
     "tar": "^7.5.16",
-    "ws": "^8.21.0",
-    "@grpc/grpc-js": "^1.14.4",
-    "@opentelemetry/core": "^2.8.0"
+    "ws": "^8.21.0"
   }
 }
