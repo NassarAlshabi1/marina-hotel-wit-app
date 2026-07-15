@@ -305,9 +305,7 @@ class FcmService {
       if (!messagingService.isInitialized) {
         await messagingService.initialize();
       }
-      final targetId = await messagingService.registerDevice(
-        fcmToken: fcmToken,
-      );
+      final targetId = await messagingService.registerDevice(fcmToken: fcmToken);
       if (targetId != null) {
         debugPrint('✅ Device also registered in Appwrite Messaging: $targetId');
         // اشترك في Topics الافتراضية
