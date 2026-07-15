@@ -166,9 +166,9 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
       final db = Databases(client);
       final stopwatch = Stopwatch()..start();
 
-      // ignore: deprecated_member_use
       await db
-          .listDocuments( // ignore: deprecated_member_use
+          // ignore: deprecated_member_use
+          .listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: AppwriteConfig.roomsCollectionId,
             queries: [Query.limit(1)],
@@ -208,9 +208,9 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
       final db = Databases(client);
       final stopwatch = Stopwatch()..start();
 
-      // ignore: deprecated_member_use
       await db
-          .listDocuments( // ignore: deprecated_member_use
+          // ignore: deprecated_member_use
+          .listDocuments(
             databaseId: SecondaryAppwriteConfig.databaseId,
             collectionId: AppwriteConfig.roomsCollectionId,
             queries: [Query.limit(1)],
