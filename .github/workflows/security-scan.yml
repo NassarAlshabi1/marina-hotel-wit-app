@@ -18,6 +18,7 @@ on:
       - main
       - marina
       - refactor/clean-v2
+      - '**'
     paths:
       - '**.php'
       - '**.dart'
