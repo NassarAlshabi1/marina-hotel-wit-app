@@ -18,9 +18,12 @@ paths = [
   '''.dart_tool/''',
   '''build/''',
   '''.git/''',
-  '''*.lock''',
-  '''package-lock.json''',
-  '''pubspec.lock''',
+  '''.*\.lock''',
+  '''package-lock\.json''',
+  '''pubspec\.lock''',
+  # google-services.json يحتوي Google API key عام (safe by design)
+  # Firebase Android config يجب أن يُcommitted للمستودع
+  '''google-services\.json''',
   # ملفات الاختبارات قد تحتوي tokens وهمية
   '''test/.*''',
   '''*_test\.dart''',
