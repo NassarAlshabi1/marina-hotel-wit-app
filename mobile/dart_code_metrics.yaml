@@ -1,0 +1,164 @@
+# dart_code_metrics.yaml
+# تكوين تحليل جودة الكود لمشروع Marina Hotel
+# الوثائق: https://dartcodemetrics.dev/
+
+# ═══════════════════════════════════════════════════════════════
+#  Metrics — عتبات تعقيد الكود
+# ═══════════════════════════════════════════════════════════════
+metrics:
+  # ciclomatic complexity — تعقيد cyclomatic
+  # >10 صعب الاختبار، >20 معقّد جداً
+  cyclomatic-complexity-threshold: 20
+  cyclomatic-complexity-breakdown:
+    - name: simple      # 1-10
+      threshold: 10
+    - name: moderate    # 11-20
+      threshold: 20
+    - name: complex     # 21-50
+      threshold: 50
+    - name: very-complex # >50
+      threshold: 100
+
+  # عدد الأسطر في الملف الواحد
+  # >500 ملف طويل، >1000 يجب تقسيمه
+  source-lines-of-code-threshold: 1000
+
+  # عدد الـ parameters في الدالة الواحدة
+  # >4 كثير جداً
+  number-of-parameters-threshold: 5
+
+  # تعقيد Halstead — يقيس الصعوبة الذهنية
+  halstead-metrics-threshold: 100
+
+  # عدد الدوال/الخصائص في class الواحد
+  # >30 يعني class ضخم (God class)
+  number-of-methods-threshold: 30
+
+  # عمق الوراثة (depth of inheritance)
+  # >5 هرم وراثة عميق جداً
+  depth-of-inheritance-threshold: 5
+
+  # weight of class — تعقيد class
+  weight-of-class-threshold: 50
+
+  # coupling بين objects
+  efferent-coupling-threshold: 20
+
+  # lack of cohesion بين methods
+  lack-of-cohesion-of-methods-threshold: 10
+
+  # أعلى مستوى تعقيد يُسمح به قبل الرفض
+  metrics-exclude:
+    - test/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/generated_plugin_registrant.dart"
+    - lib/main.dart  # main.dart عادةً طويل لكنه acceptable
+
+# ═══════════════════════════════════════════════════════════════
+#  Anti-Patterns — كشف الأنماط السيئة
+# ═══════════════════════════════════════════════════════════════
+anti-patterns:
+  # كشف long-method (دالة >50 سطر)
+  - long-method:
+      severity: warning
+      threshold: 80  # نسمح حتى 80 سطر (المشروع كبير)
+
+  # كشف long-parameter-list (أكثر من 5 parameters)
+  - long-parameter-list:
+      severity: warning
+      threshold: 6
+
+  # كشف long-file
+  - long-file:
+      severity: warning
+      threshold: 1500  # نسمح حتى 1500 سطر (بعض screens كبيرة)
+
+  # كشف God class (class بأكثر من 30 method)
+  - god-class:
+      severity: error
+      threshold: 40
+
+# ═══════════════════════════════════════════════════════════════
+#  Rules — قواعد lint إضافية
+# ═══════════════════════════════════════════════════════════════
+rules:
+  # تجنب print — استخدم logger
+  - avoid-print:
+      severity: error
+
+  # تجنب dynamic type
+  - avoid-dynamic:
+      severity: warning
+
+  # تجنب returning null
+  - avoid-returning-null:
+      severity: warning
+
+  # تجنب widgets بدون const constructor
+  - prefer-const:
+      severity: info
+
+  # تجنب late variables (قد تُسبب LateInitializationError)
+  - avoid-late:
+      severity: info
+      exclude:
+        - test/**
+
+  # تجنب nested ternary
+  - avoid-nested-ternary:
+      severity: warning
+
+  # تجنب empty catch
+  - no-empty-block:
+      severity: warning
+
+  # تجنب magic numbers
+  - avoid-magic-numbers:
+      severity: info
+      exclude:
+        - test/**
+        - lib/utils/constants.dart
+
+  # تجنب unused parameters
+  - avoid-unused-parameters:
+      severity: warning
+
+  # تجنب التكرار في binary expressions
+  - avoid-duplicate-binary-expressions:
+      severity: warning
+
+  # تفضيل extract method للـ nested calls
+  - prefer-extracting-to-callback:
+      severity: info
+
+  # تجنب deep nesting
+  - avoid-deeply-nested-blocks:
+      severity: warning
+      threshold: 5
+
+  # تفضيل trailing commas (يُسهّل git diffs)
+  - prefer-trailing-comma:
+      severity: info
+      exclude:
+        - test/**
+
+  # تجنب widgets بدون key في lists
+  - prefer-widget-const:
+      severity: info
+
+# ═══════════════════════════════════════════════════════════════
+#  Exclude — استثناءات عامة
+# ═══════════════════════════════════════════════════════════════
+metrics-exclude:
+  - test/**
+  - "**/*.g.dart"
+  - "**/*.freezed.dart"
+  - "**/generated_plugin_registrant.dart"
+  - build/**
+
+rules-exclude:
+  - test/**
+  - "**/*.g.dart"
+  - "**/*.freezed.dart"
+  - "**/generated_plugin_registrant.dart"
