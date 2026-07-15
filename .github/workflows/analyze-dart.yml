@@ -68,3 +68,10 @@ jobs:
           fail-on-infos: false
           fail-on-warnings: false
           line-length: 120
+
+      - name: 📝 Verify format (excluding generated files)
+        run: |
+          # تنسيق كل الملفات باستثناء *.g.dart و *.freezed.dart (مُولّدة تلقائياً)
+          # ثم تحقق من عدم وجود تغييرات (set-exit-if-changed)
+          find lib test -name "*.dart" ! -name "*.g.dart" ! -name "*.freezed.dart" ! -name "generated_plugin_registrant.dart" -print0 | xargs -0 dart format --line-length 120 --set-exit-if-changed --output=none
+        continue-on-error: true
