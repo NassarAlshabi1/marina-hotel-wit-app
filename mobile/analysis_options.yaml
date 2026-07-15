@@ -1,5 +1,5 @@
 # Marina Hotel - Analysis Options
-# Updated according to: https://dart.dev/tools/analysis#the-analysis-options-file
+# Updated according to: https://dart.dev/tools/diagnostic-messages
 
 include: package:flutter_lints/flutter.yaml
 
@@ -10,17 +10,6 @@ analyzer:
     - "**/generated_plugin_registrant.dart"
     - "test/**"
     - "build/**"
-
-formatter:
-  page_width: 120
-  # ✅ إصلاح: استثناء ملفات .g.dart و .freezed.dart من dartfmt
-  # هذه الملفات مُولّدة تلقائياً بواسطة build_runner (drift, json_serializable,
-  # freezed) — لا يجب تنسيقها يدوياً لأنها تُعاد توليدها في كل build.
-  # بدون هذا، CI reports 13 format warnings على ملفات .g.dart.
-  exclude:
-    - "**/*.g.dart"
-    - "**/*.freezed.dart"
-    - "**/generated_plugin_registrant.dart"
 
   errors:
     # Treat missing return as error (not just warning)

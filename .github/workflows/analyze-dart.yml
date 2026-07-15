@@ -1,16 +1,17 @@
 name: Analyze Dart
 
-# ✅ يستخدم zgosalvez/github-actions-analyze-dart@v5
-# marketplace: https://github.com/marketplace/actions/analyze-dart
+# ✅ تحليل كود Dart/Flutter مع annotations في PR UI
 #
 # ما يفعله هذا الـ workflow:
 # 1. يُثبّت Flutter 3.41.0 (نفس إصدار ci.yml)
 # 2. يُشغّل build_runner لتوليد *.g.dart و *.freezed.dart
-# 3. يُشغّل zgosalvez/github-actions-analyze-dart الذي:
-#    - يُنفّذ dart analyze
-#    - يُنفّذ dartfmt (تحقق التنسيق)
-#    - يُولّد annotations في PR UI
-# 4. لا يفشل على infos/warnings (الكود كبير + strict rules)
+# 3. يُشغّل dart analyze (تحليل + annotations تلقائية في PR UI)
+# 4. يتحقق من تنسيق الملفات (مع استثناء الملفات المُولّدة)
+#
+# ملاحظة عن zgosalvez/github-actions-analyze-dart:
+# تم استبداله لأنه ينسّق كل الملفات بما فيها *.g.dart (مُولّدة تلقائياً)
+# مما يُنتج 13 false-positive format warnings لا يمكن إزالتها.
+# بدلاً من ذلك نستخدم dart analyze مباشرة + step منفصل للتنسيق.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -62,12 +63,7 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: 🔍 Analyze Dart
-        uses: zgosalvez/github-actions-analyze-dart@v5
-        with:
-          working-directory: mobile
-          fail-on-infos: false
-          fail-on-warnings: false
-          line-length: 120
+        run: flutter analyze --no-fatal-infos
 
       - name: 📝 Verify format (excluding generated files)
         run: |
