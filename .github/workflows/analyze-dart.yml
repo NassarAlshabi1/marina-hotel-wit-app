@@ -24,18 +24,13 @@ permissions:
 on:
   push:
     branches:
-      - main
-      - marina
-      - 'refactor/**'
-      - 'feature/**'
+      - '**'  # كل الفروع
     paths:
       - 'mobile/**'
       - '.github/workflows/analyze-dart.yml'
   pull_request:
     branches:
-      - main
-      - marina
-      - 'refactor/**'
+      - '**'  # كل الفروع
     paths:
       - 'mobile/**'
       - '.github/workflows/analyze-dart.yml'
