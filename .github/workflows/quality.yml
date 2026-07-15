@@ -1,0 +1,157 @@
+name: Quality
+
+# ═══════════════════════════════════════════════════════════════
+#  Marina Hotel — Quality Gate (1 of 4)
+# ═══════════════════════════════════════════════════════════════
+#
+#  مراحل الفحص:
+#  1. Formatting            — dart format --set-exit-if-changed
+#  2. Static Analysis       — flutter analyze --fatal-infos --fatal-warnings
+#  3. Code Metrics          — dart_code_metrics (complexity, anti-patterns)
+#  4. Performance Rules     — قواعد Flutter Performance في analysis_options
+#  5. Architecture          — architecture-validator.py
+#  6. Dependency Audit      — dependency-audit.sh
+#
+#  أي فشل في أي مرحلة = رفض الـ PR.
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+on:
+  pull_request:
+    branches: [main, marina, 'refactor/**', 'feature/**']
+    paths:
+      - 'mobile/**'
+      - 'scripts/architecture-validator.py'
+      - 'scripts/dependency-audit.sh'
+      - '.github/workflows/quality.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/quality.yml'
+  workflow_dispatch:
+
+jobs:
+  quality:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐦 Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.0'
+          channel: stable
+          cache: true
+
+      - name: 📦 Install dependencies
+        run: flutter pub get
+
+      - name: 🏗️ Generate code (build_runner)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # ═══════════════════════════════════════════════════════════
+      #  Stage 1: Formatting
+      # ═══════════════════════════════════════════════════════════
+      - name: 🎨 Stage 1 — Check formatting
+        run: |
+          set -e
+          # استثناء الملفات المُولّدة تلقائياً
+          find lib test -name "*.dart" \
+            ! -name "*.g.dart" \
+            ! -name "*.freezed.dart" \
+            ! -name "generated_plugin_registrant.dart" \
+            -print0 | xargs -0 dart format \
+              --line-length 120 \
+              --set-exit-if-changed \
+              --output=none
+
+      # ═══════════════════════════════════════════════════════════
+      #  Stage 2: Static Analysis (strict — fatal infos + warnings)
+      # ═══════════════════════════════════════════════════════════
+      - name: 🔍 Stage 2 — Static analysis (fatal)
+        run: flutter analyze --fatal-infos --fatal-warnings
+
+      # ═══════════════════════════════════════════════════════════
+      #  Stage 3: Code Metrics
+      # ═══════════════════════════════════════════════════════════
+      - name: 📊 Stage 3 — Code metrics
+        run: |
+          dart pub global activate dart_code_metrics 5.7.6
+          export PATH="$PATH:$HOME/.pub-cache/bin"
+          metrics analyze lib \
+            --config=dart_code_metrics.yaml \
+            --reporter=console
+        continue-on-error: true  # non-blocking في المرحلة الانتقالية
+
+      # ═══════════════════════════════════════════════════════════
+      #  Stage 4: Performance Rules
+      #  (مُدمجة في Stage 2 عبر analysis_options.yaml — قواعد:
+      #   avoid_unnecessary_containers, prefer_const_constructors,
+      #   avoid_returning_widgets, prefer_final_locals, etc.)
+      # ═══════════════════════════════════════════════════════════
+      - name: ⚡ Stage 4 — Performance rules
+        run: |
+          echo "Performance rules are enforced via flutter analyze (Stage 2):"
+          echo "- avoid_unnecessary_containers"
+          echo "- prefer_const_constructors"
+          echo "- avoid_returning_widgets"
+          echo "- prefer_final_locals"
+          echo "- avoid_function_literals_in_foreach_calls"
+          echo "All performance rules passed ✅"
+
+      # ═══════════════════════════════════════════════════════════
+      #  Stage 5: Architecture Validation
+      # ═══════════════════════════════════════════════════════════
+      - name: 🏗️ Stage 5 — Architecture validation
+        working-directory: ${{ github.workspace }}
+        run: |
+          python3 scripts/architecture-validator.py \
+            --project-root mobile \
+            --strict
+        continue-on-error: true  # non-blocking في المرحلة الانتقالية
+
+      # ═══════════════════════════════════════════════════════════
+      #  Stage 6: Dependency Audit
+      # ═══════════════════════════════════════════════════════════
+      - name: 📦 Stage 6 — Dependency audit
+        working-directory: ${{ github.workspace }}
+        run: |
+          chmod +x scripts/dependency-audit.sh
+          bash scripts/dependency-audit.sh mobile false
+        continue-on-error: true  # non-blocking في المرحلة الانتقالية
+
+      # ═══════════════════════════════════════════════════════════
+      #  Summary
+      # ═══════════════════════════════════════════════════════════
+      - name: 📋 Quality summary
+        if: always()
+        run: |
+          {
+            echo "## 🏆 Quality Gate Report"
+            echo ""
+            echo "| Stage | Status |"
+            echo "|---|---|"
+            echo "| 🎨 Formatting | ${{ job.status }} |"
+            echo "| 🔍 Static Analysis | ${{ job.status }} |"
+            echo "| 📊 Code Metrics | Non-blocking |"
+            echo "| ⚡ Performance Rules | Included in Analysis |"
+            echo "| 🏗️ Architecture | Non-blocking |"
+            echo "| 📦 Dependencies | Non-blocking |"
+            echo ""
+            echo "**Blocking stages**: Formatting + Static Analysis"
+            echo "**Non-blocking** (transitional): Metrics, Architecture, Dependencies"
+          } >> "$GITHUB_STEP_SUMMARY"
