@@ -1,14 +1,3 @@
-Skip to content
-marina-hotel-wit-app
-Repository navigation
-Code
-Issues
-5
- (5)
-Build Flutter Release APK
-Build Flutter Release APK #1812
-Workflow file for this run
-.github/workflows/main.yml at c7188c2
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  Marina Hotel — Build Flutter Release APK
 #  يعمل على أي إصدار اندرويد من 5.0 (API 21) وما فوق
@@ -21,6 +10,7 @@ on:
       - marina
       - yy
       - refactor/clean-v2
+      - refactor/performance-fixes-v1
     paths:
       - 'mobile/**'
       - '.github/workflows/main.yml'
@@ -48,7 +38,7 @@ jobs:
     steps:
       # ─── جلب الكود ───────────────────────────────────────
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # ─── إعداد Java 17 ───────────────────────────────────
       - name: Set up Java 17
@@ -75,6 +65,7 @@ jobs:
             "build-tools;36.0.0" \
             "ndk;27.0.12077973" \
             "cmake;3.22.1"
+
       # ─── التحقق من ملفات التوقيع ─────────────────────────
       - name: Verify Android Signing Files
         run: |
@@ -82,6 +73,7 @@ jobs:
           ls -la android/app/release.keystore
           ls -la android/key.properties
           echo "Local signing files verified successfully."
+
       # ─── تنظيف ──────────────────────────────────────────
       - name: Clean build artifacts
         run: flutter clean
@@ -100,11 +92,13 @@ jobs:
           echo "build_name=$BUILD_NAME" >> $GITHUB_OUTPUT
           echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
           echo "Building: $BUILD_NAME"
+
       # ─── توليد الكود ────────────────────────────────────
       - name: Generate code (build_runner)
         run: |
           flutter pub run build_runner clean
           flutter pub run build_runner build --delete-conflicting-outputs
+
       # ─── بناء الـ APK الشامل ────────────────────────────
       # minSdkVersion = 21 (Android 5.0 Lollipop)
       # targetSdk = 36 (Android 16)
@@ -129,6 +123,7 @@ jobs:
           echo "APK size: $(du -h $APK_PATH | cut -f1)"
           echo "APK path: $APK_PATH"
           unzip -l $APK_PATH | grep "lib/" | awk '{print $4}' | sed 's|lib/||' | cut -d'/' -f1 | sort -u
+
       # ─── رفع الـ APK كـ artifact ────────────────────────
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
@@ -146,11 +141,14 @@ jobs:
           name: 'Marina Hotel v${{ steps.version.outputs.build_name }}'
           body: |
             ## Marina Hotel v${{ steps.version.outputs.build_name }}
+
             **APK شامل يعمل على جميع أجهزة اندرويد**
+
             - الحد الأدنى: Android 5.0 (API 21)
             - المستهدف: Android 16 (API 36)
             - المعالجات المدعومة: arm64-v8a, armeabi-v7a
             - رقم البناء: ${{ steps.version.outputs.build_number }}
+
             ### طريقة التثبيت
             1. حمّل ملف APK
             2. فعّل "مصادر غير معروفة" من إعدادات الأمان
