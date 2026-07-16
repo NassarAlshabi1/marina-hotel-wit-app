@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:uuid/uuid.dart';
 
@@ -2086,8 +2087,19 @@ class AppDatabase extends _$AppDatabase {
 
 LazyDatabase _open() {
   return LazyDatabase(() async {
-    final dbDir = await sqflite.getDatabasesPath();
-    final file = File(p.join(dbDir, _dbFileName));
+    // ✅ دعم Windows/Linux/macOS عبر path_provider + sqflite_common_ffi
+    // sqflite.getDatabasesPath() لا يعمل على Desktop (Android/iOS فقط)
+    final Directory dbDir;
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      // على Desktop، استخدم ApplicationDocumentsPath
+      final appDir = await getApplicationDocumentsDirectory();
+      dbDir = appDir;
+    } else {
+      // على Mobile، استخدم sqflite path
+      final sqfliteDir = await sqflite.getDatabasesPath();
+      dbDir = Directory(sqfliteDir);
+    }
+    final file = File(p.join(dbDir.path, _dbFileName));
     return NativeDatabase.createInBackground(file);
   });
 }

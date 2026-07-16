@@ -1,6 +1,6 @@
 # GitHub Actions Workflows — Marina Hotel
 
-> **9 workflows منظّمة** لـ CI/CD pipeline احترافي.
+> **10 workflows منظّة** لـ CI/CD pipeline احترافي.
 
 ## 📋 جدول المحتويات
 
@@ -14,7 +14,7 @@
 
 ## نظرة عامة
 
-تم تنظيم الـ workflows من **20 workflow مكرر** إلى **9 workflows منظّمة**:
+تم تنظيم الـ workflows من **20 workflow مكرر** إلى **10 workflows منظّة**:
 
 | # | Workflow | الوظيفة | الحالة |
 |---|---|---|---|

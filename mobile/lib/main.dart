@@ -1,14 +1,16 @@
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:io' show Platform;
 import 'dart:ui' show DartPluginRegistrant;
 
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' as sqflite_ffi;
 import 'package:workmanager/workmanager.dart';
 
 import 'components/admin_layout.dart';
@@ -78,6 +80,20 @@ import 'utils/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ─── Desktop: تهيئة sqflite_common_ffi لـ Windows/Linux/macOS ───
+  // sqflite العادي لا يدعم Desktop — نستخدم sqflite_common_ffi
+  // الذي يوفّر FFI-based SQLite implementation للمنصات غير المحمولة
+  if (!kIsWeb &&
+      (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    try {
+      sqflite_ffi.sqfliteFfiInit();
+      sqflite_ffi.databaseFactory = sqflite_ffi.databaseFactoryFfi;
+      debugPrint('✅ sqflite_common_ffi initialized for desktop');
+    } catch (e) {
+      debugPrint('⚠️ sqflite_common_ffi init failed: $e');
+    }
+  }
 
   // ─── Firebase Core: تهيئة قبل كل خدمات Firebase ───
   try {
