@@ -121,7 +121,8 @@ else
 fi
 
 # فحص الحزم ذات التراخيص غير المعروفة
-UNKNOWN_LICENSES=$(grep -c "license: unknown\|license: null" pubspec.lock 2>/dev/null || echo "0")
+UNKNOWN_LICENSES=$(grep -c "license: unknown\|license: null" pubspec.lock 2>/dev/null)
+UNKNOWN_LICENSES=${UNKNOWN_LICENSES:-0}
 if [[ "$UNKNOWN_LICENSES" -gt 0 ]]; then
   echo "   ⚠️  $UNKNOWN_LICENSES packages with unknown license"
   ((WARNINGS++)) || true

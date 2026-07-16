@@ -39,10 +39,8 @@ import 'services/api_config_service.dart';
 import 'services/app_session_manager.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_health_checker.dart';
-import 'services/appwrite_realtime_service.dart';
 import 'services/appwrite_realtime_sync.dart';
 import 'services/appwrite_sync_manager.dart';
-import 'services/background_sync_service.dart';
 import 'services/battery_optimizer.dart';
 import 'services/central_sync_coordinator.dart';
 import 'services/connectivity_service.dart';
@@ -68,7 +66,6 @@ import 'services/sync_constants.dart';
 import 'services/sync_continuation_service.dart';
 import 'services/sync_guardian.dart';
 import 'services/sync_performance_optimizer.dart';
-import 'services/sync_queue_service.dart';
 import 'services/sync_service.dart';
 // AutoSync Engine imports
 import 'services/unified_sync_orchestrator.dart';
@@ -318,7 +315,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       debugPrint('ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية');
     }
 
-    await SyncQueueService.instance.initialize();
+    // SyncQueueService deprecated — تم إزالته (no-op)
 
     _startEngineMonitoring(autoSyncEngine);
 
@@ -766,12 +763,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('⚠️ Error disposing BatteryOptimizer: $e');
     }
-    try {
-      // ignore: deprecated_member_use_from_same_package
-      await AppwriteRealtimeService.disposeInstance();
-    } catch (e) {
-      debugPrint('⚠️ Error disposing AppwriteRealtimeService: $e');
-    }
+    // AppwriteRealtimeService deprecated — تم إزالة dispose
     try {
       await SyncPerformanceOptimizer.disposeInstance();
     } catch (e) {
@@ -812,11 +804,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('⚠️ Error disposing CentralSyncCoordinator: $e');
     }
-    try {
-      BackgroundSyncService.disposeInstance();
-    } catch (e) {
-      debugPrint('⚠️ Error disposing BackgroundSyncService: $e');
-    }
+    // BackgroundSyncService deprecated — تم إزالة dispose
     debugPrint('✅ All singleton services disposed');
   }
 
