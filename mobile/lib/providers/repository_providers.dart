@@ -63,7 +63,9 @@ final employeesDaoProvider = Provider<EmployeesDao>(
 final roomsRepoProvider = Provider<RoomsRepository>((ref) => RoomsRepository(ref.watch(databaseProvider)));
 final bookingsRepoProvider = Provider<BookingsRepository>((ref) => BookingsRepository(ref.watch(databaseProvider)));
 final employeesRepoProvider = Provider<EmployeesRepository>((ref) => EmployeesRepository(ref.watch(databaseProvider)));
-final guestInfoRepoProvider = Provider<GuestInfosRepository>((ref) => GuestInfosRepository(ref.watch(databaseProvider)));
+final guestInfoRepoProvider = Provider<GuestInfosRepository>(
+  (ref) => GuestInfosRepository(ref.watch(databaseProvider)),
+);
 final expensesRepoProvider = Provider<ExpensesRepository>((ref) => ExpensesRepository(ref.watch(databaseProvider)));
 final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.watch(databaseProvider)));
 final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.watch(databaseProvider)));
