@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/db_types.dart' hide GuestInfo;
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
-import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/repositories/payments_repository.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';

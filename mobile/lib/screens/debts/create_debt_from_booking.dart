@@ -3,8 +3,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
+import '../../models/db_types.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 
 class CreateDebtFromBookingScreen extends ConsumerStatefulWidget {

@@ -98,6 +98,7 @@ EXCLUDE_FROM_SERVICES_CHECK = {
     'screens/settings/appwrite_logs_screen.dart',
     'screens/settings/google_drive_logs_screen.dart',
     'screens/settings/sync_debug_logs_screen.dart',
+    'screens/settings/settings_maintenance.dart',
 }
 
 

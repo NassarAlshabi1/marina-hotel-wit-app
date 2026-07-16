@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../components/app_scaffold.dart';
+import '../../models/db_types.dart' hide GuestInfo;
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
-import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';

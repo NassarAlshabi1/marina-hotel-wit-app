@@ -84,8 +84,7 @@ Future<void> main() async {
   // ─── Desktop: تهيئة sqflite_common_ffi لـ Windows/Linux/macOS ───
   // sqflite العادي لا يدعم Desktop — نستخدم sqflite_common_ffi
   // الذي يوفّر FFI-based SQLite implementation للمنصات غير المحمولة
-  if (!kIsWeb &&
-      (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     try {
       sqflite_ffi.sqfliteFfiInit();
       sqflite_ffi.databaseFactory = sqflite_ffi.databaseFactoryFfi;

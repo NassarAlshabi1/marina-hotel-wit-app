@@ -103,12 +103,13 @@ jobs:
       #  - ERRORS (blocking): direct DB access, circular deps
       #  - WARNINGS (non-blocking): services imports, Riverpod compliance
       # ═══════════════════════════════════════════════════════════
-      - name: 🏗️ Stage 4 — Architecture validation
+      - name: 🏗️ Stage 4 — Architecture validation (ERRORS blocking)
         working-directory: ${{ github.workspace }}
         run: |
           python3 scripts/architecture-validator.py \
             --project-root mobile
-        continue-on-error: true  # transitional: 30 DB access errors need refactoring
+        # ERRORS blocking (direct DB access, circular deps)
+        # WARNINGS non-blocking (services imports, Riverpod compliance)
 
       # ═══════════════════════════════════════════════════════════
       #  Stage 5: Dependency Audit (non-blocking)

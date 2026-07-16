@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
-import '../../services/local_db.dart';
+import '../../models/db_types.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
 
@@ -23,7 +24,7 @@ class _SalaryEntitlementsScreenState extends ConsumerState<SalaryEntitlementsScr
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _service = SalaryEntitlementService(DatabaseManager.instance);
+    _service = SalaryEntitlementService(ref.read(databaseProvider));
     _loadData();
   }
 

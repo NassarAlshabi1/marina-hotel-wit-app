@@ -1,4 +1,4 @@
-import '../../services/local_db.dart';
+import '../../models/db_types.dart';
 
 class GuestInfo {
   GuestInfo({

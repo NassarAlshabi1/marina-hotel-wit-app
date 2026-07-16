@@ -7,11 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../models/db_types.dart' as db;
 import '../../models/payment_models.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/analytics_service.dart';
 import '../../services/crashlytics_service.dart';
-import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';

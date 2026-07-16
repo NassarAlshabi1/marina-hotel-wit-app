@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../models/db_types.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
@@ -307,7 +307,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _showEmployeeEntitlement(context, employee),
+                    onPressed: () => _showEmployeeEntitlement(context, ref, employee),
                     icon: const Icon(Icons.account_balance_wallet, size: 16),
                     label: const Text('الاستحقاق', style: TextStyle(fontSize: 12)),
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
@@ -846,8 +846,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _showEmployeeEntitlement(BuildContext context, Employee employee) async {
-    final service = SalaryEntitlementService(DatabaseManager.instance);
+  Future<void> _showEmployeeEntitlement(BuildContext context, WidgetRef ref, Employee employee) async {
+    final service = SalaryEntitlementService(ref.read(databaseProvider));
 
     unawaited(
       showDialog<void>(

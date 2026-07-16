@@ -1,15 +1,14 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../models/db_types.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
-import '../../services/local_db.dart';
 import '../../services/vector_clock_helper.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_parser.dart';

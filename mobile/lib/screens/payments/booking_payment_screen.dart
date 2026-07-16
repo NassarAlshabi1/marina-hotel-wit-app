@@ -15,12 +15,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../models/db_types.dart' as db;
 import '../../models/payment_models.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
-import '../../services/local_db.dart' as db;
 import '../../services/providers.dart';
 import '../../services/stay_balance_calculator.dart';
 import '../../utils/currency_formatter.dart';

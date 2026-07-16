@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/appwrite_config.dart';
 import '../../services/secondary_appwrite_config.dart';
 import '../../services/daos/outbox_dao.dart';
-import '../../services/local_db.dart';
+import '../../providers/repository_providers.dart';
 import '../../services/secondary_sync_manager.dart';
 
 import '../../services/secondary_appwrite_service.dart';
@@ -745,7 +745,7 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                 // ✅ تحديث علامات التسليم في outbox
                 if (v) {
                   // تفعيل: نُعلّم كل السجلات كـ "غير مُسلّمة للثانوي" ليتم رفعها
-                  final db = DatabaseManager.instance;
+                  final db = ref.read(databaseProvider);
                   final outboxDao = OutboxDao(db);
                   final count = await outboxDao.markAllLocalAsUndeliveredToSecondary();
                   debugPrint('🔵 [Secondary] Marked $count records as undelivered to secondary');
@@ -754,7 +754,7 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                   }
                 } else {
                   // تعطيل: نُعلّم كل السجلات كـ "مُسلّمة للثانوي" لمنع حجبها
-                  final db = DatabaseManager.instance;
+                  final db = ref.read(databaseProvider);
                   final outboxDao = OutboxDao(db);
                   final count = await outboxDao.markAllLocalAsDeliveredToSecondary();
                   debugPrint('🔵 [Secondary] Marked $count records as delivered to secondary (disabled)');
