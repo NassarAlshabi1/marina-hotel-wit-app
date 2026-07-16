@@ -3384,6 +3384,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     // حالة عدم وجود دفعات
     if (summary.payments.isEmpty) {
       return Container(
+        key: const ValueKey('payments_section'),
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
         decoration: BoxDecoration(
@@ -3406,6 +3407,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
 
     return Column(
+      key: const ValueKey('payments_section'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // عنوان القسم

@@ -7,12 +7,16 @@ name: Test
 #  مراحل الفحص:
 #  1. Unit Tests         — flutter test (كل الاختبارات)
 #  2. Widget Tests       — مُدمجة في flutter test
-#  3. Integration Tests  — مُدمجة في flutter test (integration_test/)
+#  3. Integration Tests  — يُشغِّلها workflow منفصل: android-emulator.yml
+#                          (تحتاج Android emulator — أبطأ لكن أعمق)
 #  4. Coverage           — مع lcov، عتبة 60% (قابلة للرفع)
 #  5. Test Report        — ملخّص في PR UI
 #
 #  عتبة التغطية حالياً 60% (المشروع في مرحلة migration).
 #  الهدف: 85% في الإصدار القادم.
+#
+#  ملاحظة: اختبارات integration_test/ على Android emulator الحقيقي
+#  يُشغِّلها `.github/workflows/android-emulator.yml` (موازٍ، لا يُعطِّل هذا الـ workflow)
 
 concurrency:
   group: test-${{ github.ref }}
