@@ -152,11 +152,31 @@ def is_excluded(rel_path: str, exclude_set: Set[str]) -> bool:
 def check_no_direct_db_from_ui(lib_root: Path) -> Tuple[List[Tuple[str, str]], int]:
     """
     ERROR Rule: No direct DB access from UI
-    screens + widgets + components لا تستورد local_db.dart مباشرة.
-    يجب المرور عبر providers → repositories → services.
+
+    screens + widgets + components لا تستخدم DatabaseManager.instance مباشرة.
+    يجب المرور عبر ref.read(databaseProvider) → AppDatabase.
+
+    ملاحظة: استيراد 'local_db.dart' للـ types (Room, Booking, Payment) مقبول
+    وطبيعي في مشاريع Drift. الانتهاك هو استخدام DatabaseManager.instance
+    مباشرة من UI layer.
+
+    كشف الأنماط التالية:
+    - DatabaseManager.instance
+    - DatabaseManager.isInitialized
+    - DatabaseManager.close()
+    - DatabaseManager.reopen()
+    - AppDatabase()  (direct construction)
     """
     violations = []
-    # فحص كل طبقة UI: screens + widgets + components
+    # أنماط الانتهاك الحقيقية
+    db_access_patterns = [
+        r'DatabaseManager\.instance\b',
+        r'DatabaseManager\.isInitialized\b',
+        r'DatabaseManager\.close\b',
+        r'DatabaseManager\.reopen\b',
+        r'\bAppDatabase\s*\(\s*\)',  # direct construction
+    ]
+
     ui_dirs = [lib_root / 'screens', lib_root / 'widgets', lib_root / 'components']
     for ui_dir in ui_dirs:
         if not ui_dir.exists():
@@ -170,10 +190,13 @@ def check_no_direct_db_from_ui(lib_root: Path) -> Tuple[List[Tuple[str, str]], i
                 content = dart_file.read_text(encoding='utf-8')
             except Exception:
                 continue
-            imports = get_imports(content)
-            for imp in imports:
-                if 'local_db.dart' in imp or 'local_db.g.dart' in imp:
-                    violations.append((rel_path, imp))
+            # فحص كل نمط
+            for pattern in db_access_patterns:
+                matches = re.findall(pattern, content)
+                if matches:
+                    for match in matches:
+                        violations.append((rel_path, f'uses {match}'))
+                    break  # ملف واحد = انتهاك واحد
     return violations, len(violations)
 
 

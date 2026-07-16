@@ -5,11 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../models/db_types.dart';
 import '../../providers/custom_list_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart';
 import '../../providers/service_providers.dart';
+import '../../services/local_db.dart';
 import '../../services/screen_sync_controller.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';

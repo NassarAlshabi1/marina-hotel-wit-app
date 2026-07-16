@@ -12,9 +12,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../models/db_types.dart';
 import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/repository_providers.dart';
+import '../../services/local_db.dart';
 import '../../utils/pdf_utils.dart';
 
 class InformationScreen extends ConsumerStatefulWidget {

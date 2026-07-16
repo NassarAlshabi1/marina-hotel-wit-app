@@ -5,8 +5,8 @@ import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/app_scaffold.dart';
-import '../../models/db_types.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/local_db.dart';
 import '../../services/stay_balance_calculator.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/enhanced_pdf_utils.dart' as epdf;

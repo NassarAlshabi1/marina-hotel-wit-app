@@ -6,11 +6,11 @@ import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../models/db_types.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/custom_list_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/analytics_service.dart';
+import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';

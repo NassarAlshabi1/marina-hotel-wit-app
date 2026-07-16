@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../components/app_scaffold.dart';
-import '../../models/db_types.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
 import '../ai/ai_chat_screen.dart';
 import '../security/blacklist_screen.dart';

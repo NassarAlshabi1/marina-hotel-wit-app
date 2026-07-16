@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
-import '../../models/db_types.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';

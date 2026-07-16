@@ -8,8 +8,8 @@ import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../models/db_types.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/time.dart';
 import 'create_debt_from_booking.dart';

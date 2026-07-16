@@ -6,13 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/db_types.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/appwrite_realtime_sync.dart';
+import '../services/local_db.dart';
 import '../services/remote_config_service.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
