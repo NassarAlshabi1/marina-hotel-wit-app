@@ -22,7 +22,7 @@
  *   - databases.{dbId}.tables.rooms.rows.*.update
  */
 
-import { Client, Databases, Messaging, Query } from 'node-appwrite';
+import { Client, Databases, Messaging, Query, ID } from 'node-appwrite';
 
 // ═══════════════════════════════════════════════════════════════
 //  1. تهيئة العملاء
@@ -99,6 +99,7 @@ async function getActiveDevices(senderDeviceId) {
         DEVICES_COLLECTION,
         [
           Query.equal('status', 'active'),
+          Query.orderAsc('$id'),
           Query.limit(limit),
           Query.offset(offset),
         ]

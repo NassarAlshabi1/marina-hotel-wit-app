@@ -118,6 +118,7 @@ async function getDeviceTokens(senderDeviceId) {
         DEVICES_COLLECTION,
         [
           Query.equal('status', 'active'),
+          Query.orderAsc('$id'),
           Query.limit(limit),
           Query.offset(offset),
         ]

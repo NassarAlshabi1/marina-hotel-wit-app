@@ -3432,7 +3432,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       await file.writeAsBytes(pdfBytes);
 
       // 3. إغلاق إشعار التحميل
-      loading.close();
+      if (mounted) loading.close();
 
       // 4. مشاركة الملف عبر واتساب (Share sheet — المستخدم يختار واتساب)
       if (!mounted) return;
@@ -3442,7 +3442,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         subject: 'كشف حساب - MARINA HOTEL',
       );
     } catch (e) {
-      loading.close();
+      if (mounted) loading.close();
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,

@@ -1079,6 +1079,15 @@ void _unifiedCallbackDispatcher() {
     WidgetsFlutterBinding.ensureInitialized();
     DartPluginRegistrant.ensureInitialized();
 
+    // ✅ Gemini #4: تهيئة الإعدادات والـ singletons داخل isolate المنفصل
+    // Workmanager يعمل في isolate منفصل — لا يشارك state من main()
+    try {
+      await SecondaryAppwriteConfig.ensureInitialized();
+      await AppwriteConfigManager.init();
+    } catch (e) {
+      developer.log('⚠️ [WorkManager] Init failed: $e', name: 'WorkManager');
+    }
+
     developer.log('📋 [WorkManager] Task executed: $task', name: 'WorkManager');
 
     try {

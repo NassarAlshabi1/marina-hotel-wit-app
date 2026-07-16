@@ -239,12 +239,17 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
   }
 
   Widget _buildComputeButton() {
-    return ElevatedButton.icon(
-      onPressed: _isComputing.value ? null : _computeDebt,
-      icon: _isComputing.value
-          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-          : const Icon(Icons.calculate),
-      label: Text(_isComputing.value ? 'جاري الحساب...' : 'احسب الدين'),
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isComputing,
+      builder: (context, isComputing, _) {
+        return ElevatedButton.icon(
+          onPressed: isComputing ? null : _computeDebt,
+          icon: isComputing
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.calculate),
+          label: Text(isComputing ? 'جاري الحساب...' : 'احسب الدين'),
+        );
+      },
     );
   }
 
@@ -331,17 +336,26 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
   }
 
   Widget _buildCreateButton() {
-    return ElevatedButton.icon(
-      onPressed: _isProcessing.value ? null : _createDebt,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-      ),
-      icon: _isProcessing.value
-          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-          : const Icon(Icons.add),
-      label: Text(_isProcessing.value ? 'جاري الإنشاء...' : 'إنشاء الدين'),
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isProcessing,
+      builder: (context, isProcessing, _) {
+        return ElevatedButton.icon(
+          onPressed: isProcessing ? null : _createDebt,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+          icon: isProcessing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Icon(Icons.add),
+          label: Text(isProcessing ? 'جاري الإنشاء...' : 'إنشاء الدين'),
+        );
+      },
     );
   }
 
