@@ -70,6 +70,16 @@ class AppwriteRealtimeSync {
       return;
     }
 
+    // ✅ إذا كان WebSocket معطّلاً (لا يدعمه السيرفر/الشبكة)،
+    // نعتمد على FCM + auto-sync بدلاً من WebSocket Realtime.
+    // هذا يمنع إهدار البطارية في 6 محاولات إعادة اتصال فاشلة.
+    final realtimeEnabled = prefs.getBool('appwrite_realtime_ws_enabled') ?? true;
+    if (!realtimeEnabled) {
+      debugPrint('📡 Realtime: WebSocket disabled — relying on FCM + auto-sync');
+      _startPollingFallback();
+      return;
+    }
+
     // ✅ إعادة تعيين علامة التوقف الإرادي — start() تعني أن المستخدم يريد الاستماع
     _intentionallyStopped = false;
 
@@ -77,36 +87,68 @@ class AppwriteRealtimeSync {
         .map((c) => 'databases.${AppwriteConfig.databaseId}.collections.$c.documents')
         .toList();
 
-    _subscription = _realtime!.subscribe(channels);
-    _isListening = true;
+    try {
+      _subscription = _realtime!.subscribe(channels);
+      _isListening = true;
 
-    debugPrint('📡 Realtime: listening...');
+      debugPrint('📡 Realtime: listening via WebSocket...');
 
-    _subscription!.stream.listen(
-      _onEvent,
-      onError: (Object e) {
-        debugPrint('❌ Realtime error: $e');
-        CrashlyticsService.instance.recordSyncError(
-          operation: 'realtime_listen',
-          error: e.toString(),
-          severity: CrashlyticsSeverity.warning,
-          context: {'deviceId': _currentDeviceId ?? 'unknown'},
-        );
-        _isListening = false;
-        _reconnect();
-      },
-      onDone: () {
-        _isListening = false;
-        // ✅ إصلاح P2-13: إعادة الاتصال عند إغلاق WebSocket (مثل انقطاع الشبكة
-        // أو إغلاق الخادم للاتصال). سابقاً كان `onDone` يكتفي بتعيين _isListening
-        // = false دون محاولة إعادة الاتصال، مما يترك التطبيق بدون تحديثات فورية
-        // حتى يُعاد تشغيله. نتحقق من _intentionallyStopped لتجنب إعادة الاتصال
-        // بعد استدعاء stop() الإرادي.
-        if (!_intentionallyStopped) {
-          _reconnect();
-        }
-      },
-    );
+      _subscription!.stream.listen(
+        _onEvent,
+        onError: (Object e) {
+          debugPrint('❌ Realtime WebSocket error: $e');
+          CrashlyticsService.instance.recordSyncError(
+            operation: 'realtime_listen',
+            error: e.toString(),
+            severity: CrashlyticsSeverity.warning,
+            context: {'deviceId': _currentDeviceId ?? 'unknown'},
+          );
+          _isListening = false;
+          // ✅ إذا فشل WebSocket، ننتقل لـ polling fallback
+          _startPollingFallback();
+        },
+        onDone: () {
+          _isListening = false;
+          if (!_intentionallyStopped) {
+            _reconnect();
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('❌ Realtime: WebSocket not available — falling back to polling');
+      debugPrint('   Error: $e');
+      // ✅ WebSocket غير متاح — نعتمد على polling
+      _startPollingFallback();
+    }
+  }
+
+  // ✅ Polling fallback: فحص دوري للتغييرات كل 30 ثانية
+  // يُستخدم عندما WebSocket غير متاح أو معطّل
+  Timer? _pollingTimer;
+  static const Duration _pollingInterval = Duration(seconds: 30);
+
+  void _startPollingFallback() {
+    if (_pollingTimer != null) return;
+
+    debugPrint('📡 Realtime: started polling fallback (every ${_pollingInterval.inSeconds}s)');
+
+    _pollingTimer = Timer.periodic(_pollingInterval, (_) {
+      if (_intentionallyStopped) return;
+
+      // إشعار الـ UI بوجود تغييرات محتملة (سيتم التحقق عبر auto-sync)
+      // auto-sync يعمل كل 2 دقيقة ويسحب التغييرات فعلياً
+      // الـ polling هنا مجرد علامة للـ UI — لا يقوم بـ pull ثقيل
+      if (!_hasPendingChanges) {
+        hasRemoteChanges.value = true;
+        _hasPendingChanges = true;
+        debugPrint('📡 Realtime: polling check — UI flag set (auto-sync will pull)');
+      }
+    });
+  }
+
+  void _stopPollingFallback() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
   }
 
   void _onEvent(RealtimeMessage message) {
@@ -235,6 +277,7 @@ class AppwriteRealtimeSync {
     _subscription = null;
     _isListening = false;
     _debounceTimer?.cancel();
+    _stopPollingFallback(); // ✅ تنظيف polling fallback
     // عند التوقف، نعيد تعيين الحالة
     hasRemoteChanges.value = false;
     _hasPendingChanges = false;
