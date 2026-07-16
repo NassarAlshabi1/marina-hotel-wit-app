@@ -2,7 +2,10 @@ import os
 import re
 import json
 
-def analyze_performance(directory="lib"):
+import sys
+def analyze_performance(directory=None):
+    if directory is None:
+        directory = sys.argv[1] if len(sys.argv) > 1 else "lib"
     stats = {
         "total_dart_files": 0,
         "total_lines": 0,

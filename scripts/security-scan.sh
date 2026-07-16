@@ -14,7 +14,8 @@ PATTERNS=(
 
 for pattern in "${PATTERNS[@]}"; do
     # استثناء مجلدات build و .git و .dart_tool والملفات المولدة
-    MATCHES=$(grep -rE --exclude-dir={build,.git,.dart_tool,ios,android} --exclude="*.g.dart" "$pattern" lib/ 2>/dev/null)
+    SEARCH_DIR=${1:-"lib"}
+    MATCHES=$(grep -rE --exclude-dir={build,.git,.dart_tool,ios,android} --exclude="*.g.dart" "$pattern" "$SEARCH_DIR" 2>/dev/null)
     if [ ! -z "$MATCHES" ]; then
         echo "⚠️ WARNING: Potential secret found matching pattern: $pattern"
         echo "$MATCHES" >> reports/security_violations.txt
