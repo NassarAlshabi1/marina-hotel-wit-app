@@ -70,7 +70,7 @@ jobs:
 
       - name: Initialize CodeQL
         id: init
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         continue-on-error: true
         with:
           languages: javascript, php
@@ -85,12 +85,12 @@ jobs:
 
       - name: Autobuild
         if: steps.init.outcome == 'success'
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
         continue-on-error: true
 
       - name: Perform CodeQL Analysis
         if: steps.init.outcome == 'success'
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         continue-on-error: true
         with:
           category: "/language:javascript"
@@ -146,7 +146,7 @@ jobs:
 
       - name: Upload Semgrep SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/semgrep.sarif
           wait-for-processing: true
@@ -213,7 +213,7 @@ jobs:
 
       - name: Upload Trivy SARIF (filesystem)
         if: always() && hashFiles('sarif-results/trivy-fs.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/trivy-fs.sarif
           wait-for-processing: true
@@ -221,7 +221,7 @@ jobs:
 
       - name: Upload Trivy SARIF (misconfig)
         if: always() && hashFiles('sarif-results/trivy-misconfig.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/trivy-misconfig.sarif
           wait-for-processing: true
@@ -258,7 +258,7 @@ jobs:
           upload-result: true
 
       - name: Scan SBOM with Grype
-        uses: anchore/scan-action@v5
+        uses: anchore/scan-action@v7
         with:
           sbom: sbom.spdx.json
           format: sarif
@@ -268,7 +268,7 @@ jobs:
 
       - name: Upload Grype SARIF
         if: always() && hashFiles('sarif-results/grype.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/grype.sarif
           wait-for-processing: true
@@ -491,7 +491,7 @@ jobs:
 
       - name: Upload pub security SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/pub-security.sarif
           wait-for-processing: true
@@ -558,7 +558,7 @@ jobs:
 
       - name: Upload Psalm SARIF
         if: always() && hashFiles('sarif-results/psalm.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/psalm.sarif
           wait-for-processing: true
