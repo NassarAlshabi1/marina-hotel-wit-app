@@ -73,15 +73,26 @@ class _SalaryEntitlementsScreenState extends ConsumerState<SalaryEntitlementsScr
   }
 
   Widget _buildContent() {
-    return ListView(
+    // ✅ ListView.builder: lazy rendering — يُحمّل فقط العناصر المرئية
+    // بدلاً من تحميل كل الموظفين دفعة واحدة
+    return ListView.builder(
       padding: const EdgeInsets.all(12),
-      children: [
-        _buildSummaryCard(),
-        const SizedBox(height: 8),
-        const Text('تفاصيل الموظفين:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        ..._entitlements.map(_buildEmployeeCard),
-      ],
+      itemCount: _entitlements.length + 3, // +3: summary + text + spacing
+      itemBuilder: (context, index) {
+        if (index == 0) return _buildSummaryCard();
+        if (index == 1) return const SizedBox(height: 8);
+        if (index == 2) {
+          return const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('تفاصيل الموظفين:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+            ],
+          );
+        }
+        final entitlement = _entitlements[index - 3];
+        return RepaintBoundary(child: _buildEmployeeCard(entitlement));
+      },
     );
   }
 

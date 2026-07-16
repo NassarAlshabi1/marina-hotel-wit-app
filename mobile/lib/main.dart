@@ -76,10 +76,14 @@ import 'utils/auto_sync_preferences.dart';
 import 'utils/env.dart';
 import 'utils/hotel_day_ticker.dart';
 import 'utils/id.dart';
+import 'utils/performance_config.dart';
 import 'utils/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ─── Performance: تحسينات الأداء للأجهزة الضعيفة ───
+  configurePerformance();
 
   // ─── Desktop: تهيئة sqflite_common_ffi لـ Windows/Linux/macOS ───
   // sqflite العادي لا يدعم Desktop — نستخدم sqflite_common_ffi
