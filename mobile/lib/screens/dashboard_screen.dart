@@ -121,7 +121,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final pulledCount = result.recordsPulled;
 
       // ✅ إغلاق إشعار التحميل فور انتهاء السحب
-      loading?.close();
+      if (mounted) {
+        loading?.close();
+      }
 
       // إعادة تعيين علامة التغييرات عن بعد
       AppwriteRealtimeSync().resetRemoteChangesFlag();
