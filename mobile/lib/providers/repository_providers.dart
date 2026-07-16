@@ -60,15 +60,15 @@ final employeesDaoProvider = Provider<EmployeesDao>(
   (ref) => EmployeesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
 );
 
-final roomsRepoProvider = Provider<RoomsRepository>((ref) => RoomsRepository(ref.read(databaseProvider)));
-final bookingsRepoProvider = Provider<BookingsRepository>((ref) => BookingsRepository(ref.read(databaseProvider)));
-final employeesRepoProvider = Provider<EmployeesRepository>((ref) => EmployeesRepository(ref.read(databaseProvider)));
-final guestInfoRepoProvider = Provider<GuestInfosRepository>((ref) => GuestInfosRepository(ref.read(databaseProvider)));
-final expensesRepoProvider = Provider<ExpensesRepository>((ref) => ExpensesRepository(ref.read(databaseProvider)));
-final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.read(databaseProvider)));
-final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.read(databaseProvider)));
-final debtsRepoProvider = Provider<DebtsRepository>((ref) => DebtsRepository(ref.read(databaseProvider)));
-final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.read(databaseProvider)));
+final roomsRepoProvider = Provider<RoomsRepository>((ref) => RoomsRepository(ref.watch(databaseProvider)));
+final bookingsRepoProvider = Provider<BookingsRepository>((ref) => BookingsRepository(ref.watch(databaseProvider)));
+final employeesRepoProvider = Provider<EmployeesRepository>((ref) => EmployeesRepository(ref.watch(databaseProvider)));
+final guestInfoRepoProvider = Provider<GuestInfosRepository>((ref) => GuestInfosRepository(ref.watch(databaseProvider)));
+final expensesRepoProvider = Provider<ExpensesRepository>((ref) => ExpensesRepository(ref.watch(databaseProvider)));
+final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.watch(databaseProvider)));
+final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.watch(databaseProvider)));
+final debtsRepoProvider = Provider<DebtsRepository>((ref) => DebtsRepository(ref.watch(databaseProvider)));
+final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.watch(databaseProvider)));
 final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>(
   (ref) => SalaryWithdrawalsRepository(ref.read(databaseProvider)),
 );
