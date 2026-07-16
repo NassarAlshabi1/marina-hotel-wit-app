@@ -7,7 +7,7 @@
 
 import 'dart:async';
 import 'dart:io';
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import '../lib/services/local_db.dart' as local_db;
 import '../lib/services/cache/layered_cache_service.dart';
 import '../lib/services/batch/batch_operations_service.dart';
