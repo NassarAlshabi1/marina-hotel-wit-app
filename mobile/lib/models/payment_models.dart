@@ -525,12 +525,16 @@ class Invoice {
     final logo = await EnhancedPdfUtils.loadLogoImage();
     final pdf = pw.Document();
 
+    // ✅ MultiPage بدلاً من Page — يُدفق المحتوى عبر صفحات متعددة
+    // عند كثرة الدفعات، يلتف الجدول تلقائياً للصفحة التالية بدلاً من قصّه
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
+        header: (context) => _buildPageHeader(fonts, logo, context),
+        footer: (context) => _buildPageFooter(fonts, context),
         build: (context) => _buildInvoiceContent(fonts, logo),
       ),
     );
@@ -544,12 +548,15 @@ class Invoice {
     final logo = await EnhancedPdfUtils.loadLogoImage();
     final pdf = pw.Document();
 
+    // ✅ MultiPage — نفس السبب: دفعات كثيرة → صفحات متعددة بدلاً من القص
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
         textDirection: pw.TextDirection.rtl,
         theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
+        header: (context) => _buildPageHeader(fonts, logo, context),
+        footer: (context) => _buildPageFooter(fonts, context),
         build: (context) => _buildInvoiceContent(fonts, logo),
       ),
     );
@@ -570,216 +577,276 @@ class Invoice {
   static const _cRed = PdfColor(0.78, 0.20, 0.20); // أحمر
   static const _cGold = PdfColor(0.75, 0.58, 0.10); // ذهبي
 
-  pw.Widget _buildInvoiceContent(ArabicPdfFonts fonts, pw.ImageProvider? logo) {
+  /// ✅ يُرجع قائمة Widget بدلاً من Column واحد — لأن MultiPage.build يتطلب List<Widget>
+  /// هذا يسمح للمحتوى بالتدفق عبر الصفحات بذكاء (جدول الدفعات الطويل يلتف لصفحة جديدة)
+  List<pw.Widget> _buildInvoiceContent(ArabicPdfFonts fonts, pw.ImageProvider? logo) {
     final paidAmount = totalAmount - remainingAmount;
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        // ═════════════════════════════════════════════════════════
-        //  الرأس — شريط أنيق بهوية الفندق
-        // ═════════════════════════════════════════════════════════
-        pw.Container(
-          width: double.infinity,
-          decoration: pw.BoxDecoration(color: _cPrimary, borderRadius: pw.BorderRadius.circular(12)),
-          child: pw.Column(
-            children: [
-              pw.Padding(
-                padding: const pw.EdgeInsets.all(20),
-                child: pw.Row(
-                  children: [
-                    // الشعار
-                    pw.Container(
-                      width: 52,
-                      height: 52,
-                      decoration: pw.BoxDecoration(color: const PdfColor(1, 1, 1), borderRadius: pw.BorderRadius.circular(26)),
-                      child: logo != null
-                          ? pw.Center(child: pw.Image(logo, width: 42, height: 42))
-                          : pw.Center(
-                              child: pw.Text(
-                                'M',
-                                style: pw.TextStyle(font: fonts.bold, fontSize: 24, color: _cPrimary),
-                              ),
-                            ),
-                    ),
-                    pw.SizedBox(width: 14),
-                    // اسم الفندق
-                    pw.Expanded(
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Text(
-                            'فندق مارينا بلازا',
-                            style: pw.TextStyle(font: fonts.bold, fontSize: 20, color: const PdfColor(1, 1, 1)),
-                          ),
-                          pw.SizedBox(height: 2),
-                          pw.Text(
-                            'MARINA PLAZA HOTEL',
-                            style: pw.TextStyle(
-                              font: fonts.regular,
-                              fontSize: 9,
-                              color: const PdfColor(0.7, 0.82, 0.95),
-                            ),
-                          ),
-                          pw.Text(
-                            'عدن - اليمن',
-                            style: pw.TextStyle(
-                              font: fonts.regular,
-                              fontSize: 9,
-                              color: const PdfColor(0.75, 0.85, 0.95),
-                            ),
-                          ),
-                        ],
+    return [
+      // ═════════════════════════════════════════════════════════
+      //  بطاقة معلومات العميل + الإقامة (صف واحد)
+      // (الرأس الكبير أصبح في header لكل صفحة عبر _buildPageHeader)
+      // ═════════════════════════════════════════════════════════
+      pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Expanded(
+            child: _buildInfoCard(
+              fonts,
+              title: 'بيانات العميل',
+              titleColor: _cPrimary,
+              rows: [('الاسم', guestName), ('الهاتف', guestPhone.isEmpty ? '—' : guestPhone), ('الغرفة', roomNumber)],
+            ),
+          ),
+          pw.SizedBox(width: 10),
+          pw.Expanded(
+            child: _buildInfoCard(
+              fonts,
+              title: 'تفاصيل الإقامة',
+              titleColor: _cAccent,
+              rows: [
+                ('الوصول', _formatDate(checkinDate)),
+                ('المغادرة', _formatDate(checkoutDate)),
+                ('الليالي', '$nights ليلة'),
+                ('سعر الليلة', '${EnhancedPdfUtils.formatNumber(roomRate)} ريال'),
+              ],
+            ),
+          ),
+        ],
+      ),
+
+      pw.SizedBox(height: 14),
+
+      // ═════════════════════════════════════════════════════════
+      //  جدول تفاصيل الفاتورة
+      // ═════════════════════════════════════════════════════════
+      _buildSectionTitle(fonts, 'تفاصيل الفاتورة'),
+      pw.SizedBox(height: 6),
+      _buildStyledTable(
+        fonts,
+        headers: ['البيان', 'الكمية', 'السعر', 'الإجمالي'],
+        columnWidths: [3.0, 1.5, 1.5, 1.5],
+        rows: [
+          [
+            'إقامة — غرفة $roomNumber',
+            '$nights ليلة',
+            '${EnhancedPdfUtils.formatNumber(roomRate)} ريال',
+            '${EnhancedPdfUtils.formatNumber(totalAmount)} ريال',
+          ],
+        ],
+      ),
+
+      // ═════════════════════════════════════════════════════════
+      //  جدول سجل المدفوعات المفصّل (يلتقط MultiPage الالتواء تلقائياً)
+      // ═════════════════════════════════════════════════════════
+      if (payments.isNotEmpty) ...[
+        pw.SizedBox(height: 14),
+        _buildSectionTitle(fonts, 'سجل المدفوعات المفصّل (${payments.length} ${payments.length == 1 ? "دفعة" : "دفعة"})'),
+        pw.SizedBox(height: 6),
+        _buildPaymentsTable(fonts),
+      ],
+
+      pw.SizedBox(height: 14),
+
+      // ═════════════════════════════════════════════════════════
+      //  ملخص مالي أنيق
+      // ═════════════════════════════════════════════════════════
+      _buildFinancialSummary(fonts, paidAmount),
+
+      pw.SizedBox(height: 14),
+
+      // ═════════════════════════════════════════════════════════
+      //  التذييل
+      // ═════════════════════════════════════════════════════════
+      pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+        decoration: pw.BoxDecoration(
+          color: _cLight,
+          borderRadius: pw.BorderRadius.circular(8),
+          border: pw.Border.all(color: _cBorder),
+        ),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'شكراً لاختياركم فندق مارينا بلازا',
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _cPrimary),
+                ),
+                pw.SizedBox(height: 2),
+                pw.Text(
+                  'نتطلع لخدمتكم مرة أخرى',
+                  style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: _cTextLight),
+                ),
+              ],
+            ),
+            pw.Text(
+              'تاريخ الإصدار: ${_formatDate(generatedAt)}',
+              style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: _cTextLight),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  /// ════════════════════════════════════════════════════════════════════
+  ///  رأس صفحة PDF — يظهر في أعلى كل صفحة (يتكرر عبر MultiPage)
+  ///  يعرض: شعار الفندق + الاسم + رقم الكشف وتاريخه
+  /// ════════════════════════════════════════════════════════════════════
+  pw.Widget _buildPageHeader(ArabicPdfFonts fonts, pw.ImageProvider? logo, pw.Context context) {
+    // في الصفحة الأولى فقط نعرض الرأس الكبير؛ في الصفحات التالية نعرض رأساً مختصراً
+    if (context.pageNumber > 1) {
+      return pw.Container(
+        margin: const pw.EdgeInsets.only(bottom: 10),
+        padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        decoration: pw.BoxDecoration(
+          color: _cPrimary,
+          borderRadius: pw.BorderRadius.circular(6),
+        ),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Row(
+              children: [
+                pw.Text(
+                  'فندق مارينا بلازا',
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: const PdfColor(1, 1, 1)),
+                ),
+                pw.SizedBox(width: 8),
+                pw.Text(
+                  '— كشف حساب (متابعة)',
+                  style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: const PdfColor(0.8, 0.88, 0.95)),
+                ),
+              ],
+            ),
+            pw.Text(
+              'رقم: $invoiceNumber',
+              style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: const PdfColor(0.8, 0.88, 0.95)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // الرأس الكامل في الصفحة الأولى
+    return pw.Container(
+      width: double.infinity,
+      margin: const pw.EdgeInsets.only(bottom: 14),
+      decoration: pw.BoxDecoration(color: _cPrimary, borderRadius: pw.BorderRadius.circular(12)),
+      child: pw.Padding(
+        padding: const pw.EdgeInsets.all(20),
+        child: pw.Row(
+          children: [
+            // الشعار
+            pw.Container(
+              width: 52,
+              height: 52,
+              decoration: pw.BoxDecoration(color: const PdfColor(1, 1, 1), borderRadius: pw.BorderRadius.circular(26)),
+              child: logo != null
+                  ? pw.Center(child: pw.Image(logo, width: 42, height: 42))
+                  : pw.Center(
+                      child: pw.Text(
+                        'M',
+                        style: pw.TextStyle(font: fonts.bold, fontSize: 24, color: _cPrimary),
                       ),
                     ),
-                    // رقم وتاريخ الفاتورة
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.end,
-                      children: [
-                        pw.Container(
-                          padding: const pw.EdgeInsets.symmetric(vertical: 5, horizontal: 14),
-                          decoration: pw.BoxDecoration(color: _cGold, borderRadius: pw.BorderRadius.circular(6)),
-                          child: pw.Text(
-                            'كشف حساب',
-                            style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: const PdfColor(1, 1, 1)),
-                          ),
-                        ),
-                        pw.SizedBox(height: 6),
-                        pw.Text(
-                          'رقم: $invoiceNumber',
-                          style: pw.TextStyle(
-                            font: fonts.regular,
-                            fontSize: 10,
-                            color: const PdfColor(0.75, 0.85, 0.95),
-                          ),
-                        ),
-                        pw.Text(
-                          _formatDate(generatedAt),
-                          style: pw.TextStyle(
-                            font: fonts.regular,
-                            fontSize: 9,
-                            color: const PdfColor(0.65, 0.78, 0.92),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        pw.SizedBox(height: 14),
-
-        // ═════════════════════════════════════════════════════════
-        //  بطاقة معلومات العميل + الإقامة (صف واحد)
-        // ═════════════════════════════════════════════════════════
-        pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            // بيانات العميل
-            pw.Expanded(
-              child: _buildInfoCard(
-                fonts,
-                title: 'بيانات العميل',
-                titleColor: _cPrimary,
-                rows: [('الاسم', guestName), ('الهاتف', guestPhone.isEmpty ? '—' : guestPhone), ('الغرفة', roomNumber)],
-              ),
             ),
-            pw.SizedBox(width: 10),
-            // تفاصيل الإقامة
+            pw.SizedBox(width: 14),
+            // اسم الفندق
             pw.Expanded(
-              child: _buildInfoCard(
-                fonts,
-                title: 'تفاصيل الإقامة',
-                titleColor: _cAccent,
-                rows: [
-                  ('الوصول', _formatDate(checkinDate)),
-                  ('المغادرة', _formatDate(checkoutDate)),
-                  ('الليالي', '$nights ليلة'),
-                  ('سعر الليلة', '${EnhancedPdfUtils.formatNumber(roomRate)} ريال'),
-                ],
-              ),
-            ),
-          ],
-        ),
-
-        pw.SizedBox(height: 14),
-
-        // ═════════════════════════════════════════════════════════
-        //  جدول تفاصيل الفاتورة
-        // ═════════════════════════════════════════════════════════
-        _buildSectionTitle(fonts, 'تفاصيل الفاتورة'),
-        pw.SizedBox(height: 6),
-        _buildStyledTable(
-          fonts,
-          headers: ['البيان', 'الكمية', 'السعر', 'الإجمالي'],
-          columnWidths: [3.0, 1.5, 1.5, 1.5],
-          rows: [
-            [
-              'إقامة — غرفة $roomNumber',
-              '$nights ليلة',
-              '${EnhancedPdfUtils.formatNumber(roomRate)} ريال',
-              '${EnhancedPdfUtils.formatNumber(totalAmount)} ريال',
-            ],
-          ],
-        ),
-
-        // ═════════════════════════════════════════════════════════
-        //  جدول سجل المدفوعات المفصّل
-        // ═════════════════════════════════════════════════════════
-        if (payments.isNotEmpty) ...[
-          pw.SizedBox(height: 14),
-          _buildSectionTitle(fonts, 'سجل المدفوعات المفصّل'),
-          pw.SizedBox(height: 6),
-          _buildPaymentsTable(fonts),
-        ],
-
-        pw.SizedBox(height: 14),
-
-        // ═════════════════════════════════════════════════════════
-        //  ملخص مالي أنيق
-        // ═════════════════════════════════════════════════════════
-        _buildFinancialSummary(fonts, paidAmount),
-
-        pw.Spacer(),
-
-        // ═════════════════════════════════════════════════════════
-        //  التذييل
-        // ═════════════════════════════════════════════════════════
-        pw.Container(
-          width: double.infinity,
-          padding: const pw.EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-          decoration: pw.BoxDecoration(
-            color: _cLight,
-            borderRadius: pw.BorderRadius.circular(8),
-            border: pw.Border.all(color: _cBorder),
-          ),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Column(
+              child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    'شكراً لاختياركم فندق مارينا بلازا',
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _cPrimary),
+                    'فندق مارينا بلازا',
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 20, color: const PdfColor(1, 1, 1)),
                   ),
                   pw.SizedBox(height: 2),
                   pw.Text(
-                    'نتطلع لخدمتكم مرة أخرى',
-                    style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: _cTextLight),
+                    'MARINA PLAZA HOTEL',
+                    style: pw.TextStyle(
+                      font: fonts.regular,
+                      fontSize: 9,
+                      color: const PdfColor(0.7, 0.82, 0.95),
+                    ),
+                  ),
+                  pw.Text(
+                    'عدن - اليمن',
+                    style: pw.TextStyle(
+                      font: fonts.regular,
+                      fontSize: 9,
+                      color: const PdfColor(0.75, 0.85, 0.95),
+                    ),
                   ),
                 ],
               ),
-              pw.Text(
-                'تاريخ الإصدار: ${_formatDate(generatedAt)}',
-                style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: _cTextLight),
-              ),
-            ],
-          ),
+            ),
+            // رقم وتاريخ الفاتورة
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(vertical: 5, horizontal: 14),
+                  decoration: pw.BoxDecoration(color: _cGold, borderRadius: pw.BorderRadius.circular(6)),
+                  child: pw.Text(
+                    'كشف حساب',
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: const PdfColor(1, 1, 1)),
+                  ),
+                ),
+                pw.SizedBox(height: 6),
+                pw.Text(
+                  'رقم: $invoiceNumber',
+                  style: pw.TextStyle(
+                    font: fonts.regular,
+                    fontSize: 10,
+                    color: const PdfColor(0.75, 0.85, 0.95),
+                  ),
+                ),
+                pw.Text(
+                  _formatDate(generatedAt),
+                  style: pw.TextStyle(
+                    font: fonts.regular,
+                    fontSize: 9,
+                    color: const PdfColor(0.65, 0.78, 0.92),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+
+  /// ════════════════════════════════════════════════════════════════════
+  ///  تذييل صفحة PDF — يظهر في أسفل كل صفحة
+  ///  يعرض: شكر + رقم الصفحة (مثال: 1/3)
+  /// ════════════════════════════════════════════════════════════════════
+  pw.Widget _buildPageFooter(ArabicPdfFonts fonts, pw.Context context) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(top: 10),
+      padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 14),
+      decoration: pw.BoxDecoration(
+        color: _cLight,
+        borderRadius: pw.BorderRadius.circular(6),
+        border: pw.Border.all(color: _cBorder, width: 0.5),
+      ),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(
+            'مارينا هوتل | 9677734587456',
+            style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: _cTextLight),
+          ),
+          pw.Text(
+            'صفحة ${context.pageNumber} من ${context.pagesCount}',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 9, color: _cPrimary),
+          ),
+        ],
+      ),
     );
   }
 
@@ -910,8 +977,20 @@ class Invoice {
     );
   }
 
-  /// جدول المدفوعات المفصّل
+  /// ════════════════════════════════════════════════════════════════════
+  ///  جدول المدفوعات المفصّل — يعرض لكل دفعة:
+  ///   - التسلسل
+  ///   - التاريخ الكامل + الوقت (yyyy/MM/dd HH:mm)
+  ///   - طريقة الدفع + المرجع (آخر 4 أرقام بطاقة / اسم بنك / رقم شيك / رقم تحويل)
+  ///   - المبلغ
+  ///   - الحالة
+  ///  كما يُراعي ترتيب الدفعات زمنياً تصاعدياً (الأقدم أولاً)
+  /// ════════════════════════════════════════════════════════════════════
   pw.Widget _buildPaymentsTable(ArabicPdfFonts fonts) {
+    // ترتيب الدفعات حسب التاريخ تصاعدياً (الأقدم أولاً)
+    final sortedPayments = List<Payment>.from(payments)
+      ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
+
     return pw.Container(
       width: double.infinity,
       decoration: pw.BoxDecoration(
@@ -921,26 +1000,32 @@ class Invoice {
       child: pw.Table(
         border: pw.TableBorder.all(color: _cBorder, width: 0.5),
         columnWidths: const {
-          0: pw.FlexColumnWidth(0.8),
-          1: pw.FlexColumnWidth(2.5),
-          2: pw.FlexColumnWidth(2),
-          3: pw.FlexColumnWidth(2),
-          4: pw.FlexColumnWidth(1.8),
+          0: pw.FlexColumnWidth(0.6),  // #
+          1: pw.FlexColumnWidth(2.4),  // التاريخ (كامل + وقت)
+          2: pw.FlexColumnWidth(2.2),  // طريقة الدفع
+          3: pw.FlexColumnWidth(2.0),  // المرجع
+          4: pw.FlexColumnWidth(1.8),  // المبلغ
+          5: pw.FlexColumnWidth(1.4),  // الحالة
         },
         children: [
-          // رأس
+          // ═══════════════════════════════════════════════════════════════
+          //  رأس الجدول
+          // ═══════════════════════════════════════════════════════════════
           pw.TableRow(
             decoration: const pw.BoxDecoration(color: _cAccent),
             children: [
               _tableCell(fonts, '#', bold: true, color: const PdfColor(1, 1, 1), center: true),
               _tableCell(fonts, 'التاريخ', bold: true, color: const PdfColor(1, 1, 1), center: true),
               _tableCell(fonts, 'طريقة الدفع', bold: true, color: const PdfColor(1, 1, 1), center: true),
+              _tableCell(fonts, 'المرجع', bold: true, color: const PdfColor(1, 1, 1), center: true),
               _tableCell(fonts, 'المبلغ', bold: true, color: const PdfColor(1, 1, 1), center: true),
               _tableCell(fonts, 'الحالة', bold: true, color: const PdfColor(1, 1, 1), center: true),
             ],
           ),
-          // صفوف المدفوعات
-          ...payments.asMap().entries.map((entry) {
+          // ═══════════════════════════════════════════════════════════════
+          //  صفوف الدفعات المفصّلة
+          // ═══════════════════════════════════════════════════════════════
+          ...sortedPayments.asMap().entries.map((entry) {
             final i = entry.key + 1;
             final p = entry.value;
             final statusAr = p.status == PaymentStatus.completed
@@ -956,25 +1041,58 @@ class Invoice {
                 ? _cGold
                 : _cRed;
             final rowColor = entry.key.isEven ? const PdfColor(1, 1, 1) : _cLight;
+
+            // ════════════════════════════════════════════════════════════
+            //  بناء نص المرجع: يعتمد على طريقة الدفع
+            // ════════════════════════════════════════════════════════════
+            String refText;
+            if (p.referenceNumber != null && p.referenceNumber!.isNotEmpty) {
+              refText = p.referenceNumber!;
+            } else if (p.method == PaymentMethod.card && p.cardLastFourDigits != null && p.cardLastFourDigits!.isNotEmpty) {
+              refText = '**** ${p.cardLastFourDigits}';
+            } else if (p.method == PaymentMethod.transfer && p.bankName != null && p.bankName!.isNotEmpty) {
+              refText = p.bankName!;
+            } else if (p.notes != null && p.notes!.isNotEmpty) {
+              refText = p.notes!;
+            } else {
+              refText = '—';
+            }
+            // اقتطاع المرجع إن طال
+            if (refText.length > 22) {
+              refText = '${refText.substring(0, 21)}…';
+            }
+
+            // التاريخ الكامل + الوقت
+            final dateStr = _formatDateTimeFull(p.paymentDate);
+
             return pw.TableRow(
               decoration: pw.BoxDecoration(color: rowColor),
               children: [
                 _tableCell(fonts, '$i', center: true),
-                _tableCell(fonts, _formatDate(p.paymentDate)),
+                _tableCell(fonts, dateStr, center: true),
                 _tableCell(fonts, p.method.displayName),
-                _tableCell(fonts, '${EnhancedPdfUtils.formatNumber(p.amount)} ريال'),
+                _tableCell(fonts, refText, center: true),
+                _tableCell(fonts, '${EnhancedPdfUtils.formatNumber(p.amount)} ريال', bold: true, center: true),
                 _tableCell(fonts, statusAr, color: statusColor, bold: true, center: true),
               ],
             );
           }),
-          // صف الإجمالي
+          // ═══════════════════════════════════════════════════════════════
+          //  صف الإجمالي المدفوع
+          // ═══════════════════════════════════════════════════════════════
           pw.TableRow(
             decoration: const pw.BoxDecoration(color: PdfColor(0.90, 0.93, 0.97)),
             children: [
               _tableCell(fonts, ''),
               _tableCell(fonts, ''),
+              _tableCell(fonts, ''),
               _tableCell(fonts, 'الإجمالي المدفوع', bold: true),
-              _tableCell(fonts, '${EnhancedPdfUtils.formatNumber(totalAmount - remainingAmount)} ريال', bold: true),
+              _tableCell(
+                fonts,
+                '${EnhancedPdfUtils.formatNumber(totalAmount - remainingAmount)} ريال',
+                bold: true,
+                center: true,
+              ),
               _tableCell(fonts, ''),
             ],
           ),
@@ -986,7 +1104,7 @@ class Invoice {
   /// خلية جدول قابلة للتخصيص
   pw.Widget _tableCell(ArabicPdfFonts fonts, String text, {bool bold = false, PdfColor? color, bool center = false}) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 7, horizontal: 8),
+      padding: const pw.EdgeInsets.symmetric(vertical: 7, horizontal: 6),
       child: pw.Text(
         text,
         style: pw.TextStyle(font: bold ? fonts.bold : fonts.regular, fontSize: 9.5, color: color ?? _cTextDark),
@@ -1059,5 +1177,16 @@ class Invoice {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  /// تنسيق التاريخ الكامل مع الوقت — يستخدم في جدول المدفوعات المفصّل
+  /// مثال: 2026/07/17 14:30
+  String _formatDateTimeFull(DateTime date) {
+    final y = date.year.toString();
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    final h = date.hour.toString().padLeft(2, '0');
+    final min = date.minute.toString().padLeft(2, '0');
+    return '$y/$m/$d $h:$min';
   }
 }

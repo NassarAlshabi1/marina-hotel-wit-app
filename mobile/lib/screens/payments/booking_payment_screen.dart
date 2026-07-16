@@ -3231,113 +3231,136 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
           content: SizedBox(
             width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // معلومات العميل السريعة
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildStatementPreviewRow('العميل', widget.booking.guestName),
-                      _buildStatementPreviewRow('الغرفة', widget.booking.roomNumber),
-                      _buildStatementPreviewRow('الهاتف', _currentGuestPhone),
-                      _buildStatementPreviewRow(
-                        'الإجمالي',
-                        '${CurrencyFormatter.formatAmount(summary.totalAmount)} ريال',
-                      ),
-                      _buildStatementPreviewRow(
-                        'المدفوع',
-                        '${CurrencyFormatter.formatAmount(summary.paidAmount)} ريال',
-                        valueColor: Colors.green,
-                      ),
-                      _buildStatementPreviewRow(
-                        'المتبقي',
-                        '${CurrencyFormatter.formatAmount(summary.remainingAmount)} ريال',
-                        valueColor: summary.remainingAmount > 0 ? Colors.red : Colors.green,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // زر معاينة الرسالة
-                OutlinedButton.icon(
-                  onPressed: () {
-                    setDialogState(() {
-                      _showFullPreview = !_showFullPreview;
-                    });
-                  },
-                  icon: Icon(_showFullPreview ? Icons.visibility_off : Icons.visibility, size: 16),
-                  label: Text(
-                    _showFullPreview ? 'إخفاء المعاينة' : 'معاينة الرسالة',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.teal,
-                    side: const BorderSide(color: Colors.teal),
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                  ),
-                ),
-
-                // معاينة الرسالة الكاملة
-                if (_showFullPreview) ...[
-                  const SizedBox(height: 8),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ═════════════════════════════════════════════════════════
+                  //  1) بطاقة معلومات العميل والإقامة
+                  // ═════════════════════════════════════════════════════════
                   Container(
-                    constraints: const BoxConstraints(maxHeight: 300),
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9),
+                      color: Colors.orange.shade50,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green.shade300),
+                      border: Border.all(color: Colors.orange.shade200),
                     ),
-                    child: SingleChildScrollView(
-                      child: SelectableText(
-                        messagePreview,
-                        style: const TextStyle(fontSize: 12, height: 1.6, fontFamily: 'Courier'),
-                        textAlign: TextAlign.right,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    child: Column(
                       children: [
-                        Text(
-                          '${messagePreview.length}/1000 حرف',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: messagePreview.length > 1000
-                                ? Colors.red
-                                : messagePreview.length > 900
-                                ? Colors.orange
-                                : Colors.grey.shade600,
-                          ),
+                        _buildStatementPreviewRow('العميل', widget.booking.guestName),
+                        _buildStatementPreviewRow('الغرفة', widget.booking.roomNumber),
+                        _buildStatementPreviewRow('الهاتف', _currentGuestPhone),
+                        _buildStatementPreviewRow(
+                          'الإجمالي',
+                          '${CurrencyFormatter.formatAmount(summary.totalAmount)} ريال',
                         ),
-                        if (messagePreview.length > 1000)
-                          const Padding(
-                            padding: EdgeInsets.only(right: 6),
-                            child: Icon(Icons.warning, size: 12, color: Colors.red),
-                          ),
+                        _buildStatementPreviewRow(
+                          'المدفوع',
+                          '${CurrencyFormatter.formatAmount(summary.paidAmount)} ريال',
+                          valueColor: Colors.green,
+                        ),
+                        _buildStatementPreviewRow(
+                          'المتبقي',
+                          '${CurrencyFormatter.formatAmount(summary.remainingAmount)} ريال',
+                          valueColor: summary.remainingAmount > 0 ? Colors.red : Colors.green,
+                        ),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 12),
+
+                  // ═════════════════════════════════════════════════════════
+                  //  2) جدول المدفوعات المفصّل (تواريخ + مبالغ) — مرئي افتراضياً
+                  // ═════════════════════════════════════════════════════════
+                  _buildDialogPaymentsTable(summary),
+
+                  const SizedBox(height: 12),
+
+                  // ═════════════════════════════════════════════════════════
+                  //  3) زر معاينة رسالة WhatsApp
+                  // ═════════════════════════════════════════════════════════
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      setDialogState(() {
+                        _showFullPreview = !_showFullPreview;
+                      });
+                    },
+                    icon: Icon(_showFullPreview ? Icons.visibility_off : Icons.visibility, size: 16),
+                    label: Text(
+                      _showFullPreview ? 'إخفاء المعاينة' : 'معاينة رسالة WhatsApp',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.teal,
+                      side: const BorderSide(color: Colors.teal),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                    ),
+                  ),
+
+                  // معاينة الرسالة الكاملة
+                  if (_showFullPreview) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.shade300),
+                      ),
+                      child: SingleChildScrollView(
+                        child: SelectableText(
+                          messagePreview,
+                          style: const TextStyle(fontSize: 12, height: 1.6, fontFamily: 'Courier'),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${messagePreview.length}/1000 حرف',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: messagePreview.length > 1000
+                                  ? Colors.red
+                                  : messagePreview.length > 900
+                                  ? Colors.orange
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
+                          if (messagePreview.length > 1000)
+                            const Padding(
+                              padding: EdgeInsets.only(right: 6),
+                              child: Icon(Icons.warning, size: 12, color: Colors.red),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-            // ✅ مشاركة PDF فقط عبر Share sheet
+            // ✅ مشاركة كنص WhatsApp
+            FilledButton.tonalIcon(
+              onPressed: () {
+                Navigator.pop(context);
+                _sendStatementViaWhatsAppText(summary);
+              },
+              icon: const Icon(Icons.chat, size: 18),
+              label: const Text('إرسال كنص'),
+              style: FilledButton.styleFrom(backgroundColor: Colors.green.shade100),
+            ),
+            // ✅ مشاركة PDF عبر Share sheet
             FilledButton.icon(
               onPressed: () {
                 Navigator.pop(context);
@@ -3352,6 +3375,162 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       ),
     );
   }
+
+  /// ════════════════════════════════════════════════════════════════════
+  ///  جدول المدفوعات المفصّل داخل نافذة الحوار
+  ///  يعرض: التسلسل، التاريخ الكامل، طريقة الدفع، المبلغ، الحالة
+  /// ════════════════════════════════════════════════════════════════════
+  Widget _buildDialogPaymentsTable(BookingPaymentSummary summary) {
+    // حالة عدم وجود دفعات
+    if (summary.payments.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, size: 18, color: Colors.grey.shade600),
+            const SizedBox(width: 8),
+            const Text('لا توجد دفعات مسجّلة بعد', style: TextStyle(fontSize: 13, color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    // ترتيب الدفعات حسب التاريخ تصاعدياً (الأقدم أولاً)
+    final sortedPayments = List<Payment>.from(summary.payments)
+      ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // عنوان القسم
+        Row(
+          children: [
+            Container(width: 4, height: 14, decoration: BoxDecoration(color: Colors.teal, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(width: 6),
+            Text(
+              'سجل المدفوعات المفصّل (${sortedPayments.length} ${sortedPayments.length == 1 ? "دفعة" : "دفعة"})',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.teal),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        // الجدول
+        DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Column(
+            children: [
+              // رأس الجدول
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade700,
+                  borderRadius: const BorderRadius.only(topRight: Radius.circular(7), topLeft: Radius.circular(7)),
+                ),
+                child: const Row(
+                  children: [
+                    Expanded(child: Text('#', textAlign: TextAlign.center, style: _tableHeaderStyle)),
+                    Expanded(flex: 3, child: Text('التاريخ', textAlign: TextAlign.center, style: _tableHeaderStyle)),
+                    Expanded(flex: 2, child: Text('طريقة الدفع', textAlign: TextAlign.center, style: _tableHeaderStyle)),
+                    Expanded(flex: 2, child: Text('المبلغ', textAlign: TextAlign.center, style: _tableHeaderStyle)),
+                  ],
+                ),
+              ),
+              // صفوف الدفعات
+              ...sortedPayments.asMap().entries.map((entry) {
+                final i = entry.key + 1;
+                final p = entry.value;
+                final isLast = entry.key == sortedPayments.length - 1;
+                final rowColor = entry.key.isEven ? Colors.white : Colors.grey.shade50;
+                final dateStr = DateFormat('yyyy/MM/dd').format(p.paymentDate);
+                final timeStr = DateFormat('HH:mm').format(p.paymentDate);
+                return Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: rowColor,
+                    border: isLast ? null : Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text('$i', textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          children: [
+                            Text(dateStr, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            Text(timeStr, style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(p.method.icon, size: 12, color: p.method.color),
+                            const SizedBox(width: 3),
+                            Text(p.method.displayName, style: const TextStyle(fontSize: 10)),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          '${CurrencyFormatter.formatAmount(p.amount)} ريال',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              // صف الإجمالي
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: const BorderRadius.only(bottomRight: Radius.circular(7), bottomLeft: Radius.circular(7)),
+                  border: Border(top: BorderSide(color: Colors.orange.shade200)),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(child: SizedBox()),
+                    const Expanded(flex: 3, child: Text('الإجمالي المدفوع', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.orange))),
+                    const Expanded(flex: 2, child: SizedBox()),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        '${CurrencyFormatter.formatAmount(summary.paidAmount)} ريال',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static const _tableHeaderStyle = TextStyle(
+    color: Colors.white,
+    fontWeight: FontWeight.bold,
+    fontSize: 11,
+  );
 
   bool _showFullPreview = false;
 
@@ -3450,7 +3629,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
-  /// بناء رسالة كشف حساب مختصرة (اقصى 1000 حرف)
+  /// بناء رسالة كشف حساب مفصّلة (تتضمن تواريخ ومبالغ جميع الدفعات)
+  /// الحد الأقصى 1000 حرف ليتوافق مع WhatsApp
   String _buildAccountStatementMessage(BookingPaymentSummary summary) {
     final b = widget.booking;
     final checkin = b.checkinDate.split(' ').first;
@@ -3482,32 +3662,50 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
     buf.writeln('المدفوع: ${CurrencyFormatter.formatAmount(paid)} ريال');
     buf.writeln('المتبقي: ${CurrencyFormatter.formatAmount(remaining)} ريال');
-    buf.writeln(remaining <= 0 ? 'الحالة: مكتمل' : 'الحالة: دفع جزئي');
+    buf.writeln(remaining <= 0 ? 'الحالة: مكتمل ✓' : 'الحالة: دفع جزئي');
 
-    // سجل المدفوعات (سطر واحد لكل دفعة)
+    // ═══════════════════════════════════════════════════════════════════
+    //  سجل المدفوعات المفصّل — لكل دفعة: التاريخ الكامل + الوقت + المبلغ + الطريقة
+    // ═══════════════════════════════════════════════════════════════════
     if (summary.payments.isNotEmpty) {
+      // ترتيب الدفعات حسب التاريخ تصاعدياً (الأقدم أولاً)
+      final sortedPayments = List<Payment>.from(summary.payments)
+        ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
+
       buf.writeln('━━━━━━━━━━━');
-      buf.writeln('سجل المدفوعات:');
-      for (int i = 0; i < summary.payments.length; i++) {
-        final p = summary.payments[i];
-        final pDate = DateFormat('dd/MM').format(p.paymentDate);
+      buf.writeln('سجل المدفوعات المفصّل (${sortedPayments.length}):');
+
+      for (int i = 0; i < sortedPayments.length; i++) {
+        final p = sortedPayments[i];
+        // التاريخ الكامل + الوقت
+        final pDate = DateFormat('yyyy/MM/dd').format(p.paymentDate);
+        final pTime = DateFormat('HH:mm').format(p.paymentDate);
         final methodAr = _mapPaymentMethodToAr(p.method);
         final amountStr = CurrencyFormatter.formatAmount(p.amount);
-        buf.writeln('${i + 1}.$amountStr - $methodAr - $pDate');
+
+        // سطر مفصّل لكل دفعة
+        buf.writeln('${i + 1}. $amountStr ريال | $methodAr | $pDate $pTime');
+
         // إيقاف إذا اقتربنا من الحد الأقصى
         if (buf.length > 950) {
-          final remaining2 = summary.payments.length - i - 1;
+          final remaining2 = sortedPayments.length - i - 1;
           if (remaining2 > 0) {
             buf.writeln('+ $remaining2 دفعات أخرى...');
           }
           break;
         }
       }
+
+      // سطر إجمالي المدفوع
+      if (buf.length < 970) {
+        buf.writeln('إجمالي المدفوع: ${CurrencyFormatter.formatAmount(paid)} ريال');
+      }
     }
 
     // ديون إن وجدت
     if (_debtAmount > 0 && buf.length < 960) {
-      buf.writeln('ديون: ${CurrencyFormatter.formatAmount(_debtAmount)} ريال');
+      buf.writeln('━━━━━━━━━━━');
+      buf.writeln('ديون سابقة: ${CurrencyFormatter.formatAmount(_debtAmount)} ريال');
     }
 
     // تذييل مختصر
