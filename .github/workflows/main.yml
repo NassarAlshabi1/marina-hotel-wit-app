@@ -1,0 +1,161 @@
+Skip to content
+marina-hotel-wit-app
+Repository navigation
+Code
+Issues
+5
+ (5)
+Build Flutter Release APK
+Build Flutter Release APK #1812
+Workflow file for this run
+.github/workflows/main.yml at c7188c2
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Marina Hotel — Build Flutter Release APK
+#  يعمل على أي إصدار اندرويد من 5.0 (API 21) وما فوق
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+name: Build Flutter Release APK
+
+on:
+  push:
+    branches:
+      - marina
+      - yy
+      - refactor/clean-v2
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/main.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Universal Release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      # ─── جلب الكود ───────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ─── إعداد Java 17 ───────────────────────────────────
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # ─── إعداد Flutter ───────────────────────────────────
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.0'
+          channel: 'stable'
+          cache: true
+
+      # ─── تثبيت مكونات Android SDK ────────────────────────
+      - name: Install Android SDK components
+        run: |
+          echo "y" | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.0.12077973" \
+            "cmake;3.22.1"
+      # ─── التحقق من ملفات التوقيع ─────────────────────────
+      - name: Verify Android Signing Files
+        run: |
+          echo "Verifying local signing files..."
+          ls -la android/app/release.keystore
+          ls -la android/key.properties
+          echo "Local signing files verified successfully."
+      # ─── تنظيف ──────────────────────────────────────────
+      - name: Clean build artifacts
+        run: flutter clean
+
+      # ─── تثبيت التبعيات ─────────────────────────────────
+      - name: Install dependencies
+        run: flutter pub get
+
+      # ─── تحديد رقم الإصدار ──────────────────────────────
+      - name: Determine build version
+        id: version
+        run: |
+          BASE_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          BUILD_NUMBER=${GITHUB_RUN_NUMBER}
+          BUILD_NAME="${BASE_VERSION}+${BUILD_NUMBER}"
+          echo "build_name=$BUILD_NAME" >> $GITHUB_OUTPUT
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "Building: $BUILD_NAME"
+      # ─── توليد الكود ────────────────────────────────────
+      - name: Generate code (build_runner)
+        run: |
+          flutter pub run build_runner clean
+          flutter pub run build_runner build --delete-conflicting-outputs
+      # ─── بناء الـ APK الشامل ────────────────────────────
+      # minSdkVersion = 21 (Android 5.0 Lollipop)
+      # targetSdk = 36 (Android 16)
+      # المعماريات: arm64-v8a, armeabi-v7a
+      - name: Build universal release APK
+        run: >
+          flutter build apk --release
+          --target-platform android-arm64,android-arm
+          --build-name ${{ steps.version.outputs.build_name }}
+          --build-number ${{ steps.version.outputs.build_number }}
+          --dart-define=BASE_API_URL=http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
+          --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
+          --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
+        env:
+          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1g -Dorg.gradle.daemon=false"
+          JAVA_TOOL_OPTIONS: "-Xmx4g -XX:MaxMetaspaceSize=1g"
+
+      # ─── عرض معلومات الـ APK المبني ─────────────────────
+      - name: Inspect APK info
+        run: |
+          APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
+          echo "APK size: $(du -h $APK_PATH | cut -f1)"
+          echo "APK path: $APK_PATH"
+          unzip -l $APK_PATH | grep "lib/" | awk '{print $4}' | sed 's|lib/||' | cut -d'/' -f1 | sort -u
+      # ─── رفع الـ APK كـ artifact ────────────────────────
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'marina-hotel-release-${{ steps.version.outputs.build_name }}'
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      # ─── إنشاء GitHub Release ────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: 'v${{ steps.version.outputs.build_name }}'
+          name: 'Marina Hotel v${{ steps.version.outputs.build_name }}'
+          body: |
+            ## Marina Hotel v${{ steps.version.outputs.build_name }}
+            **APK شامل يعمل على جميع أجهزة اندرويد**
+            - الحد الأدنى: Android 5.0 (API 21)
+            - المستهدف: Android 16 (API 36)
+            - المعالجات المدعومة: arm64-v8a, armeabi-v7a
+            - رقم البناء: ${{ steps.version.outputs.build_number }}
+            ### طريقة التثبيت
+            1. حمّل ملف APK
+            2. فعّل "مصادر غير معروفة" من إعدادات الأمان
+            3. ثبّت التطبيق
+          files: |
+            mobile/build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
