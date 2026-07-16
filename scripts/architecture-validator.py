@@ -152,23 +152,28 @@ def is_excluded(rel_path: str, exclude_set: Set[str]) -> bool:
 def check_no_direct_db_from_ui(lib_root: Path) -> Tuple[List[Tuple[str, str]], int]:
     """
     ERROR Rule: No direct DB access from UI
-    screens لا تستورد local_db.dart مباشرة.
+    screens + widgets + components لا تستورد local_db.dart مباشرة.
     يجب المرور عبر providers → repositories → services.
     """
     violations = []
-    for dart_file in (lib_root / 'screens').rglob('*.dart'):
-        rel_path = str(dart_file.relative_to(lib_root))
-        # استثناء شاشات الصيانة (developer tools)
-        if is_excluded(rel_path, EXCLUDE_FROM_SERVICES_CHECK):
+    # فحص كل طبقة UI: screens + widgets + components
+    ui_dirs = [lib_root / 'screens', lib_root / 'widgets', lib_root / 'components']
+    for ui_dir in ui_dirs:
+        if not ui_dir.exists():
             continue
-        try:
-            content = dart_file.read_text(encoding='utf-8')
-        except Exception:
-            continue
-        imports = get_imports(content)
-        for imp in imports:
-            if 'local_db.dart' in imp or 'local_db.g.dart' in imp:
-                violations.append((rel_path, imp))
+        for dart_file in ui_dir.rglob('*.dart'):
+            rel_path = str(dart_file.relative_to(lib_root))
+            # استثناء شاشات الصيانة (developer tools)
+            if is_excluded(rel_path, EXCLUDE_FROM_SERVICES_CHECK):
+                continue
+            try:
+                content = dart_file.read_text(encoding='utf-8')
+            except Exception:
+                continue
+            imports = get_imports(content)
+            for imp in imports:
+                if 'local_db.dart' in imp or 'local_db.g.dart' in imp:
+                    violations.append((rel_path, imp))
     return violations, len(violations)
 
 

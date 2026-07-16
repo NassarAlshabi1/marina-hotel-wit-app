@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../services/local_db.dart';
+import '../../models/db_types.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 
