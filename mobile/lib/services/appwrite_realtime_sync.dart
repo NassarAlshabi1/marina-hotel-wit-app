@@ -73,7 +73,7 @@ class AppwriteRealtimeSync {
     // ✅ إذا كان WebSocket معطّلاً (لا يدعمه السيرفر/الشبكة)،
     // نعتمد على FCM + auto-sync بدلاً من WebSocket Realtime.
     // هذا يمنع إهدار البطارية في 6 محاولات إعادة اتصال فاشلة.
-    final realtimeEnabled = prefs.getBool('appwrite_realtime_ws_enabled') ?? true;
+    final realtimeEnabled = prefs.getBool('appwrite_realtime_ws_enabled') ?? false;
     if (!realtimeEnabled) {
       debugPrint('📡 Realtime: WebSocket disabled — relying on FCM + auto-sync');
       _startPollingFallback();
