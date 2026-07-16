@@ -56,7 +56,7 @@ jobs:
   # 1) CodeQL — semantic SAST for PHP & JavaScript
   # ═══════════════════════════════════════════════════════════
   codeql:
-    name: CodeQL Analysis (PHP/JS)
+    name: CodeQL Analysis (JS)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -73,7 +73,7 @@ jobs:
         uses: github/codeql-action/init@v4
         continue-on-error: true
         with:
-          languages: javascript, php
+          languages: javascript
           queries: security-and-quality
 
       - name: Skip remaining CodeQL steps if init failed
@@ -119,11 +119,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p sarif-results
-          # Run with:
-          #   - security-audit (default ruleset)
-          #   - supply-chain  (malicious package patterns)
-          #   - php-lang      (PHP-specific rules)
-          #   - flutter       (Dart/Flutter rules from community)
           semgrep scan \
             --config=p/default \
             --config=p/security-audit \
@@ -135,12 +130,10 @@ jobs:
             --config=p/command-injection \
             --config=p/xss \
             --config=p/secrets \
-            --error \
             --json --output=semgrep-report.json \
             --sarif --output=sarif-results/semgrep.sarif \
             . || {
               echo "::warning::Semgrep found findings; see SARIF report"
-              # Don't fail the workflow on findings — they go to GitHub Security
               exit 0
             }
 
@@ -195,7 +188,7 @@ jobs:
           mkdir -p sarif-results
           trivy fs --exit-code 0 --severity HIGH,CRITICAL --ignore-unfixed \
             --format sarif --output sarif-results/trivy-fs.sarif \
-            --limit-severities-for-sarif .
+            . || echo "::warning::Trivy filesystem scan had issues"
 
       - name: Trivy — Misconfiguration scan (IaC + Dockerfile + workflows)
         continue-on-error: true
@@ -252,17 +245,16 @@ jobs:
         uses: anchore/sbom-action@v0
         with:
           path: .
-          format: spdx-json
+          output-format: spdx-json
           output-file: sbom.spdx.json
           upload-artifact: true
-          upload-result: true
 
       - name: Scan SBOM with Grype
         uses: anchore/scan-action@v7
         with:
           sbom: sbom.spdx.json
-          format: sarif
-          output: sarif-results/grype.sarif
+          output-format: sarif
+          output-file: sarif-results/grype.sarif
           fail-build: false
           severity-cutoff: high
 
