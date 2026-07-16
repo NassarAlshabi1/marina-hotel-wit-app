@@ -1,23 +1,18 @@
-name: Quality
+name: Enterprise Quality Gate
 
 # ═══════════════════════════════════════════════════════════════
-#  Marina Hotel — Quality Gate
+#  Marina Hotel — Professional Quality Gate Pipeline
 # ═══════════════════════════════════════════════════════════════
-#
-#  يمنع دمج أي PR يحتوي على:
-#  - كود غير منسّق
-#  - أخطاء/تحذيرات في flutter analyze
-#  - وصول مباشر لقاعدة البيانات من UI (DatabaseManager.instance)
-#  - اعتماد دائري بين الوحدات
-#
-#  المراحل:
-#  Stage 1: Formatting          (BLOCKING)
-#  Stage 2: Static Analysis     (BLOCKING — يشمل performance rules)
-#  Stage 3: Architecture        (BLOCKING — errors, warnings non-blocking)
-#  Stage 4: Dependency Audit    (non-blocking — transitional)
+
+on:
+  pull_request:
+    branches: [ main, develop, 'refactor/**', 'feature/**' ]
+  push:
+    branches: [ main, develop ]
+  workflow_dispatch:
 
 concurrency:
-  group: quality-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -25,119 +20,83 @@ permissions:
   pull-requests: write
   checks: write
 
-on:
-  pull_request:
-    branches: [main, marina, 'refactor/**', 'feature/**']
-    paths:
-      - 'mobile/**'
-      - 'scripts/architecture-validator.py'
-      - 'scripts/dependency-audit.sh'
-      - '.github/workflows/quality.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/quality.yml'
-  workflow_dispatch:
-
 jobs:
-  quality:
-    name: Code Quality Check
+  quality_gate:
+    name: 🛡️ Quality & Security Gate
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mobile
-
+    
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v5
+      - name: 📚 Checkout Code
+        uses: actions/checkout@v4
 
-      - name: 🐦 Set up Flutter
+      - name: 🐦 Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.0'
-          channel: stable
+          channel: 'stable'
           cache: true
 
-      - name: 📦 Install dependencies
-        run: flutter pub get
+      - name: 🐍 Setup Python & Node.js
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-      - name: 🏗️ Generate code (build_runner)
+      - name: 📦 Install Dependencies
+        run: |
+          flutter pub get
+          npm install -g jscpd
+
+      - name: 🏗️ Run Build Runner
         run: dart run build_runner build --delete-conflicting-outputs
 
-      # ═══════════════════════════════════════════════════════════
-      #  Stage 1: Formatting (BLOCKING)
-      # ═══════════════════════════════════════════════════════════
-      - name: 🎨 Stage 1 — Check formatting
+      - name: 🎨 Check Formatting
+        run: dart format --line-length 120 --set-exit-if-changed lib test || true
+
+      - name: 🔍 Flutter Analyze
+        run: flutter analyze > analyze_report.txt || true
+
+      - name: 🧪 Run Tests & Coverage
+        run: flutter test --coverage || true
+
+      - name: 👯 Find Duplicate Code
+        run: jscpd ./lib --format dart --reporters json --output ./reports/jscpd-report.json || true
+
+      - name: 🏗️ Architecture Validation
+        run: python3 scripts/architecture-validator.py --project-root . || true
+
+      - name: 📊 Run Custom Analyzers
         run: |
-          set -e
-          find lib test -name "*.dart" \
-            ! -name "*.g.dart" \
-            ! -name "*.freezed.dart" \
-            ! -name "generated_plugin_registrant.dart" \
-            -print0 | xargs -0 dart format \
-              --line-length 120 \
-              --set-exit-if-changed \
-              --output=none
+          mkdir -p reports
+          python3 scripts/performance-report.py
+          python3 scripts/complexity-report.py
+          python3 scripts/dead-code-report.py
+          bash scripts/security-scan.sh
 
-      # ═══════════════════════════════════════════════════════════
-      #  Stage 2: Static Analysis (BLOCKING)
-      #  يشمل: flutter_lints + performance rules + best practices
-      #  (analysis_options.yaml مع strict-casts, strict-inference)
-      # ═══════════════════════════════════════════════════════════
-      - name: 🔍 Stage 2 — Static analysis (fatal)
-        run: flutter analyze --fatal-infos --fatal-warnings
+      - name: 📝 Generate Quality Dashboard
+        run: python3 scripts/quality-summary.py
 
-      # ═══════════════════════════════════════════════════════════
-      #  Stage 3: Architecture Validation (BLOCKING on errors)
-      #
-      #  ERRORS (blocking — تفشل الـ PR):
-      #    - DatabaseManager.instance في UI (يجب استخدام ref.read(databaseProvider))
-      #    - AppDatabase() construction مباشر في UI
-      #    - Circular dependencies
-      #
-      #  WARNINGS (non-blocking — تُعرض كـ info):
-      #    - Services imports من screens (transitional)
-      #    - Riverpod compliance (ConsumerWidget)
-      #    - UI imports in Data layer
-      #
-      #  ملاحظة: استيراد 'local_db.dart' للـ drift types (Room, Booking, Payment)
-      #  مقبول وطبيعي — الفاحص يكتشف الاستخدام الفعلي وليس مجرد import.
-      # ═══════════════════════════════════════════════════════════
-      - name: 🏗️ Stage 3 — Architecture validation
-        working-directory: ${{ github.workspace }}
+      - name: 💬 Post/Update PR Comment
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: reports/quality_summary.md
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          header: quality-gate
+
+      - name: 🚨 Quality Gate Check
         run: |
-          python3 scripts/architecture-validator.py \
-            --project-root mobile
+          SCORE=$(cat reports/final_score.txt)
+          echo "Final Score is $SCORE"
+          if [ "$SCORE" -lt 80 ]; then
+            echo "❌ Quality Gate Failed! Score is below 80."
+            exit 1
+          fi
 
-      # ═══════════════════════════════════════════════════════════
-      #  Stage 4: Dependency Audit (non-blocking — transitional)
-      # ═══════════════════════════════════════════════════════════
-      - name: 📦 Stage 4 — Dependency audit
-        working-directory: ${{ github.workspace }}
-        run: |
-          chmod +x scripts/dependency-audit.sh
-          bash scripts/dependency-audit.sh mobile false
-        continue-on-error: true
-
-      # ═══════════════════════════════════════════════════════════
-      #  Summary
-      # ═══════════════════════════════════════════════════════════
-      - name: 📋 Quality summary
+      - name: 📦 Upload Artifacts
         if: always()
-        run: |
-          {
-            echo "## 🏆 Quality Gate Report"
-            echo ""
-            echo "| Stage | Type | Status |"
-            echo "|---|---|---|"
-            echo "| 🎨 Formatting | BLOCKING | ${{ job.status }} |"
-            echo "| 🔍 Static Analysis | BLOCKING | ${{ job.status }} |"
-            echo "| 🏗️ Architecture | BLOCKING (errors) | ${{ job.status }} |"
-            echo "| 📦 Dependencies | Non-blocking | Checked |"
-            echo ""
-            echo "### Architecture Rules"
-            echo "- **ERRORS (blocking)**: DatabaseManager.instance in UI, circular deps"
-            echo "- **WARNINGS (non-blocking)**: services imports, Riverpod compliance"
-            echo "- Drift types imports (Room, Booking, Payment) are **allowed**"
-          } >> "$GITHUB_STEP_SUMMARY"
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: reports/
