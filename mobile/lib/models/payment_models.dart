@@ -749,11 +749,11 @@ class Invoice {
           ),
         ),
 
-        // === سجل المدفوعات ===
+        // === سجل المدفوعات المفصّل ===
         if (payments.isNotEmpty) ...[
           pw.SizedBox(height: 16),
           pw.Text(
-            'سجل المدفوعات',
+            'سجل المدفوعات المفصّل',
             style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.textDark),
           ),
           pw.SizedBox(height: 8),
@@ -766,27 +766,56 @@ class Invoice {
             child: pw.Table(
               border: pw.TableBorder.all(color: const PdfColor(0.88, 0.88, 0.88)),
               columnWidths: {
-                0: const pw.FlexColumnWidth(3),
-                1: const pw.FlexColumnWidth(3),
-                2: const pw.FlexColumnWidth(3),
+                1: const pw.FlexColumnWidth(2.5),
+                2: const pw.FlexColumnWidth(2),
+                3: const pw.FlexColumnWidth(2),
+                4: const pw.FlexColumnWidth(2.5),
               },
               children: [
+                // رأس الجدول
                 pw.TableRow(
                   decoration: const pw.BoxDecoration(color: PdfColors.accent),
                   children: [
+                    _invoiceHeaderCell(fonts, '#'),
                     _invoiceHeaderCell(fonts, 'التاريخ'),
                     _invoiceHeaderCell(fonts, 'طريقة الدفع'),
                     _invoiceHeaderCell(fonts, 'المبلغ'),
+                    _invoiceHeaderCell(fonts, 'الحالة'),
                   ],
                 ),
-                ...payments.map(
-                  (payment) => pw.TableRow(
-                    children: [
-                      _invoiceDataCell(fonts, _formatDate(payment.paymentDate)),
-                      _invoiceDataCell(fonts, payment.method.displayName),
-                      _invoiceDataCell(fonts, '${EnhancedPdfUtils.formatNumber(payment.amount)} ريال'),
-                    ],
-                  ),
+                // صفوف المدفوعات
+                ...payments.asMap().entries.map(
+                  (entry) {
+                    final i = entry.key + 1;
+                    final payment = entry.value;
+                    final statusAr = payment.status == PaymentStatus.completed
+                        ? 'مكتمل'
+                        : payment.status == PaymentStatus.pending
+                            ? 'معلّق'
+                            : payment.status == PaymentStatus.refunded
+                                ? 'مُسترجع'
+                                : 'ملغي';
+                    return pw.TableRow(
+                      children: [
+                        _invoiceDataCell(fonts, '$i'),
+                        _invoiceDataCell(fonts, _formatDate(payment.paymentDate)),
+                        _invoiceDataCell(fonts, payment.method.displayName),
+                        _invoiceDataCell(fonts, '${EnhancedPdfUtils.formatNumber(payment.amount)} ريال'),
+                        _invoiceDataCell(fonts, statusAr),
+                      ],
+                    );
+                  },
+                ),
+                // صف إجمالي المدفوع
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.backgroundLight),
+                  children: [
+                    _invoiceDataCell(fonts, ''),
+                    _invoiceDataCell(fonts, ''),
+                    _invoiceDataCellBold(fonts, 'الإجمالي المدفوع'),
+                    _invoiceDataCellBold(fonts, '${EnhancedPdfUtils.formatNumber(totalAmount - remainingAmount)} ريال'),
+                    _invoiceDataCell(fonts, ''),
+                  ],
                 ),
               ],
             ),
@@ -887,6 +916,16 @@ class Invoice {
       child: pw.Text(
         text,
         style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textDark),
+      ),
+    );
+  }
+
+  pw.Widget _invoiceDataCellBold(ArabicPdfFonts fonts, String text) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: PdfColors.textDark),
       ),
     );
   }
