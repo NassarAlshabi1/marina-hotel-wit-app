@@ -557,427 +557,501 @@ class Invoice {
     return pdf.save();
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  //  ألوان احترافية
+  // ═══════════════════════════════════════════════════════════════
+  static const _cPrimary = PdfColor(0.13, 0.27, 0.45); // أزرق كحلي
+  static const _cAccent = PdfColor(0.18, 0.52, 0.74); // أزرق فاتح
+  static const _cLight = PdfColor(0.96, 0.97, 0.98); // رمادي فاتح جداً
+  static const _cBorder = PdfColor(0.85, 0.87, 0.90); // رمادي الحدود
+  static const _cTextDark = PdfColor(0.15, 0.15, 0.18); // نص داكن
+  static const _cTextLight = PdfColor(0.55, 0.58, 0.62); // نص فاتح
+  static const _cGreen = PdfColor(0.16, 0.60, 0.32); // أخضر
+  static const _cRed = PdfColor(0.78, 0.20, 0.20); // أحمر
+  static const _cGold = PdfColor(0.75, 0.58, 0.10); // ذهبي
+
   pw.Widget _buildInvoiceContent(ArabicPdfFonts fonts, pw.ImageProvider? logo) {
     final paidAmount = totalAmount - remainingAmount;
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        // === رأس الفاتورة ===
+        // ═════════════════════════════════════════════════════════
+        //  الرأس — شريط أنيق بهوية الفندق
+        // ═════════════════════════════════════════════════════════
         pw.Container(
           width: double.infinity,
-          padding: const pw.EdgeInsets.all(20),
-          decoration: pw.BoxDecoration(color: PdfColors.primary, borderRadius: pw.BorderRadius.circular(10)),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          decoration: pw.BoxDecoration(color: _cPrimary, borderRadius: pw.BorderRadius.circular(12)),
+          child: pw.Column(
             children: [
-              // الشعار
-              if (logo != null)
-                pw.Container(
-                  width: 56,
-                  height: 56,
-                  decoration: pw.BoxDecoration(color: PdfColors.textWhite, borderRadius: pw.BorderRadius.circular(28)),
-                  child: pw.Center(child: pw.Image(logo, width: 48, height: 48)),
-                )
-              else
-                pw.Container(
-                  width: 56,
-                  height: 56,
-                  decoration: pw.BoxDecoration(color: PdfColors.textWhite, borderRadius: pw.BorderRadius.circular(28)),
-                  child: pw.Center(
-                    child: pw.Text(
-                      'M',
-                      style: pw.TextStyle(font: fonts.bold, fontSize: 26, color: PdfColors.primary),
-                    ),
-                  ),
-                ),
-              // اسم الفندق
-              pw.Expanded(
-                child: pw.Column(
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(20),
+                child: pw.Row(
                   children: [
-                    pw.Text(
-                      'فندق مارينا بلازا',
-                      style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
+                    // الشعار
+                    pw.Container(
+                      width: 52,
+                      height: 52,
+                      decoration: pw.BoxDecoration(color: const PdfColor(1, 1, 1), borderRadius: pw.BorderRadius.circular(26)),
+                      child: logo != null
+                          ? pw.Center(child: pw.Image(logo, width: 42, height: 42))
+                          : pw.Center(
+                              child: pw.Text(
+                                'M',
+                                style: pw.TextStyle(font: fonts.bold, fontSize: 24, color: _cPrimary),
+                              ),
+                            ),
                     ),
-                    pw.SizedBox(height: 4),
-                    pw.Text(
-                      'MARINA PLAZA HOTEL',
-                      style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: const PdfColor(0.7, 0.85, 1.0)),
+                    pw.SizedBox(width: 14),
+                    // اسم الفندق
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'فندق مارينا بلازا',
+                            style: pw.TextStyle(font: fonts.bold, fontSize: 20, color: const PdfColor(1, 1, 1)),
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                            'MARINA PLAZA HOTEL',
+                            style: pw.TextStyle(
+                              font: fonts.regular,
+                              fontSize: 9,
+                              color: const PdfColor(0.7, 0.82, 0.95),
+                            ),
+                          ),
+                          pw.Text(
+                            'عدن - اليمن',
+                            style: pw.TextStyle(
+                              font: fonts.regular,
+                              fontSize: 9,
+                              color: const PdfColor(0.75, 0.85, 0.95),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    pw.SizedBox(height: 3),
-                    pw.Text(
-                      'عدن - اليمن - شارع أحمد قاسم',
-                      style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: const PdfColor(0.8, 0.9, 1.0)),
+                    // رقم وتاريخ الفاتورة
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(vertical: 5, horizontal: 14),
+                          decoration: pw.BoxDecoration(color: _cGold, borderRadius: pw.BorderRadius.circular(6)),
+                          child: pw.Text(
+                            'كشف حساب',
+                            style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: const PdfColor(1, 1, 1)),
+                          ),
+                        ),
+                        pw.SizedBox(height: 6),
+                        pw.Text(
+                          'رقم: $invoiceNumber',
+                          style: pw.TextStyle(
+                            font: fonts.regular,
+                            fontSize: 10,
+                            color: const PdfColor(0.75, 0.85, 0.95),
+                          ),
+                        ),
+                        pw.Text(
+                          _formatDate(generatedAt),
+                          style: pw.TextStyle(
+                            font: fonts.regular,
+                            fontSize: 9,
+                            color: const PdfColor(0.65, 0.78, 0.92),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ),
-              // معلومات الفاتورة
-              pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
-                children: [
-                  pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-                    decoration: pw.BoxDecoration(color: PdfColors.secondary, borderRadius: pw.BorderRadius.circular(6)),
-                    child: pw.Text(
-                      'فاتورة',
-                      style: pw.TextStyle(font: fonts.bold, fontSize: 16, color: PdfColors.textWhite),
-                    ),
-                  ),
-                  pw.SizedBox(height: 6),
-                  pw.Text(
-                    'رقم: $invoiceNumber',
-                    style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: const PdfColor(0.8, 0.9, 1.0)),
-                  ),
-                  pw.Text(
-                    _formatDate(generatedAt),
-                    style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: const PdfColor(0.7, 0.85, 1.0)),
-                  ),
-                ],
               ),
             ],
           ),
         ),
 
-        pw.SizedBox(height: 16),
+        pw.SizedBox(height: 14),
 
-        // === بطاقات معلومات العميل والإقامة ===
+        // ═════════════════════════════════════════════════════════
+        //  بطاقة معلومات العميل + الإقامة (صف واحد)
+        // ═════════════════════════════════════════════════════════
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             // بيانات العميل
             pw.Expanded(
-              child: pw.Container(
-                padding: const pw.EdgeInsets.all(14),
-                decoration: pw.BoxDecoration(
-                  borderRadius: pw.BorderRadius.circular(8),
-                  border: pw.Border.all(color: const PdfColor(0.88, 0.88, 0.88)),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 10),
-                      decoration: pw.BoxDecoration(color: PdfColors.primary, borderRadius: pw.BorderRadius.circular(4)),
-                      child: pw.Text(
-                        'بيانات العميل',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.textWhite),
-                      ),
-                    ),
-                    pw.SizedBox(height: 10),
-                    _invoiceInfoRow(fonts, 'الاسم', guestName),
-                    pw.SizedBox(height: 6),
-                    _invoiceInfoRow(fonts, 'الهاتف', guestPhone),
-                    pw.SizedBox(height: 6),
-                    _invoiceInfoRow(fonts, 'رقم الغرفة', roomNumber),
-                  ],
-                ),
+              child: _buildInfoCard(
+                fonts,
+                title: 'بيانات العميل',
+                titleColor: _cPrimary,
+                rows: [('الاسم', guestName), ('الهاتف', guestPhone.isEmpty ? '—' : guestPhone), ('الغرفة', roomNumber)],
               ),
             ),
-            pw.SizedBox(width: 12),
+            pw.SizedBox(width: 10),
             // تفاصيل الإقامة
             pw.Expanded(
-              child: pw.Container(
-                padding: const pw.EdgeInsets.all(14),
-                decoration: pw.BoxDecoration(
-                  borderRadius: pw.BorderRadius.circular(8),
-                  border: pw.Border.all(color: const PdfColor(0.88, 0.88, 0.88)),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 10),
-                      decoration: pw.BoxDecoration(color: PdfColors.accent, borderRadius: pw.BorderRadius.circular(4)),
-                      child: pw.Text(
-                        'تفاصيل الإقامة',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.textWhite),
-                      ),
-                    ),
-                    pw.SizedBox(height: 10),
-                    _invoiceInfoRow(fonts, 'تاريخ الوصول', _formatDate(checkinDate)),
-                    pw.SizedBox(height: 6),
-                    _invoiceInfoRow(fonts, 'تاريخ المغادرة', _formatDate(checkoutDate)),
-                    pw.SizedBox(height: 6),
-                    _invoiceInfoRow(fonts, 'عدد الليالي', '$nights'),
-                    pw.SizedBox(height: 6),
-                    _invoiceInfoRow(fonts, 'سعر الليلة', '${EnhancedPdfUtils.formatNumber(roomRate)} ريال'),
-                  ],
-                ),
+              child: _buildInfoCard(
+                fonts,
+                title: 'تفاصيل الإقامة',
+                titleColor: _cAccent,
+                rows: [
+                  ('الوصول', _formatDate(checkinDate)),
+                  ('المغادرة', _formatDate(checkoutDate)),
+                  ('الليالي', '$nights ليلة'),
+                  ('سعر الليلة', '${EnhancedPdfUtils.formatNumber(roomRate)} ريال'),
+                ],
               ),
             ),
           ],
         ),
 
-        pw.SizedBox(height: 16),
+        pw.SizedBox(height: 14),
 
-        // === جدول تفاصيل الفاتورة ===
+        // ═════════════════════════════════════════════════════════
+        //  جدول تفاصيل الفاتورة
+        // ═════════════════════════════════════════════════════════
+        _buildSectionTitle(fonts, 'تفاصيل الفاتورة'),
+        pw.SizedBox(height: 6),
+        _buildStyledTable(
+          fonts,
+          headers: ['البيان', 'الكمية', 'السعر', 'الإجمالي'],
+          columnWidths: [3.0, 1.5, 1.5, 1.5],
+          rows: [
+            [
+              'إقامة — غرفة $roomNumber',
+              '$nights ليلة',
+              '${EnhancedPdfUtils.formatNumber(roomRate)} ريال',
+              '${EnhancedPdfUtils.formatNumber(totalAmount)} ريال',
+            ],
+          ],
+        ),
+
+        // ═════════════════════════════════════════════════════════
+        //  جدول سجل المدفوعات المفصّل
+        // ═════════════════════════════════════════════════════════
+        if (payments.isNotEmpty) ...[
+          pw.SizedBox(height: 14),
+          _buildSectionTitle(fonts, 'سجل المدفوعات المفصّل'),
+          pw.SizedBox(height: 6),
+          _buildPaymentsTable(fonts),
+        ],
+
+        pw.SizedBox(height: 14),
+
+        // ═════════════════════════════════════════════════════════
+        //  ملخص مالي أنيق
+        // ═════════════════════════════════════════════════════════
+        _buildFinancialSummary(fonts, paidAmount),
+
+        pw.Spacer(),
+
+        // ═════════════════════════════════════════════════════════
+        //  التذييل
+        // ═════════════════════════════════════════════════════════
         pw.Container(
           width: double.infinity,
+          padding: const pw.EdgeInsets.symmetric(vertical: 14, horizontal: 20),
           decoration: pw.BoxDecoration(
+            color: _cLight,
             borderRadius: pw.BorderRadius.circular(8),
-            border: pw.Border.all(color: const PdfColor(0.88, 0.88, 0.88)),
+            border: pw.Border.all(color: _cBorder),
           ),
-          child: pw.Table(
-            border: pw.TableBorder.all(color: const PdfColor(0.88, 0.88, 0.88)),
-            columnWidths: {
-              0: const pw.FlexColumnWidth(3),
-              1: const pw.FlexColumnWidth(2),
-              2: const pw.FlexColumnWidth(2),
-              3: const pw.FlexColumnWidth(2),
-            },
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              // رأس الجدول
-              pw.TableRow(
-                decoration: const pw.BoxDecoration(color: PdfColors.primary),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  _invoiceHeaderCell(fonts, 'البيان'),
-                  _invoiceHeaderCell(fonts, 'الكمية'),
-                  _invoiceHeaderCell(fonts, 'السعر'),
-                  _invoiceHeaderCell(fonts, 'الإجمالي'),
+                  pw.Text(
+                    'شكراً لاختياركم فندق مارينا بلازا',
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _cPrimary),
+                  ),
+                  pw.SizedBox(height: 2),
+                  pw.Text(
+                    'نتطلع لخدمتكم مرة أخرى',
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: _cTextLight),
+                  ),
                 ],
               ),
-              // بيانات الإقامة
-              pw.TableRow(
-                children: [
-                  _invoiceDataCell(fonts, 'إقامة - غرفة $roomNumber'),
-                  _invoiceDataCell(fonts, '$nights ليلة'),
-                  _invoiceDataCell(fonts, '${EnhancedPdfUtils.formatNumber(roomRate)} ريال'),
-                  _invoiceDataCell(fonts, '${EnhancedPdfUtils.formatNumber(totalAmount)} ريال'),
-                ],
+              pw.Text(
+                'تاريخ الإصدار: ${_formatDate(generatedAt)}',
+                style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: _cTextLight),
               ),
             ],
           ),
         ),
+      ],
+    );
+  }
 
-        // === سجل المدفوعات المفصّل ===
-        if (payments.isNotEmpty) ...[
-          pw.SizedBox(height: 16),
-          pw.Text(
-            'سجل المدفوعات المفصّل',
-            style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.textDark),
-          ),
-          pw.SizedBox(height: 8),
+  // ═══════════════════════════════════════════════════════════════
+  //  مكونات مساعدة للتصميم الأنيق
+  // ═══════════════════════════════════════════════════════════════
+
+  /// بطاقة معلومات بإطار وألوان احترافية
+  pw.Widget _buildInfoCard(
+    ArabicPdfFonts fonts, {
+    required String title,
+    required PdfColor titleColor,
+    required List<(String, String)> rows,
+  }) {
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color: const PdfColor(1, 1, 1),
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: _cBorder),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
           pw.Container(
             width: double.infinity,
-            decoration: pw.BoxDecoration(
-              borderRadius: pw.BorderRadius.circular(8),
-              border: pw.Border.all(color: const PdfColor(0.88, 0.88, 0.88)),
+            padding: const pw.EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+            decoration: pw.BoxDecoration(color: titleColor, borderRadius: pw.BorderRadius.circular(4)),
+            child: pw.Text(
+              title,
+              style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: const PdfColor(1, 1, 1)),
             ),
-            child: pw.Table(
-              border: pw.TableBorder.all(color: const PdfColor(0.88, 0.88, 0.88)),
-              columnWidths: {
-                1: const pw.FlexColumnWidth(2.5),
-                2: const pw.FlexColumnWidth(2),
-                3: const pw.FlexColumnWidth(2),
-                4: const pw.FlexColumnWidth(2.5),
-              },
+          ),
+          pw.SizedBox(height: 8),
+          ...rows.asMap().entries.map(
+            (entry) => pw.Padding(
+              padding: pw.EdgeInsets.only(bottom: entry.key == rows.length - 1 ? 0 : 5),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    entry.value.$1,
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: _cTextLight),
+                  ),
+                  pw.Text(
+                    entry.value.$2,
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: _cTextDark),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// عنوان قسم بخط أنيق وخط فاصل
+  pw.Widget _buildSectionTitle(ArabicPdfFonts fonts, String title) {
+    return pw.Row(
+      children: [
+        pw.Container(
+          width: 4,
+          height: 16,
+          decoration: pw.BoxDecoration(color: _cAccent, borderRadius: pw.BorderRadius.circular(2)),
+        ),
+        pw.SizedBox(width: 8),
+        pw.Text(
+          title,
+          style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: _cPrimary),
+        ),
+      ],
+    );
+  }
+
+  /// جدول منسّق باحترافية
+  pw.Widget _buildStyledTable(
+    ArabicPdfFonts fonts, {
+    required List<String> headers,
+    required List<double> columnWidths,
+    required List<List<String>> rows,
+  }) {
+    return pw.Container(
+      width: double.infinity,
+      decoration: pw.BoxDecoration(
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: _cBorder),
+      ),
+      child: pw.Table(
+        border: pw.TableBorder.all(color: _cBorder, width: 0.5),
+        columnWidths: {for (int i = 0; i < columnWidths.length; i++) i: pw.FlexColumnWidth(columnWidths[i])},
+        children: [
+          // رأس
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: _cPrimary),
+            children: headers
+                .map(
+                  (h) => pw.Padding(
+                    padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                    child: pw.Text(
+                      h,
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: const PdfColor(1, 1, 1)),
+                      textAlign: pw.TextAlign.center,
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          // صفوف
+          ...rows.map(
+            (row) => pw.TableRow(
+              children: row
+                  .map(
+                    (cell) => pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                      child: pw.Text(
+                        cell,
+                        style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: _cTextDark),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// جدول المدفوعات المفصّل
+  pw.Widget _buildPaymentsTable(ArabicPdfFonts fonts) {
+    return pw.Container(
+      width: double.infinity,
+      decoration: pw.BoxDecoration(
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: _cBorder),
+      ),
+      child: pw.Table(
+        border: pw.TableBorder.all(color: _cBorder, width: 0.5),
+        columnWidths: const {
+          0: pw.FlexColumnWidth(0.8),
+          1: pw.FlexColumnWidth(2.5),
+          2: pw.FlexColumnWidth(2),
+          3: pw.FlexColumnWidth(2),
+          4: pw.FlexColumnWidth(1.8),
+        },
+        children: [
+          // رأس
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: _cAccent),
+            children: [
+              _tableCell(fonts, '#', bold: true, color: const PdfColor(1, 1, 1), center: true),
+              _tableCell(fonts, 'التاريخ', bold: true, color: const PdfColor(1, 1, 1), center: true),
+              _tableCell(fonts, 'طريقة الدفع', bold: true, color: const PdfColor(1, 1, 1), center: true),
+              _tableCell(fonts, 'المبلغ', bold: true, color: const PdfColor(1, 1, 1), center: true),
+              _tableCell(fonts, 'الحالة', bold: true, color: const PdfColor(1, 1, 1), center: true),
+            ],
+          ),
+          // صفوف المدفوعات
+          ...payments.asMap().entries.map((entry) {
+            final i = entry.key + 1;
+            final p = entry.value;
+            final statusAr = p.status == PaymentStatus.completed
+                ? 'مكتمل'
+                : p.status == PaymentStatus.pending
+                ? 'معلّق'
+                : p.status == PaymentStatus.refunded
+                ? 'مُسترجع'
+                : 'ملغي';
+            final statusColor = p.status == PaymentStatus.completed
+                ? _cGreen
+                : p.status == PaymentStatus.pending
+                ? _cGold
+                : _cRed;
+            final rowColor = entry.key.isEven ? const PdfColor(1, 1, 1) : _cLight;
+            return pw.TableRow(
+              decoration: pw.BoxDecoration(color: rowColor),
               children: [
-                // رأس الجدول
-                pw.TableRow(
-                  decoration: const pw.BoxDecoration(color: PdfColors.accent),
-                  children: [
-                    _invoiceHeaderCell(fonts, '#'),
-                    _invoiceHeaderCell(fonts, 'التاريخ'),
-                    _invoiceHeaderCell(fonts, 'طريقة الدفع'),
-                    _invoiceHeaderCell(fonts, 'المبلغ'),
-                    _invoiceHeaderCell(fonts, 'الحالة'),
-                  ],
+                _tableCell(fonts, '$i', center: true),
+                _tableCell(fonts, _formatDate(p.paymentDate)),
+                _tableCell(fonts, p.method.displayName),
+                _tableCell(fonts, '${EnhancedPdfUtils.formatNumber(p.amount)} ريال'),
+                _tableCell(fonts, statusAr, color: statusColor, bold: true, center: true),
+              ],
+            );
+          }),
+          // صف الإجمالي
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: PdfColor(0.90, 0.93, 0.97)),
+            children: [
+              _tableCell(fonts, ''),
+              _tableCell(fonts, ''),
+              _tableCell(fonts, 'الإجمالي المدفوع', bold: true),
+              _tableCell(fonts, '${EnhancedPdfUtils.formatNumber(totalAmount - remainingAmount)} ريال', bold: true),
+              _tableCell(fonts, ''),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// خلية جدول قابلة للتخصيص
+  pw.Widget _tableCell(ArabicPdfFonts fonts, String text, {bool bold = false, PdfColor? color, bool center = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 7, horizontal: 8),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(font: bold ? fonts.bold : fonts.regular, fontSize: 9.5, color: color ?? _cTextDark),
+        textAlign: center ? pw.TextAlign.center : pw.TextAlign.start,
+      ),
+    );
+  }
+
+  /// ملخص مالي أنيق بصناديق ملوّنة
+  pw.Widget _buildFinancialSummary(ArabicPdfFonts fonts, double paidAmount) {
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.all(14),
+      decoration: pw.BoxDecoration(
+        color: _cLight,
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: _cBorder),
+      ),
+      child: pw.Column(
+        children: [
+          // الإجمالي
+          _summaryRow(fonts, 'إجمالي الفاتورة', '${EnhancedPdfUtils.formatNumber(totalAmount)} ريال', _cTextDark),
+          pw.Divider(color: _cBorder, height: 14),
+          // المدفوع
+          _summaryRow(fonts, 'المدفوع', '${EnhancedPdfUtils.formatNumber(paidAmount)} ريال', _cGreen),
+          pw.Divider(color: _cBorder, height: 14),
+          // المتبقي
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            decoration: pw.BoxDecoration(
+              color: remainingAmount > 0 ? const PdfColor(1.0, 0.93, 0.93) : const PdfColor(0.92, 0.98, 0.93),
+              borderRadius: pw.BorderRadius.circular(6),
+              border: pw.Border.all(color: remainingAmount > 0 ? _cRed : _cGreen, width: 0.5),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'المتبقي',
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: remainingAmount > 0 ? _cRed : _cGreen),
                 ),
-                // صفوف المدفوعات
-                ...payments.asMap().entries.map(
-                  (entry) {
-                    final i = entry.key + 1;
-                    final payment = entry.value;
-                    final statusAr = payment.status == PaymentStatus.completed
-                        ? 'مكتمل'
-                        : payment.status == PaymentStatus.pending
-                            ? 'معلّق'
-                            : payment.status == PaymentStatus.refunded
-                                ? 'مُسترجع'
-                                : 'ملغي';
-                    return pw.TableRow(
-                      children: [
-                        _invoiceDataCell(fonts, '$i'),
-                        _invoiceDataCell(fonts, _formatDate(payment.paymentDate)),
-                        _invoiceDataCell(fonts, payment.method.displayName),
-                        _invoiceDataCell(fonts, '${EnhancedPdfUtils.formatNumber(payment.amount)} ريال'),
-                        _invoiceDataCell(fonts, statusAr),
-                      ],
-                    );
-                  },
-                ),
-                // صف إجمالي المدفوع
-                pw.TableRow(
-                  decoration: const pw.BoxDecoration(color: PdfColors.backgroundLight),
-                  children: [
-                    _invoiceDataCell(fonts, ''),
-                    _invoiceDataCell(fonts, ''),
-                    _invoiceDataCellBold(fonts, 'الإجمالي المدفوع'),
-                    _invoiceDataCellBold(fonts, '${EnhancedPdfUtils.formatNumber(totalAmount - remainingAmount)} ريال'),
-                    _invoiceDataCell(fonts, ''),
-                  ],
+                pw.Text(
+                  '${EnhancedPdfUtils.formatNumber(remainingAmount)} ريال',
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: remainingAmount > 0 ? _cRed : _cGreen),
                 ),
               ],
             ),
           ),
         ],
-
-        pw.SizedBox(height: 16),
-
-        // === ملخص المبالغ ===
-        pw.Container(
-          width: double.infinity,
-          padding: const pw.EdgeInsets.all(16),
-          decoration: pw.BoxDecoration(
-            borderRadius: pw.BorderRadius.circular(8),
-            color: PdfColors.backgroundLight,
-            border: pw.Border.all(color: const PdfColor(0.88, 0.88, 0.88)),
-          ),
-          child: pw.Column(
-            children: [
-              _invoiceSummaryRow(fonts, 'إجمالي الفاتورة', '${EnhancedPdfUtils.formatNumber(totalAmount)} ريال'),
-              pw.Divider(color: const PdfColor(0.92, 0.92, 0.92)),
-              _invoiceSummaryRow(fonts, 'المدفوع', '${EnhancedPdfUtils.formatNumber(paidAmount)} ريال'),
-              pw.Divider(color: const PdfColor(0.92, 0.92, 0.92)),
-              pw.Container(
-                padding: const pw.EdgeInsets.symmetric(vertical: 6),
-                decoration: pw.BoxDecoration(
-                  color: remainingAmount > 0 ? const PdfColor(1.0, 0.95, 0.95) : const PdfColor(0.95, 1.0, 0.95),
-                  borderRadius: pw.BorderRadius.circular(6),
-                ),
-                child: _invoiceSummaryRow(
-                  fonts,
-                  'المتبقي',
-                  '${EnhancedPdfUtils.formatNumber(remainingAmount)} ريال',
-                  isBold: true,
-                  valueColor: remainingAmount > 0 ? PdfColors.danger : PdfColors.success,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        pw.Spacer(),
-
-        pw.SizedBox(height: 20),
-
-        // === تذييل ===
-        pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  'شكراً لاختياركم فندق مارينا بلازا',
-                  style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.primary),
-                ),
-                pw.Text(
-                  'نتطلع لخدمتكم مرة أخرى',
-                  style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textLight),
-                ),
-              ],
-            ),
-            pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.end,
-              children: [
-                pw.Text(
-                  'تاريخ الإصدار: ${_formatDate(generatedAt)}',
-                  style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textLight),
-                ),
-                pw.SizedBox(height: 20),
-                pw.Container(height: 1, width: 120, color: PdfColors.textLight),
-                pw.Text(
-                  'ختم وتوقيع الفندق',
-                  style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: PdfColors.textLight),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  pw.Widget _invoiceHeaderCell(ArabicPdfFonts fonts, String text) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: PdfColors.textDark),
       ),
     );
   }
 
-  pw.Widget _invoiceDataCell(ArabicPdfFonts fonts, String text) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textDark),
-      ),
-    );
-  }
-
-  pw.Widget _invoiceDataCellBold(ArabicPdfFonts fonts, String text) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: PdfColors.textDark),
-      ),
-    );
-  }
-
-  pw.Widget _invoiceInfoRow(ArabicPdfFonts fonts, String label, String value) {
-    return pw.Row(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Expanded(
-          flex: 2,
-          child: pw.Text(
-            label,
-            style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: PdfColors.textLight),
-          ),
-        ),
-        pw.SizedBox(width: 8),
-        pw.Expanded(
-          flex: 3,
-          child: pw.Text(
-            value,
-            style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: PdfColors.textDark),
-          ),
-        ),
-      ],
-    );
-  }
-
-  pw.Widget _invoiceSummaryRow(
-    ArabicPdfFonts fonts,
-    String label,
-    String value, {
-    bool isBold = false,
-    PdfColor? valueColor,
-  }) {
+  /// صف ملخص
+  pw.Widget _summaryRow(ArabicPdfFonts fonts, String label, String value, PdfColor valueColor) {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
         pw.Text(
           label,
-          style: pw.TextStyle(
-            font: isBold ? fonts.bold : fonts.regular,
-            fontSize: isBold ? 15 : 13,
-            color: PdfColors.textDark,
-          ),
+          style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: _cTextLight),
         ),
         pw.Text(
           value,
-          style: pw.TextStyle(
-            font: isBold ? fonts.bold : fonts.regular,
-            fontSize: isBold ? 16 : 13,
-            color: valueColor ?? PdfColors.textDark,
-          ),
+          style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: valueColor),
         ),
       ],
     );
