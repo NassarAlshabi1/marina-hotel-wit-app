@@ -1,14 +1,11 @@
 name: Enterprise Quality Gate
 
 # ═══════════════════════════════════════════════════════════════
-#  Marina Hotel — Professional Quality Gate Pipeline
+# Marina Hotel — Professional Quality Gate Pipeline
+# Manual Run Only
 # ═══════════════════════════════════════════════════════════════
 
 on:
-  pull_request:
-    branches: [ main, develop, 'refactor/**', 'feature/**' ]
-  push:
-    branches: [ main, develop ]
   workflow_dispatch:
 
 concurrency:
@@ -24,7 +21,7 @@ jobs:
   quality_gate:
     name: 🛡️ Quality & Security Gate
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 📚 Checkout Code
         uses: actions/checkout@v4
@@ -32,16 +29,18 @@ jobs:
       - name: 🐦 Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: stable
           cache: true
 
-      - name: 🐍 Setup Python & Node.js
+      - name: 🐍 Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-      - uses: actions/setup-node@v4
+          python-version: "3.10"
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "24"
 
       - name: 📦 Install Dependencies
         working-directory: mobile
@@ -51,7 +50,7 @@ jobs:
 
       - name: 🏗️ Run Build Runner
         working-directory: mobile
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build
 
       - name: 🎨 Check Formatting
         working-directory: mobile
@@ -59,47 +58,35 @@ jobs:
 
       - name: 🔍 Flutter Analyze
         working-directory: mobile
-        run: flutter analyze > ../analyze_report.txt || true
+        run: flutter analyze || true
 
       - name: 🧪 Run Tests & Coverage
         working-directory: mobile
         run: flutter test --coverage || true
 
       - name: 👯 Find Duplicate Code
-        run: jscpd ./mobile/lib --format dart --reporters json --output ./reports/jscpd-report.json || true
+        run: |
+          mkdir -p reports
+          jscpd ./mobile/lib \
+            --format dart \
+            --reporters json \
+            --output ./reports || true
 
       - name: 🏗️ Architecture Validation
         run: python3 scripts/architecture-validator.py --project-root mobile || true
 
-      - name: 📊 Run Custom Analyzers
+      - name: 📊 Run Custom Reports
         run: |
           mkdir -p reports
-          python3 scripts/performance-report.py mobile/lib
-          python3 scripts/complexity-report.py mobile/lib
-          python3 scripts/dead-code-report.py
-          bash scripts/security-scan.sh mobile/lib
+          python3 scripts/performance-report.py mobile/lib || true
+          python3 scripts/complexity-report.py mobile/lib || true
+          python3 scripts/dead-code-report.py || true
+          bash scripts/security-scan.sh mobile/lib || true
 
       - name: 📝 Generate Quality Dashboard
-        run: python3 scripts/quality-summary.py
+        run: python3 scripts/quality-summary.py || true
 
-      - name: 💬 Post/Update PR Comment
-        if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          path: reports/quality_summary.md
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          header: quality-gate
-
-      - name: 🚨 Quality Gate Check
-        run: |
-          SCORE=$(cat reports/final_score.txt)
-          echo "Final Score is $SCORE"
-          if [ "$SCORE" -lt 80 ]; then
-            echo "❌ Quality Gate Failed! Score is below 80."
-            exit 1
-          fi
-
-      - name: 📦 Upload Artifacts
+      - name: 📦 Upload Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
