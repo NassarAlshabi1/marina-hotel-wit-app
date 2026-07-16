@@ -15,8 +15,6 @@ concurrency:
   group: maintenance-${{ github.ref }}
   cancel-in-progress: true
 
-name: Maintenance
-
 on:
   schedule:
     # يومياً عند منتصف الليل UTC
