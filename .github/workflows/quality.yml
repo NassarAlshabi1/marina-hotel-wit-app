@@ -44,35 +44,40 @@ jobs:
           node-version: '20'
 
       - name: 📦 Install Dependencies
+        working-directory: mobile
         run: |
           flutter pub get
           npm install -g jscpd
 
       - name: 🏗️ Run Build Runner
+        working-directory: mobile
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: 🎨 Check Formatting
+        working-directory: mobile
         run: dart format --line-length 120 --set-exit-if-changed lib test || true
 
       - name: 🔍 Flutter Analyze
-        run: flutter analyze > analyze_report.txt || true
+        working-directory: mobile
+        run: flutter analyze > ../analyze_report.txt || true
 
       - name: 🧪 Run Tests & Coverage
+        working-directory: mobile
         run: flutter test --coverage || true
 
       - name: 👯 Find Duplicate Code
-        run: jscpd ./lib --format dart --reporters json --output ./reports/jscpd-report.json || true
+        run: jscpd ./mobile/lib --format dart --reporters json --output ./reports/jscpd-report.json || true
 
       - name: 🏗️ Architecture Validation
-        run: python3 scripts/architecture-validator.py --project-root . || true
+        run: python3 scripts/architecture-validator.py --project-root mobile || true
 
       - name: 📊 Run Custom Analyzers
         run: |
           mkdir -p reports
-          python3 scripts/performance-report.py
-          python3 scripts/complexity-report.py
+          python3 scripts/performance-report.py mobile/lib
+          python3 scripts/complexity-report.py mobile/lib
           python3 scripts/dead-code-report.py
-          bash scripts/security-scan.sh
+          bash scripts/security-scan.sh mobile/lib
 
       - name: 📝 Generate Quality Dashboard
         run: python3 scripts/quality-summary.py
