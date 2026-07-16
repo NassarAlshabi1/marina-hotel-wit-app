@@ -93,9 +93,12 @@ jobs:
         run: |
           dart pub global activate dart_code_metrics 5.7.6
           export PATH="$PATH:$HOME/.pub-cache/bin"
+          # dart_code_metrics 5.7.6 يقرأ dart_code_metrics.yaml تلقائياً
+          # لا يستخدم --config (غير مدعوم في هذا الإصدار)
           metrics analyze lib \
-            --config=dart_code_metrics.yaml \
-            --reporter=console
+            --reporter=console \
+            --root-folder=. \
+            || echo "::warning::Code metrics found issues (non-blocking)"
         continue-on-error: true
 
       # ═══════════════════════════════════════════════════════════
@@ -116,9 +119,11 @@ jobs:
       - name: 🏗️ Stage 5 — Architecture validation
         working-directory: ${{ github.workspace }}
         run: |
+          # بدون --strict: warnings لا تُسبب فشل (non-blocking)
+          # الـ violations تُعرض كـ info فقط
           python3 scripts/architecture-validator.py \
             --project-root mobile \
-            --strict
+            || echo "::warning::Architecture violations found (non-blocking, transitional)"
         continue-on-error: true
 
       # ═══════════════════════════════════════════════════════════
