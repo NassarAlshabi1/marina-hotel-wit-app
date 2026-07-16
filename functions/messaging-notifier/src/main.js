@@ -260,7 +260,7 @@ async function sendViaMessaging(targets, title, body, data, topicId) {
     // ملاحظة: createPush signature في node-appwrite v14:
     //   createPush(messageId, title, body, topics, users, targets, data, action, image, icon, sound, url, draft, scheduledAt)
     const message = await messaging.createPush(
-      undefined,           // messageId (auto-generated)
+      ID.unique(),         // messageId (auto-generated)
       title,               // title
       body,                // body
       topicId ? [topicId] : [],   // topics
