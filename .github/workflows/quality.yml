@@ -1,20 +1,20 @@
 name: Quality
 
 # ═══════════════════════════════════════════════════════════════
-#  Marina Hotel — Quality Gate (الموحد)
+#  Marina Hotel — Quality Gate
 # ═══════════════════════════════════════════════════════════════
 #
-#  Pipeline شامل لضمان جودة الكود قبل الدمج.
+#  يمنع دمج أي PR يحتوي على:
+#  - كود غير منسّق
+#  - أخطاء/تحذيرات في flutter analyze
+#  - وصول مباشر لقاعدة البيانات من UI (DatabaseManager.instance)
+#  - اعتماد دائري بين الوحدات
 #
-#  المراحل (5):
-#  1. Formatting            — dart format --set-exit-if-changed (BLOCKING)
-#  2. Static Analysis       — flutter analyze --fatal-infos --fatal-warnings (BLOCKING)
-#  3. Performance Rules     — مُدمجة في analysis_options.yaml (BLOCKING)
-#  4. Architecture          — architecture-validator.py (ERRORS blocking, WARNINGS non-blocking)
-#  5. Dependency Audit      — dependency-audit.sh (non-blocking)
-#
-#  ملاحظة: dart_code_metrics أُزيل لأنه discontinued (5.7.6).
-#  الاعتماد على flutter analyze + very_good_analysis بدلاً منه.
+#  المراحل:
+#  Stage 1: Formatting          (BLOCKING)
+#  Stage 2: Static Analysis     (BLOCKING — يشمل performance rules)
+#  Stage 3: Architecture        (BLOCKING — errors, warnings non-blocking)
+#  Stage 4: Dependency Audit    (non-blocking — transitional)
 
 concurrency:
   group: quality-${{ github.ref }}
@@ -82,39 +82,38 @@ jobs:
 
       # ═══════════════════════════════════════════════════════════
       #  Stage 2: Static Analysis (BLOCKING)
-      #  يشمل: very_good_analysis + flutter_lints + performance rules
+      #  يشمل: flutter_lints + performance rules + best practices
+      #  (analysis_options.yaml مع strict-casts, strict-inference)
       # ═══════════════════════════════════════════════════════════
       - name: 🔍 Stage 2 — Static analysis (fatal)
         run: flutter analyze --fatal-infos --fatal-warnings
 
       # ═══════════════════════════════════════════════════════════
-      #  Stage 3: Performance Rules (مُدمجة في Stage 2)
+      #  Stage 3: Architecture Validation (BLOCKING on errors)
+      #
+      #  ERRORS (blocking — تفشل الـ PR):
+      #    - DatabaseManager.instance في UI (يجب استخدام ref.read(databaseProvider))
+      #    - AppDatabase() construction مباشر في UI
+      #    - Circular dependencies
+      #
+      #  WARNINGS (non-blocking — تُعرض كـ info):
+      #    - Services imports من screens (transitional)
+      #    - Riverpod compliance (ConsumerWidget)
+      #    - UI imports in Data layer
+      #
+      #  ملاحظة: استيراد 'local_db.dart' للـ drift types (Room, Booking, Payment)
+      #  مقبول وطبيعي — الفاحص يكتشف الاستخدام الفعلي وليس مجرد import.
       # ═══════════════════════════════════════════════════════════
-      - name: ⚡ Stage 3 — Performance rules
-        run: |
-          echo "Performance rules enforced via flutter analyze (Stage 2):"
-          echo "- avoid_unnecessary_containers"
-          echo "- prefer_const_constructors"
-          echo "- prefer_final_locals"
-          echo "All performance rules passed ✅"
-
-      # ═══════════════════════════════════════════════════════════
-      #  Stage 4: Architecture Validation
-      #  - ERRORS (blocking): direct DB access, circular deps
-      #  - WARNINGS (non-blocking): services imports, Riverpod compliance
-      # ═══════════════════════════════════════════════════════════
-      - name: 🏗️ Stage 4 — Architecture validation (ERRORS blocking)
+      - name: 🏗️ Stage 3 — Architecture validation
         working-directory: ${{ github.workspace }}
         run: |
           python3 scripts/architecture-validator.py \
             --project-root mobile
-        # ERRORS blocking (direct DB access, circular deps)
-        # WARNINGS non-blocking (services imports, Riverpod compliance)
 
       # ═══════════════════════════════════════════════════════════
-      #  Stage 5: Dependency Audit (non-blocking)
+      #  Stage 4: Dependency Audit (non-blocking — transitional)
       # ═══════════════════════════════════════════════════════════
-      - name: 📦 Stage 5 — Dependency audit
+      - name: 📦 Stage 4 — Dependency audit
         working-directory: ${{ github.workspace }}
         run: |
           chmod +x scripts/dependency-audit.sh
@@ -134,13 +133,11 @@ jobs:
             echo "|---|---|---|"
             echo "| 🎨 Formatting | BLOCKING | ${{ job.status }} |"
             echo "| 🔍 Static Analysis | BLOCKING | ${{ job.status }} |"
-            echo "| ⚡ Performance Rules | BLOCKING | Included in Analysis |"
-            echo "| 🏗️ Architecture | Non-blocking (transitional) | Errors + Warnings |"
+            echo "| 🏗️ Architecture | BLOCKING (errors) | ${{ job.status }} |"
             echo "| 📦 Dependencies | Non-blocking | Checked |"
             echo ""
-            echo "### 📝 Notes"
-            echo "- **Blocking**: Formatting + Static Analysis (must pass)"
-            echo "- **Non-blocking** (transitional): Architecture + Dependencies"
-            echo "- Architecture: 30 DB access errors need refactoring (gradually)"
-            echo "- dart_code_metrics removed (discontinued) — using flutter analyze instead"
+            echo "### Architecture Rules"
+            echo "- **ERRORS (blocking)**: DatabaseManager.instance in UI, circular deps"
+            echo "- **WARNINGS (non-blocking)**: services imports, Riverpod compliance"
+            echo "- Drift types imports (Room, Booking, Payment) are **allowed**"
           } >> "$GITHUB_STEP_SUMMARY"
