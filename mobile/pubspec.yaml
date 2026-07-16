@@ -72,9 +72,8 @@ dev_dependencies:
   json_serializable: ^6.14.0
   mockito: ^5.4.4
   very_good_analysis: ^6.0.0
-  # ملاحظة: dart_code_metrics ^5.7.6 يتطلب uuid ^3.0.7 لكن المشروع يستخدم
-  # uuid ^4.5.1 — تعارض غير قابل للحل. سنستخدمه عبر dart pub global activate
-  # في CI بدلاً من إضافته كـ dependency.
+  
+  
 flutter:
   uses-material-design: true
   assets:

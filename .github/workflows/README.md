@@ -39,7 +39,7 @@
 **المراحل**:
 1. 🎨 **Formatting** (blocking) — `dart format --set-exit-if-changed`
 2. 🔍 **Static Analysis** (blocking) — `flutter analyze --fatal-infos --fatal-warnings`
-3. 📊 **Code Metrics** (non-blocking) — `dart_code_metrics`
+3. ⚡ **Performance Rules** (blocking) — مُدمجة في analysis_options.yaml
 4. ⚡ **Performance Rules** (blocking) — مُدمجة في analysis_options.yaml
 5. 🏗️ **Architecture** (non-blocking) — `architecture-validator.py`
 6. 📦 **Dependency Audit** (non-blocking) — `dependency-audit.sh`

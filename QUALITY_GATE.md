@@ -41,7 +41,7 @@ PR → Quality → Test → Security → Build → ✅ جاهز للدمج
 **المراحل:**
 1. **Formatting** — `dart format --set-exit-if-changed` (blocking)
 2. **Static Analysis** — `flutter analyze --fatal-infos --fatal-warnings` (blocking)
-3. **Code Metrics** — `dart_code_metrics` (non-blocking)
+3. **Performance Rules** — مُدمجة في flutter analyze (blocking)
 4. **Performance Rules** — مُدمجة في Static Analysis (blocking)
 5. **Architecture** — `architecture-validator.py` (non-blocking)
 6. **Dependency Audit** — `dependency-audit.sh` (non-blocking)
@@ -91,21 +91,15 @@ flutter analyze --fatal-infos --fatal-warnings
 - **Strict mode**: `strict-casts`, `strict-inference`, `strict-raw-types`
 - **Blocking**: نعم — أي info أو warning يفشل الـ PR
 
-### Code Metrics (`dart_code_metrics`)
+### Performance Rules (مُدمجة في flutter analyze)
 
-```bash
-metrics analyze lib --config=dart_code_metrics.yaml
-```
-
-**الفحوصات:**
-- Cyclomatic Complexity (≤20)
-- Cognitive Complexity
-- Method Length (≤80 lines)
-- Class Length (≤1500 lines)
-- Number of Parameters (≤6)
-- Nesting Level (≤5)
-- Long Files
-- Technical Debt
+تم إزالة `dart_code_metrics` (discontinued). الاعتماد على:
+- `flutter analyze` + `very_good_analysis`
+- قواعد Performance في `analysis_options.yaml`:
+  - avoid_unnecessary_containers
+  - prefer_const_constructors
+  - prefer_final_locals
+  - avoid_function_literals_in_foreach_calls
 
 ### Architecture Validation (`architecture-validator.py`)
 
