@@ -17,13 +17,13 @@ import '../services/remote_config_service.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
 import '../utils/loading_snackbar.dart';
+import '../utils/performance_monitor.dart';
 import '../utils/status_utils.dart';
 import '../widgets/dashboard_conflicts_badge.dart';
 import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
 import 'payments/booking_payment_screen.dart';
 import 'reports/expenses_report_screen.dart';
-import '../utils/performance_monitor.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101',

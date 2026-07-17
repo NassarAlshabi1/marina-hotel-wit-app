@@ -21,11 +21,11 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show File, Platform, Process, ProcessInfo;
+import 'dart:io' show File, Platform, ProcessInfo;
 
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart' show SchedulerBinding;
+import 'package:flutter/scheduler.dart' show FrameTiming, SchedulerBinding;
 
 /// نوع التحذير الأدائي
 enum PerfWarningType {
@@ -126,11 +126,13 @@ class PerformanceMonitor {
   PerfConfig _config = const PerfConfig();
   bool _started = false;
 
-  // مقاييس FPS
-  final List<FrameTiming> _recentFrames = [];
+  // مقاييس FPS — نحتفظ بالـ FrameTiming + timestamp مسجّل يدوياً
+  // لأن FrameTiming.timestamp قد لا يكون public في كل إصدارات Flutter
+  final List<_FrameSample> _recentFrames = [];
   static const int _maxFrameSamples = 120; // ~2 ثانية @ 60fps
   int _totalFrames = 0;
   int _jankFrames = 0;
+  DateTime? _firstFrameTime;
 
   // مقاييس الذاكرة
   final List<_MemorySample> _memorySamples = [];
@@ -197,8 +199,10 @@ class PerformanceMonitor {
   //  مقاييس FPS
   // ═══════════════════════════════════════════════════════════════════
   void _onFrameTiming(List<FrameTiming> timings) {
+    final now = DateTime.now();
+    _firstFrameTime ??= now;
     for (final t in timings) {
-      _recentFrames.add(t);
+      _recentFrames.add(_FrameSample(timing: t, timestamp: now));
       _totalFrames++;
 
       final buildMs = t.buildDuration.inMilliseconds;
@@ -226,10 +230,9 @@ class PerformanceMonitor {
   /// FPS الحالي (متوسط آخر 60 إطار)
   double get currentFps {
     if (_recentFrames.length < 2) return 0;
-    final first = _recentFrames.first;
-    final last = _recentFrames.last;
-    // FrameTiming لا يملك خاصية timestamp — نستخدم buildStart (Duration منذ epoch)
-    final elapsed = last.buildStart - first.buildStart;
+    final first = _recentFrames.first.timestamp;
+    final last = _recentFrames.last.timestamp;
+    final elapsed = last.difference(first);
     if (elapsed.inMicroseconds == 0) return 0;
     return (_recentFrames.length - 1) * 1000000 / elapsed.inMicroseconds;
   }
@@ -237,8 +240,9 @@ class PerformanceMonitor {
   /// متوسط زمن الإطار (build + raster) بالملي ثانية
   double get averageFrameTimeMs {
     if (_recentFrames.isEmpty) return 0;
-    var sum = 0;
-    for (final t in _recentFrames) {
+    var sum = 0.0;
+    for (final sample in _recentFrames) {
+      final t = sample.timing;
       sum += t.buildDuration.inMilliseconds + t.rasterDuration.inMilliseconds;
     }
     return sum / _recentFrames.length;
@@ -434,7 +438,7 @@ class PerformanceMonitor {
 
     // 4. استقرار الذاكرة (15 نقطة)
     if (_memorySamples.length >= 30) {
-      final growthMB = (currentMemoryMB - (_memorySamples.first.currentRssBytes / (1024 * 1024)));
+      final growthMB = currentMemoryMB - (_memorySamples.first.currentRssBytes / (1024 * 1024));
       if (growthMB > _config.memoryGrowthThresholdMB) {
         score -= 15;
       } else if (growthMB > _config.memoryGrowthThresholdMB / 2) {
@@ -465,7 +469,7 @@ class PerformanceMonitor {
       }
     }
 
-    return score.clamp(0, 100).toInt();
+    return score.clamp(0, 100);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -594,9 +598,7 @@ class PerformanceInspector extends StatelessWidget {
   Widget build(BuildContext context) {
     if (kDebugMode) {
       PerformanceMonitor.instance.recordRebuild(name);
-      if (onRebuild != null) {
-        onRebuild!(PerformanceMonitor.instance.rebuildCounts[name] ?? 1);
-      }
+      onRebuild?.call(PerformanceMonitor.instance.rebuildCounts[name] ?? 1);
     }
     if (!showBadge) return child;
     // إذا showBadge=true، نُغلف الـ child بـ Stack يُظهر عدّاد صغير
@@ -670,4 +672,12 @@ class _MemorySample {
   final DateTime timestamp;
   final int currentRssBytes;
   final int maxRssBytes;
+}
+
+/// عينة إطار مع timestamp مسجَّل يدوياً
+/// (لأن FrameTiming.timestamp قد لا يكون public في كل إصدارات Flutter)
+class _FrameSample {
+  _FrameSample({required this.timing, required this.timestamp});
+  final FrameTiming timing;
+  final DateTime timestamp;
 }

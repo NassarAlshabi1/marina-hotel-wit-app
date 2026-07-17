@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/smart_sync_manager.dart';
 import '../../services/sync_guardian.dart';
-import 'sync_health/sync_health_screen.dart';
 import '../../utils/performance_monitor.dart';
+import 'sync_health/sync_health_screen.dart';
 
 class SmartSyncSettingsScreen extends ConsumerStatefulWidget {
   const SmartSyncSettingsScreen({super.key});

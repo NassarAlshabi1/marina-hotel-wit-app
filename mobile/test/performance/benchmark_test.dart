@@ -143,7 +143,7 @@ void main() {
       final result = await PerformanceMonitor.instance.measure<Map<String, int>>(
         'dashboard_stats_query',
         () async {
-          await Future.delayed(const Duration(milliseconds: 10));
+          await Future<void>.delayed(const Duration(milliseconds: 10));
           return {
             'totalRooms': 30,
             'occupied': 18,
@@ -196,7 +196,7 @@ void main() {
     test('إنشاء PDF كشف حساب < 2000ms (محاكاة)', () async {
       await PerformanceMonitor.instance.measure('pdf_generation', () async {
         // محاكاة توليد PDF
-        await Future.delayed(const Duration(milliseconds: 100));
+        await Future<String>.delayed(const Duration(milliseconds: 100));
         return 'pdf_bytes';
       });
 
@@ -221,7 +221,7 @@ void main() {
 
       final rebuildCounts = PerformanceMonitor.instance.rebuildCounts;
       expect(rebuildCounts['TestWidget'], 30);
-      expect(rebuildCounts['TestWidget']!, lessThan(60));
+      expect(rebuildCounts['TestWidget'], lessThan(60));
     });
 
     test('PerformanceInspector يُسجِّل الـ rebuilds في debug mode', () {
@@ -254,19 +254,19 @@ void main() {
       expect(report, isA<Map<String, dynamic>>());
       expect(report['timestamp'], isA<String>());
       expect(report['started'], true);
-      expect(report['fps'], isA<Map>());
-      expect(report['memory'], isA<Map>());
-      expect(report['rebuilds'], isA<Map>());
-      expect(report['traces'], isA<Map>());
-      expect(report['warnings'], isA<Map>());
+      expect(report['fps'], isA<Map<String, dynamic>>());
+      expect(report['memory'], isA<Map<String, dynamic>>());
+      expect(report['rebuilds'], isA<Map<String, dynamic>>());
+      expect(report['traces'], isA<Map<String, dynamic>>());
+      expect(report['warnings'], isA<Map<String, dynamic>>());
       expect(report['score'], isA<int>());
     });
 
-    test('يُصدِّر تقرير JSON string قابل للتحليل', () {
+    test('يُصدِّر تقرير JSON string قابل للتحليل', () async {
       final jsonStr = PerformanceMonitor.instance.exportReportJson();
 
       final decoded = jsonDecode(jsonStr);
-      expect(decoded, isA<Map>());
+      expect(decoded, isA<Map<String, dynamic>>());
       expect(decoded['score'], isA<int>());
     });
 
@@ -296,7 +296,7 @@ void main() {
       }
 
       expect(
-        PerformanceMonitor.instance.rebuildCounts['ExcessiveWidget']!,
+        PerformanceMonitor.instance.rebuildCounts['ExcessiveWidget'],
         greaterThan(60),
       );
     });

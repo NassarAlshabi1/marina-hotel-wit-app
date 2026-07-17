@@ -9,8 +9,8 @@ import '../../providers/backup_provider.dart';
 import '../../providers/smart_sync_provider.dart';
 import '../../services/alarm_backup.dart';
 import '../../services/smart_sync_manager.dart';
-import 'appwrite_settings_screen.dart';
 import '../../utils/performance_monitor.dart';
+import 'appwrite_settings_screen.dart';
 
 class DataProtectionScreen extends ConsumerStatefulWidget {
   const DataProtectionScreen({super.key});
