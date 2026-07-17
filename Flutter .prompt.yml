@@ -1,6 +1,0 @@
-messages:
-  - role: system
-    content: 'Repair fix my flutter project '
-  - role: user
-    content: 'Build apk '
-model: deepseek/deepseek-r1
