@@ -1,0 +1,137 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Dependabot configuration — Marina Hotel
+#  Tracks dependency updates for:
+#    1. Dart/Flutter packages (mobile/pubspec.yaml)
+#    2. npm packages (root package.json + scripts/package.json)
+#    3. GitHub Actions used in workflows
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+version: 2
+
+updates:
+  # ─── Flutter / Dart packages ─────────────────────────────
+  - package-ecosystem: "pub"
+    directory: "/mobile"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "03:00"
+      timezone: "Asia/Aden"
+    open-pull-requests-limit: 5
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    commit-message:
+      prefix: "chore(deps-pub)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "dart"
+      - "flutter"
+    reviewers:
+      - "NassarAlshabi1"
+    groups:
+      drift:
+        patterns:
+          - "drift"
+          - "drift_dev"
+          - "sqlparser"
+          - "sqlite3*"
+      firebase:
+        patterns:
+          - "firebase_*"
+          - "_flutterfire_internals"
+      flutter:
+        patterns:
+          - "flutter_*"
+          - "flutter"
+      riverpod:
+        patterns:
+          - "riverpod"
+          - "flutter_riverpod"
+    # Security updates always open immediately, regardless of schedule
+    # (Depabot opens security PRs as soon as an advisory is published)
+
+  # ─── npm packages (root) ─────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "03:30"
+      timezone: "Asia/Aden"
+    open-pull-requests-limit: 5
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    commit-message:
+      prefix: "chore(deps-npm)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "npm"
+    reviewers:
+      - "NassarAlshabi1"
+    groups:
+      playwright:
+        patterns:
+          - "@playwright/*"
+          - "playwright"
+
+  # ─── npm packages (scripts/) ─────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/scripts"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "03:30"
+      timezone: "Asia/Aden"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps-npm-scripts)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "npm"
+      - "scripts"
+
+  # ─── npm packages (scripts/appwrite/) ────────────────────
+  - package-ecosystem: "npm"
+    directory: "/scripts/appwrite"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "03:30"
+      timezone: "Asia/Aden"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps-npm-appwrite)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "npm"
+      - "appwrite"
+
+  # ─── GitHub Actions versions ─────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "04:00"
+      timezone: "Asia/Aden"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps-gha)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    reviewers:
+      - "NassarAlshabi1"
+    groups:
+      actions:
+        patterns:
+          - "actions/*"
+      subosito:
+        patterns:
+          - "subosito/*"

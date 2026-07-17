@@ -1,0 +1,16 @@
+{
+  "name": "scripts",
+  "version": "1.0.0",
+  "description": "مجموعة أدوات مساعدة لتطوير ونشر تطبيق Marina Hotel Mobile.",
+  "main": "appwrite_fetch_rooms_mapping.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "node-appwrite": "^27.0.0"
+  }
+}
