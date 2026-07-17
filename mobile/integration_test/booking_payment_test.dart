@@ -14,7 +14,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'package:marina_hotel_mobile/models/payment_models.dart';
 import 'package:marina_hotel_mobile/screens/payments/booking_payment_screen.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart' as db;
 
@@ -271,22 +270,7 @@ void main() {
     });
   });
 
-  group('Payment Models — Unit-style Integration Test', () {
-    test('PaymentMethod enum يحتوي على 5 طرق دفع', () {
-      expect(PaymentMethod.values.length, 5);
-      expect(PaymentMethod.cash.displayName, 'نقدي');
-      expect(PaymentMethod.card.displayName, 'بطاقة ائتمانية');
-      expect(PaymentMethod.transfer.displayName, 'تحويل بنكي');
-      expect(PaymentMethod.check.displayName, 'شيك');
-      expect(PaymentMethod.installment.displayName, 'تقسيط');
-    });
-
-    test('PaymentStatus enum يحتوي على 4 حالات', () {
-      expect(PaymentStatus.values.length, 4);
-      expect(PaymentStatus.completed.displayName, 'مكتمل');
-      expect(PaymentStatus.pending.displayName, 'في الانتظار');
-      expect(PaymentStatus.failed.displayName, 'فشل');
-      expect(PaymentStatus.refunded.displayName, 'مسترد');
-    });
-  });
+  // ملاحظة: اختبارات PaymentMethod/PaymentStatus unit tests نُقلت لـ
+  // test/unit/payment_models_enum_test.dart لأن flutter test integration_test/
+  // يرفض تشغيل unit tests (test()) مع integration tests (testWidgets()) معاً.
 }
