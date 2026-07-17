@@ -12,8 +12,11 @@ name: Enterprise Quality Gate
 #    4. اختر الفرع المراد فحصه (default: الحالي)
 #    5. اختر مستوى الفحص (full / quick)
 # ═══════════════════════════════════════════════════════════════
-
 on:
+  pull_request:
+    branches: [ main, develop, 'refactor/**', 'feature/**' ]
+  push:
+    branches: [ main, develop ]
   workflow_dispatch:
     inputs:
       check_level:
