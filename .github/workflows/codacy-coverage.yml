@@ -1,0 +1,166 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  Marina Hotel — Codacy Coverage Upload
+# ════════════════════════════════════════════════════════════════════════════
+#
+#  يُشغِّل اختبارات Flutter مع coverage ويرفع التقرير لـ Codacy.
+#  يُستخدم Codacy Coverage Reporter لتحويل lcov.info للصيغة المطلوبة.
+#
+#  المتطلبات:
+#    - CODACY_PROJECT_TOKEN secret (مُعرَّف في GitHub Secrets)
+#    - value: 5551ba1e9a5749c1a4dbdc213c7505ec
+#
+#  التوثيق: https://github.com/codacy/codacy-coverage-reporter
+# ════════════════════════════════════════════════════════════════════════════
+
+name: Codacy Coverage
+
+concurrency:
+  group: codacy-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+
+on:
+  # تشغيل تلقائي عند push لـ main
+  push:
+    branches: [main, A]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/codacy-coverage.yml'
+  # تشغيل يدوي مع اختيار الفرع
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'SHA كامل للـ commit (اختياري — يُستخدم الـ HEAD افتراضياً)'
+        required: false
+        type: string
+
+jobs:
+  upload-coverage:
+    name: 📊 Upload Coverage to Codacy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.commit_sha || github.ref_name }}
+          fetch-depth: 0
+
+      - name: 🐦 Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+
+      - name: ☕ Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 📦 Install dependencies
+        run: flutter pub get
+
+      - name: 🏗️ Generate build_runner files
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  تشغيل الاختبارات مع coverage
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 🧪 Run tests with coverage
+        run: |
+          flutter test \
+            --coverage \
+            --concurrency=4 \
+            --timeout=120s \
+            --reporter compact \
+            2>&1 | tee test_results.log
+          exit ${PIPESTATUS[0]}
+        continue-on-error: true  # لا نُعطِّل الـ workflow لو فشلت بعض الاختبارات
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  التحقق من وجود ملف coverage
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📋 Verify coverage file
+        id: coverage_check
+        run: |
+          if [ -f "coverage/lcov.info" ]; then
+            echo "✅ coverage/lcov.info exists"
+            ls -lh coverage/lcov.info
+            echo "has_coverage=true" >> $GITHUB_OUTPUT
+            # عرض ملخص سريع
+            echo "=== Coverage summary ==="
+            head -20 coverage/lcov.info
+          else
+            echo "⚠️ coverage/lcov.info not found — tests may have failed"
+            echo "has_coverage=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  رفع coverage لـ Codacy
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📤 Upload coverage to Codacy
+        if: steps.coverage_check.outputs.has_coverage == 'true'
+        env:
+          CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
+        run: |
+          echo "=== رفع coverage/lcov.info إلى Codacy ==="
+          # استخدام Codacy Coverage Reporter الرسمي
+          # -r يُحدِّد ملف الـ report
+          # --commit-uuid يربط التقرير بـ commit معيَّن
+          bash <(curl -Ls https://coverage.codacy.com/get.sh) report \
+            -r coverage/lcov.info \
+            --commit-uuid ${{ inputs.commit_sha || github.sha }} \
+            --codacy-api-base-url https://app.codacy.com
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  رفع coverage artifact (للاحتفاظ بالتاريخ)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📦 Upload coverage artifact
+        if: always() && steps.coverage_check.outputs.has_coverage == 'true'
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: coverage-${{ github.ref_name }}-${{ github.run_id }}
+          path: |
+            mobile/coverage/
+            mobile/test_results.log
+          retention-days: 30
+          if-no-files-found: ignore
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  ملخص النتائج
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📊 Generate summary
+        if: always()
+        run: |
+          {
+            echo "### 📊 Codacy Coverage Upload"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|---|---|"
+            echo "| Branch | \`${{ github.ref_name }}\` |"
+            echo "| Commit | \`${{ inputs.commit_sha || github.sha }}\` |"
+            echo "| Coverage file | ${{ steps.coverage_check.outputs.has_coverage == 'true' && '✅ Found' || '❌ Not found' }} |"
+            echo "| Status | ${{ job.status }} |"
+            echo ""
+            if [ "${{ steps.coverage_check.outputs.has_coverage }}" = "true" ]; then
+              echo "### Test Results (last 15 lines)"
+              echo '```'"
+              tail -15 test_results.log 2>/dev/null || echo 'No test log'
+              echo '```'
+              echo ""
+              echo "🔗 [View on Codacy Dashboard](https://app.codacy.com/gh/NassarAlshabi1/marina-hotel-wit-app)"
+            else
+              echo "⚠️ **No coverage file generated** — tests may have failed."
+              echo "Check the test results log above for details."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
