@@ -3341,9 +3341,18 @@ class AppwriteSyncManager {
           }
 
           if (localData > entry.clientTs) {
-            // البيانات المحلية أحدث من outbox entry — يعني السحب حدّثها
-            // بقيمة أحدث من التغيير المعلق. آمن الحذف.
-            uuidsToRemove.add(entry.localUuid);
+            // البيانات المحلية أحدث من outbox entry. قد يكون السبب أن السحب
+            // حدّثها فعلاً بقيمة أحدث — لكن قد يكون أيضاً انحراف ساعة
+            // (clock skew) أو تحديث محلي غير مرتبط، فلا يجوز الحذف بالاعتماد
+            // على مقارنة الوقت وحدها (فقدان صامت للتغييرات المعلقة).
+            //
+            // ✅ Fix C: نحذف فقط بعد التأكد من وصول التغيير إلى الخادم فعلاً
+            // (وجود مستند بنفس localUuid على الخادم بطابع زمني >= clientTs).
+            // في أي حالة أخرى (المستند غير موجود، أو أقدم، أو تعذّر الاتصال)
+            // نُبقي العنصر في outbox ليُعاد رفعه لاحقاً.
+            if (await _isEntryDeliveredToServer(entity, entry)) {
+              uuidsToRemove.add(entry.localUuid);
+            }
           }
           // في جميع الحالات الأخرى (localData == clientTs أو localData < clientTs):
           // التغيير المحلي لا يزال صالحاً ويحتاج الرفع — نبقي العنصر.
@@ -3360,6 +3369,71 @@ class AppwriteSyncManager {
     }
 
     return totalRemoved;
+  }
+
+  /// ✅ Fix C: يتحقق من أن تغيير outbox المعلّق قد وصل فعلاً إلى الخادم
+  /// قبل السماح بحذفه من outbox في `_cleanupOutboxAfterPull`.
+  ///
+  /// المشكلة: الاعتماد على `localData > entry.clientTs` وحده لحذف العنصر
+  /// خطير عند انحراف الساعة (clock skew) أو أثناء تعارضات المزامنة اللحظية،
+  /// إذ قد يتحقق الشرط زوراً فيُحذف تغيير محلي لم يصل الخادم بعد → فقدان صامت.
+  ///
+  /// معرّف المستند على الخادم يساوي `localUuid` (upsert idempotent)، لذا نقرأ
+  /// المستند مباشرة ونقارن طابعه الزمني بـ `clientTs`.
+  ///
+  /// يُرجع `true` فقط عند التأكد من الوصول:
+  ///   - يوجد مستند بنفس `localUuid` على الخادم، و
+  ///   - طابعه الزمني >= `clientTs` (الخادم لديه هذا التغيير أو أحدث منه).
+  /// يُرجع `false` بشكل آمن في كل ما عدا ذلك (غير موجود / أقدم / بلا طابع زمني /
+  /// كيان غير معروف / خطأ شبكة) → نُبقي العنصر ليُعاد رفعه.
+  Future<bool> _isEntryDeliveredToServer(String entity, OutboxData entry) async {
+    final collectionId = _entityToCollectionId(entity);
+    if (collectionId == null) return false; // كيان غير معروف → لا نحذف
+
+    try {
+      final remoteDoc = await appwriteService.getDocument(
+        collectionId: collectionId,
+        documentId: entry.localUuid,
+        suppressErrorLog: true, // 404 متوقع للعناصر التي لم تصل الخادم بعد
+      );
+      final remoteData = Map<String, dynamic>.from(remoteDoc.data);
+
+      // استخراج الطابع الزمني البعيد (يطابق منطق _isRemoteDataNewer)
+      final remoteLastModified =
+          _asIntNullable(remoteData['lastModified']) ??
+          _asIntNullable(remoteData['last_modified']) ??
+          _asIntNullable(remoteData['lastModifiedEpoch']);
+
+      // مصدر احتياطي: $updatedAt من Appwrite (ISO-8601) متوفر دائماً
+      int? remoteUpdatedAtSec;
+      final updatedAtStr = remoteDoc.$updatedAt;
+      if (updatedAtStr.isNotEmpty) {
+        final dt = DateTime.tryParse(updatedAtStr);
+        if (dt != null) remoteUpdatedAtSec = dt.millisecondsSinceEpoch ~/ 1000;
+      }
+
+      final effectiveRemoteTs = remoteLastModified ?? remoteUpdatedAtSec;
+      if (effectiveRemoteTs == null) {
+        // لا يمكن تحديد طابع زمني بعيد → لا نجزم بالوصول → نُبقي العنصر
+        return false;
+      }
+
+      // تطبيع وحدة الزمن إلى الثواني قبل المقارنة (clientTs بالثواني)
+      final normalizedRemoteTs =
+          effectiveRemoteTs > 10000000000 ? effectiveRemoteTs ~/ 1000 : effectiveRemoteTs;
+      final normalizedClientTs =
+          entry.clientTs > 10000000000 ? entry.clientTs ~/ 1000 : entry.clientTs;
+
+      // الخادم لديه هذا التغيير (أو أحدث) → الحذف آمن
+      return normalizedRemoteTs >= normalizedClientTs;
+    } catch (e) {
+      // 404 (غير موجود) أو خطأ شبكة → لا نجزم بالوصول → نُبقي العنصر بأمان
+      _logger.debug(
+        'Fix C: تعذّر تأكيد وصول ${entry.localUuid} إلى الخادم ($e) — نُبقي العنصر',
+        tag: 'SYNC',
+      );
+      return false;
+    }
   }
 
   /// ✅ تنظيف سجلات Outbox للكيانات المحذوفة (soft-delete أو hard-delete)
