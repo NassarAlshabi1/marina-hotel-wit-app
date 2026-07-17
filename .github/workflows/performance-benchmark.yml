@@ -156,13 +156,19 @@ jobs:
       - name: 🧪 Run performance benchmark tests
         run: |
           mkdir -p build/performance
-          # --machine يُصدِّر JSON لتسهيل التحليل
-          # --reporter expanded يُظهر كل test بشكل مفصَّل
+          # نستخدم --machine فقط (بدون --reporter expanded) لأن:
+          # - --machine يُصدِّر JSON Lines قابل للتحليل الآلي
+          # - --reporter expanded يُصدِّر نص مُنسَّق يختلط مع JSON ويفسد الـ parser
+          # الـ output الكامل (مع stderr) يُحفظ في log منفصل للمراجعة
           flutter test test/performance/ \
-            --reporter expanded \
-            --timeout 120s \
             --machine \
-            2>&1 | tee build/performance/benchmark_results_${{ github.run_id }}.json
+            --timeout 120s \
+            > build/performance/benchmark_results_${{ github.run_id }}.json 2> build/performance/benchmark_stderr_${{ github.run_id }}.log
+          # عرض ملخص سريع في الـ log (للمراجعة البصرية)
+          echo "=== Benchmark tests completed ==="
+          cat build/performance/benchmark_stderr_${{ github.run_id }}.log | tail -10
+          # الـ exit code من flutter test (وليس من redirection)
+          exit $?
 
       # ─────────────────────────────────────────────────────────────────────
       #  تحليل النتائج وتوليد ملخص للـ PR
@@ -186,6 +192,11 @@ jobs:
           skipped = 0
           test_details = []
 
+          # خريطة testID -> name (من testStart events)
+          # flutter test --machine يُصدِّر testStart بحقل test.name،
+          # ثم testDone لاحقاً بـ testID فقط (بدون name)
+          test_names = {}
+
           if os.path.exists(results_file):
               with open(results_file, 'r', encoding='utf-8', errors='replace') as f:
                   content = f.read()
@@ -197,10 +208,27 @@ jobs:
                       continue
                   try:
                       event = json.loads(line)
-                      if event.get('type') == 'testDone':
+
+                      # 1. testStart: نخزن testID -> name
+                      if event.get('type') == 'testStart':
                           test = event.get('test', {})
-                          result = test.get('result', '')
-                          name = test.get('name', 'unknown')
+                          test_id = test.get('id')
+                          test_name = test.get('name', 'unknown')
+                          if test_id is not None:
+                              test_names[test_id] = test_name
+
+                      # 2. testDone: نستخدم testID لاسترجاع الاسم
+                      elif event.get('type') == 'testDone':
+                          test_id = event.get('testID')
+                          result = event.get('result', '')
+                          # استرجاع الاسم من الخريطة
+                          name = test_names.get(test_id, 'unknown')
+
+                          # تجاهل الأحداث المخفية (hidden=true) مثل loading و setUpAll/tearDownAll
+                          # فهي ليست اختبارات فعلية بل setup/teardown
+                          if event.get('hidden', False):
+                              continue
+
                           if result == 'success':
                               passed += 1
                           elif result in ('failure', 'error'):
