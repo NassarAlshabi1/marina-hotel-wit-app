@@ -282,6 +282,10 @@ class BookingNights extends Table with SyncFields {
   List<Set<Column>>? get uniqueKeys => [
     {bookingLocalId, hotelDayKey},
   ];
+
+  List<Index> get indexes => [
+    Index('idx_booking_nights_booking', 'CREATE INDEX idx_booking_nights_booking ON booking_nights (booking_local_id)'),
+  ];
 }
 
 @DataClassName('HotelDayLedgerEntry')
@@ -419,6 +423,10 @@ class GuestInfos extends Table with SyncFields {
   TextColumn get issuePlace => text().nullable()();
   TextColumn get governorate => text().nullable()();
   TextColumn get notes => text().nullable()();
+
+  List<Index> get indexes => [
+    Index('idx_guest_infos_room', 'CREATE INDEX idx_guest_infos_room ON guest_infos (room_number)'),
+  ];
 }
 
 @DataClassName('AutoFixRun')
@@ -648,6 +656,11 @@ class SyncQueue extends Table {
   TextColumn get deviceId => text()();
   TextColumn get status => text().withDefault(const Constant('pending'))();
   TextColumn get createdAt => text()();
+
+  List<Index> get indexes => [
+    Index('idx_sync_queue_status', 'CREATE INDEX idx_sync_queue_status ON sync_queue (status)'),
+    Index('idx_sync_queue_table', 'CREATE INDEX idx_sync_queue_table ON sync_queue (table_name)'),
+  ];
 }
 
 class SyncLog extends Table {
@@ -664,6 +677,8 @@ class SyncLog extends Table {
 
   List<Index> get indexes => [
     Index('idx_sync_log_created', 'CREATE INDEX idx_sync_log_created ON sync_log (created_at)'),
+    Index('idx_sync_log_sync_id', 'CREATE INDEX idx_sync_log_sync_id ON sync_log (sync_id)'),
+    Index('idx_sync_log_device_id', 'CREATE INDEX idx_sync_log_device_id ON sync_log (device_id)'),
   ];
 }
 
@@ -677,6 +692,10 @@ class SyncConflicts extends Table {
   TextColumn get localPayload => text()();
   TextColumn get remotePayload => text()();
   TextColumn get createdAt => text()();
+
+  List<Index> get indexes => [
+    Index('idx_sync_conflicts_table_uuid', 'CREATE INDEX idx_sync_conflicts_table_uuid ON sync_conflicts (table_name, uuid)'),
+  ];
 }
 
 /// ✅ جدول AncestorCache — يخزّن آخر نسخة معروفة مشتركة (common ancestor)
@@ -738,7 +757,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 49;
+  int get schemaVersion => 50;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1953,6 +1972,28 @@ class AppDatabase extends _$AppDatabase {
             }
           }
           developer.log('Migration 49: performance indexes created successfully', name: 'db.migration');
+        }
+
+        // === Migration 50: Additional indexes for frequently queried columns ===
+        if (from < 50) {
+          const additionalIndexes = [
+            'CREATE INDEX IF NOT EXISTS idx_booking_nights_booking ON booking_nights (booking_local_id)',
+            'CREATE INDEX IF NOT EXISTS idx_guest_infos_room ON guest_infos (room_number)',
+            'CREATE INDEX IF NOT EXISTS idx_sync_log_sync_id ON sync_log (sync_id)',
+            'CREATE INDEX IF NOT EXISTS idx_sync_log_device_id ON sync_log (device_id)',
+            'CREATE INDEX IF NOT EXISTS idx_sync_conflicts_table_uuid ON sync_conflicts (table_name, uuid)',
+            'CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue (status)',
+            'CREATE INDEX IF NOT EXISTS idx_sync_queue_table ON sync_queue (table_name)',
+          ];
+          for (final sql in additionalIndexes) {
+            try {
+              await m.database.customStatement(sql);
+              developer.log('Migration 50: created index: $sql', name: 'db.migration');
+            } catch (e) {
+              developer.log('Migration 50: index already exists or failed: $e', name: 'db.migration');
+            }
+          }
+          developer.log('Migration 50: additional indexes created successfully', name: 'db.migration');
         }
       }
     },

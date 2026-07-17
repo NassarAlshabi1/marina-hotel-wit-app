@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 import '../utils/app_logger.dart';
+import '../utils/debug_log.dart';
 import '../utils/id.dart';
 import '../utils/secure_storage.dart';
 import '../utils/status_utils.dart';
@@ -280,7 +281,7 @@ class AppwriteSyncManager {
           data: {'fcmToken': token, 'fcmTokenUpdatedAt': DateTime.now().millisecondsSinceEpoch ~/ 1000},
         );
       } catch (e) {
-        debugPrint('⚠️ Failed to update FCM token: $e');
+        dwarn(() => 'Failed to update FCM token: $e');
       }
     }
   }
@@ -470,18 +471,18 @@ class AppwriteSyncManager {
         final resetCount = await outboxDao.retryFailedWithBackoff();
         if (resetCount == 0) return;
 
-        debugPrint('🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)');
+        dlog(() => '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)');
 
         // محاولة رفعها فوراً
         final result = await sync(pull: false);
         if (result.status == SyncStatus.success) {
-          debugPrint('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
+          dlog('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
         }
       } catch (e) {
-        debugPrint('⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e');
+        dwarn(() => 'فشلت إعادة محاولة العناصر الفاشلة: $e');
       }
     });
-    debugPrint('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
+    dlog('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
 
     // ✅ إصلاح حرج (audit agent-6): استعادة stuck 'processing' entries بشكل دوري
     // المشكلة: cleanupStuckEntries كان يُستدعى فقط عند initialize() (مرة واحدة عند بدء التطبيق)
@@ -501,7 +502,7 @@ class AppwriteSyncManager {
         _logger.warning('⚠️ فشل استعادة العناصر العالقة: $e', tag: 'SYNC');
       }
     });
-    debugPrint('🔧 تم تشغيل مؤقت استعادة العناصر العالقة (كل دقيقة)');
+    dlog('🔧 تم تشغيل مؤقت استعادة العناصر العالقة (كل دقيقة)');
 
     // ✅ تنظيف outbox تلقائي كل 24 ساعة
     _cleanupTimer?.cancel();
@@ -6257,7 +6258,7 @@ class AppwriteSyncManager {
           try {
             await _bookingsRepository.derivedFields.refreshForBookingId(bookingId);
           } catch (e) {
-            debugPrint('⚠️ refreshForBookingId($bookingId) failed: $e');
+            dwarn(() => 'refreshForBookingId($bookingId) failed: $e');
           }
         }
       }

@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/debug_log.dart';
 import '../utils/debug_logs.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_conflict_resolver.dart';
@@ -132,7 +133,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('AutoSyncEngine', message);
-    debugPrint('[AutoSyncEngine] $message');
+    dlog(() => '[AutoSyncEngine] $message');
     _logger?.log(message, level: level, tag: 'AUTO_SYNC');
   }
 

@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
+import '../utils/debug_log.dart';
 import '../utils/debug_logs.dart';
 import 'daos/outbox_dao.dart';
 import 'data_usage_manager.dart';
@@ -48,7 +48,7 @@ class SmartSyncManager {
 
   void _log(String message) {
     DebugLogs.add('SmartSync', message);
-    debugPrint(message);
+    dlog(message);
   }
 
   static const String _prefsEnabledKey = 'smart_sync_enabled';

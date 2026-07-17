@@ -19,8 +19,8 @@ final appwriteServiceProvider = Provider<AppwriteService>((ref) {
 
 /// مزود مدير المزامنة
 final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
-  final service = ref.watch(appwriteServiceProvider);
-  final database = ref.watch(databaseProvider);
+  final service = ref.read(appwriteServiceProvider);
+  final database = ref.read(databaseProvider);
   final manager = AppwriteSyncManager(appwriteService: service, database: database);
 
   ref.onDispose(manager.dispose);
@@ -29,8 +29,8 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
 });
 
 final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((ref) {
-  final appwriteSync = ref.watch(appwriteSyncManagerProvider);
-  final db = ref.watch(databaseProvider);
+  final appwriteSync = ref.read(appwriteSyncManagerProvider);
+  final db = ref.read(databaseProvider);
   final smart = SmartSyncManager.instance;
   final orch = UnifiedSyncOrchestrator.instance;
   orch.initialize(appwrite: appwriteSync, smart: smart, database: db);
@@ -104,13 +104,13 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
 // ============ Data Providers ============
 
 /// مزود إحصائيات المزامنة
-final syncStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  final syncManager = ref.watch(appwriteSyncManagerProvider);
+final syncStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final syncManager = ref.read(appwriteSyncManagerProvider);
   return syncManager.getSyncStatistics();
 });
 
-final outboxCountProvider = StreamProvider<int>((ref) {
-  final db = ref.watch(databaseProvider);
+final outboxCountProvider = StreamProvider.autoDispose<int>((ref) {
+  final db = ref.read(databaseProvider);
   final dao = OutboxDao(db);
   // ✅ فصل هندسي: نراقب فقط عناصر source='local' (تغييرات محلية)
   return dao.watchCount(sources: const ['local']);
@@ -118,30 +118,30 @@ final outboxCountProvider = StreamProvider<int>((ref) {
 
 /// مزود إحصائيات الذاكرة المؤقتة
 final cacheStatsProvider = Provider<CacheStatistics>((ref) {
-  final cacheManager = ref.watch(appwriteCacheManagerProvider);
+  final cacheManager = ref.read(appwriteCacheManagerProvider);
   return cacheManager.getStatistics();
 });
 
 /// مزود إحصائيات السجلات
 final logStatsProvider = Provider<Map<String, int>>((ref) {
-  final logger = ref.watch(appwriteLoggerProvider);
+  final logger = ref.read(appwriteLoggerProvider);
   return logger.getStatistics();
 });
 
 /// مزود معلومات المشروع
 final projectInfoProvider = Provider<Map<String, String>>((ref) {
-  final service = ref.watch(appwriteServiceProvider);
+  final service = ref.read(appwriteServiceProvider);
   return service.getProjectInfo();
 });
 
 /// مزود قائمة الأجهزة المسجلة (أحدث جهازين فقط)
-final devicesListProvider = FutureProvider((ref) async {
-  final syncManager = ref.watch(appwriteSyncManagerProvider);
+final devicesListProvider = FutureProvider.autoDispose((ref) async {
+  final syncManager = ref.read(appwriteSyncManagerProvider);
   return syncManager.getRegisteredDevices();
 });
 
 /// مزود السجلات
 final logsProvider = Provider((ref) {
-  final logger = ref.watch(appwriteLoggerProvider);
+  final logger = ref.read(appwriteLoggerProvider);
   return logger.getLogs();
 });

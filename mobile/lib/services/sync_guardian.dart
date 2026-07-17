@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../tasks/auto_sync_task.dart';
 import '../utils/app_logger.dart';
+import '../utils/debug_log.dart';
 import 'local_db.dart';
 import 'sync_constants.dart';
 import 'unified_sync_orchestrator.dart';
@@ -91,14 +92,14 @@ class SyncGuardian {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(SyncConstants.guardianLocalChangeDebounce, () async {
       try {
-        debugPrint('📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation');
+        dlog(() => '📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation');
         final ok = await _orchestrator!.syncNow(reason: 'guardian_debounce');
         if (!ok) {
           await AutoSyncTask.scheduleImmediateSync();
         }
         _pendingChangesCount = 0;
       } catch (e) {
-        debugPrint('⚠️ فشل رفع التغييرات: $e');
+        dwarn(() => 'فشل رفع التغييرات: $e');
         try {
           await AutoSyncTask.scheduleImmediateSync();
         } catch (e, st) {
@@ -140,7 +141,7 @@ class SyncGuardian {
   }
 
   void _log(String message) {
-    debugPrint('[SyncGuardian] $message');
+    dlog(() => '[SyncGuardian] $message');
   }
 
   Future<void> forceSync() async {
