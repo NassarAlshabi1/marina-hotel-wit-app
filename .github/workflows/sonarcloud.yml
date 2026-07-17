@@ -1,64 +1,119 @@
+# ═══════════════════════════════════════════════════════════════
+#  Marina Hotel — SonarCloud Quality Analysis
+#  Manual Run Only — مع اختيار الفرع عند التشغيل
+# ═══════════════════════════════════════════════════════════════
+#
+#  للتشغيل:
+#    1. اذهب لـ Actions tab في GitHub
+#    2. اختر "Build for Sonar" workflow
+#    3. اضغط "Run workflow"
+#    4. اختر الفرع المراد تحليله
+#    5. اختر مستوى التحليل (quick / full)
+#
+#  متطلبات:
+#    - SONAR_TOKEN secret مُعرَّف في الـ repo
+#    - SONAR_ORGANIZATION و SONAR_PROJECT_KEY كـ variables
+# ═══════════════════════════════════════════════════════════════
+
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.check_level || 'default' }}
   cancel-in-progress: true
 
 name: Build for Sonar
 
 on:
-  push:
-    branches:
-      - main
-      - marina
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/sonarcloud.yml'
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/sonarcloud.yml'
   workflow_dispatch:
+    inputs:
+      check_level:
+        description: 'مستوى التحليل'
+        required: true
+        type: choice
+        default: 'quick'
+        options:
+          - quick    # تحليل سريع: sonar scanner فقط (~3 دقائق)
+          - full     # تحليل شامل: tests + coverage + sonar (~10 دقائق)
+      run_tests:
+        description: 'تشغيل الاختبارات قبل التحليل؟'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
+  pull-requests: write
+  checks: write
 
 jobs:
   sonarcloud:
-    name: SonarCloud
+    name: SonarCloud (${{ inputs.check_level || 'quick' }})
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.check_level == 'full' && 15 || 5 }}
 
     steps:
-      - uses: actions/checkout@v5
+      - name: 📥 Checkout code
+        uses: actions/checkout@v5
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # ضروري لـ SonarCloud blame/history
+          ref: ${{ github.ref_name }}
 
-      - name: Set Up Java
+      - name: ☕ Set Up Java
         uses: actions/setup-java@v5
         with:
           distribution: 'oracle'
           java-version: '17'
 
-      - name: Set Up Flutter
+      - name: 🐦 Set Up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.0'
+          flutter-version: '3.44.6'
           channel: 'stable'
           cache: true
 
-      - name: Install Dependencies
+      - name: 📦 Install Dependencies
         working-directory: mobile
         run: flutter pub get
 
-      - name: Generate code
+      - name: 🏗️ Generate code (build_runner)
         working-directory: mobile
         run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: Run Flutter Tests
+      # ═══════════════════════════════════════════════════════════
+      #  Tests + Coverage (full mode only)
+      #  مُسرَّع عبر:
+      #    - parallelism (--concurrency=4)
+      #    - timeout محدود (120s)
+      #    - compact reporter
+      # ═══════════════════════════════════════════════════════════
+      - name: 🧪 Run Flutter Tests with coverage
+        if: inputs.run_tests == true && inputs.check_level == 'full'
         working-directory: mobile
-        run: flutter test --coverage
+        run: |
+          flutter test \
+            --coverage \
+            --concurrency=4 \
+            --timeout=120s \
+            --reporter compact \
+            2>&1 | tee test_results.log
+          exit ${PIPESTATUS[0]}
         continue-on-error: true
 
-      - name: SonarCloud Scan
+      - name: 🧪 Run Flutter Tests (Quick — no coverage)
+        if: inputs.run_tests == true && inputs.check_level != 'full'
+        working-directory: mobile
+        run: |
+          flutter test \
+            --concurrency=4 \
+            --timeout=60s \
+            --exclude-tags slow,integration \
+            --reporter compact \
+            2>&1 | tee test_results.log
+          exit ${PIPESTATUS[0]}
+        continue-on-error: true
+
+      # ═══════════════════════════════════════════════════════════
+      #  SonarCloud Scan
+      # ═══════════════════════════════════════════════════════════
+      - name: 🔍 SonarCloud Scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -69,13 +124,58 @@ jobs:
           unzip -o $HOME/.sonar/sonar-scanner.zip -d $HOME/.sonar/
           export PATH=$SONAR_SCANNER_HOME/bin:$PATH
           export SONAR_SCANNER_OPTS="-server"
-          # Point sonar-scanner at the Flutter/Dart sources and test/coverage outputs
+          
+          # بناء args بناءً على check_level
+          COVERAGE_ARG=""
+          if [ "${{ inputs.check_level }}" = "full" ] && [ -f mobile/coverage/lcov.info ]; then
+            COVERAGE_ARG="-Dsonar.coverageReportPaths=mobile/coverage/lcov.info"
+          fi
+          
           sonar-scanner \
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }} \
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
             -Dsonar.sources=mobile/lib \
             -Dsonar.tests=mobile/test \
             -Dsonar.inclusions=mobile/lib/**,mobile/pubspec.yaml \
-            -Dsonar.coverageReportPaths=mobile/coverage/lcov.info \
+            $COVERAGE_ARG \
             -Dsonar.login=$SONAR_TOKEN \
             -Dsonar.host.url=https://sonarcloud.io
+
+      # ═══════════════════════════════════════════════════════════
+      #  ملخص النتائج
+      # ═══════════════════════════════════════════════════════════
+      - name: 📊 Generate Summary
+        if: always()
+        run: |
+          {
+            echo "## 🔍 SonarCloud Analysis Summary"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|---|---|"
+            echo "| Branch | \`${{ github.ref_name }}\` |"
+            echo "| Check Level | \`${{ inputs.check_level || 'quick' }}\` |"
+            echo "| Tests Run | ${{ inputs.run_tests }} |"
+            echo "| Status | ${{ job.status }} |"
+            echo ""
+            echo "### Test Results (last 15 lines)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          
+          if [ -f "mobile/test_results.log" ]; then
+            tail -15 mobile/test_results.log >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'No test log available' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          
+          {
+            echo '```'
+            echo ""
+            echo "### SonarCloud Links"
+            echo "- [Project Dashboard](https://sonarcloud.io/dashboard?id=${{ vars.SONAR_PROJECT_KEY }})"
+            echo "- [Organization](https://sonarcloud.io/organizations/${{ vars.SONAR_ORGANIZATION }})"
+            echo ""
+            echo "### Notes"
+            echo "- Quick mode: SonarCloud scan without coverage"
+            echo "- Full mode: Tests + coverage + full SonarCloud analysis"
+            echo "- Results appear in SonarCloud dashboard within 2-3 minutes"
+          } >> "$GITHUB_STEP_SUMMARY"
