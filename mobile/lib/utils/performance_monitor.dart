@@ -21,11 +21,10 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
-import 'dart:io' show Platform, Process, ProcessInfo;
-import 'dart:ui' show FrameTiming, PlatformDispatcher;
+import 'dart:io' show File, Platform, Process, ProcessInfo;
 
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb, debugPrint;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 
 /// نوع التحذير الأدائي
@@ -229,7 +228,8 @@ class PerformanceMonitor {
     if (_recentFrames.length < 2) return 0;
     final first = _recentFrames.first;
     final last = _recentFrames.last;
-    final elapsed = last.timestamp - first.timestamp;
+    // FrameTiming لا يملك خاصية timestamp — نستخدم buildStart (Duration منذ epoch)
+    final elapsed = last.buildStart - first.buildStart;
     if (elapsed.inMicroseconds == 0) return 0;
     return (_recentFrames.length - 1) * 1000000 / elapsed.inMicroseconds;
   }
@@ -476,7 +476,7 @@ class PerformanceMonitor {
   Map<String, dynamic> exportReport() {
     return {
       'timestamp': DateTime.now().toIso8601String(),
-      'platform': Platform.operatingSystem,
+      'platform': kIsWeb ? 'web' : Platform.operatingSystem,
       'started': _started,
       'fps': {
         'current': currentFps.toStringAsFixed(1),
