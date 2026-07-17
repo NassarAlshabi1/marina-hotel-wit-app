@@ -203,7 +203,9 @@ jobs:
                           name = test.get('name', 'unknown')
                           if result == 'success':
                               passed += 1
-                          elif result == 'failure':
+                          elif result in ('failure', 'error'):
+                              # flutter test --machine may emit 'error' instead
+                              # of 'failure' when an unexpected exception occurs
                               failed += 1
                           elif result == 'skipped':
                               skipped += 1

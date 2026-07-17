@@ -42,9 +42,9 @@ void main() {
 
       // محاكاة عمليات البدء الأساسية
       await Future.wait([
-        Future.delayed(const Duration(milliseconds: 5)),
-        Future.delayed(const Duration(milliseconds: 20)),
-        Future.delayed(const Duration(milliseconds: 100)),
+        Future<void>.delayed(const Duration(milliseconds: 5)),
+        Future<void>.delayed(const Duration(milliseconds: 20)),
+        Future<void>.delayed(const Duration(milliseconds: 100)),
       ]);
 
       stopwatch.stop();
@@ -73,7 +73,7 @@ void main() {
   group('📊 Frame Performance', () {
     test('يحافظ على FPS ≥ 55 أثناء فترات الخمول', () async {
       // انتظر جمع عيّنات إطارات
-      await Future.delayed(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 2));
 
       final fps = PerformanceMonitor.instance.currentFps;
       debugPrint('✓ FPS الحالي: ${fps.toStringAsFixed(1)}');
@@ -84,7 +84,7 @@ void main() {
     });
 
     test('زمن الإطار متاح للقياس', () async {
-      await Future.delayed(const Duration(seconds: 1));
+      await Future<void>.delayed(const Duration(seconds: 1));
 
       final avgFrameTime = PerformanceMonitor.instance.averageFrameTimeMs;
       debugPrint('✓ متوسط زمن الإطار: ${avgFrameTime.toStringAsFixed(2)}ms');
@@ -93,7 +93,7 @@ void main() {
     });
 
     test('نسبة الـ jank أقل من 5%', () async {
-      await Future.delayed(const Duration(seconds: 1));
+      await Future<void>.delayed(const Duration(seconds: 1));
 
       final report = PerformanceMonitor.instance.exportReport();
       final jankRatio = double.parse(
@@ -108,7 +108,7 @@ void main() {
 
   group('💾 Memory Performance', () {
     test('الذاكرة الحالية أقل من 100MB في الوضع الطبيعي', () async {
-      await Future.delayed(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 2));
 
       final memoryMB = PerformanceMonitor.instance.currentMemoryMB;
       debugPrint('✓ الذاكرة الحالية: ${memoryMB.toStringAsFixed(1)}MB');
@@ -122,7 +122,7 @@ void main() {
 
       // محاكاة عمليات سريعة (5 ثوانٍ فقط لـ CI speed)
       for (var i = 0; i < 5; i++) {
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
         // محاكاة some allocations
         final _ = List.generate(1000, (i) => 'item_$i');
       }
@@ -196,7 +196,12 @@ void main() {
     test('إنشاء PDF كشف حساب < 2000ms (محاكاة)', () async {
       await PerformanceMonitor.instance.measure('pdf_generation', () async {
         // محاكاة توليد PDF
-        await Future<String>.delayed(const Duration(milliseconds: 100));
+        // ملاحظة: نستخدم Future<void>.delayed لأن Future<String>.delayed
+        // بدون computation function يرمي:
+        //   "Invalid argument (computation): The type parameter is not nullable: null"
+        // السبب: Future<T>.delayed(duration, [computation]) يتطلب computation
+        // ترجع T عند تحديد T كـ non-nullable (مثل String).
+        await Future<void>.delayed(const Duration(milliseconds: 100));
         return 'pdf_bytes';
       });
 
