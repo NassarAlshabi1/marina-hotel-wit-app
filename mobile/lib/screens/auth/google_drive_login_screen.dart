@@ -8,6 +8,7 @@ import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/auto_backup_provider.dart';
 import '../../providers/backup_provider.dart';
 import '../../utils/theme.dart';
+import '../../utils/performance_monitor.dart';
 
 class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
   const GoogleDriveLoginScreen({super.key});
@@ -163,7 +164,9 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
       );
     }
 
-    return Directionality(
+    return PerformanceInspector(
+      name: 'GoogleDriveLoginScreen',
+      child: Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: AppColors.backgroundColor,
@@ -275,6 +278,7 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
           ),
         ),
       ),
+    )
     );
   }
 }

@@ -23,6 +23,7 @@ import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
 import 'payments/booking_payment_screen.dart';
 import 'reports/expenses_report_screen.dart';
+import '../utils/performance_monitor.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101',
@@ -173,7 +174,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'DashboardScreen',
+      child: Scaffold(
       backgroundColor: Colors.grey.shade100,
       body: SafeArea(
         child: ListView(
@@ -189,6 +192,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ],
         ),
       ),
+    )
     );
   }
 

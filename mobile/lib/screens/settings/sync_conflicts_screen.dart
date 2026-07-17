@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/repository_providers.dart';
 import '../../services/conflict_manager.dart';
+import '../../utils/performance_monitor.dart';
 
 /// شاشة مراقبة التعارضات — تعرض التعارضات المعلقة وتسمح بحلها
 class SyncConflictsScreen extends ConsumerStatefulWidget {
@@ -30,7 +31,9 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'SyncConflictsScreen',
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('تعارضات المزامنة'),
         actions: [
@@ -153,6 +156,7 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
           },
         ),
       ), // RepaintBoundary
+    )
     );
   }
 

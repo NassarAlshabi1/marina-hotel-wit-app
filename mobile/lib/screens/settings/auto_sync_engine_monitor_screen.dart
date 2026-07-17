@@ -9,6 +9,7 @@ import '../../providers/auto_sync_engine_providers.dart';
 import '../../services/google_drive_auto_sync_engine.dart';
 import '../../services/google_drive_conflict_resolver.dart';
 import '../../utils/date_parser.dart';
+import '../../utils/performance_monitor.dart';
 
 class AutoSyncEngineMonitorScreen extends ConsumerStatefulWidget {
   const AutoSyncEngineMonitorScreen({super.key});
@@ -23,7 +24,9 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
     final engineState = ref.watch(autoSyncEngineStateProvider);
     final syncHealth = ref.watch(autoSyncHealthSummaryProvider);
 
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'AutoSyncEngineMonitorScreen',
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('محرك المزامنة التلقائي'),
         backgroundColor: Colors.blue.shade700,
@@ -56,6 +59,7 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
           ),
         ),
       ),
+    )
     );
   }
 

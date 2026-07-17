@@ -5,6 +5,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/smart_sync_manager.dart';
 import '../../services/sync_guardian.dart';
 import 'sync_health/sync_health_screen.dart';
+import '../../utils/performance_monitor.dart';
 
 class SmartSyncSettingsScreen extends ConsumerStatefulWidget {
   const SmartSyncSettingsScreen({super.key});
@@ -164,7 +165,9 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
     final statusAsync = ref.watch(smartSyncStatusProvider);
     final healthAsync = ref.watch(syncHealthProvider);
 
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'SmartSyncSettingsScreen',
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('المزامنة التلقائية الذكية'),
         centerTitle: true,
@@ -200,6 +203,7 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
           error: (_, __) => _buildSettingsUI(status, null),
         ),
       ),
+    )
     );
   }
 

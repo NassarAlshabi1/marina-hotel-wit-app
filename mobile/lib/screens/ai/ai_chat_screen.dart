@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../services/gemini_service.dart';
+import '../../utils/performance_monitor.dart';
 
 /// مزود AI النشط
 enum AiProvider {
@@ -383,7 +384,9 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'AiChatScreen',
+      child: Scaffold(
       appBar: AppBar(
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -490,6 +493,7 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
           _buildInputField(theme),
         ],
       ),
+    )
     );
   }
 

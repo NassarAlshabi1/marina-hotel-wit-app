@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/repository_providers.dart';
 import '../screens/notes/notes_screen.dart';
+import '../utils/performance_monitor.dart';
 import 'widgets/sync_action_button.dart';
 
 class AppScaffold extends ConsumerWidget {
@@ -114,7 +115,12 @@ class AppScaffold extends ConsumerWidget {
             if (actions != null) ...actions!,
           ],
         ),
-        body: SafeArea(child: body),
+        body: SafeArea(
+          child: PerformanceInspector(
+            name: title,
+            child: body,
+          ),
+        ),
         floatingActionButton: fab,
       ),
     );

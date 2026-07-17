@@ -10,6 +10,7 @@ import '../../providers/smart_sync_provider.dart';
 import '../../services/alarm_backup.dart';
 import '../../services/smart_sync_manager.dart';
 import 'appwrite_settings_screen.dart';
+import '../../utils/performance_monitor.dart';
 
 class DataProtectionScreen extends ConsumerStatefulWidget {
   const DataProtectionScreen({super.key});
@@ -455,7 +456,9 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     final backupState = ref.watch(backupStatusProvider);
     final appwriteConnection = ref.watch(ap.connectionStatusProvider);
     final appwriteStats = ref.watch(ap.syncStatsProvider);
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'DataProtectionScreen',
+      child: Scaffold(
       appBar: AppBar(title: const Text('إدارة النسخ والمزامنة')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -478,6 +481,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           ],
         ),
       ),
+    )
     );
   }
 

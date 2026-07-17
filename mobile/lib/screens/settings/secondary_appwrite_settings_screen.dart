@@ -15,6 +15,7 @@ import '../../services/secondary_sync_manager.dart';
 import '../../services/secondary_appwrite_service.dart';
 import '../../services/secondary_backup_service.dart';
 import '../../services/appwrite_sync_manager.dart';
+import '../../utils/performance_monitor.dart';
 
 /// شاشة إعدادات الوجهة الثانوية لـ Appwrite
 /// تتيح: تفعيل/تعطيل + إدخال بيانات الاتصال + خيارات push/pull منفصلة + failover
@@ -694,7 +695,9 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
     final failoverActive = SecondaryAppwriteConfig.isFailoverActive;
     final isConfigured = SecondaryAppwriteConfig.isConfigured;
 
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'SecondaryAppwriteSettingsScreen',
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('وجهة Appwrite الثانوية'),
         actions: [
@@ -1025,6 +1028,7 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
           const SizedBox(height: 40),
         ],
       ),
+    )
     );
   }
 }

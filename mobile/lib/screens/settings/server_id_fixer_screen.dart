@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/repository_providers.dart';
+import '../../utils/performance_monitor.dart';
 
 class ServerIdFixerScreen extends ConsumerStatefulWidget {
   const ServerIdFixerScreen({super.key});
@@ -132,7 +133,9 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'ServerIdFixerScreen',
+      child: Scaffold(
       appBar: AppBar(title: const Text('إصلاح Server IDs للغرف'), backgroundColor: Colors.blue),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -249,6 +252,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
           ],
         ),
       ),
+    )
     );
   }
 }

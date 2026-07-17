@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../services/local_db.dart';
 import '../../services/restore_fix_service.dart';
+import '../../utils/performance_monitor.dart';
 
 // مقدم خدمة الإصلاح التلقائي
 final restoreFixServiceProvider = Provider<RestoreFixService>((ref) => RestoreFixService(DatabaseManager.instance));
@@ -34,7 +35,9 @@ class RestoreFixScreen extends ConsumerWidget {
     final fixLogsAsyncValue = ref.watch(fixLogsProvider);
     final isLoading = ref.watch(fixServiceLoadingProvider);
 
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'RestoreFixScreen',
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('الإصلاح التلقائي للنسخة الاحتياطية'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -56,6 +59,7 @@ class RestoreFixScreen extends ConsumerWidget {
           ],
         ),
       ),
+    )
     );
   }
 

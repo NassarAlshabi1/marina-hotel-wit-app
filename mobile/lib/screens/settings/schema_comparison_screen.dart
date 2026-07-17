@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import '../../utils/performance_monitor.dart';
 
 class SchemaComparisonScreen extends StatelessWidget {
   const SchemaComparisonScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'SchemaComparisonScreen',
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('مقارنة بنية قاعدة البيانات'),
         actions: [IconButton(icon: const Icon(Icons.info_outline), onPressed: () => _showInfoDialog(context))],
@@ -26,6 +29,7 @@ class SchemaComparisonScreen extends StatelessWidget {
           _buildRecommendations(),
         ],
       ),
+    )
     );
   }
 

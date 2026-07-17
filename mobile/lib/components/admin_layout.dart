@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/performance_monitor.dart';
 import '../utils/theme.dart';
 import 'admin_sidebar.dart';
 
@@ -38,7 +39,13 @@ class AdminLayout extends StatelessWidget {
                   children: [
                     if (title != null || actions != null) _buildTopBar(context),
                     Expanded(
-                      child: ColoredBox(color: Theme.of(context).scaffoldBackgroundColor, child: body),
+                      child: ColoredBox(
+                        color: Theme.of(context).scaffoldBackgroundColor,
+                        child: PerformanceInspector(
+                          name: title ?? currentRoute,
+                          child: body,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -55,7 +62,13 @@ class AdminLayout extends StatelessWidget {
         child: Scaffold(
           appBar: appBar ?? _buildMobileAppBar(context),
           drawer: AdminSidebar(currentRoute: currentRoute, onRouteSelected: onRouteSelected ?? (route) {}),
-          body: ColoredBox(color: Theme.of(context).scaffoldBackgroundColor, child: body),
+          body: ColoredBox(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: PerformanceInspector(
+              name: title ?? currentRoute,
+              child: body,
+            ),
+          ),
           floatingActionButton: floatingActionButton,
         ),
       );

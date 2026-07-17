@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/service_providers.dart';
 import '../../services/sync_performance_settings.dart';
+import '../../utils/performance_monitor.dart';
 
 class SyncPerformanceSettingsScreen extends ConsumerStatefulWidget {
   const SyncPerformanceSettingsScreen({super.key});
@@ -52,7 +53,9 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'SyncPerformanceSettingsScreen',
+      child: Scaffold(
       appBar: AppBar(title: const Text('تحسين أداء المزامنة'), centerTitle: true, elevation: 0),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -79,6 +82,7 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
           ],
         ),
       ),
+    )
     );
   }
 

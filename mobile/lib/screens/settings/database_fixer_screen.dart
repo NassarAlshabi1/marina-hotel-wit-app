@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/database_fixer.dart';
 import '../../services/local_db.dart';
+import '../../utils/performance_monitor.dart';
 
 class DatabaseFixerScreen extends StatefulWidget {
   const DatabaseFixerScreen({super.key});
@@ -104,7 +105,9 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'DatabaseFixerScreen',
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('إصلاح قاعدة البيانات'),
         actions: [
@@ -130,6 +133,7 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
                 ],
               ),
             ),
+    )
     );
   }
 

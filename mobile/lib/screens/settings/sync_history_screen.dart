@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/daos/sync_log_dao.dart';
+import '../../utils/performance_monitor.dart';
 
 /// Provider لسجل المزامنة
 final syncHistoryProvider = FutureProvider.family<List<SyncLogEntry>, SyncFilter>((ref, filter) async {
@@ -40,7 +41,9 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
 
     final logsAsync = ref.watch(syncHistoryProvider(filter));
 
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'SyncHistoryScreen',
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('سجل المزامنة'),
         actions: [
@@ -81,6 +84,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
           child: Text('خطأ: $error', style: const TextStyle(color: Colors.red)),
         ),
       ),
+    )
     );
   }
 
