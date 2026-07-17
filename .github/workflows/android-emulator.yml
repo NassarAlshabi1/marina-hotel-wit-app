@@ -146,7 +146,11 @@ jobs:
           script: |
             cd ${{ github.workspace }}/mobile
             echo "=== تشغيل flutter test integration_test ==="
-            flutter test integration_test/ \
+            # نُحدِّد الملفات بشكل صريح بدلاً من flutter test integration_test/
+            # لأن Flutter 3.44+ يرفض تمرير مجلد integration_test/ لوحده
+            # عندما يجد testWidgets() مع IntegrationTestWidgetsFlutterBinding
+            # (يراه كـ mix بين unit tests و integration tests)
+            flutter test integration_test/app_test.dart integration_test/booking_payment_test.dart \
               --reporter expanded \
               --timeout 300s \
               --exclude-tags skip-ci || \
