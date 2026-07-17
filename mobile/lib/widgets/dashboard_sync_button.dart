@@ -14,17 +14,16 @@ import '../services/daos/sync_log_dao.dart';
 import '../services/secondary_appwrite_config.dart';
 import '../services/secondary_sync_manager.dart';
 import '../services/sync/sync_gate.dart';
+import '../utils/loading_snackbar.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
 
   @override
-  ConsumerState<DashboardSyncButton> createState() =>
-      _DashboardSyncButtonState();
+  ConsumerState<DashboardSyncButton> createState() => _DashboardSyncButtonState();
 }
 
-class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
-    with SingleTickerProviderStateMixin {
+class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with SingleTickerProviderStateMixin {
   bool _isPulling = false;
   bool _isPushing = false;
   bool _appwriteEnabled = true;
@@ -37,14 +36,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   @override
   void initState() {
     super.initState();
-    _pullAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-    _pushAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
+    _pullAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _pushAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
 
     _loadPendingChangesCount();
     _loadAppwriteEnabled();
@@ -70,11 +63,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       final db = ref.read(databaseProvider);
       final outboxDao = OutboxDao(db);
-      // ✅ P2-5 fix: العدد المعروض يطابق نطاق الرفع الفعلي
-      // لا نستخدم count() التي تحسب pending+failed — لأن الرفع
-      // (takeBatch) يأخذ فقط 'pending' و 'delivered_to_primary=0'.
-      // شارة "تغييرات معلّقة" يجب أن تعكس ما سيُرفع فعلاً.
-      final count = await outboxDao.countPendingPushable(sources: const ['local']);
+      // ✅ إصلاح فقدان التغييرات العالقة: نحسب كل السجلات غير المُسلّمة
+      // للرئيسي (pending + processing عالقة + failed) وليس 'pending' فقط.
+      // السبب: عند انقطاع الرفع (إنترنت بطيء / إغلاق التطبيق) تبقى السجلات
+      // عالقة في 'processing' وتختفي من countPendingPushable → تظهر 0 →
+      // يظنّ المستخدم أن الرفع نجح. countUndeliveredToPrimary يُبقيها مرئية
+      // ويُبقي زر الرفع مُفعّلاً لإعادة المحاولة.
+      final count = await outboxDao.countUndeliveredToPrimary(sources: const ['local']);
       if (mounted) {
         setState(() {
           _pendingChangesCount = count;
@@ -174,14 +169,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             'هل تريد الرفع أولاً ثم السحب؟',
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('سحب فقط'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('رفع ثم سحب'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('سحب فقط')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('رفع ثم سحب')),
           ],
         ),
       );
@@ -204,7 +193,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
 
     // ✅ P1-1 fix: كل الفحوص تتم قبل كتابة سجل in_progress
-    // لا نكتب in_progress إلا بعد اجتياز كل فحوص ما-قبل-البدء
+    // لا نكتم في_progress إلا بعد اجتياز كل فحوص ما-قبل-البدء
+    // ✅ معرّف قبل try ليكون متاحاً في catch
+    LoadingSnackBar? loading;
+
     try {
       final appwriteEnabled = await _isAppwriteSyncEnabled();
       if (!appwriteEnabled) {
@@ -228,12 +220,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         _isPulling = false;
         if (mounted) {
           // ignore: use_build_context_synchronously
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('لا يوجد اتصال بـ Appwrite'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('لا يوجد اتصال بـ Appwrite'), backgroundColor: Colors.red));
         }
         return;
       }
@@ -251,35 +240,18 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       unawaited(_pullAnimationController.repeat());
 
+      // ✅ إشعار تحميل قابل للإغلاق برمجياً
       if (mounted) {
         // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text('⬇️ جاري سحب التغييرات من السيرفر...'),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.blue,
-            duration: Duration(seconds: 3),
-          ),
-        );
+        loading = LoadingSnackBar.show(context, message: '⬇️ جاري سحب التغييرات من السيرفر...');
       }
 
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
       final pullResult = await appwriteSyncManager.sync(push: false);
       final pulledCount = pullResult.recordsPulled;
+
+      // ✅ إغلاق إشعار التحميل فور انتهاء المزامنة
+      loading?.close();
 
       // إعادة تعيين علامة "توجد تغييرات من السيرفر"
       AppwriteRealtimeSync().resetRemoteChangesFlag();
@@ -300,6 +272,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         setState(() {
           _lastSyncTime = DateTime.now();
         });
+        // ✅ إغلاق إشعار "جاري" فوراً قبل إظهار النتيجة
+        loading?.close();
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -311,17 +285,11 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   children: [
                     Icon(Icons.cloud_done, color: Colors.white),
                     SizedBox(width: 8),
-                    Text(
-                      '✅ تم سحب التغييرات بنجاح!',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                    Text('✅ تم سحب التغييرات بنجاح!', style: TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  '⬇️ استُلِم: $pulledCount سجل',
-                  style: const TextStyle(fontSize: 12),
-                ),
+                Text('⬇️ استُلِم: $pulledCount سجل', style: const TextStyle(fontSize: 12)),
               ],
             ),
             backgroundColor: Colors.green,
@@ -331,6 +299,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
     } catch (e) {
       debugPrint('❌ خطأ في سحب التغييرات: $e');
+
+      // ✅ إغلاق إشعار "جاري" فوراً عند الفشل
+      loading?.close();
 
       // ✅ تسجيل فشل العملية
       stopwatch.stop();
@@ -356,9 +327,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               children: [
                 const Icon(Icons.error_outline, color: Colors.white),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text('تعذر سحب التغييرات: $e'),
-                ),
+                Expanded(child: Text('تعذر سحب التغييرات: $e')),
               ],
             ),
             backgroundColor: Colors.red,
@@ -366,11 +335,29 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
     } finally {
-      _pullAnimationController.stop();
-      _pullAnimationController.reset();
+      // ✅ FIX: قد يكون الـ controller قد تم dispose أثناء await
+      // (مثلاً إذا غادر المستخدم الشاشة). استدعاء .stop() على controller
+      // مُدمَّر يُطلق "Null check operator used on a null value" لأن
+      // _ticker الداخلي يصبح null بعد dispose.
+      _safeStopAnimation(_pullAnimationController);
       if (mounted) {
         setState(() => _isPulling = false);
       }
+    }
+  }
+
+  /// ✅ إيقاف وإعادة ضبط AnimationController بشكل آمن ضد Dispose.
+  ///
+  /// بعد dispose()، الـ controller الداخلي _ticker يصبح null، واستدعاء
+  /// stop()/reset() يُطلق NullCheckOperatorException. نلتفّ حول ذلك
+  /// بـ try-catch + فحص mounted.
+  void _safeStopAnimation(AnimationController controller) {
+    if (!mounted) return;
+    try {
+      controller.stop();
+      controller.reset();
+    } catch (_) {
+      // الـ controller تم dispose — تجاهل
     }
   }
 
@@ -466,9 +453,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
       final smartEnabled = await smartSyncManager.isEnabled();
-      final isGoogleDriveSignedIn = ref.read(
-        smartSyncGoogleDriveSignInStatusProvider,
-      );
+      final isGoogleDriveSignedIn = ref.read(smartSyncGoogleDriveSignInStatusProvider);
       final appwriteEnabled = await _isAppwriteSyncEnabled();
 
       if (!smartEnabled && !appwriteEnabled) {
@@ -480,11 +465,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 children: [
                   Icon(Icons.info_outline, color: Colors.white),
                   SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'ℹ️ المزامنة معطلة - يرجى تفعيلها من الإعدادات',
-                    ),
-                  ),
+                  Expanded(child: Text('ℹ️ المزامنة معطلة - يرجى تفعيلها من الإعدادات')),
                 ],
               ),
               backgroundColor: Colors.orange,
@@ -513,41 +494,18 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         if (mounted) {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('لا توجد وجهات مزامنة متاحة حالياً'),
-              backgroundColor: Colors.orange,
-            ),
+            const SnackBar(content: Text('لا توجد وجهات مزامنة متاحة حالياً'), backgroundColor: Colors.orange),
           );
         }
         return;
       }
 
+      // ✅ إشعار دائم: يُحفظ مثيل ScaffoldMessengerState للتحكم بالإغلاق
+      // ✅ إشعار تحميل قابل للإغلاق برمجياً
+      LoadingSnackBar? pushLoading;
       if (mounted) {
         // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '⬆️ جاري رفع التغييرات إلى ${targets.join(' + ')}...',
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.blue,
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        pushLoading = LoadingSnackBar.show(context, message: '⬆️ جاري رفع التغييرات إلى ${targets.join(' + ')}...');
       }
 
       final results = <String, Map<String, dynamic>>{};
@@ -557,16 +515,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         try {
           // ✅ P1-3 fix: pushLocalChanges تُعيد عدد السجلات الفعلي
           final pushedCount = await appwriteSyncManager.pushLocalChanges();
-          results['Appwrite'] = {
-            'success': pushedCount >= 0,
-            'pushed': pushedCount,
-          };
+          results['Appwrite'] = {'success': pushedCount >= 0, 'pushed': pushedCount};
         } catch (e) {
-          results['Appwrite'] = {
-            'success': false,
-            'pushed': 0,
-            'error': e.toString(),
-          };
+          results['Appwrite'] = {'success': false, 'pushed': 0, 'error': e.toString()};
           debugPrint('❌ خطأ في رفع التغييرات إلى Appwrite: $e');
         }
       }
@@ -575,16 +526,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (smartEnabled && isGoogleDriveSignedIn) {
         try {
           final result = await smartSyncManager.pushLocalChanges();
-          results['Google Drive'] = {
-            'success': result,
-            'pushed': _pendingChangesCount,
-          };
+          results['Google Drive'] = {'success': result, 'pushed': _pendingChangesCount};
         } catch (e) {
-          results['Google Drive'] = {
-            'success': false,
-            'pushed': 0,
-            'error': e.toString(),
-          };
+          results['Google Drive'] = {'success': false, 'pushed': 0, 'error': e.toString()};
           debugPrint('❌ خطأ في رفع التغييرات إلى Google Drive: $e');
         }
       }
@@ -592,27 +536,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       // ✅ رفع إلى Appwrite الثانوي (إذا مُفعّل)
       // يستخدم نفس outbox الرئيسي — لا يسبب فقدان بيانات أو تكرار.
       // السجل يُحذف من outbox فقط بعد نجاح كلا الوجهتين.
-      if (SecondaryAppwriteConfig.isEnabled &&
-          SecondaryAppwriteConfig.isPushEnabled) {
+      if (SecondaryAppwriteConfig.isEnabled && SecondaryAppwriteConfig.isPushEnabled) {
         try {
-          final secondaryResult =
-              await SecondarySyncManager.instance.pushLocalChanges();
-          results['Appwrite الثانوي'] = {
-            'success': secondaryResult,
-            'pushed': _pendingChangesCount,
-          };
+          final secondaryResult = await SecondarySyncManager.instance.pushLocalChanges();
+          results['Appwrite الثانوي'] = {'success': secondaryResult, 'pushed': _pendingChangesCount};
           if (secondaryResult) {
-            ref
-                .read(secondarySyncProvider.notifier)
-                .updateLastSync(DateTime.now());
+            ref.read(secondarySyncProvider.notifier).updateLastSync(DateTime.now());
           }
           debugPrint('🔵 [Dashboard] Secondary sync push: $secondaryResult');
         } catch (e) {
-          results['Appwrite الثانوي'] = {
-            'success': false,
-            'pushed': 0,
-            'error': e.toString(),
-          };
+          results['Appwrite الثانوي'] = {'success': false, 'pushed': 0, 'error': e.toString()};
           debugPrint('❌ خطأ في رفع التغييرات إلى Appwrite الثانوي: $e');
         }
       }
@@ -652,6 +585,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         });
 
         if (failedTargets.isEmpty) {
+          // ✅ إغلاق إشعار "جاري الرفع" فوراً قبل إظهار النتيجة
+          pushLoading?.close();
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -664,28 +599,21 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                       Icon(Icons.cloud_done, color: Colors.white),
                       SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          '✅ تم رفع التغييرات بنجاح!',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                        child: Text('✅ تم رفع التغييرات بنجاح!', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '⬆️ أُرسل: $totalPushed',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  Text(
-                    '☁️ عبر: ${successTargets.join(' + ')}',
-                    style: const TextStyle(fontSize: 11),
-                  ),
+                  Text('⬆️ أُرسل: $totalPushed', style: const TextStyle(fontSize: 12)),
+                  Text('☁️ عبر: ${successTargets.join(' + ')}', style: const TextStyle(fontSize: 11)),
                 ],
               ),
               backgroundColor: Colors.green,
             ),
           );
         } else if (successTargets.isEmpty) {
+          // ✅ إغلاق إشعار "جاري الرفع" فوراً عند الفشل
+          pushLoading?.close();
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -693,22 +621,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 children: [
                   Icon(Icons.error_outline, color: Colors.white),
                   SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '❌ فشل رفع التغييرات',
-                    ),
-                  ),
+                  Expanded(child: Text('❌ فشل رفع التغييرات')),
                 ],
               ),
               backgroundColor: Colors.red,
-              action: SnackBarAction(
-                label: 'إعادة',
-                textColor: Colors.white,
-                onPressed: () => _pushChanges(context),
-              ),
+              action: SnackBarAction(label: 'إعادة', textColor: Colors.white, onPressed: () => _pushChanges(context)),
             ),
           );
         } else {
+          // ✅ إغلاق إشعار "جاري الرفع" فوراً للنتيجة الجزئية
+          pushLoading?.close();
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -724,19 +646,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '✅ نجح: ${successTargets.join(', ')}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  Text(
-                    '❌ فشل: ${failedTargets.join(', ')}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  if (totalPushed > 0)
-                    Text(
-                      '⬆️ أُرسل: $totalPushed',
-                      style: const TextStyle(fontSize: 11),
-                    ),
+                  Text('✅ نجح: ${successTargets.join(', ')}', style: const TextStyle(fontSize: 12)),
+                  Text('❌ فشل: ${failedTargets.join(', ')}', style: const TextStyle(fontSize: 12)),
+                  if (totalPushed > 0) Text('⬆️ أُرسل: $totalPushed', style: const TextStyle(fontSize: 11)),
                 ],
               ),
               backgroundColor: Colors.orange,
@@ -769,25 +681,21 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               children: [
                 Icon(Icons.error_outline, color: Colors.white),
                 SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'تعذر رفع التغييرات. تحقق من الاتصال وبيانات الدخول',
-                  ),
-                ),
+                Expanded(child: Text('تعذر رفع التغييرات. تحقق من الاتصال وبيانات الدخول')),
               ],
             ),
             backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'إعادة',
-              textColor: Colors.white,
-              onPressed: () => _pushChanges(context),
-            ),
+            action: SnackBarAction(label: 'إعادة', textColor: Colors.white, onPressed: () => _pushChanges(context)),
           ),
         );
       }
     } finally {
-      _pushAnimationController.stop();
-      _pushAnimationController.reset();
+      // ✅ FIX: قد يكون الـ controller قد تم dispose أثناء await
+      // (مثلاً إذا غادر المستخدم الشاشة أو ضغط back أثناء المزامنة).
+      // استدعاء .stop() على controller مُدمَّر يُطلق
+      // "Null check operator used on a null value" (animation_controller.dart:899)
+      // لأن _ticker الداخلي يصبح null بعد dispose.
+      _safeStopAnimation(_pushAnimationController);
       if (mounted) {
         setState(() => _isPushing = false);
       }
@@ -873,9 +781,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
 
     return Tooltip(
-      message: hasRemoteChanges
-          ? 'يوجد $pendingCount تحديث من السيرفر — اضغط للسحب'
-          : 'اضغط لسحب التغييرات من السيرفر',
+      message: hasRemoteChanges ? 'يوجد $pendingCount تحديث من السيرفر — اضغط للسحب' : 'اضغط لسحب التغييرات من السيرفر',
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -900,36 +806,23 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
-                onTap: pullEnabled
-                    ? () => _pullChanges(context)
-                    : null,
+                onTap: pullEnabled ? () => _pullChanges(context) : null,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (_isPulling)
                         RotationTransition(
                           turns: _pullAnimationController,
-                          child: Icon(
-                            buttonIcon,
-                            size: 14,
-                            color: Colors.white,
-                          ),
+                          child: Icon(buttonIcon, size: 14, color: Colors.white),
                         )
                       else
                         Icon(buttonIcon, size: 14, color: Colors.white),
                       const SizedBox(width: 6),
                       Text(
                         buttonText,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -948,26 +841,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   color: Colors.blue,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.withValues(alpha: 0.5),
-                      blurRadius: 6,
-                      spreadRadius: 1,
-                    ),
-                  ],
+                  boxShadow: [BoxShadow(color: Colors.blue.withValues(alpha: 0.5), blurRadius: 4)],
                 ),
-                constraints: const BoxConstraints(
-                  minWidth: 24,
-                  minHeight: 24,
-                ),
+                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                 child: Center(
                   child: Text(
                     pendingCount > 99 ? '99+' : '$pendingCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -1001,9 +881,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
 
     return Tooltip(
-      message: hasChanges
-          ? 'اضغط لرفع $_pendingChangesCount تغيير إلى السحابة'
-          : 'جميع التغييرات مرفوعة',
+      message: hasChanges ? 'اضغط لرفع $_pendingChangesCount تغيير إلى السحابة' : 'جميع التغييرات مرفوعة',
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -1028,36 +906,23 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
-                onTap: pushEnabled
-                    ? () => _pushChanges(context)
-                    : null,
+                onTap: pushEnabled ? () => _pushChanges(context) : null,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (_isPushing)
                         RotationTransition(
                           turns: _pushAnimationController,
-                          child: Icon(
-                            buttonIcon,
-                            size: 14,
-                            color: Colors.white,
-                          ),
+                          child: Icon(buttonIcon, size: 14, color: Colors.white),
                         )
                       else
                         Icon(buttonIcon, size: 14, color: Colors.white),
                       const SizedBox(width: 6),
                       Text(
                         buttonText,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -1076,28 +941,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   color: Colors.red,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.red.withValues(alpha: 0.5),
-                      blurRadius: 6,
-                      spreadRadius: 1,
-                    ),
-                  ],
+                  boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.5), blurRadius: 4)],
                 ),
-                constraints: const BoxConstraints(
-                  minWidth: 22,
-                  minHeight: 22,
-                ),
+                constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
                 child: Center(
                   child: Text(
-                    _pendingChangesCount > 99
-                        ? '99+'
-                        : '$_pendingChangesCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    _pendingChangesCount > 99 ? '99+' : '$_pendingChangesCount',
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -1109,9 +959,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   @override
   Widget build(BuildContext context) {
-    final isGoogleDriveSignedIn = ref.watch(
-      smartSyncGoogleDriveSignInStatusProvider,
-    );
+    final isGoogleDriveSignedIn = ref.watch(smartSyncGoogleDriveSignInStatusProvider);
 
     // ✅ تحسين: استخدام ValueListenableBuilder المدمج لكل من hasRemoteChanges و pendingRemoteChangesCount
     return ValueListenableBuilder<bool>(
@@ -1135,141 +983,138 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 final hasLocalChanges = _pendingChangesCount > 0;
 
                 return Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-            // صف الأزرار: زر السحب + زر الدفع
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // زر السحب من السيرفر - ✅ تحديث: تمرير عداد التغييرات + حالة البوّابة
-                _buildPullButton(hasRemoteChanges, isGoogleDriveSignedIn, pendingRemoteCount, gateBusy),
-                const SizedBox(width: 8),
-                // زر الدفع إلى السيرفر
-                _buildPushButton(hasLocalChanges, isGoogleDriveSignedIn, gateBusy),
-              ],
-            ),
-            const SizedBox(height: 6),
-            // شريط الحالة
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: _isPulling || _isPushing || externalBusy
-                    ? Colors.blue.shade50
-                    : (hasLocalChanges || hasRemoteChanges)
-                        ? Colors.orange.shade50
-                        : Colors.green.shade50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _isPulling || _isPushing || externalBusy
-                      ? Colors.blue.shade200
-                      : (hasLocalChanges || hasRemoteChanges)
-                          ? Colors.orange.shade200
-                          : Colors.green.shade200,
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    hasLocalChanges || hasRemoteChanges
-                        ? Icons.sync_problem
-                        : (_isPulling || _isPushing || externalBusy ? Icons.sync : Icons.check_circle),
-                    size: 12,
-                    color: _isPulling || _isPushing || externalBusy
-                        ? Colors.blue
-                        : (hasLocalChanges || hasRemoteChanges)
-                            ? Colors.orange
-                            : Colors.green,
-                  ),
-                  const SizedBox(width: 5),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _isPulling
-                            ? 'جاري السحب...'
-                            : _isPushing
-                                ? 'جاري الرفع...'
-                                : externalBusy
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // صف الأزرار: زر السحب + زر الدفع
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // زر السحب من السيرفر - ✅ تحديث: تمرير عداد التغييرات + حالة البوّابة
+                        _buildPullButton(hasRemoteChanges, isGoogleDriveSignedIn, pendingRemoteCount, gateBusy),
+                        const SizedBox(width: 8),
+                        // زر الدفع إلى السيرفر
+                        _buildPushButton(hasLocalChanges, isGoogleDriveSignedIn, gateBusy),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    // شريط الحالة
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: _isPulling || _isPushing || externalBusy
+                            ? Colors.blue.shade50
+                            : (hasLocalChanges || hasRemoteChanges)
+                            ? Colors.orange.shade50
+                            : Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: _isPulling || _isPushing || externalBusy
+                              ? Colors.blue.shade200
+                              : (hasLocalChanges || hasRemoteChanges)
+                              ? Colors.orange.shade200
+                              : Colors.green.shade200,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            hasLocalChanges || hasRemoteChanges
+                                ? Icons.sync_problem
+                                : (_isPulling || _isPushing || externalBusy ? Icons.sync : Icons.check_circle),
+                            size: 12,
+                            color: _isPulling || _isPushing || externalBusy
+                                ? Colors.blue
+                                : (hasLocalChanges || hasRemoteChanges)
+                                ? Colors.orange
+                                : Colors.green,
+                          ),
+                          const SizedBox(width: 5),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _isPulling
+                                    ? 'جاري السحب...'
+                                    : _isPushing
+                                    ? 'جاري الرفع...'
+                                    : externalBusy
                                     ? 'مزامنة من مصدر آخر (${gateState.operation ?? "?"})'
                                     : hasLocalChanges
-                                        ? '$_pendingChangesCount تغيير محلي معلق'
-                                        : hasRemoteChanges
-                                            ? '$pendingRemoteCount تحديث من السيرفر'
-                                            : 'محدّث',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _isPulling || _isPushing || externalBusy
-                              ? Colors.blue.shade900
-                              : (hasLocalChanges || hasRemoteChanges)
-                                  ? Colors.orange.shade900
-                                  : Colors.green.shade900,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (!_isPulling && !_isPushing && !externalBusy)
-                        FutureBuilder<SyncLogEntry?>(
-                          future: SyncLogDao(ref.read(databaseProvider)).getLastSync(),
-                          builder: (context, snapshot) {
-                            final lastSync = snapshot.data?.createdAt ?? _lastSyncTime;
-                            if (lastSync == null) {
-                              return const SizedBox.shrink();
-                            }
-                            return Text(
-                              'آخر مزامنة: ${_formatLastSyncTime(lastSync)}',
-                              style: TextStyle(
-                                fontSize: 8,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.normal,
-                              ),
-                            );
-                          },
-                        ),
-                      // ✅ مؤشر حالة Failover (Primary معطّل → قراءة من Secondary)
-                      Consumer(
-                        builder: (context, ref, _) {
-                          final health = ref.watch(appwriteHealthProvider);
-                          if (!health.shouldFailover) {
-                            return const SizedBox.shrink();
-                          }
-                          return Container(
-                            margin: const EdgeInsets.only(top: 2),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.shade100,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                  color: Colors.orange.shade400, width: 0.5),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.warning_amber,
-                                    size: 10, color: Colors.orange.shade800),
-                                const SizedBox(width: 3),
-                                Text(
-                                  'وضع طوارئ: قراءة من الثانوي',
-                                  style: TextStyle(
-                                    fontSize: 8,
-                                    color: Colors.orange.shade900,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                    ? '$_pendingChangesCount تغيير محلي معلق'
+                                    : hasRemoteChanges
+                                    ? '$pendingRemoteCount تحديث من السيرفر'
+                                    : 'محدّث',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: _isPulling || _isPushing || externalBusy
+                                      ? Colors.blue.shade900
+                                      : (hasLocalChanges || hasRemoteChanges)
+                                      ? Colors.orange.shade900
+                                      : Colors.green.shade900,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                              ],
-                            ),
-                          );
-                        },
+                              ),
+                              if (!_isPulling && !_isPushing && !externalBusy)
+                                FutureBuilder<SyncLogEntry?>(
+                                  future: SyncLogDao(ref.read(databaseProvider)).getLastSync(),
+                                  builder: (context, snapshot) {
+                                    final lastSync = snapshot.data?.createdAt ?? _lastSyncTime;
+                                    if (lastSync == null) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Text(
+                                      'آخر مزامنة: ${_formatLastSyncTime(lastSync)}',
+                                      style: TextStyle(
+                                        fontSize: 8,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.normal,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              // ✅ مؤشر حالة Failover (Primary معطّل → قراءة من Secondary)
+                              Consumer(
+                                builder: (context, ref, _) {
+                                  final health = ref.watch(appwriteHealthProvider);
+                                  if (!health.shouldFailover) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Container(
+                                    margin: const EdgeInsets.only(top: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade100,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: Colors.orange.shade400, width: 0.5),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.warning_amber, size: 10, color: Colors.orange.shade800),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          'وضع طوارئ: قراءة من الثانوي',
+                                          style: TextStyle(
+                                            fontSize: 8,
+                                            color: Colors.orange.shade900,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-              ],
+                    ),
+                  ],
                 );
               },
             );

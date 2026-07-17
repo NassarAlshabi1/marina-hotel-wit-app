@@ -86,9 +86,7 @@ class SyncSessionSummary {
         buf.writeln('  📁 ${entry.key} (${entry.value.length}):');
         for (final err in entry.value) {
           final type = err.isPermanent ? '☠️' : '⚠️';
-          final reason = err.reason.length > 150
-              ? '${err.reason.substring(0, 150)}...'
-              : err.reason;
+          final reason = err.reason.length > 150 ? '${err.reason.substring(0, 150)}...' : err.reason;
           buf.writeln('    $type [${err.localUuid}] $reason');
         }
       }
@@ -108,8 +106,7 @@ class SyncSessionSummary {
 class SecondarySyncTracker {
   SecondarySyncTracker._();
   static SecondarySyncTracker? _instance;
-  static SecondarySyncTracker get instance =>
-      _instance ??= SecondarySyncTracker._();
+  static SecondarySyncTracker get instance => _instance ??= SecondarySyncTracker._();
 
   /// أخطاء الجلسة الحالية
   final List<SyncErrorEntry> _currentSessionErrors = [];
@@ -134,14 +131,16 @@ class SecondarySyncTracker {
     bool isPermanent = false,
     int attempts = 1,
   }) {
-    _currentSessionErrors.add(SyncErrorEntry(
-      entity: entity,
-      localUuid: localUuid,
-      reason: reason,
-      isPermanent: isPermanent,
-      attempts: attempts,
-      timestamp: DateTime.now(),
-    ));
+    _currentSessionErrors.add(
+      SyncErrorEntry(
+        entity: entity,
+        localUuid: localUuid,
+        reason: reason,
+        isPermanent: isPermanent,
+        attempts: attempts,
+        timestamp: DateTime.now(),
+      ),
+    );
     if (kDebugMode) {
       debugPrint('🔴 [SyncTracker] $entity/$localUuid: $reason');
     }
@@ -193,8 +192,7 @@ class SecondarySyncTracker {
   }
 
   /// الأخطاء الدائمة (التي وصلت Dead)
-  List<SyncErrorEntry> get permanentErrors =>
-      _currentSessionErrors.where((e) => e.isPermanent).toList();
+  List<SyncErrorEntry> get permanentErrors => _currentSessionErrors.where((e) => e.isPermanent).toList();
 
   /// مسح سجل الأخطاء
   void clear() {

@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../adapters/adapter_registry.dart';
 import '../appwrite_logger.dart';
 import '../appwrite_sync_manager.dart';
+import '../crashlytics_service.dart';
 import '../local_db.dart';
 import '../secondary_appwrite_config.dart';
 import '../vector_clock_service.dart';
@@ -31,9 +34,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     if (sources != null && sources.isNotEmpty) {
       query.where(outbox.source.isIn(sources));
     }
-    return query
-        .map((row) => row.read(countExp) ?? 0)
-        .watchSingle();
+    return query.map((row) => row.read(countExp) ?? 0).watchSingle();
   }
 
   /// عدد عناصر outbox المعلقة/الفاشلة
@@ -75,33 +76,107 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return row.read(countExp) ?? 0;
   }
 
+  /// ✅ عدد السجلات المحلية غير المُسلّمة للرئيسي بغضّ النظر عن حالتها الحالية
+  /// (`pending` أو `processing` عالقة أو `failed`).
+  ///
+  /// الفرق الحرج عن `countPendingPushable`:
+  ///   - `countPendingPushable` يحسب فقط `processing_status = 'pending'`.
+  ///   - لكن عند الضغط على "رفع التغييرات" يحجز `takeBatch` السجلات فيحوّلها
+  ///     إلى `processing`. إذا انقطع الرفع (إنترنت بطيء / إغلاق التطبيق قبل
+  ///     الانتهاء) تبقى السجلات عالقة في `processing` → تختفي من عدّاد
+  ///     `countPendingPushable` → يظهر 0 → يظنّ المستخدم أن الرفع نجح بينما
+  ///     البيانات لم تصل الخادم فعلياً.
+  ///
+  /// هذا العدّاد يشمل كل ما لم يُسلَّم للرئيسي (`delivered_to_primary = 0`)
+  /// وليس في حالة نهائية (`completed`/`dead`)، فتبقى التغييرات العالقة مرئية
+  /// للمستخدم ويبقى زر الرفع مُفعّلاً لإعادة المحاولة.
+  Future<int> countUndeliveredToPrimary({List<String>? sources}) async {
+    final countExp = outbox.id.count();
+    final query = selectOnly(outbox)
+      ..addColumns([countExp])
+      ..where(outbox.processingStatus.isIn(['pending', 'processing', 'failed']))
+      ..where(outbox.deliveredToPrimary.equals(false));
+    if (sources != null && sources.isNotEmpty) {
+      query.where(outbox.source.isIn(sources));
+    }
+    final row = await query.getSingle();
+    return row.read(countExp) ?? 0;
+  }
+
+  /// ✅ يُعيد السجلات العالقة في `processing` و/أو الفاشلة `failed` إلى
+  /// `pending` قبل بدء رفع يدوي، بحيث يلتقطها `takeBatch` فعلياً.
+  ///
+  /// يُستدعى في بداية طور الرفع (`_pushAllEntities`). بما أن الرفع مُسلسَل
+  /// عبر قفل المزامنة، لا توجد دفعة أخرى قيد المعالجة في نفس اللحظة، لذا
+  /// إعادة كل السجلات `processing` الأقدم من [stuckAfter] آمنة تماماً وتضمن
+  /// عدم ضياع أي تغيير عالق من جلسة رفع سابقة انقطعت.
+  ///
+  /// [maxFailedAttempts] — لا نُعيد محاولة السجلات الفاشلة التي تجاوزت هذا الحدّ
+  /// حفاظاً على منطق التراجع الأسّي (backoff) للسجلات ذات الفشل المزمن؛ تلك
+  /// تُترك للمؤقّت الدوري `retryFailedWithBackoff`.
+  ///
+  /// يُرجع عدد السجلات التي أُعيدت إلى `pending`.
+  Future<int> reclaimForPush({Duration stuckAfter = const Duration(seconds: 30), int maxFailedAttempts = 5}) async {
+    final cutoff = (DateTime.now().millisecondsSinceEpoch ~/ 1000) - stuckAfter.inSeconds;
+
+    // 1) استعادة السجلات العالقة في 'processing' الأقدم من العتبة —
+    //    هذه هي جوهر الإصلاح: سجلات حُجزت لرفع انقطع ولم يكتمل.
+    final reclaimedProcessing =
+        await (update(outbox)..where(
+              (t) => t.processingStatus.equals('processing') & t.processingStartedAt.isSmallerOrEqualValue(cutoff),
+            ))
+            .write(
+              const OutboxCompanion(
+                processingStatus: Value('pending'),
+                processingStartedAt: Value(null),
+                processingWorker: Value(null),
+              ),
+            );
+
+    // 2) إعادة السجلات الفاشلة قليلة المحاولات إلى 'pending' (المستخدم يطلب
+    //    إعادة المحاولة صراحةً بالضغط على الزر). لا نلمس 'dead' (فشل دائم)
+    //    ولا السجلات كثيرة المحاولات (تُترك لمنطق backoff الدوري).
+    final reclaimedFailed =
+        await (update(outbox)
+              ..where((t) => t.processingStatus.equals('failed') & t.attempts.isSmallerOrEqualValue(maxFailedAttempts)))
+            .write(
+              const OutboxCompanion(
+                processingStatus: Value('pending'),
+                processingStartedAt: Value(null),
+                processingWorker: Value(null),
+              ),
+            );
+
+    return reclaimedProcessing + reclaimedFailed;
+  }
+
   Future<void> resetErrors() async {
-    await (update(outbox)
-          ..where(
-              (t) => t.processingStatus.equals('failed'),))
-        .write(const OutboxCompanion(
-      processingStatus: Value('pending'),
-      attempts: Value(0),
-      lastError: Value(null),
-      processingStartedAt: Value(null),
-      processingWorker: Value(null),
-    ),);
+    await (update(outbox)..where((t) => t.processingStatus.equals('failed'))).write(
+      const OutboxCompanion(
+        processingStatus: Value('pending'),
+        attempts: Value(0),
+        lastError: Value(null),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
+      ),
+    );
   }
 
   /// إعادة تعيين العناصر القديمة بدلاً من حذفها — لا نفقد بيانات outbox أبداً
   /// العناصر التي فشلت عدة مرات تُعاد إلى حالة pending لمحاولة رفعها لاحقاً
   Future<int> clearStale({int attemptsThreshold = 3}) async {
-    final rows = await (update(outbox)
-          ..where((t) =>
-              t.attempts.isBiggerOrEqualValue(attemptsThreshold) &
-              t.processingStatus.equals('failed'),))
-        .write(const OutboxCompanion(
-      processingStatus: Value('pending'),
-      attempts: Value(0),
-      lastError: Value(null),
-      processingStartedAt: Value(null),
-      processingWorker: Value(null),
-    ),);
+    final rows =
+        await (update(outbox)
+              ..where((t) => t.attempts.isBiggerOrEqualValue(attemptsThreshold) & t.processingStatus.equals('failed')))
+            .write(
+              const OutboxCompanion(
+                processingStatus: Value('pending'),
+                attempts: Value(0),
+                lastError: Value(null),
+                processingStartedAt: Value(null),
+                processingWorker: Value(null),
+              ),
+            );
     // تحديث إحصائيات الاستعلام بعد إعادة تعيين جماعي
     if (rows > 20) {
       await customSelect('ANALYZE outbox').get();
@@ -136,8 +211,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     // قبل أن يراه Secondary → فقدان بيانات.
     bool deliveredToSecondary = true;
     try {
-      deliveredToSecondary = !SecondaryAppwriteConfig.isEnabled ||
-          !SecondaryAppwriteConfig.isPushEnabled;
+      deliveredToSecondary = !SecondaryAppwriteConfig.isEnabled || !SecondaryAppwriteConfig.isPushEnabled;
     } catch (_) {
       // إذا فشل الوصول للإعدادات (SharedPreferences غير مهيأ)، نستخدم true (آمن)
     }
@@ -151,13 +225,16 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
       // ✅ البحث عن أي سجل موجود لنفس الكيان والـ UUID بغض النظر عن حالته
       // ('pending' أو 'processing') — هذا يمنع إنشاء سجل مكرر
-      final existing = await (select(outbox)
-            ..where((t) =>
-                t.entity.equals(entity) &
-                t.localUuid.equals(localUuid) &
-                t.processingStatus.isIn(const ['pending', 'processing']),)
-            ..limit(1))
-          .getSingleOrNull();
+      final existing =
+          await (select(outbox)
+                ..where(
+                  (t) =>
+                      t.entity.equals(entity) &
+                      t.localUuid.equals(localUuid) &
+                      t.processingStatus.isIn(const ['pending', 'processing']),
+                )
+                ..limit(1))
+              .getSingleOrNull();
 
       if (existing != null) {
         await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
@@ -174,32 +251,28 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
             deliveredToSecondary: Value(deliveredToSecondary),
             // ✅ إذا كان السجل في حالة 'processing'، نعيده لـ 'pending'
             // لأن البيانات تغيرت والسجل القديم لم يُعالج بعد
-            processingStatus: existing.processingStatus == 'processing'
-                ? const Value('pending')
-                : const Value.absent(),
-            processingStartedAt: existing.processingStatus == 'processing'
-                ? const Value(null)
-                : const Value.absent(),
-            processingWorker: existing.processingStatus == 'processing'
-                ? const Value(null)
-                : const Value.absent(),
+            processingStatus: existing.processingStatus == 'processing' ? const Value('pending') : const Value.absent(),
+            processingStartedAt: existing.processingStatus == 'processing' ? const Value(null) : const Value.absent(),
+            processingWorker: existing.processingStatus == 'processing' ? const Value(null) : const Value.absent(),
           ),
         );
         return existing.id;
       }
 
-      return into(outbox).insert(OutboxCompanion.insert(
-        entity: entity,
-        op: op,
-        localUuid: localUuid,
-        serverId: Value(serverId),
-        payload: payloadJson,
-        clientTs: clientTs,
-        idempotencyKey: Value(idempKey),
-        source: Value(source),
-        // ✅ إصلاح P0-1: ضبط delivered_to_secondary ديناميكياً
-        deliveredToSecondary: Value(deliveredToSecondary),
-      ),);
+      return into(outbox).insert(
+        OutboxCompanion.insert(
+          entity: entity,
+          op: op,
+          localUuid: localUuid,
+          serverId: Value(serverId),
+          payload: payloadJson,
+          clientTs: clientTs,
+          idempotencyKey: Value(idempKey),
+          source: Value(source),
+          // ✅ إصلاح P0-1: ضبط delivered_to_secondary ديناميكياً
+          deliveredToSecondary: Value(deliveredToSecondary),
+        ),
+      );
     });
   }
 
@@ -233,12 +306,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     }
 
     // ✅ بناء placeholders ديناميكياً (?, ?, ...) بدلاً من تمرير القيم مباشرة في SQL
-    final sourcePlaceholders = hasSources
-        ? safeSources.map((_) => '?').join(',')
-        : '';
-    final sourceCondition = hasSources
-        ? ' AND source IN ($sourcePlaceholders)'
-        : '';
+    final sourcePlaceholders = hasSources ? safeSources.map((_) => '?').join(',') : '';
+    final sourceCondition = hasSources ? ' AND source IN ($sourcePlaceholders)' : '';
 
     // ✅ Dual-delivery: نأخذ فقط السجلات غير المُسلّمة للرئيسي.
     // السجلات المُسلّمة للرئيسي فقط (وليس للثانوي) تُترك لـ SecondarySyncManager.
@@ -247,7 +316,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
     // ✅ تحديث ذري: حدّت الحالة مباشرة في استعلام واحد لمنع المعالجة المكررة
     // بدلاً من SELECT ثم UPDATE المنفصلين اللذين يسمحان بسباق البيانات
-    const priorityCase = "CASE WHEN entity = 'rooms' THEN 1 "
+    const priorityCase =
+        "CASE WHEN entity = 'rooms' THEN 1 "
         "WHEN entity = 'employees' THEN 2 "
         "WHEN entity = 'bookings' THEN 3 "
         "WHEN entity = 'payments' THEN 4 "
@@ -268,31 +338,36 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       Variable<int>(limit),
     ];
 
-    final claimed = await customSelect(
-      'UPDATE outbox SET processing_status = ?, processing_started_at = ?, processing_worker = ? '
-      'WHERE id IN ('
-      '  SELECT id FROM outbox WHERE processing_status = ?$primaryCondition$sourceCondition ORDER BY $priorityCase ASC, client_ts ASC LIMIT ? '
-      ') RETURNING *',
-      variables: variables,
-      readsFrom: {outbox},
-    ).map((row) => OutboxData(
-      id: row.read<int>('id'),
-      entity: row.read<String>('entity'),
-      op: row.read<String>('op'),
-      localUuid: row.read<String>('local_uuid'),
-      serverId: row.read<int?>('server_id'),
-      payload: row.read<String>('payload'),
-      clientTs: row.read<int>('client_ts'),
-      processingStatus: row.read<String>('processing_status'),
-      processingStartedAt: row.read<int?>('processing_started_at'),
-      processingWorker: row.read<String?>('processing_worker'),
-      lastError: row.read<String?>('last_error'),
-      attempts: row.read<int>('attempts'),
-      idempotencyKey: row.read<String?>('idempotency_key'),
-      source: row.read<String>('source'),
-      deliveredToPrimary: row.read<bool>('delivered_to_primary'),
-      deliveredToSecondary: row.read<bool>('delivered_to_secondary'),
-    ),).get();
+    final claimed =
+        await customSelect(
+              'UPDATE outbox SET processing_status = ?, processing_started_at = ?, processing_worker = ? '
+              'WHERE id IN ('
+              '  SELECT id FROM outbox WHERE processing_status = ?$primaryCondition$sourceCondition ORDER BY $priorityCase ASC, client_ts ASC LIMIT ? '
+              ') RETURNING *',
+              variables: variables,
+              readsFrom: {outbox},
+            )
+            .map(
+              (row) => OutboxData(
+                id: row.read<int>('id'),
+                entity: row.read<String>('entity'),
+                op: row.read<String>('op'),
+                localUuid: row.read<String>('local_uuid'),
+                serverId: row.read<int?>('server_id'),
+                payload: row.read<String>('payload'),
+                clientTs: row.read<int>('client_ts'),
+                processingStatus: row.read<String>('processing_status'),
+                processingStartedAt: row.read<int?>('processing_started_at'),
+                processingWorker: row.read<String?>('processing_worker'),
+                lastError: row.read<String?>('last_error'),
+                attempts: row.read<int>('attempts'),
+                idempotencyKey: row.read<String?>('idempotency_key'),
+                source: row.read<String>('source'),
+                deliveredToPrimary: row.read<bool>('delivered_to_primary'),
+                deliveredToSecondary: row.read<bool>('delivered_to_secondary'),
+              ),
+            )
+            .get();
 
     return claimed;
   }
@@ -314,31 +389,14 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       final record = await (select(outbox)..where((t) => t.id.equals(id))).getSingleOrNull();
       if (record != null) {
         // تسجيل الخطأ في AppwriteLogger
-        AppwriteLogger().log(
-          '❌ فشل في Outbox',
-          level: LogLevel.error,
-          tag: 'OUTBOX_ERROR',
-          error: message,
-        );
+        AppwriteLogger().log('❌ فشل في Outbox', level: LogLevel.error, tag: 'OUTBOX_ERROR', error: message);
 
         // تفاصيل أكثر
-        AppwriteLogger().log(
-          '   الجدول: ${record.entity}',
-          level: LogLevel.error,
-          tag: 'OUTBOX_ERROR',
-        );
+        AppwriteLogger().log('   الجدول: ${record.entity}', level: LogLevel.error, tag: 'OUTBOX_ERROR');
 
-        AppwriteLogger().log(
-          '   العملية: ${record.op}',
-          level: LogLevel.error,
-          tag: 'OUTBOX_ERROR',
-        );
+        AppwriteLogger().log('   العملية: ${record.op}', level: LogLevel.error, tag: 'OUTBOX_ERROR');
 
-        AppwriteLogger().log(
-          '   عدد المحاولات: $attempts',
-          level: LogLevel.error,
-          tag: 'OUTBOX_ERROR',
-        );
+        AppwriteLogger().log('   عدد المحاولات: $attempts', level: LogLevel.error, tag: 'OUTBOX_ERROR');
       }
     } catch (e) {
       // تجاهل أخطاء القراءة
@@ -460,8 +518,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<void> _markDelivered(int id, {required bool toPrimary}) async {
     await transaction(() async {
       // قراءة الحالة الحالية
-      final record = await (select(outbox)..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
+      final record = await (select(outbox)..where((t) => t.id.equals(id))).getSingleOrNull();
       if (record == null) return; // السجل محذوف بالفعل
 
       // تحديث العلامة المناسبة
@@ -482,8 +539,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       await (update(outbox)..where((t) => t.id.equals(id))).write(companion);
 
       // إعادة القراءة بعد التحديث للحصول على القيم الجديدة
-      final updated = await (select(outbox)..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
+      final updated = await (select(outbox)..where((t) => t.id.equals(id))).getSingleOrNull();
       if (updated == null) return;
 
       // ✅ حذف السجل فقط إذا تم تسليمه لكلا الوجهتين
@@ -514,11 +570,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// يضع علامة "غير مُسلّم للثانوي" على جميع السجلات المحلية القادمة.
   /// تُستدعى عند تفعيل Secondary لأول مرة — نريد إرسال كل السجلات القادمة.
   Future<int> markAllLocalAsUndeliveredToSecondary() async {
-    final count = await (update(outbox)..where((t) => t.source.equals('local'))).write(
-      const OutboxCompanion(
-        deliveredToSecondary: Value(false),
-      ),
-    );
+    final count = await (update(
+      outbox,
+    )..where((t) => t.source.equals('local'))).write(const OutboxCompanion(deliveredToSecondary: Value(false)));
     // ✅ إصلاح P1-2 (2026-06-28): تنظيف السجلات المُكتملة لكلا الوجهتين
     // بعد تحديث العلم، قد تكون هناك سجلات بـ delivered_to_primary=true
     // و delivered_to_secondary=true الآن — يجب حذفها لمنع التراكم.
@@ -529,11 +583,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// يضع علامة "مُسلّم للثانوي" على جميع السجلات المحلية.
   /// تُستدعى عند تعطيل Secondary — لا نريد إرسال أي شيء للثانوي.
   Future<int> markAllLocalAsDeliveredToSecondary() async {
-    final count = await (update(outbox)..where((t) => t.source.equals('local'))).write(
-      const OutboxCompanion(
-        deliveredToSecondary: Value(true),
-      ),
-    );
+    final count = await (update(
+      outbox,
+    )..where((t) => t.source.equals('local'))).write(const OutboxCompanion(deliveredToSecondary: Value(true)));
     // ✅ إصلاح P1-2 (2026-06-28): تنظيف السجلات المُكتملة لكلا الوجهتين
     await _cleanupFullyDeliveredRecords();
     return count;
@@ -542,11 +594,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// ✅ حذف السجلات التي تم تسليمها لكلا الوجهتين (Primary + Secondary)
   /// تُستدعى بعد bulk flag operations لمنع تراكم السجلات المُكتملة.
   Future<int> _cleanupFullyDeliveredRecords() async {
-    return (delete(outbox)
-          ..where((t) =>
-              t.deliveredToPrimary.equals(true) &
-              t.deliveredToSecondary.equals(true)))
-        .go();
+    return (delete(outbox)..where((t) => t.deliveredToPrimary.equals(true) & t.deliveredToSecondary.equals(true))).go();
   }
 
   Future<void> markFailed(List<int> ids) async {
@@ -563,60 +611,59 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   Future<void> retryFailed() async {
-    await (update(outbox)
-          ..where((t) => t.processingStatus.equals('failed')))
-        .write(const OutboxCompanion(
-      processingStatus: Value('pending'),
-      processingStartedAt: Value(null),
-      processingWorker: Value(null),
-    ),);
+    await (update(outbox)..where((t) => t.processingStatus.equals('failed'))).write(
+      const OutboxCompanion(
+        processingStatus: Value('pending'),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
+      ),
+    );
   }
-
 
   /// إعادة محاولة العناصر الفاشلة مع تأخير أسي (Exponential Backoff)
   /// [maxAttempts] - الحد الأقصى للمحاولات قبل الانتظار
   /// [backoffMinutes] - عدد الدقائق للانتظار قبل إعادة محاولة العناصر عالية المحاولات
-  Future<int> retryFailedWithBackoff({
-    int maxAttempts = 5,
-    int backoffMinutes = 30,
-  }) async {
+  Future<int> retryFailedWithBackoff({int maxAttempts = 5, int backoffMinutes = 30}) async {
     final cutoff = (DateTime.now().millisecondsSinceEpoch ~/ 1000) - (backoffMinutes * 60);
 
     // عناصر قليلة المحاولات → retry فوراً
-    final lowAttempts = await (update(outbox)
-          ..where((t) =>
-              t.processingStatus.equals('failed') &
-              t.attempts.isSmallerOrEqualValue(maxAttempts)))
-        .write(const OutboxCompanion(
-      processingStatus: Value('pending'),
-      processingStartedAt: Value(null),
-      processingWorker: Value(null),
-    ),);
+    final lowAttempts =
+        await (update(
+          outbox,
+        )..where((t) => t.processingStatus.equals('failed') & t.attempts.isSmallerOrEqualValue(maxAttempts))).write(
+          const OutboxCompanion(
+            processingStatus: Value('pending'),
+            processingStartedAt: Value(null),
+            processingWorker: Value(null),
+          ),
+        );
 
     // عناصر كثيرة المحاولات → انتظر backoffMinutes قبل إعادة المحاولة
-    final highAttempts = await (update(outbox)
-          ..where((t) =>
-              t.processingStatus.equals('failed') &
-              t.attempts.isBiggerThanValue(maxAttempts) &
-              t.clientTs.isSmallerOrEqualValue(cutoff)))
-        .write(const OutboxCompanion(
-      processingStatus: Value('pending'),
-      processingStartedAt: Value(null),
-      processingWorker: Value(null),
-    ),);
+    final highAttempts =
+        await (update(outbox)..where(
+              (t) =>
+                  t.processingStatus.equals('failed') &
+                  t.attempts.isBiggerThanValue(maxAttempts) &
+                  t.clientTs.isSmallerOrEqualValue(cutoff),
+            ))
+            .write(
+              const OutboxCompanion(
+                processingStatus: Value('pending'),
+                processingStartedAt: Value(null),
+                processingWorker: Value(null),
+              ),
+            );
 
     return lowAttempts + highAttempts;
   }
-  Future<int> cleanupStuckEntries({
-    Duration timeout = const Duration(minutes: 5),
-  }) async {
-    final cutoff =
-        (DateTime.now().millisecondsSinceEpoch ~/ 1000) - timeout.inSeconds;
-    final stuck = await (select(outbox)
-          ..where((t) =>
-              t.processingStatus.equals('processing') &
-              t.processingStartedAt.isSmallerOrEqualValue(cutoff),))
-        .get();
+
+  Future<int> cleanupStuckEntries({Duration timeout = const Duration(minutes: 5)}) async {
+    final cutoff = (DateTime.now().millisecondsSinceEpoch ~/ 1000) - timeout.inSeconds;
+    final stuck =
+        await (select(outbox)..where(
+              (t) => t.processingStatus.equals('processing') & t.processingStartedAt.isSmallerOrEqualValue(cutoff),
+            ))
+            .get();
 
     if (stuck.isEmpty) {
       return 0;
@@ -633,16 +680,11 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return ids.length;
   }
 
-  Future<int> cleanupCompleted({
-    Duration olderThan = const Duration(days: 7),
-  }) async {
-    final cutoff =
-        (DateTime.now().millisecondsSinceEpoch ~/ 1000) - olderThan.inSeconds;
-    final rows = await (delete(outbox)
-          ..where((t) =>
-              t.processingStatus.equals('completed') &
-              t.clientTs.isSmallerOrEqualValue(cutoff),))
-        .go();
+  Future<int> cleanupCompleted({Duration olderThan = const Duration(days: 7)}) async {
+    final cutoff = (DateTime.now().millisecondsSinceEpoch ~/ 1000) - olderThan.inSeconds;
+    final rows = await (delete(
+      outbox,
+    )..where((t) => t.processingStatus.equals('completed') & t.clientTs.isSmallerOrEqualValue(cutoff))).go();
     // تحديث إحصائيات الاستعلام بعد الحذف الجماعي
     if (rows > 50) {
       await customSelect('ANALYZE outbox').get();
@@ -675,13 +717,13 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       final end = i + batchSize > uuids.length ? uuids.length : i + batchSize;
       final chunk = uuids.sublist(i, end);
       if (entity != null) {
-        totalRemoved += await (delete(outbox)
-              ..where((t) => t.localUuid.isIn(chunk) & t.entity.equals(entity) & t.source.isIn(effectiveSources)))
-            .go();
+        totalRemoved += await (delete(
+          outbox,
+        )..where((t) => t.localUuid.isIn(chunk) & t.entity.equals(entity) & t.source.isIn(effectiveSources))).go();
       } else {
-        totalRemoved += await (delete(outbox)
-              ..where((t) => t.localUuid.isIn(chunk) & t.source.isIn(effectiveSources)))
-            .go();
+        totalRemoved += await (delete(
+          outbox,
+        )..where((t) => t.localUuid.isIn(chunk) & t.source.isIn(effectiveSources))).go();
       }
     }
     return totalRemoved;
@@ -697,12 +739,11 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<List<ConflictRecord>> getConflicts({
     Future<Map<String, dynamic>?> Function(String entity, String localUuid)? fetchRemote,
   }) async {
-    final failed = await (select(outbox)
-          ..where((t) =>
-              t.processingStatus.equals('failed') &
-              t.lastError.isNotNull(),)
-          ..orderBy([(t) => OrderingTerm.desc(t.clientTs)]))
-        .get();
+    final failed =
+        await (select(outbox)
+              ..where((t) => t.processingStatus.equals('failed') & t.lastError.isNotNull())
+              ..orderBy([(t) => OrderingTerm.desc(t.clientTs)]))
+            .get();
 
     final results = <ConflictRecord>[];
     for (final entry in failed) {
@@ -716,25 +757,23 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         }
       }
       remote ??= payload;
-      results.add(ConflictRecord(
-        id: entry.id,
-        uuid: entry.localUuid,
-        targetTable: entry.entity,
-        localPayload: payload,
-        remotePayload: remote,
-        lastError: entry.lastError ?? 'Unknown conflict',
-        timestamp: DateTime.fromMillisecondsSinceEpoch(entry.clientTs * 1000),
-      ));
+      results.add(
+        ConflictRecord(
+          id: entry.id,
+          uuid: entry.localUuid,
+          targetTable: entry.entity,
+          localPayload: payload,
+          remotePayload: remote,
+          lastError: entry.lastError ?? 'Unknown conflict',
+          timestamp: DateTime.fromMillisecondsSinceEpoch(entry.clientTs * 1000),
+        ),
+      );
     }
     return results;
   }
 
   /// حل تعارض محدد — يُعيد العنصر إلى pending لرفعه فعلياً لاحقاً
-  Future<void> resolveConflict(
-    int id,
-    Map<String, dynamic> resolvedData, {
-    required String resolution,
-  }) async {
+  Future<void> resolveConflict(int id, Map<String, dynamic> resolvedData, {required String resolution}) async {
     // تحديث السجل ليعكس الحل وإعادته إلى pending ليُرفع فعلياً
     await (update(outbox)..where((t) => t.id.equals(id))).write(
       OutboxCompanion(
@@ -753,18 +792,16 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// لن تُعالج أبداً وستبطئ المزامنة في كل دورة.
   /// [maxAttempts] — الحد الأقصى لمحاولات الفشل قبل الحذف
   /// [olderThan] — لا يحذف سجلات أحدث من هذه المدة (حماية من حذف سجلات جديدة)
-  Future<int> cleanupOrphanedEntries({
-    int maxAttempts = 10,
-    Duration olderThan = const Duration(days: 3),
-  }) async {
-    final cutoff =
-        (DateTime.now().millisecondsSinceEpoch ~/ 1000) - olderThan.inSeconds;
-    final rows = await (delete(outbox)
-          ..where((t) =>
-              t.processingStatus.equals('failed') &
-              t.attempts.isBiggerOrEqualValue(maxAttempts) &
-              t.clientTs.isSmallerOrEqualValue(cutoff),))
-        .go();
+  Future<int> cleanupOrphanedEntries({int maxAttempts = 10, Duration olderThan = const Duration(days: 3)}) async {
+    final cutoff = (DateTime.now().millisecondsSinceEpoch ~/ 1000) - olderThan.inSeconds;
+    final rows =
+        await (delete(outbox)..where(
+              (t) =>
+                  t.processingStatus.equals('failed') &
+                  t.attempts.isBiggerOrEqualValue(maxAttempts) &
+                  t.clientTs.isSmallerOrEqualValue(cutoff),
+            ))
+            .go();
     return rows;
   }
 
@@ -775,17 +812,13 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// هذه الدالة تُزيل سجلات outbox للكيانات المحذوفة فوراً بعد التأكد
   /// أن الحذف تم رفعه للسيرفر بنجاح (حالة completed).
   /// [entityDeletedAtMap] — خريطة من localUuid → deletedAt للكيانات المحذوفة
-  Future<int> cleanupForSoftDeletedEntities(
-    Map<String, int?> entityDeletedAtMap,
-  ) async {
+  Future<int> cleanupForSoftDeletedEntities(Map<String, int?> entityDeletedAtMap) async {
     if (entityDeletedAtMap.isEmpty) return 0;
     final uuids = entityDeletedAtMap.keys.toList();
     // حذف سجلات outbox المُكتملة للكيانات المحذوفة
-    final rows = await (delete(outbox)
-          ..where((t) =>
-              t.localUuid.isIn(uuids) &
-              t.processingStatus.equals('completed')))
-        .go();
+    final rows = await (delete(
+      outbox,
+    )..where((t) => t.localUuid.isIn(uuids) & t.processingStatus.equals('completed'))).go();
     return rows;
   }
 
@@ -798,15 +831,11 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     const batchSize = 500;
     int totalRemoved = 0;
     for (var i = 0; i < missingLocalUuids.length; i += batchSize) {
-      final end = i + batchSize > missingLocalUuids.length
-          ? missingLocalUuids.length
-          : i + batchSize;
+      final end = i + batchSize > missingLocalUuids.length ? missingLocalUuids.length : i + batchSize;
       final chunk = missingLocalUuids.sublist(i, end);
-      totalRemoved += await (delete(outbox)
-            ..where((t) =>
-                t.localUuid.isIn(chunk) &
-                t.processingStatus.isIn(['pending', 'failed'])))
-          .go();
+      totalRemoved += await (delete(
+        outbox,
+      )..where((t) => t.localUuid.isIn(chunk) & t.processingStatus.isIn(['pending', 'failed']))).go();
     }
     return totalRemoved;
   }
@@ -850,21 +879,23 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
     bool deliveredToSecondary = true;
     try {
-      deliveredToSecondary = !SecondaryAppwriteConfig.isEnabled ||
-          !SecondaryAppwriteConfig.isPushEnabled;
+      deliveredToSecondary = !SecondaryAppwriteConfig.isEnabled || !SecondaryAppwriteConfig.isPushEnabled;
     } catch (_) {}
 
     if (source == 'local' && op != 'delete') {
       await _bumpVectorClockForLocalWrite(entity, localUuid);
     }
 
-    final existing = await (select(outbox)
-          ..where((t) =>
-              t.entity.equals(entity) &
-              t.localUuid.equals(localUuid) &
-              t.processingStatus.isIn(const ['pending', 'processing']),)
-          ..limit(1))
-        .getSingleOrNull();
+    final existing =
+        await (select(outbox)
+              ..where(
+                (t) =>
+                    t.entity.equals(entity) &
+                    t.localUuid.equals(localUuid) &
+                    t.processingStatus.isIn(const ['pending', 'processing']),
+              )
+              ..limit(1))
+            .getSingleOrNull();
 
     if (existing != null) {
       await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
@@ -876,34 +907,36 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           serverId: Value(serverId),
           source: Value(source),
           deliveredToSecondary: Value(deliveredToSecondary),
-          processingStatus: existing.processingStatus == 'processing'
-              ? const Value('pending')
-              : const Value.absent(),
-          processingStartedAt: existing.processingStatus == 'processing'
-              ? const Value(null)
-              : const Value.absent(),
-          processingWorker: existing.processingStatus == 'processing'
-              ? const Value(null)
-              : const Value.absent(),
+          processingStatus: existing.processingStatus == 'processing' ? const Value('pending') : const Value.absent(),
+          processingStartedAt: existing.processingStatus == 'processing' ? const Value(null) : const Value.absent(),
+          processingWorker: existing.processingStatus == 'processing' ? const Value(null) : const Value.absent(),
         ),
       );
       return existing.id;
     }
 
-    return into(outbox).insert(OutboxCompanion.insert(
-      entity: entity,
-      op: op,
-      localUuid: localUuid,
-      serverId: Value(serverId),
-      payload: payloadJson,
-      clientTs: clientTs,
-      idempotencyKey: Value(idempKey),
-      source: Value(source),
-      deliveredToSecondary: Value(deliveredToSecondary),
-    ));
+    return into(outbox).insert(
+      OutboxCompanion.insert(
+        entity: entity,
+        op: op,
+        localUuid: localUuid,
+        serverId: Value(serverId),
+        payload: payloadJson,
+        clientTs: clientTs,
+        idempotencyKey: Value(idempKey),
+        source: Value(source),
+        deliveredToSecondary: Value(deliveredToSecondary),
+      ),
+    );
   }
 
-  /// يُستدعى من merge() عند source='local' لضمان كشف كل التعديلات المتزامنة
+  /// يُستدعى من merge() عند source='local' لضمان كشف كل التعديلات المتزامنة.
+  ///
+  /// ✅ تحسين: استبدال silent catch بـ proper logging + Crashlytics reporting.
+  /// سابقاً كان أي خطأ (SQL فشل، JSON تالف، etc.) يُتجاهل بصمت، مما يجعل
+  /// debugging مستحيلاً ويُخفي مشاكل الـ vector clock في الإنتاج.
+  /// الآن نُسجّل الخطأ محلياً + نُرسله إلى Crashlytics (low severity لأن
+  /// الـ VC bump ليس حرجاً لدرجة تعطيل الكتابة، لكنه مهم لكشف التعارضات).
   Future<void> _bumpVectorClockForLocalWrite(String entity, String localUuid) async {
     final tableName = _entityTableMap[entity];
     if (tableName == null) return;
@@ -912,30 +945,56 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     if (deviceId == null || deviceId.isEmpty) return;
 
     try {
-      final rows = await attachedDatabase.customSelect(
-        'SELECT vector_clock AS vc FROM $tableName WHERE local_uuid = ? LIMIT 1',
-        variables: [Variable<String>(localUuid)],
-      ).get();
+      final rows = await attachedDatabase
+          .customSelect(
+            'SELECT vector_clock AS vc FROM $tableName WHERE local_uuid = ? LIMIT 1',
+            variables: [Variable<String>(localUuid)],
+          )
+          .get();
 
       if (rows.isEmpty) return;
 
       final currentVcStr = (rows.first.data['vc'] as String?) ?? '{}';
       final vc = VectorClock.fromString(currentVcStr);
+
+      // ✅ مراقبة: تسجيل السجلات ذات الـ VC الفارغ لإحصائيات الصحة
+      if (vc.isEmpty) {
+        developer.log(
+          'VC bump: initializing empty vector clock for $entity/$localUuid '
+          '(first local edit on device $deviceId)',
+          name: 'VectorClock',
+        );
+      }
+
       vc.increment(deviceId);
 
-      await attachedDatabase.customStatement(
-        'UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?',
-        [vc.toString(), localUuid],
+      await attachedDatabase.customStatement('UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?', [
+        vc.toString(),
+        localUuid,
+      ]);
+    } catch (e, st) {
+      // ✅ تحسين: تسجيل الخطأ بدلاً من التجاهل الصامت
+      // الـ VC bump ليس حرجاً لدرجة تعطيل الكتابة، لكنه مهم لكشف التعارضات
+      // نسجّل محلياً + نُرسل إلى Crashlytics بـ low severity
+      developer.log('⚠️ VC bump failed for $entity/$localUuid: $e', name: 'VectorClock', error: e, stackTrace: st);
+      debugPrint('⚠️ Vector clock bump failed for $entity (uuid=$localUuid): $e');
+
+      // إرسال إلى Crashlytics بدون انتظار (fire-and-forget)
+      unawaited(
+        CrashlyticsService.instance.recordSyncError(
+          operation: 'vc_bump_failed',
+          error: e.toString(),
+          stackTrace: st,
+          severity: CrashlyticsSeverity.warning,
+          context: {'entity': entity, 'local_uuid': localUuid, 'device_id': deviceId},
+        ),
       );
-    } catch (_) {
-      // تجاهل الأخطاء — VC bump ليس حرجاً لدرجة تعطيل الكتابة
     }
   }
 }
 
 /// سجل يمثل تعارض في البيانات
 class ConflictRecord {
-
   ConflictRecord({
     required this.id,
     required this.uuid,
@@ -975,4 +1034,6 @@ const _entityTableMap = <String, String>{
   'price_adjustments': 'price_adjustments',
   'payment_voids': 'payment_voids',
   'salary_carry_over_logs': 'salary_carry_over_logs',
+  // ✅ app_users — للمزامنة وحل التعارضات عبر vector clock
+  'app_users': 'app_users',
 };

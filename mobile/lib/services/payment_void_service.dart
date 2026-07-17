@@ -39,10 +39,11 @@ class PaymentVoidService {
     try {
       return await _db.transaction(() async {
         // 1) جلب الدفعة الأصلية
-        final payment = await (_db.select(_db.payments)
-              ..where((t) => t.localUuid.equals(paymentUuid))
-              ..limit(1))
-            .getSingleOrNull();
+        final payment =
+            await (_db.select(_db.payments)
+                  ..where((t) => t.localUuid.equals(paymentUuid))
+                  ..limit(1))
+                .getSingleOrNull();
 
         if (payment == null) {
           debugPrint('⚠️ PaymentVoid: الدفعة $paymentUuid غير موجودة');
@@ -64,10 +65,11 @@ class PaymentVoidService {
 
         // إذا لم يكن bookingUuid متوفراً، نحاول حله من bookingLocalId
         if (bookingUuid.isEmpty && payment.bookingLocalId != null) {
-          final booking = await (_db.select(_db.bookings)
-                ..where((t) => t.id.equals(payment.bookingLocalId!))
-                ..limit(1))
-              .getSingleOrNull();
+          final booking =
+              await (_db.select(_db.bookings)
+                    ..where((t) => t.id.equals(payment.bookingLocalId!))
+                    ..limit(1))
+                  .getSingleOrNull();
           if (booking != null) {
             bookingUuid = booking.localUuid;
           }
@@ -85,7 +87,9 @@ class PaymentVoidService {
         }
 
         // 2) إنشاء سجل PaymentVoid
-        await _db.into(_db.paymentVoids).insert(
+        await _db
+            .into(_db.paymentVoids)
+            .insert(
               PaymentVoidsCompanion.insert(
                 localUuid: voidUuid,
                 originalPaymentUuid: paymentUuid,
@@ -101,24 +105,23 @@ class PaymentVoidService {
                 updatedAt: nowEpoch,
                 lastModified: nowEpoch,
                 origin: const drift.Value('local'),
-                deviceId: drift.Value(
-                    AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+                deviceId: drift.Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
                 approvedBy: drift.Value(approvedBy),
               ),
             );
 
         // 3) تحديث الدفعة الأصلية: isVoided=true + voidedAt + voidedBy
         // ✅ bump version لتفعيل OCC عند الدفع لاحقاً
-        await (_db.update(_db.payments)
-              ..where((t) => t.localUuid.equals(paymentUuid)))
-            .write(PaymentsCompanion(
-          isVoided: const drift.Value(true),
-          voidedAt: drift.Value(nowEpoch),
-          voidedBy: drift.Value(voidedBy),
-          updatedAt: drift.Value(nowEpoch),
-          lastModified: drift.Value(nowEpoch),
-          version: drift.Value(payment.version + 1),
-        ));
+        await (_db.update(_db.payments)..where((t) => t.localUuid.equals(paymentUuid))).write(
+          PaymentsCompanion(
+            isVoided: const drift.Value(true),
+            voidedAt: drift.Value(nowEpoch),
+            voidedBy: drift.Value(voidedBy),
+            updatedAt: drift.Value(nowEpoch),
+            lastModified: drift.Value(nowEpoch),
+            version: drift.Value(payment.version + 1),
+          ),
+        );
 
         // 4) تسجيل PaymentVoid في outbox للمزامنة
         await _outboxDao.merge(
@@ -167,10 +170,11 @@ class PaymentVoidService {
 
   /// التحقق هل الدفعة مُلغاة
   Future<bool> isPaymentVoided(String paymentUuid) async {
-    final payment = await (_db.select(_db.payments)
-          ..where((t) => t.localUuid.equals(paymentUuid))
-          ..limit(1))
-        .getSingleOrNull();
+    final payment =
+        await (_db.select(_db.payments)
+              ..where((t) => t.localUuid.equals(paymentUuid))
+              ..limit(1))
+            .getSingleOrNull();
     return payment?.isVoided ?? false;
   }
 

@@ -1,0 +1,86 @@
+# .gitleaks.toml
+# تكوين Gitleaks لكشف الأسرار المُسربة
+# الوثائق: https://github.com/gitleaks/gitleaks
+
+title = "Marina Hotel Gitleaks Config"
+
+[extend]
+# استخدام القواعد الافتراضية + قواعد مخصصة
+useDefault = true
+
+# ═══════════════════════════════════════════════════════════════
+#  Global allowlist — ملفات/مسارات لا تُفحص
+# ═══════════════════════════════════════════════════════════════
+[allowlist]
+description = "Global allowlist"
+paths = [
+  '''node_modules/''',
+  '''.dart_tool/''',
+  '''build/''',
+  '''.git/''',
+  '''.*\.lock''',
+  '''package-lock\.json''',
+  '''pubspec\.lock''',
+  # google-services.json يحتوي Google API key عام (safe by design)
+  # Firebase Android config يجب أن يُcommitted للمستودع
+  '''google-services\.json''',
+  # ملفات الاختبارات قد تحتوي tokens وهمية
+  '''test/.*''',
+  '''.*_test\.dart''',
+  # ملفات الأمثلة
+  '''example/.*''',
+  # README قد يحتوي placeholders
+  '''README.*''',
+  '''CHANGELOG.*''',
+]
+
+# أنماط ليست أسراراً (placeholders معروفة)
+regexes = [
+  '''your_.*_here''',
+  '''xxx+''',
+  '''placeholder''',
+  '''example''',
+  '''test.*token''',
+  '''sample''',
+  '''dummy''',
+]
+
+# ═══════════════════════════════════════════════════════════════
+#  Custom rules — قواعد إضافية لمشروع Marina Hotel
+# ═══════════════════════════════════════════════════════════════
+
+[[rules]]
+id = "marina-appwrite-api-key"
+description = "Appwrite API Key"
+regex = '''standard_[a-zA-Z0-9]{40,}'''
+tags = ["appwrite", "api-key"]
+
+[[rules]]
+id = "marina-firebase-server-key"
+description = "Firebase Server Key (Legacy)"
+regex = '''AAAA[a-zA-Z0-9_\\-]{35}[a-zA-Z0-9_\\-]+'''
+tags = ["firebase", "fcm"]
+
+[[rules]]
+id = "marina-firebase-private-key"
+description = "Firebase Private Key"
+regex = '''private_key.*-----BEGIN [A-Z ]*PRIVATE KEY-----'''
+tags = ["firebase", "private-key"]
+
+[[rules]]
+id = "marina-telegram-bot-token"
+description = "Telegram Bot Token"
+regex = '''[0-9]{8,10}:AA[a-zA-Z0-9_\\-]{30,}'''
+tags = ["telegram", "bot"]
+
+[[rules]]
+id = "marina-whatsapp-api-key"
+description = "WhatsApp/CallMeBot API Key"
+regex = '''whatsapp.*api.*key.*['"][a-zA-Z0-9]{20,}['"]'''
+tags = ["whatsapp", "api-key"]
+
+[[rules]]
+id = "marina-google-service-account"
+description = "Google Service Account JSON"
+regex = '''"type":\s*"service_account"'''
+tags = ["google", "service-account"]

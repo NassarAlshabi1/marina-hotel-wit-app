@@ -1,0 +1,17 @@
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.*.local
+
+# Service account keys (NEVER commit)
+serviceAccount.json
+*-service-account.json
+*.firebase-key.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db

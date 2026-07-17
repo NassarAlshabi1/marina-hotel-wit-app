@@ -119,8 +119,7 @@ class BackupProgress {
 /// تستخدم Stream<BackupProgress> لإرسال التحديثات.
 /// يمكن الاشتراك من أي شاشة والغاء الاشتراك عند التنقل.
 class SecondaryBackupService {
-  factory SecondaryBackupService() =>
-      _instance ??= SecondaryBackupService._();
+  factory SecondaryBackupService() => _instance ??= SecondaryBackupService._();
 
   SecondaryBackupService._();
   static SecondaryBackupService? _instance;
@@ -175,89 +174,99 @@ class SecondaryBackupService {
         if (coll.name == 'booking_nights') continue; // المرحلة الثانية
 
         final phase = _phaseForCollection(coll.name);
-        _progressController.add(BackupProgress(
-          phase: phase,
-          currentCollection: _collectionLabel(coll.name),
-          totalRecords: coll.records.length,
-          totalCollections: totalCollections,
-          completedCollections: completedCollections,
-        ));
+        _progressController.add(
+          BackupProgress(
+            phase: phase,
+            currentCollection: _collectionLabel(coll.name),
+            totalRecords: coll.records.length,
+            totalCollections: totalCollections,
+            completedCollections: completedCollections,
+          ),
+        );
 
         await _uploadCollection(coll, stats, (record, current) {
           if (_cancelled) return;
-          _progressController.add(BackupProgress(
-            phase: phase,
-            currentCollection: _collectionLabel(coll.name),
-            currentRecord: current + 1,
-            totalRecords: coll.records.length,
-            collectionProgress: current + 1,
-            totalCollections: totalCollections,
-            completedCollections: completedCollections,
-            successCount: stats.successCount,
-            failureCount: stats.failureCount,
-          ));
-        });
-
-        completedCollections++;
-        stats.collectionNames.add(coll.name);
-        if (!_cancelled) {
-          _progressController.add(BackupProgress(
-            phase: phase,
-            currentCollection: _collectionLabel(coll.name),
-            totalRecords: coll.records.length,
-            collectionProgress: coll.records.length,
-            totalCollections: totalCollections,
-            completedCollections: completedCollections,
-            successCount: stats.successCount,
-            failureCount: stats.failureCount,
-          ));
-        }
-      }
-
-      // ─── المرحلة 2: booking_nights منفصلة ───
-      if (!_cancelled) {
-        final bookingNightsColl = collectionList
-            .where((c) => c.name == 'booking_nights')
-            .firstOrNull;
-        if (bookingNightsColl != null) {
-          _progressController.add(BackupProgress(
-            phase: BackupPhase.uploadingBookingNights,
-            currentCollection: 'ليالي الحجز',
-            totalRecords: bookingNightsColl.records.length,
-            totalCollections: totalCollections,
-            completedCollections: completedCollections,
-            isBookingNightsPhase: true,
-          ));
-
-          await _uploadCollection(bookingNightsColl, stats, (record, current) {
-            if (_cancelled) return;
-            _progressController.add(BackupProgress(
-              phase: BackupPhase.uploadingBookingNights,
-              currentCollection: 'ليالي الحجز',
+          _progressController.add(
+            BackupProgress(
+              phase: phase,
+              currentCollection: _collectionLabel(coll.name),
               currentRecord: current + 1,
-              totalRecords: bookingNightsColl.records.length,
+              totalRecords: coll.records.length,
               collectionProgress: current + 1,
               totalCollections: totalCollections,
               completedCollections: completedCollections,
               successCount: stats.successCount,
               failureCount: stats.failureCount,
+            ),
+          );
+        });
+
+        completedCollections++;
+        stats.collectionNames.add(coll.name);
+        if (!_cancelled) {
+          _progressController.add(
+            BackupProgress(
+              phase: phase,
+              currentCollection: _collectionLabel(coll.name),
+              totalRecords: coll.records.length,
+              collectionProgress: coll.records.length,
+              totalCollections: totalCollections,
+              completedCollections: completedCollections,
+              successCount: stats.successCount,
+              failureCount: stats.failureCount,
+            ),
+          );
+        }
+      }
+
+      // ─── المرحلة 2: booking_nights منفصلة ───
+      if (!_cancelled) {
+        final bookingNightsColl = collectionList.where((c) => c.name == 'booking_nights').firstOrNull;
+        if (bookingNightsColl != null) {
+          _progressController.add(
+            BackupProgress(
+              phase: BackupPhase.uploadingBookingNights,
+              currentCollection: 'ليالي الحجز',
+              totalRecords: bookingNightsColl.records.length,
+              totalCollections: totalCollections,
+              completedCollections: completedCollections,
               isBookingNightsPhase: true,
-            ));
+            ),
+          );
+
+          await _uploadCollection(bookingNightsColl, stats, (record, current) {
+            if (_cancelled) return;
+            _progressController.add(
+              BackupProgress(
+                phase: BackupPhase.uploadingBookingNights,
+                currentCollection: 'ليالي الحجز',
+                currentRecord: current + 1,
+                totalRecords: bookingNightsColl.records.length,
+                collectionProgress: current + 1,
+                totalCollections: totalCollections,
+                completedCollections: completedCollections,
+                successCount: stats.successCount,
+                failureCount: stats.failureCount,
+                isBookingNightsPhase: true,
+              ),
+            );
           });
 
           completedCollections++;
           stats.collectionNames.add('booking_nights');
-          _progressController.add(BackupProgress(
-            phase: BackupPhase.uploadingBookingNights,
-            currentCollection: 'ليالي الحجز',
-            totalRecords: bookingNightsColl.records.length,
-            collectionProgress: bookingNightsColl.records.length,
-            totalCollections: totalCollections,
-            completedCollections: completedCollections,
-            successCount: stats.successCount,
-            failureCount: stats.failureCount,
-            isBookingNightsPhase: true,
-          ));
+          _progressController.add(
+            BackupProgress(
+              phase: BackupPhase.uploadingBookingNights,
+              currentCollection: 'ليالي الحجز',
+              totalRecords: bookingNightsColl.records.length,
+              collectionProgress: bookingNightsColl.records.length,
+              totalCollections: totalCollections,
+              completedCollections: completedCollections,
+              successCount: stats.successCount,
+              failureCount: stats.failureCount,
+              isBookingNightsPhase: true,
+            ),
+          );
         }
       }
 
@@ -266,21 +275,20 @@ class SecondaryBackupService {
       }
 
       _lastStats = stats;
-      _progressController.add(BackupProgress(
-        phase: BackupPhase.completed,
-        totalCollections: totalCollections,
-        completedCollections: completedCollections,
-        successCount: stats.successCount,
-        failureCount: stats.failureCount,
-        error: stats.error,
-      ));
+      _progressController.add(
+        BackupProgress(
+          phase: BackupPhase.completed,
+          totalCollections: totalCollections,
+          completedCollections: completedCollections,
+          successCount: stats.successCount,
+          failureCount: stats.failureCount,
+          error: stats.error,
+        ),
+      );
 
       return stats;
     } catch (e) {
-      _progressController.add(BackupProgress(
-        phase: BackupPhase.completed,
-        error: 'فشل: $e',
-      ));
+      _progressController.add(BackupProgress(phase: BackupPhase.completed, error: 'فشل: $e'));
       rethrow;
     } finally {
       _isRunning = false;
@@ -306,31 +314,22 @@ class SecondaryBackupService {
       if (documentId == null || documentId.isEmpty) {
         failureCount++;
         const reason = 'تخطّي سجل بلا localUuid صالح';
-        stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(
-          FullBackupFailure(reason: reason, collectionName: coll.name),
-        );
+        stats.failuresByCollection
+            .putIfAbsent(coll.name, () => [])
+            .add(FullBackupFailure(reason: reason, collectionName: coll.name));
         stats.errorsByReason[reason] = (stats.errorsByReason[reason] ?? 0) + 1;
         onProgress(record, i);
         continue;
       }
 
       try {
-        final sanitized = AppwriteSyncUtils.sanitizePayload(
-          coll.name,
-          record,
-          collectionId: coll.collectionId,
-        );
+        final sanitized = AppwriteSyncUtils.sanitizePayload(coll.name, record, collectionId: coll.collectionId);
         final enhancedData = Map<String, dynamic>.from(sanitized);
         final now = DateTime.now().millisecondsSinceEpoch;
         enhancedData['syncTimestamp'] ??= now;
-        enhancedData['idempotencyKey'] ??=
-            'backup_${coll.name}_${documentId}_$now';
+        enhancedData['idempotencyKey'] ??= 'backup_${coll.name}_${documentId}_$now';
         enhancedData['sync_origin'] ??= 'secondary_backup';
-        await _service.upsertDocument(
-          collectionId: coll.collectionId,
-          documentId: documentId,
-          data: enhancedData,
-        );
+        await _service.upsertDocument(collectionId: coll.collectionId, documentId: documentId, data: enhancedData);
         successCount++;
       } catch (e) {
         failureCount++;
@@ -368,52 +367,93 @@ class SecondaryBackupService {
 
   BackupPhase _phaseForCollection(String name) {
     switch (name) {
-      case 'rooms': return BackupPhase.uploadingRooms;
-      case 'bookings': return BackupPhase.uploadingBookings;
-      case 'payments': return BackupPhase.uploadingPayments;
-      case 'expenses': return BackupPhase.uploadingExpenses;
-      case 'debts': return BackupPhase.uploadingDebts;
-      case 'employees': return BackupPhase.uploadingEmployees;
-      case 'booking_notes': return BackupPhase.uploadingBookingNotes;
-      case 'cash_transactions': return BackupPhase.uploadingCashTransactions;
-      case 'salary_cycles': return BackupPhase.uploadingSalaryCycles;
-      case 'salary_payments': return BackupPhase.uploadingSalaryPayments;
-      case 'salary_withdrawals': return BackupPhase.uploadingSalaryWithdrawals;
-      case 'salary_carry_over_logs': return BackupPhase.uploadingSalaryCarryOverLogs;
-      case 'shift_notes': return BackupPhase.uploadingShiftNotes;
-      case 'price_adjustments': return BackupPhase.uploadingPriceAdjustments;
-      case 'booking_price_adjustments': return BackupPhase.uploadingBookingPriceAdjustments;
-      case 'audit_logs': return BackupPhase.uploadingAuditLogs;
-      case 'payment_voids': return BackupPhase.uploadingPaymentVoids;
-      case 'app_settings': return BackupPhase.uploadingAppSettings;
-      case 'guest_infos': return BackupPhase.uploadingGuestInfos;
-      default: return BackupPhase.uploadingRooms;
+      case 'rooms':
+        return BackupPhase.uploadingRooms;
+      case 'bookings':
+        return BackupPhase.uploadingBookings;
+      case 'payments':
+        return BackupPhase.uploadingPayments;
+      case 'expenses':
+        return BackupPhase.uploadingExpenses;
+      case 'debts':
+        return BackupPhase.uploadingDebts;
+      case 'employees':
+        return BackupPhase.uploadingEmployees;
+      case 'booking_notes':
+        return BackupPhase.uploadingBookingNotes;
+      case 'cash_transactions':
+        return BackupPhase.uploadingCashTransactions;
+      case 'salary_cycles':
+        return BackupPhase.uploadingSalaryCycles;
+      case 'salary_payments':
+        return BackupPhase.uploadingSalaryPayments;
+      case 'salary_withdrawals':
+        return BackupPhase.uploadingSalaryWithdrawals;
+      case 'salary_carry_over_logs':
+        return BackupPhase.uploadingSalaryCarryOverLogs;
+      case 'shift_notes':
+        return BackupPhase.uploadingShiftNotes;
+      case 'price_adjustments':
+        return BackupPhase.uploadingPriceAdjustments;
+      case 'booking_price_adjustments':
+        return BackupPhase.uploadingBookingPriceAdjustments;
+      case 'audit_logs':
+        return BackupPhase.uploadingAuditLogs;
+      case 'payment_voids':
+        return BackupPhase.uploadingPaymentVoids;
+      case 'app_settings':
+        return BackupPhase.uploadingAppSettings;
+      case 'guest_infos':
+        return BackupPhase.uploadingGuestInfos;
+      default:
+        return BackupPhase.uploadingRooms;
     }
   }
 
   String _collectionLabel(String name) {
     switch (name) {
-      case 'rooms': return 'الغرف';
-      case 'bookings': return 'الحجوزات';
-      case 'payments': return 'الدفعات';
-      case 'expenses': return 'المصروفات';
-      case 'debts': return 'الديون';
-      case 'employees': return 'الموظفين';
-      case 'booking_notes': return 'ملاحظات الحجز';
-      case 'booking_nights': return 'ليالي الحجز';
-      case 'cash_transactions': return 'المعاملات النقدية';
-      case 'salary_cycles': return 'دورات الرواتب';
-      case 'salary_payments': return 'دفعات الرواتب';
-      case 'salary_withdrawals': return 'سحوبات الرواتب';
-      case 'salary_carry_over_logs': return 'ترحيل الرواتب';
-      case 'shift_notes': return 'ملاحظات النوبة';
-      case 'price_adjustments': return 'تعديلات الأسعار';
-      case 'booking_price_adjustments': return 'تعديلات الحجوزات';
-      case 'audit_logs': return 'سجلات التدقيق';
-      case 'payment_voids': return 'إلغاء الدفعات';
-      case 'app_settings': return 'إعدادات التطبيق';
-      case 'guest_infos': return 'معلومات النزلاء';
-      default: return name;
+      case 'rooms':
+        return 'الغرف';
+      case 'bookings':
+        return 'الحجوزات';
+      case 'payments':
+        return 'الدفعات';
+      case 'expenses':
+        return 'المصروفات';
+      case 'debts':
+        return 'الديون';
+      case 'employees':
+        return 'الموظفين';
+      case 'booking_notes':
+        return 'ملاحظات الحجز';
+      case 'booking_nights':
+        return 'ليالي الحجز';
+      case 'cash_transactions':
+        return 'المعاملات النقدية';
+      case 'salary_cycles':
+        return 'دورات الرواتب';
+      case 'salary_payments':
+        return 'دفعات الرواتب';
+      case 'salary_withdrawals':
+        return 'سحوبات الرواتب';
+      case 'salary_carry_over_logs':
+        return 'ترحيل الرواتب';
+      case 'shift_notes':
+        return 'ملاحظات النوبة';
+      case 'price_adjustments':
+        return 'تعديلات الأسعار';
+      case 'booking_price_adjustments':
+        return 'تعديلات الحجوزات';
+      case 'audit_logs':
+        return 'سجلات التدقيق';
+      case 'payment_voids':
+        return 'إلغاء الدفعات';
+      case 'app_settings':
+        return 'إعدادات التطبيق';
+      case 'guest_infos':
+        return 'معلومات النزلاء';
+      default:
+        return name;
     }
   }
 

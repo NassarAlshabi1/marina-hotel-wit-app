@@ -15,12 +15,10 @@ class LatePaymentWhatsAppScreen extends ConsumerStatefulWidget {
   const LatePaymentWhatsAppScreen({super.key});
 
   @override
-  ConsumerState<LatePaymentWhatsAppScreen> createState() =>
-      _LatePaymentWhatsAppScreenState();
+  ConsumerState<LatePaymentWhatsAppScreen> createState() => _LatePaymentWhatsAppScreenState();
 }
 
-class _LatePaymentWhatsAppScreenState
-    extends ConsumerState<LatePaymentWhatsAppScreen> {
+class _LatePaymentWhatsAppScreenState extends ConsumerState<LatePaymentWhatsAppScreen> {
   String _searchQuery = '';
   String _filterStatus = 'all';
   final Set<int> _selectedIds = {};
@@ -69,14 +67,8 @@ class _LatePaymentWhatsAppScreenState
   String _buildLatePaymentMessage(Debt debt, {Booking? booking}) {
     final daysPassed = _getDaysPassed(debt);
     final roomInfo = booking?.roomNumber ?? '---';
-    final checkin =
-        debt.checkinDate.isNotEmpty
-            ? debt.checkinDate.split(' ').first
-            : '---';
-    final checkout =
-        debt.checkoutDate.isNotEmpty
-            ? debt.checkoutDate.split(' ').first
-            : '---';
+    final checkin = debt.checkinDate.isNotEmpty ? debt.checkinDate.split(' ').first : '---';
+    final checkout = debt.checkoutDate.isNotEmpty ? debt.checkoutDate.split(' ').first : '---';
 
     String message = 'تنبيه من فندق مارينا\n';
     message += '━━━━━━━━━━━━━━━\n\n';
@@ -90,8 +82,7 @@ class _LatePaymentWhatsAppScreenState
     message += 'فترة الإقامة: $checkin إلى $checkout\n';
     message += 'إجمالي المبلغ: ${CurrencyFormatter.formatAmount(debt.totalAmount)}\n';
     message += 'المدفوع: ${CurrencyFormatter.formatAmount(debt.paidAmount)}\n';
-    message +=
-        'المبلغ المتبقي: ${CurrencyFormatter.formatAmount(debt.remainingAmount)}\n';
+    message += 'المبلغ المتبقي: ${CurrencyFormatter.formatAmount(debt.remainingAmount)}\n';
 
     if (debt.debtReason.isNotEmpty) {
       message += 'سبب الدين: ${debt.debtReason}\n';
@@ -107,8 +98,7 @@ class _LatePaymentWhatsAppScreenState
   }
 
   int _getDaysPassed(Debt debt) {
-    final dateStr =
-        debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate;
+    final dateStr = debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate;
     final date = DateTime.tryParse(dateStr);
     if (date == null) {
       return 0;
@@ -132,9 +122,9 @@ class _LatePaymentWhatsAppScreenState
     final message = _buildLatePaymentMessage(debt, booking: booking);
     final result = await whatsappService.sendMessage(phoneE164: phone, message: message);
     if (result.quotaMessage != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.quotaMessage!), backgroundColor: Colors.orange),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.quotaMessage!), backgroundColor: Colors.orange));
     }
     return result.success;
   }
@@ -142,12 +132,9 @@ class _LatePaymentWhatsAppScreenState
   /// إرسال تنبيه لجميع الديون المحددة
   Future<void> _sendBulkReminders(List<Debt> debts) async {
     if (debts.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('لم تختر أي دين لإرسال التنبيه'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لم تختر أي دين لإرسال التنبيه'), backgroundColor: Colors.orange));
       return;
     }
 
@@ -162,10 +149,7 @@ class _LatePaymentWhatsAppScreenState
     final bookings = bookingsAsync.valueOrNull ?? [];
 
     for (final debt in debts) {
-      final booking = bookings.cast<Booking?>().firstWhere(
-        (b) => b?.id == debt.bookingLocalId,
-        orElse: () => null,
-      );
+      final booking = bookings.cast<Booking?>().firstWhere((b) => b?.id == debt.bookingLocalId, orElse: () => null);
 
       final success = await _sendSingleReminder(debt, booking);
       if (success) {
@@ -177,8 +161,7 @@ class _LatePaymentWhatsAppScreenState
 
     if (mounted) {
       setState(() => _isSending = false);
-      final message =
-          'تم إرسال $_sentCount تنبيه بنجاح${_failedCount > 0 ? ' وفشل $_failedCount' : ''}';
+      final message = 'تم إرسال $_sentCount تنبيه بنجاح${_failedCount > 0 ? ' وفشل $_failedCount' : ''}';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
@@ -202,10 +185,7 @@ class _LatePaymentWhatsAppScreenState
           onPressed: () => _showBulkSendConfirmation(context),
           icon: const Icon(Icons.send),
           tooltip: 'إرسال للمحدد',
-          style: IconButton.styleFrom(
-            foregroundColor:
-                _selectedIds.isNotEmpty ? Colors.white : Colors.grey,
-          ),
+          style: IconButton.styleFrom(foregroundColor: _selectedIds.isNotEmpty ? Colors.white : Colors.grey),
         ),
       ],
       body: Column(
@@ -225,8 +205,7 @@ class _LatePaymentWhatsAppScreenState
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('خطأ: $e')),
               data: (debts) => bookingsAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(child: Text('خطأ: $e')),
                 data: (bookings) => _buildDebtsList(debts, bookings),
               ),
@@ -247,18 +226,10 @@ class _LatePaymentWhatsAppScreenState
             style: const TextStyle(fontWeight: FontWeight.bold),
             decoration: InputDecoration(
               hintText: 'ابحث باسم النزيل أو رقم الغرفة...',
-              hintStyle: TextStyle(
-                fontWeight: FontWeight.normal,
-                color: Colors.grey[500],
-              ),
+              hintStyle: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey[500]),
               prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(25),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
             onChanged: (value) => setState(() => _searchQuery = value),
           ),
@@ -305,10 +276,7 @@ class _LatePaymentWhatsAppScreenState
       data: (debts) {
         final pendingDebts = debts.where((d) => d.isSettled == 0).toList();
         final overdueDebts = pendingDebts.where(_isOverdue).toList();
-        final totalRemaining = pendingDebts.fold(
-          0.0,
-          (sum, d) => sum + d.remainingAmount,
-        );
+        final totalRemaining = pendingDebts.fold(0.0, (sum, d) => sum + d.remainingAmount);
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -320,21 +288,9 @@ class _LatePaymentWhatsAppScreenState
           ),
           child: Row(
             children: [
-              Expanded(
-                child: _buildMiniStat(
-                  'ديون معلقة',
-                  pendingDebts.length.toString(),
-                  Colors.orange,
-                ),
-              ),
+              Expanded(child: _buildMiniStat('ديون معلقة', pendingDebts.length.toString(), Colors.orange)),
               Container(width: 1, height: 40, color: Colors.red.shade200),
-              Expanded(
-                child: _buildMiniStat(
-                  'متأخرة (+30 يوم)',
-                  overdueDebts.length.toString(),
-                  Colors.red,
-                ),
-              ),
+              Expanded(child: _buildMiniStat('متأخرة (+30 يوم)', overdueDebts.length.toString(), Colors.red)),
               Container(width: 1, height: 40, color: Colors.red.shade200),
               Expanded(
                 child: _buildMiniStat(
@@ -355,11 +311,7 @@ class _LatePaymentWhatsAppScreenState
       children: [
         Text(
           value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
         ),
         Text(
           title,
@@ -386,22 +338,14 @@ class _LatePaymentWhatsAppScreenState
           Expanded(
             child: Text(
               'تم اختيار ${_selectedIds.length} دين لإرسال التنبيه',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.blue.shade700,
-                fontSize: 13,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade700, fontSize: 13),
             ),
           ),
           TextButton(
             onPressed: () => setState(_selectedIds.clear),
             child: Text(
               'إلغاء التحديد',
-              style: TextStyle(
-                color: Colors.blue.shade700,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: Colors.blue.shade700, fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -422,10 +366,7 @@ class _LatePaymentWhatsAppScreenState
           return true;
         }
         // بحث برقم الغرفة
-        final booking = bookings.cast<Booking?>().firstWhere(
-          (b) => b?.id == debt.bookingLocalId,
-          orElse: () => null,
-        );
+        final booking = bookings.cast<Booking?>().firstWhere((b) => b?.id == debt.bookingLocalId, orElse: () => null);
         if (booking?.roomNumber.toLowerCase().contains(query) ?? false) {
           return true;
         }
@@ -459,17 +400,10 @@ class _LatePaymentWhatsAppScreenState
             const SizedBox(height: 16),
             Text(
               'لا توجد ديون متأخرة',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text(
-              'جميع الديون مسددة أو لا يوجد ديون معلقة',
-              style: TextStyle(color: Colors.grey.shade400),
-            ),
+            Text('جميع الديون مسددة أو لا يوجد ديون معلقة', style: TextStyle(color: Colors.grey.shade400)),
           ],
         ),
       );
@@ -484,20 +418,12 @@ class _LatePaymentWhatsAppScreenState
             const SizedBox(height: 20),
             Text(
               'جاري إرسال التنبيهات...',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue.shade700,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
             ),
             const SizedBox(height: 8),
             Text(
               'نجاح: $_sentCount | فشل: $_failedCount',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -509,10 +435,7 @@ class _LatePaymentWhatsAppScreenState
       itemCount: filteredDebts.length,
       itemBuilder: (context, index) {
         final debt = filteredDebts[index];
-        final booking = bookings.cast<Booking?>().firstWhere(
-          (b) => b?.id == debt.bookingLocalId,
-          orElse: () => null,
-        );
+        final booking = bookings.cast<Booking?>().firstWhere((b) => b?.id == debt.bookingLocalId, orElse: () => null);
         return _buildDebtCard(debt, booking);
       },
     );
@@ -523,9 +446,7 @@ class _LatePaymentWhatsAppScreenState
     final isOverdue = _isOverdue(debt);
     final daysPassed = _getDaysPassed(debt);
     final hasPhone =
-        booking != null &&
-        booking.guestPhone.isNotEmpty &&
-        _cleanAndFormatPhone(booking.guestPhone).isNotEmpty;
+        booking != null && booking.guestPhone.isNotEmpty && _cleanAndFormatPhone(booking.guestPhone).isNotEmpty;
 
     Color cardColor = Colors.orange.shade50;
     Color borderColor = Colors.orange.shade300;
@@ -575,19 +496,10 @@ class _LatePaymentWhatsAppScreenState
                     activeColor: statusColor,
                   ),
                   Expanded(
-                    child: Text(
-                      debt.guestName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: Text(debt.guestName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -602,13 +514,9 @@ class _LatePaymentWhatsAppScreenState
                           isOverdue
                               ? 'متأخر $daysPassed يوم'
                               : daysPassed > 0
-                                  ? 'معلق $daysPassed يوم'
-                                  : 'معلق',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: statusColor,
-                          ),
+                              ? 'معلق $daysPassed يوم'
+                              : 'معلق',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
                         ),
                       ],
                     ),
@@ -621,19 +529,10 @@ class _LatePaymentWhatsAppScreenState
               // معلومات الحجز
               Row(
                 children: [
-                  Expanded(
-                    child: _buildInfoChip(
-                      Icons.hotel,
-                      booking?.roomNumber ?? '---',
-                    ),
-                  ),
+                  Expanded(child: _buildInfoChip(Icons.hotel, booking?.roomNumber ?? '---')),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _buildInfoChip(
-                      Icons.phone,
-                      hasPhone ? booking.guestPhone : 'بدون رقم',
-                      isValid: hasPhone,
-                    ),
+                    child: _buildInfoChip(Icons.phone, hasPhone ? booking.guestPhone : 'بدون رقم', isValid: hasPhone),
                   ),
                 ],
               ),
@@ -643,10 +542,7 @@ class _LatePaymentWhatsAppScreenState
               // المبالغ
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
                 child: Row(
                   children: [
                     Expanded(
@@ -680,23 +576,15 @@ class _LatePaymentWhatsAppScreenState
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: hasPhone
-                      ? () => _sendSingleReminderWithFeedback(debt, booking)
-                      : null,
+                  onPressed: hasPhone ? () => _sendSingleReminderWithFeedback(debt, booking) : null,
                   icon: const Icon(Icons.send, size: 16),
                   label: Text(
-                    hasPhone
-                        ? 'إرسال تنبيه واتساب'
-                        : 'لا يوجد رقم هاتف',
+                    hasPhone ? 'إرسال تنبيه واتساب' : 'لا يوجد رقم هاتف',
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.green.shade700,
-                    side: BorderSide(
-                      color: hasPhone
-                          ? Colors.green.shade300
-                          : Colors.grey.shade300,
-                    ),
+                    side: BorderSide(color: hasPhone ? Colors.green.shade300 : Colors.grey.shade300),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                 ),
@@ -734,25 +622,15 @@ class _LatePaymentWhatsAppScreenState
       children: [
         Text(
           value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
         ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-        ),
+        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
       ],
     );
   }
 
   /// إرسال تنبيه فردي مع رسالة تأكيد ونتيجة
-  Future<void> _sendSingleReminderWithFeedback(
-    Debt debt,
-    Booking? booking,
-  ) async {
+  Future<void> _sendSingleReminderWithFeedback(Debt debt, Booking? booking) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -770,14 +648,8 @@ class _LatePaymentWhatsAppScreenState
             const Text('سيتم إرسال تنبيه تأخر دفع إلى:'),
             const SizedBox(height: 12),
             _buildPreviewRow('العميل', debt.guestName),
-            _buildPreviewRow(
-              'الغرفة',
-              booking?.roomNumber ?? 'غير معروف',
-            ),
-            _buildPreviewRow(
-              'رقم الهاتف',
-              booking?.guestPhone ?? 'غير متوفر',
-            ),
+            _buildPreviewRow('الغرفة', booking?.roomNumber ?? 'غير معروف'),
+            _buildPreviewRow('رقم الهاتف', booking?.guestPhone ?? 'غير متوفر'),
             _buildPreviewRow(
               'المبلغ المتبقي',
               CurrencyFormatter.formatAmount(debt.remainingAmount),
@@ -786,18 +658,12 @@ class _LatePaymentWhatsAppScreenState
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(ctx, true),
             icon: const Icon(Icons.send, size: 16),
             label: const Text('إرسال'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
           ),
         ],
       ),
@@ -807,19 +673,21 @@ class _LatePaymentWhatsAppScreenState
       return;
     }
 
-    unawaited(showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 20),
-            Text('جاري الإرسال...', style: TextStyle(fontWeight: FontWeight.bold)),
-          ],
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text('جاري الإرسال...', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
         ),
       ),
-    ),);
+    );
 
     final success = await _sendSingleReminder(debt, booking);
 
@@ -828,9 +696,7 @@ class _LatePaymentWhatsAppScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            success
-                ? 'تم إرسال التنبيه إلى ${debt.guestName} بنجاح'
-                : 'فشل إرسال التنبيه - تأكد من رقم الهاتف',
+            success ? 'تم إرسال التنبيه إلى ${debt.guestName} بنجاح' : 'فشل إرسال التنبيه - تأكد من رقم الهاتف',
           ),
           backgroundColor: success ? Colors.green : Colors.red,
         ),
@@ -847,10 +713,7 @@ class _LatePaymentWhatsAppScreenState
           Text(label, style: const TextStyle(color: Colors.grey)),
           Text(
             value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: valueColor ?? Colors.black,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, color: valueColor ?? Colors.black),
           ),
         ],
       ),
@@ -860,32 +723,23 @@ class _LatePaymentWhatsAppScreenState
   /// تأكيد الإرسال المجمّع
   Future<void> _showBulkSendConfirmation(BuildContext context) async {
     if (_selectedIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('اختر ديناً واحداً على الأقل'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('اختر ديناً واحداً على الأقل'), backgroundColor: Colors.orange));
       return;
     }
 
     final debtsAsync = ref.read(debtsListProvider);
     final debts = debtsAsync.valueOrNull ?? [];
     final selectedDebts = debts.where((d) => _selectedIds.contains(d.id)).toList();
-    final totalAmount = selectedDebts.fold(
-      0.0,
-      (sum, d) => sum + d.remainingAmount,
-    );
+    final totalAmount = selectedDebts.fold(0.0, (sum, d) => sum + d.remainingAmount);
 
     // التحقق من وجود أرقام هواتف
     final bookingsAsync = ref.read(bookingsListProvider);
     final bookings = bookingsAsync.valueOrNull ?? [];
     int withoutPhone = 0;
     for (final debt in selectedDebts) {
-      final booking = bookings.cast<Booking?>().firstWhere(
-        (b) => b?.id == debt.bookingLocalId,
-        orElse: () => null,
-      );
+      final booking = bookings.cast<Booking?>().firstWhere((b) => b?.id == debt.bookingLocalId, orElse: () => null);
       final phone = _cleanAndFormatPhone(booking?.guestPhone ?? '');
       if (phone.isEmpty) {
         withoutPhone++;
@@ -906,41 +760,25 @@ class _LatePaymentWhatsAppScreenState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'سيتم إرسال تنبيه تأخر الدفع إلى ${selectedDebts.length} عميل:',
-            ),
+            Text('سيتم إرسال تنبيه تأخر الدفع إلى ${selectedDebts.length} عميل:'),
             const SizedBox(height: 12),
-            _buildPreviewRow(
-              'عدد التنبيهات',
-              '${selectedDebts.length}',
-              valueColor: Colors.blue,
-            ),
+            _buildPreviewRow('عدد التنبيهات', '${selectedDebts.length}', valueColor: Colors.blue),
             _buildPreviewRow(
               'إجمالي المبالغ المتأخرة',
               CurrencyFormatter.formatAmount(totalAmount),
               valueColor: Colors.red,
             ),
             if (withoutPhone > 0)
-              _buildPreviewRow(
-                'بدون رقم هاتف',
-                '$withoutPhone (سيتم تخطيهم)',
-                valueColor: Colors.orange,
-              ),
+              _buildPreviewRow('بدون رقم هاتف', '$withoutPhone (سيتم تخطيهم)', valueColor: Colors.orange),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(ctx, true),
             icon: const Icon(Icons.send, size: 16),
             label: const Text('إرسال الكل'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
           ),
         ],
       ),
@@ -954,10 +792,7 @@ class _LatePaymentWhatsAppScreenState
     final bookingsList = ref.read(bookingsListProvider).valueOrNull ?? [];
     final debtsWithPhone = <Debt>[];
     for (final debt in selectedDebts) {
-      final booking = bookingsList.cast<Booking?>().firstWhere(
-        (b) => b?.id == debt.bookingLocalId,
-        orElse: () => null,
-      );
+      final booking = bookingsList.cast<Booking?>().firstWhere((b) => b?.id == debt.bookingLocalId, orElse: () => null);
       final phone = _cleanAndFormatPhone(booking?.guestPhone ?? '');
       if (phone.isNotEmpty) {
         debtsWithPhone.add(debt);

@@ -41,9 +41,7 @@ class SecondaryAppwriteConfig {
     final endpoint = _prefs!.getString(_keyEndpoint) ?? '';
     final projectId = _prefs!.getString(_keyProjectId) ?? '';
     final databaseId = _prefs!.getString(_keyDatabaseId) ?? '';
-    return endpoint.isNotEmpty &&
-        projectId.isNotEmpty &&
-        databaseId.isNotEmpty;
+    return endpoint.isNotEmpty && projectId.isNotEmpty && databaseId.isNotEmpty;
   }
 
   static String get endpoint {
@@ -79,9 +77,7 @@ class SecondaryAppwriteConfig {
   static DateTime? get lastSyncTime {
     ensureInitializedSync();
     final ts = _prefs!.getInt(_keyLastSync);
-    return ts != null
-        ? DateTime.fromMillisecondsSinceEpoch(ts)
-        : null;
+    return ts != null ? DateTime.fromMillisecondsSinceEpoch(ts) : null;
   }
 
   static String get syncStatus {
@@ -129,10 +125,7 @@ class SecondaryAppwriteConfig {
 
   static Future<void> updateLastSync() async {
     await ensureInitialized();
-    await _prefs!.setInt(
-      _keyLastSync,
-      DateTime.now().millisecondsSinceEpoch,
-    );
+    await _prefs!.setInt(_keyLastSync, DateTime.now().millisecondsSinceEpoch);
   }
 
   static Future<void> updateSyncStatus(String status) async {

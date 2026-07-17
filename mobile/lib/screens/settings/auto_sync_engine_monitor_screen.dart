@@ -9,23 +9,24 @@ import '../../providers/auto_sync_engine_providers.dart';
 import '../../services/google_drive_auto_sync_engine.dart';
 import '../../services/google_drive_conflict_resolver.dart';
 import '../../utils/date_parser.dart';
+import '../../utils/performance_monitor.dart';
 
 class AutoSyncEngineMonitorScreen extends ConsumerStatefulWidget {
   const AutoSyncEngineMonitorScreen({super.key});
 
   @override
-  ConsumerState<AutoSyncEngineMonitorScreen> createState() =>
-      _AutoSyncEngineMonitorScreenState();
+  ConsumerState<AutoSyncEngineMonitorScreen> createState() => _AutoSyncEngineMonitorScreenState();
 }
 
-class _AutoSyncEngineMonitorScreenState
-    extends ConsumerState<AutoSyncEngineMonitorScreen> {
+class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMonitorScreen> {
   @override
   Widget build(BuildContext context) {
     final engineState = ref.watch(autoSyncEngineStateProvider);
     final syncHealth = ref.watch(autoSyncHealthSummaryProvider);
 
-    return Scaffold(
+    return PerformanceInspector(
+      name: 'AutoSyncEngineMonitorScreen',
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('محرك المزامنة التلقائي'),
         backgroundColor: Colors.blue.shade700,
@@ -58,14 +59,11 @@ class _AutoSyncEngineMonitorScreenState
           ),
         ),
       ),
+    )
     );
   }
 
-  Widget _buildContent(
-    BuildContext context,
-    AutoSyncEngineState state,
-    String health,
-  ) {
+  Widget _buildContent(BuildContext context, AutoSyncEngineState state, String health) {
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(autoSyncEngineStatusProvider);
@@ -80,10 +78,7 @@ class _AutoSyncEngineMonitorScreenState
           const SizedBox(height: 16),
           _buildPendingChangesCard(state),
           const SizedBox(height: 16),
-          if (state.failedAttempts > 0) ...[
-            _buildRetryCard(state),
-            const SizedBox(height: 16),
-          ],
+          if (state.failedAttempts > 0) ...[_buildRetryCard(state), const SizedBox(height: 16)],
           _buildTimestampsCard(state),
           const SizedBox(height: 16),
           _buildConflictStatsCard(),
@@ -122,10 +117,7 @@ class _AutoSyncEngineMonitorScreenState
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bannerColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: BoxDecoration(color: bannerColor, borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           Icon(bannerIcon, color: Colors.white, size: 32),
@@ -136,16 +128,9 @@ class _AutoSyncEngineMonitorScreenState
               children: [
                 const Text(
                   'حالة المحرك',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                Text(
-                  health,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                ),
+                Text(health, style: const TextStyle(color: Colors.white, fontSize: 14)),
               ],
             ),
           ),
@@ -166,19 +151,12 @@ class _AutoSyncEngineMonitorScreenState
               children: [
                 Icon(Icons.info_outline, color: Colors.blue),
                 SizedBox(width: 8),
-                Text(
-                  'الحالة العامة',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                Text('الحالة العامة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(),
             _buildStatusRow('المحرك يعمل', state.isRunning, Icons.settings),
-            _buildStatusRow(
-              'متصل بالشبكة',
-              state.hasNetworkConnection,
-              Icons.wifi,
-            ),
+            _buildStatusRow('متصل بالشبكة', state.hasNetworkConnection, Icons.wifi),
             _buildStatusRow('مسجل الدخول', state.isSignedIn, Icons.login),
           ],
         ),
@@ -190,10 +168,7 @@ class _AutoSyncEngineMonitorScreenState
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        value ? Icons.check_circle : Icons.cancel,
-        color: value ? Colors.green : Colors.red,
-      ),
+      leading: Icon(value ? Icons.check_circle : Icons.cancel, color: value ? Colors.green : Colors.red),
       title: Text(label),
       trailing: Icon(icon, color: Colors.grey.shade400, size: 20),
     );
@@ -217,10 +192,7 @@ class _AutoSyncEngineMonitorScreenState
                   color: hasPending ? Colors.orange : Colors.green,
                 ),
                 const SizedBox(width: 8),
-                const Text(
-                  'التغييرات المعلقة',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                const Text('التغييرات المعلقة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(),
@@ -262,10 +234,7 @@ class _AutoSyncEngineMonitorScreenState
               children: [
                 Icon(Icons.error, color: Colors.red),
                 SizedBox(width: 8),
-                Text(
-                  'إعادة المحاولة التلقائية',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                Text('إعادة المحاولة التلقائية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(),
@@ -275,19 +244,14 @@ class _AutoSyncEngineMonitorScreenState
               valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
             ),
             const SizedBox(height: 8),
-            Text(
-              'محاولات فاشلة: ${state.failedAttempts} / 5',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
+            Text('محاولات فاشلة: ${state.failedAttempts} / 5', style: const TextStyle(fontWeight: FontWeight.bold)),
             if (state.nextRetryAt != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
                   const Icon(Icons.timer, size: 16, color: Colors.red),
                   const SizedBox(width: 4),
-                  Text(
-                    'إعادة المحاولة التالية: ${_formatRelativeTime(state.nextRetryAt!)}',
-                  ),
+                  Text('إعادة المحاولة التالية: ${_formatRelativeTime(state.nextRetryAt!)}'),
                 ],
               ),
             ],
@@ -302,17 +266,10 @@ class _AutoSyncEngineMonitorScreenState
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 16,
-                      color: Colors.red,
-                    ),
+                    const Icon(Icons.error_outline, size: 16, color: Colors.red),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        state.lastError!,
-                        style: const TextStyle(fontSize: 12, color: Colors.red),
-                      ),
+                      child: Text(state.lastError!, style: const TextStyle(fontSize: 12, color: Colors.red)),
                     ),
                   ],
                 ),
@@ -325,16 +282,13 @@ class _AutoSyncEngineMonitorScreenState
                 onPressed: () async {
                   await ref.read(autoSyncEngineProvider).resetFailedAttempts();
                   // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✅ تم إعادة تعيين المحاولات')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('✅ تم إعادة تعيين المحاولات')));
                 },
                 icon: const Icon(Icons.refresh),
                 label: const Text('إعادة تعيين'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
               ),
             ),
           ],
@@ -355,38 +309,20 @@ class _AutoSyncEngineMonitorScreenState
               children: [
                 Icon(Icons.access_time, color: Colors.blue),
                 SizedBox(width: 8),
-                Text(
-                  'الطوابع الزمنية',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                Text('الطوابع الزمنية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(),
-            _buildTimestampRow(
-              'آخر مزامنة ناجحة',
-              state.lastSuccessfulSync,
-              Icons.check_circle,
-              Colors.green,
-            ),
+            _buildTimestampRow('آخر مزامنة ناجحة', state.lastSuccessfulSync, Icons.check_circle, Colors.green),
             if (state.nextRetryAt != null)
-              _buildTimestampRow(
-                'إعادة المحاولة التالية',
-                state.nextRetryAt,
-                Icons.timer,
-                Colors.orange,
-              ),
+              _buildTimestampRow('إعادة المحاولة التالية', state.nextRetryAt, Icons.timer, Colors.orange),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTimestampRow(
-    String label,
-    DateTime? timestamp,
-    IconData icon,
-    Color color,
-  ) {
+  Widget _buildTimestampRow(String label, DateTime? timestamp, IconData icon, Color color) {
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
@@ -413,10 +349,7 @@ class _AutoSyncEngineMonitorScreenState
               children: [
                 Icon(Icons.merge, color: Colors.purple),
                 SizedBox(width: 8),
-                Text(
-                  'إحصائيات التضارب',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                Text('إحصائيات التضارب', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(),
@@ -424,10 +357,8 @@ class _AutoSyncEngineMonitorScreenState
               data: (stats) {
                 final totalConflicts = stats['total_conflicts'] as int? ?? 0;
                 final byTable = stats['by_table'] as Map<String, int>? ?? {};
-                final avgTimeDiff =
-                    stats['avg_time_diff_seconds'] as double? ?? 0.0;
-                final manualReviews =
-                    stats['manual_reviews_needed'] as int? ?? 0;
+                final avgTimeDiff = stats['avg_time_diff_seconds'] as double? ?? 0.0;
+                final manualReviews = stats['manual_reviews_needed'] as int? ?? 0;
 
                 if (totalConflicts == 0) {
                   return const Center(
@@ -435,11 +366,7 @@ class _AutoSyncEngineMonitorScreenState
                       padding: EdgeInsets.all(16.0),
                       child: Column(
                         children: [
-                          Icon(
-                            Icons.check_circle,
-                            size: 48,
-                            color: Colors.green,
-                          ),
+                          Icon(Icons.check_circle, size: 48, color: Colors.green),
                           SizedBox(height: 8),
                           Text('لا توجد تضاربات مسجلة'),
                         ],
@@ -455,10 +382,7 @@ class _AutoSyncEngineMonitorScreenState
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       title: const Text('إجمالي التضاربات'),
-                      trailing: Chip(
-                        label: Text('$totalConflicts'),
-                        backgroundColor: Colors.purple.shade100,
-                      ),
+                      trailing: Chip(label: Text('$totalConflicts'), backgroundColor: Colors.purple.shade100),
                     ),
                     ListTile(
                       dense: true,
@@ -471,17 +395,11 @@ class _AutoSyncEngineMonitorScreenState
                         dense: true,
                         contentPadding: EdgeInsets.zero,
                         title: const Text('يحتاج مراجعة يدوية'),
-                        trailing: Chip(
-                          label: Text('$manualReviews'),
-                          backgroundColor: Colors.orange.shade100,
-                        ),
+                        trailing: Chip(label: Text('$manualReviews'), backgroundColor: Colors.orange.shade100),
                       ),
                     if (byTable.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      const Text(
-                        'التضاربات حسب الجدول:',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      const Text('التضاربات حسب الجدول:', style: TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       ...byTable.entries.map(
                         (entry) => Padding(
@@ -491,10 +409,7 @@ class _AutoSyncEngineMonitorScreenState
                               Container(
                                 width: 8,
                                 height: 8,
-                                decoration: BoxDecoration(
-                                  color: Colors.purple.shade300,
-                                  shape: BoxShape.circle,
-                                ),
+                                decoration: BoxDecoration(color: Colors.purple.shade300, shape: BoxShape.circle),
                               ),
                               const SizedBox(width: 8),
                               Expanded(child: Text(entry.key)),
@@ -521,10 +436,7 @@ class _AutoSyncEngineMonitorScreenState
                 );
               },
               loading: () => const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: CircularProgressIndicator(),
-                ),
+                child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()),
               ),
               error: (error, _) => Center(child: Text('خطأ: $error')),
             ),
@@ -535,8 +447,7 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   Widget _buildActionsCard(BuildContext context, AutoSyncEngineState state) {
-    final canSync =
-        state.isRunning && state.hasNetworkConnection && state.isSignedIn;
+    final canSync = state.isRunning && state.hasNetworkConnection && state.isSignedIn;
 
     return Card(
       elevation: 2,
@@ -549,10 +460,7 @@ class _AutoSyncEngineMonitorScreenState
               children: [
                 Icon(Icons.touch_app, color: Colors.blue),
                 SizedBox(width: 8),
-                Text(
-                  'الإجراءات',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                Text('الإجراءات', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(),
@@ -568,9 +476,7 @@ class _AutoSyncEngineMonitorScreenState
             ),
             const SizedBox(height: 8),
             ElevatedButton.icon(
-              onPressed: state.failedAttempts > 0
-                  ? () => _resetFailedAttempts(context)
-                  : null,
+              onPressed: state.failedAttempts > 0 ? () => _resetFailedAttempts(context) : null,
               icon: const Icon(Icons.refresh),
               label: const Text('إعادة تعيين المحاولات'),
               style: ElevatedButton.styleFrom(
@@ -603,10 +509,7 @@ class _AutoSyncEngineMonitorScreenState
               children: [
                 Icon(Icons.settings, color: Colors.grey),
                 SizedBox(width: 8),
-                Text(
-                  'الإعدادات السريعة',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                Text('الإعدادات السريعة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(),
@@ -641,19 +544,15 @@ class _AutoSyncEngineMonitorScreenState
   }
 
   Future<void> _performManualSync(BuildContext context) async {
-    unawaited(showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('جارٍ المزامنة...'),
-          ],
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(children: [CircularProgressIndicator(), SizedBox(width: 16), Text('جارٍ المزامنة...')]),
         ),
       ),
-    ),);
+    );
 
     try {
       final result = await ref.read(autoSyncEngineProvider).forceSyncNow();
@@ -671,20 +570,17 @@ class _AutoSyncEngineMonitorScreenState
             : '❌ ${result.message}\n'
                   '${result.error ?? ""}';
 
-        unawaited(showDialog<void>(
-          // ignore: use_build_context_synchronously
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(result.success ? 'نجح!' : 'فشل'),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('حسناً'),
-              ),
-            ],
+        unawaited(
+          showDialog<void>(
+            // ignore: use_build_context_synchronously
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(result.success ? 'نجح!' : 'فشل'),
+              content: Text(message),
+              actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً'))],
+            ),
           ),
-        ),);
+        );
       }
 
       ref.invalidate(autoSyncEngineStateProvider);
@@ -695,22 +591,17 @@ class _AutoSyncEngineMonitorScreenState
       }
       if (mounted) {
         // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red));
       }
     }
   }
 
   Future<void> _resetFailedAttempts(BuildContext context) async {
-                  await ref.read(autoSyncEngineProvider).resetFailedAttempts();
+    await ref.read(autoSyncEngineProvider).resetFailedAttempts();
     if (mounted) {
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ تم إعادة تعيين المحاولات الفاشلة'),
-          backgroundColor: Colors.green,
-        ),
+        const SnackBar(content: Text('✅ تم إعادة تعيين المحاولات الفاشلة'), backgroundColor: Colors.green),
       );
     }
     ref.invalidate(autoSyncEngineStateProvider);
@@ -731,30 +622,19 @@ class _AutoSyncEngineMonitorScreenState
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('إغلاق'),
-              ),
-            ],
+            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))],
           ),
         );
       },
       loading: () {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('جارٍ التحميل...')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('جارٍ التحميل...')));
       },
       error: (error, _) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('تعذر تحميل الحالة الكاملة. حاول مرة أخرى'),
             backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'إعادة',
-              textColor: Colors.white,
-              onPressed: () => _showFullStatus(context),
-            ),
+            action: SnackBarAction(label: 'إعادة', textColor: Colors.white, onPressed: () => _showFullStatus(context)),
           ),
         );
       },
@@ -767,9 +647,7 @@ class _AutoSyncEngineMonitorScreenState
     historyAsync.when(
       data: (history) {
         if (history.isEmpty) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('لا يوجد سجل تضاربات')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا يوجد سجل تضاربات')));
           return;
         }
 
@@ -787,9 +665,7 @@ class _AutoSyncEngineMonitorScreenState
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.purple.shade700,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                   ),
                   child: const Row(
                     children: [
@@ -797,11 +673,7 @@ class _AutoSyncEngineMonitorScreenState
                       SizedBox(width: 8),
                       Text(
                         'سجل التضاربات',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ],
                   ),
@@ -813,10 +685,7 @@ class _AutoSyncEngineMonitorScreenState
                     itemBuilder: (context, index) {
                       final entry = history[index];
                       return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.purple.shade100,
-                          child: Text('${index + 1}'),
-                        ),
+                        leading: CircleAvatar(backgroundColor: Colors.purple.shade100, child: Text('${index + 1}')),
                         title: Text('${entry['table'] as String} / ${entry['uuid'] as String}'),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -845,13 +714,7 @@ class _AutoSyncEngineMonitorScreenState
         showDialog<void>(
           context: context,
           builder: (context) => const AlertDialog(
-            content: Row(
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 16),
-                Text('جارٍ التحميل...'),
-              ],
-            ),
+            content: Row(children: [CircularProgressIndicator(), SizedBox(width: 16), Text('جارٍ التحميل...')]),
           ),
         );
       },
@@ -873,105 +736,99 @@ class _AutoSyncEngineMonitorScreenState
 
   Future<void> _showDebounceSettings(BuildContext context) async {
     final current = await ref.read(autoSyncEngineProvider).getEngineStatus();
-    final currentDebounce =
-        (current['coordinator']?['debounce_seconds'] as int?) ?? 5;
+    final currentDebounce = (current['coordinator']?['debounce_seconds'] as int?) ?? 5;
 
     if (mounted) {
-      unawaited(showDialog<void>(
-        // ignore: use_build_context_synchronously
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('ضبط Debouncing'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('فترة تجميع التغييرات قبل الرفع'),
-              const SizedBox(height: 16),
-              ...[2, 5, 10, 15].map(
-                (seconds) => RadioListTile<int>(
-                  title: Text('$seconds ثانية'),
-                  subtitle: Text(_getDebounceDescription(seconds)),
-                  value: seconds,
-                  // ignore: deprecated_member_use
-                  groupValue: currentDebounce,
-                  // ignore: deprecated_member_use
-                  onChanged: (value) async {
-                    if (value != null) {
-                      await ref.read(autoSyncEngineProvider).setDebounceSeconds(value);
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        Navigator.pop(context);
+      unawaited(
+        showDialog<void>(
+          // ignore: use_build_context_synchronously
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('ضبط Debouncing'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('فترة تجميع التغييرات قبل الرفع'),
+                const SizedBox(height: 16),
+                ...[2, 5, 10, 15].map(
+                  (seconds) => RadioListTile<int>(
+                    title: Text('$seconds ثانية'),
+                    subtitle: Text(_getDebounceDescription(seconds)),
+                    value: seconds,
+                    // ignore: deprecated_member_use
+                    groupValue: currentDebounce,
+                    // ignore: deprecated_member_use
+                    onChanged: (value) async {
+                      if (value != null) {
+                        await ref.read(autoSyncEngineProvider).setDebounceSeconds(value);
+                        if (mounted) {
+                          // ignore: use_build_context_synchronously
+                          Navigator.pop(context);
+                        }
+                        if (mounted) {
+                          // ignore: use_build_context_synchronously
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('✅ تم تعيين Debounce إلى $value ثانية')));
+                        }
                       }
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '✅ تم تعيين Debounce إلى $value ثانية',
-                            ),
-                          ),
-                        );
-                      }
-                    }
-                  },
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),);
+      );
     }
   }
 
   Future<void> _showPullIntervalSettings(BuildContext context) async {
     final current = await ref.read(autoSyncEngineProvider).getEngineStatus();
-    final currentInterval =
-        (current['coordinator']?['pull_interval_minutes'] as int?) ?? 2;
+    final currentInterval = (current['coordinator']?['pull_interval_minutes'] as int?) ?? 2;
 
     if (mounted) {
-      unawaited(showDialog<void>(
-        // ignore: use_build_context_synchronously
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('ضبط فترة Pull'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('فترة فحص التحديثات من الأجهزة الأخرى'),
-              const SizedBox(height: 16),
-              ...[1, 2, 5, 10, 15].map(
-                (minutes) => RadioListTile<int>(
-                  title: Text('$minutes دقيقة'),
-                  subtitle: Text(_getPullIntervalDescription(minutes)),
-                  value: minutes,
-                  // ignore: deprecated_member_use
-                  groupValue: currentInterval,
-                  // ignore: deprecated_member_use
-                  onChanged: (value) async {
-                    if (value != null) {
-                      await ref.read(autoSyncEngineProvider).setPullInterval(value);
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        Navigator.pop(context);
+      unawaited(
+        showDialog<void>(
+          // ignore: use_build_context_synchronously
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('ضبط فترة Pull'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('فترة فحص التحديثات من الأجهزة الأخرى'),
+                const SizedBox(height: 16),
+                ...[1, 2, 5, 10, 15].map(
+                  (minutes) => RadioListTile<int>(
+                    title: Text('$minutes دقيقة'),
+                    subtitle: Text(_getPullIntervalDescription(minutes)),
+                    value: minutes,
+                    // ignore: deprecated_member_use
+                    groupValue: currentInterval,
+                    // ignore: deprecated_member_use
+                    onChanged: (value) async {
+                      if (value != null) {
+                        await ref.read(autoSyncEngineProvider).setPullInterval(value);
+                        if (mounted) {
+                          // ignore: use_build_context_synchronously
+                          Navigator.pop(context);
+                        }
+                        if (mounted) {
+                          // ignore: use_build_context_synchronously
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('✅ تم تعيين Pull Interval إلى $value دقيقة')));
+                        }
                       }
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '✅ تم تعيين Pull Interval إلى $value دقيقة',
-                            ),
-                          ),
-                        );
-                      }
-                    }
-                  },
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),);
+      );
     }
   }
 
@@ -980,47 +837,45 @@ class _AutoSyncEngineMonitorScreenState
     final currentStrategy = await resolver.getStrategy();
 
     if (mounted) {
-      unawaited(showDialog<void>(
-        // ignore: use_build_context_synchronously
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('استراتيجية حل التضارب'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: ConflictResolutionStrategy.values.map((strategy) {
-                return RadioListTile<ConflictResolutionStrategy>(
-                  title: Text(_getStrategyName(strategy)),
-                  subtitle: Text(_getStrategyDescription(strategy)),
-                  value: strategy,
-                  // ignore: deprecated_member_use
-                  groupValue: currentStrategy,
-                  // ignore: deprecated_member_use
-                  onChanged: (value) async {
-                    if (value != null) {
-                      await ref.read(autoSyncEngineProvider).setConflictStrategy(value);
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        Navigator.pop(context);
+      unawaited(
+        showDialog<void>(
+          // ignore: use_build_context_synchronously
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('استراتيجية حل التضارب'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: ConflictResolutionStrategy.values.map((strategy) {
+                  return RadioListTile<ConflictResolutionStrategy>(
+                    title: Text(_getStrategyName(strategy)),
+                    subtitle: Text(_getStrategyDescription(strategy)),
+                    value: strategy,
+                    // ignore: deprecated_member_use
+                    groupValue: currentStrategy,
+                    // ignore: deprecated_member_use
+                    onChanged: (value) async {
+                      if (value != null) {
+                        await ref.read(autoSyncEngineProvider).setConflictStrategy(value);
+                        if (mounted) {
+                          // ignore: use_build_context_synchronously
+                          Navigator.pop(context);
+                        }
+                        if (mounted) {
+                          // ignore: use_build_context_synchronously
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('✅ تم تعيين الاستراتيجية: ${_getStrategyName(value)}')),
+                          );
+                        }
                       }
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '✅ تم تعيين الاستراتيجية: ${_getStrategyName(value)}',
-                            ),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                );
-              }).toList(),
+                    },
+                  );
+                }).toList(),
+              ),
             ),
           ),
         ),
-      ),);
+      );
     }
   }
 

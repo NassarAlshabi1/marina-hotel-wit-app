@@ -4,38 +4,34 @@ import '../models/sync_result.dart';
 abstract class SyncAdapter {
   /// اسم المحول
   String get name;
-  
+
   /// هل تم تهيئة المحول
   bool get isInitialized;
-  
+
   /// هل المزامنة مفعلة لهذا المحول
   bool get isEnabled;
-  
+
   /// تهيئة المحول
   Future<void> initialize();
-  
+
   /// إجراء مزامنة
-  Future<SyncResult> sync({
-    required bool push,
-    required bool pull,
-  });
-  
+  Future<SyncResult> sync({required bool push, required bool pull});
+
   /// تفعيل/تعطيل المزامنة
   Future<void> setEnabled(bool enabled);
-  
+
   /// الحصول على إحصائيات المزامنة
   Future<Map<String, dynamic>> getStats();
-  
+
   /// التحقق من صحة الاتصال
   Future<bool> checkConnection();
-  
+
   /// تنظيف الموارد
   void dispose();
 }
 
 /// معلومات حالة المحول
 class AdapterStatus {
-
   AdapterStatus({
     required this.isConnected,
     required this.isAuthenticated,

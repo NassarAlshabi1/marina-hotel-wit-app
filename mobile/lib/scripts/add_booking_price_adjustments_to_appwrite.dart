@@ -89,7 +89,7 @@ Future<void> main(List<String> args) async {
     // 1. إنشاء الـ Collection
     print('1️⃣ إنشاء الـ Collection...');
     final collectionCreated = await createCollection(client, apiKey);
-    
+
     if (!collectionCreated) {
       print('   ⚠️ الـ Collection قد يكون موجوداً بالفعل، نستمر بإضافة الحقول...');
     } else {
@@ -104,9 +104,9 @@ Future<void> main(List<String> args) async {
 
     for (final attr in attributes) {
       await Future<void>.delayed(const Duration(milliseconds: 500));
-      
+
       final result = await addAttribute(client, apiKey, attr);
-      
+
       if (result == 'success') {
         successCount++;
         print('   ✅ ${attr['key']}');
@@ -149,20 +149,11 @@ Future<bool> createCollection(http.Client client, String apiKey) async {
   try {
     final response = await client.post(
       url,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Appwrite-Project': projectId,
-        'X-Appwrite-Key': apiKey,
-      },
+      headers: {'Content-Type': 'application/json', 'X-Appwrite-Project': projectId, 'X-Appwrite-Key': apiKey},
       body: json.encode({
         'collectionId': collectionId,
         'name': 'Booking Price Adjustments',
-        'permissions': [
-          'read("any")',
-          'create("any")',
-          'update("any")',
-          'delete("any")',
-        ],
+        'permissions': ['read("any")', 'create("any")', 'update("any")', 'delete("any")'],
         'documentSecurity': false,
       }),
     );
@@ -178,12 +169,9 @@ Future<String> addAttribute(http.Client client, String apiKey, Map<String, dynam
   final type = attr['type'] as String;
   final key = attr['key'] as String;
   final required = attr['required'] as bool? ?? false;
-  
+
   String urlPath;
-  final Map<String, dynamic> body = {
-    'key': key,
-    'required': required,
-  };
+  final Map<String, dynamic> body = {'key': key, 'required': required};
 
   if (type == 'string') {
     urlPath = 'string';
@@ -210,18 +198,12 @@ Future<String> addAttribute(http.Client client, String apiKey, Map<String, dynam
     return 'fail';
   }
 
-  final url = Uri.parse(
-    '$endpoint/databases/$databaseId/collections/$collectionId/attributes/$urlPath',
-  );
+  final url = Uri.parse('$endpoint/databases/$databaseId/collections/$collectionId/attributes/$urlPath');
 
   try {
     final response = await client.post(
       url,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Appwrite-Project': projectId,
-        'X-Appwrite-Key': apiKey,
-      },
+      headers: {'Content-Type': 'application/json', 'X-Appwrite-Project': projectId, 'X-Appwrite-Key': apiKey},
       body: json.encode(body),
     );
 
@@ -245,24 +227,13 @@ Future<void> createIndex(
   List<String> orders,
   String type,
 ) async {
-  final url = Uri.parse(
-    '$endpoint/databases/$databaseId/collections/$collectionId/indexes',
-  );
+  final url = Uri.parse('$endpoint/databases/$databaseId/collections/$collectionId/indexes');
 
   try {
     final response = await client.post(
       url,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Appwrite-Project': projectId,
-        'X-Appwrite-Key': apiKey,
-      },
-      body: json.encode({
-        'key': indexKey,
-        'type': type,
-        'attributes': attributes,
-        'orders': orders,
-      }),
+      headers: {'Content-Type': 'application/json', 'X-Appwrite-Project': projectId, 'X-Appwrite-Key': apiKey},
+      body: json.encode({'key': indexKey, 'type': type, 'attributes': attributes, 'orders': orders}),
     );
 
     if (response.statusCode == 201 || response.statusCode == 202) {

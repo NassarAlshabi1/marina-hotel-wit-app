@@ -37,10 +37,7 @@ class PasswordHasher {
   static const String _algorithmPrefix = 'pbkdf2_sha256';
 
   /// مولّد أرقام عشوائي آمن
-  static final _secureRandom = pc.SecureRandom('Fortuna')
-    ..seed(pc.KeyParameter(
-      _generateSeed(),
-    ));
+  static final _secureRandom = pc.SecureRandom('Fortuna')..seed(pc.KeyParameter(_generateSeed()));
 
   /// توليد seed عشوائي للـ Fortuna PRNG
   static Uint8List _generateSeed() {
@@ -108,11 +105,7 @@ class PasswordHasher {
   }
 
   /// تنفيذ PBKDF2-HMAC-SHA-256
-  static Uint8List _pbkdf2(
-    String password,
-    Uint8List salt,
-    int iterations,
-  ) {
+  static Uint8List _pbkdf2(String password, Uint8List salt, int iterations) {
     final passwordBytes = Uint8List.fromList(utf8.encode(password));
     final keyDerivator = pc.PBKDF2KeyDerivator(pc.HMac(pc.SHA256Digest(), 64))
       ..init(pc.Pbkdf2Parameters(salt, iterations, _hashLength));

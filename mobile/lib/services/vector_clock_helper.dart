@@ -61,11 +61,7 @@ class VectorClockHelper {
   ///
   /// يقرأ VC الحالي من DB، يزيد عداد الجهاز، يكتبه مرة أخرى.
   /// إذا فشل (مثلاً deviceId غير متوفر)، يُسجّل تحذيراً ولا يُعطل العملية.
-  static Future<void> bump(
-    AppDatabase db,
-    String entity,
-    String localUuid,
-  ) async {
+  static Future<void> bump(AppDatabase db, String entity, String localUuid) async {
     final tableName = entityToTable[entity];
     if (tableName == null || localUuid.isEmpty) {
       return;
@@ -78,10 +74,12 @@ class VectorClockHelper {
     }
 
     try {
-      final rows = await db.customSelect(
-        'SELECT vector_clock AS vc FROM $tableName WHERE local_uuid = ? LIMIT 1',
-        variables: [Variable<String>(localUuid)],
-      ).get();
+      final rows = await db
+          .customSelect(
+            'SELECT vector_clock AS vc FROM $tableName WHERE local_uuid = ? LIMIT 1',
+            variables: [Variable<String>(localUuid)],
+          )
+          .get();
 
       if (rows.isEmpty) return;
 
@@ -90,21 +88,14 @@ class VectorClockHelper {
       vc.increment(deviceId);
       final newVcStr = vc.toString();
 
-      await db.customStatement(
-        'UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?',
-        [newVcStr, localUuid],
-      );
+      await db.customStatement('UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?', [newVcStr, localUuid]);
     } catch (_) {
       // فشل زيادة VC ليس خطأ قاتلاً — الـ push سيزيده لاحقاً
     }
   }
 
   /// نسخة محمّلة (overload) تقبل عدة سجلات دفعة واحدة
-  static Future<void> bumpMany(
-    AppDatabase db,
-    String entity,
-    List<String> localUuids,
-  ) async {
+  static Future<void> bumpMany(AppDatabase db, String entity, List<String> localUuids) async {
     for (final uuid in localUuids) {
       await bump(db, entity, uuid);
     }

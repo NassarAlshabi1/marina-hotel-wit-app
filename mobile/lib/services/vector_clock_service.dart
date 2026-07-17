@@ -1,5 +1,6 @@
 // lib/services/vector_clock_service.dart
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 /// Vector Clock حقيقي لحل تعارضات المزامنة عبر الأجهزة.
 ///
@@ -28,18 +29,33 @@ import 'dart:convert';
 class VectorClock {
   VectorClock(Map<String, int>? counters) : _counters = counters ?? {};
 
-  /// إنشاء من JSON string (المخزن في DB)
+  /// إنشاء من JSON string (المخزن في DB).
+  ///
+  /// ✅ تحسين: تسجيل تحذير عند JSON تالف بدلاً من التجاهل الصامت.
+  /// سابقاً كان JSON التالف يُتجاهل بصمت ويُعاد vector clock فارغ، مما
+  /// يُخفي مشاكل البيانات. الآن نُسجّل التحذير (في debug mode) لمراقبة
+  /// صحة البيانات، مع الحفاظ على نفس السلوك (إعادة ساعة فارغة آمنة).
   factory VectorClock.fromString(String json) {
     if (json.isEmpty || json == '{}') return VectorClock({});
     try {
       final decoded = jsonDecode(json);
       if (decoded is Map<String, dynamic>) {
-        return VectorClock(
-          decoded.map((k, v) => MapEntry(k, (v as num).toInt())),
-        );
+        return VectorClock(decoded.map((k, v) => MapEntry(k, (v as num).toInt())));
       }
-    } catch (_) {
-      // JSON تالف — ابدأ بساعة فارغة
+      // ✅ تحسين: تسجيل نوع غير متوقع (ليس Map)
+      developer.log(
+        '⚠️ VectorClock.fromString: decoded JSON is not a Map '
+        '(type=${decoded.runtimeType}, value=$json)',
+        name: 'VectorClock',
+      );
+    } catch (e) {
+      // ✅ تحسين: تسجيل JSON التالف بدلاً من التجاهل الصامت
+      developer.log(
+        '⚠️ VectorClock.fromString: invalid JSON "$json" — $e. '
+        'Returning empty vector clock.',
+        name: 'VectorClock',
+        error: e,
+      );
     }
     return VectorClock({});
   }
@@ -133,8 +149,7 @@ class VectorClock {
   int get totalEvents => _counters.values.fold(0, (a, b) => a + b);
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || (other is VectorClock && isEqual(other));
+  bool operator ==(Object other) => identical(this, other) || (other is VectorClock && isEqual(other));
 
   @override
   int get hashCode => toString().hashCode;
@@ -160,10 +175,7 @@ class VectorClockComparator {
   VectorClockComparator._();
 
   /// مقارنة ساعة محلية مع بعيدة
-  static VectorClockComparison compare(
-    VectorClock local,
-    VectorClock remote,
-  ) {
+  static VectorClockComparison compare(VectorClock local, VectorClock remote) {
     if (local.isEqual(remote)) {
       return VectorClockComparison.equal;
     }
@@ -206,10 +218,7 @@ class VectorClockComparator {
   }
 
   /// دمج ساعة بعيدة في محلية (بعد تطبيق التحديث)
-  static VectorClock mergeAfterApply(
-    VectorClock localVc,
-    VectorClock remoteVc,
-  ) {
+  static VectorClock mergeAfterApply(VectorClock localVc, VectorClock remoteVc) {
     final merged = localVc.copy();
     merged.merge(remoteVc);
     return merged;

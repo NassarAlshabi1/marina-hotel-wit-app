@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
@@ -18,8 +21,7 @@ class DebtsListScreen extends ConsumerStatefulWidget {
   ConsumerState<DebtsListScreen> createState() => _DebtsListScreenState();
 }
 
-class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
-    with SyncOnExitMixin {
+class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnExitMixin {
   @override
   String get screenId => 'debts_list';
   String _searchQuery = '';
@@ -47,8 +49,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       digitsOnly = '966$digitsOnly';
     } else if (digitsOnly.startsWith('966')) {
       return digitsOnly;
-    }
-    else if (digitsOnly.length <= 10 && !digitsOnly.startsWith('+')) {
+    } else if (digitsOnly.length <= 10 && !digitsOnly.startsWith('+')) {
       digitsOnly = '967$digitsOnly';
     }
     return digitsOnly;
@@ -94,16 +95,10 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                       const SizedBox(height: 16),
                       Text(
                         'حدث خطأ في تحميل البيانات',
-                        style: TextStyle(
-                          color: Colors.red.shade700,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        error.toString(),
-                        style: const TextStyle(color: Colors.grey),
-                      ),
+                      Text(error.toString(), style: const TextStyle(color: Colors.grey)),
                     ],
                   ),
                 ),
@@ -127,18 +122,10 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             style: const TextStyle(fontWeight: FontWeight.bold),
             decoration: InputDecoration(
               hintText: 'ابحث باسم النزيل أو رقم الغرفة...',
-              hintStyle: TextStyle(
-                fontWeight: FontWeight.normal,
-                color: Colors.grey[500],
-              ),
+              hintStyle: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey[500]),
               prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(25),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
             onChanged: (value) {
               _debounceTimer?.cancel();
@@ -189,37 +176,18 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           data: (debts) {
             final totalDebts = debts.length;
             final pendingDebts = debts.where((d) => d.isSettled == 0).length;
-            final totalAmount = debts.fold(
-              0.0,
-              (sum, debt) => sum + debt.remainingAmount,
-            );
+            final totalAmount = debts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
 
             return Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      'إجمالي الديون',
-                      totalDebts.toString(),
-                      Colors.blue,
-                    ),
-                  ),
+                  Expanded(child: _buildStatCard('إجمالي الديون', totalDebts.toString(), Colors.blue)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildStatCard('معلق', pendingDebts.toString(), Colors.orange)),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _buildStatCard(
-                      'معلق',
-                      pendingDebts.toString(),
-                      Colors.orange,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildStatCard(
-                      'القيمة الإجمالية',
-                      CurrencyFormatter.formatAmount(totalAmount),
-                      Colors.red,
-                    ),
+                    child: _buildStatCard('القيمة الإجمالية', CurrencyFormatter.formatAmount(totalAmount), Colors.red),
                   ),
                 ],
               ),
@@ -242,11 +210,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         children: [
           Text(
             value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
           ),
           const SizedBox(height: 4),
           Text(
@@ -263,9 +227,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     // تطبيق البحث والتصفية
     final filteredDebts = allDebts.where((debt) {
       // البحث
-      final matchesSearch =
-          _searchQuery.isEmpty ||
-          debt.guestName.toLowerCase().contains(_searchQuery.toLowerCase());
+      final matchesSearch = _searchQuery.isEmpty || debt.guestName.toLowerCase().contains(_searchQuery.toLowerCase());
 
       // التصفية حسب الحالة
       bool matchesFilter = true;
@@ -276,16 +238,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           matchesFilter = debt.isSettled == 1 || debt.remainingAmount <= 0;
         case 'overdue':
           // الديون المتأخرة (أكثر من 30 يوم)
-          final debtDateStr = debt.dateRecorded.isNotEmpty
-              ? debt.dateRecorded
-              : debt.checkoutDate;
+          final debtDateStr = debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate;
           final debtDate = DateTime.tryParse(debtDateStr);
           if (debtDate != null) {
             final daysPassed = DateTime.now().difference(debtDate).inDays;
-            matchesFilter =
-                daysPassed > 30 &&
-                debt.isSettled == 0 &&
-                debt.remainingAmount > 0;
+            matchesFilter = daysPassed > 30 && debt.isSettled == 0 && debt.remainingAmount > 0;
           } else {
             matchesFilter = false;
           }
@@ -316,19 +273,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.account_balance_outlined,
-              size: 64,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.account_balance_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
               emptyMessage,
-              style: const TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -349,9 +298,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         itemCount: filteredDebts.length,
         itemBuilder: (context, index) {
           final debt = filteredDebts[index];
-          return RepaintBoundary(
-            child: _buildDebtCard(debt),
-          );
+          return RepaintBoundary(child: _buildDebtCard(debt));
         },
       ),
     );
@@ -359,12 +306,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
   Widget _buildDebtCard(Debt debt) {
     final isSettled = debt.isSettled == 1 || debt.remainingAmount <= 0;
-    final debtDate = DateTime.tryParse(
-      debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate,
-    );
-    final daysPassed = debtDate != null
-        ? DateTime.now().difference(debtDate).inDays
-        : 0;
+    final debtDate = DateTime.tryParse(debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate);
+    final daysPassed = debtDate != null ? DateTime.now().difference(debtDate).inDays : 0;
     final isOverdue = daysPassed > 30 && !isSettled;
 
     Color cardColor = Colors.white;
@@ -397,13 +340,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    debt.guestName,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: Text(debt.guestName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
                 _buildStatusBadge(debt),
               ],
@@ -414,20 +351,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             // التواريخ والسبب
             Row(
               children: [
-                Expanded(
-                  child: _buildInfoRow(
-                    Icons.login,
-                    'الدخول',
-                    _formatDate(debt.checkinDate),
-                  ),
-                ),
-                Expanded(
-                  child: _buildInfoRow(
-                    Icons.logout,
-                    'الخروج',
-                    _formatDate(debt.checkoutDate),
-                  ),
-                ),
+                Expanded(child: _buildInfoRow(Icons.login, 'الدخول', _formatDate(debt.checkinDate))),
+                Expanded(child: _buildInfoRow(Icons.logout, 'الخروج', _formatDate(debt.checkoutDate))),
               ],
             ),
 
@@ -447,11 +372,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     children: [
                       Text(
                         'إجمالي',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 9, fontWeight: FontWeight.bold),
                       ),
                       Text(
                         CurrencyFormatter.formatAmount(debt.totalAmount),
@@ -466,19 +387,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     children: [
                       Text(
                         'المدفوع',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 9, fontWeight: FontWeight.bold),
                       ),
                       Text(
                         CurrencyFormatter.formatAmount(debt.paidAmount),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green.shade700,
-                        ),
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green.shade700),
                       ),
                     ],
                   ),
@@ -489,19 +402,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     children: [
                       Text(
                         'المتبقي',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 9, fontWeight: FontWeight.bold),
                       ),
                       Text(
                         CurrencyFormatter.formatAmount(debt.remainingAmount),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red.shade700,
-                        ),
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red.shade700),
                       ),
                     ],
                   ),
@@ -527,11 +432,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     Expanded(
                       child: Text(
                         'رهن: ${debt.pledge}${(debt.pledgeType?.isNotEmpty ?? false) ? ' (${debt.pledgeType})' : ''}',
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: Colors.blue.shade700,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(fontSize: 9, color: Colors.blue.shade700, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -550,15 +451,12 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
-                child: Text(
-                  debt.note!,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: Text(debt.note!, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
               ),
             ],
+
+            // ✅ سجل الدفعات الجزئية (إذا وُجد)
+            ..._buildPaymentHistoryWidget(debt),
 
             const SizedBox(height: 6),
 
@@ -566,13 +464,29 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
             Row(
               children: [
                 if (!isSettled) ...[
+                  // ✅ زر سداد كامل (مسدد بالكامل)
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _markAsSettled(debt),
-                      icon: const Icon(Icons.check, size: 12),
-                      label: const Text('سداد', style: TextStyle(fontSize: 10)),
+                      icon: const Icon(Icons.check_circle, size: 12),
+                      label: const Text('سداد كامل', style: TextStyle(fontSize: 9)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        minimumSize: const Size(0, 28),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // ✅ زر سداد جزئي (دفع مبلغ من الدين)
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showPartialPaymentDialog(debt),
+                      icon: const Icon(Icons.payments, size: 12),
+                      label: const Text('سداد جزئي', style: TextStyle(fontSize: 9)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade600,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         minimumSize: const Size(0, 28),
@@ -583,9 +497,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                 ],
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _isSendingWhatsApp
-                        ? null
-                        : () => _sendDebtWhatsApp(debt),
+                    onPressed: _isSendingWhatsApp ? null : () => _sendDebtWhatsApp(debt),
                     icon: const Icon(Icons.chat, size: 12, color: Colors.green),
                     label: const Text('واتساب', style: TextStyle(fontSize: 10, color: Colors.green)),
                     style: OutlinedButton.styleFrom(
@@ -629,13 +541,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
   Widget _buildStatusBadge(Debt debt) {
     final isSettled = debt.isSettled == 1 || debt.remainingAmount <= 0;
-    final debtDateStr = debt.dateRecorded.isNotEmpty
-        ? debt.dateRecorded
-        : debt.checkoutDate;
+    final debtDateStr = debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate;
     final debtDate = DateTime.tryParse(debtDateStr);
-    final daysPassed = debtDate != null
-        ? DateTime.now().difference(debtDate).inDays
-        : 0;
+    final daysPassed = debtDate != null ? DateTime.now().difference(debtDate).inDays : 0;
     final isOverdue = daysPassed > 30 && !isSettled && debt.remainingAmount > 0;
 
     String text;
@@ -664,11 +572,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       ),
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: color,
-        ),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
       ),
     );
   }
@@ -680,17 +584,10 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         const SizedBox(width: 4),
         Text(
           '$label: ',
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.bold),
         ),
         Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-          ),
+          child: Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
         ),
       ],
     );
@@ -704,27 +601,19 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'إضافة دين جديد',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            const Text('إضافة دين جديد', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             ListTile(
               leading: const Icon(Icons.hotel_outlined, color: Colors.blue),
               title: const Text('دين من حجز موجود'),
-              subtitle: const Text(
-                'اختر حجز وأنشئ دين بناء على الأيام المتبقية',
-              ),
+              subtitle: const Text('اختر حجز وأنشئ دين بناء على الأيام المتبقية'),
               onTap: () {
                 Navigator.pop(context);
                 _createDebtFromBooking();
               },
             ),
             ListTile(
-              leading: const Icon(
-                Icons.add_circle_outline,
-                color: Colors.green,
-              ),
+              leading: const Icon(Icons.add_circle_outline, color: Colors.green),
               title: const Text('دين يدوي'),
               subtitle: const Text('أدخل تفاصيل الدين يدوياً'),
               onTap: () {
@@ -739,10 +628,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   }
 
   Future<void> _createDebtFromBooking() async {
-    final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(builder: (context) => const CreateDebtFromBookingScreen(),
-      ),
-    );
+    final result = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute<bool>(builder: (context) => const CreateDebtFromBookingScreen()));
 
     // إذا تم إنشاء دين بنجاح، قم بتحديث البيانات
     if (result ?? false) {
@@ -761,10 +649,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         title: const Text('تأكيد السداد'),
         content: Text('هل تريد تسجيل دين "${debt.guestName}" كمسدد؟'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop<bool>(context, false),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop<bool>(context, false), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
@@ -787,65 +672,329 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         markDataChanged();
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('تم تسجيل سداد دين ${debt.guestName}')),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تسجيل سداد دين ${debt.guestName}')));
         }
       } catch (e) {
         if (!mounted) {
           return;
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('فشل تسجيل السداد: $e'),
-            backgroundColor: Colors.red.shade900,
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('فشل تسجيل السداد: $e'), backgroundColor: Colors.red.shade900));
       }
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  //  سجل الدفعات الجزئية — تخزين واسترجاع من حقل note كـ JSON
+  // ═══════════════════════════════════════════════════════════════
+
+  /// هيكل دفعة جزئية واحدة
+  /// {"amount": 5000, "date": "2026-01-01", "note": "دفعة أولى"}
+
+  /// استخراج سجل الدفعات من حقل note.
+  /// إذا كان note يبدأ بـ { → JSON مع payments array.
+  /// وإلا → لا يوجد سجل منظم (نص حر فقط).
+  List<Map<String, dynamic>> _parsePaymentHistory(Debt debt) {
+    final note = debt.note ?? '';
+    if (note.isEmpty || !note.startsWith('{')) return [];
+    try {
+      final decoded = jsonDecode(note) as Map<String, dynamic>;
+      final payments = decoded['payments'] as List<dynamic>?;
+      if (payments == null) return [];
+      return payments.map((p) => p as Map<String, dynamic>).where((p) => p['amount'] != null).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// بناء سجل الدفعات JSON لحفظه في note.
+  /// يحافظ على النص الأصلي (original_note) إن وُجد.
+  String _buildPaymentHistoryNote(Debt debt, List<Map<String, dynamic>> payments) {
+    final existing = _parsePaymentHistory(debt);
+    String? originalNote;
+    if (existing.isNotEmpty) {
+      // استخرج النص الأصلي إن وُجد
+      try {
+        final decoded = jsonDecode(debt.note ?? '{}') as Map<String, dynamic>;
+        originalNote = decoded['original_note'] as String?;
+      } catch (_) {}
+    } else if (debt.note != null && debt.note!.isNotEmpty && !debt.note!.startsWith('{')) {
+      // النص القديم wasn't JSON → احفظه كـ original_note
+      originalNote = debt.note;
+    }
+
+    final data = <String, dynamic>{
+      'payments': payments,
+      if (originalNote != null && originalNote.isNotEmpty) 'original_note': originalNote,
+    };
+    return jsonEncode(data);
+  }
+
+  /// عرض سجل الدفعات في بطاقة الدين (Compact)
+  List<Widget> _buildPaymentHistoryWidget(Debt debt) {
+    final payments = _parsePaymentHistory(debt);
+    if (payments.isEmpty) return [];
+
+    final fmt = NumberFormat('#,##0', 'en_US');
+    final widgets = <Widget>[];
+
+    widgets.add(const SizedBox(height: 4));
+    widgets.add(
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.blue.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.history, size: 12, color: Colors.blue.shade700),
+                const SizedBox(width: 4),
+                Text(
+                  'سجل الدفعات (${payments.length})',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            ...payments.map((p) {
+              final amount = (p['amount'] as num?)?.toDouble() ?? 0;
+              final date = p['date'] as String? ?? '';
+              final note = p['note'] as String? ?? '';
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 1),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${_formatDate(date)}${note.isNotEmpty ? " — $note" : ""}',
+                        style: TextStyle(fontSize: 9, color: Colors.blue.shade800),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      '- ${fmt.format(amount)}',
+                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+
+    return widgets;
+  }
+
+  /// ✅ سداد جزئي — يسجّل دفعة بمبلغ وتاريخ محددين.
+  ///
+  /// يُحدّث paidAmount + remainingAmount + isSettled في الدين،
+  /// ويضيف الدفعة إلى سجل الدفعات المخزّن في note كـ JSON.
+  /// مثال: دين 20,000 → دفع 5,000 في 1-1-2026 → دفع 4,000 في 10-2-2026.
+  Future<void> _showPartialPaymentDialog(Debt debt) async {
+    final amountController = TextEditingController();
+    // التاريخ الافتراضي = اليوم
+    DateTime selectedDate = DateTime.now();
+    final dateController = TextEditingController(text: DateFormat('yyyy-MM-dd').format(selectedDate));
+    final noteController = TextEditingController();
+    final fmt = NumberFormat('#,##0', 'en_US');
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.payments, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text('سداد جزئي'),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('النزيل: ${debt.guestName}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text('إجمالي الدين: ${fmt.format(debt.totalAmount)}'),
+                    Text('المدفوع: ${fmt.format(debt.paidAmount)}'),
+                    Text(
+                      'المتبقي: ${fmt.format(debt.remainingAmount)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                    ),
+                    const Divider(),
+                    const Text('مبلغ الدفعة:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        hintText: '0',
+                        suffixText: 'ريال',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        prefixIcon: Icon(Icons.attach_money, size: 18),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('تاريخ الدفعة:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: ctx,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now().add(const Duration(days: 1)),
+                        );
+                        if (picked != null) {
+                          setDialogState(() {
+                            selectedDate = picked;
+                            dateController.text = DateFormat('yyyy-MM-dd').format(picked);
+                          });
+                        }
+                      },
+                      child: IgnorePointer(
+                        child: TextField(
+                          controller: dateController,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            prefixIcon: Icon(Icons.calendar_today, size: 16),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('ملاحظة (اختياري):', style: TextStyle(fontSize: 12)),
+                    TextField(
+                      controller: noteController,
+                      decoration: const InputDecoration(
+                        hintText: 'مثلاً: دفعة أولى',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        isDense: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop<bool>(ctx, false), child: const Text('إلغاء')),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop<bool>(ctx, true),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                  child: const Text('تسجيل الدفعة'),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final amountStr = amountController.text.replaceAll(RegExp('[^0-9.]'), '');
+    final amount = double.tryParse(amountStr) ?? 0;
+    if (amount <= 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('⚠️ المبلغ غير صالح'), backgroundColor: Colors.red));
+      return;
+    }
+
+    if (amount > debt.remainingAmount) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⚠️ المبلغ يتجاوز المتبقي (${fmt.format(debt.remainingAmount)})'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final repo = ref.read(debtsRepoProvider);
+      final newPaidAmount = debt.paidAmount + amount;
+      final newRemaining = (debt.totalAmount - newPaidAmount).clamp(0, double.infinity).toDouble();
+      final isSettled = newRemaining <= 0 ? 1 : 0;
+
+      // ✅ تحديث سجل الدفعات في note
+      final payments = _parsePaymentHistory(debt);
+      payments.add({
+        'amount': amount,
+        'date': DateFormat('yyyy-MM-dd').format(selectedDate),
+        'note': noteController.text.trim(),
+      });
+      final newNote = _buildPaymentHistoryNote(debt, payments);
+
+      await repo.update(
+        id: debt.id,
+        paidAmount: newPaidAmount,
+        remainingAmount: newRemaining,
+        isSettled: isSettled,
+        paymentDate: DateFormat('yyyy-MM-dd').format(selectedDate),
+        note: newNote,
+      );
+
+      markDataChanged();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '✅ تم تسجيل دفعة ${fmt.format(amount)} بتاريخ ${DateFormat('yyyy-MM-dd').format(selectedDate)}'
+            '${isSettled == 1 ? " — تمت تسوية الدين بالكامل" : ""}',
+          ),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل تسجيل الدفعة: $e'), backgroundColor: Colors.red));
+    }
+  }
+
   Future<void> _openDebtForm(BuildContext context, {Debt? existing}) async {
-    final guestNameCtrl = TextEditingController(
-      text: existing?.guestName ?? '',
-    );
-    final checkinCtrl = TextEditingController(
-      text: Time.safeIsoToDateString(existing?.checkinDate),
-    );
-    final checkoutCtrl = TextEditingController(
-      text: Time.safeIsoToDateString(existing?.checkoutDate),
-    );
+    final guestNameCtrl = TextEditingController(text: existing?.guestName ?? '');
+    final checkinCtrl = TextEditingController(text: Time.safeIsoToDateString(existing?.checkinDate));
+    final checkoutCtrl = TextEditingController(text: Time.safeIsoToDateString(existing?.checkoutDate));
     final totalCtrl = TextEditingController(
-      text: existing != null
-          ? CurrencyFormatter.formatAmount(existing.totalAmount)
-          : '0',
+      text: existing != null ? CurrencyFormatter.formatAmount(existing.totalAmount) : '0',
     );
     final paidCtrl = TextEditingController(
-      text: existing != null
-          ? CurrencyFormatter.formatAmount(existing.paidAmount)
-          : '0',
+      text: existing != null ? CurrencyFormatter.formatAmount(existing.paidAmount) : '0',
     );
     final remainingCtrl = TextEditingController(
-      text: existing != null
-          ? CurrencyFormatter.formatAmount(existing.remainingAmount)
-          : '0',
+      text: existing != null ? CurrencyFormatter.formatAmount(existing.remainingAmount) : '0',
     );
-    final debtReasonCtrl = TextEditingController(
-      text: existing?.debtReason ?? 'عدم سداد قيمة أيام إضافية',
-    );
+    final debtReasonCtrl = TextEditingController(text: existing?.debtReason ?? 'عدم سداد قيمة أيام إضافية');
     final pledgeCtrl = TextEditingController(text: existing?.pledge ?? '');
-    final pledgeTypeCtrl = TextEditingController(
-      text: existing?.pledgeType ?? '',
-    );
+    final pledgeTypeCtrl = TextEditingController(text: existing?.pledgeType ?? '');
     final noteCtrl = TextEditingController(text: existing?.note ?? '');
     const titleStyle = TextStyle(fontSize: 14, fontWeight: FontWeight.bold);
     const labelStyle = TextStyle(fontSize: 13, fontWeight: FontWeight.bold);
     const fieldStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.bold);
 
-    Future<void> pickDate(
-      BuildContext pickerContext,
-      TextEditingController controller,
-    ) async {
+    Future<void> pickDate(BuildContext pickerContext, TextEditingController controller) async {
       final initial = DateTime.tryParse(controller.text) ?? DateTime.now();
       final picked = await showDatePicker(
         context: pickerContext,
@@ -874,12 +1023,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         context: context,
         builder: (dialogContext) {
           return Directionality(
-            textDirection: TextDirection.rtl,
+            textDirection: ui.TextDirection.rtl,
             child: AlertDialog(
-              title: Text(
-                existing == null ? 'إضافة دين جديد' : 'تعديل الدين',
-                style: titleStyle,
-              ),
+              title: Text(existing == null ? 'إضافة دين جديد' : 'تعديل الدين', style: titleStyle),
               content: SizedBox(
                 width: double.maxFinite,
                 child: SingleChildScrollView(
@@ -910,10 +1056,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                                 labelStyle: labelStyle,
                                 floatingLabelStyle: labelStyle,
                                 border: OutlineInputBorder(),
-                                suffixIcon: Icon(
-                                  Icons.calendar_today,
-                                  size: 18,
-                                ),
+                                suffixIcon: Icon(Icons.calendar_today, size: 18),
                               ),
                             ),
                           ),
@@ -922,18 +1065,14 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                             child: TextField(
                               controller: checkoutCtrl,
                               readOnly: true,
-                              onTap: () =>
-                                  pickDate(dialogContext, checkoutCtrl),
+                              onTap: () => pickDate(dialogContext, checkoutCtrl),
                               style: fieldStyle,
                               decoration: const InputDecoration(
                                 labelText: 'تاريخ الخروج',
                                 labelStyle: labelStyle,
                                 floatingLabelStyle: labelStyle,
                                 border: OutlineInputBorder(),
-                                suffixIcon: Icon(
-                                  Icons.calendar_today,
-                                  size: 18,
-                                ),
+                                suffixIcon: Icon(Icons.calendar_today, size: 18),
                               ),
                             ),
                           ),
@@ -1044,26 +1183,23 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                 ),
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('إلغاء'),
-                ),
+                TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
                 ElevatedButton(
                   // ✅ إصلاح: التحقق من صحة البيانات قبل إغلاق الحوار
                   // سابقاً كان التحقق بعد الإغلاق مما يسبب فقدان البيانات المدخلة
                   onPressed: () {
                     final guestName = guestNameCtrl.text.trim();
                     if (guestName.isEmpty) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(content: Text('يرجى إدخال اسم النزيل')),
-                      );
+                      ScaffoldMessenger.of(
+                        dialogContext,
+                      ).showSnackBar(const SnackBar(content: Text('يرجى إدخال اسم النزيل')));
                       return;
                     }
                     final totalAmount = CurrencyFormatter.parseAmount(totalCtrl.text) ?? 0;
                     if (totalAmount <= 0) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(content: Text('يجب إدخال مبلغ الدين الكلي أكبر من صفر')),
-                      );
+                      ScaffoldMessenger.of(
+                        dialogContext,
+                      ).showSnackBar(const SnackBar(content: Text('يجب إدخال مبلغ الدين الكلي أكبر من صفر')));
                       return;
                     }
                     // ✅ إصلاح: التحقق من أن المدفوع لا يتجاوز الإجمالي
@@ -1095,21 +1231,13 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       // لا حاجة لإعادة التحقق هنا
       final guestName = guestNameCtrl.text.trim();
 
-      final checkinDate = checkinCtrl.text.trim().isEmpty
-          ? Time.nowDateString()
-          : checkinCtrl.text.trim();
-      final checkoutDate = checkoutCtrl.text.trim().isEmpty
-          ? Time.nowDateString()
-          : checkoutCtrl.text.trim();
+      final checkinDate = checkinCtrl.text.trim().isEmpty ? Time.nowDateString() : checkinCtrl.text.trim();
+      final checkoutDate = checkoutCtrl.text.trim().isEmpty ? Time.nowDateString() : checkoutCtrl.text.trim();
       final totalAmount = CurrencyFormatter.parseAmount(totalCtrl.text) ?? 0;
       final paidAmount = CurrencyFormatter.parseAmount(paidCtrl.text) ?? 0;
       final debtReason = debtReasonCtrl.text.trim();
-      final pledge = pledgeCtrl.text.trim().isEmpty
-          ? null
-          : pledgeCtrl.text.trim();
-      final pledgeType = pledgeTypeCtrl.text.trim().isEmpty
-          ? null
-          : pledgeTypeCtrl.text.trim();
+      final pledge = pledgeCtrl.text.trim().isEmpty ? null : pledgeCtrl.text.trim();
+      final pledgeType = pledgeTypeCtrl.text.trim().isEmpty ? null : pledgeTypeCtrl.text.trim();
       final note = noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim();
 
       final repo = ref.read(debtsRepoProvider);
@@ -1146,15 +1274,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
       if (mounted) {
         // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              existing == null
-                  ? 'تم إضافة الدين بنجاح'
-                  : 'تم تحديث الدين بنجاح',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(existing == null ? 'تم إضافة الدين بنجاح' : 'تم تحديث الدين بنجاح')));
       }
     } finally {
       totalCtrl.removeListener(recalculate);
@@ -1179,10 +1301,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     try {
       final bookingsAsync = ref.read(bookingsListProvider);
       final bookings = bookingsAsync.valueOrNull ?? [];
-      final booking = bookings.cast<Booking?>().firstWhere(
-        (b) => b?.id == debt.bookingLocalId,
-        orElse: () => null,
-      );
+      final booking = bookings.cast<Booking?>().firstWhere((b) => b?.id == debt.bookingLocalId, orElse: () => null);
       if (booking != null) {
         phone = booking.guestPhone;
       }
@@ -1190,12 +1309,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
     if (phone.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('لا يوجد رقم هاتف لهذا النزيل'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('لا يوجد رقم هاتف لهذا النزيل'), backgroundColor: Colors.orange));
       }
       return;
     }
@@ -1203,12 +1319,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     final cleanedPhone = _cleanAndFormatPhone(phone);
     if (cleanedPhone.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('رقم الهاتف غير صالح'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('رقم الهاتف غير صالح'), backgroundColor: Colors.orange));
       }
       return;
     }
@@ -1218,23 +1331,16 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     try {
       final whatsappService = ref.read(whatsappServiceProvider);
 
-      final debtDate = DateTime.tryParse(
-        debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate,
-      );
-      final daysPassed = debtDate != null
-          ? DateTime.now().difference(debtDate).inDays
-          : 0;
+      final debtDate = DateTime.tryParse(debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.checkoutDate);
+      final daysPassed = debtDate != null ? DateTime.now().difference(debtDate).inDays : 0;
 
       final message = StringBuffer()
         ..writeln('عزيزي ${debt.guestName}')
         ..writeln()
         ..writeln('تذكير بالمبلغ المتبقي عليكم')
-        ..writeln(
-            'إجمالي المبلغ: ${CurrencyFormatter.formatAmount(debt.totalAmount)}',)
-        ..writeln(
-            'المدفوع: ${CurrencyFormatter.formatAmount(debt.paidAmount)}',)
-        ..writeln(
-            'المتبقي: ${CurrencyFormatter.formatAmount(debt.remainingAmount)}',);
+        ..writeln('إجمالي المبلغ: ${CurrencyFormatter.formatAmount(debt.totalAmount)}')
+        ..writeln('المدفوع: ${CurrencyFormatter.formatAmount(debt.paidAmount)}')
+        ..writeln('المتبقي: ${CurrencyFormatter.formatAmount(debt.remainingAmount)}');
 
       if (debt.debtReason.isNotEmpty) {
         message.writeln('السبب: ${debt.debtReason}');
@@ -1251,26 +1357,22 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         ..writeln('فندق مارينا')
         ..write('للاستفسار: 9677734587456');
 
-      final result = await whatsappService.sendMessage(
-        phoneE164: cleanedPhone,
-        message: message.toString(),
-      );
+      final result = await whatsappService.sendMessage(phoneE164: cleanedPhone, message: message.toString());
 
       if (mounted) {
         setState(() => _isSendingWhatsApp = false);
         if (result.quotaMessage != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result.quotaMessage!),
-              backgroundColor: Colors.orange,
-            ),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(result.quotaMessage!), backgroundColor: Colors.orange));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result.success
-                  ? 'تم إرسال تنبيه واتساب لـ ${debt.guestName}'
-                  : 'تعذّر إرسال واتساب لـ ${debt.guestName}',),
+              content: Text(
+                result.success
+                    ? 'تم إرسال تنبيه واتساب لـ ${debt.guestName}'
+                    : 'تعذّر إرسال واتساب لـ ${debt.guestName}',
+              ),
               backgroundColor: result.success ? Colors.green : Colors.red,
             ),
           );
@@ -1279,12 +1381,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     } catch (e) {
       if (mounted) {
         setState(() => _isSendingWhatsApp = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red));
       }
     }
   }
@@ -1295,14 +1392,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('تأكيد الحذف'),
-          content: Text(
-            'هل أنت متأكد من حذف دين "${debt.guestName}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.',
-          ),
+          content: Text('هل أنت متأكد من حذف دين "${debt.guestName}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.'),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('إلغاء'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
             ElevatedButton(
               onPressed: () => Navigator.pop(dialogContext, true),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -1333,12 +1425,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         return;
       }
       // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('فشل حذف الدين: $e'),
-          backgroundColor: Colors.red.shade900,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل حذف الدين: $e'), backgroundColor: Colors.red.shade900));
     }
   }
 }

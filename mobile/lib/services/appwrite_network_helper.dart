@@ -16,8 +16,7 @@ import 'appwrite_logger.dart';
 class AppwriteNetworkHelper {
   factory AppwriteNetworkHelper() => _instance;
   AppwriteNetworkHelper._internal();
-  static final AppwriteNetworkHelper _instance =
-      AppwriteNetworkHelper._internal();
+  static final AppwriteNetworkHelper _instance = AppwriteNetworkHelper._internal();
 
   final _logger = AppwriteLogger();
 
@@ -31,8 +30,7 @@ class AppwriteNetworkHelper {
   // كان يسبب إغراق السيرفر بـ 429s متتالية.
   // ─────────────────────────────────────────────────────────────────────
   static const Duration _minRequestInterval = Duration(milliseconds: 1000);
-  DateTime _lastRequestTime =
-      DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastRequestTime = DateTime.fromMillisecondsSinceEpoch(0);
 
   // ─────────────────────────────────────────────────────────────────────
   // Circuit Breaker — يحمي من إغراق الخادم عند تكرار 429.
@@ -87,7 +85,7 @@ class AppwriteNetworkHelper {
           // وينتظر فعلياً دون زيادة عداد 429.
           throw AppwriteException(
             'Circuit breaker active — rate limit cooldown. '
-            'Retry in ${remaining.inSeconds}s.',
+                'Retry in ${remaining.inSeconds}s.',
             429,
             'circuit_breaker_active',
           );
@@ -135,8 +133,7 @@ class AppwriteNetworkHelper {
     _consecutiveRateLimitHits++;
     if (_consecutiveRateLimitHits >= _circuitBreakerThreshold) {
       // ✅ progressive cooldown: 60s → 120s → 300s → 600s
-      final cooldownIndex = _circuitBreakerActivationCount
-          .clamp(0, _progressiveCooldowns.length - 1);
+      final cooldownIndex = _circuitBreakerActivationCount.clamp(0, _progressiveCooldowns.length - 1);
       final cooldown = _progressiveCooldowns[cooldownIndex];
       _circuitBreakerActivationCount++;
       _circuitBreakerUntil = DateTime.now().add(cooldown);
@@ -169,8 +166,7 @@ class AppwriteNetworkHelper {
   }) async {
     final retries = maxRetries ?? AppwriteConfig.maxRetries;
     final delay = initialDelay ?? AppwriteConfig.initialRetryDelay;
-    final multiplier =
-        backoffMultiplier ?? AppwriteConfig.retryBackoffMultiplier;
+    final multiplier = backoffMultiplier ?? AppwriteConfig.retryBackoffMultiplier;
     final opName = operationName ?? 'Operation';
 
     int attempt = 0;
@@ -210,11 +206,7 @@ class AppwriteNetworkHelper {
 
           // عند الوصول للحد الأقصى من المحاولات، ارفع الخطأ
           if (attempt >= retries) {
-            _logger.error(
-              '$opName - Max retries ($retries) reached on rate limit (429)',
-              error: e,
-              tag: 'RATE_LIMIT',
-            );
+            _logger.error('$opName - Max retries ($retries) reached on rate limit (429)', error: e, tag: 'RATE_LIMIT');
             rethrow;
           }
 
@@ -247,21 +239,14 @@ class AppwriteNetworkHelper {
           if (!suppressErrorLog) {
             _logger.warning('$opName - Non-retriable error: $e', tag: 'RETRY');
           } else {
-            _logger.debug(
-              '$opName - Expected non-retriable error (suppressed): $e',
-              tag: 'RETRY',
-            );
+            _logger.debug('$opName - Expected non-retriable error (suppressed): $e', tag: 'RETRY');
           }
           rethrow;
         }
 
         // إذا وصلنا للحد الأقصى من المحاولات
         if (attempt >= retries) {
-          _logger.error(
-            '$opName - Max retries ($retries) reached',
-            error: e,
-            tag: 'RETRY',
-          );
+          _logger.error('$opName - Max retries ($retries) reached', error: e, tag: 'RETRY');
           rethrow;
         }
 
@@ -273,9 +258,7 @@ class AppwriteNetworkHelper {
         );
 
         await Future<void>.delayed(waitTime);
-        currentDelay = Duration(
-          milliseconds: (currentDelay.inMilliseconds * multiplier).round(),
-        );
+        currentDelay = Duration(milliseconds: (currentDelay.inMilliseconds * multiplier).round());
       }
     }
   }
@@ -297,21 +280,13 @@ class AppwriteNetworkHelper {
     final opName = operationName ?? 'Operation';
 
     try {
-      _logger.debug(
-        '$opName - Starting with ${maxDuration.inSeconds}s timeout',
-        tag: 'TIMEOUT',
-      );
+      _logger.debug('$opName - Starting with ${maxDuration.inSeconds}s timeout', tag: 'TIMEOUT');
 
       return await operation().timeout(
         maxDuration,
         onTimeout: () {
-          _logger.error(
-            '$opName - Timeout after ${maxDuration.inSeconds}s',
-            tag: 'TIMEOUT',
-          );
-          throw TimeoutException(
-            '$opName تجاوز الوقت المحدد (${maxDuration.inSeconds} ثانية)',
-          );
+          _logger.error('$opName - Timeout after ${maxDuration.inSeconds}s', tag: 'TIMEOUT');
+          throw TimeoutException('$opName تجاوز الوقت المحدد (${maxDuration.inSeconds} ثانية)');
         },
       );
     } catch (e) {
@@ -373,11 +348,7 @@ class AppwriteNetworkHelper {
     // ملاحظة: 429 (rate_limit) مستثنى من هذا الفلتر لأنه قابل للحل بالانتظار.
     if (error is AppwriteException) {
       final code = error.code;
-      if (code != null &&
-          code >= 400 &&
-          code < 500 &&
-          code != 408 &&
-          code != 429) {
+      if (code != null && code >= 400 && code < 500 && code != 408 && code != 429) {
         return false;
       }
       // فحص نوع الخطأ لأنواع Appwrite المعروفة غير القابلة لإعادة المحاولة
@@ -427,15 +398,12 @@ class AppwriteNetworkHelper {
     if (error is AppwriteException) {
       if (error.code == 429) return true;
       final type = (error.type ?? '').toLowerCase();
-      if (type.contains('rate_limit') ||
-          type.contains('general_rate_limit_exceeded')) {
+      if (type.contains('rate_limit') || type.contains('general_rate_limit_exceeded')) {
         return true;
       }
     }
     final errorStr = error.toString().toLowerCase();
-    return errorStr.contains('rate_limit_exceeded') ||
-        errorStr.contains('rate limit') ||
-        errorStr.contains('429');
+    return errorStr.contains('rate_limit_exceeded') || errorStr.contains('rate limit') || errorStr.contains('429');
   }
 
   /// يستخرج قيمة Retry-After من رسالة خطأ Appwrite (إن وُجدت).
@@ -482,12 +450,7 @@ class AppwriteNetworkHelper {
   /// [baseDelay] - التأخير الأساسي
   /// [multiplier] - معامل التضاعف
   /// [addJitter] - إضافة تذبذب عشوائي (يساعد في تقليل التصادمات)
-  Duration calculateBackoff({
-    required int attempt,
-    Duration? baseDelay,
-    double? multiplier,
-    bool addJitter = true,
-  }) {
+  Duration calculateBackoff({required int attempt, Duration? baseDelay, double? multiplier, bool addJitter = true}) {
     final base = baseDelay ?? AppwriteConfig.initialRetryDelay;
     final mult = multiplier ?? AppwriteConfig.retryBackoffMultiplier;
 
@@ -496,10 +459,7 @@ class AppwriteNetworkHelper {
 
     // إضافة jitter (تذبذب عشوائي بين 0-20%)
     if (addJitter) {
-      final jitter =
-          exponentialDelay *
-          0.2 *
-          (0.5 + (DateTime.now().millisecond % 100) / 100);
+      final jitter = exponentialDelay * 0.2 * (0.5 + (DateTime.now().millisecond % 100) / 100);
       return Duration(milliseconds: (exponentialDelay + jitter).round());
     }
 

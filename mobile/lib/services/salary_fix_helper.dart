@@ -53,17 +53,11 @@ class SalaryFixHelper {
       // بدون هذا الفحص، قد نُصلح مصروفات قبل وصول موظفيها.
       final employeesCount = await _db.employees.count().getSingle();
       if (employeesCount == 0) {
-        AppLogger.info(
-          'Salary fix deferred — no employees synced yet (waiting for first pull).',
-          tag: 'SALARY_FIX',
-        );
+        AppLogger.info('Salary fix deferred — no employees synced yet (waiting for first pull).', tag: 'SALARY_FIX');
         return; // سيُعاد المحاولة في المرة القادمة (نفس الدالة).
       }
 
-      AppLogger.info(
-        'Starting one-time salary fix (first run after pull)...',
-        tag: 'SALARY_FIX',
-      );
+      AppLogger.info('Starting one-time salary fix (first run after pull)...', tag: 'SALARY_FIX');
 
       // 1. إصلاح البيانات المحلية (يُضيف للـ outbox تلقائياً عبر repo.update).
       final fixedCount = await _fixOrphanSalaryExpenses();
@@ -78,21 +72,13 @@ class SalaryFixHelper {
         // AppwriteSyncManager.pull() — ستُرفع التغييرات في الـ sync التالي
         // تلقائياً عبر outbox. استدعاء sync() هنا قد يسبب recursive lock.
       } else {
-        AppLogger.info(
-          'No orphan salary expenses found. Marking fix as done.',
-          tag: 'SALARY_FIX',
-        );
+        AppLogger.info('No orphan salary expenses found. Marking fix as done.', tag: 'SALARY_FIX');
       }
 
       // 2. ضبط الـ flag (حتى لو لم يجد شيئاً — لا حاجة للتكرار).
       await prefs.setBool(_fixDoneKey, true);
     } catch (e, st) {
-      AppLogger.error(
-        '❌ Salary fix failed — will retry on next sync.',
-        error: e,
-        stackTrace: st,
-        tag: 'SALARY_FIX',
-      );
+      AppLogger.error('❌ Salary fix failed — will retry on next sync.', error: e, stackTrace: st, tag: 'SALARY_FIX');
       // لا نضبط الـ flag عند الفشل — يُعاد المحاولة في المرة القادمة.
     }
   }
@@ -128,14 +114,16 @@ class SalaryFixHelper {
     //      relatedId لم يُحَل بعد). هذا يغطّي:
     //      * المصروفات القديمة جداً (UUID فارغ + relatedId غير صالح)
     //      * المصروفات التي لها UUID لكن relatedId لم يُحَل (نادر لكن ممكن)
-    final candidates = await _db.customSelect(
-      'SELECT id, expense_type, related_id, employee_uuid '
-      'FROM expenses '
-      'WHERE deleted_at IS NULL '
-      'AND (related_id IS NULL OR related_id NOT IN '
-      '    (SELECT id FROM employees WHERE deleted_at IS NULL))',
-      readsFrom: {_db.expenses, _db.employees},
-    ).get();
+    final candidates = await _db
+        .customSelect(
+          'SELECT id, expense_type, related_id, employee_uuid '
+          'FROM expenses '
+          'WHERE deleted_at IS NULL '
+          'AND (related_id IS NULL OR related_id NOT IN '
+          '    (SELECT id FROM employees WHERE deleted_at IS NULL))',
+          readsFrom: {_db.expenses, _db.employees},
+        )
+        .get();
 
     final orphans = candidates.where((row) {
       final expenseType = row.read<String>('expense_type');
@@ -146,10 +134,7 @@ class SalaryFixHelper {
       return 0;
     }
 
-    AppLogger.info(
-      '🔍 Found ${orphans.length} orphan salary expenses to repair.',
-      tag: 'SALARY_FIX',
-    );
+    AppLogger.info('🔍 Found ${orphans.length} orphan salary expenses to repair.', tag: 'SALARY_FIX');
 
     for (final row in orphans) {
       final expenseId = row.read<int>('id');
@@ -157,20 +142,17 @@ class SalaryFixHelper {
 
       // المحاولة 1: عبر employeeUuid الموجود (إن وُجد ولم يُحَل بعد).
       if (existingEmployeeUuid != null && existingEmployeeUuid.isNotEmpty) {
-        final employee = await (_db.select(_db.employees)
-              ..where((e) => e.localUuid.equals(existingEmployeeUuid))
-              ..where((e) => e.deletedAt.isNull())
-              ..limit(1))
-            .getSingleOrNull();
+        final employee =
+            await (_db.select(_db.employees)
+                  ..where((e) => e.localUuid.equals(existingEmployeeUuid))
+                  ..where((e) => e.deletedAt.isNull())
+                  ..limit(1))
+                .getSingleOrNull();
 
         if (employee != null) {
           // employeeUuid موجود وصالح → فقط عيّن relatedId.
           // تحديث عبر repo يضمن outbox merge + updatedAt.
-          await repo.update(
-            expenseId,
-            relatedId: employee.id,
-            employeeUuid: employee.localUuid,
-          );
+          await repo.update(expenseId, relatedId: employee.id, employeeUuid: employee.localUuid);
           fixedCount++;
           AppLogger.debug(
             '  ✅ Expense #$expenseId fixed via employeeUuid '
@@ -185,12 +167,14 @@ class SalaryFixHelper {
       // ابحث عن السحب المرتبط عبر expense_id أولاً.
       int? employeeIdFromWithdrawal;
       try {
-        final swRow = await _db.customSelect(
-          'SELECT employee_id FROM salary_withdrawals '
-          'WHERE expense_id = ? AND deleted_at IS NULL LIMIT 1',
-          variables: [d.Variable.withInt(expenseId)],
-          readsFrom: {_db.salaryWithdrawals},
-        ).getSingleOrNull();
+        final swRow = await _db
+            .customSelect(
+              'SELECT employee_id FROM salary_withdrawals '
+              'WHERE expense_id = ? AND deleted_at IS NULL LIMIT 1',
+              variables: [d.Variable.withInt(expenseId)],
+              readsFrom: {_db.salaryWithdrawals},
+            )
+            .getSingleOrNull();
         if (swRow != null) {
           employeeIdFromWithdrawal = swRow.read<int>('employee_id');
         }
@@ -201,12 +185,14 @@ class SalaryFixHelper {
 
       // 2ب. fallback: ابحث عبر reason (للسجلات القديمة جداً قبل migration 40).
       if (employeeIdFromWithdrawal == null) {
-        final swByReason = await _db.customSelect(
-          'SELECT employee_id, reason FROM salary_withdrawals '
-          'WHERE deleted_at IS NULL AND reason LIKE ?',
-          variables: [d.Variable.withString('%exp_$expenseId%')],
-          readsFrom: {_db.salaryWithdrawals},
-        ).get();
+        final swByReason = await _db
+            .customSelect(
+              'SELECT employee_id, reason FROM salary_withdrawals '
+              'WHERE deleted_at IS NULL AND reason LIKE ?',
+              variables: [d.Variable.withString('%exp_$expenseId%')],
+              readsFrom: {_db.salaryWithdrawals},
+            )
+            .get();
 
         for (final sw in swByReason) {
           final reason = sw.read<String?>('reason');
@@ -218,19 +204,17 @@ class SalaryFixHelper {
       }
 
       if (employeeIdFromWithdrawal == null) {
-        AppLogger.warning(
-          '  ⚠️ Expense #$expenseId: no salary_withdrawal found, leaving as is.',
-          tag: 'SALARY_FIX',
-        );
+        AppLogger.warning('  ⚠️ Expense #$expenseId: no salary_withdrawal found, leaving as is.', tag: 'SALARY_FIX');
         continue;
       }
 
       // تحقق من وجود الموظف واحصل على localUuid.
-      final employee = await (_db.select(_db.employees)
-            ..where((e) => e.id.equals(employeeIdFromWithdrawal!))
-            ..where((e) => e.deletedAt.isNull())
-            ..limit(1))
-          .getSingleOrNull();
+      final employee =
+          await (_db.select(_db.employees)
+                ..where((e) => e.id.equals(employeeIdFromWithdrawal!))
+                ..where((e) => e.deletedAt.isNull())
+                ..limit(1))
+              .getSingleOrNull();
 
       if (employee == null) {
         AppLogger.warning(
@@ -243,15 +227,9 @@ class SalaryFixHelper {
 
       // أعد ربط المصروف (relatedId + employeeUuid معاً).
       // تحديث عبر repo يضمن outbox merge + updatedAt للرفع للسحاب.
-      await repo.update(
-        expenseId,
-        relatedId: employee.id,
-        employeeUuid: employee.localUuid,
-      );
+      await repo.update(expenseId, relatedId: employee.id, employeeUuid: employee.localUuid);
       fixedCount++;
-      final uuidPreview = employee.localUuid.length >= 8
-          ? employee.localUuid.substring(0, 8)
-          : employee.localUuid;
+      final uuidPreview = employee.localUuid.length >= 8 ? employee.localUuid.substring(0, 8) : employee.localUuid;
       AppLogger.debug(
         '  ✅ Expense #$expenseId fixed via salary_withdrawal '
         '→ employee #${employee.id} (uuid: $uuidPreview...)',

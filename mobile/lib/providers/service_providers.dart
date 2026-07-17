@@ -154,8 +154,7 @@ final maintenanceServiceProvider = Provider<MaintenanceService>((ref) {
 // ============================================================================
 // مزود تقرير صحة المزامنة
 // ============================================================================
-final syncHealthReportProvider =
-    FutureProvider.autoDispose<SyncHealthReport>((ref) async {
+final syncHealthReportProvider = FutureProvider.autoDispose<SyncHealthReport>((ref) async {
   final db = ref.read(databaseProvider);
   final monitor = ref.read(syncHealthMonitorProvider);
   return monitor.getHealthReport(db);

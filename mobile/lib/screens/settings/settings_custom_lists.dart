@@ -9,12 +9,10 @@ class SettingsCustomListsScreen extends ConsumerStatefulWidget {
   const SettingsCustomListsScreen({super.key});
 
   @override
-  ConsumerState<SettingsCustomListsScreen> createState() =>
-      _SettingsCustomListsScreenState();
+  ConsumerState<SettingsCustomListsScreen> createState() => _SettingsCustomListsScreenState();
 }
 
-class _SettingsCustomListsScreenState
-    extends ConsumerState<SettingsCustomListsScreen>
+class _SettingsCustomListsScreenState extends ConsumerState<SettingsCustomListsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -46,9 +44,10 @@ class _SettingsCustomListsScreenState
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: TabBar(
               controller: _tabController,
-              tabs: _tabs
-                  .map((t) => Tab(icon: Icon(t.icon, size: 20), text: t.label))
-                  .toList(),
+              labelColor: Theme.of(context).colorScheme.primary,
+              unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              indicatorColor: Theme.of(context).colorScheme.primary,
+              tabs: _tabs.map((t) => Tab(icon: Icon(t.icon, size: 20), text: t.label)).toList(),
               labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               unselectedLabelStyle: const TextStyle(fontSize: 12),
             ),
@@ -89,11 +88,11 @@ class _ListManagerState extends ConsumerState<_ListManager> {
   String get _listKey => widget.listKey;
 
   String get _listLabel => switch (_listKey) {
-        kListKeyExpenseType => 'نوع المصروف',
-        kListKeyIdType => 'نوع الهوية',
-        kListKeyPaymentMethod => 'طريقة الدفع',
-        _ => 'عنصر',
-      };
+    kListKeyExpenseType => 'نوع المصروف',
+    kListKeyIdType => 'نوع الهوية',
+    kListKeyPaymentMethod => 'طريقة الدفع',
+    _ => 'عنصر',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -114,9 +113,7 @@ class _ListManagerState extends ConsumerState<_ListManager> {
                   onPressed: _isProcessing ? null : _showAddDialog,
                   icon: const Icon(Icons.add, size: 18),
                   label: Text('إضافة $_listLabel جديد'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(44),
-                  ),
+                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(44)),
                 ),
                 const SizedBox(height: 12),
 
@@ -129,10 +126,7 @@ class _ListManagerState extends ConsumerState<_ListManager> {
                         children: [
                           Icon(Icons.list_alt, size: 48, color: Colors.grey.shade400),
                           const SizedBox(height: 8),
-                          Text(
-                            'لا توجد عناصر نشطة',
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
+                          Text('لا توجد عناصر نشطة', style: TextStyle(color: Colors.grey.shade600)),
                         ],
                       ),
                     ),
@@ -149,37 +143,22 @@ class _ListManagerState extends ConsumerState<_ListManager> {
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Row(
                         children: [
-                          Icon(
-                            _showInactive
-                                ? Icons.expand_less
-                                : Icons.expand_more,
-                            color: Colors.grey,
-                          ),
+                          Icon(_showInactive ? Icons.expand_less : Icons.expand_more, color: Colors.grey),
                           const SizedBox(width: 4),
                           Text(
                             'عناصر معطلة (${inactiveItems.length})',
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  if (_showInactive)
-                    ...inactiveItems.map(_buildItemCard),
+                  if (_showInactive) ...inactiveItems.map(_buildItemCard),
                 ],
               ],
             ),
             // مؤشر التحميل فوق المحتوى أثناء العمليات
-            if (_isProcessing)
-              const Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: LinearProgressIndicator(),
-              ),
+            if (_isProcessing) const Positioned(top: 0, left: 0, right: 0, child: LinearProgressIndicator()),
           ],
         );
       },
@@ -191,10 +170,7 @@ class _ListManagerState extends ConsumerState<_ListManager> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         dense: true,
-        leading: Icon(
-          Icons.drag_handle,
-          color: item.isActive ? Colors.grey.shade400 : Colors.grey.shade300,
-        ),
+        leading: Icon(Icons.drag_handle, color: item.isActive ? Colors.grey.shade400 : Colors.grey.shade300),
         title: Text(
           item.name,
           style: TextStyle(
@@ -204,10 +180,7 @@ class _ListManagerState extends ConsumerState<_ListManager> {
           ),
         ),
         subtitle: item.isSystem
-            ? Text(
-                'عنصر نظام — لا يمكن حذفه',
-                style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
-              )
+            ? Text('عنصر نظام — لا يمكن حذفه', style: TextStyle(fontSize: 11, color: Colors.orange.shade700))
             : null,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -251,22 +224,13 @@ class _ListManagerState extends ConsumerState<_ListManager> {
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: InputDecoration(
-            labelText: _listLabel,
-            hintText: 'أدخل الاسم الجديد',
-          ),
+          decoration: InputDecoration(labelText: _listLabel, hintText: 'أدخل الاسم الجديد'),
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => Navigator.pop(ctx, true),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('إضافة'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('إضافة')),
         ],
       ),
     );
@@ -317,14 +281,8 @@ class _ListManagerState extends ConsumerState<_ListManager> {
           onSubmitted: (_) => Navigator.pop(ctx, true),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('حفظ'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حفظ')),
         ],
       ),
     );
@@ -392,10 +350,7 @@ class _ListManagerState extends ConsumerState<_ListManager> {
           'السجلات السابقة التي تستخدم هذا العنصر لن تتأثر.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -410,21 +365,13 @@ class _ListManagerState extends ConsumerState<_ListManager> {
         await deleteCustomListItem(ref, _listKey, item.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم الحذف'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 2),
-            ),
+            const SnackBar(content: Text('تم الحذف'), backgroundColor: Colors.red, duration: Duration(seconds: 2)),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('فشل الحذف: $e'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
+            SnackBar(content: Text('فشل الحذف: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 3)),
           );
         }
       } finally {

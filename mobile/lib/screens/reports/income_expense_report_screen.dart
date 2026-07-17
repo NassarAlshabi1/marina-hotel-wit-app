@@ -30,12 +30,10 @@ class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
   const IncomeExpenseReportScreen({super.key});
 
   @override
-  ConsumerState<IncomeExpenseReportScreen> createState() =>
-      _IncomeExpenseReportScreenState();
+  ConsumerState<IncomeExpenseReportScreen> createState() => _IncomeExpenseReportScreenState();
 }
 
-class _IncomeExpenseReportScreenState
-    extends ConsumerState<IncomeExpenseReportScreen> {
+class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportScreen> {
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
   final NumberFormat _currencyFormat = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
@@ -112,8 +110,7 @@ class _IncomeExpenseReportScreenState
       // (14:01:00 = بداية اليوم الجديد). بما أن fromDate يأتي دائماً بوقت 14:01:00
       // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
       // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
-      final fromHotelDay = HotelTimeEngine.getHotelDayKey(
-          dateTime: fromDate.add(const Duration(seconds: 1)));
+      final fromHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: fromDate.add(const Duration(seconds: 1)));
       final toHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: toDate);
 
       final payments = await paymentsDao.listFilteredByHotelDay(
@@ -138,10 +135,7 @@ class _IncomeExpenseReportScreenState
       // الحجوزات: فلترة بنطاق تاريخ checkin (تاريخ فقط بدون وقت)
       final bookingFromStr = DateFormat('yyyy-MM-dd').format(fromDate);
       final bookingToStr = DateFormat('yyyy-MM-dd').format(toDate);
-      final bookings = await bookingsDao.list(
-        from: bookingFromStr,
-        to: bookingToStr,
-      );
+      final bookings = await bookingsDao.list(from: bookingFromStr, to: bookingToStr);
 
       // الديون: فلترة بتاريخ التسجيل ضمن الفترة المحددة
       final allDebts = await debtsDao.list();
@@ -150,9 +144,7 @@ class _IncomeExpenseReportScreenState
         if (d.dateRecorded.isNotEmpty) {
           try {
             final debtDate = DateTime.parse(
-              d.dateRecorded.length > 10
-                  ? d.dateRecorded.replaceFirst(' ', 'T')
-                  : d.dateRecorded,
+              d.dateRecorded.length > 10 ? d.dateRecorded.replaceFirst(' ', 'T') : d.dateRecorded,
             );
             // مقارنة باليوم فقط (بدون وقت) ضمن النطاق
             final debtDay = DateTime(debtDate.year, debtDate.month, debtDate.day);
@@ -168,9 +160,7 @@ class _IncomeExpenseReportScreenState
         if (d.paymentDate.isNotEmpty) {
           try {
             final debtDate = DateTime.parse(
-              d.paymentDate.length > 10
-                  ? d.paymentDate.replaceFirst(' ', 'T')
-                  : d.paymentDate,
+              d.paymentDate.length > 10 ? d.paymentDate.replaceFirst(' ', 'T') : d.paymentDate,
             );
             final debtDay = DateTime(debtDate.year, debtDate.month, debtDate.day);
             final fromDay = DateTime(fromDate.year, fromDate.month, fromDate.day);
@@ -189,12 +179,8 @@ class _IncomeExpenseReportScreenState
       final unsettledDebtsAll = allDebts.where((d) => d.isSettled == 0).toList();
 
       final allEmployees = await employeesDao.list();
-      final employees = allEmployees
-          .where((e) => StatusUtils.isEmployeeActive(e.status))
-          .toList();
-      final terminatedEmployees = allEmployees
-          .where((e) => StatusUtils.isEmployeeTerminated(e.status))
-          .toList();
+      final employees = allEmployees.where((e) => StatusUtils.isEmployeeActive(e.status)).toList();
+      final terminatedEmployees = allEmployees.where((e) => StatusUtils.isEmployeeTerminated(e.status)).toList();
 
       // بناء خريطة بين معرف الحجز واسم النزيل لاستخدامه في المدفوعات
       final bookingGuestMap = <int, String>{};
@@ -215,9 +201,7 @@ class _IncomeExpenseReportScreenState
                 (p) => {
                   'date': p.paymentDate,
                   'roomNumber': p.roomNumber ?? '',
-                  'guestName': p.bookingLocalId != null
-                      ? (bookingGuestMap[p.bookingLocalId] ?? '')
-                      : '',
+                  'guestName': p.bookingLocalId != null ? (bookingGuestMap[p.bookingLocalId] ?? '') : '',
                   'amount': p.amount,
                   'paymentMethod': p.paymentMethod,
                   'revenueType': p.revenueType,
@@ -225,14 +209,7 @@ class _IncomeExpenseReportScreenState
               )
               .toList(),
           expenses: expenses
-              .map(
-                (e) => {
-                  'date': e.date,
-                  'type': e.expenseType,
-                  'description': e.description,
-                  'amount': e.amount,
-                },
-              )
+              .map((e) => {'date': e.date, 'type': e.expenseType, 'description': e.description, 'amount': e.amount})
               .toList(),
           fromDate: _fromDate!,
           toDate: _toDate!,
@@ -243,7 +220,9 @@ class _IncomeExpenseReportScreenState
           unsettledDebtsCount: unsettledDebtsAll.length,
           unsettledDebtsAmount: unsettledDebtsAll.fold<double>(0, (s, d) => s + d.remainingAmount),
           unsettledDebtsInPeriodCount: debtsInPeriod.where((d) => d.isSettled == 0).length,
-          unsettledDebtsInPeriodAmount: debtsInPeriod.where((d) => d.isSettled == 0).fold<double>(0, (s, d) => s + d.remainingAmount),
+          unsettledDebtsInPeriodAmount: debtsInPeriod
+              .where((d) => d.isSettled == 0)
+              .fold<double>(0, (s, d) => s + d.remainingAmount),
           activeEmployeesCount: employees.length,
           terminatedEmployeesCount: terminatedEmployees.length,
           totalSalaryObligation: employees.fold<double>(0, (s, e) => s + e.basicSalary),
@@ -280,13 +259,21 @@ class _IncomeExpenseReportScreenState
   }
 
   // ===== أسماء الأيام والشهور بالعربي =====
-  static const _arabicDays = [
-    'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس',
-    'الجمعة', 'السبت', 'الأحد',
-  ];
+  static const _arabicDays = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
   static const _arabicMonths = [
-    '', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+    '',
+    'يناير',
+    'فبراير',
+    'مارس',
+    'أبريل',
+    'مايو',
+    'يونيو',
+    'يوليو',
+    'أغسطس',
+    'سبتمبر',
+    'أكتوبر',
+    'نوفمبر',
+    'ديسمبر',
   ];
 
   String _arabicDayName(DateTime date) {
@@ -348,8 +335,7 @@ class _IncomeExpenseReportScreenState
       expenseMap.putIfAbsent(key, () => []).add(e);
     }
 
-    final allKeys = <String>{...incomeMap.keys, ...expenseMap.keys}.toList()
-      ..sort();
+    final allKeys = <String>{...incomeMap.keys, ...expenseMap.keys}.toList()..sort();
 
     return allKeys.asMap().entries.map((entry) {
       final idx = entry.key;
@@ -358,8 +344,7 @@ class _IncomeExpenseReportScreenState
       final exp = expenseMap[key] ?? [];
       final incTotal = inc.fold<double>(0, (s, e) => s + e.amount);
       final expTotal = exp.fold<double>(0, (s, e) => s + e.amount);
-      final salTotal =
-          exp.where((e) => e.isSalary).fold<double>(0, (s, e) => s + e.amount);
+      final salTotal = exp.where((e) => e.isSalary).fold<double>(0, (s, e) => s + e.amount);
       return _GroupedData(
         index: idx + 1,
         key: key,
@@ -396,20 +381,13 @@ class _IncomeExpenseReportScreenState
       final key = e.isSalary ? 'رواتب' : e.type;
       expenseByType[key] = (expenseByType[key] ?? 0) + e.amount;
     }
-    final sortedExpenseTypes = expenseByType.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final sortedExpenseTypes = expenseByType.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
 
     // ===== مؤشرات مالية =====
-    final profitMargin =
-        _incomeTotal > 0 ? (_net / _incomeTotal * 100) : 0.0;
-    final expenseRatio =
-        _incomeTotal > 0 ? (_expenseTotal / _incomeTotal * 100) : 0.0;
-    final salaryExpenseRatio =
-        _incomeTotal > 0 ? (_salaryTotal / _incomeTotal * 100) : 0.0;
-    final debtCoverage =
-        _unsettledDebtsAmount > 0 && _net > 0
-            ? _net / _unsettledDebtsAmount
-            : 0.0;
+    final profitMargin = _incomeTotal > 0 ? (_net / _incomeTotal * 100) : 0.0;
+    final expenseRatio = _incomeTotal > 0 ? (_expenseTotal / _incomeTotal * 100) : 0.0;
+    final salaryExpenseRatio = _incomeTotal > 0 ? (_salaryTotal / _incomeTotal * 100) : 0.0;
+    final debtCoverage = _unsettledDebtsAmount > 0 && _net > 0 ? _net / _unsettledDebtsAmount : 0.0;
 
     /// صندوق ملخص
     pw.Widget buildSummaryBox(String title, String value, PdfColor color) {
@@ -424,11 +402,7 @@ class _IncomeExpenseReportScreenState
           children: [
             pw.Text(
               title,
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 10,
-                color: PdfColors.textLight,
-              ),
+              style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textLight),
             ),
             pw.SizedBox(height: 3),
             pw.Text(
@@ -446,17 +420,10 @@ class _IncomeExpenseReportScreenState
         width: double.infinity,
         padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         margin: const pw.EdgeInsets.only(top: 16, bottom: 8),
-        decoration: pw.BoxDecoration(
-          color: color,
-          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-        ),
+        decoration: pw.BoxDecoration(color: color, borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6))),
         child: pw.Text(
           title,
-          style: pw.TextStyle(
-            font: fonts.bold,
-            fontSize: 13,
-            color: PdfColors.textWhite,
-          ),
+          style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: PdfColors.textWhite),
         ),
       );
     }
@@ -486,38 +453,22 @@ class _IncomeExpenseReportScreenState
                 children: [
                   pw.Text(
                     'تقرير الدورة المالية الشامل',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 22,
-                      color: PdfColors.textWhite,
-                    ),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
                   ),
                   pw.SizedBox(height: 4),
                   pw.Text(
                     'فندق مارينا بلازا',
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 14,
-                      color: PdfColors.secondary,
-                    ),
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 14, color: PdfColors.secondary),
                   ),
                   pw.SizedBox(height: 8),
                   pw.Text(
                     'الفترة من $fromLabel إلى $toLabel',
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 12,
-                      color: PdfColors.textWhite,
-                    ),
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 12, color: PdfColors.textWhite),
                   ),
                   pw.SizedBox(height: 4),
                   pw.Text(
                     'تاريخ الإنشاء: ${EnhancedPdfUtils.formatDateTime(DateTime.now())}',
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 10,
-                      color: PdfColors.textWhite,
-                    ),
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textWhite),
                   ),
                 ],
               ),
@@ -628,9 +579,7 @@ class _IncomeExpenseReportScreenState
           // ═══════════════════════════════════════
           // القسم 4: تحليل طرق الدفع
           // ═══════════════════════════════════════
-          widgets.add(
-            buildSectionTitle('تحليل طرق الدفع', PdfColors.secondary),
-          );
+          widgets.add(buildSectionTitle('تحليل طرق الدفع', PdfColors.secondary));
           widgets.add(_buildPaymentMethodsTable(fonts));
 
           // ═══════════════════════════════════════
@@ -664,9 +613,7 @@ class _IncomeExpenseReportScreenState
           // القسم 6: تحليل المصروفات حسب الفئة
           // ═══════════════════════════════════════
           if (sortedExpenseTypes.isNotEmpty) {
-            widgets.add(
-              buildSectionTitle('تحليل المصروفات حسب الفئة', PdfColors.accent),
-            );
+            widgets.add(buildSectionTitle('تحليل المصروفات حسب الفئة', PdfColors.accent));
             widgets.add(
               EnhancedPdfUtils.buildProfessionalTable(
                 headers: ['الفئة', 'المبلغ', 'النسبة من الإيرادات', 'النسبة من المصروفات'],
@@ -688,9 +635,7 @@ class _IncomeExpenseReportScreenState
           // ═══════════════════════════════════════
           // القسم 7: تكاليف الموارد البشرية
           // ═══════════════════════════════════════
-          widgets.add(
-            buildSectionTitle('تكاليف الموارد البشرية', PdfColors.warning),
-          );
+          widgets.add(buildSectionTitle('تكاليف الموارد البشرية', PdfColors.warning));
           widgets.add(
             EnhancedPdfUtils.buildProfessionalTable(
               headers: ['البيان', 'القيمة'],
@@ -701,14 +646,13 @@ class _IncomeExpenseReportScreenState
               data: [
                 ['عدد الموظفين النشطين', '$_activeEmployeesCount موظف'],
                 ['عدد الموظفين المنهية خدمتهم', '$_terminatedEmployeesCount موظف'],
-                ['إجمالي الالتزامات الرواتب الشهرية',
-                  EnhancedPdfUtils.formatNumber(_totalSalaryObligation),],
-                ['الرواتب المدفوعة في الفترة',
-                  EnhancedPdfUtils.formatNumber(_salaryTotal),],
-                ['نسبة الرواتب من الإيرادات',
-                  '${salaryExpenseRatio.toStringAsFixed(1)}%',],
-                ['نسبة الرواتب من المصروفات',
-                  if (_expenseTotal > 0) '${(_salaryTotal / _expenseTotal * 100).toStringAsFixed(1)}%' else '0%',],
+                ['إجمالي الالتزامات الرواتب الشهرية', EnhancedPdfUtils.formatNumber(_totalSalaryObligation)],
+                ['الرواتب المدفوعة في الفترة', EnhancedPdfUtils.formatNumber(_salaryTotal)],
+                ['نسبة الرواتب من الإيرادات', '${salaryExpenseRatio.toStringAsFixed(1)}%'],
+                [
+                  'نسبة الرواتب من المصروفات',
+                  if (_expenseTotal > 0) '${(_salaryTotal / _expenseTotal * 100).toStringAsFixed(1)}%' else '0%',
+                ],
               ],
             ),
           );
@@ -716,17 +660,13 @@ class _IncomeExpenseReportScreenState
           // ═══════════════════════════════════════
           // القسم 8: تحليل الديون
           // ═══════════════════════════════════════
-          widgets.add(
-            buildSectionTitle('تحليل الديون المستحقة', PdfColors.danger),
-          );
+          widgets.add(buildSectionTitle('تحليل الديون المستحقة', PdfColors.danger));
           widgets.add(_buildDebtAnalysisTable(fonts, debtCoverage));
 
           // ═══════════════════════════════════════
           // القسم 9: إحصائيات الحجوزات والإشغال
           // ═══════════════════════════════════════
-          widgets.add(
-            buildSectionTitle('إحصائيات الحجوزات والإشغال', PdfColors.info),
-          );
+          widgets.add(buildSectionTitle('إحصائيات الحجوزات والإشغال', PdfColors.info));
           widgets.add(
             EnhancedPdfUtils.buildProfessionalTable(
               headers: ['البيان', 'القيمة'],
@@ -738,10 +678,10 @@ class _IncomeExpenseReportScreenState
                 ['إجمالي الحجوزات في الفترة', '$_bookingsCount حجز'],
                 ['حجوزات نشطة (داخلين)', '$_activeBookingsCount حجز'],
                 ['حجوزات مغادرة', '$_checkoutBookingsCount حجز'],
-                ['متوسط الإيراد لكل حجز',
-                  if (_bookingsCount > 0) EnhancedPdfUtils.formatNumber(
-                          _incomeTotal / _bookingsCount,
-                        ) else '0',],
+                [
+                  'متوسط الإيراد لكل حجز',
+                  if (_bookingsCount > 0) EnhancedPdfUtils.formatNumber(_incomeTotal / _bookingsCount) else '0',
+                ],
               ],
             ),
           );
@@ -749,19 +689,15 @@ class _IncomeExpenseReportScreenState
           // ═══════════════════════════════════════
           // القسم 10: المؤشرات المالية الرئيسية
           // ═══════════════════════════════════════
+          widgets.add(buildSectionTitle('المؤشرات المالية الرئيسية', PdfColors.primary));
           widgets.add(
-            buildSectionTitle('المؤشرات المالية الرئيسية', PdfColors.primary),
+            _buildFinancialIndicatorsTable(fonts, profitMargin, expenseRatio, salaryExpenseRatio, debtCoverage),
           );
-          widgets.add(_buildFinancialIndicatorsTable(
-            fonts, profitMargin, expenseRatio, salaryExpenseRatio, debtCoverage,
-          ));
 
           // ═══════════════════════════════════════
           // القسم 11: الملخص المحاسبي الشامل
           // ═══════════════════════════════════════
-          widgets.add(
-            buildSectionTitle('الملخص المحاسبي الشامل', PdfColors.primary),
-          );
+          widgets.add(buildSectionTitle('الملخص المحاسبي الشامل', PdfColors.primary));
           widgets.add(
             pw.Container(
               width: double.infinity,
@@ -782,34 +718,13 @@ class _IncomeExpenseReportScreenState
                     data: [
                       ['إيرادات الغرف', EnhancedPdfUtils.formatNumber(roomRevenue)],
                       ['إيرادات أخرى', EnhancedPdfUtils.formatNumber(otherRevenue)],
-                      [
-                        'إجمالي الإيرادات',
-                        EnhancedPdfUtils.formatNumber(_incomeTotal),
-                      ],
-                      [
-                        '(-) مصروفات تشغيلية',
-                        EnhancedPdfUtils.formatNumber(nonSalaryExpenses),
-                      ],
-                      [
-                        '(-) رواتب ومخصصات',
-                        EnhancedPdfUtils.formatNumber(_salaryTotal),
-                      ],
-                      [
-                        'إجمالي المصروفات',
-                        EnhancedPdfUtils.formatNumber(_expenseTotal),
-                      ],
-                      [
-                        'صافي الربح / الخسارة',
-                        EnhancedPdfUtils.formatNumber(_net),
-                      ],
-                      [
-                        '(+) ديون مستحقة غير مسددة',
-                        EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount),
-                      ],
-                      [
-                        'الوضع المالي الصافي',
-                        EnhancedPdfUtils.formatNumber(_net - _unsettledDebtsAmount),
-                      ],
+                      ['إجمالي الإيرادات', EnhancedPdfUtils.formatNumber(_incomeTotal)],
+                      ['(-) مصروفات تشغيلية', EnhancedPdfUtils.formatNumber(nonSalaryExpenses)],
+                      ['(-) رواتب ومخصصات', EnhancedPdfUtils.formatNumber(_salaryTotal)],
+                      ['إجمالي المصروفات', EnhancedPdfUtils.formatNumber(_expenseTotal)],
+                      ['صافي الربح / الخسارة', EnhancedPdfUtils.formatNumber(_net)],
+                      ['(+) ديون مستحقة غير مسددة', EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount)],
+                      ['الوضع المالي الصافي', EnhancedPdfUtils.formatNumber(_net - _unsettledDebtsAmount)],
                     ],
                   ),
                 ],
@@ -827,19 +742,11 @@ class _IncomeExpenseReportScreenState
               children: [
                 pw.Text(
                   'تم إنشاء هذا التقرير تلقائياً - فندق مارينا بلازا',
-                  style: pw.TextStyle(
-                    font: fonts.regular,
-                    fontSize: 9,
-                    color: PdfColors.textLight,
-                  ),
+                  style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: PdfColors.textLight),
                 ),
                 pw.Text(
                   'تقرير الدورة المالية الشامل',
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 9,
-                    color: PdfColors.primary,
-                  ),
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 9, color: PdfColors.primary),
                 ),
               ],
             ),
@@ -855,17 +762,12 @@ class _IncomeExpenseReportScreenState
 
   /// جدول تحليل طرق الدفع (مشترك بين PDF العادي والمجمع)
   pw.Widget _buildPaymentMethodsTable(ArabicPdfFonts fonts) {
-    final cashIncome = _incomeEntries
-        .where((e) => e.paymentMethod == 'cash')
-        .fold<double>(0, (s, e) => s + e.amount);
-    final cardIncome = _incomeEntries
-        .where((e) => e.paymentMethod == 'card')
-        .fold<double>(0, (s, e) => s + e.amount);
+    final cashIncome = _incomeEntries.where((e) => e.paymentMethod == 'cash').fold<double>(0, (s, e) => s + e.amount);
+    final cardIncome = _incomeEntries.where((e) => e.paymentMethod == 'card').fold<double>(0, (s, e) => s + e.amount);
     final transferIncome = _incomeEntries
         .where((e) => e.paymentMethod == 'transfer')
         .fold<double>(0, (s, e) => s + e.amount);
-    final otherMethodIncome =
-        _incomeTotal - cashIncome - cardIncome - transferIncome;
+    final otherMethodIncome = _incomeTotal - cashIncome - cardIncome - transferIncome;
 
     return EnhancedPdfUtils.buildProfessionalTable(
       headers: ['طريقة الدفع', 'المبلغ', 'العدد', 'النسبة'],
@@ -898,12 +800,7 @@ class _IncomeExpenseReportScreenState
             '${_incomeEntries.where((e) => e.paymentMethod != 'cash' && e.paymentMethod != 'card' && e.paymentMethod != 'transfer').length}',
             if (_incomeTotal > 0) '${(otherMethodIncome / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
           ],
-        [
-          'الإجمالي',
-          EnhancedPdfUtils.formatNumber(_incomeTotal),
-          '${_incomeEntries.length}',
-          '100%',
-        ],
+        ['الإجمالي', EnhancedPdfUtils.formatNumber(_incomeTotal), '${_incomeEntries.length}', '100%'],
       ],
     );
   }
@@ -919,15 +816,17 @@ class _IncomeExpenseReportScreenState
       data: [
         ['إجمالي الديون في الفترة', '$_totalDebtsCount دين'],
         ['ديون غير مسددة في الفترة', '$_unsettledDebtsInPeriodCount دين'],
-        ['مبلغ الديون غير المسددة في الفترة',
-          EnhancedPdfUtils.formatNumber(_unsettledDebtsInPeriodAmount),],
+        ['مبلغ الديون غير المسددة في الفترة', EnhancedPdfUtils.formatNumber(_unsettledDebtsInPeriodAmount)],
         ['إجمالي الديون غير المسددة (كل الفترات)', '$_unsettledDebtsCount دين'],
-        ['مبلغ الديون غير المسددة الكلي',
-          EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount),],
-        ['نسبة الديون غير المسددة الكلية من الإيرادات',
-          if (_incomeTotal > 0) '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',],
-        ['قدرة تغطية الديون (صافي / ديون)',
-          if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',],
+        ['مبلغ الديون غير المسددة الكلي', EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount)],
+        [
+          'نسبة الديون غير المسددة الكلية من الإيرادات',
+          if (_incomeTotal > 0) '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
+        ],
+        [
+          'قدرة تغطية الديون (صافي / ديون)',
+          if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',
+        ],
       ],
     );
   }
@@ -949,32 +848,29 @@ class _IncomeExpenseReportScreenState
         [
           'هامش الربح الصافي',
           '${profitMargin.toStringAsFixed(1)}%',
-          if (profitMargin > 20) 'ممتاز' else profitMargin > 10
-                  ? 'جيد'
-                  : profitMargin > 0
-                      ? 'مقبول'
-                      : 'خسارة',
+          if (profitMargin > 20)
+            'ممتاز'
+          else
+            profitMargin > 10
+                ? 'جيد'
+                : profitMargin > 0
+                ? 'مقبول'
+                : 'خسارة',
         ],
         [
           'نسبة المصروفات إلى الإيرادات',
           '${expenseRatio.toStringAsFixed(1)}%',
-          if (expenseRatio < 60) 'ممتاز' else expenseRatio < 80
-                  ? 'جيد'
-                  : 'مرتفع',
+          if (expenseRatio < 60) 'ممتاز' else expenseRatio < 80 ? 'جيد' : 'مرتفع',
         ],
         [
           'نسبة الرواتب إلى الإيرادات',
           '${salaryExpenseRatio.toStringAsFixed(1)}%',
-          if (salaryExpenseRatio < 30) 'ممتاز' else salaryExpenseRatio < 50
-                  ? 'جيد'
-                  : 'مرتفع',
+          if (salaryExpenseRatio < 30) 'ممتاز' else salaryExpenseRatio < 50 ? 'جيد' : 'مرتفع',
         ],
         [
           'معدل تغطية الديون',
           if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',
-          if (debtCoverage > 2) 'ممتاز' else debtCoverage > 1
-                  ? 'جيد'
-                  : 'ضعيف',
+          if (debtCoverage > 2) 'ممتاز' else debtCoverage > 1 ? 'جيد' : 'ضعيف',
         ],
       ],
     );
@@ -1034,20 +930,12 @@ class _IncomeExpenseReportScreenState
           children: [
             pw.Text(
               title,
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 10,
-                color: PdfColors.textLight,
-              ),
+              style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textLight),
             ),
             pw.SizedBox(height: 3),
             pw.Text(
               value,
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 15,
-                color: color,
-              ),
+              style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: color),
             ),
           ],
         ),
@@ -1060,10 +948,7 @@ class _IncomeExpenseReportScreenState
       return pw.Container(
         margin: const pw.EdgeInsets.only(bottom: 10),
         decoration: pw.BoxDecoration(
-          border: pw.Border.all(
-            color: isProfit ? PdfColors.success : PdfColors.danger,
-            width: 0.8,
-          ),
+          border: pw.Border.all(color: isProfit ? PdfColors.success : PdfColors.danger, width: 0.8),
           borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
         ),
         child: pw.Column(
@@ -1072,48 +957,27 @@ class _IncomeExpenseReportScreenState
             // عنوان الفترة المرقم
             pw.Container(
               width: double.infinity,
-              padding: const pw.EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
+              padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: const pw.BoxDecoration(
                 color: PdfColors.primary,
-                borderRadius: pw.BorderRadius.only(
-                  topLeft: pw.Radius.circular(7),
-                  topRight: pw.Radius.circular(7),
-                ),
+                borderRadius: pw.BorderRadius.only(topLeft: pw.Radius.circular(7), topRight: pw.Radius.circular(7)),
               ),
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(
                     '$group.index. ${group.label}',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 13,
-                      color: PdfColors.textWhite,
-                    ),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: PdfColors.textWhite),
                   ),
                   pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: pw.BoxDecoration(
-                      color: isProfit
-                          ? PdfColors.success
-                          : PdfColors.danger,
-                      borderRadius: const pw.BorderRadius.all(
-                        pw.Radius.circular(10),
-                      ),
+                      color: isProfit ? PdfColors.success : PdfColors.danger,
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
                     ),
                     child: pw.Text(
                       isProfit ? 'ربح' : 'خسارة',
-                      style: pw.TextStyle(
-                        font: fonts.bold,
-                        fontSize: 9,
-                        color: PdfColors.textWhite,
-                      ),
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 9, color: PdfColors.textWhite),
                     ),
                   ),
                 ],
@@ -1133,36 +997,22 @@ class _IncomeExpenseReportScreenState
                           margin: const pw.EdgeInsets.only(left: 4),
                           decoration: const pw.BoxDecoration(
                             color: PdfColors.success,
-                            borderRadius: pw.BorderRadius.all(
-                              pw.Radius.circular(4),
-                            ),
+                            borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
                           ),
                           child: pw.Column(
                             children: [
                               pw.Text(
                                 'الدخل',
-                                style: pw.TextStyle(
-                                  font: fonts.regular,
-                                  fontSize: 9,
-                                  color: PdfColors.textWhite,
-                                ),
+                                style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: PdfColors.textWhite),
                               ),
                               pw.SizedBox(height: 2),
                               pw.Text(
                                 EnhancedPdfUtils.formatNumber(group.incomeTotal),
-                                style: pw.TextStyle(
-                                  font: fonts.bold,
-                                  fontSize: 12,
-                                  color: PdfColors.textWhite,
-                                ),
+                                style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.textWhite),
                               ),
                               pw.Text(
                                 '${group.incomeCount} معاملة',
-                                style: pw.TextStyle(
-                                  font: fonts.regular,
-                                  fontSize: 8,
-                                  color: PdfColors.textWhite,
-                                ),
+                                style: pw.TextStyle(font: fonts.regular, fontSize: 8, color: PdfColors.textWhite),
                               ),
                             ],
                           ),
@@ -1174,36 +1024,22 @@ class _IncomeExpenseReportScreenState
                           margin: const pw.EdgeInsets.only(left: 4),
                           decoration: const pw.BoxDecoration(
                             color: PdfColors.danger,
-                            borderRadius: pw.BorderRadius.all(
-                              pw.Radius.circular(4),
-                            ),
+                            borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
                           ),
                           child: pw.Column(
                             children: [
                               pw.Text(
                                 'المصروفات',
-                                style: pw.TextStyle(
-                                  font: fonts.regular,
-                                  fontSize: 9,
-                                  color: PdfColors.textWhite,
-                                ),
+                                style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: PdfColors.textWhite),
                               ),
                               pw.SizedBox(height: 2),
                               pw.Text(
                                 EnhancedPdfUtils.formatNumber(group.expenseTotal),
-                                style: pw.TextStyle(
-                                  font: fonts.bold,
-                                  fontSize: 12,
-                                  color: PdfColors.textWhite,
-                                ),
+                                style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.textWhite),
                               ),
                               pw.Text(
                                 '${group.expenseCount} معاملة',
-                                style: pw.TextStyle(
-                                  font: fonts.regular,
-                                  fontSize: 8,
-                                  color: PdfColors.textWhite,
-                                ),
+                                style: pw.TextStyle(font: fonts.regular, fontSize: 8, color: PdfColors.textWhite),
                               ),
                             ],
                           ),
@@ -1213,12 +1049,8 @@ class _IncomeExpenseReportScreenState
                         child: pw.Container(
                           padding: const pw.EdgeInsets.all(6),
                           decoration: pw.BoxDecoration(
-                            color: group.salaryTotal > 0
-                                ? PdfColors.warning
-                                : PdfColors.backgroundCard,
-                            borderRadius: const pw.BorderRadius.all(
-                              pw.Radius.circular(4),
-                            ),
+                            color: group.salaryTotal > 0 ? PdfColors.warning : PdfColors.backgroundCard,
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
                           ),
                           child: pw.Column(
                             children: [
@@ -1227,9 +1059,7 @@ class _IncomeExpenseReportScreenState
                                 style: pw.TextStyle(
                                   font: fonts.regular,
                                   fontSize: 9,
-                                  color: group.salaryTotal > 0
-                                      ? PdfColors.textWhite
-                                      : PdfColors.textLight,
+                                  color: group.salaryTotal > 0 ? PdfColors.textWhite : PdfColors.textLight,
                                 ),
                               ),
                               pw.SizedBox(height: 2),
@@ -1238,9 +1068,7 @@ class _IncomeExpenseReportScreenState
                                 style: pw.TextStyle(
                                   font: fonts.bold,
                                   fontSize: 12,
-                                  color: group.salaryTotal > 0
-                                      ? PdfColors.textWhite
-                                      : PdfColors.textLight,
+                                  color: group.salaryTotal > 0 ? PdfColors.textWhite : PdfColors.textLight,
                                 ),
                               ),
                               pw.SizedBox(height: 10),
@@ -1252,31 +1080,19 @@ class _IncomeExpenseReportScreenState
                         child: pw.Container(
                           padding: const pw.EdgeInsets.all(6),
                           decoration: pw.BoxDecoration(
-                            color: isProfit
-                                ? PdfColors.success
-                                : PdfColors.danger,
-                            borderRadius: const pw.BorderRadius.all(
-                              pw.Radius.circular(4),
-                            ),
+                            color: isProfit ? PdfColors.success : PdfColors.danger,
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
                           ),
                           child: pw.Column(
                             children: [
                               pw.Text(
                                 'الصافي',
-                                style: pw.TextStyle(
-                                  font: fonts.regular,
-                                  fontSize: 9,
-                                  color: PdfColors.textWhite,
-                                ),
+                                style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: PdfColors.textWhite),
                               ),
                               pw.SizedBox(height: 2),
                               pw.Text(
                                 EnhancedPdfUtils.formatNumber(group.net),
-                                style: pw.TextStyle(
-                                  font: fonts.bold,
-                                  fontSize: 12,
-                                  color: PdfColors.textWhite,
-                                ),
+                                style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.textWhite),
                               ),
                               pw.SizedBox(height: 10),
                             ],
@@ -1352,45 +1168,26 @@ class _IncomeExpenseReportScreenState
                 children: [
                   pw.Text(
                     'تقرير الدخل والمصروفات التفصيلي',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 20,
-                      color: PdfColors.textWhite,
-                    ),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 20, color: PdfColors.textWhite),
                   ),
                   pw.SizedBox(height: 4),
                   pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: const pw.BoxDecoration(color: PdfColors.secondary),
                     child: pw.Text(
                       'تجميع $groupTypeLabel',
-                      style: pw.TextStyle(
-                        font: fonts.bold,
-                        fontSize: 12,
-                        color: PdfColors.textWhite,
-                      ),
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.textWhite),
                     ),
                   ),
                   pw.SizedBox(height: 8),
                   pw.Text(
                     'الفترة من $fromLabel إلى $toLabel',
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 12,
-                      color: PdfColors.textWhite,
-                    ),
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 12, color: PdfColors.textWhite),
                   ),
                   pw.SizedBox(height: 4),
                   pw.Text(
                     'عدد الفترات: ${groupedData.length}',
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 10,
-                      color: PdfColors.textWhite,
-                    ),
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textWhite),
                   ),
                 ],
               ),
@@ -1451,11 +1248,7 @@ class _IncomeExpenseReportScreenState
               ),
               child: pw.Text(
                 'التفاصيل حسب الفترة ($groupTypeLabel)',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 14,
-                  color: PdfColors.textWhite,
-                ),
+                style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.textWhite),
                 textAlign: pw.TextAlign.center,
               ),
             ),
@@ -1477,16 +1270,10 @@ class _IncomeExpenseReportScreenState
           // ═══════════════════════════════════════
 
           // مؤشرات مالية
-          final profitMargin =
-              _incomeTotal > 0 ? (_net / _incomeTotal * 100) : 0.0;
-          final expenseRatio =
-              _incomeTotal > 0 ? (_expenseTotal / _incomeTotal * 100) : 0.0;
-          final salaryExpenseRatio =
-              _incomeTotal > 0 ? (_salaryTotal / _incomeTotal * 100) : 0.0;
-          final debtCoverage =
-              _unsettledDebtsAmount > 0 && _net > 0
-                  ? _net / _unsettledDebtsAmount
-                  : 0.0;
+          final profitMargin = _incomeTotal > 0 ? (_net / _incomeTotal * 100) : 0.0;
+          final expenseRatio = _incomeTotal > 0 ? (_expenseTotal / _incomeTotal * 100) : 0.0;
+          final salaryExpenseRatio = _incomeTotal > 0 ? (_salaryTotal / _incomeTotal * 100) : 0.0;
+          final debtCoverage = _unsettledDebtsAmount > 0 && _net > 0 ? _net / _unsettledDebtsAmount : 0.0;
 
           // تحليل طرق الدفع
           widgets.add(
@@ -1500,11 +1287,7 @@ class _IncomeExpenseReportScreenState
               ),
               child: pw.Text(
                 'تحليل طرق الدفع',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 13,
-                  color: PdfColors.textWhite,
-                ),
+                style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: PdfColors.textWhite),
               ),
             ),
           );
@@ -1522,11 +1305,7 @@ class _IncomeExpenseReportScreenState
               ),
               child: pw.Text(
                 'تكاليف الموارد البشرية',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 13,
-                  color: PdfColors.textWhite,
-                ),
+                style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: PdfColors.textWhite),
               ),
             ),
           );
@@ -1540,14 +1319,13 @@ class _IncomeExpenseReportScreenState
               data: [
                 ['عدد الموظفين النشطين', '$_activeEmployeesCount موظف'],
                 ['عدد الموظفين المنهية خدمتهم', '$_terminatedEmployeesCount موظف'],
-                ['إجمالي الالتزامات الرواتب الشهرية',
-                  EnhancedPdfUtils.formatNumber(_totalSalaryObligation),],
-                ['الرواتب المدفوعة في الفترة',
-                  EnhancedPdfUtils.formatNumber(_salaryTotal),],
-                ['نسبة الرواتب من الإيرادات',
-                  '${salaryExpenseRatio.toStringAsFixed(1)}%',],
-                ['نسبة الرواتب من المصروفات',
-                  if (_expenseTotal > 0) '${(_salaryTotal / _expenseTotal * 100).toStringAsFixed(1)}%' else '0%',],
+                ['إجمالي الالتزامات الرواتب الشهرية', EnhancedPdfUtils.formatNumber(_totalSalaryObligation)],
+                ['الرواتب المدفوعة في الفترة', EnhancedPdfUtils.formatNumber(_salaryTotal)],
+                ['نسبة الرواتب من الإيرادات', '${salaryExpenseRatio.toStringAsFixed(1)}%'],
+                [
+                  'نسبة الرواتب من المصروفات',
+                  if (_expenseTotal > 0) '${(_salaryTotal / _expenseTotal * 100).toStringAsFixed(1)}%' else '0%',
+                ],
               ],
             ),
           );
@@ -1564,11 +1342,7 @@ class _IncomeExpenseReportScreenState
               ),
               child: pw.Text(
                 'تحليل الديون المستحقة',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 13,
-                  color: PdfColors.textWhite,
-                ),
+                style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: PdfColors.textWhite),
               ),
             ),
           );
@@ -1586,11 +1360,7 @@ class _IncomeExpenseReportScreenState
               ),
               child: pw.Text(
                 'إحصائيات الحجوزات والإشغال',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 13,
-                  color: PdfColors.textWhite,
-                ),
+                style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: PdfColors.textWhite),
               ),
             ),
           );
@@ -1605,8 +1375,10 @@ class _IncomeExpenseReportScreenState
                 ['إجمالي الحجوزات في الفترة', '$_bookingsCount حجز'],
                 ['حجوزات نشطة (داخلين)', '$_activeBookingsCount حجز'],
                 ['حجوزات مغادرة', '$_checkoutBookingsCount حجز'],
-                ['متوسط الإيراد لكل حجز',
-                  if (_bookingsCount > 0) EnhancedPdfUtils.formatNumber(_incomeTotal / _bookingsCount) else '0',],
+                [
+                  'متوسط الإيراد لكل حجز',
+                  if (_bookingsCount > 0) EnhancedPdfUtils.formatNumber(_incomeTotal / _bookingsCount) else '0',
+                ],
               ],
             ),
           );
@@ -1623,17 +1395,13 @@ class _IncomeExpenseReportScreenState
               ),
               child: pw.Text(
                 'المؤشرات المالية الرئيسية',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 13,
-                  color: PdfColors.textWhite,
-                ),
+                style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: PdfColors.textWhite),
               ),
             ),
           );
-          widgets.add(_buildFinancialIndicatorsTable(
-            fonts, profitMargin, expenseRatio, salaryExpenseRatio, debtCoverage,
-          ));
+          widgets.add(
+            _buildFinancialIndicatorsTable(fonts, profitMargin, expenseRatio, salaryExpenseRatio, debtCoverage),
+          );
 
           return widgets;
         },
@@ -1660,33 +1428,21 @@ class _IncomeExpenseReportScreenState
       children: [
         pw.Text(
           title,
-          style: pw.TextStyle(
-            font: fonts.bold,
-            fontSize: 10,
-            color: headerColor,
-          ),
+          style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: headerColor),
         ),
         pw.SizedBox(height: 3),
         pw.Container(
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.textLight, width: 0.3),
-          ),
+          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.textLight, width: 0.3)),
           child: pw.Table(
             children: [
               pw.TableRow(
                 decoration: pw.BoxDecoration(color: headerColor),
-                children: headers
-                    .map((h) => _miniCell(h, fonts.bold, PdfColors.textDark))
-                    .toList(),
+                children: headers.map((h) => _miniCell(h, fonts.bold, PdfColors.textDark)).toList(),
               ),
               ...rows.asMap().entries.map((entry) {
                 final isEven = entry.key.isEven;
                 return pw.TableRow(
-                  decoration: isEven
-                      ? const pw.BoxDecoration(
-                          color: PdfColors.backgroundLight,
-                        )
-                      : null,
+                  decoration: isEven ? const pw.BoxDecoration(color: PdfColors.backgroundLight) : null,
                   children: entry.value.asMap().entries.map((cell) {
                     final isBold = cell.key == boldColumnIndex;
                     return _miniCell(
@@ -1705,12 +1461,7 @@ class _IncomeExpenseReportScreenState
     );
   }
 
-  pw.Widget _miniCell(
-    String text,
-    pw.Font font,
-    PdfColor color, {
-    pw.TextAlign align = pw.TextAlign.center,
-  }) {
+  pw.Widget _miniCell(String text, pw.Font font, PdfColor color, {pw.TextAlign align = pw.TextAlign.center}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 4),
       child: pw.Text(
@@ -1722,10 +1473,7 @@ class _IncomeExpenseReportScreenState
   }
 
   /// ملخص نهائي شامل في آخر التقرير
-  pw.Widget _buildFinalSummarySection(
-    ArabicPdfFonts fonts,
-    List<_GroupedData> groups,
-  ) {
+  pw.Widget _buildFinalSummarySection(ArabicPdfFonts fonts, List<_GroupedData> groups) {
     // أطول فترة ربحية وخاسرة
     _GroupedData? bestPeriod;
     _GroupedData? worstPeriod;
@@ -1745,9 +1493,7 @@ class _IncomeExpenseReportScreenState
 
     // إجمالي المعاملات
     final totalTx = _incomeEntries.length + _expenseEntries.length;
-    final avgDaily = groups.isEmpty
-        ? 0.0
-        : _net / groups.length;
+    final avgDaily = groups.isEmpty ? 0.0 : _net / groups.length;
 
     return pw.Container(
       width: double.infinity,
@@ -1765,11 +1511,7 @@ class _IncomeExpenseReportScreenState
             padding: const pw.EdgeInsets.symmetric(vertical: 6),
             child: pw.Text(
               'الملخص النهائي الشامل',
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 14,
-                color: PdfColors.primary,
-              ),
+              style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.primary),
               textAlign: pw.TextAlign.center,
             ),
           ),
@@ -1785,22 +1527,15 @@ class _IncomeExpenseReportScreenState
             data: [
               ['إجمالي المعاملات', '$totalTx معاملة'],
               ['عدد الفترات', '${groups.length} فترة'],
-              ['متوسط الصافي لكل فترة',
-                EnhancedPdfUtils.formatNumber(avgDaily),],
-              ['إجمالي الدخل',
-                EnhancedPdfUtils.formatNumber(_incomeTotal),],
-              ['إجمالي المصروفات',
-                EnhancedPdfUtils.formatNumber(_expenseTotal),],
-              ['مصروفات الرواتب',
-                EnhancedPdfUtils.formatNumber(_salaryTotal),],
-              ['الصافي النهائي',
-                EnhancedPdfUtils.formatNumber(_net),],
+              ['متوسط الصافي لكل فترة', EnhancedPdfUtils.formatNumber(avgDaily)],
+              ['إجمالي الدخل', EnhancedPdfUtils.formatNumber(_incomeTotal)],
+              ['إجمالي المصروفات', EnhancedPdfUtils.formatNumber(_expenseTotal)],
+              ['مصروفات الرواتب', EnhancedPdfUtils.formatNumber(_salaryTotal)],
+              ['الصافي النهائي', EnhancedPdfUtils.formatNumber(_net)],
               if (bestPeriod != null)
-                ['أفضل فترة (أعلى ربح)',
-                  '${bestPeriod.label} - ${EnhancedPdfUtils.formatNumber(bestPeriod.net)}',],
+                ['أفضل فترة (أعلى ربح)', '${bestPeriod.label} - ${EnhancedPdfUtils.formatNumber(bestPeriod.net)}'],
               if (worstPeriod != null && worstPeriod.net < 0)
-                ['أسوأ فترة (أعلى خسارة)',
-                  '${worstPeriod.label} - ${EnhancedPdfUtils.formatNumber(worstPeriod.net)}',],
+                ['أسوأ فترة (أعلى خسارة)', '${worstPeriod.label} - ${EnhancedPdfUtils.formatNumber(worstPeriod.net)}'],
             ],
           ),
         ],
@@ -1854,28 +1589,12 @@ class _IncomeExpenseReportScreenState
       await file.writeAsBytes(bytes);
       if (mounted) {
         messenger.showSnackBar(
-          SnackBar(
-            content: Text('تم حفظ الملف: ${file.path}'),
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'إغلاق',
-              onPressed: messenger.hideCurrentSnackBar,
-            ),
-          ),
+          SnackBar(content: Text('تم حفظ الملف: ${file.path}'), duration: const Duration(seconds: 3)),
         );
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('خطأ في الحفظ: $e'),
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'إغلاق',
-              onPressed: messenger.hideCurrentSnackBar,
-            ),
-          ),
-        );
+        messenger.showSnackBar(SnackBar(content: Text('خطأ في الحفظ: $e'), duration: const Duration(seconds: 3)));
       }
     }
   }
@@ -1909,13 +1628,10 @@ class _IncomeExpenseReportScreenState
           'category': e.type,
         });
       }
-      allEntries.sort((a, b) =>
-          DateTime.parse(a['date'] as String).compareTo(DateTime.parse(b['date'] as String)),);
+      allEntries.sort((a, b) => DateTime.parse(a['date'] as String).compareTo(DateTime.parse(b['date'] as String)));
 
       for (final entry in allEntries) {
-        buffer.writeln(
-          '${entry["type"]},${entry["date"]},"${entry["desc"]}",${entry["amount"]},${entry["category"]}',
-        );
+        buffer.writeln('${entry["type"]},${entry["date"]},"${entry["desc"]}",${entry["amount"]},${entry["category"]}');
       }
 
       buffer.writeln();
@@ -1927,25 +1643,16 @@ class _IncomeExpenseReportScreenState
 
       final csvBytes = buffer.toString().codeUnits;
       final dir = await getTemporaryDirectory();
-      final filename =
-          'تقرير-${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
+      final filename = 'تقرير-${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
       final file = File('${dir.path}/$filename');
       await file.writeAsBytes(csvBytes);
 
       if (mounted) {
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text: 'تقرير الدخل والمصروفات',
-        );
+        await Share.shareXFiles([XFile(file.path)], text: 'تقرير الدخل والمصروفات');
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('خطأ في تصدير CSV: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        messenger.showSnackBar(SnackBar(content: Text('خطأ في تصدير CSV: $e'), duration: const Duration(seconds: 3)));
       }
     }
   }
@@ -1954,9 +1661,7 @@ class _IncomeExpenseReportScreenState
   void _showExportOptions() {
     showModalBottomSheet<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       isScrollControlled: true,
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.75,
@@ -1974,10 +1679,7 @@ class _IncomeExpenseReportScreenState
                   width: 40,
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
                 ),
               ),
               const Text(
@@ -1993,28 +1695,16 @@ class _IncomeExpenseReportScreenState
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-                  ),
+                  border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.summarize_rounded,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 18,
-                        ),
+                        Icon(Icons.summarize_rounded, color: Theme.of(context).colorScheme.primary, size: 18),
                         const SizedBox(width: 8),
-                        const Text(
-                          'تقرير تفصيلي',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
+                        const Text('تقرير تفصيلي', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -2129,10 +1819,7 @@ class _IncomeExpenseReportScreenState
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: iconBg,
-          borderRadius: BorderRadius.circular(8),
-        ),
+        decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(8)),
         child: Icon(icon, color: iconColor, size: 20),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -2167,25 +1854,13 @@ class _IncomeExpenseReportScreenState
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.12),
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(
-                          Icons.date_range_rounded,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 16,
-                        ),
+                        child: Icon(Icons.date_range_rounded, color: Theme.of(context).colorScheme.primary, size: 16),
                       ),
                       const SizedBox(width: 8),
-                      const Text(
-                        'فترة التقرير',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                      const Text('فترة التقرير', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -2222,8 +1897,7 @@ class _IncomeExpenseReportScreenState
                       NeuQuickFilterChip(
                         label: _detailedMode ? 'تفصيلي' : 'ملخص',
                         selected: _detailedMode,
-                        onTap: () =>
-                            setState(() => _detailedMode = !_detailedMode),
+                        onTap: () => setState(() => _detailedMode = !_detailedMode),
                       ),
                     ],
                   ),
@@ -2289,9 +1963,7 @@ class _IncomeExpenseReportScreenState
         SizedBox(
           width: 140,
           child: NeuStatCard(
-            icon: _net >= 0
-                ? Icons.rocket_launch_rounded
-                : Icons.warning_rounded,
+            icon: _net >= 0 ? Icons.rocket_launch_rounded : Icons.warning_rounded,
             title: 'صافي الربح',
             value: _currencyFormat.format(_net),
             iconColor: _net >= 0 ? Colors.teal : Colors.red,
@@ -2348,12 +2020,8 @@ class _IncomeExpenseReportScreenState
       itemCount: combined.length,
       itemBuilder: (context, index) {
         final entry = combined[index];
-        final color = entry.isIncome
-            ? Colors.green
-            : (entry.isSalary ? Colors.orange : Colors.red);
-        final icon = entry.isIncome
-            ? Icons.arrow_downward
-            : (entry.isSalary ? Icons.people : Icons.arrow_upward);
+        final color = entry.isIncome ? Colors.green : (entry.isSalary ? Colors.orange : Colors.red);
+        final icon = entry.isIncome ? Icons.arrow_downward : (entry.isSalary ? Icons.people : Icons.arrow_upward);
 
         return Card(
           elevation: 0.5,
@@ -2366,30 +2034,19 @@ class _IncomeExpenseReportScreenState
               radius: 14,
               child: Icon(icon, color: color, size: 14),
             ),
-            title: Text(
-              entry.description,
-              style: const TextStyle(fontSize: 11),
-            ),
+            title: Text(entry.description, style: const TextStyle(fontSize: 11)),
             subtitle: Row(
               children: [
-                Text(
-                  _dateFormat.format(entry.date),
-                  style: const TextStyle(fontSize: 9),
-                ),
+                Text(_dateFormat.format(entry.date), style: const TextStyle(fontSize: 9)),
                 const SizedBox(width: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 1,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    entry.isIncome
-                        ? 'دخل'
-                        : (entry.isSalary ? 'راتب' : 'مصروف'),
+                    entry.isIncome ? 'دخل' : (entry.isSalary ? 'راتب' : 'مصروف'),
                     style: TextStyle(fontSize: 8, color: color),
                   ),
                 ),
@@ -2397,11 +2054,7 @@ class _IncomeExpenseReportScreenState
             ),
             trailing: Text(
               '${entry.isIncome ? '+' : '-'}${_currencyFormat.format(entry.amount)}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: color,
-                fontSize: 11,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 11),
             ),
           ),
         );
@@ -2420,14 +2073,20 @@ class _IncomeExpenseReportScreenState
             dense: true,
             leading: const Icon(Icons.arrow_downward, color: Colors.green, size: 18),
             title: const Text('عدد معاملات الدخل', style: TextStyle(fontSize: 11)),
-            trailing: Text('${_incomeEntries.length}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            trailing: Text(
+              '${_incomeEntries.length}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
           ),
           const Divider(height: 1),
           ListTile(
             dense: true,
             leading: const Icon(Icons.arrow_upward, color: Colors.red, size: 18),
             title: const Text('عدد معاملات المصروفات', style: TextStyle(fontSize: 11)),
-            trailing: Text('${_expenseEntries.length}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            trailing: Text(
+              '${_expenseEntries.length}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
           ),
           const Divider(height: 1),
           ListTile(
@@ -2448,7 +2107,6 @@ class _IncomeExpenseReportScreenState
 // ===== نماذج البيانات =====
 
 class _GroupedData {
-
   _GroupedData({
     required this.index,
     required this.key,
@@ -2530,7 +2188,6 @@ class _CombinedEntry {
 }
 
 class _ReportParams {
-
   _ReportParams({
     required this.payments,
     required this.expenses,
@@ -2566,7 +2223,6 @@ class _ReportParams {
 }
 
 class _ReportResult {
-
   _ReportResult({
     required this.incomeEntries,
     required this.expenseEntries,
@@ -2629,17 +2285,13 @@ _ReportResult _processReportData(_ReportParams params) {
     }
     DateTime? dt;
     try {
-      dt = DateTime.parse(
-        dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
-      );
+      dt = DateTime.parse(dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr);
     } catch (_) {
       continue;
     }
     // ✅ إزالة isWithinRange — البيانات مُفلترة مسبقاً من SQL
     final room = (p['roomNumber'] ?? '').toString().trim();
-    final desc = room.isNotEmpty
-        ? 'دفعة من حجز رقم $room'
-        : 'دفعة من حجز';
+    final desc = room.isNotEmpty ? 'دفعة من حجز رقم $room' : 'دفعة من حجز';
     incomeList.add(
       _IncomeEntry(
         date: dt,
@@ -2661,9 +2313,7 @@ _ReportResult _processReportData(_ReportParams params) {
     }
     DateTime? dt;
     try {
-      dt = DateTime.parse(
-        dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
-      );
+      dt = DateTime.parse(dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr);
     } catch (_) {
       continue;
     }
@@ -2685,9 +2335,7 @@ _ReportResult _processReportData(_ReportParams params) {
 
   final incTotal = incomeList.fold<double>(0, (s, e) => s + e.amount);
   final expTotal = expenseList.fold<double>(0, (s, e) => s + e.amount);
-  final salTotal = expenseList
-      .where((e) => e.isSalary)
-      .fold<double>(0, (s, e) => s + e.amount);
+  final salTotal = expenseList.where((e) => e.isSalary).fold<double>(0, (s, e) => s + e.amount);
 
   return _ReportResult(
     incomeEntries: incomeList,

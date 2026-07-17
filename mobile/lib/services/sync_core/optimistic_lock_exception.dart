@@ -1,11 +1,5 @@
 class OptimisticLockException implements Exception {
-
-  OptimisticLockException({
-    required this.table,
-    required this.uuid,
-    required this.expectedVersion,
-    this.actualVersion,
-  });
+  OptimisticLockException({required this.table, required this.uuid, required this.expectedVersion, this.actualVersion});
   final String table;
   final String uuid;
   final int expectedVersion;

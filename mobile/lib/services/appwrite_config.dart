@@ -11,6 +11,16 @@ class AppwriteConfig {
   // Database ID - من لوحة تحكم Appwrite
   static const String databaseId = '6a2b030d000445596163';
 
+  // ═══════════════════════════════════════════════════════════════
+  //  Messaging — Appwrite Messaging Provider ID
+  // ═══════════════════════════════════════════════════════════════
+  // يُستخدم في AppwriteMessagingService.registerDevice() لتسجيل الـ Target.
+  // احصل عليه من: Appwrite Console → Messaging → Providers → FCM → _id
+  // القيم الافتراضية الشائعة: 'fcm' أو مخصّص مثل '6702abcdef1234567890'
+  static const String messagingProviderId = String.fromEnvironment(
+    'APPWRITE_MESSAGING_PROVIDER_ID',
+    defaultValue: 'fcm',
+  );
 
   // Collections IDs
   static const String roomsCollectionId = 'rooms';
@@ -32,16 +42,16 @@ class AppwriteConfig {
   static const String salaryPaymentsCollectionId = 'salary_payments';
   static const String shiftNotesCollectionId = 'shift_notes';
   static const String blacklistCollectionId = 'blacklist';
-  
+
   // جداول التدقيق المالي والتعديلات
   static const String priceAdjustmentsCollectionId = 'price_adjustments';
   static const String bookingPriceAdjustmentsCollectionId = 'booking_price_adjustments';
   static const String auditLogsCollectionId = 'audit_logs';
   static const String paymentVoidsCollectionId = 'payment_voids';
-  
+
   // جدول معلومات النزلاء
   static const String guestInfosCollectionId = 'guest_infos';
-  
+
   // جدول سحوبات الرواتب
   static const String salaryWithdrawalsCollectionId = 'salary_withdrawals';
 
@@ -88,8 +98,7 @@ class AppwriteConfig {
   static const int maxCacheSizeMB = 20;
   static const int maxRetries = 3;
   static const Duration initialRetryDelay = Duration(seconds: 2);
-  static const double retryBackoffMultiplier =
-      2.0; // Exponential backoff multiplier
+  static const double retryBackoffMultiplier = 2.0; // Exponential backoff multiplier
 
   // إعدادات Timeout
   static const Duration defaultTimeout = Duration(seconds: 30);

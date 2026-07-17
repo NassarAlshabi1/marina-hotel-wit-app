@@ -95,16 +95,9 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
           children: [
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
-            Text(
-              'فشل تحميل التقرير',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('فشل تحميل التقرير', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
-            Text(
-              error,
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
+            Text(error, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () => ref.invalidate(syncHealthReportProvider),
@@ -129,11 +122,7 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
             const SizedBox(height: 8),
             Text(
               status.label,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: _statusColor(status),
-              ),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _statusColor(status)),
             ),
             const SizedBox(height: 8),
             Text(
@@ -161,17 +150,14 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
                 const SizedBox(width: 8),
                 Text(
                   'صندوق الصادر (Outbox)',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const Divider(),
             _buildStatRow('معلق', r.pendingCount, Colors.orange),
             _buildStatRow('قيد المعالجة', r.processingCount, Colors.blue),
-            _buildStatRow('فشل', r.failedCount,
-                r.failedCount > 0 ? Colors.red : Colors.green),
+            _buildStatRow('فشل', r.failedCount, r.failedCount > 0 ? Colors.red : Colors.green),
             _buildStatRow('مكتمل', r.completedCount, Colors.green),
             const Divider(),
             _buildStatRow(
@@ -179,12 +165,7 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
               r.stuckProcessingCount,
               r.stuckProcessingCount > 0 ? Colors.red : Colors.green,
             ),
-            _buildStatRow(
-              'عمر أقدم عنصر',
-              r.oldestPendingAgeFormatted,
-              _ageColor(r.oldestPendingAge),
-              isString: true,
-            ),
+            _buildStatRow('عمر أقدم عنصر', r.oldestPendingAgeFormatted, _ageColor(r.oldestPendingAge), isString: true),
           ],
         ),
       ),
@@ -201,17 +182,13 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
             children: [
               const Icon(Icons.check_circle, color: Colors.green, size: 32),
               const SizedBox(height: 8),
-              Text(
-                'لا توجد عناصر معلقة أو فاشلة',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+              Text('لا توجد عناصر معلقة أو فاشلة', style: Theme.of(context).textTheme.bodyMedium),
             ],
           ),
         ),
       );
     }
-    final sorted = breakdown.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = breakdown.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -224,41 +201,38 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
                 const SizedBox(width: 8),
                 Text(
                   'العناصر المعلقة/الفاشلة حسب النوع',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const Divider(),
-            ...sorted.map((entry) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(entry.key),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: entry.value > 10
-                              ? Colors.red.withValues(alpha: 0.1)
-                              : Colors.orange.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '${entry.value}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: entry.value > 10 ? Colors.red : Colors.orange,
-                          ),
+            ...sorted.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(entry.key),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: entry.value > 10
+                            ? Colors.red.withValues(alpha: 0.1)
+                            : Colors.orange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${entry.value}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: entry.value > 10 ? Colors.red : Colors.orange,
                         ),
                       ),
-                    ],
-                  ),
-                )),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -267,8 +241,7 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
 
   Widget _buildTableSizesCard(SyncHealthReport report) {
     final sizes = report.tableSizes;
-    final sorted = sizes.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = sizes.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -281,26 +254,23 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
                 const SizedBox(width: 8),
                 Text(
                   'حجم الجداول',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const Divider(),
-            ...sorted.map((entry) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(entry.key),
-                      Text(
-                        '${entry.value}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                )),
+            ...sorted.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(entry.key),
+                    Text('${entry.value}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -310,9 +280,7 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
   Widget _buildFkViolationsCard(SyncHealthReport report) {
     final violations = report.fkViolations;
     return Card(
-      color: violations > 0
-          ? Colors.red.withValues(alpha: 0.1)
-          : Colors.green.withValues(alpha: 0.1),
+      color: violations > 0 ? Colors.red.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -329,17 +297,13 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
                 children: [
                   Text(
                     'سلامة المفاتيح الأجنبية',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   Text(
                     violations == 0
                         ? 'لا توجد انتهاكات — قاعدة البيانات سليمة'
                         : '$violations انتهاك مفتاح أجنبي — يحتاج إصلاح',
-                    style: TextStyle(
-                      color: violations > 0 ? Colors.red : Colors.green,
-                    ),
+                    style: TextStyle(color: violations > 0 ? Colors.red : Colors.green),
                   ),
                 ],
               ),
@@ -350,8 +314,7 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
     );
   }
 
-  Widget _buildStatRow(String label, dynamic value, Color color,
-      {bool isString = false}) {
+  Widget _buildStatRow(String label, dynamic value, Color color, {bool isString = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -360,16 +323,10 @@ class _SyncHealthScreenState extends ConsumerState<SyncHealthScreen> {
           Text(label),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
             child: Text(
               isString ? value.toString() : '$value',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, color: color),
             ),
           ),
         ],

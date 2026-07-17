@@ -17,43 +17,34 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
     }
-    query.orderBy([
-      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
-    ]);
+    query.orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]);
     if (limit != null) {
       query.limit(limit, offset: offset);
     }
     return query.get();
   }
 
-  Future<List<Debt>> listByBookingLocalId(
-    int bookingLocalId, {
-    bool includeDeleted = false,
-    int? limit,
-    int? offset,
-  }) {
-    final query = select(debts)
-      ..where((t) => t.bookingLocalId.equals(bookingLocalId));
+  Future<List<Debt>> listByBookingLocalId(int bookingLocalId, {bool includeDeleted = false, int? limit, int? offset}) {
+    final query = select(debts)..where((t) => t.bookingLocalId.equals(bookingLocalId));
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
     }
-    query.orderBy([
-      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
-    ]);
+    query.orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]);
     if (limit != null) {
       query.limit(limit, offset: offset);
     }
     return query.get();
   }
 
-  Stream<List<Debt>> watchList({bool includeDeleted = false}) {
+  Stream<List<Debt>> watchList({bool includeDeleted = false, int? limit, int offset = 0}) {
     final query = select(debts);
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
     }
-    query.orderBy([
-      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
-    ]);
+    query.orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]);
+    if (limit != null) {
+      query.limit(limit, offset: offset);
+    }
     return query.watch();
   }
 
@@ -65,10 +56,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     return (select(debts)..where((t) => t.id.equals(id))).watchSingleOrNull();
   }
 
-  Future<int> insertOne(
-    DebtsCompanion data, {
-    bool originIsServer = false,
-  }) async {
+  Future<int> insertOne(DebtsCompanion data, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uuid = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -87,9 +75,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
           entity: 'debts',
           op: 'create',
           localUuid: uuid,
-          serverId: companion.serverId.present
-              ? companion.serverId.value
-              : null,
+          serverId: companion.serverId.present ? companion.serverId.value : null,
           payload: _payloadFrom(companion),
           clientTs: now,
         );
@@ -98,11 +84,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     });
   }
 
-  Future<int> updateById(
-    int id,
-    DebtsCompanion data, {
-    bool originIsServer = false,
-  }) async {
+  Future<int> updateById(int id, DebtsCompanion data, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final existing = await getById(id);
       if (existing == null) {
@@ -111,18 +93,13 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
       final now = Time.nowEpoch();
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified =
-          originIsServer && data.lastModified.present
-              ? data.lastModified
-              : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
       final companion = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(
-        debts,
-      )..where((t) => t.id.equals(id))).write(companion);
+      final rows = await (update(debts)..where((t) => t.id.equals(id))).write(companion);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'debts',
@@ -145,11 +122,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
         return 0;
       }
       final rows = await (update(debts)..where((t) => t.id.equals(id))).write(
-        DebtsCompanion(
-          deletedAt: Value(now),
-          updatedAt: Value(now),
-          lastModified: Value(now),
-        ),
+        DebtsCompanion(deletedAt: Value(now), updatedAt: Value(now), lastModified: Value(now)),
       );
       if (rows > 0 && !originIsServer) {
         // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
@@ -171,9 +144,7 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     return (delete(debts)..where((t) => t.id.equals(id))).go();
   }
 
-  Future<List<Map<String, dynamic>>> exportToJson({
-    bool includeDeleted = false,
-  }) async {
+  Future<List<Map<String, dynamic>>> exportToJson({bool includeDeleted = false}) async {
     final items = await list(includeDeleted: includeDeleted);
     return items.map((e) => e.toJson()).toList();
   }
@@ -225,39 +196,38 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     return m;
   }
 
-  Future<void> importFromJson(
-    List<Map<String, dynamic>> data, {
-    bool clearExisting = false,
-  }) async {
-    if (clearExisting) {
-      await delete(debts).go();
-    }
-    for (final json in data) {
-      final entity = Debt.fromJson(json);
-      await into(debts).insertOnConflictUpdate(
-        DebtsCompanion(
-          bookingLocalId: Value(entity.bookingLocalId),
-          guestName: Value(entity.guestName),
-          checkinDate: Value(entity.checkinDate),
-          checkoutDate: Value(entity.checkoutDate),
-          totalAmount: Value(entity.totalAmount),
-          paidAmount: Value(entity.paidAmount),
-          remainingAmount: Value(entity.remainingAmount),
-          paymentDate: Value(entity.paymentDate),
-          pledge: Value(entity.pledge),
-          pledgeType: Value(entity.pledgeType),
-          note: Value(entity.note),
-          localUuid: Value(entity.localUuid),
-          serverId: Value(entity.serverId),
-          createdAt: Value(entity.createdAt),
-          updatedAt: Value(entity.updatedAt),
-          deletedAt: Value(entity.deletedAt),
-          lastModified: Value(entity.lastModified),
-          version: Value(entity.version),
-          origin: Value(entity.origin),
-        ),
-      );
-    }
+  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+    await transaction(() async {
+      if (clearExisting) {
+        await delete(debts).go();
+      }
+      for (final json in data) {
+        final entity = Debt.fromJson(json);
+        await into(debts).insertOnConflictUpdate(
+          DebtsCompanion(
+            bookingLocalId: Value(entity.bookingLocalId),
+            guestName: Value(entity.guestName),
+            checkinDate: Value(entity.checkinDate),
+            checkoutDate: Value(entity.checkoutDate),
+            totalAmount: Value(entity.totalAmount),
+            paidAmount: Value(entity.paidAmount),
+            remainingAmount: Value(entity.remainingAmount),
+            paymentDate: Value(entity.paymentDate),
+            pledge: Value(entity.pledge),
+            pledgeType: Value(entity.pledgeType),
+            note: Value(entity.note),
+            localUuid: Value(entity.localUuid),
+            serverId: Value(entity.serverId),
+            createdAt: Value(entity.createdAt),
+            updatedAt: Value(entity.updatedAt),
+            deletedAt: Value(entity.deletedAt),
+            lastModified: Value(entity.lastModified),
+            version: Value(entity.version),
+            origin: Value(entity.origin),
+          ),
+        );
+      }
+    });
   }
 
   Future<int> getRecordCount() async {

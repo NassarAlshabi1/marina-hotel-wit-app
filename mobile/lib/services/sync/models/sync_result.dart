@@ -1,6 +1,5 @@
 /// نموذج نتيجة المزامنة
 class SyncResult {
-
   SyncResult({
     required this.isSuccess,
     required this.message,
@@ -13,40 +12,25 @@ class SyncResult {
   });
 
   // Factory constructors
-  factory SyncResult.success({
-    int pushed = 0,
-    int pulled = 0,
-    Map<String, dynamic>? adapters,
-  }) =>
-      SyncResult(
-        isSuccess: true,
-        message: 'تمت المزامنة بنجاح',
-        pushedCount: pushed,
-        pulledCount: pulled,
-        metadata: adapters,
-      );
+  factory SyncResult.success({int pushed = 0, int pulled = 0, Map<String, dynamic>? adapters}) => SyncResult(
+    isSuccess: true,
+    message: 'تمت المزامنة بنجاح',
+    pushedCount: pushed,
+    pulledCount: pulled,
+    metadata: adapters,
+  );
 
   factory SyncResult.error(String error) => SyncResult(
-        isSuccess: false,
-        message: error,
-        errors: [SyncError(message: error)],
-      );
+    isSuccess: false,
+    message: error,
+    errors: [SyncError(message: error)],
+  );
 
-  factory SyncResult.conflict(String message) => SyncResult(
-        isSuccess: false,
-        message: message,
-        conflictCount: 1,
-      );
+  factory SyncResult.conflict(String message) => SyncResult(isSuccess: false, message: message, conflictCount: 1);
 
-  factory SyncResult.offline() => SyncResult(
-        isSuccess: false,
-        message: 'لا يوجد اتصال بالإنترنت',
-      );
+  factory SyncResult.offline() => SyncResult(isSuccess: false, message: 'لا يوجد اتصال بالإنترنت');
 
-  factory SyncResult.cancelled() => SyncResult(
-        isSuccess: false,
-        message: 'تم إلغاء المزامنة',
-      );
+  factory SyncResult.cancelled() => SyncResult(isSuccess: false, message: 'تم إلغاء المزامنة');
   final bool isSuccess;
   final String message;
   final int pushedCount;
@@ -83,13 +67,8 @@ class SyncResult {
 
 /// نموذج خطأ المزامنة
 class SyncError {
-
-  SyncError({
-    required this.message,
-    this.code,
-    this.stackTrace,
-    DateTime? timestamp,
-  }) : timestamp = timestamp ?? DateTime.now();
+  SyncError({required this.message, this.code, this.stackTrace, DateTime? timestamp})
+    : timestamp = timestamp ?? DateTime.now();
   final String message;
   final String? code;
   final DateTime timestamp;

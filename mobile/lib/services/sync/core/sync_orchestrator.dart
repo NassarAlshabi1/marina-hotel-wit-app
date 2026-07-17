@@ -9,7 +9,6 @@ import '../models/sync_state.dart';
 
 /// منسق المزامنة الموحد - نقطة الدخول الوحيدة لكل عمليات المزامنة
 class SyncOrchestrator {
-
   SyncOrchestrator._();
   static SyncOrchestrator? _instance;
   // ignore: prefer_constructors_over_static_methods
@@ -24,9 +23,9 @@ class SyncOrchestrator {
   static const Duration _initialDelay = Duration(seconds: 1);
   static const Duration _maxDelay = Duration(minutes: 5);
   static const double _backoffMultiplier = 2.0;
-  
+
   Stream<SyncState> get stateStream => _stateController.stream;
-  
+
   bool _isInitialized = false;
   bool _isSyncing = false;
 
@@ -35,24 +34,20 @@ class SyncOrchestrator {
     if (_isInitialized) {
       return;
     }
-    
+
     _adapters.addAll(adapters);
-    
+
     // تهيئة جميع المحولات
     for (final adapter in _adapters) {
       await adapter.initialize();
     }
-    
+
     _isInitialized = true;
     _emitState(SyncState.idle());
   }
 
   /// مزامنة فورية مع جميع المحولات
-  Future<SyncResult> syncNow({
-    bool push = true,
-    bool pull = true,
-    SyncPriority priority = SyncPriority.normal,
-  }) async {
+  Future<SyncResult> syncNow({bool push = true, bool pull = true, SyncPriority priority = SyncPriority.normal}) async {
     if (_isSyncing) {
       return SyncResult.conflict('المزامنة قيد التقدم بالفعل');
     }
@@ -69,14 +64,16 @@ class SyncOrchestrator {
           continue;
         }
 
-        _emitState(SyncState.syncing(
-          progress: (completed / _adapters.length * 100).toInt(),
-          message: 'مزامنة ${adapter.name}...',
-        ),);
+        _emitState(
+          SyncState.syncing(
+            progress: (completed / _adapters.length * 100).toInt(),
+            message: 'مزامنة ${adapter.name}...',
+          ),
+        );
 
         final result = await _syncWithRetry(adapter, push: push, pull: pull);
         results[adapter.name] = result;
-        
+
         if (result.isSuccess) {
           completed++;
         }
@@ -86,11 +83,7 @@ class SyncOrchestrator {
       final totalPushed = results.values.fold<int>(0, (sum, r) => sum + r.pushedCount);
       final totalPulled = results.values.fold<int>(0, (sum, r) => sum + r.pulledCount);
 
-      final result = SyncResult.success(
-        pushed: totalPushed,
-        pulled: totalPulled,
-        adapters: results,
-      );
+      final result = SyncResult.success(pushed: totalPushed, pulled: totalPulled, adapters: results);
 
       _emitState(allSuccess ? SyncState.idle() : SyncState.error(result.message));
       return result;
@@ -104,11 +97,7 @@ class SyncOrchestrator {
   }
 
   /// مزامنة مع إعادة محاولة (Exponential Backoff + Jitter).
-  Future<SyncResult> _syncWithRetry(
-    SyncAdapter adapter, {
-    required bool push,
-    required bool pull,
-  }) async {
+  Future<SyncResult> _syncWithRetry(SyncAdapter adapter, {required bool push, required bool pull}) async {
     int attempt = 0;
     Duration currentDelay = _initialDelay;
 
@@ -123,10 +112,7 @@ class SyncOrchestrator {
         final jitter = Random().nextInt(1000);
         await Future<void>.delayed(currentDelay + Duration(milliseconds: jitter));
         currentDelay = Duration(
-          milliseconds: min(
-            (currentDelay.inMilliseconds * _backoffMultiplier).toInt(),
-            _maxDelay.inMilliseconds,
-          ),
+          milliseconds: min((currentDelay.inMilliseconds * _backoffMultiplier).toInt(), _maxDelay.inMilliseconds),
         );
       }
     }
@@ -147,12 +133,12 @@ class SyncOrchestrator {
     if (_isSyncing) {
       return SyncStatus.syncing;
     }
-    
+
     final anyEnabled = _adapters.any((a) => a.isEnabled);
     if (!anyEnabled) {
       return SyncStatus.disabled;
     }
-    
+
     return SyncStatus.idle;
   }
 

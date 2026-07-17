@@ -36,8 +36,7 @@ class SyncGuardian {
 
   static final SyncGuardian instance = SyncGuardian._();
 
-  final StreamController<SyncHealthSnapshot> _healthController =
-      StreamController.broadcast();
+  final StreamController<SyncHealthSnapshot> _healthController = StreamController.broadcast();
 
   Timer? _pendingMonitor;
   Timer? _debounceTimer;
@@ -69,9 +68,7 @@ class SyncGuardian {
     try {
       await _orchestrator!.initialize(database: database);
       await AutoSyncTask.initialize(debug: kDebugMode);
-      await AutoSyncTask.schedulePeriodicSync(
-        SyncConstants.defaultAutoSyncInterval,
-      );
+      await AutoSyncTask.schedulePeriodicSync(SyncConstants.defaultAutoSyncInterval);
       await _restoreDevicePriority();
       _startPendingMonitor();
       await _refreshPendingFlag();
@@ -94,12 +91,8 @@ class SyncGuardian {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(SyncConstants.guardianLocalChangeDebounce, () async {
       try {
-        debugPrint(
-          '📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation',
-        );
-        final ok = await _orchestrator!.syncNow(
-          reason: 'guardian_debounce',
-        );
+        debugPrint('📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation');
+        final ok = await _orchestrator!.syncNow(reason: 'guardian_debounce');
         if (!ok) {
           await AutoSyncTask.scheduleImmediateSync();
         }
@@ -152,9 +145,7 @@ class SyncGuardian {
 
   Future<void> forceSync() async {
     await _consumePending(force: true);
-    await _orchestrator?.syncNow(
-      reason: 'guardian_force',
-    );
+    await _orchestrator?.syncNow(reason: 'guardian_force');
   }
 
   Future<void> setDevicePriority(int priority) async {
@@ -175,13 +166,20 @@ class SyncGuardian {
   void _startPendingMonitor() {
     _pendingMonitor?.cancel();
     _pendingMonitor = Timer.periodic(const Duration(minutes: 5), (_) async {
-      final prefs = await SharedPreferences.getInstance();
-      final pending = prefs.getBool('auto_sync_pending') ?? false;
-      _pendingEvents = pending;
-      if (pending) {
-        await _consumePending(force: false);
-      } else {
-        _emitHealth();
+      // ✅ إصلاح جذري: Timer callback async بدون try-catch يُسبب
+      // unhandled async error → Crashlytics Fatal عند أي استثناء.
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final pending = prefs.getBool('auto_sync_pending') ?? false;
+        _pendingEvents = pending;
+        if (pending) {
+          await _consumePending(force: false);
+        } else {
+          _emitHealth();
+        }
+      } catch (e) {
+        _log('⚠️ SyncGuardian pending monitor خطأ: $e');
+        // لا rethrow — نمنع fatal crash
       }
     });
   }

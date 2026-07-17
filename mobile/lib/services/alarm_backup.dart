@@ -12,16 +12,13 @@ class AlarmBackup {
   static const int alarmId = 0;
   static const int telegramReportAlarmId = 2;
 
-  static final FlutterLocalNotificationsPlugin _notif =
-      FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin _notif = FlutterLocalNotificationsPlugin();
 
   /// استدعِ هذه في main() قبل runApp
   static Future<void> initAlarmSystem() async {
     await AndroidAlarmManager.initialize();
     // تهيئة الإشعارات
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidSettings);
     await _notif.initialize(initSettings);
     debugPrint('✅ Alarm system initialized');

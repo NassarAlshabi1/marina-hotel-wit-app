@@ -15,9 +15,7 @@ class MaintenanceService {
   /// 1. reset الحالة في Appwrite
   /// 2. reset أخطاء الـ outbox (يتم عبر المُعامل الخارجي)
   /// 3. بدء مزامنة جديدة
-  Future<void> resetSyncAndResync({
-    Future<void> Function()? resetOutboxErrors,
-  }) async {
+  Future<void> resetSyncAndResync({Future<void> Function()? resetOutboxErrors}) async {
     try {
       final appwriteManager = AppwriteSyncManager.instance;
       if (appwriteManager == null) {
@@ -31,9 +29,7 @@ class MaintenanceService {
         await resetOutboxErrors();
       }
 
-      await UnifiedSyncOrchestrator.instance.syncNow(
-        reason: 'maintenance_reset',
-      );
+      await UnifiedSyncOrchestrator.instance.syncNow(reason: 'maintenance_reset');
 
       debugPrint('✅ MaintenanceService: Sync reset and resync completed');
     } catch (e) {

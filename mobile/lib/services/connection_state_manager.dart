@@ -16,8 +16,7 @@ enum ConnectionStatus { online, offline, checking, unknown }
 class ConnectionStateManager extends ChangeNotifier {
   factory ConnectionStateManager() => _instance;
   ConnectionStateManager._internal();
-  static final ConnectionStateManager _instance =
-      ConnectionStateManager._internal();
+  static final ConnectionStateManager _instance = ConnectionStateManager._internal();
 
   final _logger = AppwriteLogger();
   final _connectivity = Connectivity();
@@ -51,10 +50,7 @@ class ConnectionStateManager extends ChangeNotifier {
   /// تهيئة المدير
   Future<void> init() async {
     if (_connectivitySubscription != null) {
-      _logger.debug(
-        'ConnectionStateManager already initialized',
-        tag: 'CONNECTION',
-      );
+      _logger.debug('ConnectionStateManager already initialized', tag: 'CONNECTION');
       return;
     }
 
@@ -64,19 +60,12 @@ class ConnectionStateManager extends ChangeNotifier {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
       _onConnectivityChanged,
       onError: (Object error) {
-        _logger.error(
-          'Connectivity stream error',
-          error: error,
-          tag: 'CONNECTION',
-        );
+        _logger.error('Connectivity stream error', error: error, tag: 'CONNECTION');
       },
     );
 
     // فحص دوري كل 30 ثانية
-    _periodicCheckTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => checkConnection(),
-    );
+    _periodicCheckTimer = Timer.periodic(const Duration(seconds: 30), (_) => checkConnection());
 
     // فحص أولي
     await checkConnection();
@@ -125,10 +114,7 @@ class ConnectionStateManager extends ChangeNotifier {
       final oldStatus = _status;
       _status = newStatus;
 
-      _logger.info(
-        'Connection status changed: $oldStatus -> $newStatus',
-        tag: 'CONNECTION',
-      );
+      _logger.info('Connection status changed: $oldStatus -> $newStatus', tag: 'CONNECTION');
 
       // إشعار المستمعين
       notifyListeners();

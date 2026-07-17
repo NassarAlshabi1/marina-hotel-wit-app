@@ -6,7 +6,6 @@ import '../utils/hotel_time_engine.dart';
 
 /// نطاق تاريخ للتقرير
 class DateRange {
-
   const DateRange({this.from, this.to});
   final DateTime? from;
   final DateTime? to;
@@ -64,10 +63,14 @@ class DateFilterController {
         // ✅ نطاق الأسبوع: من 14:01 أول يوم فندقي → 14:00:59 آخر يوم فندقي
         final hotelToday = HotelTimeEngine.getHotelDay(now);
         return DateRange(
-          from: DateTime(hotelWeekStart.year, hotelWeekStart.month,
-              hotelWeekStart.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute,),
-          to: DateTime(hotelToday.year, hotelToday.month,
-              hotelToday.day + 1, HotelTimeEngine.boundaryHour, 0, 59),
+          from: DateTime(
+            hotelWeekStart.year,
+            hotelWeekStart.month,
+            hotelWeekStart.day,
+            HotelTimeEngine.boundaryHour,
+            HotelTimeEngine.boundaryMinute,
+          ),
+          to: DateTime(hotelToday.year, hotelToday.month, hotelToday.day + 1, HotelTimeEngine.boundaryHour, 0, 59),
         );
       case 'month':
         final monthStart = DateTime(now.year, now.month);
@@ -75,10 +78,21 @@ class DateFilterController {
         // ✅ نطاق الشهر: من 14:01 أول يوم → 14:00:59 آخر يوم
         final hotelTodayMonth = HotelTimeEngine.getHotelDay(now);
         return DateRange(
-          from: DateTime(hotelMonthStart.year, hotelMonthStart.month,
-              hotelMonthStart.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute,),
-          to: DateTime(hotelTodayMonth.year, hotelTodayMonth.month,
-              hotelTodayMonth.day + 1, HotelTimeEngine.boundaryHour, 0, 59),
+          from: DateTime(
+            hotelMonthStart.year,
+            hotelMonthStart.month,
+            hotelMonthStart.day,
+            HotelTimeEngine.boundaryHour,
+            HotelTimeEngine.boundaryMinute,
+          ),
+          to: DateTime(
+            hotelTodayMonth.year,
+            hotelTodayMonth.month,
+            hotelTodayMonth.day + 1,
+            HotelTimeEngine.boundaryHour,
+            0,
+            59,
+          ),
         );
       case 'year':
         final yearStart = DateTime(now.year);
@@ -86,10 +100,21 @@ class DateFilterController {
         // ✅ نطاق السنة: من 14:01 أول يوم → 14:00:59 آخر يوم
         final hotelTodayYear = HotelTimeEngine.getHotelDay(now);
         return DateRange(
-          from: DateTime(hotelYearStart.year, hotelYearStart.month,
-              hotelYearStart.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute,),
-          to: DateTime(hotelTodayYear.year, hotelTodayYear.month,
-              hotelTodayYear.day + 1, HotelTimeEngine.boundaryHour, 0, 59),
+          from: DateTime(
+            hotelYearStart.year,
+            hotelYearStart.month,
+            hotelYearStart.day,
+            HotelTimeEngine.boundaryHour,
+            HotelTimeEngine.boundaryMinute,
+          ),
+          to: DateTime(
+            hotelTodayYear.year,
+            hotelTodayYear.month,
+            hotelTodayYear.day + 1,
+            HotelTimeEngine.boundaryHour,
+            0,
+            59,
+          ),
         );
       default:
         return getDefaultHotelDayRange();
@@ -116,7 +141,6 @@ class DateFilterController {
 /// )
 /// ```
 class ReportDateFilterWidget extends StatefulWidget {
-
   const ReportDateFilterWidget({
     super.key,
     this.controller,
@@ -125,6 +149,7 @@ class ReportDateFilterWidget extends StatefulWidget {
     this.dateButtonsBuilder,
     this.dateButtonsFirst = false,
   });
+
   /// تحكم برمجي (اختياري) — للقراءة والتعديل من خارج الويدجت
   final DateFilterController? controller;
 
@@ -138,19 +163,14 @@ class ReportDateFilterWidget extends StatefulWidget {
   ///
   /// عند توفيره، يُستدعى بدلاً من الأزرار الافتراضية (OutlinedButton).
   /// يُمرَّر `onPickFrom` و `onPickTo` لربطها بمُنتقي التاريخ الداخلي.
-  final List<Widget> Function(
-    BuildContext context,
-    VoidCallback onPickFrom,
-    VoidCallback onPickTo,
-  )? dateButtonsBuilder;
+  final List<Widget> Function(BuildContext context, VoidCallback onPickFrom, VoidCallback onPickTo)? dateButtonsBuilder;
 
   /// إذا كان true، تظهر أزرار التاريخ قبل شيبس الفلترة.
   /// الافتراضي false (الشيبس أولاً ثم أزرار التاريخ).
   final bool dateButtonsFirst;
 
   @override
-  State<ReportDateFilterWidget> createState() =>
-      _ReportDateFilterWidgetState();
+  State<ReportDateFilterWidget> createState() => _ReportDateFilterWidgetState();
 }
 
 class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
@@ -228,19 +248,29 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
       setState(() {
         if (isFrom) {
           // ✅ ضبط الساعة 14:01 تلقائياً (بداية اليوم الفندقي)
-          _fromDate = DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute);
+          _fromDate = DateTime(
+            picked.year,
+            picked.month,
+            picked.day,
+            HotelTimeEngine.boundaryHour,
+            HotelTimeEngine.boundaryMinute,
+          );
           if (_fromDate.isAfter(_toDate)) {
             // نهاية اليوم الفندقي = 14:00:59 من اليوم التالي
             _toDate = DateTime(picked.year, picked.month, picked.day + 1, HotelTimeEngine.boundaryHour, 0, 59);
           }
         } else {
           // ✅ ضبط الساعة 14:00:59 تلقائياً (نهاية اليوم الفندقي)
-          _toDate =
-              DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, 0, 59);
+          _toDate = DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, 0, 59);
           if (_toDate.isBefore(_fromDate)) {
             _fromDate = _toDate.subtract(const Duration(days: 1));
             _fromDate = DateTime(
-                _fromDate.year, _fromDate.month, _fromDate.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute,);
+              _fromDate.year,
+              _fromDate.month,
+              _fromDate.day,
+              HotelTimeEngine.boundaryHour,
+              HotelTimeEngine.boundaryMinute,
+            );
           }
         }
       });
@@ -255,8 +285,13 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
   /// هل الفلتر الحالي مطابق لليوم الفندقي؟
   bool _isHotelDayActive() {
     final hotelDay = HotelTimeEngine.getHotelDay(DateTime.now());
-    final expectedFrom =
-        DateTime(hotelDay.year, hotelDay.month, hotelDay.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute);
+    final expectedFrom = DateTime(
+      hotelDay.year,
+      hotelDay.month,
+      hotelDay.day,
+      HotelTimeEngine.boundaryHour,
+      HotelTimeEngine.boundaryMinute,
+    );
     return _fromDate.year == expectedFrom.year &&
         _fromDate.month == expectedFrom.month &&
         _fromDate.day == expectedFrom.day;
@@ -309,28 +344,13 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
             onTap: () => _applyQuickFilter('hotelDay'),
           ),
           const SizedBox(width: 6),
-          NeuQuickFilterChip(
-            label: 'الأسبوع',
-            selected: _isThisWeekActive(),
-            onTap: () => _applyQuickFilter('week'),
-          ),
+          NeuQuickFilterChip(label: 'الأسبوع', selected: _isThisWeekActive(), onTap: () => _applyQuickFilter('week')),
           const SizedBox(width: 6),
-          NeuQuickFilterChip(
-            label: 'الشهر',
-            selected: _isThisMonthActive(),
-            onTap: () => _applyQuickFilter('month'),
-          ),
+          NeuQuickFilterChip(label: 'الشهر', selected: _isThisMonthActive(), onTap: () => _applyQuickFilter('month')),
           const SizedBox(width: 6),
-          NeuQuickFilterChip(
-            label: 'السنة',
-            selected: _isThisYearActive(),
-            onTap: () => _applyQuickFilter('year'),
-          ),
+          NeuQuickFilterChip(label: 'السنة', selected: _isThisYearActive(), onTap: () => _applyQuickFilter('year')),
           // شيبس إضافية من الشاشة الأب
-          if (widget.extraChips != null) ...[
-            const SizedBox(width: 6),
-            ...widget.extraChips!,
-          ],
+          if (widget.extraChips != null) ...[const SizedBox(width: 6), ...widget.extraChips!],
         ],
       ),
     );
@@ -339,27 +359,15 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
     Widget dateButtons;
     if (widget.dateButtonsBuilder != null) {
       dateButtons = Row(
-        children: widget.dateButtonsBuilder!(
-          context,
-          () => _pickDate(isFrom: true),
-          () => _pickDate(isFrom: false),
-        ),
+        children: widget.dateButtonsBuilder!(context, () => _pickDate(isFrom: true), () => _pickDate(isFrom: false)),
       );
     } else {
       dateButtons = Wrap(
         spacing: 8,
         runSpacing: 8,
         children: [
-          _buildDefaultDateSelector(
-            label: 'من (14:01)',
-            value: _fromDate,
-            onPressed: () => _pickDate(isFrom: true),
-          ),
-          _buildDefaultDateSelector(
-            label: 'إلى (14:00)',
-            value: _toDate,
-            onPressed: () => _pickDate(isFrom: false),
-          ),
+          _buildDefaultDateSelector(label: 'من (14:01)', value: _fromDate, onPressed: () => _pickDate(isFrom: true)),
+          _buildDefaultDateSelector(label: 'إلى (14:00)', value: _toDate, onPressed: () => _pickDate(isFrom: false)),
         ],
       );
     }
@@ -377,9 +385,7 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
             const SizedBox(height: 6),
             Text(
               selectedRangeLabel,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.outline),
             ),
           ]
         : [
@@ -389,27 +395,16 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
             const SizedBox(height: 6),
             Text(
               selectedRangeLabel,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.outline),
             ),
           ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: children,
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: children);
   }
 
   /// بناء زر تاريخ افتراضي (OutlinedButton)
-  Widget _buildDefaultDateSelector({
-    required String label,
-    required DateTime? value,
-    required VoidCallback onPressed,
-  }) {
-    final text =
-        value != null ? DateFormat('yyyy-MM-dd').format(value) : '—';
+  Widget _buildDefaultDateSelector({required String label, required DateTime? value, required VoidCallback onPressed}) {
+    final text = value != null ? DateFormat('yyyy-MM-dd').format(value) : '—';
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(

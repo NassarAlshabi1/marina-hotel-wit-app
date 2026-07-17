@@ -5,12 +5,10 @@ import 'smart_sync_manager.dart';
 
 /// مُعلِم المزامنة الفورية - يتلقى إشعارات من الأجهزة الأخرى
 class RealtimeSyncNotifier {
-
   RealtimeSyncNotifier._();
   static RealtimeSyncNotifier? _instance;
   // ignore: prefer_constructors_over_static_methods
-  static RealtimeSyncNotifier get instance =>
-      _instance ??= RealtimeSyncNotifier._();
+  static RealtimeSyncNotifier get instance => _instance ??= RealtimeSyncNotifier._();
 
   final _syncTriggerController = StreamController<SyncTrigger>.broadcast();
   Stream<SyncTrigger> get onSyncTrigger => _syncTriggerController.stream;
@@ -83,10 +81,7 @@ class RealtimeSyncNotifier {
   }
 
   /// إرسال إشعار لأجهزة أخرى (عبر FCM أو Drive metadata)
-  Future<void> notifyOtherDevices({
-    required String syncId,
-    required String changeType,
-  }) async {
+  Future<void> notifyOtherDevices({required String syncId, required String changeType}) async {
     try {
       // ignore: unused_local_variable
       final metadata = {

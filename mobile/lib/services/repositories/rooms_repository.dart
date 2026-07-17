@@ -18,11 +18,9 @@ class RoomsRepository {
   late final OutboxDao outbox;
   late final RoomsDao dao;
 
-  Stream<List<Room>> watchAll({String? search}) =>
-      dao.watchList(search: search);
+  Stream<List<Room>> watchAll({String? search}) => dao.watchList(search: search);
   Stream<Room?> watchRoom(String roomNumber) => dao.watchByNumber(roomNumber);
-  Stream<Room?> watchByNumber(String roomNumber) =>
-      dao.watchByNumber(roomNumber);
+  Stream<Room?> watchByNumber(String roomNumber) => dao.watchByNumber(roomNumber);
 
   Future<String> create({
     required String roomNumber,
@@ -41,11 +39,7 @@ class RoomsRepository {
           imageUrl: d.Value(imageUrl),
         ),
       );
-      unawaited(AutoBackupManager.instance.onDataChange(
-        'rooms',
-        'INSERT',
-        recordData: {'room_number': roomNumber},
-      ),);
+      unawaited(AutoBackupManager.instance.onDataChange('rooms', 'INSERT', recordData: {'room_number': roomNumber}));
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
@@ -60,13 +54,7 @@ class RoomsRepository {
     }
   }
 
-  Future<int> update(
-    int id, {
-    String? type,
-    double? price,
-    String? status,
-    String? imageUrl,
-  }) async {
+  Future<int> update(int id, {String? type, double? price, String? status, String? imageUrl}) async {
     try {
       final result = await dao.updateById(
         id,
@@ -78,11 +66,7 @@ class RoomsRepository {
         ),
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange(
-          'rooms',
-          'UPDATE',
-          recordData: {'id': id},
-        ),);
+        unawaited(AutoBackupManager.instance.onDataChange('rooms', 'UPDATE', recordData: {'id': id}));
       }
       return result;
     } catch (e, stack) {
@@ -117,11 +101,7 @@ class RoomsRepository {
         originIsServer: originIsServer,
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange(
-          'rooms',
-          'UPDATE',
-          recordData: {'room_number': roomNumber},
-        ),);
+        unawaited(AutoBackupManager.instance.onDataChange('rooms', 'UPDATE', recordData: {'room_number': roomNumber}));
       }
       return result;
     } catch (e, stack) {
@@ -139,12 +119,13 @@ class RoomsRepository {
   Future<int> delete(String roomNumber) async {
     try {
       // ✅ فحص وجود حجوزات نشطة قبل الحذف
-      final activeBooking = await (db.select(db.bookings)
-            ..where((b) => b.roomNumber.equals(roomNumber))
-            ..where((b) => b.deletedAt.isNull())
-            ..where((b) => b.status.isIn(StatusUtils.activeBookingStatuses))
-            ..limit(1))
-          .getSingleOrNull();
+      final activeBooking =
+          await (db.select(db.bookings)
+                ..where((b) => b.roomNumber.equals(roomNumber))
+                ..where((b) => b.deletedAt.isNull())
+                ..where((b) => b.status.isIn(StatusUtils.activeBookingStatuses))
+                ..limit(1))
+              .getSingleOrNull();
       if (activeBooking != null) {
         throw StateError(
           'لا يمكن حذف الغرفة $roomNumber: يوجد حجز نشط '
@@ -153,11 +134,7 @@ class RoomsRepository {
       }
       final result = await dao.softDelete(roomNumber);
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange(
-          'rooms',
-          'DELETE',
-          recordData: {'room_number': roomNumber},
-        ),);
+        unawaited(AutoBackupManager.instance.onDataChange('rooms', 'DELETE', recordData: {'room_number': roomNumber}));
       }
       return result;
     } catch (e, stack) {
@@ -189,9 +166,7 @@ class RoomsRepository {
   /// استيراد بيانات الغرف
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
-      await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data'] as List),
-      );
+      await dao.importFromJson(List<Map<String, dynamic>>.from(data['data'] as List));
     }
   }
 
@@ -212,13 +187,9 @@ class RoomsRepository {
       ..addColumns([db.bookings.roomNumber])
       ..where(db.bookings.deletedAt.isNull() & db.bookings.status.isIn(activeStatuses));
     final occupiedRows = await occupiedRoomsQuery.get();
-    final occupiedRooms = <String>{
-      for (final row in occupiedRows) row.read(db.bookings.roomNumber)!,
-    };
+    final occupiedRooms = <String>{for (final row in occupiedRows) row.read(db.bookings.roomNumber)!};
 
-    final rooms = await (db.select(
-      db.rooms,
-    )..where((tbl) => tbl.deletedAt.isNull())).get();
+    final rooms = await (db.select(db.rooms)..where((tbl) => tbl.deletedAt.isNull())).get();
     for (final room in rooms) {
       final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
       final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);

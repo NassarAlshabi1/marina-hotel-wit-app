@@ -5,10 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 /// أنواع واتساب API المدعومة
-enum WhatsAppApiType {
-  greenapi,
-  custom,
-}
+enum WhatsAppApiType { greenapi, custom }
 
 class WhatsAppService {
   WhatsAppService({
@@ -58,13 +55,8 @@ class WhatsAppService {
   }
 
   /// إرسال عبر GreenAPI (POST مع JSON body)
-  Future<({bool success, String? quotaMessage})> _sendViaGreenApi(
-    String phoneE164,
-    String message,
-  ) async {
-    final sanitizedPhone = phoneE164.startsWith('+')
-        ? phoneE164.substring(1)
-        : phoneE164;
+  Future<({bool success, String? quotaMessage})> _sendViaGreenApi(String phoneE164, String message) async {
+    final sanitizedPhone = phoneE164.startsWith('+') ? phoneE164.substring(1) : phoneE164;
     final chatId = '$sanitizedPhone@c.us';
     final endpoint = Uri.parse('$baseUrl/$instanceId/sendMessage/$token');
 
@@ -82,7 +74,8 @@ class WhatsAppService {
       if (response.statusCode == 466) {
         try {
           final json = jsonDecode(response.body) as Map<String, dynamic>;
-          final desc = json['invokeStatus']?['description'] as String? ??
+          final desc =
+              json['invokeStatus']?['description'] as String? ??
               json['correspondentsStatus']?['description'] as String? ??
               'تجاوز الحصة الشهرية';
           return (success: false, quotaMessage: desc);
@@ -91,9 +84,7 @@ class WhatsAppService {
         }
       }
 
-      debugPrint(
-        'WhatsApp send failed: ${response.statusCode} ${response.body}',
-      );
+      debugPrint('WhatsApp send failed: ${response.statusCode} ${response.body}');
       return (success: false, quotaMessage: null);
     } catch (error, stackTrace) {
       debugPrint('WhatsApp send error: $error');
@@ -103,17 +94,12 @@ class WhatsAppService {
   }
 
   /// إرسال عبر Custom API (GET مع استبدال المتغيرات في الرابط)
-  Future<({bool success, String? quotaMessage})> _sendViaCustom(
-    String phoneE164,
-    String message,
-  ) async {
+  Future<({bool success, String? quotaMessage})> _sendViaCustom(String phoneE164, String message) async {
     if (customUrlTemplate == null || customUrlTemplate!.isEmpty) {
       return (success: false, quotaMessage: 'رابط API المخصص غير مضبوط');
     }
 
-    final sanitizedPhone = phoneE164.startsWith('+')
-        ? phoneE164.substring(1)
-        : phoneE164;
+    final sanitizedPhone = phoneE164.startsWith('+') ? phoneE164.substring(1) : phoneE164;
 
     try {
       final urlStr = customUrlTemplate!
@@ -122,17 +108,13 @@ class WhatsAppService {
           .replaceAll('[message]', Uri.encodeComponent(message));
 
       final endpoint = Uri.parse(urlStr);
-      final response = await _client.get(endpoint).timeout(
-        const Duration(seconds: 15),
-      );
+      final response = await _client.get(endpoint).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         return (success: true, quotaMessage: null);
       }
 
-      debugPrint(
-        'Custom WhatsApp API failed: ${response.statusCode} ${response.body}',
-      );
+      debugPrint('Custom WhatsApp API failed: ${response.statusCode} ${response.body}');
       return (success: false, quotaMessage: null);
     } catch (error, stackTrace) {
       debugPrint('Custom WhatsApp send error: $error');
@@ -152,32 +134,20 @@ class WhatsAppService {
   }
 
   /// اختبار GreenAPI عبر getSettings
-  Future<({bool success, int statusCode, String body})>
-      _testGreenApiConnection() async {
+  Future<({bool success, int statusCode, String body})> _testGreenApiConnection() async {
     final endpoint = Uri.parse('$baseUrl/$instanceId/getSettings/$token');
     try {
-      final response = await _client
-          .get(endpoint)
-          .timeout(const Duration(seconds: 15));
-      return (
-        success: response.statusCode == 200,
-        statusCode: response.statusCode,
-        body: response.body,
-      );
+      final response = await _client.get(endpoint).timeout(const Duration(seconds: 15));
+      return (success: response.statusCode == 200, statusCode: response.statusCode, body: response.body);
     } catch (e) {
       return (success: false, statusCode: 0, body: e.toString());
     }
   }
 
   /// اختبار Custom API
-  Future<({bool success, int statusCode, String body})>
-      _testCustomConnection() async {
+  Future<({bool success, int statusCode, String body})> _testCustomConnection() async {
     if (customUrlTemplate == null || customUrlTemplate!.isEmpty) {
-      return (
-        success: false,
-        statusCode: 0,
-        body: 'رابط API المخصص فارغ',
-      );
+      return (success: false, statusCode: 0, body: 'رابط API المخصص فارغ');
     }
 
     try {
@@ -187,16 +157,10 @@ class WhatsAppService {
           .replaceAll('[message]', Uri.encodeComponent('test'));
 
       final endpoint = Uri.parse(testUrl);
-      final response = await _client.get(endpoint).timeout(
-        const Duration(seconds: 15),
-      );
+      final response = await _client.get(endpoint).timeout(const Duration(seconds: 15));
 
       final isReachable = response.statusCode < 500;
-      return (
-        success: isReachable,
-        statusCode: response.statusCode,
-        body: response.body,
-      );
+      return (success: isReachable, statusCode: response.statusCode, body: response.body);
     } catch (e) {
       return (success: false, statusCode: 0, body: e.toString());
     }
@@ -209,9 +173,7 @@ class WhatsAppService {
       return message;
     }
 
-    debugPrint(
-      'WhatsApp message trimmed: ${message.characters.length} → $maxMessageLength chars',
-    );
+    debugPrint('WhatsApp message trimmed: ${message.characters.length} → $maxMessageLength chars');
 
     final lines = message.split('\n');
     String footer = '';
@@ -234,8 +196,7 @@ class WhatsAppService {
 
     final availableSpace = maxMessageLength - footer.length - 10;
     if (availableSpace < 100) {
-      return '${message.characters
-          .take(maxMessageLength - 3)}...';
+      return '${message.characters.take(maxMessageLength - 3)}...';
     }
 
     final truncated = message.characters.take(availableSpace).toString();

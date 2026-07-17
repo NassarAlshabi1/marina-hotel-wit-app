@@ -75,17 +75,15 @@ class SyncPullService {
       }
 
       final data = list.documents.first.data;
-      final raw = data['lastModified'] ??
-          data['last_modified'] ??
-          data['last_modified_epoch'];
+      final raw = data['lastModified'] ?? data['last_modified'] ?? data['last_modified_epoch'];
 
       final value = raw is int
           ? raw
           : raw is num
-              ? raw.toInt()
-              : raw is String
-                  ? int.tryParse(raw)
-                  : null;
+          ? raw.toInt()
+          : raw is String
+          ? int.tryParse(raw)
+          : null;
 
       final isMillis = value != null && value > 10000000000;
       _remoteEpochIsMillis = isMillis;
@@ -125,10 +123,7 @@ class SyncPullService {
     // ✅ نافذة أمان 60 ثانية (بدل 5) لتفادي انحراف الساعات.
     final cutoffSeconds = lastPullTs - 60;
     // تحويل cutoff إلى ISO 8601 (Appwrite $updatedAt بصيغة ISO string)
-    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
-      cutoffSeconds * 1000,
-      isUtc: true,
-    ).toIso8601String();
+    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
     // الاستعلام الأساسي: $updatedAt (زمن الخادم)
     return [Query.greaterThan('\$updatedAt', cutoffIso)];
   }
@@ -139,17 +134,11 @@ class SyncPullService {
   /// نسخة متزامنة (non-async) تستقبل remoteEpochIsMillis كمعامل للتوافق
   /// مع الكود الموجود، لكنها تتجاهله الآن لأن `$updatedAt` بصيغة ISO
   /// (لا يتأثر بوحدة الثواني/الميلي ثانية).
-  List<String> bookingNightsDeltaQueries(
-    int lastPullTs, {
-    required bool remoteEpochIsMillis,
-  }) {
+  List<String> bookingNightsDeltaQueries(int lastPullTs, {required bool remoteEpochIsMillis}) {
     if (lastPullTs > 0) {
       // ✅ نافذة أمان 60 ثانية (بدل 5) لتفادي انحراف الساعات.
       final cutoffSeconds = lastPullTs - 60;
-      final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
-        cutoffSeconds * 1000,
-        isUtc: true,
-      ).toIso8601String();
+      final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
       // الاستعلام الأساسي: $updatedAt (زمن الخادم)
       return [Query.greaterThan('\$updatedAt', cutoffIso)];
     }
@@ -181,9 +170,7 @@ class SyncPullService {
   /// يُعالج الحالة التي يكون فيها الطابع الزمني بالميلي ثانية.
   Future<int> getLastPullTs() async {
     try {
-      final state = await (database.select(database.syncState)
-            ..where((t) => t.id.equals(1)))
-          .getSingleOrNull();
+      final state = await (database.select(database.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
       final ts = state?.lastPullTs ?? 0;
       if (ts > 10000000000) {
         return ts ~/ 1000;
@@ -202,12 +189,9 @@ class SyncPullService {
   /// وكل مزامنة تسحب كل البيانات بدلاً من التغييرات فقط (delta).
   Future<void> updateLastPullTs(int ts) async {
     try {
-      await database.into(database.syncState).insertOnConflictUpdate(
-            SyncStateCompanion(
-              id: const drift.Value(1),
-              lastPullTs: drift.Value(ts),
-            ),
-          );
+      await database
+          .into(database.syncState)
+          .insertOnConflictUpdate(SyncStateCompanion(id: const drift.Value(1), lastPullTs: drift.Value(ts)));
     } catch (e) {
       _logger.warning('Failed to update lastPullTs: $e', tag: 'SYNC');
     }

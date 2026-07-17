@@ -5,7 +5,6 @@ import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
 import '../utils/app_logger.dart';
 
 class AuthUser {
-
   const AuthUser({
     required this.id,
     required this.username,
@@ -30,9 +29,7 @@ class AuthUser {
       username: (json['username'] ?? '').toString(),
       fullName: (json['full_name'] ?? json['name'] ?? '').toString(),
       userType: (json['user_type'] ?? '').toString(),
-      permissions: rawPerms is List
-          ? rawPerms.map((e) => e.toString()).toList()
-          : const <String>[],
+      permissions: rawPerms is List ? rawPerms.map((e) => e.toString()).toList() : const <String>[],
     );
   }
   final int id;
@@ -65,7 +62,6 @@ class AuthUser {
 }
 
 class AuthState {
-
   const AuthState({
     required this.isAuthenticated,
     this.isRestoring = false,
@@ -103,8 +99,7 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier()
-      : super(const AuthState(isAuthenticated: false, isRestoring: true)) {
+  AuthNotifier() : super(const AuthState(isAuthenticated: false, isRestoring: true)) {
     restoreSession();
   }
 
@@ -114,10 +109,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// فحص دوري لصلاحية الجلسة — كل 30 ثانية
   void _startSessionCheck() {
     _sessionCheckTimer?.cancel();
-    _sessionCheckTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => _checkSession(),
-    );
+    _sessionCheckTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkSession());
   }
 
   void _stopSessionCheck() {
@@ -131,10 +123,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
     final valid = await _store.checkSessionValidity();
     if (!valid && mounted) {
-      AppLogger.warning(
-        'Session invalidated — credentials changed from another device',
-        tag: 'AUTH',
-      );
+      AppLogger.warning('Session invalidated — credentials changed from another device', tag: 'AUTH');
       await _store.clearSession();
       _stopSessionCheck();
       state = const AuthState(
@@ -183,12 +172,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
     }
 
-    state = AuthState(
-      isAuthenticated: true,
-      currentUser: user,
-      rememberMe: rememberMe,
-      authType: authType,
-    );
+    state = AuthState(isAuthenticated: true, currentUser: user, rememberMe: rememberMe, authType: authType);
 
     // بدء فحص الجلسة للمستخدمين السحابيين
     try {
@@ -201,19 +185,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> login(
-    String username,
-    String password, {
-    bool rememberMe = false,
-  }) async {
+  Future<void> login(String username, String password, {bool rememberMe = false}) async {
     state = state.copyWith();
 
     final data = await _store.validateCredentials(username, password);
     if (data == null) {
-      state = const AuthState(
-        isAuthenticated: false,
-        error: 'اسم المستخدم أو كلمة المرور غير صحيحة',
-      );
+      state = const AuthState(isAuthenticated: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة');
       return;
     }
 
@@ -222,11 +199,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _store.setRememberMe(rememberMe);
     await _store.setAuthType(AuthType.local);
 
-    state = AuthState(
-      isAuthenticated: true,
-      currentUser: user,
-      rememberMe: rememberMe,
-    );
+    state = AuthState(isAuthenticated: true, currentUser: user, rememberMe: rememberMe);
 
     // بدء فحص الجلسة للمستخدمين السحابيين
     try {
@@ -245,15 +218,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState(isAuthenticated: false);
   }
 
-  Future<void> updateUserPermissions(
-    String username,
-    List<String> permissions,
-  ) async {
+  Future<void> updateUserPermissions(String username, List<String> permissions) async {
     await _store.setPermissions(username, permissions);
     if (state.currentUser != null && state.currentUser!.username == username) {
-      final updated = state.currentUser!.copyWith(
-        permissions: username == 'admin' ? ['all'] : permissions,
-      );
+      final updated = state.currentUser!.copyWith(permissions: username == 'admin' ? ['all'] : permissions);
       await _store.saveCurrentUser(updated.toJson());
       state = state.copyWith(currentUser: updated);
     }
@@ -297,13 +265,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   /// حذف مستخدم سحابي
-  Future<bool> deleteCloudUser({
-    required String docId,
-  }) async {
+  Future<bool> deleteCloudUser({required String docId}) async {
     return _store.deleteCloudUser(docId: docId);
   }
 }
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
-  (ref) => AuthNotifier(),
-);
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());

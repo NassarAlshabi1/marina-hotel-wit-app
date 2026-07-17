@@ -1,0 +1,7 @@
+.env
+.env.local
+serviceAccount.json
+*.firebase-key.json
+.git
+.gitignore
+README.md

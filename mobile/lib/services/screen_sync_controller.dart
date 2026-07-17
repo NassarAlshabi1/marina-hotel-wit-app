@@ -13,17 +13,10 @@ import 'sync_core/sync_validator.dart';
 import 'sync_locks.dart';
 
 class ScreenSyncController {
-
-  ScreenSyncController({
-    required this.screenId,
-    this.debounceDelay = const Duration(seconds: 15),
-  }) {
+  ScreenSyncController({required this.screenId, this.debounceDelay = const Duration(seconds: 15)}) {
     _circuitBreaker = CircuitBreaker(
       name: 'sync_$screenId',
-      config: const CircuitBreakerConfig(
-        failureThreshold: 3,
-        resetTimeout: Duration(minutes: 2),
-      ),
+      config: const CircuitBreakerConfig(failureThreshold: 3, resetTimeout: Duration(minutes: 2)),
     );
 
     _retryStrategy = RetryStrategy(config: RetryConfig.balanced);
@@ -95,12 +88,9 @@ class ScreenSyncController {
 
     try {
       final connectivityResults = await Connectivity().checkConnectivity();
-      final hasConnection = connectivityResults.any(
-        (r) => r != ConnectivityResult.none,
-      );
+      final hasConnection = connectivityResults.any((r) => r != ConnectivityResult.none);
 
-      final networkValidation = SyncValidator.instance
-          .validateNetworkConditions(hasConnection: hasConnection);
+      final networkValidation = SyncValidator.instance.validateNetworkConditions(hasConnection: hasConnection);
 
       if (!networkValidation.isValid) {
         debugPrint('📴 [$screenId] ${networkValidation.error}');
@@ -134,9 +124,7 @@ class ScreenSyncController {
           return syncError.isRetryable;
         },
         fallback: () {
-          debugPrint(
-            '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات',
-          );
+          debugPrint('⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات');
           return false;
         },
         onRetry: (attempt, error) {
@@ -158,9 +146,7 @@ class ScreenSyncController {
 
         return true;
       } else {
-        debugPrint(
-          '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox',
-        );
+        debugPrint('⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox');
         return false;
       }
     } on CircuitBreakerOpenException catch (e) {
@@ -212,8 +198,10 @@ class ScreenSyncController {
       if (result) {
         debugPrint('✅ [$screenId] تم الرفع للوجهة الثانوية بنجاح');
       } else {
-        debugPrint('⚠️ [$screenId] الرفع للوجهة الثانوية لم يكتمل — '
-            'سيتم المحاولة لاحقاً عبر auto-sync');
+        debugPrint(
+          '⚠️ [$screenId] الرفع للوجهة الثانوية لم يكتمل — '
+          'سيتم المحاولة لاحقاً عبر auto-sync',
+        );
       }
     } catch (e) {
       // فشل Secondary ليس خطأ قاتلاً — Primary نجح بالفعل

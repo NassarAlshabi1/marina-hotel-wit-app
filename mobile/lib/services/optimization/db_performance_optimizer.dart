@@ -21,7 +21,7 @@ class DatabaseOptimizer {
     await _analyzeQueryPatterns();
     await _vacuumAndOptimize();
   }
-  
+
   /// 1. Composite Indexes for common WHERE clauses
   Future<void> _createCompositeIndexes() async {
     // ─── Bookings: Most queried table ───
@@ -86,13 +86,13 @@ class DatabaseOptimizer {
       CREATE INDEX IF NOT EXISTS idx_bookings_covering 
       ON bookings(room_number, guest_name, checkin_date, status, id)
     ''');
-    
+
     // Payments covering for reports
     await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_payments_covering 
       ON payments(payment_date, amount, payment_method, revenue_type)
     ''');
-    
+
     // Rooms covering for room list
     await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_rooms_covering 
@@ -114,17 +114,17 @@ class DatabaseOptimizer {
       CREATE INDEX IF NOT EXISTS idx_bookings_server_id 
       ON bookings(server_booking_id)
     ''');
-    
+
     await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_payments_server_id 
       ON payments(server_payment_id)
     ''');
-    
+
     await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_payments_cash_tx 
       ON payments(cash_transaction_local_id)
     ''');
-    
+
     await db.customStatement('''
       CREATE INDEX IF NOT EXISTS idx_expenses_cash_tx 
       ON expenses(cash_transaction_id)
@@ -152,9 +152,7 @@ class DatabaseOptimizer {
   }
 
   /// Get index statistics
-  static Future<Map<String, dynamic>> getIndexStats(
-    local_db.AppDatabase db,
-  ) async {
+  static Future<Map<String, dynamic>> getIndexStats(local_db.AppDatabase db) async {
     final result = await db.customSelect('''
       SELECT 
         tbl.name as table_name,
@@ -165,11 +163,8 @@ class DatabaseOptimizer {
       WHERE idx.type = 'index'
       ORDER BY tbl.name, idx.name
     ''').get();
-    
-    return {
-      'indexes': result,
-      'count': result.length,
-    };
+
+    return {'indexes': result, 'count': result.length};
   }
 }
 

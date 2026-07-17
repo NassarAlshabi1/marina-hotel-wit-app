@@ -11,6 +11,5 @@ mixin _$EmployeesDaoMixin on DatabaseAccessor<AppDatabase> {
 class EmployeesDaoManager {
   final _$EmployeesDaoMixin _db;
   EmployeesDaoManager(this._db);
-  $$EmployeesTableTableManager get employees =>
-      $$EmployeesTableTableManager(_db.attachedDatabase, _db.employees);
+  $$EmployeesTableTableManager get employees => $$EmployeesTableTableManager(_db.attachedDatabase, _db.employees);
 }

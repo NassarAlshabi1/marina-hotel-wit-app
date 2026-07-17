@@ -3,46 +3,26 @@ import 'package:marina_hotel_mobile/utils/time.dart';
 
 void main() {
   test('hotelDayKey respects cutoff and backshifts same day before cutoff', () {
-    final t = DateTime(
-      2024,
-      1,
-      10,
-      10,
-    ); // before 14:00 -> shifts to previous day
+    final t = DateTime(2024, 1, 10, 10); // before 14:00 -> shifts to previous day
     expect(Time.hotelDayKey(now: t, cutoffHour: 14), '2024-01-09');
 
     final late = DateTime(2024, 1, 10, 16);
     expect(Time.hotelDayKey(now: late, cutoffHour: 14), '2024-01-10');
   });
 
-  test(
-    'hotelDayKeyFromIso trims/normalizes and falls back on parse errors',
-    () {
-      expect(
-        Time.hotelDayKeyFromIso('2024-01-15 10:00:00', cutoffHour: 12),
-        '2024-01-14',
-      );
-      expect(
-        Time.hotelDayKeyFromIso('2024-01-15T03:00:00', cutoffHour: 12),
-        '2024-01-14',
-      );
-      final fallback = Time.hotelDayKeyFromIso('not-a-date', cutoffHour: 10);
-      expect(fallback.length, 10);
-    },
-  );
+  test('hotelDayKeyFromIso trims/normalizes and falls back on parse errors', () {
+    expect(Time.hotelDayKeyFromIso('2024-01-15 10:00:00', cutoffHour: 12), '2024-01-14');
+    expect(Time.hotelDayKeyFromIso('2024-01-15T03:00:00', cutoffHour: 12), '2024-01-14');
+    final fallback = Time.hotelDayKeyFromIso('not-a-date', cutoffHour: 10);
+    expect(fallback.length, 10);
+  });
 
   test('hotelDayStart and end iso helpers', () {
     final t = DateTime(2024, 5, 1, 8);
     final start = Time.hotelDayStart(t, cutoffHour: 9);
     expect(start, DateTime(2024, 4, 30, 9));
-    expect(
-      Time.hotelDayStartIso('2024-04-30', cutoffHour: 9),
-      '2024-04-30T09:00:00',
-    );
-    expect(
-      Time.hotelDayEndIso('2024-04-30', cutoffHour: 9),
-      '2024-05-01T09:00:00',
-    );
+    expect(Time.hotelDayStartIso('2024-04-30', cutoffHour: 9), '2024-04-30T09:00:00');
+    expect(Time.hotelDayEndIso('2024-04-30', cutoffHour: 9), '2024-05-01T09:00:00');
   });
 
   test('safeIsoToDateString returns yyyy-mm-dd or fallback', () {
@@ -57,17 +37,10 @@ void main() {
     // فرق التواريخ = 1 يوم، المغادرة 15:00 > 14:00 → +1 = 2
     final checkin = DateTime(2024, 1, 1, 13, 0);
     final checkout = DateTime(2024, 1, 2, 15, 0);
-    expect(
-      Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 14),
-      2,
-    );
+    expect(Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 14), 2);
 
     // نفس اليوم → يوم واحد على الأقل، المغادرة 12:00 < 14:00 → لا إضافة
-    final sameDay = Time.nightsWithCutoff(
-      checkin,
-      checkout: DateTime(2024, 1, 1, 12, 0),
-      cutoffHour: 14,
-    );
+    final sameDay = Time.nightsWithCutoff(checkin, checkout: DateTime(2024, 1, 1, 12, 0), cutoffHour: 14);
     expect(sameDay, 1);
 
     // checkin 10 يناير 20:00, checkout 12 يناير 13:00

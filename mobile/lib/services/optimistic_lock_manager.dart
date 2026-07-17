@@ -4,19 +4,14 @@ import 'package:flutter/foundation.dart';
 import 'local_db.dart';
 
 class OptimisticLockException implements Exception {
-  OptimisticLockException(
-    this.message, {
-    this.currentVersion,
-    this.expectedVersion,
-  });
+  OptimisticLockException(this.message, {this.currentVersion, this.expectedVersion});
 
   final String message;
   final int? currentVersion;
   final int? expectedVersion;
 
   @override
-  String toString() =>
-      'OptimisticLockException: $message (expected: $expectedVersion, current: $currentVersion)';
+  String toString() => 'OptimisticLockException: $message (expected: $expectedVersion, current: $currentVersion)';
 }
 
 /// مدير Optimistic Locking - يمنع التعديلات المتزامنة على نفس الصف
@@ -34,10 +29,7 @@ class OptimisticLockManager {
     final currentVersion = await _getCurrentVersion(table, uuid);
 
     if (currentVersion == null) {
-      throw OptimisticLockException(
-        'السجل غير موجود',
-        expectedVersion: expectedVersion,
-      );
+      throw OptimisticLockException('السجل غير موجود', expectedVersion: expectedVersion);
     }
 
     if (currentVersion != expectedVersion) {
@@ -76,10 +68,7 @@ class OptimisticLockManager {
 
     try {
       final result = await db
-          .customSelect(
-            'SELECT version FROM $table WHERE local_uuid = ?',
-            variables: [d.Variable.withString(uuid)],
-          )
+          .customSelect('SELECT version FROM $table WHERE local_uuid = ?', variables: [d.Variable.withString(uuid)])
           .getSingleOrNull();
 
       return result?.read<int?>('version');
@@ -114,11 +103,7 @@ class OptimisticLockManager {
     required int expectedVersion,
     required Future<T> Function(int newVersion) operation,
   }) async {
-    final newVersion = await checkAndIncrementVersion(
-      table: table,
-      uuid: uuid,
-      expectedVersion: expectedVersion,
-    );
+    final newVersion = await checkAndIncrementVersion(table: table, uuid: uuid, expectedVersion: expectedVersion);
 
     try {
       return await operation(newVersion);
@@ -126,11 +111,7 @@ class OptimisticLockManager {
       try {
         await db.customUpdate(
           'UPDATE $table SET version = ? WHERE local_uuid = ? AND version = ?',
-          variables: [
-            d.Variable.withInt(expectedVersion),
-            d.Variable.withString(uuid),
-            d.Variable.withInt(newVersion),
-          ],
+          variables: [d.Variable.withInt(expectedVersion), d.Variable.withString(uuid), d.Variable.withInt(newVersion)],
         );
       } catch (e) {
         debugPrint('⚠️ Version rollback failed after optimistic lock conflict: $e');

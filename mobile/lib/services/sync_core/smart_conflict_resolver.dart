@@ -43,10 +43,7 @@ class FieldResolutionRule {
 
 /// سياسة حل التعارض لكيان معيّن
 class EntityResolutionPolicy {
-  const EntityResolutionPolicy({
-    required this.defaultRule,
-    this.rules = const {},
-  });
+  const EntityResolutionPolicy({required this.defaultRule, this.rules = const {}});
   final FieldResolutionRule defaultRule;
   final Map<String, FieldResolutionRule> rules;
 }
@@ -86,233 +83,230 @@ class SmartConflictResolver {
 
   /// سياسات الكيانات — جميع الحقول تُحل تلقائياً (no manual strategy)
   static final Map<String, EntityResolutionPolicy> _entityPolicies = {
-      'rooms': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'status': FieldResolutionRule(FieldStrategy.newerWins),
-          'cleaningStatus': FieldResolutionRule(FieldStrategy.newerWins),
-          'price': FieldResolutionRule(FieldStrategy.newerWins),
-          'roomNumber': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'rooms': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'status': FieldResolutionRule(FieldStrategy.newerWins),
+        'cleaningStatus': FieldResolutionRule(FieldStrategy.newerWins),
+        'price': FieldResolutionRule(FieldStrategy.newerWins),
+        'roomNumber': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'bookings': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'status': FieldResolutionRule(FieldStrategy.newerWins),
-          'actualCheckout': FieldResolutionRule(FieldStrategy.newerWins),
-          'guestName': FieldResolutionRule(FieldStrategy.remoteWins,
-              reason: 'آخر تحديث للمعلومات الشخصية'),
-          'guestPhone': FieldResolutionRule(FieldStrategy.remoteWins),
-          'notes': FieldResolutionRule(FieldStrategy.concat),
-          'discount': FieldResolutionRule(FieldStrategy.newerWins),
-          'isFullyPaid': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'bookings': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'status': FieldResolutionRule(FieldStrategy.newerWins),
+        'actualCheckout': FieldResolutionRule(FieldStrategy.newerWins),
+        'guestName': FieldResolutionRule(FieldStrategy.remoteWins, reason: 'آخر تحديث للمعلومات الشخصية'),
+        'guestPhone': FieldResolutionRule(FieldStrategy.remoteWins),
+        'notes': FieldResolutionRule(FieldStrategy.concat),
+        'discount': FieldResolutionRule(FieldStrategy.newerWins),
+        'isFullyPaid': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'payments': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'amount': FieldResolutionRule(FieldStrategy.newerWins),
-          'paymentMethod': FieldResolutionRule(FieldStrategy.newerWins),
-          'isVoided': FieldResolutionRule(FieldStrategy.newerWins),
-          'notes': FieldResolutionRule(FieldStrategy.concat),
-        },
-      ),
+    'payments': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'amount': FieldResolutionRule(FieldStrategy.newerWins),
+        'paymentMethod': FieldResolutionRule(FieldStrategy.newerWins),
+        'isVoided': FieldResolutionRule(FieldStrategy.newerWins),
+        'notes': FieldResolutionRule(FieldStrategy.concat),
+      },
+    ),
 
-      'expenses': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'amount': FieldResolutionRule(FieldStrategy.newerWins),
-          'description': FieldResolutionRule(FieldStrategy.concat),
-          'categoryUuid': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'expenses': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'amount': FieldResolutionRule(FieldStrategy.newerWins),
+        'description': FieldResolutionRule(FieldStrategy.concat),
+        'categoryUuid': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'debts': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'totalAmount': FieldResolutionRule(FieldStrategy.newerWins),
-          'paidAmount': FieldResolutionRule(FieldStrategy.newerWins),
-          'remainingAmount': FieldResolutionRule(FieldStrategy.newerWins),
-          'isSettled': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'debts': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'totalAmount': FieldResolutionRule(FieldStrategy.newerWins),
+        'paidAmount': FieldResolutionRule(FieldStrategy.newerWins),
+        'remainingAmount': FieldResolutionRule(FieldStrategy.newerWins),
+        'isSettled': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'employees': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'basicSalary': FieldResolutionRule(FieldStrategy.newerWins),
-          'name': FieldResolutionRule(FieldStrategy.newerWins),
-          'phone': FieldResolutionRule(FieldStrategy.newerWins),
-          'status': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'employees': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'basicSalary': FieldResolutionRule(FieldStrategy.newerWins),
+        'name': FieldResolutionRule(FieldStrategy.newerWins),
+        'phone': FieldResolutionRule(FieldStrategy.newerWins),
+        'status': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'booking_notes': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.concat),
-        rules: {
-          'noteText': FieldResolutionRule(FieldStrategy.concat),
-          'alertType': FieldResolutionRule(FieldStrategy.newerWins),
-          'isActive': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'booking_notes': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.concat),
+      rules: {
+        'noteText': FieldResolutionRule(FieldStrategy.concat),
+        'alertType': FieldResolutionRule(FieldStrategy.newerWins),
+        'isActive': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'salary_withdrawals': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'amount': FieldResolutionRule(FieldStrategy.newerWins),
-          'description': FieldResolutionRule(FieldStrategy.concat),
-          'notes': FieldResolutionRule(FieldStrategy.concat),
-          'withdrawDate': FieldResolutionRule(FieldStrategy.newerWins),
-          'withdraw_date': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'salary_withdrawals': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'amount': FieldResolutionRule(FieldStrategy.newerWins),
+        'description': FieldResolutionRule(FieldStrategy.concat),
+        'notes': FieldResolutionRule(FieldStrategy.concat),
+        'withdrawDate': FieldResolutionRule(FieldStrategy.newerWins),
+        'withdraw_date': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'salary_payments': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'amount': FieldResolutionRule(FieldStrategy.newerWins),
-          'paymentDate': FieldResolutionRule(FieldStrategy.newerWins),
-          'payment_date': FieldResolutionRule(FieldStrategy.newerWins),
-          'notes': FieldResolutionRule(FieldStrategy.concat),
-        },
-      ),
+    'salary_payments': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'amount': FieldResolutionRule(FieldStrategy.newerWins),
+        'paymentDate': FieldResolutionRule(FieldStrategy.newerWins),
+        'payment_date': FieldResolutionRule(FieldStrategy.newerWins),
+        'notes': FieldResolutionRule(FieldStrategy.concat),
+      },
+    ),
 
-      'daily_closures': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'totalIncome': FieldResolutionRule(FieldStrategy.newerWins),
-          'totalExpenses': FieldResolutionRule(FieldStrategy.newerWins),
-          'closingBalance': FieldResolutionRule(FieldStrategy.newerWins),
-          'notes': FieldResolutionRule(FieldStrategy.concat),
-        },
-      ),
+    'daily_closures': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'totalIncome': FieldResolutionRule(FieldStrategy.newerWins),
+        'totalExpenses': FieldResolutionRule(FieldStrategy.newerWins),
+        'closingBalance': FieldResolutionRule(FieldStrategy.newerWins),
+        'notes': FieldResolutionRule(FieldStrategy.concat),
+      },
+    ),
 
-      'shift_notes': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'noteText': FieldResolutionRule(FieldStrategy.concat),
-          'priority': FieldResolutionRule(FieldStrategy.newerWins),
-          'isCompleted': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'shift_notes': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'noteText': FieldResolutionRule(FieldStrategy.concat),
+        'priority': FieldResolutionRule(FieldStrategy.newerWins),
+        'isCompleted': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'guest_infos': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'idNumber': FieldResolutionRule(FieldStrategy.newerWins),
-          'guestIdNumber': FieldResolutionRule(FieldStrategy.newerWins),
-          'notes': FieldResolutionRule(FieldStrategy.concat),
-        },
-      ),
+    'guest_infos': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'idNumber': FieldResolutionRule(FieldStrategy.newerWins),
+        'guestIdNumber': FieldResolutionRule(FieldStrategy.newerWins),
+        'notes': FieldResolutionRule(FieldStrategy.concat),
+      },
+    ),
 
-      'booking_nights': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'price': FieldResolutionRule(FieldStrategy.newerWins),
-          'amount': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'booking_nights': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'price': FieldResolutionRule(FieldStrategy.newerWins),
+        'amount': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'hotel_day_ledger': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'totalIncome': FieldResolutionRule(FieldStrategy.newerWins),
-          'totalExpenses': FieldResolutionRule(FieldStrategy.newerWins),
-          'pendingBalances': FieldResolutionRule(FieldStrategy.newerWins),
-          'occupancyRate': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'hotel_day_ledger': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'totalIncome': FieldResolutionRule(FieldStrategy.newerWins),
+        'totalExpenses': FieldResolutionRule(FieldStrategy.newerWins),
+        'pendingBalances': FieldResolutionRule(FieldStrategy.newerWins),
+        'occupancyRate': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'salary_cycles': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'totalAmount': FieldResolutionRule(FieldStrategy.newerWins),
-          'totalPaid': FieldResolutionRule(FieldStrategy.newerWins),
-          'totalDeductions': FieldResolutionRule(FieldStrategy.newerWins),
-          'status': FieldResolutionRule(FieldStrategy.newerWins),
-          'closedAt': FieldResolutionRule(FieldStrategy.newerWins),
-          'startDate': FieldResolutionRule(FieldStrategy.newerWins),
-          'endDate': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'salary_cycles': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'totalAmount': FieldResolutionRule(FieldStrategy.newerWins),
+        'totalPaid': FieldResolutionRule(FieldStrategy.newerWins),
+        'totalDeductions': FieldResolutionRule(FieldStrategy.newerWins),
+        'status': FieldResolutionRule(FieldStrategy.newerWins),
+        'closedAt': FieldResolutionRule(FieldStrategy.newerWins),
+        'startDate': FieldResolutionRule(FieldStrategy.newerWins),
+        'endDate': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'booking_price_adjustments': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'amount': FieldResolutionRule(FieldStrategy.newerWins),
-          'reason': FieldResolutionRule(FieldStrategy.concat),
-          'type': FieldResolutionRule(FieldStrategy.newerWins),
-          'adjustmentType': FieldResolutionRule(FieldStrategy.newerWins),
-          'appliedAt': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'booking_price_adjustments': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'amount': FieldResolutionRule(FieldStrategy.newerWins),
+        'reason': FieldResolutionRule(FieldStrategy.concat),
+        'type': FieldResolutionRule(FieldStrategy.newerWins),
+        'adjustmentType': FieldResolutionRule(FieldStrategy.newerWins),
+        'appliedAt': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'blacklist': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'reason': FieldResolutionRule(FieldStrategy.concat),
-          'notes': FieldResolutionRule(FieldStrategy.concat),
-          'isActive': FieldResolutionRule(FieldStrategy.newerWins),
-          'guestName': FieldResolutionRule(FieldStrategy.newerWins),
-          'guestPhone': FieldResolutionRule(FieldStrategy.newerWins),
-          'idNumber': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'blacklist': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'reason': FieldResolutionRule(FieldStrategy.concat),
+        'notes': FieldResolutionRule(FieldStrategy.concat),
+        'isActive': FieldResolutionRule(FieldStrategy.newerWins),
+        'guestName': FieldResolutionRule(FieldStrategy.newerWins),
+        'guestPhone': FieldResolutionRule(FieldStrategy.newerWins),
+        'idNumber': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'price_adjustments': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'amount': FieldResolutionRule(FieldStrategy.newerWins),
-          'reason': FieldResolutionRule(FieldStrategy.concat),
-          'description': FieldResolutionRule(FieldStrategy.concat),
-          'targetType': FieldResolutionRule(FieldStrategy.newerWins),
-          'appliedAt': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'price_adjustments': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'amount': FieldResolutionRule(FieldStrategy.newerWins),
+        'reason': FieldResolutionRule(FieldStrategy.concat),
+        'description': FieldResolutionRule(FieldStrategy.concat),
+        'targetType': FieldResolutionRule(FieldStrategy.newerWins),
+        'appliedAt': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'payment_voids': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'originalPaymentUuid': FieldResolutionRule(FieldStrategy.newerWins),
-          'voidedAmount': FieldResolutionRule(FieldStrategy.newerWins),
-          'voided_at': FieldResolutionRule(FieldStrategy.newerWins),
-          'voidedAt': FieldResolutionRule(FieldStrategy.newerWins),
-          'reason': FieldResolutionRule(FieldStrategy.concat),
-          'isVoided': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'payment_voids': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'originalPaymentUuid': FieldResolutionRule(FieldStrategy.newerWins),
+        'voidedAmount': FieldResolutionRule(FieldStrategy.newerWins),
+        'voided_at': FieldResolutionRule(FieldStrategy.newerWins),
+        'voidedAt': FieldResolutionRule(FieldStrategy.newerWins),
+        'reason': FieldResolutionRule(FieldStrategy.concat),
+        'isVoided': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'audit_logs': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'action': FieldResolutionRule(FieldStrategy.newerWins),
-          'entityType': FieldResolutionRule(FieldStrategy.newerWins),
-          'entityUuid': FieldResolutionRule(FieldStrategy.newerWins),
-          'details': FieldResolutionRule(FieldStrategy.concat),
-          'timestamp': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'audit_logs': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'action': FieldResolutionRule(FieldStrategy.newerWins),
+        'entityType': FieldResolutionRule(FieldStrategy.newerWins),
+        'entityUuid': FieldResolutionRule(FieldStrategy.newerWins),
+        'details': FieldResolutionRule(FieldStrategy.concat),
+        'timestamp': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
 
-      'salary_carry_over_logs': const EntityResolutionPolicy(
-        defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-        rules: {
-          'amount': FieldResolutionRule(FieldStrategy.newerWins),
-          'reason': FieldResolutionRule(FieldStrategy.concat),
-          'carriedAt': FieldResolutionRule(FieldStrategy.newerWins),
-          'employeeId': FieldResolutionRule(FieldStrategy.newerWins),
-          'previousCycleStart': FieldResolutionRule(FieldStrategy.newerWins),
-          'previousCycleEnd': FieldResolutionRule(FieldStrategy.newerWins),
-          'newCycleStart': FieldResolutionRule(FieldStrategy.newerWins),
-          'newCycleEnd': FieldResolutionRule(FieldStrategy.newerWins),
-        },
-      ),
+    'salary_carry_over_logs': const EntityResolutionPolicy(
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+      rules: {
+        'amount': FieldResolutionRule(FieldStrategy.newerWins),
+        'reason': FieldResolutionRule(FieldStrategy.concat),
+        'carriedAt': FieldResolutionRule(FieldStrategy.newerWins),
+        'employeeId': FieldResolutionRule(FieldStrategy.newerWins),
+        'previousCycleStart': FieldResolutionRule(FieldStrategy.newerWins),
+        'previousCycleEnd': FieldResolutionRule(FieldStrategy.newerWins),
+        'newCycleStart': FieldResolutionRule(FieldStrategy.newerWins),
+        'newCycleEnd': FieldResolutionRule(FieldStrategy.newerWins),
+      },
+    ),
   };
 
-  static const _defaultPolicy = EntityResolutionPolicy(
-    defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
-  );
+  static const _defaultPolicy = EntityResolutionPolicy(defaultRule: FieldResolutionRule(FieldStrategy.newerWins));
 
   /// حل التعارض تلقائياً — جميع التعارضات تُحل على مستوى السجل
   static ResolutionResult resolve({
@@ -328,24 +322,14 @@ class SmartConflictResolver {
     );
 
     if (detection.type == ConflictType.noConflictRemoteNewer) {
-      return ResolutionResult(
-        mergedData: remoteData,
-        strategy: ResolutionStrategy.remoteWins,
-      );
+      return ResolutionResult(mergedData: remoteData, strategy: ResolutionStrategy.remoteWins);
     }
-    if (detection.type == ConflictType.noConflictLocalNewer ||
-        detection.type == ConflictType.noConflictEqual) {
-      return ResolutionResult(
-        mergedData: localData!,
-        strategy: ResolutionStrategy.localWins,
-      );
+    if (detection.type == ConflictType.noConflictLocalNewer || detection.type == ConflictType.noConflictEqual) {
+      return ResolutionResult(mergedData: localData!, strategy: ResolutionStrategy.localWins);
     }
 
     if (detection.type == ConflictType.deleteVsDelete) {
-      return ResolutionResult(
-        mergedData: localData!,
-        strategy: ResolutionStrategy.localWins,
-      );
+      return ResolutionResult(mergedData: localData!, strategy: ResolutionStrategy.localWins);
     }
     if (detection.type == ConflictType.deleteVsUpdate) {
       return ResolutionResult(
@@ -356,12 +340,7 @@ class SmartConflictResolver {
     }
 
     // جميع التعارضات المتزامنة تُحل تلقائياً على مستوى الحقل
-    return _autoMerge(
-      entity: entity,
-      localData: localData!,
-      remoteData: remoteData,
-      detection: detection,
-    );
+    return _autoMerge(entity: entity, localData: localData!, remoteData: remoteData, detection: detection);
   }
 
   /// دمج تلقائي على مستوى الحقل
@@ -397,12 +376,8 @@ class SmartConflictResolver {
       }
     }
 
-    final localVc = VectorClock.fromString(
-      (localData['vectorClock'] as String?) ?? '{}',
-    );
-    final remoteVc = VectorClock.fromString(
-      (remoteData['vectorClock'] as String?) ?? '{}',
-    );
+    final localVc = VectorClock.fromString((localData['vectorClock'] as String?) ?? '{}');
+    final remoteVc = VectorClock.fromString((remoteData['vectorClock'] as String?) ?? '{}');
     final mergedVc = localVc.copy();
     mergedVc.merge(remoteVc);
     merged['vectorClock'] = mergedVc.toString();
@@ -436,9 +411,7 @@ class SmartConflictResolver {
         final localTs = _extractTs(localData);
         final remoteTs = _extractTs(remoteData);
         final remoteWins = remoteTs >= localTs;
-        return _FieldResolution(
-          value: remoteWins ? remoteVal : localVal,
-        );
+        return _FieldResolution(value: remoteWins ? remoteVal : localVal);
 
       case FieldStrategy.localWins:
         return _FieldResolution(value: localVal);
@@ -467,10 +440,7 @@ class SmartConflictResolver {
         final r = remoteVal?.toString() ?? '';
         if (l == r) return _FieldResolution(value: l);
         final mergedValue = _concatWithDedup(l, r);
-        return _FieldResolution(
-          value: mergedValue,
-          warning: 'concat merge: $field',
-        );
+        return _FieldResolution(value: mergedValue, warning: 'concat merge: $field');
     }
   }
 

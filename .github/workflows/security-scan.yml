@@ -18,6 +18,7 @@ on:
       - main
       - marina
       - refactor/clean-v2
+      - '**'
     paths:
       - '**.php'
       - '**.dart'
@@ -55,7 +56,7 @@ jobs:
   # 1) CodeQL — semantic SAST for PHP & JavaScript
   # ═══════════════════════════════════════════════════════════
   codeql:
-    name: CodeQL Analysis (PHP/JS)
+    name: CodeQL Analysis (JS)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -63,16 +64,16 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Initialize CodeQL
         id: init
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         continue-on-error: true
         with:
-          languages: javascript, php
+          languages: javascript
           queries: security-and-quality
 
       - name: Skip remaining CodeQL steps if init failed
@@ -84,12 +85,12 @@ jobs:
 
       - name: Autobuild
         if: steps.init.outcome == 'success'
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
         continue-on-error: true
 
       - name: Perform CodeQL Analysis
         if: steps.init.outcome == 'success'
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         continue-on-error: true
         with:
           category: "/language:javascript"
@@ -107,7 +108,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -118,11 +119,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p sarif-results
-          # Run with:
-          #   - security-audit (default ruleset)
-          #   - supply-chain  (malicious package patterns)
-          #   - php-lang      (PHP-specific rules)
-          #   - flutter       (Dart/Flutter rules from community)
           semgrep scan \
             --config=p/default \
             --config=p/security-audit \
@@ -134,18 +130,16 @@ jobs:
             --config=p/command-injection \
             --config=p/xss \
             --config=p/secrets \
-            --error \
             --json --output=semgrep-report.json \
             --sarif --output=sarif-results/semgrep.sarif \
             . || {
               echo "::warning::Semgrep found findings; see SARIF report"
-              # Don't fail the workflow on findings — they go to GitHub Security
               exit 0
             }
 
       - name: Upload Semgrep SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/semgrep.sarif
           wait-for-processing: true
@@ -153,7 +147,7 @@ jobs:
 
       - name: Upload Semgrep JSON report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: semgrep-report
           path: semgrep-report.json
@@ -171,7 +165,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -194,7 +188,7 @@ jobs:
           mkdir -p sarif-results
           trivy fs --exit-code 0 --severity HIGH,CRITICAL --ignore-unfixed \
             --format sarif --output sarif-results/trivy-fs.sarif \
-            --limit-severities-for-sarif .
+            . || echo "::warning::Trivy filesystem scan had issues"
 
       - name: Trivy — Misconfiguration scan (IaC + Dockerfile + workflows)
         continue-on-error: true
@@ -212,7 +206,7 @@ jobs:
 
       - name: Upload Trivy SARIF (filesystem)
         if: always() && hashFiles('sarif-results/trivy-fs.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/trivy-fs.sarif
           wait-for-processing: true
@@ -220,7 +214,7 @@ jobs:
 
       - name: Upload Trivy SARIF (misconfig)
         if: always() && hashFiles('sarif-results/trivy-misconfig.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/trivy-misconfig.sarif
           wait-for-processing: true
@@ -228,7 +222,7 @@ jobs:
 
       - name: Upload Trivy license report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-licenses
           path: trivy-licenses.txt
@@ -243,7 +237,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -251,23 +245,22 @@ jobs:
         uses: anchore/sbom-action@v0
         with:
           path: .
-          format: spdx-json
+          output-format: spdx-json
           output-file: sbom.spdx.json
           upload-artifact: true
-          upload-result: true
 
       - name: Scan SBOM with Grype
-        uses: anchore/scan-action@v5
+        uses: anchore/scan-action@v7
         with:
           sbom: sbom.spdx.json
-          format: sarif
-          output: sarif-results/grype.sarif
+          output-format: sarif
+          output-file: sarif-results/grype.sarif
           fail-build: false
           severity-cutoff: high
 
       - name: Upload Grype SARIF
         if: always() && hashFiles('sarif-results/grype.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/grype.sarif
           wait-for-processing: true
@@ -282,10 +275,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -328,7 +321,7 @@ jobs:
 
       - name: Upload npm audit reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: npm-audit-reports
           path: |
@@ -350,7 +343,7 @@ jobs:
         working-directory: mobile
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -490,14 +483,14 @@ jobs:
 
       - name: Upload pub security SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/pub-security.sarif
           wait-for-processing: true
 
       - name: Upload pub security reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pub-security-report
           path: |
@@ -515,7 +508,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -557,14 +550,14 @@ jobs:
 
       - name: Upload Psalm SARIF
         if: always() && hashFiles('sarif-results/psalm.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/psalm.sarif
           wait-for-processing: true
 
       - name: Upload PHP security report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: php-security-report
           path: |
@@ -582,12 +575,12 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Install nodejs / npm
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
 
@@ -675,7 +668,7 @@ jobs:
 
       - name: Upload malware heuristic report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: malware-heuristics
           path: malware-heuristics/
@@ -683,7 +676,7 @@ jobs:
 
       - name: Upload socket security reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: socket-security-reports
           path: socket-*.json

@@ -3,17 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/service_providers.dart';
 import '../../services/sync_performance_settings.dart';
+import '../../utils/performance_monitor.dart';
 
 class SyncPerformanceSettingsScreen extends ConsumerStatefulWidget {
   const SyncPerformanceSettingsScreen({super.key});
 
   @override
-  ConsumerState<SyncPerformanceSettingsScreen> createState() =>
-      _SyncPerformanceSettingsScreenState();
+  ConsumerState<SyncPerformanceSettingsScreen> createState() => _SyncPerformanceSettingsScreenState();
 }
 
-class _SyncPerformanceSettingsScreenState
-    extends ConsumerState<SyncPerformanceSettingsScreen> {
+class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceSettingsScreen> {
   bool _isLoading = false;
   String _currentProfile = 'balanced';
 
@@ -38,20 +37,15 @@ class _SyncPerformanceSettingsScreenState
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            '✅ تم تطبيق ملف التعريف: ${SyncPerformanceSettings.predefinedProfiles[profileKey]!['name']}',
-          ),
+          content: Text('✅ تم تطبيق ملف التعريف: ${SyncPerformanceSettings.predefinedProfiles[profileKey]!['name']}'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ خطأ في تطبيق ملف التعريف: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('❌ خطأ في تطبيق ملف التعريف: $e'), backgroundColor: Colors.red));
     }
 
     setState(() => _isLoading = false);
@@ -59,12 +53,10 @@ class _SyncPerformanceSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('تحسين أداء المزامنة'),
-        centerTitle: true,
-        elevation: 0,
-      ),
+    return PerformanceInspector(
+      name: 'SyncPerformanceSettingsScreen',
+      child: Scaffold(
+      appBar: AppBar(title: const Text('تحسين أداء المزامنة'), centerTitle: true, elevation: 0),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -90,6 +82,7 @@ class _SyncPerformanceSettingsScreenState
           ],
         ),
       ),
+    )
     );
   }
 
@@ -104,10 +97,7 @@ class _SyncPerformanceSettingsScreenState
               children: [
                 const Icon(Icons.speed, color: Colors.blue),
                 const SizedBox(width: 8),
-                Text(
-                  'تحسين الأداء والبطارية',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                Text('تحسين الأداء والبطارية', style: Theme.of(context).textTheme.titleMedium),
               ],
             ),
             const SizedBox(height: 12),
@@ -138,14 +128,9 @@ class _SyncPerformanceSettingsScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'ملفات التعريف المحددة مسبقاً',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text('ملفات التعريف المحددة مسبقاً', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
-        ...SyncPerformanceSettings.predefinedProfiles.entries.map(
-          (entry) => _buildProfileCard(entry.key, entry.value),
-        ),
+        ...SyncPerformanceSettings.predefinedProfiles.entries.map((entry) => _buildProfileCard(entry.key, entry.value)),
       ],
     );
   }
@@ -157,10 +142,7 @@ class _SyncPerformanceSettingsScreenState
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isSelected ? Colors.blue : Colors.grey.shade300,
-          width: isSelected ? 2 : 1,
-        ),
+        border: Border.all(color: isSelected ? Colors.blue : Colors.grey.shade300, width: isSelected ? 2 : 1),
         color: isSelected ? Colors.blue.withValues(alpha: 0.05) : null,
       ),
       child: ListTile(
@@ -182,14 +164,9 @@ class _SyncPerformanceSettingsScreenState
               spacing: 8,
               children: [
                 _buildProfileBadge('${profile['interval']} دقائق', Icons.timer),
-                if (profile['wifi_only'] as bool)
-                  _buildProfileBadge('WiFi فقط', Icons.wifi),
-                if (profile['low_power_mode'] as bool)
-                  _buildProfileBadge('توفير طاقة', Icons.battery_saver),
-                _buildProfileBadge(
-                  '${profile['daily_limit_mb']} MB',
-                  Icons.data_usage,
-                ),
+                if (profile['wifi_only'] as bool) _buildProfileBadge('WiFi فقط', Icons.wifi),
+                if (profile['low_power_mode'] as bool) _buildProfileBadge('توفير طاقة', Icons.battery_saver),
+                _buildProfileBadge('${profile['daily_limit_mb']} MB', Icons.data_usage),
               ],
             ),
           ],
@@ -217,11 +194,7 @@ class _SyncPerformanceSettingsScreenState
           const SizedBox(width: 4),
           Text(
             text,
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -249,22 +222,16 @@ class _SyncPerformanceSettingsScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'إعدادات مخصصة متقدمة',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                Text('إعدادات مخصصة متقدمة', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 16),
                 SwitchListTile(
                   title: const Text('الفترة التكيفية'),
-                  subtitle: const Text(
-                    'تعديل فترة المزامنة حسب الاستخدام والاتصال',
-                  ),
+                  subtitle: const Text('تعديل فترة المزامنة حسب الاستخدام والاتصال'),
                   value: settings['adaptive_interval'] ?? true,
                   onChanged: _isLoading
                       ? null
                       : (value) async {
-                          await ref.read(syncPerformanceOptimizerProvider)
-                              .setAdaptiveInterval(value);
+                          await ref.read(syncPerformanceOptimizerProvider).setAdaptiveInterval(value);
                           setState(() {});
                         },
                 ),
@@ -275,8 +242,7 @@ class _SyncPerformanceSettingsScreenState
                   onChanged: _isLoading
                       ? null
                       : (value) async {
-                          await ref.read(syncPerformanceOptimizerProvider)
-                              .setBatteryOptimization(value);
+                          await ref.read(syncPerformanceOptimizerProvider).setBatteryOptimization(value);
                           setState(() {});
                         },
                 ),
@@ -287,8 +253,7 @@ class _SyncPerformanceSettingsScreenState
                   onChanged: _isLoading
                       ? null
                       : (value) async {
-                          await ref.read(syncPerformanceOptimizerProvider)
-                              .setWifiOnlySync(value);
+                          await ref.read(syncPerformanceOptimizerProvider).setWifiOnlySync(value);
                           setState(() {});
                         },
                 ),
@@ -321,10 +286,7 @@ class _SyncPerformanceSettingsScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'إحصائيات الأداء',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                Text('إحصائيات الأداء', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 16),
 
                 // استهلاك البيانات
@@ -336,9 +298,7 @@ class _SyncPerformanceSettingsScreenState
                       '${(stats['used_mb'] as double).toStringAsFixed(1)} / ${stats['limit_mb']} MB',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: (stats['is_limit_exceeded'] as bool)
-                            ? Colors.red
-                            : Colors.green,
+                        color: (stats['is_limit_exceeded'] as bool) ? Colors.red : Colors.green,
                       ),
                     ),
                   ],
@@ -348,9 +308,7 @@ class _SyncPerformanceSettingsScreenState
                 LinearProgressIndicator(
                   value: (stats['usage_percentage'] as double) / 100,
                   backgroundColor: Colors.grey.shade200,
-                  color: (stats['is_limit_exceeded'] as bool)
-                      ? Colors.red
-                      : Colors.blue,
+                  color: (stats['is_limit_exceeded'] as bool) ? Colors.red : Colors.blue,
                 ),
 
                 const SizedBox(height: 16),
@@ -360,10 +318,7 @@ class _SyncPerformanceSettingsScreenState
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('نوع الاتصال:'),
-                    Text(
-                      stats['connection_type'] as String,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                    Text(stats['connection_type'] as String, style: const TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
 
@@ -375,14 +330,10 @@ class _SyncPerformanceSettingsScreenState
                   children: [
                     const Text('حالة البطارية:'),
                     Text(
-                      (stats['is_battery_low'] as bool)
-                          ? 'منخفضة 🔋'
-                          : 'عادية 🔋',
+                      (stats['is_battery_low'] as bool) ? 'منخفضة 🔋' : 'عادية 🔋',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: (stats['is_battery_low'] as bool)
-                            ? Colors.red
-                            : Colors.green,
+                        color: (stats['is_battery_low'] as bool) ? Colors.red : Colors.green,
                       ),
                     ),
                   ],
@@ -396,10 +347,7 @@ class _SyncPerformanceSettingsScreenState
                       const Text('فشل متتالي:'),
                       Text(
                         '${stats['consecutive_failures']} مرات',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
                       ),
                     ],
                   ),
@@ -423,8 +371,7 @@ class _SyncPerformanceSettingsScreenState
   }
 
   Future<Map<String, dynamic>> _loadPerformanceStats() async {
-    final performanceStats = ref.read(syncPerformanceOptimizerProvider)
-        .getPerformanceStatus();
+    final performanceStats = ref.read(syncPerformanceOptimizerProvider).getPerformanceStatus();
     final usageStats = await ref.read(dataUsageManagerProvider).getUsageStats();
 
     return {...performanceStats, ...usageStats};

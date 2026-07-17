@@ -24,52 +24,33 @@ class AppLogger {
 
   /// مستويات التسجيل
   static const LevelFilter filter = kReleaseMode
-      ? LevelFilter.production // release: فقط warning + error
+      ? LevelFilter
+            .production // release: فقط warning + error
       : LevelFilter.debug; // debug: كل شيء
 
   /// رسالة debug — تفاصيل تشخيصية، تُطبع فقط في debug mode
-  static void debug(
-    String message, {
-    String? tag,
-    Object? error,
-    StackTrace? stackTrace,
-  }) {
+  static void debug(String message, {String? tag, Object? error, StackTrace? stackTrace}) {
     if (filter.showDebug) {
       _log('DEBUG', message, tag: tag, error: error, stackTrace: stackTrace);
     }
   }
 
   /// رسالة info — معلومات عامة عن التشغيل
-  static void info(
-    String message, {
-    String? tag,
-    Object? error,
-    StackTrace? stackTrace,
-  }) {
+  static void info(String message, {String? tag, Object? error, StackTrace? stackTrace}) {
     if (filter.showInfo) {
       _log('INFO', message, tag: tag, error: error, stackTrace: stackTrace);
     }
   }
 
   /// رسالة warning — تحذيرات (ليست أخطاء حرجة)
-  static void warning(
-    String message, {
-    String? tag,
-    Object? error,
-    StackTrace? stackTrace,
-  }) {
+  static void warning(String message, {String? tag, Object? error, StackTrace? stackTrace}) {
     if (filter.showWarning) {
       _log('WARN', message, tag: tag, error: error, stackTrace: stackTrace);
     }
   }
 
   /// رسالة error — أخطاء حرجة
-  static void error(
-    String message, {
-    String? tag,
-    Object? error,
-    StackTrace? stackTrace,
-  }) {
+  static void error(String message, {String? tag, Object? error, StackTrace? stackTrace}) {
     if (filter.showError) {
       _log('ERROR', message, tag: tag, error: error, stackTrace: stackTrace);
       // TODO: في الإنتاج، أرسل إلى Crashlytics
@@ -79,32 +60,18 @@ class AppLogger {
     }
   }
 
-  static void _log(
-    String level,
-    String message, {
-    String? tag,
-    Object? error,
-    StackTrace? stackTrace,
-  }) {
+  static void _log(String level, String message, {String? tag, Object? error, StackTrace? stackTrace}) {
     final timestamp = DateTime.now().toIso8601String();
     final tagStr = tag != null ? '[$tag]' : '';
     final prefix = '$timestamp $level $tagStr';
 
-    final fullMessage = error != null
-        ? '$prefix $message — $error'
-        : '$prefix $message';
+    final fullMessage = error != null ? '$prefix $message — $error' : '$prefix $message';
 
     // استخدام debugPrint لتجنب تطويل console في release
     debugPrint(fullMessage);
 
     // تسجيل في developer.log للـ DevTools
-    developer.log(
-      message,
-      name: tag ?? 'App',
-      error: error,
-      stackTrace: stackTrace,
-      level: _levelToPriority(level),
-    );
+    developer.log(message, name: tag ?? 'App', error: error, stackTrace: stackTrace, level: _levelToPriority(level));
 
     if (stackTrace != null && level == 'ERROR') {
       debugPrint(stackTrace.toString());
@@ -137,12 +104,7 @@ class LevelFilter {
   });
 
   /// debug mode: كل المستويات
-  static const LevelFilter debug = LevelFilter(
-    showDebug: true,
-    showInfo: true,
-    showWarning: true,
-    showError: true,
-  );
+  static const LevelFilter debug = LevelFilter(showDebug: true, showInfo: true, showWarning: true, showError: true);
 
   /// release mode: فقط warning + error
   static const LevelFilter production = LevelFilter(

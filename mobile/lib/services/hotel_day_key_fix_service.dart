@@ -68,12 +68,7 @@ class HotelDayKeyFixService {
     }
   }
 
-  Future<void> _createOutboxEntry(
-    OutboxDao outboxDao,
-    String entity,
-    String localUuid,
-    String payload,
-  ) async {
+  Future<void> _createOutboxEntry(OutboxDao outboxDao, String entity, String localUuid, String payload) async {
     try {
       await outboxDao.merge(
         entity: entity,
@@ -110,9 +105,7 @@ class HotelDayKeyFixService {
       final year = int.tryParse(parts[0]) ?? 1;
       final month = int.tryParse(parts[1]) ?? 1;
       final day = int.tryParse(parts[2]) ?? 1;
-      return HotelTimeEngine.getHotelDayKey(
-        dateTime: DateTime(year, month, day, 14, 1),
-      );
+      return HotelTimeEngine.getHotelDayKey(dateTime: DateTime(year, month, day, 14, 1));
     } catch (_) {
       return HotelTimeEngine.getHotelDayKey();
     }
@@ -127,26 +120,16 @@ class HotelDayKeyFixService {
   /// hotelDayKey: nullable text
   Future<int> _fixExpenses(AppDatabase db) async {
     try {
-      final rows = await (db.select(db.expenses)
-            ..where((t) => t.deletedAt.isNull()))
-          .get();
+      final rows = await (db.select(db.expenses)..where((t) => t.deletedAt.isNull())).get();
       int fixed = 0;
       for (final row in rows) {
         final correctKey = computeCorrectHotelDayKey(row.date);
         if (row.hotelDayKey != correctKey) {
           // ✅ bump version + outbox لضمان مزامنة التصحيح مع Appwrite Cloud
-          await (db.update(db.expenses)
-                ..where((t) => t.id.equals(row.id)))
-              .write(ExpensesCompanion(
-            hotelDayKey: d.Value(correctKey),
-            version: d.Value(row.version + 1),
-          ));
-          await _createOutboxEntry(
-            OutboxDao(db),
-            'expenses',
-            row.localUuid,
-            correctKey,
+          await (db.update(db.expenses)..where((t) => t.id.equals(row.id))).write(
+            ExpensesCompanion(hotelDayKey: d.Value(correctKey), version: d.Value(row.version + 1)),
           );
+          await _createOutboxEntry(OutboxDao(db), 'expenses', row.localUuid, correctKey);
           fixed++;
         }
       }
@@ -163,26 +146,16 @@ class HotelDayKeyFixService {
   /// hotelDayKey: nullable text
   Future<int> _fixSalaryWithdrawals(AppDatabase db) async {
     try {
-      final rows = await (db.select(db.salaryWithdrawals)
-            ..where((t) => t.deletedAt.isNull()))
-          .get();
+      final rows = await (db.select(db.salaryWithdrawals)..where((t) => t.deletedAt.isNull())).get();
       int fixed = 0;
       for (final row in rows) {
         final correctKey = computeCorrectHotelDayKey(row.withdrawDate);
         if (row.hotelDayKey != correctKey) {
           // ✅ bump version + outbox لضمان مزامنة التصحيح مع Appwrite Cloud
-          await (db.update(db.salaryWithdrawals)
-                ..where((t) => t.id.equals(row.id)))
-              .write(SalaryWithdrawalsCompanion(
-            hotelDayKey: d.Value(correctKey),
-            version: d.Value(row.version + 1),
-          ));
-          await _createOutboxEntry(
-            OutboxDao(db),
-            'salary_withdrawals',
-            row.localUuid,
-            correctKey,
+          await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(row.id))).write(
+            SalaryWithdrawalsCompanion(hotelDayKey: d.Value(correctKey), version: d.Value(row.version + 1)),
           );
+          await _createOutboxEntry(OutboxDao(db), 'salary_withdrawals', row.localUuid, correctKey);
           fixed++;
         }
       }
@@ -242,17 +215,11 @@ class HotelDayKeyFixService {
       int outboxCreated = 0;
       try {
         // جلب مصروفات الرواتب النشطة
-        final salaryExpenses = await (db.select(db.expenses)
-              ..where((t) => t.deletedAt.isNull()))
-            .get();
-        final salaryTypeExpenses = salaryExpenses
-            .where((e) => _isSalaryType(e.expenseType))
-            .toList();
+        final salaryExpenses = await (db.select(db.expenses)..where((t) => t.deletedAt.isNull())).get();
+        final salaryTypeExpenses = salaryExpenses.where((e) => _isSalaryType(e.expenseType)).toList();
 
         // جلب سحوبات الرواتب النشطة
-        final withdrawals = await (db.select(db.salaryWithdrawals)
-              ..where((t) => t.deletedAt.isNull()))
-            .get();
+        final withdrawals = await (db.select(db.salaryWithdrawals)..where((t) => t.deletedAt.isNull())).get();
 
         // بناء خريطة مصروفات الرواتب: (employeeId, hotelDayKey) → List<Expense>
         final expenseMap = <String, List<Expense>>{};
@@ -263,9 +230,7 @@ class HotelDayKeyFixService {
         }
 
         // جلب الموظفين لبناء خريطة id → localUuid (لـ employeeUuid في outbox)
-        final employees = await (db.select(db.employees)
-              ..where((t) => t.deletedAt.isNull()))
-            .get();
+        final employees = await (db.select(db.employees)..where((t) => t.deletedAt.isNull())).get();
         final empUuidMap = <int, String>{};
         for (final emp in employees) {
           empUuidMap[emp.id] = emp.localUuid;
@@ -278,8 +243,7 @@ class HotelDayKeyFixService {
           }
 
           // تخطي السحوبات المرتبطة بالفعل
-          final hasExpRef = sw.reason != null &&
-              RegExp(r'exp_(\d+)').hasMatch(sw.reason!);
+          final hasExpRef = sw.reason != null && RegExp(r'exp_(\d+)').hasMatch(sw.reason!);
           if (hasExpRef) continue;
 
           // البحث عن مصروف مطابق
@@ -303,21 +267,18 @@ class HotelDayKeyFixService {
           final now = Time.nowEpoch();
 
           // تحديث reason + updatedAt + lastModified عبر Drift API
-          await (db.update(db.salaryWithdrawals)
-                ..where((t) => t.id.equals(sw.id)))
-              .write(SalaryWithdrawalsCompanion(
-            reason: d.Value(newReason),
-            updatedAt: d.Value(now),
-            lastModified: d.Value(now),
-            version: d.Value(sw.version + 1),
-          ));
+          await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(sw.id))).write(
+            SalaryWithdrawalsCompanion(
+              reason: d.Value(newReason),
+              updatedAt: d.Value(now),
+              lastModified: d.Value(now),
+              version: d.Value(sw.version + 1),
+            ),
+          );
 
           // تحديث expense_id عبر SQL خام
           try {
-            await db.customStatement(
-              'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
-              [matched.id, sw.id],
-            );
+            await db.customStatement('UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?', [matched.id, sw.id]);
           } catch (_) {
             // العمود قد لا يكون موجوداً
           }
@@ -407,18 +368,14 @@ class HotelDayKeyFixService {
   Future<int> _fixSalaryWithdrawalsEmployeeUuid(AppDatabase db) async {
     try {
       // جلب الموظفين لبناء خريطة id → localUuid
-      final employees = await (db.select(db.employees)
-            ..where((t) => t.deletedAt.isNull()))
-          .get();
+      final employees = await (db.select(db.employees)..where((t) => t.deletedAt.isNull())).get();
       final empUuidMap = <int, String>{};
       for (final emp in employees) {
         empUuidMap[emp.id] = emp.localUuid;
       }
 
       // جلب سجلات salary_withdrawals النشطة
-      final rows = await (db.select(db.salaryWithdrawals)
-            ..where((t) => t.deletedAt.isNull()))
-          .get();
+      final rows = await (db.select(db.salaryWithdrawals)..where((t) => t.deletedAt.isNull())).get();
 
       const int fixed = 0;
       for (final _ in rows) {
@@ -440,27 +397,17 @@ class HotelDayKeyFixService {
   /// hotelDayKey: nullable text
   Future<int> _fixPayments(AppDatabase db) async {
     try {
-      final rows = await (db.select(db.payments)
-            ..where((t) => t.deletedAt.isNull()))
-          .get();
+      final rows = await (db.select(db.payments)..where((t) => t.deletedAt.isNull())).get();
       int fixed = 0;
       for (final row in rows) {
         if (row.paymentDate.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.paymentDate);
         if (row.hotelDayKey != correctKey) {
           // ✅ bump version + outbox لضمان مزامنة التصحيح مع Appwrite Cloud
-          await (db.update(db.payments)
-                ..where((t) => t.id.equals(row.id)))
-              .write(PaymentsCompanion(
-            hotelDayKey: d.Value(correctKey),
-            version: d.Value(row.version + 1),
-          ));
-          await _createOutboxEntry(
-            OutboxDao(db),
-            'payments',
-            row.localUuid,
-            correctKey,
+          await (db.update(db.payments)..where((t) => t.id.equals(row.id))).write(
+            PaymentsCompanion(hotelDayKey: d.Value(correctKey), version: d.Value(row.version + 1)),
           );
+          await _createOutboxEntry(OutboxDao(db), 'payments', row.localUuid, correctKey);
           fixed++;
         }
       }
@@ -484,18 +431,10 @@ class HotelDayKeyFixService {
         final correctKey = computeCorrectHotelDayKey(row.nightStart);
         if (row.hotelDayKey != correctKey) {
           // ✅ bump version + outbox لضمان مزامنة التصحيح مع Appwrite Cloud
-          await (db.update(db.bookingNights)
-                ..where((t) => t.id.equals(row.id)))
-              .write(BookingNightsCompanion(
-            hotelDayKey: d.Value(correctKey),
-            version: d.Value(row.version + 1),
-          ));
-          await _createOutboxEntry(
-            OutboxDao(db),
-            'booking_nights',
-            row.localUuid,
-            correctKey,
+          await (db.update(db.bookingNights)..where((t) => t.id.equals(row.id))).write(
+            BookingNightsCompanion(hotelDayKey: d.Value(correctKey), version: d.Value(row.version + 1)),
           );
+          await _createOutboxEntry(OutboxDao(db), 'booking_nights', row.localUuid, correctKey);
           fixed++;
         }
       }
@@ -518,18 +457,10 @@ class HotelDayKeyFixService {
         if (row.paymentDateIso.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.paymentDateIso);
         if (row.hotelDayKey != correctKey) {
-          await (db.update(db.salaryPayments)
-                ..where((t) => t.id.equals(row.id)))
-              .write(SalaryPaymentsCompanion(
-            hotelDayKey: d.Value(correctKey),
-            version: d.Value(row.version + 1),
-          ));
-          await _createOutboxEntry(
-            OutboxDao(db),
-            'salary_payments',
-            row.localUuid,
-            correctKey,
+          await (db.update(db.salaryPayments)..where((t) => t.id.equals(row.id))).write(
+            SalaryPaymentsCompanion(hotelDayKey: d.Value(correctKey), version: d.Value(row.version + 1)),
           );
+          await _createOutboxEntry(OutboxDao(db), 'salary_payments', row.localUuid, correctKey);
           fixed++;
         }
       }
@@ -552,18 +483,10 @@ class HotelDayKeyFixService {
         if (row.voidedAtIso.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.voidedAtIso);
         if (row.hotelDayKey != correctKey) {
-          await (db.update(db.paymentVoids)
-                ..where((t) => t.id.equals(row.id)))
-              .write(PaymentVoidsCompanion(
-            hotelDayKey: d.Value(correctKey),
-            version: d.Value(row.version + 1),
-          ));
-          await _createOutboxEntry(
-            OutboxDao(db),
-            'payment_voids',
-            row.localUuid,
-            correctKey,
+          await (db.update(db.paymentVoids)..where((t) => t.id.equals(row.id))).write(
+            PaymentVoidsCompanion(hotelDayKey: d.Value(correctKey), version: d.Value(row.version + 1)),
           );
+          await _createOutboxEntry(OutboxDao(db), 'payment_voids', row.localUuid, correctKey);
           fixed++;
         }
       }
@@ -586,18 +509,10 @@ class HotelDayKeyFixService {
         if (row.timestampIso.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.timestampIso);
         if (row.hotelDayKey != correctKey) {
-          await (db.update(db.auditLogs)
-                ..where((t) => t.id.equals(row.id)))
-              .write(AuditLogsCompanion(
-            hotelDayKey: d.Value(correctKey),
-            version: d.Value(row.version + 1),
-          ));
-          await _createOutboxEntry(
-            OutboxDao(db),
-            'audit_logs',
-            row.localUuid,
-            correctKey,
+          await (db.update(db.auditLogs)..where((t) => t.id.equals(row.id))).write(
+            AuditLogsCompanion(hotelDayKey: d.Value(correctKey), version: d.Value(row.version + 1)),
           );
+          await _createOutboxEntry(OutboxDao(db), 'audit_logs', row.localUuid, correctKey);
           fixed++;
         }
       }

@@ -3,7 +3,6 @@ import '../constants/ui_constants.dart';
 
 /// Info Row Widget - عرض معلومة بصيغة (Label: Value)
 class InfoRow extends StatelessWidget {
-
   const InfoRow({
     super.key,
     required this.label,
@@ -30,11 +29,7 @@ class InfoRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (icon != null) ...[
-            Icon(
-              icon,
-              size: UIConstants.iconSizeSM,
-              color: iconColor ?? Colors.grey.shade600,
-            ),
+            Icon(icon, size: UIConstants.iconSizeSM, color: iconColor ?? Colors.grey.shade600),
             const SizedBox(width: UIConstants.spacingSM),
           ],
           Expanded(
@@ -42,34 +37,22 @@ class InfoRow extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style:
-                      labelStyle ??
-                      TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                ),
+                Text(label, style: labelStyle ?? TextStyle(fontSize: 14, color: Colors.grey.shade600)),
                 const SizedBox(width: UIConstants.spacingSM),
-                if (isExpandable) Expanded(
-                        child: Text(
-                          value,
-                          style:
-                              valueStyle ??
-                              const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                          textAlign: TextAlign.end,
-                        ),
-                      ) else Text(
-                        value,
-                        style:
-                            valueStyle ??
-                            const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                        textAlign: TextAlign.end,
-                      ),
+                if (isExpandable)
+                  Expanded(
+                    child: Text(
+                      value,
+                      style: valueStyle ?? const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      textAlign: TextAlign.end,
+                    ),
+                  )
+                else
+                  Text(
+                    value,
+                    style: valueStyle ?? const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.end,
+                  ),
               ],
             ),
           ),
@@ -81,7 +64,6 @@ class InfoRow extends StatelessWidget {
 
 /// Stat Card Widget - عرض إحصائية برقم وأيقونة
 class StatCard extends StatelessWidget {
-
   const StatCard({
     super.key,
     required this.title,
@@ -102,9 +84,7 @@ class StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(UIConstants.radiusLG),
@@ -118,13 +98,7 @@ class StatCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
+                    child: Text(title, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
                   ),
                   Container(
                     padding: const EdgeInsets.all(UIConstants.spacingSM),
@@ -132,29 +106,18 @@ class StatCard extends StatelessWidget {
                       color: color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(UIConstants.radiusMD),
                     ),
-                    child: Icon(
-                      icon,
-                      color: color,
-                      size: UIConstants.iconSizeMD,
-                    ),
+                    child: Icon(icon, color: color, size: UIConstants.iconSizeMD),
                   ),
                 ],
               ),
               const SizedBox(height: UIConstants.spacingSM),
               Text(
                 value,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color),
               ),
               if (subtitle != null) ...[
                 const SizedBox(height: UIConstants.spacingXS),
-                Text(
-                  subtitle!,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                ),
+                Text(subtitle!, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
               ],
             ],
           ),
@@ -166,15 +129,7 @@ class StatCard extends StatelessWidget {
 
 /// Status Badge Widget - عرض حالة بلون وأيقونة
 class StatusBadge extends StatelessWidget {
-
-  const StatusBadge({
-    super.key,
-    required this.status,
-    this.color,
-    this.icon,
-    this.showIcon = true,
-    this.fontSize,
-  });
+  const StatusBadge({super.key, required this.status, this.color, this.icon, this.showIcon = true, this.fontSize});
   final String status;
   final Color? color;
   final IconData? icon;
@@ -187,10 +142,7 @@ class StatusBadge extends StatelessWidget {
     final badgeIcon = icon ?? UIConstants.getIconForStatus(status);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: UIConstants.spacingSM,
-        vertical: UIConstants.spacingXS,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: UIConstants.spacingSM, vertical: UIConstants.spacingXS),
       decoration: BoxDecoration(
         color: badgeColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(UIConstants.radiusSM),
@@ -199,17 +151,10 @@ class StatusBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (showIcon) ...[
-            Icon(badgeIcon, size: 12, color: badgeColor),
-            const SizedBox(width: 4),
-          ],
+          if (showIcon) ...[Icon(badgeIcon, size: 12, color: badgeColor), const SizedBox(width: 4)],
           Text(
             status,
-            style: TextStyle(
-              fontSize: fontSize ?? 11,
-              fontWeight: FontWeight.w600,
-              color: badgeColor,
-            ),
+            style: TextStyle(fontSize: fontSize ?? 11, fontWeight: FontWeight.w600, color: badgeColor),
           ),
         ],
       ),
@@ -219,14 +164,7 @@ class StatusBadge extends StatelessWidget {
 
 /// Section Header Widget - عنوان قسم
 class SectionHeader extends StatelessWidget {
-
-  const SectionHeader({
-    super.key,
-    required this.title,
-    this.icon,
-    this.action,
-    this.color,
-  });
+  const SectionHeader({super.key, required this.title, this.icon, this.action, this.color});
   final String title;
   final IconData? icon;
   final Widget? action;
@@ -235,18 +173,11 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(
-        top: UIConstants.spacingLG,
-        bottom: UIConstants.spacingMD,
-      ),
+      padding: const EdgeInsets.only(top: UIConstants.spacingLG, bottom: UIConstants.spacingMD),
       child: Row(
         children: [
           if (icon != null) ...[
-            Icon(
-              icon,
-              size: UIConstants.iconSizeMD,
-              color: color ?? Theme.of(context).primaryColor,
-            ),
+            Icon(icon, size: UIConstants.iconSizeMD, color: color ?? Theme.of(context).primaryColor),
             const SizedBox(width: UIConstants.spacingSM),
           ],
           Expanded(
@@ -268,7 +199,6 @@ class SectionHeader extends StatelessWidget {
 
 /// Empty State Widget - عرض حالة فارغة
 class EmptyStateWidget extends StatelessWidget {
-
   const EmptyStateWidget({
     super.key,
     required this.message,
@@ -289,11 +219,7 @@ class EmptyStateWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: UIConstants.iconSizeXL * 2,
-              color: Colors.grey.shade300,
-            ),
+            Icon(icon, size: UIConstants.iconSizeXL * 2, color: Colors.grey.shade300),
             const SizedBox(height: UIConstants.spacingLG),
             Text(
               message,
@@ -302,11 +228,7 @@ class EmptyStateWidget extends StatelessWidget {
             ),
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: UIConstants.spacingLG),
-              ElevatedButton.icon(
-                onPressed: onAction,
-                icon: const Icon(Icons.add),
-                label: Text(actionLabel!),
-              ),
+              ElevatedButton.icon(onPressed: onAction, icon: const Icon(Icons.add), label: Text(actionLabel!)),
             ],
           ],
         ),
@@ -317,7 +239,6 @@ class EmptyStateWidget extends StatelessWidget {
 
 /// Loading State Widget - عرض حالة تحميل
 class LoadingStateWidget extends StatelessWidget {
-
   const LoadingStateWidget({super.key, this.message});
   final String? message;
 
@@ -330,10 +251,7 @@ class LoadingStateWidget extends StatelessWidget {
           const CircularProgressIndicator(),
           if (message != null) ...[
             const SizedBox(height: UIConstants.spacingMD),
-            Text(
-              message!,
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-            ),
+            Text(message!, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
           ],
         ],
       ),
@@ -343,7 +261,6 @@ class LoadingStateWidget extends StatelessWidget {
 
 /// Error State Widget - عرض حالة خطأ
 class ErrorStateWidget extends StatelessWidget {
-
   const ErrorStateWidget({super.key, required this.message, this.onRetry});
   final String message;
   final VoidCallback? onRetry;
@@ -356,11 +273,7 @@ class ErrorStateWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: UIConstants.iconSizeXL * 2,
-              color: Colors.red.shade300,
-            ),
+            Icon(Icons.error_outline, size: UIConstants.iconSizeXL * 2, color: Colors.red.shade300),
             const SizedBox(height: UIConstants.spacingLG),
             Text(
               message,
@@ -384,13 +297,7 @@ class ErrorStateWidget extends StatelessWidget {
 
 /// Info Badge Widget - badge للأرقام والإشعارات
 class InfoBadge extends StatelessWidget {
-
-  const InfoBadge({
-    super.key,
-    required this.text,
-    this.backgroundColor,
-    this.textColor,
-  });
+  const InfoBadge({super.key, required this.text, this.backgroundColor, this.textColor});
   final String text;
   final Color? backgroundColor;
   final Color? textColor;
@@ -406,11 +313,7 @@ class InfoBadge extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: textColor ?? Colors.white,
-        ),
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor ?? Colors.white),
         textAlign: TextAlign.center,
       ),
     );

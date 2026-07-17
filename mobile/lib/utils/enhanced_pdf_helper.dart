@@ -60,8 +60,7 @@ class EnhancedPdfHelper {
     final nights = booking.calculatedNights;
     final baseItems = [
       InvoiceItem(
-        description:
-            'إقامة $nights ${nights == 1 ? "ليلة" : "ليالي"} - غرفة ${booking.roomNumber}',
+        description: 'إقامة $nights ${nights == 1 ? "ليلة" : "ليالي"} - غرفة ${booking.roomNumber}',
         quantity: nights,
         unitPrice: roomPrice,
       ),
@@ -73,8 +72,7 @@ class EnhancedPdfHelper {
     }
 
     final invoice = EnhancedInvoice(
-      invoiceNumber:
-          'INV-${booking.id}-${DateTime.now().millisecondsSinceEpoch}',
+      invoiceNumber: 'INV-${booking.id}-${DateTime.now().millisecondsSinceEpoch}',
       guestName: booking.guestName,
       guestPhone: booking.guestPhone,
       roomNumber: booking.roomNumber,
@@ -219,9 +217,7 @@ class EnhancedPdfHelper {
     final totalExpenses = expenses.fold(0.0, (sum, e) => sum + e.amount);
     final netProfit = totalRevenue - totalExpenses;
     final totalBookings = bookings.length;
-    final checkedInGuests = bookings
-        .where((b) => b.status == 'checked_in')
-        .length;
+    final checkedInGuests = bookings.where((b) => b.status == 'checked_in').length;
 
     pdf.addPage(
       pw.MultiPage(
@@ -255,20 +251,14 @@ class EnhancedPdfHelper {
                 style: PdfTextStyles.body(fonts.regular),
               ),
               pw.SizedBox(height: 6),
-              pw.Text(
-                'أُنشئ بواسطة: $generatedBy',
-                style: PdfTextStyles.body(fonts.regular),
-              ),
+              pw.Text('أُنشئ بواسطة: $generatedBy', style: PdfTextStyles.body(fonts.regular)),
             ],
           ),
 
           pw.SizedBox(height: 20),
 
           // إحصائيات رئيسية
-          pw.Text(
-            'الإحصائيات الرئيسية',
-            style: PdfTextStyles.heading2(fonts.bold),
-          ),
+          pw.Text('الإحصائيات الرئيسية', style: PdfTextStyles.heading2(fonts.bold)),
           pw.SizedBox(height: 12),
 
           // صف الإحصائيات الأول
@@ -336,44 +326,25 @@ class EnhancedPdfHelper {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text(
-                    'إجمالي الحجوزات:',
-                    style: PdfTextStyles.bodyBold(fonts.bold),
-                  ),
-                  pw.Text(
-                    '$totalBookings حجز',
-                    style: PdfTextStyles.body(fonts.regular),
-                  ),
+                  pw.Text('إجمالي الحجوزات:', style: PdfTextStyles.bodyBold(fonts.bold)),
+                  pw.Text('$totalBookings حجز', style: PdfTextStyles.body(fonts.regular)),
                 ],
               ),
               pw.SizedBox(height: 6),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text(
-                    'النزلاء الحاليون:',
-                    style: PdfTextStyles.bodyBold(fonts.bold),
-                  ),
-                  pw.Text(
-                    '$checkedInGuests نزيل',
-                    style: PdfTextStyles.body(fonts.regular),
-                  ),
+                  pw.Text('النزلاء الحاليون:', style: PdfTextStyles.bodyBold(fonts.bold)),
+                  pw.Text('$checkedInGuests نزيل', style: PdfTextStyles.body(fonts.regular)),
                 ],
               ),
               pw.SizedBox(height: 6),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
+                  pw.Text('متوسط الإيراد لكل حجز:', style: PdfTextStyles.bodyBold(fonts.bold)),
                   pw.Text(
-                    'متوسط الإيراد لكل حجز:',
-                    style: PdfTextStyles.bodyBold(fonts.bold),
-                  ),
-                  pw.Text(
-                    totalBookings > 0
-                        ? EnhancedPdfUtils.formatCurrency(
-                            totalRevenue / totalBookings,
-                          )
-                        : '0',
+                    totalBookings > 0 ? EnhancedPdfUtils.formatCurrency(totalRevenue / totalBookings) : '0',
                     style: PdfTextStyles.body(fonts.regular),
                   ),
                 ],
@@ -391,20 +362,14 @@ class EnhancedPdfHelper {
 
     await Printing.sharePdf(
       bytes: await pdf.save(),
-      filename:
-          'hotel-summary-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
+      filename: 'hotel-summary-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
     );
   }
 }
 
 /// Widget لعرض معاينة PDF محسّنة
 class EnhancedPdfPreviewScreen extends ConsumerWidget {
-
-  const EnhancedPdfPreviewScreen({
-    super.key,
-    required this.title,
-    required this.pdfGenerator,
-  });
+  const EnhancedPdfPreviewScreen({super.key, required this.title, required this.pdfGenerator});
   final String title;
   final Future<Uint8List> Function() pdfGenerator;
 
@@ -420,10 +385,7 @@ class EnhancedPdfPreviewScreen extends ConsumerWidget {
             icon: const Icon(Icons.share),
             onPressed: () async {
               final bytes = await pdfGenerator();
-              await Printing.sharePdf(
-                bytes: bytes,
-                filename: '${title.replaceAll(' ', '-').toLowerCase()}.pdf',
-              );
+              await Printing.sharePdf(bytes: bytes, filename: '${title.replaceAll(' ', '-').toLowerCase()}.pdf');
             },
             tooltip: 'مشاركة PDF',
           ),
@@ -436,11 +398,7 @@ class EnhancedPdfPreviewScreen extends ConsumerWidget {
             return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('جارِ إنشاء PDF...'),
-                ],
+                children: [CircularProgressIndicator(), SizedBox(height: 16), Text('جارِ إنشاء PDF...')],
               ),
             );
           }
@@ -454,20 +412,13 @@ class EnhancedPdfPreviewScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Text('حدث خطأ في إنشاء PDF: ${snapshot.error}'),
                   const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('رجوع'),
-                  ),
+                  ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('رجوع')),
                 ],
               ),
             );
           }
 
-          return PdfPreview(
-            build: (format) => snapshot.data!,
-            canChangePageFormat: false,
-            canChangeOrientation: false,
-          );
+          return PdfPreview(build: (format) => snapshot.data!, canChangePageFormat: false, canChangeOrientation: false);
         },
       ),
     );
@@ -484,7 +435,8 @@ class PdfPreviewHelper {
   }) {
     Navigator.push<void>(
       context,
-      MaterialPageRoute<void>(builder: (context) => EnhancedPdfPreviewScreen(
+      MaterialPageRoute<void>(
+        builder: (context) => EnhancedPdfPreviewScreen(
           title: 'إيصال دفع محسّن',
           pdfGenerator: () async {
             final receipt = EnhancedPaymentReceipt(

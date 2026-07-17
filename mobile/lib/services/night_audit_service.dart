@@ -38,10 +38,11 @@ class NightAuditService {
 
       // 1) تحقق إن كان اليوم مُقفلاً مسبقاً
       if (!force) {
-        final existing = await (db.select(db.hotelDayLedger)
-              ..where((t) => t.hotelDayKey.equals(hotelDayKey))
-              ..limit(1))
-            .getSingleOrNull();
+        final existing =
+            await (db.select(db.hotelDayLedger)
+                  ..where((t) => t.hotelDayKey.equals(hotelDayKey))
+                  ..limit(1))
+                .getSingleOrNull();
         if (existing != null && existing.status == 'closed') {
           debugPrint('⚠️ [NightAudit] اليوم $hotelDayKey مُقفل مسبقاً');
           return NightAuditResult(
@@ -56,11 +57,7 @@ class NightAuditService {
       // 2) اجمع البيانات المالية
       final data = await _gatherNightAuditData(hotelDayKey);
       if (data == null) {
-        return NightAuditResult(
-          success: false,
-          message: 'فشل في تجميع بيانات اليوم',
-          hotelDayKey: hotelDayKey,
-        );
+        return NightAuditResult(success: false, message: 'فشل في تجميع بيانات اليوم', hotelDayKey: hotelDayKey);
       }
 
       // 3) اكتب/حدّث سجل HotelDayLedger
@@ -148,10 +145,11 @@ class NightAuditService {
   Future<bool> isDayClosed(String? hotelDayKey) async {
     final key = hotelDayKey ?? HotelTimeEngine.getHotelDayKey();
     final db = DatabaseManager.instance;
-    final entry = await (db.select(db.hotelDayLedger)
-          ..where((t) => t.hotelDayKey.equals(key))
-          ..limit(1))
-        .getSingleOrNull();
+    final entry =
+        await (db.select(db.hotelDayLedger)
+              ..where((t) => t.hotelDayKey.equals(key))
+              ..limit(1))
+            .getSingleOrNull();
     return entry != null && entry.status == 'closed';
   }
 
@@ -178,9 +176,7 @@ class NightAuditService {
           maintenance++;
         }
       }
-      final occupancyRate = totalRooms > 0
-          ? (occupied / totalRooms * 100)
-          : 0.0;
+      final occupancyRate = totalRooms > 0 ? (occupied / totalRooms * 100) : 0.0;
 
       // ── حجوزات اليوم ──
       final bookings = await db.select(db.bookings).get();
@@ -190,13 +186,11 @@ class NightAuditService {
         if (b.deletedAt != null) continue;
         final s = b.status.toLowerCase();
         if (s == 'نشط' || s == 'محجوزة') activeBookings++;
-        if (b.checkinDate == hotelDayKey ||
-            (b.createdAtIso?.substring(0, 10) == hotelDayKey)) {
+        if (b.checkinDate == hotelDayKey || (b.createdAtIso?.substring(0, 10) == hotelDayKey)) {
           newBookings++;
         }
         if (b.hotelDayCheckin == hotelDayKey) checkIns++;
-        if (b.hotelDayCheckout == hotelDayKey ||
-            (b.actualCheckout?.substring(0, 10) == hotelDayKey)) {
+        if (b.hotelDayCheckout == hotelDayKey || (b.actualCheckout?.substring(0, 10) == hotelDayKey)) {
           checkOuts++;
         }
       }
@@ -243,9 +237,7 @@ class NightAuditService {
         if (b.deletedAt != null) continue;
         final s = b.status.toLowerCase();
         if (s == 'نشط' || s == 'محجوزة') {
-          if (b.checkoutDate != null &&
-              b.actualCheckout == null &&
-              b.checkoutDate!.compareTo(hotelDayKey) < 0) {
+          if (b.checkoutDate != null && b.actualCheckout == null && b.checkoutDate!.compareTo(hotelDayKey) < 0) {
             alerts.add('⏰ تأخير مغادرة — غرفة ${b.roomNumber} (${b.guestName})');
           }
         }
@@ -285,15 +277,12 @@ class NightAuditService {
   }
 
   /// كتابة/تحديث سجل HotelDayLedger
-  Future<void> _writeLedgerEntry(
-    AppDatabase db,
-    String hotelDayKey,
-    NightAuditData data,
-  ) async {
-    final existing = await (db.select(db.hotelDayLedger)
-          ..where((t) => t.hotelDayKey.equals(hotelDayKey))
-          ..limit(1))
-        .getSingleOrNull();
+  Future<void> _writeLedgerEntry(AppDatabase db, String hotelDayKey, NightAuditData data) async {
+    final existing =
+        await (db.select(db.hotelDayLedger)
+              ..where((t) => t.hotelDayKey.equals(hotelDayKey))
+              ..limit(1))
+            .getSingleOrNull();
 
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final companion = HotelDayLedgerCompanion(
@@ -312,12 +301,12 @@ class NightAuditService {
     );
 
     if (existing != null) {
-      await (db.update(db.hotelDayLedger)
-            ..where((t) => t.id.equals(existing.id)))
-          .write(companion);
+      await (db.update(db.hotelDayLedger)..where((t) => t.id.equals(existing.id))).write(companion);
       debugPrint('📝 [NightAudit] Ledger updated for $hotelDayKey');
     } else {
-      await db.into(db.hotelDayLedger).insert(
+      await db
+          .into(db.hotelDayLedger)
+          .insert(
             companion.copyWith(
               createdAt: d.Value(now),
               localUuid: d.Value(_generateUuid()),
@@ -333,8 +322,7 @@ class NightAuditService {
     return '${DateTime.now().millisecondsSinceEpoch}-$hotelDayKeyHash';
   }
 
-  static String get hotelDayKeyHash =>
-      HotelTimeEngine.getHotelDayKey().replaceAll('-', '');
+  static String get hotelDayKeyHash => HotelTimeEngine.getHotelDayKey().replaceAll('-', '');
 
   /// بناء رسالة التقرير — نص عادي متوافق مع WhatsApp و Telegram
   String _buildReportMessage(NightAuditData d) {

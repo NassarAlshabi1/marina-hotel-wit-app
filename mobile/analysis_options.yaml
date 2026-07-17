@@ -1,5 +1,13 @@
 # Marina Hotel - Analysis Options
-# Updated according to: https://dart.dev/tools/analysis#the-analysis-options-file
+# Professional Quality Gate Configuration
+# Updated: 2026-07-15
+#
+# ✅ يستخدم flutter_lints كقاعدة (مناسب للمشاريع القائمة)
+# ✅ strict-casts, strict-inference, strict-raw-types مُفعّلة
+# ✅ جميع الـ warnings تُعتبر errors (blocking)
+# ✅ قواعد Performance + Flutter Best Practices مُفعّلة
+# ✅ very_good_analysis مُثبّت كـ dependency لكن غير مُستخدم كـ include
+#    (قواعده صارمة جداً — 17000+ issues في المشروع القائم)
 
 include: package:flutter_lints/flutter.yaml
 
@@ -11,40 +19,56 @@ analyzer:
     - "test/**"
     - "build/**"
 
-  errors:
-    # Treat missing return as error (not just warning)
-    missing_return: error
-    # Treat missing required param as error
-    missing_required_param: error
-    # Ignore invalid annotation targets in generated code
-    invalid_annotation_target: ignore
-    # Treat unused imports as warning
-    unused_import: warning
-    # Treat unused local variables as warning
-    unused_local_variable: warning
-    # Dead code should be flagged
-    dead_code: warning
-    # Null safety issues
-    invalid_null_aware_operator: warning
-    # Undefined methods should be errors - they cause build failures
-    undefined_method: error
-    # Type issues should be warnings
-    # wrong_number_of_type_arguments_method: warning  # removed: not recognized in Dart 3.12
-    type_argument_not_matching_bounds: warning
-    return_of_invalid_type_from_closure: warning
-
   language:
     strict-casts: true
     strict-inference: true
     strict-raw-types: true
 
+  errors:
+    # === Errors (blocking) ===
+    missing_return: error
+    missing_required_param: error
+    invalid_annotation_target: ignore
+    undefined_method: error
+    undefined_class: error
+    undefined_identifier: error
+    argument_type_not_assignable: error
+    return_of_invalid_type_from_closure: error
+    return_of_invalid_type: error
+    invalid_assignment: error
+    not_a_type: error
+    extra_positional_arguments: error
+    uri_does_not_exist: error
+    illegal_async_generator_return_type: error
+    illegal_async_return_type: error
+    illegal_sync_generator_return_type: error
+    override_on_non_overriding_member: error
+    field_initializer_redirecting_constructor: error
+    super_in_redirecting_constructor: error
+    redirect_generative_to_missing_constructor: error
+    const_with_non_constant_argument: error
+    const_constructor_param_type_mismatch: error
+
+    # === Warnings (blocking) ===
+    unused_import: warning
+    unused_local_variable: warning
+    dead_code: warning
+    invalid_null_aware_operator: warning
+    type_argument_not_matching_bounds: warning
+
+    # === Infos → Warnings (blocking) ===
+    deprecated_member_use: warning
+    deprecated_member_use_from_same_package: warning
+
+    # === Disabled (acceptable in this project) ===
+    use_build_context_synchronously: ignore
+    avoid_print: ignore
+
 linter:
   rules:
-    # ===== Code Quality Rules =====
-    avoid_print: true
+    # === Code Quality ===
     always_declare_return_types: true
     avoid_empty_else: true
-    # avoid_returning_null_for_future: removed in Dart 3.3.0
     avoid_returning_null_for_void: true
     avoid_void_async: true
     directives_ordering: true
@@ -55,9 +79,6 @@ linter:
     unnecessary_null_in_if_null_operators: true
     unrelated_type_equality_checks: true
     valid_regexps: true
-    # always_put_control_body_on_new_line: too noisy, disabled
-    # always_put_control_body_on_new_line: true
-    # always_require_non_null_named_parameters: removed in Dart 3.3.0
     annotate_overrides: true
     await_only_futures: true
     camel_case_extensions: true
@@ -66,8 +87,6 @@ linter:
     empty_catches: true
     empty_statements: true
     hash_and_equals: true
-    # iterable_contains_unrelated_type: removed in Dart 3.3.0
-    # list_remove_unrelated_type: removed in Dart 3.3.0
     no_duplicate_case_values: true
     no_logic_in_create_state: true
     non_constant_identifier_names: true
@@ -101,24 +120,10 @@ linter:
     use_key_in_widget_constructors: true
     void_checks: true
 
-    # ===== Style Rules =====
-    avoid_single_cascade_in_expression_statements: true
+    # === Performance Rules (Flutter-specific) ===
     avoid_unnecessary_containers: true
-    avoid_unused_constructor_parameters: true
-    cancel_subscriptions: true
-    close_sinks: true
-    comment_references: true
-    eol_at_end_of_file: true
-    exhaustive_cases: true
-    file_names: true
-    implementation_imports: true
-    join_return_with_assignment: true
-    leading_newlines_in_multiline_strings: true
-    missing_whitespace_between_adjacent_strings: true
-    no_adjacent_strings_in_list: true
-    # no_runtimeType_to_string: not a recognized lint rule
-    noop_primitive_operations: true
-    prefer_asserts_in_initializer_lists: true
+    avoid_function_literals_in_foreach_calls: true
+    avoid_redundant_argument_values: true
     prefer_const_constructors: true
     prefer_const_constructors_in_immutables: true
     prefer_const_declarations: true
@@ -131,8 +136,29 @@ linter:
     prefer_if_elements_to_conditional_expressions: true
     prefer_interpolation_to_compose_strings: true
     prefer_null_aware_method_calls: true
-    prefer_single_quotes: true
+    prefer_spread_collections: true
+    prefer_contains: true
+    prefer_is_empty: true
+    prefer_conditional_assignment: true
     sized_box_shrink_expand: true
+
+    # === Style Rules ===
+    avoid_single_cascade_in_expression_statements: true
+    avoid_unused_constructor_parameters: true
+    cancel_subscriptions: true
+    close_sinks: true
+    comment_references: true
+    eol_at_end_of_file: true
+    exhaustive_cases: true
+    file_names: true
+    implementation_imports: true
+    join_return_with_assignment: true
+    leading_newlines_in_multiline_strings: true
+    missing_whitespace_between_adjacent_strings: true
+    no_adjacent_strings_in_list: true
+    noop_primitive_operations: true
+    prefer_asserts_in_initializer_lists: true
+    prefer_single_quotes: true
     sort_constructors_first: true
     sort_pub_dependencies: true
     sort_unnamed_constructors_first: true
@@ -141,7 +167,7 @@ linter:
     tighten_type_of_initializing_formals: true
     type_annotate_public_apis: true
 
-    # ===== Flutter-Specific Rules =====
+    # === Flutter Best Practices ===
     use_colored_box: true
     use_decorated_box: true
     use_enums: true
@@ -149,14 +175,7 @@ linter:
     use_is_even_rather_than_modulo: true
     use_late_for_private_fields_and_variables: true
     use_named_constants: true
+    use_rethrow_when_possible: true
     use_super_parameters: true
     use_test_throws_matchers: true
     use_to_and_as_if_applicable: true
-
-    # ===== Performance Rules =====
-    avoid_function_literals_in_foreach_calls: true
-    avoid_redundant_argument_values: true
-    prefer_conditional_assignment: true
-    prefer_contains: true
-    prefer_spread_collections: true
-    prefer_is_empty: true

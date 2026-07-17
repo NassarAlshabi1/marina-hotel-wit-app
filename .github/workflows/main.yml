@@ -10,6 +10,7 @@ on:
       - marina
       - yy
       - refactor/clean-v2
+      - refactor/performance-fixes-v1
     paths:
       - 'mobile/**'
       - '.github/workflows/main.yml'
@@ -37,11 +38,11 @@ jobs:
     steps:
       # ─── جلب الكود ───────────────────────────────────────
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # ─── إعداد Java 17 ───────────────────────────────────
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -125,7 +126,7 @@ jobs:
 
       # ─── رفع الـ APK كـ artifact ────────────────────────
       - name: Upload release APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: 'marina-hotel-release-${{ steps.version.outputs.build_name }}'
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
@@ -134,7 +135,7 @@ jobs:
 
       # ─── إنشاء GitHub Release ────────────────────────────
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: 'v${{ steps.version.outputs.build_name }}'
           name: 'Marina Hotel v${{ steps.version.outputs.build_name }}'

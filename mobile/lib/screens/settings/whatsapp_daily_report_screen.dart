@@ -88,8 +88,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 ],
 
                 // رسالة الحالة
-                if (state.message != null)
-                  _buildStatusMessage(state),
+                if (state.message != null) _buildStatusMessage(state),
 
                 const SizedBox(height: 32),
               ],
@@ -116,11 +115,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                     color: state.isEnabled ? whatsappGreen.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    Icons.chat,
-                    color: state.isEnabled ? whatsappGreen : Colors.grey,
-                    size: 32,
-                  ),
+                  child: Icon(Icons.chat, color: state.isEnabled ? whatsappGreen : Colors.grey, size: 32),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -133,9 +128,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        state.isEnabled
-                            ? 'مفعّل — الإشعارات الفورية والتقارير نشطة'
-                            : 'معطّل — لن يتم إرسال أي شيء',
+                        state.isEnabled ? 'مفعّل — الإشعارات الفورية والتقارير نشطة' : 'معطّل — لن يتم إرسال أي شيء',
                         style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                       ),
                     ],
@@ -238,14 +231,14 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 children: [
                   const Text('+', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(width: 4),
-                  Text(
-                    state.phoneNumber,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
+                  Text(state.phoneNumber, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                   const Spacer(),
                   const Icon(Icons.check_circle, color: Colors.green, size: 16),
                   const SizedBox(width: 4),
-                  Text('مُعدّ', style: TextStyle(color: Colors.green[700], fontSize: 11, fontWeight: FontWeight.bold)),
+                  Text(
+                    'مُعدّ',
+                    style: TextStyle(color: Colors.green[700], fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
             ),
@@ -280,14 +273,14 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 children: [
                   Icon(Icons.lock, color: Colors.grey[400], size: 16),
                   const SizedBox(width: 8),
-                  Text(
-                    '••••••••',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
+                  Text('••••••••', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
                   const Spacer(),
                   const Icon(Icons.check_circle, color: Colors.green, size: 16),
                   const SizedBox(width: 4),
-                  Text('مُعدّ', style: TextStyle(color: Colors.green[700], fontSize: 11, fontWeight: FontWeight.bold)),
+                  Text(
+                    'مُعدّ',
+                    style: TextStyle(color: Colors.green[700], fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
             ),
@@ -361,7 +354,9 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: state.isNotificationsEnabled ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+                    color: state.isNotificationsEnabled
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -378,7 +373,9 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                       const Text('الإشعارات الفورية', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 2),
                       Text(
-                        state.isNotificationsEnabled ? 'يتم إرسال إشعارات عبر واتساب عند الأحداث' : 'الإشعارات الفورية معطّلة',
+                        state.isNotificationsEnabled
+                            ? 'يتم إرسال إشعارات عبر واتساب عند الأحداث'
+                            : 'الإشعارات الفورية معطّلة',
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],
@@ -398,7 +395,10 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
               const SizedBox(height: 8),
               const Align(
                 alignment: Alignment.centerRight,
-                child: Text('الأحداث المُراقَبة عبر واتساب:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text(
+                  'الأحداث المُراقَبة عبر واتساب:',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -430,7 +430,10 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
-      child: Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500),
+      ),
     );
   }
 
@@ -450,7 +453,9 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: state.isDailyReportEnabled ? whatsappGreen.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+                    color: state.isDailyReportEnabled
+                        ? whatsappGreen.withValues(alpha: 0.1)
+                        : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -464,10 +469,15 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('التقرير اليومي التلقائي', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Text(
+                        'التقرير اليومي التلقائي',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 2),
                       Text(
-                        state.isDailyReportEnabled ? 'يُرسل تلقائياً في ${state.dailyReportTime}' : 'التقارير اليومية معطّلة',
+                        state.isDailyReportEnabled
+                            ? 'يُرسل تلقائياً في ${state.dailyReportTime}'
+                            : 'التقارير اليومية معطّلة',
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],
@@ -502,7 +512,10 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                           border: Border.all(color: Colors.grey[300]!),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Text(state.dailyReportTime, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        child: Text(
+                          state.dailyReportTime,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
                       ),
                     ),
                   ),
@@ -514,12 +527,20 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Row(
                     children: [
                       const Icon(Icons.check_circle, color: Colors.green, size: 16),
                       const SizedBox(width: 6),
-                      Expanded(child: Text('آخر تقرير: ${state.lastReportSent}', style: TextStyle(color: Colors.green[700], fontSize: 12))),
+                      Expanded(
+                        child: Text(
+                          'آخر تقرير: ${state.lastReportSent}',
+                          style: TextStyle(color: Colors.green[700], fontSize: 12),
+                        ),
+                      ),
                       TextButton(
                         onPressed: () => ref.read(whatsappDailyReportProvider.notifier).resetLastReport(),
                         child: Text('إعادة إرسال', style: TextStyle(color: whatsappGreen, fontSize: 11)),
@@ -582,7 +603,9 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                 icon: state.status == WhatsAppReportStatus.testing
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.wifi_tethering),
-                label: Text(state.status == WhatsAppReportStatus.testing ? 'جاري الاختبار...' : 'اختبار الاتصال بواتساب'),
+                label: Text(
+                  state.status == WhatsAppReportStatus.testing ? 'جاري الاختبار...' : 'اختبار الاتصال بواتساب',
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: whatsappGreen,
                   side: BorderSide(color: whatsappGreen),
@@ -601,9 +624,15 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
                     ? null
                     : () => ref.read(whatsappDailyReportProvider.notifier).sendTestReport(),
                 icon: state.status == WhatsAppReportStatus.sendingReport
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
                     : const Icon(Icons.send),
-                label: Text(state.status == WhatsAppReportStatus.sendingReport ? 'جاري الإرسال...' : 'إرسال تقرير تجريبي الآن'),
+                label: Text(
+                  state.status == WhatsAppReportStatus.sendingReport ? 'جاري الإرسال...' : 'إرسال تقرير تجريبي الآن',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: whatsappGreen,
                   foregroundColor: Colors.white,
@@ -675,12 +704,7 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
             Text('حالة الغرف — حجوزات اليوم — الملخص المالي — الديون — التنبيهات'),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('فهمت'),
-          ),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('فهمت'))],
       ),
     );
   }
@@ -692,7 +716,10 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 8),
-          Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue[800])),
+          Text(
+            title,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue[800]),
+          ),
         ],
       ),
     );
@@ -709,15 +736,23 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
         color: isSuccess
             ? Colors.green.withValues(alpha: 0.1)
             : isError
-                ? Colors.red.withValues(alpha: 0.1)
-                : Colors.blue.withValues(alpha: 0.1),
+            ? Colors.red.withValues(alpha: 0.1)
+            : Colors.blue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
           Icon(
-            isSuccess ? Icons.check_circle : isError ? Icons.error : Icons.info,
-            color: isSuccess ? Colors.green : isError ? Colors.red : Colors.blue,
+            isSuccess
+                ? Icons.check_circle
+                : isError
+                ? Icons.error
+                : Icons.info,
+            color: isSuccess
+                ? Colors.green
+                : isError
+                ? Colors.red
+                : Colors.blue,
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -725,7 +760,11 @@ class _WhatsAppDailyReportScreenState extends ConsumerState<WhatsAppDailyReportS
               state.message ?? '',
               style: TextStyle(
                 fontSize: 13,
-                color: isSuccess ? Colors.green[800] : isError ? Colors.red[800] : Colors.blue[800],
+                color: isSuccess
+                    ? Colors.green[800]
+                    : isError
+                    ? Colors.red[800]
+                    : Colors.blue[800],
               ),
             ),
           ),

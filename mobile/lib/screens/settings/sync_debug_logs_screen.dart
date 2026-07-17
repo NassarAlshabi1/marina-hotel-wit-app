@@ -10,8 +10,7 @@ class SyncDebugLogsScreen extends ConsumerStatefulWidget {
   const SyncDebugLogsScreen({super.key});
 
   @override
-  ConsumerState<SyncDebugLogsScreen> createState() =>
-      _SyncDebugLogsScreenState();
+  ConsumerState<SyncDebugLogsScreen> createState() => _SyncDebugLogsScreenState();
 }
 
 class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
@@ -67,16 +66,12 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
       return;
     }
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('تم نسخ جميع السجلات.')));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ جميع السجلات.')));
   }
 
   void _copyEntry(String entry) {
     Clipboard.setData(ClipboardData(text: entry));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('تم نسخ السطر.')));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ السطر.')));
   }
 
   @override
@@ -114,17 +109,8 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
                     final entry = logs[logs.length - 1 - index];
                     return ListTile(
                       dense: true,
-                      title: SelectableText(
-                        entry,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.copy, size: 18),
-                        onPressed: () => _copyEntry(entry),
-                      ),
+                      title: SelectableText(entry, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                      trailing: IconButton(icon: const Icon(Icons.copy, size: 18), onPressed: () => _copyEntry(entry)),
                     );
                   },
                 );
@@ -150,35 +136,17 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.memory,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+                  Icon(Icons.memory, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 8),
-                  const Text(
-                    'حالة مدير المزامنة',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  const Text('حالة مدير المزامنة', style: TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 12),
               _buildStatusRow('معرف الجهاز', (status['device_id'] ?? '---') as String),
-              _buildStatusRow(
-                'تفعيل المزامنة',
-                (status['enabled'] as bool? ?? false) ? 'مفعل' : 'معطل',
-              ),
-              _buildStatusRow(
-                'تسجيل الدخول',
-                (status['signed_in'] as bool? ?? false) ? 'متصل' : 'غير متصل',
-              ),
-              _buildStatusRow(
-                'المراقبة الدورية',
-                (status['monitoring_active'] as bool? ?? false) ? 'نشطة' : 'متوقفة',
-              ),
-              _buildStatusRow(
-                'آخر فحص',
-                (status['last_sync_check'] ?? '---') as String,
-              ),
+              _buildStatusRow('تفعيل المزامنة', (status['enabled'] as bool? ?? false) ? 'مفعل' : 'معطل'),
+              _buildStatusRow('تسجيل الدخول', (status['signed_in'] as bool? ?? false) ? 'متصل' : 'غير متصل'),
+              _buildStatusRow('المراقبة الدورية', (status['monitoring_active'] as bool? ?? false) ? 'نشطة' : 'متوقفة'),
+              _buildStatusRow('آخر فحص', (status['last_sync_check'] ?? '---') as String),
             ],
           ),
         ),
@@ -215,19 +183,11 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
     );
   }
 
-  Widget _buildActionButton(
-    IconData icon,
-    String label,
-    Future<void> Function() onPressed,
-  ) {
+  Widget _buildActionButton(IconData icon, String label, Future<void> Function() onPressed) {
     return ElevatedButton.icon(
       onPressed: _isBusy ? null : () => onPressed(),
       icon: _isBusy
-          ? const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
           : Icon(icon, size: 18),
       label: Text(label),
     );

@@ -10,12 +10,10 @@ class RemoteConfigSettingsScreen extends ConsumerStatefulWidget {
   const RemoteConfigSettingsScreen({super.key});
 
   @override
-  ConsumerState<RemoteConfigSettingsScreen> createState() =>
-      _RemoteConfigSettingsScreenState();
+  ConsumerState<RemoteConfigSettingsScreen> createState() => _RemoteConfigSettingsScreenState();
 }
 
-class _RemoteConfigSettingsScreenState
-    extends ConsumerState<RemoteConfigSettingsScreen> {
+class _RemoteConfigSettingsScreenState extends ConsumerState<RemoteConfigSettingsScreen> {
   bool _isFetching = false;
 
   Future<void> _forceFetch() async {
@@ -25,11 +23,7 @@ class _RemoteConfigSettingsScreenState
       setState(() => _isFetching = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            success
-                ? 'تم تحديث الإعدادات بنجاح'
-                : 'فشل التحديث — يُستخدم الإعدادات المحلية',
-          ),
+          content: Text(success ? 'تم تحديث الإعدادات بنجاح' : 'فشل التحديث — يُستخدم الإعدادات المحلية'),
           backgroundColor: success ? Colors.green : Colors.orange,
         ),
       );
@@ -47,11 +41,7 @@ class _RemoteConfigSettingsScreenState
         IconButton(
           onPressed: _isFetching ? null : _forceFetch,
           icon: _isFetching
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
               : const Icon(Icons.refresh),
           tooltip: 'تحديث من السيرفر',
         ),
@@ -65,166 +55,104 @@ class _RemoteConfigSettingsScreenState
           const SizedBox(height: 16),
 
           // الإشعارات والاتصال
-          _buildSection(
-            '🔑 الإشعارات والاتصال',
-            Icons.notifications,
-            Colors.blue,
-            [
-              _buildConfigRow(
-                'رقم WhatsApp',
-                values['whatsapp_phone']?.toString() ?? '---',
-                'whatsapp_phone',
-              ),
-              _buildConfigRow(
-                'مفتاح API',
-                _maskKey(values['whatsapp_api_key']?.toString() ?? '---'),
-                'whatsapp_api_key',
-              ),
-              _buildConfigRow(
-                'WhatsApp مفعّل',
-                // ✅ فحص النوع قبل التحويل — القيمة قد تصل كنص من الـ remote config
-                (values['whatsapp_enabled'] is bool)
-                    ? values['whatsapp_enabled'].toString()
-                    : '---',
-                'whatsapp_enabled',
-                isBool: true,
-              ),
-              _buildConfigRow(
-                'هاتف الفندق',
-                values['hotel_contact_phone']?.toString() ?? '---',
-                'hotel_contact_phone',
-              ),
-            ],
-          ),
+          _buildSection('🔑 الإشعارات والاتصال', Icons.notifications, Colors.blue, [
+            _buildConfigRow('رقم WhatsApp', values['whatsapp_phone']?.toString() ?? '---', 'whatsapp_phone'),
+            _buildConfigRow('مفتاح API', _maskKey(values['whatsapp_api_key']?.toString() ?? '---'), 'whatsapp_api_key'),
+            _buildConfigRow(
+              'WhatsApp مفعّل',
+              // ✅ فحص النوع قبل التحويل — القيمة قد تصل كنص من الـ remote config
+              (values['whatsapp_enabled'] is bool) ? values['whatsapp_enabled'].toString() : '---',
+              'whatsapp_enabled',
+              isBool: true,
+            ),
+            _buildConfigRow('هاتف الفندق', values['hotel_contact_phone']?.toString() ?? '---', 'hotel_contact_phone'),
+          ]),
 
           const SizedBox(height: 16),
 
           // مواعيد التقارير
-          _buildSection(
-            '⏰ مواعيد التقارير',
-            Icons.schedule,
-            Colors.orange,
-            [
-              _buildConfigRow(
-                'النسخ الاحتياطي',
-                values['daily_backup_time']?.toString() ?? '---',
-                'daily_backup_time',
-              ),
-              _buildConfigRow(
-                'تقرير WhatsApp',
-                values['whatsapp_report_time']?.toString() ?? '---',
-                'whatsapp_report_time',
-              ),
-              _buildConfigRow(
-                'تقرير Telegram',
-                values['telegram_report_time']?.toString() ?? '---',
-                'telegram_report_time',
-              ),
-            ],
-          ),
+          _buildSection('⏰ مواعيد التقارير', Icons.schedule, Colors.orange, [
+            _buildConfigRow('النسخ الاحتياطي', values['daily_backup_time']?.toString() ?? '---', 'daily_backup_time'),
+            _buildConfigRow(
+              'تقرير WhatsApp',
+              values['whatsapp_report_time']?.toString() ?? '---',
+              'whatsapp_report_time',
+            ),
+            _buildConfigRow(
+              'تقرير Telegram',
+              values['telegram_report_time']?.toString() ?? '---',
+              'telegram_report_time',
+            ),
+          ]),
 
           const SizedBox(height: 16),
 
           // قواعد الحجوزات
-          _buildSection(
-            '🏨 قواعد الحجوزات',
-            Icons.hotel,
-            Colors.green,
-            [
-              _buildConfigRow(
-                'ساعة الخروج',
-                '${values['checkout_hour'] as int? ?? 14}:00',
-                'checkout_hour',
-              ),
-              _buildConfigRow(
-                'حد الديون المتأخرة',
-                '${values['late_payment_threshold_days'] as int? ?? 30} يوم',
-                'late_payment_threshold_days',
-              ),
-              _buildConfigRow(
-                'دفعات صحيحة فقط',
-                (values['whole_number_payments_only'] as bool?)?.toString() ?? '---',
-                'whole_number_payments_only',
-                isBool: true,
-              ),
-            ],
-          ),
+          _buildSection('🏨 قواعد الحجوزات', Icons.hotel, Colors.green, [
+            _buildConfigRow('ساعة الخروج', '${values['checkout_hour'] as int? ?? 14}:00', 'checkout_hour'),
+            _buildConfigRow(
+              'حد الديون المتأخرة',
+              '${values['late_payment_threshold_days'] as int? ?? 30} يوم',
+              'late_payment_threshold_days',
+            ),
+            _buildConfigRow(
+              'دفعات صحيحة فقط',
+              (values['whole_number_payments_only'] as bool?)?.toString() ?? '---',
+              'whole_number_payments_only',
+              isBool: true,
+            ),
+          ]),
 
           const SizedBox(height: 16),
 
           // الحسابات
-          _buildSection(
-            '💰 الحسابات',
-            Icons.attach_money,
-            Colors.purple,
-            [
-              _buildConfigRow(
-                'نوع الخصم الافتراضي',
-                _translateDiscountType(
-                  values['default_discount_type']?.toString() ?? '---',
-                ),
-                'default_discount_type',
-              ),
-              _buildConfigRow(
-                'سقف مضاعف السعر',
-                // ✅ يقبل num (int/double) بأمان بدل التحويل الصريح إلى double الذي يرمي استثناءً
-                '${(values['max_rate_multiplier'] is num) ? (values['max_rate_multiplier'] as num).toStringAsFixed(1) : '3.0'}x',
-                'max_rate_multiplier',
-              ),
-            ],
-          ),
+          _buildSection('💰 الحسابات', Icons.attach_money, Colors.purple, [
+            _buildConfigRow(
+              'نوع الخصم الافتراضي',
+              _translateDiscountType(values['default_discount_type']?.toString() ?? '---'),
+              'default_discount_type',
+            ),
+            _buildConfigRow(
+              'سقف مضاعف السعر',
+              // ✅ يقبل num (int/double) بأمان بدل التحويل الصريح إلى double الذي يرمي استثناءً
+              '${(values['max_rate_multiplier'] is num) ? (values['max_rate_multiplier'] as num).toStringAsFixed(1) : '3.0'}x',
+              'max_rate_multiplier',
+            ),
+          ]),
 
           const SizedBox(height: 16),
 
           // النسخ الاحتياطي
-          _buildSection(
-            '💾 النسخ الاحتياطي',
-            Icons.backup,
-            Colors.teal,
-            [
-              _buildConfigRow(
-                'عدد النسخ القصوى',
-                '${values['max_backup_count'] as int? ?? 10}',
-                'max_backup_count',
-              ),
-              _buildConfigRow(
-                'فترة الاحتفاظ',
-                '${values['backup_retention_days'] as int? ?? 14} يوم',
-                'backup_retention_days',
-              ),
-            ],
-          ),
+          _buildSection('💾 النسخ الاحتياطي', Icons.backup, Colors.teal, [
+            _buildConfigRow('عدد النسخ القصوى', '${values['max_backup_count'] as int? ?? 10}', 'max_backup_count'),
+            _buildConfigRow(
+              'فترة الاحتفاظ',
+              '${values['backup_retention_days'] as int? ?? 14} يوم',
+              'backup_retention_days',
+            ),
+          ]),
 
           const SizedBox(height: 16),
 
           // الأداء والإعدادات
-          _buildSection(
-            '⚡ الأداء والإعدادات',
-            Icons.speed,
-            Colors.indigo,
-            [
-              _buildConfigRow(
-                'طول الرسالة',
-                '${values['whatsapp_message_max_length'] as int? ?? 1000} حرف',
-                'whatsapp_message_max_length',
-              ),
-              _buildConfigRow(
-                'مهلة WhatsApp API',
-                '${values['whatsapp_api_timeout'] as int? ?? 15} ثانية',
-                'whatsapp_api_timeout',
-              ),
-              _buildConfigRow(
-                'كود الدولة',
-                values['country_code_default']?.toString() ?? '---',
-                'country_code_default',
-              ),
-              _buildConfigRow(
-                'مهلة API العامة',
-                '${values['api_timeout_seconds'] as int? ?? 30} ثانية',
-                'api_timeout_seconds',
-              ),
-            ],
-          ),
+          _buildSection('⚡ الأداء والإعدادات', Icons.speed, Colors.indigo, [
+            _buildConfigRow(
+              'طول الرسالة',
+              '${values['whatsapp_message_max_length'] as int? ?? 1000} حرف',
+              'whatsapp_message_max_length',
+            ),
+            _buildConfigRow(
+              'مهلة WhatsApp API',
+              '${values['whatsapp_api_timeout'] as int? ?? 15} ثانية',
+              'whatsapp_api_timeout',
+            ),
+            _buildConfigRow('كود الدولة', values['country_code_default']?.toString() ?? '---', 'country_code_default'),
+            _buildConfigRow(
+              'مهلة API العامة',
+              '${values['api_timeout_seconds'] as int? ?? 30} ثانية',
+              'api_timeout_seconds',
+            ),
+          ]),
 
           const SizedBox(height: 32),
 
@@ -244,11 +172,7 @@ class _RemoteConfigSettingsScreenState
                 Expanded(
                   child: Text(
                     'هذه القيم تُتحكم بها من Firebase Console بدون الحاجة لتحديث التطبيق. اضغط زر التحديث لجلب أحدث القيم.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.amber.shade900,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.amber.shade900, fontWeight: FontWeight.w500),
                   ),
                 ),
               ],
@@ -294,20 +218,12 @@ class _RemoteConfigSettingsScreenState
           children: [
             Row(
               children: [
-                Icon(
-                  statusIcon,
-                  color: statusColor,
-                  size: 28,
-                ),
+                Icon(statusIcon, color: statusColor, size: 28),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     statusText,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: statusColor,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: statusColor),
                   ),
                 ),
               ],
@@ -328,10 +244,7 @@ class _RemoteConfigSettingsScreenState
             ],
             if (status != null) ...[
               const SizedBox(height: 4),
-              Text(
-                'الحالة: $_translateStatus(status)',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-              ),
+              Text('الحالة: $_translateStatus(status)', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
             ],
           ],
         ),
@@ -339,12 +252,7 @@ class _RemoteConfigSettingsScreenState
     );
   }
 
-  Widget _buildSection(
-    String title,
-    IconData icon,
-    Color color,
-    List<Widget> children,
-  ) {
+  Widget _buildSection(String title, IconData icon, Color color, List<Widget> children) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -354,43 +262,26 @@ class _RemoteConfigSettingsScreenState
             const SizedBox(width: 8),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color),
             ),
           ],
         ),
         const SizedBox(height: 8),
-        Card(
-          elevation: 1,
-          child: Column(children: children),
-        ),
+        Card(elevation: 1, child: Column(children: children)),
       ],
     );
   }
 
-  Widget _buildConfigRow(
-    String label,
-    String value,
-    String key, {
-    bool isBool = false,
-  }) {
+  Widget _buildConfigRow(String label, String value, String key, {bool isBool = false}) {
     final displayValue = isBool ? (value == 'true' ? 'مفعّل' : 'معطّل') : value;
-    final valueColor = isBool
-        ? (value == 'true' ? Colors.green : Colors.red)
-        : Colors.black87;
+    final valueColor = isBool ? (value == 'true' ? Colors.green : Colors.red) : Colors.black87;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-            ),
+            child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
           ),
           Text(
             displayValue,

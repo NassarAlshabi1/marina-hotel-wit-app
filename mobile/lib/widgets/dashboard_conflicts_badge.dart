@@ -42,11 +42,7 @@ class DashboardConflictsBadge extends ConsumerWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          Navigator.of(context).push<void>(
-            MaterialPageRoute<void>(
-              builder: (_) => const SyncConflictsScreen(),
-            ),
-          );
+          Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => const SyncConflictsScreen()));
         },
         child: _PulsingBadge(count: count),
       ),
@@ -63,21 +59,18 @@ class _PulsingBadge extends StatefulWidget {
   State<_PulsingBadge> createState() => _PulsingBadgeState();
 }
 
-class _PulsingBadgeState extends State<_PulsingBadge>
-    with SingleTickerProviderStateMixin {
+class _PulsingBadgeState extends State<_PulsingBadge> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat(reverse: true);
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -101,13 +94,7 @@ class _PulsingBadgeState extends State<_PulsingBadge>
           ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.red.withValues(alpha: 0.4),
-              blurRadius: 6,
-              spreadRadius: 1,
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.4), blurRadius: 4)],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -116,11 +103,7 @@ class _PulsingBadgeState extends State<_PulsingBadge>
             const SizedBox(width: 3),
             Text(
               displayCount,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
             ),
           ],
         ),

@@ -7,7 +7,6 @@ import 'sync/payload_mapper.dart';
 
 /// خدمة لإصلاح البيانات الفاسدة في قاعدة البيانات
 class DatabaseFixer {
-
   DatabaseFixer(this.db);
   final AppDatabase db;
 
@@ -40,11 +39,7 @@ class DatabaseFixer {
 
     try {
       // إصلاح serverId في جدول Rooms
-      final roomsQuery = await db
-          .customSelect(
-            'SELECT id, server_id FROM rooms WHERE server_id IS NOT NULL',
-          )
-          .get();
+      final roomsQuery = await db.customSelect('SELECT id, server_id FROM rooms WHERE server_id IS NOT NULL').get();
 
       for (final row in roomsQuery) {
         final serverId = row.data['server_id'];
@@ -63,9 +58,7 @@ class DatabaseFixer {
 
       // إصلاح serverId في جدول Payments
       final paymentsQuery = await db
-          .customSelect(
-            'SELECT id, server_id FROM payments WHERE server_id IS NOT NULL',
-          )
+          .customSelect('SELECT id, server_id FROM payments WHERE server_id IS NOT NULL')
           .get();
 
       for (final row in paymentsQuery) {
@@ -84,9 +77,7 @@ class DatabaseFixer {
 
       // إصلاح serverId في جدول Expenses
       final expensesQuery = await db
-          .customSelect(
-            'SELECT id, server_id FROM expenses WHERE server_id IS NOT NULL',
-          )
+          .customSelect('SELECT id, server_id FROM expenses WHERE server_id IS NOT NULL')
           .get();
 
       for (final row in expensesQuery) {
@@ -195,25 +186,23 @@ class DatabaseFixer {
           // ✅ التوصية 6: فرع مصروفات الرواتب — إعادة ربط عبر UUID لا تصفير.
           if (PayloadMapper.isSalaryExpenseType(expenseType)) {
             // تحقق أن الموظف المحلي المرتبط عبر relatedId ما زال موجودًا.
-            final employee = await (db.select(db.employees)
-                  ..where((e) => e.id.equals(relatedId))
-                  ..limit(1))
-                .getSingleOrNull();
+            final employee =
+                await (db.select(db.employees)
+                      ..where((e) => e.id.equals(relatedId))
+                      ..limit(1))
+                    .getSingleOrNull();
             if (employee == null) {
               // الموظف المحلي غير موجود — حاول إعادة الربط عبر employeeUuid.
               if (employeeUuid != null && employeeUuid.isNotEmpty) {
-                final byUuid = await (db.select(db.employees)
-                      ..where((e) => e.localUuid.equals(employeeUuid))
-                      ..limit(1))
-                    .getSingleOrNull();
+                final byUuid =
+                    await (db.select(db.employees)
+                          ..where((e) => e.localUuid.equals(employeeUuid))
+                          ..limit(1))
+                        .getSingleOrNull();
                 if (byUuid != null) {
                   // ✅ إعادة الربط عبر UUID — لا تصفير.
                   // repo.update يُحدّث lastModified + updatedAt + يُضيف للـ outbox.
-                  await repo.update(
-                    expenseId,
-                    relatedId: byUuid.id,
-                    employeeUuid: byUuid.localUuid,
-                  );
+                  await repo.update(expenseId, relatedId: byUuid.id, employeeUuid: byUuid.localUuid);
                   relinked++;
                   debugPrint(
                     'Re-linked orphan salary expense #$expenseId → '
@@ -238,12 +227,14 @@ class DatabaseFixer {
                 // ليس لها employeeUuid أصلاً.
                 int? employeeIdFromWithdrawal;
                 try {
-                  final swRow = await db.customSelect(
-                    'SELECT employee_id FROM salary_withdrawals '
-                    'WHERE expense_id = ? AND deleted_at IS NULL LIMIT 1',
-                    variables: [Variable.withInt(expenseId)],
-                    readsFrom: {db.salaryWithdrawals},
-                  ).getSingleOrNull();
+                  final swRow = await db
+                      .customSelect(
+                        'SELECT employee_id FROM salary_withdrawals '
+                        'WHERE expense_id = ? AND deleted_at IS NULL LIMIT 1',
+                        variables: [Variable.withInt(expenseId)],
+                        readsFrom: {db.salaryWithdrawals},
+                      )
+                      .getSingleOrNull();
                   if (swRow != null) {
                     employeeIdFromWithdrawal = swRow.read<int>('employee_id');
                   }
@@ -253,16 +244,17 @@ class DatabaseFixer {
 
                 // fallback: ابحث عبر reason للسجلات القديمة جداً.
                 if (employeeIdFromWithdrawal == null) {
-                  final swByReason = await db.customSelect(
-                    'SELECT employee_id, reason FROM salary_withdrawals '
-                    'WHERE deleted_at IS NULL AND reason LIKE ?',
-                    variables: [Variable.withString('%exp_$expenseId%')],
-                    readsFrom: {db.salaryWithdrawals},
-                  ).get();
+                  final swByReason = await db
+                      .customSelect(
+                        'SELECT employee_id, reason FROM salary_withdrawals '
+                        'WHERE deleted_at IS NULL AND reason LIKE ?',
+                        variables: [Variable.withString('%exp_$expenseId%')],
+                        readsFrom: {db.salaryWithdrawals},
+                      )
+                      .get();
                   for (final sw in swByReason) {
                     final reason = sw.read<String?>('reason');
-                    if (reason != null &&
-                        matchesExpenseRef(reason, expenseId)) {
+                    if (reason != null && matchesExpenseRef(reason, expenseId)) {
                       employeeIdFromWithdrawal = sw.read<int>('employee_id');
                       break;
                     }
@@ -271,20 +263,17 @@ class DatabaseFixer {
 
                 if (employeeIdFromWithdrawal != null) {
                   // حلّ الموظف من employeeId المستخرج من السحب.
-                  final byWithdrawal = await (db.select(db.employees)
-                        ..where((e) => e.id.equals(employeeIdFromWithdrawal!))
-                        ..where((e) => e.deletedAt.isNull())
-                        ..limit(1))
-                      .getSingleOrNull();
+                  final byWithdrawal =
+                      await (db.select(db.employees)
+                            ..where((e) => e.id.equals(employeeIdFromWithdrawal!))
+                            ..where((e) => e.deletedAt.isNull())
+                            ..limit(1))
+                          .getSingleOrNull();
                   if (byWithdrawal != null) {
                     // ✅ إعادة ربط عبر السحب + ملء employeeUuid لتفادي
                     // المشكلة مستقبلاً (التوصية 1).
                     // repo.update يُحدّث lastModified + updatedAt + يُضيف للـ outbox.
-                    await repo.update(
-                      expenseId,
-                      relatedId: byWithdrawal.id,
-                      employeeUuid: byWithdrawal.localUuid,
-                    );
+                    await repo.update(expenseId, relatedId: byWithdrawal.id, employeeUuid: byWithdrawal.localUuid);
                     relinked++;
                     debugPrint(
                       'Re-linked orphan salary expense #$expenseId via '
@@ -309,16 +298,12 @@ class DatabaseFixer {
             // الموظف المحلي موجود — الربط سليم، لا شيء لنفعله.
             continue;
           } else if (expenseType == 'employee') {
-            final employee = await (db.select(
-              db.employees,
-            )..where((e) => e.id.equals(relatedId))).getSingleOrNull();
+            final employee = await (db.select(db.employees)..where((e) => e.id.equals(relatedId))).getSingleOrNull();
             if (employee == null) {
               shouldFix = true;
             }
           } else if (expenseType == 'booking') {
-            final booking = await (db.select(
-              db.bookings,
-            )..where((b) => b.id.equals(relatedId))).getSingleOrNull();
+            final booking = await (db.select(db.bookings)..where((b) => b.id.equals(relatedId))).getSingleOrNull();
             if (booking == null) {
               shouldFix = true;
             }
@@ -337,9 +322,7 @@ class DatabaseFixer {
         }
       }
 
-      debugPrint(
-        'Fixed $fixed orphan expenses; re-linked $relinked salary expenses via UUID',
-      );
+      debugPrint('Fixed $fixed orphan expenses; re-linked $relinked salary expenses via UUID');
     } catch (e) {
       debugPrint('Error fixing orphan expenses: $e');
     }
@@ -396,10 +379,7 @@ class DatabaseFixer {
 
       report.orphanExpenses = orphanExpensesResult.data['count'] as int;
 
-      report.hasIssues =
-          report.invalidServerIds > 0 ||
-          report.orphanPayments > 0 ||
-          report.orphanExpenses > 0;
+      report.hasIssues = report.invalidServerIds > 0 || report.orphanPayments > 0 || report.orphanExpenses > 0;
     } catch (e) {
       report.error = e.toString();
     }
@@ -415,8 +395,7 @@ class FixResult {
   int orphanPaymentsFixed = 0;
   int orphanExpensesFixed = 0;
 
-  int get totalFixed =>
-      serverIdFixed + orphanPaymentsFixed + orphanExpensesFixed;
+  int get totalFixed => serverIdFixed + orphanPaymentsFixed + orphanExpensesFixed;
 
   @override
   String toString() {
