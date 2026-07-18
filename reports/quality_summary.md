@@ -31,7 +31,7 @@
 ### 🧩 Complexity Analysis
 
 - **Deep Nesting (>5 levels):** 3657 blocks
-- **Total `if`/`switch` statements:** 5810
+- **Total `if`/`switch` statements:** 5805
 
 <details>
 <summary><b>⚠️ Most Complex Files (Click to expand)</b></summary>
