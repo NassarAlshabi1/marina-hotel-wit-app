@@ -777,12 +777,12 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   void dispose() {
     stop();
-    _stateController.close();
-    _log('🛑 Auto Sync Engine disposed');
+    unawaited(_stateController.close());
+    dlog(() => '[AutoSyncEngine] 🛑 Auto Sync Engine disposed');
   }
 
   /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
-  static Future<void> disposeInstance() async {
+  static void disposeInstance() {
     instance.dispose();
   }
 }

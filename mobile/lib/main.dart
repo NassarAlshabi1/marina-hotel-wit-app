@@ -42,6 +42,7 @@ import 'services/appwrite_health_checker.dart';
 import 'services/appwrite_realtime_service.dart';
 import 'services/appwrite_realtime_sync.dart';
 import 'services/appwrite_sync_manager.dart';
+import 'services/auto_backup_manager.dart';
 import 'services/background_sync_service.dart';
 import 'services/battery_optimizer.dart';
 import 'services/central_sync_coordinator.dart';
@@ -795,17 +796,17 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       dwarn(() => 'Error disposing HotelDayTicker: $e');
     }
     try {
-      await AutoSyncEngine.disposeInstance();
+      AutoSyncEngine.disposeInstance();
     } catch (e) {
       dwarn(() => 'Error disposing GoogleDriveAutoSyncEngine: $e');
     }
     try {
-      await UnifiedSyncOrchestrator.disposeInstance();
+      UnifiedSyncOrchestrator.disposeInstance();
     } catch (e) {
       dwarn(() => 'Error disposing UnifiedSyncOrchestrator: $e');
     }
     try {
-      await GoogleDriveUnifiedSyncCoordinator.disposeInstance();
+      GoogleDriveUnifiedSyncCoordinator.disposeInstance();
     } catch (e) {
       dwarn(() => 'Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
     }
@@ -825,6 +826,18 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       SyncConflictEventBus.instance.dispose();
     } catch (e) {
       dwarn(() => 'Error disposing SyncConflictEventBus: $e');
+    }
+    // ✅ Batch 3: تنظيف AutoBackupManager timers + SmartSyncManager timers
+    try {
+      AutoBackupManager.disposeInstance();
+    } catch (e) {
+      dwarn(() => 'Error disposing AutoBackupManager: $e');
+    }
+    // ✅ Batch 3: تنظيف SyncGuardian timer + StreamController
+    try {
+      await SyncGuardian.disposeInstance();
+    } catch (e) {
+      dwarn(() => 'Error disposing SyncGuardian: $e');
     }
     dlog('✅ All singleton services disposed');
   }

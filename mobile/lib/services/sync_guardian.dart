@@ -228,8 +228,14 @@ class SyncGuardian {
 
   Future<void> dispose() async {
     _pendingMonitor?.cancel();
+    _debounceTimer?.cancel();
     unawaited(_healthController.close());
     _initialized = false;
+  }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    await instance.dispose();
   }
 
   Future<void> stop() async {

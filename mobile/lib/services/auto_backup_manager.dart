@@ -431,10 +431,20 @@ class AutoBackupManager {
   /// إيقاف المدير وتنظيف الموارد
   void dispose() {
     _debounceTimer?.cancel();
+    _debounceTimer = null;
     _deltaSyncDebounceTimer?.cancel();
+    _deltaSyncDebounceTimer = null;
     _deltaSyncTimer?.cancel();
+    _deltaSyncTimer = null;
     _cleanupTimer?.cancel();
+    _cleanupTimer = null;
     dlog('🛑 مدير النسخ التلقائي: تم التنظيف');
+  }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static void disposeInstance() {
+    _instance?.dispose();
+    _instance = null;
   }
 
   /// التحقق من حالة المزامنة التفاضلية
@@ -521,9 +531,10 @@ class AutoBackupManager {
 
       // ✅ تم ترحيل المزامنة إلى AppwriteSyncManager (الطريقة الجديدة)
       // AppwriteDeltaSync محذوف — كل المزامنة عبر AppwriteSyncManager.sync()
+      // ✅ Batch 3: استخدام singleton بدل إنشاء instance جديد عبر المصنع
       if (_appwriteService != null && _appwriteService!.isInitialized && _database != null) {
         try {
-          final syncManager = AppwriteSyncManager(appwriteService: _appwriteService!, database: _database!);
+          final syncManager = AppwriteSyncManager.instance ?? AppwriteSyncManager(appwriteService: _appwriteService!, database: _database!);
           final result = await syncManager.sync();
           results['appwrite'] = {
             'push': {'success': result.status == SyncStatus.success, 'count': result.recordsPushed},

@@ -550,13 +550,19 @@ class AppwriteSyncManager {
   /// تنظيف الموارد
   void dispose() {
     _syncTimer?.cancel();
+    _syncTimer = null;
     _debouncePushTimer?.cancel();
+    _debouncePushTimer = null;
     _failedRetryTimer?.cancel();
+    _failedRetryTimer = null;
     _cleanupTimer?.cancel();
+    _cleanupTimer = null;
     _stuckRecoveryTimer?.cancel();
+    _stuckRecoveryTimer = null;
     _outboxSubscription?.cancel();
+    _outboxSubscription = null;
     stopAutoSync();
-    _syncController.close();
+    unawaited(_syncController.close());
   }
 
   /// دورة المزامنة الكاملة مع Appwrite:
