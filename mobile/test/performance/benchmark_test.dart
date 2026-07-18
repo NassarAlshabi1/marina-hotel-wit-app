@@ -335,10 +335,9 @@ void main() {
       await sub.cancel();
     });
   });
-}
 
 
-group('🏠 Widget Rendering Performance (Widget Tester)', () {
+  group('🏠 Widget Rendering Performance (Widget Tester)', () {
     testWidgets('DashboardScreen header يرسم خلال < 50ms', (tester) async {
       final stopwatch = Stopwatch()..start();
       

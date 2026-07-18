@@ -19,7 +19,7 @@ class AppwriteFullPull {
 
   AppwriteService? _appwriteService;
   AppDatabase? _database;
-  _adapterRegistry = AdapterRegistry.instance;
+  final AdapterRegistry _adapterRegistry = AdapterRegistry.instance;
   final _logger = AppwriteLogger();
 
   /// حجم الدفعة الواحدة

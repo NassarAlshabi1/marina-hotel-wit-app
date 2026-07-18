@@ -25,7 +25,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase> with _$PaymentsDaoMixin 
     return q.watch();
   }
 
-  Future<Payment?> getById(int id) => (select(payments)...where((t) => t.id.equals(id))).getSingleOrNull();
+  Future<Payment?> getById(int id) => (select(payments).where((t) => t.id.equals(id))).getSingleOrNull();
 
   Future<int> insertOne(PaymentsCompanion data, {bool originIsServer = false}) async {
     return db.transaction(() async {

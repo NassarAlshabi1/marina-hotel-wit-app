@@ -11,7 +11,7 @@ import '../appwrite_logger.dart';
 import '../appwrite_sync_manager.dart';
 import '../crashlytics_service.dart';
 import '../local_db.dart';
-import '../secondary_appwrite_config.dart'
+import '../secondary_appwrite_config.dart';
 import '../vector_clock_service.dart';
 
 part 'outbox_dao.g.dart';
