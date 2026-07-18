@@ -116,6 +116,12 @@ class AdapterRegistry {
 
   static AdapterRegistry? _instance;
 
+  /// For testing — creates a fresh instance with given database
+  AdapterRegistry(AppDatabase db) : this._(db);
+
+  /// For testing — creates a fresh instance with given database
+  AdapterRegistry.testing(AppDatabase db) : this._(db);
+
   /// Get singleton instance (created via Provider)
   // ignore: prefer_constructors_over_static_methods — singleton getter
   static AdapterRegistry get instance {

@@ -256,12 +256,9 @@ class AdminSidebar extends ConsumerWidget {
     required VoidCallback onTap,
     BuildContext? context,
   }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      decoration: BoxDecoration(
-        color: isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return Material(
+      color: isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
       child: ListTile(
         leading: Icon(icon, color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.72)),
         title: Text(
