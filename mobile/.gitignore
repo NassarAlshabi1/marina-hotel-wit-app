@@ -42,6 +42,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Environment files
+# Environment files (except example)
 .env
 .env.*
+!.env.example
