@@ -60,11 +60,12 @@ jobs:
         uses: actions/checkout@v5
 
       - name: 🐦 Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.44.6'
+          flutter-version: '3.44.4'
           channel: stable
           cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       - name: 📦 Install dependencies
         run: flutter pub get
@@ -132,11 +133,12 @@ jobs:
         uses: actions/checkout@v5
 
       - name: 🐦 Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.44.6'
+          flutter-version: '3.44.4'
           channel: stable
           cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       - name: ☕ Set up JDK 17
         uses: actions/setup-java@v5
@@ -306,11 +308,12 @@ jobs:
           fetch-depth: 0  # للحصول على tags/branches للمقارنة
 
       - name: 🐦 Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.44.6'
+          flutter-version: '3.44.4'
           channel: stable
           cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       - name: 📦 Install dependencies
         run: flutter pub get

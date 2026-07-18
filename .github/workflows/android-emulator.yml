@@ -93,14 +93,15 @@ jobs:
           cache: gradle
 
       # ─────────────────────────────────────────────────────────────────────
-      #  4. تثبيت Flutter 3.44.6 (مطابق للإصدار المُستخدم محلياً)
+      #  4. تثبيت Flutter 3.44.4 (مطابق للإصدار المُستخدم محلياً)
       # ─────────────────────────────────────────────────────────────────────
       - name: 🐦 Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.44.6'
+          flutter-version: '3.44.4'
           channel: stable
           cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       # ─────────────────────────────────────────────────────────────────────
       #  5. تثبيت dependencies
@@ -212,11 +213,12 @@ jobs:
         uses: actions/checkout@v5
 
       - name: 🐦 Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.44.6'
+          flutter-version: '3.44.4'
           channel: stable
           cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       - name: 📦 Install dependencies
         run: flutter pub get

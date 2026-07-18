@@ -49,11 +49,12 @@ jobs:
 
       # ─── إعداد Flutter ───────────────────────────────────
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.41.0'
+          flutter-version: '3.44.4'
           channel: 'stable'
           cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       # ─── تثبيت مكونات Android SDK ────────────────────────
       - name: Install Android SDK components

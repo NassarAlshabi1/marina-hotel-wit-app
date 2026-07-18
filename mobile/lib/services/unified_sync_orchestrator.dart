@@ -3,8 +3,8 @@ import 'dart:isolate';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../utils/debug_log.dart';
 import '../data/sync_models.dart' as models;
+import '../utils/debug_log.dart';
 import 'analytics_service.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;

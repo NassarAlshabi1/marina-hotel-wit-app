@@ -164,12 +164,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                             checkout,
                             discountStartDate,
                           );
-                          final fullNights = (actualNights - discountedNights)
-                              .clamp(0, actualNights).toInt();
+                          final fullNights = (actualNights - discountedNights).clamp(0, actualNights);
                           final discountedRate = (roomPrice - discount).clamp(
                             0.0,
                             roomPrice,
-                          ).toDouble();
+                          );
                           return (fullNights * roomPrice) +
                               (discountedNights * discountedRate);
                         }
@@ -177,7 +176,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                       })();
 
                 final totalDue = discount > 0 && discountType == 'total'
-                    ? (nightTotal - discount).clamp(0.0, nightTotal).toDouble()
+                    ? (nightTotal - discount).clamp(0.0, nightTotal)
                     : nightTotal;
 
                 return Padding(
@@ -518,7 +517,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedMethod,
+                  initialValue: selectedMethod,
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'طريقة الدفع',
@@ -532,7 +531,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'نوع الإيراد',

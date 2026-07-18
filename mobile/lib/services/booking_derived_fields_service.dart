@@ -36,7 +36,7 @@ class BookingDerivedFieldsService {
 
   /// Core logic that runs inside an existing transaction.
   /// Does NOT open its own transaction — must only be called from within
-  /// a [db.transaction] block or [refreshAllActiveBookings].
+  /// a `db.transaction` block or `refreshAllActiveBookings`.
   Future<void> _refreshForBookingInTransaction(Booking booking, {DateTime? now, bool forceRebuild = false}) async {
     final moment = now ?? DateTime.now();
     final calcService = EnhancedBookingCalculationService(db);

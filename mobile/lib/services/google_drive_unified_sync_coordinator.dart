@@ -4,8 +4,8 @@ import 'dart:async';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../utils/debug_logs.dart';
 import '../utils/debug_log.dart';
+import '../utils/debug_logs.dart';
 import 'data_usage_manager.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
