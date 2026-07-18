@@ -1,0 +1,340 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Marina Hotel — Reusable Flutter Package Workflow
+#  Based on Very Good Workflows patterns (VGV)
+#
+#  يوفر خط أنابيب Flutter قابل لإعادة الاستخدام:
+#    1. Format check (dart format)
+#    2. Static analysis (flutter analyze)
+#    3. Tests with coverage + min-coverage gate
+#    4. Performance benchmarks (optional)
+#
+#  الاستخدام:
+#    jobs:
+#      flutter-ci:
+#        uses: ./.github/workflows/flutter_ci.yml
+#        with:
+#          flutter_version: '3.44.4'
+#          min_coverage: 0
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+name: Flutter CI (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      flutter_version:
+        description: 'Flutter SDK version'
+        required: false
+        type: string
+        default: '3.44.4'
+      working_directory:
+        description: 'Working directory for Flutter commands'
+        required: false
+        type: string
+        default: 'mobile'
+      analyze_directories:
+        description: 'Directories to analyze (space-separated)'
+        required: false
+        type: string
+        default: 'lib'
+      format_directories:
+        description: 'Directories to format-check (space-separated)'
+        required: false
+        type: string
+        default: 'lib test'
+      format_line_length:
+        description: 'Line length for dart format'
+        required: false
+        type: string
+        default: '120'
+      min_coverage:
+        description: 'Minimum coverage percentage (0 = skip check)'
+        required: false
+        type: number
+        default: 0
+      coverage_excludes:
+        description: 'Space-separated globs to exclude from coverage'
+        required: false
+        type: string
+        default: ''
+      run_build_runner:
+        description: 'Run build_runner before analysis?'
+        required: false
+        type: boolean
+        default: true
+      run_tests:
+        description: 'Run tests?'
+        required: false
+        type: boolean
+        default: true
+      test_concurrency:
+        description: 'Test concurrency (parallelism)'
+        required: false
+        type: number
+        default: 4
+      test_timeout:
+        description: 'Test timeout per test'
+        required: false
+        type: string
+        default: '120s'
+      run_benchmarks:
+        description: 'Run performance benchmarks?'
+        required: false
+        type: boolean
+        default: false
+      java_version:
+        description: 'Java version (needed for build_runner + Android)'
+        required: false
+        type: string
+        default: '17'
+      runs_on:
+        description: 'Runner OS'
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+    secrets:
+      ssh_key:
+        required: false
+
+concurrency:
+  group: flutter-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════
+  #  Job 1: Format + Analyze (Fast — ~2 minutes)
+  # ═══════════════════════════════════════════════════════════════
+  analyze:
+    name: Format & Analyze
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v7
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: ${{ inputs.flutter_version }}
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: 🤫 Set SSH Key
+        env:
+          ssh_key: ${{ secrets.ssh_key }}
+        if: env.ssh_key != null
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.ssh_key }}
+
+      - name: 📦 Install Dependencies
+        run: flutter pub get
+
+      - name: 🏗️ Run Build Runner
+        if: inputs.run_build_runner == true
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: ✨ Check Formatting
+        run: |
+          dart format \
+            --line-length ${{ inputs.format_line_length }} \
+            --set-exit-if-changed \
+            ${{ inputs.format_directories }}
+
+      - name: 🕵️ Analyze
+        run: flutter analyze ${{ inputs.analyze_directories }}
+
+  # ═══════════════════════════════════════════════════════════════
+  #  Job 2: Test + Coverage (Medium — ~5-8 minutes)
+  # ═══════════════════════════════════════════════════════════════
+  test:
+    name: Test & Coverage
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: 15
+    needs: analyze
+    if: inputs.run_tests == true
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v7
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: ${{ inputs.flutter_version }}
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: ☕ Setup Java
+        if: inputs.java_version != ''
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java_version }}
+
+      - name: 📦 Install Dependencies
+        run: flutter pub get
+
+      - name: 🏗️ Run Build Runner
+        if: inputs.run_build_runner == true
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: 🧪 Run Tests with Coverage
+        run: |
+          flutter test \
+            --coverage \
+            --concurrency=${{ inputs.test_concurrency }} \
+            --timeout=${{ inputs.test_timeout }} \
+            --test-randomize-ordering-seed random \
+            --reporter compact \
+            2>&1 | tee test_results.log
+          exit ${PIPESTATUS[0]}
+        continue-on-error: true
+
+      - name: 📈 Coverage Summary & Gate
+        if: always() && inputs.min_coverage > 0
+        run: |
+          sudo apt-get update -y -qq
+          sudo apt-get install -y -qq lcov > /dev/null 2>&1
+
+          if [ -f "coverage/lcov.info" ]; then
+            # Remove generated files from coverage
+            if [ -n "${{ inputs.coverage_excludes }}" ]; then
+              for exclude in ${{ inputs.coverage_excludes }}; do
+                lcov --remove coverage/lcov.info "$exclude" -o coverage/lcov.info 2>/dev/null || true
+              done
+            fi
+
+            lcov --summary coverage/lcov.info 2>&1 | tee /tmp/coverage-summary.txt
+            COVERAGE_PCT=$(grep "lines......:" /tmp/coverage-summary.txt | grep -oE '[0-9.]+%' | head -1 | tr -d '%')
+            echo "COVERAGE_PCT=$COVERAGE_PCT" >> $GITHUB_ENV
+
+            {
+              echo "## 📊 Test Coverage"
+              echo ""
+              echo "| Metric | Value |"
+              echo "|---|---|"
+              echo "| Coverage | ${COVERAGE_PCT}% |"
+              echo "| Threshold | ${{ inputs.min_coverage }}% |"
+              echo "| Status | $(( $(echo "$COVERAGE_PCT >= ${{ inputs.min_coverage }}" | bc -l) )) && '✅ Pass' || '❌ Below threshold' |"
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            if (( $(echo "$COVERAGE_PCT < ${{ inputs.min_coverage }}" | bc -l) )); then
+              echo "❌ Coverage ${COVERAGE_PCT}% is below threshold ${{ inputs.min_coverage }}%"
+              exit 1
+            fi
+          else
+            echo "## 📊 Test Coverage" >> "$GITHUB_STEP_SUMMARY"
+            echo "⚠️ No coverage file generated." >> "$GITHUB_STEP_SUMMARY"
+            if [ "${{ inputs.min_coverage }}" -gt 0 ]; then
+              exit 1
+            fi
+          fi
+
+      - name: 📋 Test Report
+        if: always()
+        run: |
+          {
+            echo "## 🧪 Test Report"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|---|---|"
+            echo "| Branch | \`${{ github.ref_name }}\` |"
+            echo "| Coverage | ${COVERAGE_PCT:-N/A}% |"
+            echo "| Min Coverage | ${{ inputs.min_coverage }}% |"
+            echo ""
+            if [ -f "test_results.log" ]; then
+              echo "### Test Output (last 20 lines)"
+              echo '```'
+              tail -20 test_results.log
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 📦 Upload Coverage
+        if: always() && inputs.min_coverage > 0
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: coverage-${{ github.ref_name }}-${{ github.run_id }}
+          path: ${{ inputs.working_directory }}/coverage/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # ═══════════════════════════════════════════════════════════════
+  #  Job 3: Performance Benchmarks (Optional — ~5 minutes)
+  # ═══════════════════════════════════════════════════════════════
+  benchmarks:
+    name: Performance Benchmarks
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: 15
+    needs: analyze
+    if: inputs.run_benchmarks == true
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v7
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: ${{ inputs.flutter_version }}
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: 📦 Install Dependencies
+        run: flutter pub get
+
+      - name: 🏗️ Run Build Runner
+        if: inputs.run_build_runner == true
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: 🧪 Run Performance Benchmarks
+        run: |
+          mkdir -p build/performance
+          flutter test test/performance/ \
+            --concurrency=2 \
+            --timeout=120s \
+            --reporter compact \
+            2>&1 | tee build/performance/benchmark_results.log || true
+
+      - name: 📊 Benchmark Summary
+        if: always()
+        run: |
+          {
+            echo "## 🚀 Performance Benchmarks"
+            echo ""
+            if [ -f "build/performance/benchmark_results.log" ]; then
+              echo '```'
+              tail -15 build/performance/benchmark_results.log
+              echo '```'
+            else
+              echo "No benchmark results available."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 📤 Upload Benchmark Results
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: benchmarks-${{ github.ref_name }}-${{ github.run_id }}
+          path: ${{ inputs.working_directory }}/build/performance/
+          retention-days: 30
+          if-no-files-found: ignore

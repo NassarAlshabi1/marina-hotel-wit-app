@@ -1,0 +1,360 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  Marina Hotel — Performance Benchmark CI
+# ════════════════════════════════════════════════════════════════════════════
+#
+#  يُشغِّل اختبارات قياس الأداء (benchmarks) على Flutter في CI:
+#    1. تحليل static للأداء (lint + analyzer)
+#    2. اختبارات الـ performance benchmarks
+#    3. توليد تقرير JSON قابل للمقارنة عبر الـ runs
+#    4. رفع التقرير كـ artifact للاحتفاظ بالتاريخ
+#
+#  الفرق بين هذا الـ workflow و android-emulator.yml:
+#    - هذا يُشغِّل اختبارات unit/widget benchmarks بدون emulator (سريع)
+#    - android-emulator.yml يُشغِّل integration tests على emulator حقيقي
+#
+#  التوثيق: mobile/test/performance/benchmark_test.dart
+# ════════════════════════════════════════════════════════════════════════════
+
+name: Performance Benchmark
+
+concurrency:
+  group: perf-benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+on:
+  pull_request:
+    branches: [main, marina, 'refactor/**', 'feature/**']
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/performance-benchmark.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/performance-benchmark.yml'
+  workflow_dispatch: # تشغيل يدوي
+  schedule:
+    # تشغيل أسبوعي يوم الأحد 03:00 UTC لتتبُّع regression عبر الزمن
+    - cron: '0 3 * * 0'
+
+jobs:
+  # ═════════════════════════════════════════════════════════════════════════
+  #  Job 1: Static Performance Analysis (سريع — بدون emulator)
+  # ═════════════════════════════════════════════════════════════════════════
+  static-analysis:
+    name: Static Performance Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v5
+
+      - name: 🐦 Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: 📦 Install dependencies
+        run: flutter pub get
+
+      - name: 🔧 Generate build_runner files
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: 🔍 Run flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: 📊 Static performance metrics
+        run: |
+          echo "=== Marina Hotel — Static Performance Metrics ===" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # عدد استخدامات RepaintBoundary
+          REPAINT_COUNT=$(grep -r "RepaintBoundary" lib/ | wc -l)
+          echo "- **RepaintBoundary usages:** $REPAINT_COUNT" >> $GITHUB_STEP_SUMMARY
+
+          # عدد استخدامات ValueNotifier
+          VALUENOTIFIER_COUNT=$(grep -rE "ValueNotifier<" lib/ | wc -l)
+          echo "- **ValueNotifier instances:** $VALUENOTIFIER_COUNT" >> $GITHUB_STEP_SUMMARY
+
+          # عدد استخدامات .select() في Riverpod
+          SELECT_COUNT=$(grep -rE "\.select\(" lib/ | wc -l)
+          echo "- **Riverpod .select() usages:** $SELECT_COUNT" >> $GITHUB_STEP_SUMMARY
+
+          # عدد استخدامات IndexedStack
+          INDEXEDSTACK_COUNT=$(grep -rE "IndexedStack" lib/ | wc -l)
+          echo "- **IndexedStack usages:** $INDEXEDSTACK_COUNT" >> $GITHUB_STEP_SUMMARY
+
+          # نسبة const Text
+          CONST_TEXT=$(grep -rE "const Text\(" lib/ | wc -l)
+          TOTAL_TEXT=$(grep -rE "[^c] Text\(" lib/ | wc -l)
+          echo "- **const Text ratio:** $CONST_TEXT / $((CONST_TEXT + TOTAL_TEXT))" >> $GITHUB_STEP_SUMMARY
+
+          # BoxShadow audit
+          BLUR_OVER_4=$(grep -rE "blurRadius:\s*[5-9]|blurRadius:\s*[0-9]{2,}" lib/ | wc -l)
+          echo "- **blurRadius > 4 violations:** $BLUR_OVER_4" >> $GITHUB_STEP_SUMMARY
+
+          SPREAD_OVER_0=$(grep -rE "spreadRadius:\s*[1-9]" lib/ | wc -l)
+          echo "- **spreadRadius > 0 violations:** $SPREAD_OVER_0" >> $GITHUB_STEP_SUMMARY
+
+          # print() في screens (ممنوع)
+          PRINT_IN_SCREENS=$(grep -rE "^\s*print\(" lib/screens/ | wc -l)
+          echo "- **print() in screens:** $PRINT_IN_SCREENS" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 **الحالة:** ${BLUR_OVER_0=0} blur violations, ${SPREAD_OVER_0=0} spread violations" >> $GITHUB_STEP_SUMMARY
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  Job 2: تشغيل Benchmark Tests
+  # ═════════════════════════════════════════════════════════════════════════
+  benchmark-tests:
+    name: Performance Benchmark Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v5
+
+      - name: 🐦 Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: ☕ Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 📦 Install dependencies
+        run: flutter pub get
+
+      - name: 🔧 Generate build_runner files
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  تشغيل benchmark tests مع إخراج machine-readable
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 🧪 Run performance benchmark tests
+        run: |
+          mkdir -p build/performance
+          # نستخدم --machine فقط (بدون --reporter expanded) لأن:
+          # - --machine يُصدِّر JSON Lines قابل للتحليل الآلي
+          # - --reporter expanded يُصدِّر نص مُنسَّق يختلط مع JSON ويفسد الـ parser
+          # الـ output الكامل (مع stderr) يُحفظ في log منفصل للمراجعة
+          flutter test test/performance/ \
+            --machine \
+            --timeout 120s \
+            > build/performance/benchmark_results_${{ github.run_id }}.json 2> build/performance/benchmark_stderr_${{ github.run_id }}.log
+          # عرض ملخص سريع في الـ log (للمراجعة البصرية)
+          echo "=== Benchmark tests completed ==="
+          cat build/performance/benchmark_stderr_${{ github.run_id }}.log | tail -10
+          # الـ exit code من flutter test (وليس من redirection)
+          exit $?
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  تحليل النتائج وتوليد ملخص للـ PR
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📊 Generate benchmark summary
+        if: always()
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+          import re
+          from datetime import datetime
+
+          run_id = os.environ.get('GITHUB_RUN_ID', 'unknown')
+          results_file = f'build/performance/benchmark_results_{run_id}.json'
+          summary_file = os.environ['GITHUB_STEP_SUMMARY']
+
+          # محاولة قراءة نتائج flutter test --machine
+          passed = 0
+          failed = 0
+          skipped = 0
+          test_details = []
+
+          # خريطة testID -> name (من testStart events)
+          # flutter test --machine يُصدِّر testStart بحقل test.name،
+          # ثم testDone لاحقاً بـ testID فقط (بدون name)
+          test_names = {}
+
+          if os.path.exists(results_file):
+              with open(results_file, 'r', encoding='utf-8', errors='replace') as f:
+                  content = f.read()
+
+              # flutter test --machine يُصدِّر JSON Lines
+              for line in content.split('\n'):
+                  line = line.strip()
+                  if not line or not line.startswith('{'):
+                      continue
+                  try:
+                      event = json.loads(line)
+
+                      # 1. testStart: نخزن testID -> name
+                      if event.get('type') == 'testStart':
+                          test = event.get('test', {})
+                          test_id = test.get('id')
+                          test_name = test.get('name', 'unknown')
+                          if test_id is not None:
+                              test_names[test_id] = test_name
+
+                      # 2. testDone: نستخدم testID لاسترجاع الاسم
+                      elif event.get('type') == 'testDone':
+                          test_id = event.get('testID')
+                          result = event.get('result', '')
+                          # استرجاع الاسم من الخريطة
+                          name = test_names.get(test_id, 'unknown')
+
+                          # تجاهل الأحداث المخفية (hidden=true) مثل loading و setUpAll/tearDownAll
+                          # فهي ليست اختبارات فعلية بل setup/teardown
+                          if event.get('hidden', False):
+                              continue
+
+                          if result == 'success':
+                              passed += 1
+                          elif result in ('failure', 'error'):
+                              # flutter test --machine may emit 'error' instead
+                              # of 'failure' when an unexpected exception occurs
+                              failed += 1
+                          elif result == 'skipped':
+                              skipped += 1
+                          test_details.append({'name': name, 'result': result})
+                  except json.JSONDecodeError:
+                      continue
+
+          # كتابة الملخّص
+          with open(summary_file, 'a', encoding='utf-8') as f:
+              f.write('\n### 📊 Performance Benchmark Results\n\n')
+              f.write(f'- **Passed:** {passed} ✅\n')
+              f.write(f'- **Failed:** {failed} ❌\n')
+              f.write(f'- **Skipped:** {skipped} ⏭️\n')
+              f.write(f'- **Total:** {passed + failed + skipped}\n\n')
+
+              if test_details:
+                  f.write('#### تفاصيل الاختبارات\n\n')
+                  f.write('| Test | Result |\n')
+                  f.write('|------|--------|\n')
+                  for t in test_details[:20]:
+                      icon = {'success': '✅', 'failure': '❌', 'skipped': '⏭️'}.get(t['result'], '❓')
+                      # تنظيف الاسم
+                      clean_name = t['name'].replace(' Marina Hotel — ', '').replace(' Performance', '')
+                      f.write(f'| {clean_name} | {icon} |\n')
+
+              f.write(f'\n📄 **Run ID:** {run_id}\n')
+              f.write(f'🕐 **Time:** {datetime.utcnow().isoformat()}Z\n')
+
+          print(f'Summary written to {summary_file}')
+          print(f'Passed: {passed}, Failed: {failed}, Skipped: {skipped}')
+
+          # exit code بناءً على نتائج الاختبارات
+          exit(0 if failed == 0 else 1)
+          EOF
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_STEP_SUMMARY: $GITHUB_STEP_SUMMARY
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  رفع نتائج الـ benchmark كـ artifact
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📤 Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: performance-benchmark-${{ github.run_id }}
+          path: |
+            mobile/build/performance/
+          retention-days: 30
+          if-no-files-found: warn
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  Job 3: Performance Regression Detection (يقارن مع baseline)
+  # ═════════════════════════════════════════════════════════════════════════
+  regression-check:
+    name: Performance Regression Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: benchmark-tests
+    if: github.event_name == 'pull_request'
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # للحصول على tags/branches للمقارنة
+
+      - name: 🐦 Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: 📦 Install dependencies
+        run: flutter pub get
+
+      - name: 🔧 Generate build_runner files
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: 📥 Download current benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          name: performance-benchmark-${{ github.run_id }}
+          path: current-perf
+
+      - name: 📊 Compare with main branch baseline
+        run: |
+          echo "=== Performance Regression Check ===" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # محاولة تنزيل baseline من main branch
+          # (في implementation حقيقي، يمكن استخدام GitHub Actions cache أو
+          # artifact من main branch)
+
+          if [ -d "current-perf" ]; then
+            echo "✅ Current benchmark results downloaded" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### ملفات النتائج الحالية:" >> $GITHUB_STEP_SUMMARY
+            find current-perf -name "*.json" -exec echo "- {}" \; >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No benchmark results found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "💡 **ملاحظة:** للحصول على مقارنة تلقائية مع baseline،" >> $GITHUB_STEP_SUMMARY
+          echo "   يجب تنفيذ caching strategy للمقارنة عبر الـ runs." >> $GITHUB_STEP_SUMMARY
+          echo "   حالياً، يُحفظ الـ artifact لكل run لمدة 30 يوماً للمراجعة اليدوية." >> $GITHUB_STEP_SUMMARY
+
+      - name: 💾 Save baseline for future comparisons
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache@v4
+        with:
+          path: current-perf
+          key: perf-baseline-${{ github.sha }}
+          restore-keys: |
+            perf-baseline-

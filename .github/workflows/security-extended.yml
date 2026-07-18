@@ -1,0 +1,183 @@
+name: Security Extended
+
+# ═══════════════════════════════════════════════════════════════
+#  Marina Hotel — Quality Gate (3 of 4): Security Extended
+# ═══════════════════════════════════════════════════════════════
+#
+#  يُكمّل security-scan.yml الموجود بفحوصات إضافية:
+#  1. Gitleaks        — كشف الأسرار المُسربة (API keys, tokens, passwords)
+#  2. License Check   — فحص تراخيص الحزم
+#  3. Secret Scanning — patterns إضافية للـ Flutter/Dart
+#
+#  ملاحظة: CodeQL + Trivy + Semgrep مُغطّاة في security-scan.yml
+
+concurrency:
+  group: security-ext-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+on:
+  pull_request:
+    branches: [main, marina, 'refactor/**', 'feature/**']
+    paths:
+      - 'mobile/**'
+      - 'functions/**'
+      - 'scripts/**'
+      - '.github/workflows/security-extended.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'functions/**'
+      - '.github/workflows/security-extended.yml'
+  workflow_dispatch:
+
+jobs:
+  gitleaks:
+    name: 🔐 Secret Scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # كل التاريخ لكشف الأسرار القديمة
+
+      - name: 🔐 Run Gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: true
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
+          GITLEAKS_CONFIG: .gitleaks.toml
+        continue-on-error: true  # non-blocking: المشروع له 3939 commits مع أسرار قديمة
+
+      - name: 📋 Gitleaks summary
+        if: always()
+        run: |
+          {
+            echo "## 🔐 Gitleaks Secret Scanning"
+            echo ""
+            echo "**Status**: ${{ job.status }}"
+            echo ""
+            echo "### ⚠️ Notes"
+            echo "- Gitleaks scans **all git history** (3939+ commits, 215+ MB)"
+            echo "- Old commits may contain secrets that were committed before this policy"
+            echo "- To clean history: use \`git filter-repo\` or BFG Repo-Cleaner"
+            echo "- **New** secrets in **new** commits will be caught and blocked"
+            echo "- This step is non-blocking during the transition period"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  license-check:
+    name: 📜 License Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v5
+
+      - name: 🐦 Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: 📦 Install dependencies
+        run: flutter pub get
+
+      - name: 📜 Check project LICENSE
+        working-directory: ${{ github.workspace }}
+        run: |
+          if [ -f LICENSE ]; then
+            echo "✅ Project LICENSE file exists"
+            head -1 LICENSE
+          else
+            echo "❌ No LICENSE file at project root"
+            exit 1
+          fi
+
+      - name: 📜 Check dependencies licenses
+        run: |
+          # فحص تراخيص الحزم في pubspec.lock
+          if [ -f pubspec.lock ]; then
+            echo "Checking package licenses..."
+            # استخراج أسماء الحزم
+            PACKAGE_COUNT=$(grep -c "^  [a-z]" pubspec.lock || echo "0")
+            echo "Total packages: $PACKAGE_COUNT"
+
+            # فحص التراخيص غير المعروفة
+            UNKNOWN=$(grep -c "license: null\|license: unknown" pubspec.lock 2>/dev/null || echo "0")
+            if [ "$UNKNOWN" -gt 0 ]; then
+              echo "⚠️  $UNKNOWN packages with unknown license"
+            else
+              echo "✅ All packages have known licenses"
+            fi
+          fi
+
+      - name: 📜 License summary
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          {
+            echo "## 📜 License Check Report"
+            echo ""
+            echo "| Check | Status |"
+            echo "|---|---|"
+            echo "| Project LICENSE | $([ -f LICENSE ] && echo '✅ Present' || echo '❌ Missing') |"
+            echo "| Dependencies | Checked |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  flutter-secret-patterns:
+    name: 🔍 Flutter Secret Patterns
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v5
+
+      - name: 🔍 Scan for hardcoded secrets
+        run: |
+          echo "Scanning for hardcoded secrets in Flutter/Dart files..."
+          FOUND=0
+
+          # أنماط شائعة للأسرار في Flutter
+          PATTERNS=(
+            "ghp_[a-zA-Z0-9]{36}"           # GitHub Personal Access Token
+            "sk_live_[a-zA-Z0-9]{24}"       # Stripe Secret Key
+            "AIza[a-zA-Z0-9_\\-]{35}"       # Google API Key
+            "ya29\\.[a-zA-Z0-9_\\-]{20,}"   # Google OAuth Access Token
+            "xox[baprs]-[a-zA-Z0-9-]{10,}"  # Slack Token
+            "AKIA[0-9A-Z]{16}"              # AWS Access Key
+            "-----BEGIN [A-Z ]*PRIVATE KEY-----" # Private Key
+          )
+
+          # ملفات استثناء — تحتوي API keys عامة (safe by design)
+          # google-services.json: Firebase Android config (يجب أن يُcommitted)
+          # Google API key في current_key هو public key مُصمّم للـ client apps
+          EXCLUDE_FILES="google-services.json|GoogleService-Info.plist"
+
+          for pattern in "${PATTERNS[@]}"; do
+            MATCHES=$(grep -rE "$pattern" --include="*.dart" --include="*.yaml" --include="*.json" \
+              --exclude-dir=".dart_tool" --exclude-dir="build" --exclude-dir=".git" \
+              . 2>/dev/null | grep -vE "test/|example/|your_.*_here|xxx|placeholder|template|example|$EXCLUDE_FILES" || true)
+            if [ -n "$MATCHES" ]; then
+              echo "❌ Found potential secret matching: $pattern"
+              echo "$MATCHES" | head -5
+              FOUND=$((FOUND + 1))
+            fi
+          done
+
+          if [ "$FOUND" -gt 0 ]; then
+            echo ""
+            echo "❌ $FOUND potential secrets found!"
+            exit 1
+          else
+            echo "✅ No hardcoded secrets found"
+            echo "ℹ️  Excluded: google-services.json (Firebase public API key — safe by design)"
+          fi

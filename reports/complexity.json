@@ -1,0 +1,37 @@
+{
+    "complex_files": [
+        {
+            "file": "database_fixer.dart",
+            "ifs": 24,
+            "max_nesting": 11,
+            "lines": 441
+        },
+        {
+            "file": "google_drive_backup_service.dart",
+            "ifs": 133,
+            "max_nesting": 11,
+            "lines": 2117
+        },
+        {
+            "file": "booking_payment_screen.dart",
+            "ifs": 165,
+            "max_nesting": 10,
+            "lines": 4112
+        },
+        {
+            "file": "appwrite_sync_manager.dart",
+            "ifs": 312,
+            "max_nesting": 10,
+            "lines": 6334
+        },
+        {
+            "file": "file_management_service.dart",
+            "ifs": 27,
+            "max_nesting": 10,
+            "lines": 596
+        }
+    ],
+    "long_functions": 0,
+    "deep_nesting": 3573,
+    "total_if_switch": 5853
+}
