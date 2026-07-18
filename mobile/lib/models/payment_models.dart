@@ -37,20 +37,19 @@ enum PaymentStatus {
 
 /// نموذج بيانات الدفعة
 class Payment {
-  Payment({
-    required this.id,
-    required this.bookingId,
-    required this.amount,
-    required this.method,
-    required this.status,
-    required this.paymentDate,
-    this.notes,
-    this.referenceNumber,
-    this.cardLastFourDigits,
-    this.bankName,
-    required this.receivedBy,
-    required this.createdAt,
-    required this.updatedAt,
+  Payment({      required this.id,
+      required this.bookingId,
+      required this.amount,
+      required this.method,
+      required this.status,
+      required this.paymentDate,
+      required this.receivedBy,
+      required this.createdAt,
+      required this.updatedAt,
+      this.notes,
+      this.referenceNumber,
+      this.cardLastFourDigits,
+      this.bankName,
   });
 
   factory Payment.fromJson(Map<String, dynamic> json) {
@@ -158,16 +157,15 @@ class BookingPaymentSummary {
 
 /// نموذج الإيصال
 class Receipt {
-  Receipt({
-    required this.receiptNumber,
-    required this.payment,
-    required this.guestName,
-    required this.guestPhone,
-    required this.roomNumber,
-    this.hotelName = 'فندق مارينا بلازا',
-    this.hotelAddress = 'عدن - اليمن - شارع أحمد قاسم',
-    this.hotelPhone = '+967-2-324457',
-    required this.generatedAt,
+  Receipt({      required this.receiptNumber,
+      required this.payment,
+      required this.guestName,
+      required this.guestPhone,
+      required this.roomNumber,
+      required this.generatedAt,
+      this.hotelName = 'فندق مارينا بلازا',
+      this.hotelAddress = 'عدن - اليمن - شارع أحمد قاسم',
+      this.hotelPhone = '+967-2-324457',
   });
   final String receiptNumber;
   final Payment payment;

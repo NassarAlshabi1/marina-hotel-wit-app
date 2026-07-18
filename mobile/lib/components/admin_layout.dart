@@ -4,15 +4,14 @@ import '../utils/theme.dart';
 import 'admin_sidebar.dart';
 
 class AdminLayout extends StatelessWidget {
-  const AdminLayout({
-    super.key,
-    required this.body,
-    required this.currentRoute,
-    this.title,
-    this.actions,
-    this.floatingActionButton,
-    this.appBar,
-    this.onRouteSelected,
+  const AdminLayout({      required this.body,
+      required this.currentRoute,
+      super.key,
+      this.title,
+      this.actions,
+      this.floatingActionButton,
+      this.appBar,
+      this.onRouteSelected,
   });
   final Widget body;
   final String currentRoute;
@@ -135,14 +134,13 @@ class AdminLayout extends StatelessWidget {
 
 // Bootstrap-like components for matching PHP design
 class AdminCard extends StatelessWidget {
-  const AdminCard({
-    super.key,
-    required this.child,
-    this.padding,
-    this.color,
-    this.elevation,
-    this.title,
-    this.trailing,
+  const AdminCard({      required this.child,
+      super.key,
+      this.padding,
+      this.color,
+      this.elevation,
+      this.title,
+      this.trailing,
   });
   final Widget child;
   final EdgeInsets? padding;
@@ -187,13 +185,12 @@ class AdminCard extends StatelessWidget {
 }
 
 class StatCard extends StatelessWidget {
-  const StatCard({
-    super.key,
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-    this.subtitle,
+  const StatCard({      required this.title,
+      required this.value,
+      required this.icon,
+      required this.color,
+      super.key,
+      this.subtitle,
   });
   final String title;
   final String value;
@@ -251,13 +248,12 @@ class StatCard extends StatelessWidget {
 }
 
 class AdminTable extends StatefulWidget {
-  const AdminTable({
-    super.key,
-    required this.headers,
-    required this.rows,
-    this.striped = true,
-    this.bordered = true,
-    this.rowsPerPage = 50,
+  const AdminTable({      required this.headers,
+      required this.rows,
+      super.key,
+      this.striped = true,
+      this.bordered = true,
+      this.rowsPerPage = 50,
   });
   final List<String> headers;
   final List<List<Widget>> rows;
@@ -355,7 +351,10 @@ class _AdminTableState extends State<AdminTable> {
 }
 
 class StatusBadge extends StatelessWidget {
-  const StatusBadge({super.key, required this.text, required this.color});
+  const StatusBadge({      required this.text,
+      required this.color,
+      super.key,
+  });
 
   factory StatusBadge.success(String text) {
     return StatusBadge(text: text, color: Colors.green);

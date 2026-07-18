@@ -51,7 +51,10 @@ class CentralSyncCoordinator {
     return _performSync(push: push, pull: pull, reason: reason);
   }
 
-  Future<bool> _performSync({bool push = true, bool pull = true, required String reason}) async {
+  Future<bool> _performSync({      required String reason,
+      bool push = true,
+      bool pull = true,
+  }) async {
     if (_lastSyncTime != null) {
       final elapsed = DateTime.now().difference(_lastSyncTime!);
       if (elapsed < syncCooldown) {

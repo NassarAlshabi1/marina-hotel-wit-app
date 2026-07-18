@@ -33,7 +33,9 @@ import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
-  const BookingPaymentScreen({super.key, required this.booking});
+  const BookingPaymentScreen({      required this.booking,
+      super.key,
+  });
   final db.Booking booking;
 
   @override
@@ -743,12 +745,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   Widget _buildPaymentSummaryCard(
     BookingPaymentSummary summary, {
-    db.Booking? liveBooking,
-    double? roomRate,
-    List<db.BookingPriceAdjustment>? priceAdjustments,
     required int expectedNights,
     required int actualNights,
     required DateTime checkin,
+    db.Booking? liveBooking,
+    double? roomRate,
+    List<db.BookingPriceAdjustment>? priceAdjustments,
     DateTime? plannedCheckout,
     DateTime? actualCheckout,
     double discount = 0,

@@ -7,17 +7,16 @@ import '../utils/performance_monitor.dart';
 import 'widgets/sync_action_button.dart';
 
 class AppScaffold extends ConsumerWidget {
-  const AppScaffold({
-    super.key,
-    required this.title,
-    required this.body,
-    this.actions,
-    this.fab,
-    this.subtitle,
-    this.appBarBackgroundColor,
-    this.titleColor,
-    this.subtitleColor,
-    this.titleAlign,
+  const AppScaffold({      required this.title,
+      required this.body,
+      super.key,
+      this.actions,
+      this.fab,
+      this.subtitle,
+      this.appBarBackgroundColor,
+      this.titleColor,
+      this.subtitleColor,
+      this.titleAlign,
   });
   final String title;
   final Widget body;

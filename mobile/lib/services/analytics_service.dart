@@ -24,15 +24,14 @@ enum SyncAnalyticsEvent {
 
 /// إحصائيات المزامنة
 class SyncStats {
-  const SyncStats({
-    required this.totalPushOperations,
-    required this.totalPullOperations,
-    required this.totalConflicts,
-    required this.totalFailures,
-    required this.totalRetries,
-    required this.averageSyncTime,
-    this.lastSyncTime,
-    required this.isHealthy,
+  const SyncStats({      required this.totalPushOperations,
+      required this.totalPullOperations,
+      required this.totalConflicts,
+      required this.totalFailures,
+      required this.totalRetries,
+      required this.averageSyncTime,
+      required this.isHealthy,
+      this.lastSyncTime,
   });
   final int totalPushOperations;
   final int totalPullOperations;

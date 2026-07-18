@@ -103,14 +103,13 @@ class BookingLostRevenue {
 }
 
 class AdjustmentSummary {
-  AdjustmentSummary({
-    required this.uuid,
-    required this.type,
-    required this.amount,
-    required this.effectiveHotelDay,
-    this.endHotelDay,
-    required this.nightsAffected,
-    required this.totalImpact,
+  AdjustmentSummary({      required this.uuid,
+      required this.type,
+      required this.amount,
+      required this.effectiveHotelDay,
+      required this.nightsAffected,
+      required this.totalImpact,
+      this.endHotelDay,
   });
   final String uuid;
   final AdjustmentType type;

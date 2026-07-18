@@ -56,15 +56,14 @@ class RestoreSnapshot {
 
 /// تقرير شامل عن عملية الإصلاح التلقائي
 class RestoreFixReport {
-  RestoreFixReport({
-    required this.success,
-    required this.bookingsFixed,
-    required this.roomsUpdated,
-    required this.paymentsRecalculated,
-    required this.changes,
-    this.error,
-    required this.executedAt,
-    required this.durationMs,
+  RestoreFixReport({      required this.success,
+      required this.bookingsFixed,
+      required this.roomsUpdated,
+      required this.paymentsRecalculated,
+      required this.changes,
+      required this.executedAt,
+      required this.durationMs,
+      this.error,
   });
 
   factory RestoreFixReport.fromJson(Map<String, dynamic> json) => RestoreFixReport(
@@ -1017,13 +1016,12 @@ class RestoreFixService {
     _conflictTableReady = true;
   }
 
-  Future<void> _logConflict({
-    required String fixId,
-    required String tableName,
-    required String fixType,
-    String? localUuid,
-    required Map<String, dynamic> oldData,
-    required Map<String, dynamic> newData,
+  Future<void> _logConflict({      required String fixId,
+      required String tableName,
+      required String fixType,
+      required Map<String, dynamic> oldData,
+      required Map<String, dynamic> newData,
+      String? localUuid,
   }) async {
     await _ensureConflictLogTable();
     final epoch = Time.nowEpoch();

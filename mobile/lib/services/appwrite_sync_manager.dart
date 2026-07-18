@@ -57,14 +57,13 @@ export 'sync_enums.dart' show SyncStatus;
 
 /// نتيجة المزامنة
 class SyncResult {
-  SyncResult({
-    required this.status,
-    this.recordsPushed = 0,
-    this.recordsPulled = 0,
-    this.conflicts = 0,
-    this.errorMessage,
-    required this.timestamp,
-    required this.duration,
+  SyncResult({      required this.status,
+      required this.timestamp,
+      required this.duration,
+      this.recordsPushed = 0,
+      this.recordsPulled = 0,
+      this.conflicts = 0,
+      this.errorMessage,
   });
   final SyncStatus status;
   final int recordsPushed;

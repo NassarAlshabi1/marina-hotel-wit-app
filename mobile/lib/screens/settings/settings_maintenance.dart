@@ -23,18 +23,17 @@ import '../../utils/env.dart';
 // ═══════════════════════════════════════════════════════════════
 
 class _SystemInfo {
-  const _SystemInfo({
-    required this.appVersion,
-    required this.deviceModel,
-    required this.osVersion,
-    required this.dbConnected,
-    required this.dbSchemaVersion,
-    required this.dbSizeBytes,
-    required this.totalRecords,
-    this.lastSyncTime,
-    required this.outboxCount,
-    required this.logStats,
-    required this.apiEndpoint,
+  const _SystemInfo({      required this.appVersion,
+      required this.deviceModel,
+      required this.osVersion,
+      required this.dbConnected,
+      required this.dbSchemaVersion,
+      required this.dbSizeBytes,
+      required this.totalRecords,
+      required this.outboxCount,
+      required this.logStats,
+      required this.apiEndpoint,
+      this.lastSyncTime,
   });
   final String appVersion;
   final String deviceModel;

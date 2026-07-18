@@ -17,7 +17,9 @@ import '../../utils/time.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
 
-  const BookingCheckoutScreen({super.key, required this.booking});
+  const BookingCheckoutScreen({      required this.booking,
+      super.key,
+  });
   final Booking booking;
 
   @override

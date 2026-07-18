@@ -607,7 +607,11 @@ class FullBackupStats {
 
 /// خطأ في رفع سجل واحد
 class FullBackupFailure {
-  FullBackupFailure({this.documentId, required this.reason, this.collectionName, this.timestamp});
+  FullBackupFailure({      required this.reason,
+      this.documentId,
+      this.collectionName,
+      this.timestamp,
+  });
   final String? documentId;
   final String reason;
   final String? collectionName;

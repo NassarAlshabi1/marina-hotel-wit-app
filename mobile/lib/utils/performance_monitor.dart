@@ -582,12 +582,11 @@ class PerformanceMonitor {
 ///  PerformanceInspector — Widget لالتفاف widgets محددة لقياس rebuild
 /// ════════════════════════════════════════════════════════════════════
 class PerformanceInspector extends StatelessWidget {
-  const PerformanceInspector({
-    super.key,
-    required this.name,
-    required this.child,
-    this.showBadge = false,
-    this.onRebuild,
+  const PerformanceInspector({      required this.name,
+      required this.child,
+      super.key,
+      this.showBadge = false,
+      this.onRebuild,
   });
   final String name;
   final Widget child;

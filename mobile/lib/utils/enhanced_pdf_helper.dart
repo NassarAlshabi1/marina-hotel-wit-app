@@ -93,13 +93,12 @@ class EnhancedPdfHelper {
   }
 
   /// إنشاء تقرير مدفوعات محسّن
-  static Future<void> generateEnhancedPaymentsReport({
-    required List<Payment> payments,
-    required List<Booking> relatedBookings,
-    required DateTime fromDate,
-    required DateTime toDate,
-    String? roomFilter,
-    required String generatedBy,
+  static Future<void> generateEnhancedPaymentsReport({      required List<Payment> payments,
+      required List<Booking> relatedBookings,
+      required DateTime fromDate,
+      required DateTime toDate,
+      required String generatedBy,
+      String? roomFilter,
   }) async {
     // تحويل البيانات لتقرير
     final reportItems = payments.map((payment) {
@@ -170,12 +169,11 @@ class EnhancedPdfHelper {
   }
 
   /// إنشاء تقرير مصروفات محسّن
-  static Future<void> generateEnhancedExpensesReport({
-    required List<Expense> expenses,
-    required DateTime fromDate,
-    required DateTime toDate,
-    String? categoryFilter,
-    required String generatedBy,
+  static Future<void> generateEnhancedExpensesReport({      required List<Expense> expenses,
+      required DateTime fromDate,
+      required DateTime toDate,
+      required String generatedBy,
+      String? categoryFilter,
   }) async {
     final reportItems = expenses
         .map(
@@ -369,7 +367,10 @@ class EnhancedPdfHelper {
 
 /// Widget لعرض معاينة PDF محسّنة
 class EnhancedPdfPreviewScreen extends ConsumerWidget {
-  const EnhancedPdfPreviewScreen({super.key, required this.title, required this.pdfGenerator});
+  const EnhancedPdfPreviewScreen({      required this.title,
+      required this.pdfGenerator,
+      super.key,
+  });
   final String title;
   final Future<Uint8List> Function() pdfGenerator;
 
