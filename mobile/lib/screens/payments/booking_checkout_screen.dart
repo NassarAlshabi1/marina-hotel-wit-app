@@ -169,7 +169,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                           final discountedRate = (roomPrice - discount).clamp(
                             0.0,
                             roomPrice,
-                          ).toDouble();
+                          );
                           return (fullNights * roomPrice) +
                               (discountedNights * discountedRate);
                         }
@@ -177,7 +177,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                       })();
 
                 final totalDue = discount > 0 && discountType == 'total'
-                    ? (nightTotal - discount).clamp(0.0, nightTotal).toDouble()
+                    ? (nightTotal - discount).clamp(0.0, nightTotal)
                     : nightTotal;
 
                 return Padding(

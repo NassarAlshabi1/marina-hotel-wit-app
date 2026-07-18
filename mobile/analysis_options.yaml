@@ -89,6 +89,27 @@ linter:
     avoid_positional_boolean_parameters: false
     join_return_with_assignment: false
 
+    # === قواعد معطَّلة مؤقتاً (تم اكتشافها بعد تفعيل VGA) ===
+    no_default_cases: false                # 8 مواضع — تغيير default قد يكسر السلوك
+    prefer_int_literals: false             # 165 موضع — أرقام double مشروعة (مبالغ)
+    avoid_dynamic_calls: false             # 147 موضع — JSON parsing كثير
+    omit_local_variable_types: false       # 457 موضع — نُفضّل التصريح بالأنواع للوضوح
+    cascade_invocations: false             # 554 موضع — cascade قد يقلل الوضوح
+    avoid_catches_without_on_clauses: false # 1084 موضع — catch عام مقبول في services
+    document_igores: false                 # 270 موضع — توثيق الـ ignore comments
+    always_put_required_named_parameters_first: false # 193 موضع — ترتيب البناء الحالي مهم
+    specify_nonobvious_property_types: false # 46 موضع
+    use_raw_strings: false                 # 45 موضع
+    flutter_style_todos: false             # 22 موضع — تنسيق TODOs
+    avoid_returning_this: false            # 19 موضع — Builder pattern مشروح
+    unnecessary_underscores: false         # 14 موضع — يستخدم _ في closures
+    use_setters_to_change_properties: false # 10 مواضع
+    unintended_html_in_doc_comment: false  # 10 مواضع — < > في التعليقات
+    avoid_multiple_declarations_per_line: false # 8 مواضع
+    avoid_escaping_inner_quotes: false     # 7 مواضع
+    combinators_ordering: false            # 6 مواضع
+    deprecated_consistency: false          # 3 مواضع
+
     # === قواعد Performance الحرجة (مُفعّلة) ===
     avoid_unnecessary_containers: true
     avoid_function_literals_in_foreach_calls: true

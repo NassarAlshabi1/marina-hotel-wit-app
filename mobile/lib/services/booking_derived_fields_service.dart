@@ -138,10 +138,8 @@ class BookingDerivedFieldsService {
     String discountType,
     DateTime? discountStartDate,
   ) {
-    if (baseRate < 0) {
-      baseRate = 0;
-    }
-    var rate = baseRate;
+    final effectiveBaseRate = baseRate < 0 ? 0.0 : baseRate;
+    var rate = effectiveBaseRate;
     if (discount > 0 && discountType != 'total') {
       final segDay = DateTime(segmentStart.year, segmentStart.month, segmentStart.day);
       if (discountStartDate == null) {

@@ -696,6 +696,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                               Navigator.pop(context);
                             }
                           } on StateError catch (e) {
+                            // ignore: avoid_catching_errors
                             // خطأ منطقي (مثل: حجز مزدوج لنفس الغرفة)
                             if (mounted) {
                               // ignore: use_build_context_synchronously

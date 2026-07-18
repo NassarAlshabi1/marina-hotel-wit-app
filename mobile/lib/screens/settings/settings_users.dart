@@ -720,7 +720,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                 spacing: 8,
                 runSpacing: 4,
                 children: allKeys.map((k) {
-                  final checked = isAdminUser ? true : _perms.contains(k);
+                  final checked = isAdminUser || _perms.contains(k);
                   return FilterChip(
                     label: Text(_permLabel(k)),
                     selected: checked,
