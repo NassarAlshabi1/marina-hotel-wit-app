@@ -16,22 +16,22 @@
 
 ### ⚡ Performance & Architecture
 
-- **Total Dart Files:** 362
-- **Average File Size:** 398 LOC
-- **State Management:** 85 `ConsumerWidget` vs 391 `setState`
+- **Total Dart Files:** 364
+- **Average File Size:** 394 LOC
+- **State Management:** 84 `ConsumerWidget` vs 394 `setState`
 
 <details>
 <summary><b>📂 Largest Files (Click to expand)</b></summary>
 
-1. `appwrite_sync_manager.dart` (6333 lines)
+1. `appwrite_sync_manager.dart` (6445 lines)
 </details>
 
 ---
 
 ### 🧩 Complexity Analysis
 
-- **Deep Nesting (>5 levels):** 3573 blocks
-- **Total `if`/`switch` statements:** 5853
+- **Deep Nesting (>5 levels):** 3657 blocks
+- **Total `if`/`switch` statements:** 5810
 
 <details>
 <summary><b>⚠️ Most Complex Files (Click to expand)</b></summary>
@@ -41,7 +41,7 @@
 | `database_fixer.dart` | 24 | 11 |
 | `google_drive_backup_service.dart` | 133 | 11 |
 | `booking_payment_screen.dart` | 165 | 10 |
-| `appwrite_sync_manager.dart` | 312 | 10 |
+| `appwrite_sync_manager.dart` | 317 | 10 |
 | `file_management_service.dart` | 27 | 10 |
 
 </details>

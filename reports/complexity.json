@@ -16,13 +16,13 @@
             "file": "booking_payment_screen.dart",
             "ifs": 165,
             "max_nesting": 10,
-            "lines": 4112
+            "lines": 4109
         },
         {
             "file": "appwrite_sync_manager.dart",
-            "ifs": 312,
+            "ifs": 317,
             "max_nesting": 10,
-            "lines": 6334
+            "lines": 6446
         },
         {
             "file": "file_management_service.dart",
@@ -32,6 +32,6 @@
         }
     ],
     "long_functions": 0,
-    "deep_nesting": 3573,
-    "total_if_switch": 5853
+    "deep_nesting": 3657,
+    "total_if_switch": 5810
 }
