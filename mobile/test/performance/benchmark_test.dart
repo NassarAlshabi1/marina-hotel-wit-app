@@ -584,8 +584,7 @@ void main() {
   group('📂 File I/O Performance (Mock)', () {
     test('قراءة 100 سطر من JSON نظيف تستغرق < 5ms', () {
       final jsonLines = List.generate(100, (i) => 
-        '{"id":$i,"name":"Booking $i","status":"active"}
-'
+        '{"id":$i,"name":"Booking $i","status":"active"}\n'
       ).join('');
       
       final stopwatch = Stopwatch()..start();
