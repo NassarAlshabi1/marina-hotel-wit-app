@@ -1110,25 +1110,25 @@ void _unifiedCallbackDispatcher() {
       switch (task) {
         case kSyncCompletionImmediateTask:
         case kSyncCompletionTask:
-          return _executeSyncCompletionTask(task, inputData);
+          return await _executeSyncCompletionTask(task, inputData);
 
         case 'marina_auto_sync_now':
         case 'marina_auto_sync_periodic':
-          return _executeAutoSyncTask(task, inputData);
+          return await _executeAutoSyncTask(task, inputData);
 
         case 'backupAfterInactivity':
-          return _executeBackupAfterInactivity(task, inputData);
+          return await _executeBackupAfterInactivity(task, inputData);
 
         case 'marina-hotel-background-sync':
         case 'marina-hotel-periodic-sync':
         case 'marina-hotel-battery-aware-sync':
         case 'autoBackup':
         case 'autoBackupTask':
-          return _executeLegacySyncTask(task, inputData);
+          return await _executeLegacySyncTask(task, inputData);
 
         default:
           developer.log('⚠️ [WorkManager] Unknown task: $task → fallback to sync', name: 'WorkManager');
-          return _executeLegacySyncTask(task, inputData);
+          return await _executeLegacySyncTask(task, inputData);
       }
     } catch (e, st) {
       developer.log('❌ [WorkManager] Task $task failed', name: 'WorkManager', error: e, stackTrace: st);

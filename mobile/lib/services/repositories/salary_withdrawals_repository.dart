@@ -211,7 +211,7 @@ class SalaryWithdrawalsRepository {
             hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
-            version: d.Value(matched!.version + 1),
+            version: d.Value(matched.version + 1),
           ),
         );
 
@@ -223,7 +223,7 @@ class SalaryWithdrawalsRepository {
             entity: 'salary_withdrawals',
             op: 'update',
             localUuid: matched!.localUuid,
-            serverId: matched!.serverId,
+            serverId: matched.serverId,
             payload: {
               'employeeId': employeeId,
               'amount': amount,

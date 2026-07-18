@@ -1,51 +1,24 @@
-// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/appwrite_providers.dart';
-import '../providers/core_providers.dart';
-import '../providers/sync_providers.dart';
-import '../providers/service_providers.dart';
-
-import '../providers/room_payment_status_provider.dart';
 import '../providers/realtime_sync_provider.dart';
 import '../providers/remote_config_provider.dart';
+import '../providers/repository_providers.dart';
+import '../providers/service_providers.dart';
+import '../providers/sync_providers.dart';
+import '../services/local_db.dart';
 import '../utils/loading_snackbar.dart';
 import '../utils/performance_monitor.dart';
 import '../utils/status_utils.dart';
 import '../widgets/dashboard_conflicts_badge.dart';
 import '../widgets/dashboard_sync_button.dart';
-import 'bookings/booking_edit.dart';
-import 'payments/booking_payment_screen.dart';
-import 'reports/expenses_report_screen.dart';
 
-const List<String> _dashboardRoomNumbers = [
-  '101',
-  '102',
-  '103',
-  '104',
-  '201',
-  '202',
-  '203',
-  '204',
-  '301',
-  '302',
-  '303',
-  '304',
-  '401',
-  '402',
-  '403',
-  '404',
-  '501',
-  '502',
-  '503',
-  '504',
-];
+
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -196,10 +169,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildHeader() {
-    return Row(
+    return const Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
+        Text(
           'لوحة التحكم',
           style: TextStyle(
             fontSize: 28,
@@ -210,9 +183,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         Row(
           children: [
-            const DashboardConflictsBadge(),
-            const SizedBox(width: 8),
-            const DashboardSyncButton(),
+            DashboardConflictsBadge(),
+            SizedBox(width: 8),
+            DashboardSyncButton(),
           ],
         ),
       ],
@@ -231,7 +204,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Expanded(
               child: _StatCard(
                 title: 'المدفوعات اليوم',
-                value: NumberFormat.currency(locale: 'ar', symbol: 'ر.س').format(todayPayments),
+                value: NumberFormat('#,##0.00', 'ar').format(todayPayments),
                 icon: Icons.attach_money,
                 color: Colors.green,
               ),
@@ -240,7 +213,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Expanded(
               child: _StatCard(
                 title: 'المصروفات اليوم',
-                value: NumberFormat.currency(locale: 'ar', symbol: 'ر.س').format(todayExpenses),
+                value: NumberFormat('#,##0.00', 'ar').format(todayExpenses),
                 icon: Icons.money_off,
                 color: Colors.red,
               ),
@@ -264,8 +237,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Consumer(
       builder: (context, ref, child) {
         final roomsAsync = ref.watch(roomsListProvider);
+        final bookingsAsync = ref.watch(bookingsListProvider);
         return roomsAsync.when(
           data: (rooms) {
+            final bookingsByRoom = bookingsAsync.valueOrNull
+                ?.where((b) => b.actualCheckout == null && b.deletedAt == null)
+                .fold<Map<String, Booking>>({}, (map, b) {
+              map[b.roomNumber] = b;
+              return map;
+            }) ?? {};
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -292,7 +272,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                _buildRoomsGrid(rooms),
+                _buildRoomsGrid(rooms, bookingsByRoom),
               ],
             );
           },
@@ -308,7 +288,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildRoomsGrid(List<Room> rooms) {
+  Widget _buildRoomsGrid(List<Room> rooms, Map<String, Booking> bookingsByRoom) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -321,27 +301,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       itemCount: rooms.length,
       itemBuilder: (context, index) {
         final room = rooms[index];
-        final isOverdue = _isRoomOverdue(room);
-        final isOccupied = _isRoomOccupied(room);
+        final booking = bookingsByRoom[room.roomNumber];
+        final remainingBalance = booking?.remainingBalanceCached ?? 0;
+        final isOccupied = StatusUtils.isRoomOccupied(room.status);
+        final isOverdue = isOccupied && remainingBalance > 0;
 
         return _RoomCard(
           room: room,
           isOverdue: isOverdue,
           isOccupied: isOccupied,
           overdueColor: _overdueColor(),
+          guestName: booking?.guestName ?? '',
+          checkinDate: booking?.checkinDate ?? '',
+          checkoutDate: booking?.checkoutDate ?? '',
+          remainingBalance: remainingBalance,
           onTap: () => _navigateToRoomDetail(room),
         );
       },
     );
-  }
-
-  bool _isRoomOverdue(Room room) {
-    // منطق مبسط للتحقق من التأخر
-    return room.status == 'مأجور' && room.remainingBalance > 0;
-  }
-
-  bool _isRoomOccupied(Room room) {
-    return room.status == 'مأجور';
   }
 
   void _navigateToRoomDetail(Room room) {
@@ -356,10 +333,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.blue.shade200),
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '📋 دليل الألوان:',
             style: TextStyle(
               fontSize: 16,
@@ -368,15 +345,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               color: Color(0xFF1A1A2E),
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Row(
             children: [
               _ColorDot(color: Colors.green, label: 'شاغرة'),
-              const SizedBox(width: 16),
-              _ColorDot(color: Colors.blue, label: 'مأجورة'),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
+              _ColorDot(color: Colors.blue, label: 'محجوزة'),
+              SizedBox(width: 16),
               _ColorDot(color: Colors.orange, label: 'قيد التنظيف'),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               _ColorDot(color: Colors.red, label: 'صيانة'),
             ],
           ),
@@ -408,7 +385,7 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.15),
+            color: color.withValues(alpha: 0.15),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -422,7 +399,7 @@ class _StatCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -461,6 +438,10 @@ class _RoomCard extends StatelessWidget {
     required this.isOccupied,
     required this.overdueColor,
     required this.onTap,
+    this.guestName = '',
+    this.checkinDate = '',
+    this.checkoutDate = '',
+    this.remainingBalance = 0,
   });
 
   final Room room;
@@ -468,6 +449,10 @@ class _RoomCard extends StatelessWidget {
   final bool isOccupied;
   final Color overdueColor;
   final VoidCallback onTap;
+  final String guestName;
+  final String checkinDate;
+  final String checkoutDate;
+  final double remainingBalance;
 
   @override
   Widget build(BuildContext context) {
@@ -490,10 +475,10 @@ class _RoomCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: statusColor.withOpacity(0.3), width: 2),
+          border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 2),
           boxShadow: [
             BoxShadow(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -507,7 +492,7 @@ class _RoomCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
+                color: statusColor.withValues(alpha: 0.1),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
@@ -551,35 +536,35 @@ class _RoomCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (room.guestName.isNotEmpty) ...[
+                    if (guestName.isNotEmpty) ...[
                       _DetailRow(
                         icon: Icons.person,
                         label: 'الضيف',
-                        value: room.guestName,
+                        value: guestName,
                       ),
                       const SizedBox(height: 4),
                     ],
-                    if (room.checkinDate.isNotEmpty) ...[
+                    if (checkinDate.isNotEmpty) ...[
                       _DetailRow(
                         icon: Icons.login,
                         label: 'دخول',
-                        value: room.checkinDate,
+                        value: checkinDate,
                       ),
                       const SizedBox(height: 4),
                     ],
-                    if (room.checkoutDate.isNotEmpty) ...[
+                    if (checkoutDate.isNotEmpty) ...[
                       _DetailRow(
                         icon: Icons.logout,
                         label: 'خروج',
-                        value: room.checkoutDate,
+                        value: checkoutDate,
                       ),
                       const SizedBox(height: 4),
                     ],
-                    if (room.remainingBalance > 0) ...[
+                    if (remainingBalance > 0) ...[
                       _DetailRow(
                         icon: Icons.attach_money,
                         label: 'المتبقي',
-                        value: NumberFormat.currency(locale: 'ar', symbol: 'ر.س').format(room.remainingBalance),
+                        value: NumberFormat('#,##0.00', 'ar').format(remainingBalance),
                         valueColor: Colors.red,
                       ),
                     ],
@@ -589,9 +574,9 @@ class _RoomCard extends StatelessWidget {
                         width: double.infinity,
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: overdueColor.withOpacity(0.1),
+                          color: overdueColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: overdueColor.withOpacity(0.3)),
+                          border: Border.all(color: overdueColor.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
@@ -687,7 +672,7 @@ class _ColorDot extends StatelessWidget {
             border: Border.all(color: Colors.white, width: 2),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.3),
+                color: color.withValues(alpha: 0.3),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),

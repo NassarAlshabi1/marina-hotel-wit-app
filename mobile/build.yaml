@@ -1,0 +1,22 @@
+targets:
+  $default:
+    builders:
+      build_verify|build_verify:
+        enabled: false
+      drift_dev:
+        options:
+          use_experimental_inference: true
+          sqlite_modules:
+            - json1
+            - fts5
+      freezed:
+        options:
+          runtime_hash: false
+          generic_argument_factories: false
+      json_serializable:
+        options:
+          create_to_json: false
+          field_rename: snake
+          checked: false
+          explicit_to_json: true
+          any_map: false

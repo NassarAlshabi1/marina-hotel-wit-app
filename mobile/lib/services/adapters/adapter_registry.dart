@@ -117,6 +117,7 @@ class AdapterRegistry {
   static AdapterRegistry? _instance;
 
   /// Get singleton instance (created via Provider)
+  // ignore: prefer_constructors_over_static_methods — singleton getter
   static AdapterRegistry get instance {
     _instance ??= AdapterRegistry._(DatabaseManager.instance);
     return _instance!;

@@ -182,7 +182,6 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       }
       await (update(bookings)..where((t) => t.id.equals(id))).write(
         BookingsCompanion(
-          deletedAt: const Value.absent(),
           updatedAt: Value(Time.nowEpoch()),
           lastModified: Value(Time.nowEpoch()),
           version: Value(existing.version + 1),
@@ -236,7 +235,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     final today = DateTime.now().toIso8601String().split('T').first;
     final query = select(bookings)
       ..where((t) => t.deletedAt.isNull() & t.checkinDate.isBiggerOrEqualValue(today) & t.status.equals('نشط'))
-      ..orderBy([(t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.asc)]);
+      ..orderBy([(t) => OrderingTerm(expression: t.checkinDate)]);
     if (limit != null) {
       query.limit(limit);
     }

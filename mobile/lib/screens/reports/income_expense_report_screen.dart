@@ -850,27 +850,42 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
           '${profitMargin.toStringAsFixed(1)}%',
           if (profitMargin > 20)
             'ممتاز'
+          else if (profitMargin > 10)
+            'جيد'
+          else if (profitMargin > 0)
+            'مقبول'
           else
-            profitMargin > 10
-                ? 'جيد'
-                : profitMargin > 0
-                ? 'مقبول'
-                : 'خسارة',
+            'خسارة',
         ],
         [
           'نسبة المصروفات إلى الإيرادات',
           '${expenseRatio.toStringAsFixed(1)}%',
-          if (expenseRatio < 60) 'ممتاز' else expenseRatio < 80 ? 'جيد' : 'مرتفع',
+          if (expenseRatio < 60)
+            'ممتاز'
+          else if (expenseRatio < 80)
+            'جيد'
+          else
+            'مرتفع',
         ],
         [
           'نسبة الرواتب إلى الإيرادات',
           '${salaryExpenseRatio.toStringAsFixed(1)}%',
-          if (salaryExpenseRatio < 30) 'ممتاز' else salaryExpenseRatio < 50 ? 'جيد' : 'مرتفع',
+          if (salaryExpenseRatio < 30)
+            'ممتاز'
+          else if (salaryExpenseRatio < 50)
+            'جيد'
+          else
+            'مرتفع',
         ],
         [
           'معدل تغطية الديون',
           if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',
-          if (debtCoverage > 2) 'ممتاز' else debtCoverage > 1 ? 'جيد' : 'ضعيف',
+          if (debtCoverage > 2)
+            'ممتاز'
+          else if (debtCoverage > 1)
+            'جيد'
+          else
+            'ضعيف',
         ],
       ],
     );

@@ -26,13 +26,12 @@ class AppwriteFullPull {
   static const int _batchSize = 100;
 
   /// هل تم التهيئة
-  bool get isInitialized => _appwriteService != null && _database != null && _adapterRegistry != null;
+  bool get isInitialized => _appwriteService != null && _database != null;
 
   /// تهيئة الخدمة
   Future<void> initialize(AppwriteService service, AppDatabase db) async {
     _appwriteService = service;
     _database = db;
-    _adapterRegistry = AdapterRegistry.instance;
     _logger.info('تم تهيئة خدمة السحب الشامل', tag: 'FULL_PULL');
   }
 
@@ -102,7 +101,7 @@ class AppwriteFullPull {
 
   /// ترتيب الكيانات للسحب (حسب العلاقات)
   List<_PullEntity> _getEntitiesInOrder() {
-    final reg = _adapterRegistry!;
+    final reg = _adapterRegistry;
 
     return [
       // 1. الغرف أولاً (Bookings.roomNumber → Rooms.roomNumber)

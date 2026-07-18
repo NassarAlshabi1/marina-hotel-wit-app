@@ -37,15 +37,22 @@ flutter packages pub run build_runner build --delete-conflicting-outputs
 if [ "$RELEASE_ONLY" = false ]; then
   flutter build apk --debug \
     --target-platform android-arm,android-arm64,android-x64 \
-    --split-per-abi
+    --split-per-abi \
+    --enable-impeller \
+    --enable-flutter-gpu
 fi
 
 if [ "$DEBUG_ONLY" = false ]; then
   flutter build apk --release \
     --build-number "$BUILD_NUMBER" \
     --target-platform android-arm,android-arm64,android-x64 \
-    --split-per-abi
-  flutter build appbundle --release --build-number "$BUILD_NUMBER"
+    --split-per-abi \
+    --enable-impeller \
+    --enable-flutter-gpu
+  flutter build appbundle --release \
+    --build-number "$BUILD_NUMBER" \
+    --enable-impeller \
+    --enable-flutter-gpu
 fi
 
 mapfile -t APK_DEBUG < <(ls build/app/outputs/flutter-apk/*-debug.apk 2>/dev/null || true)

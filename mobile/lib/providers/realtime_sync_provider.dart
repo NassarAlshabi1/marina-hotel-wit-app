@@ -1,6 +1,8 @@
 // lib/providers/realtime_sync_provider.dart
 // مزود Riverpod لـ AppwriteRealtimeSync
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/appwrite_realtime_sync.dart';
@@ -30,24 +32,42 @@ final realtimeSyncStateProvider = Provider<RealtimeSyncState>((ref) {
 /// مزود Stream للتغييرات المعلقة
 final pendingRemoteChangesProvider = StreamProvider<int>((ref) {
   final sync = ref.watch(appwriteRealtimeSyncProvider);
-  return sync.pendingRemoteChangesCount.stream;
+  final notifier = sync.pendingRemoteChangesCount;
+  final controller = StreamController<int>.broadcast();
+  void onChanged() => controller.add(notifier.value);
+  controller.add(notifier.value);
+  notifier.addListener(onChanged);
+  ref.onDispose(() {
+    notifier.removeListener(onChanged);
+    unawaited(controller.close());
+  });
+  return controller.stream;
 });
 
 /// مزود Stream للتغييرات من السيرفر
 final hasRemoteChangesProvider = StreamProvider<bool>((ref) {
   final sync = ref.watch(appwriteRealtimeSyncProvider);
-  return sync.hasRemoteChanges.stream;
+  final notifier = sync.hasRemoteChanges;
+  final controller = StreamController<bool>.broadcast();
+  void onChanged() => controller.add(notifier.value);
+  controller.add(notifier.value);
+  notifier.addListener(onChanged);
+  ref.onDispose(() {
+    notifier.removeListener(onChanged);
+    unawaited(controller.close());
+  });
+  return controller.stream;
 });
 
 /// حالة مزامنة Realtime للـ UI
 class RealtimeSyncState {
-  final bool isListening;
-  final bool hasRemoteChanges;
-  final int pendingRemoteChangesCount;
-
   RealtimeSyncState({
     required this.isListening,
     required this.hasRemoteChanges,
     required this.pendingRemoteChangesCount,
   });
+
+  final bool isListening;
+  final bool hasRemoteChanges;
+  final int pendingRemoteChangesCount;
 }
