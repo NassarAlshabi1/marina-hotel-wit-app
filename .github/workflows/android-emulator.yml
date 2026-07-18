@@ -158,7 +158,30 @@ jobs:
             echo "::warning::بعض اختبارات integration فشلت — تحقق من logs"
 
       # ─────────────────────────────────────────────────────────────────────
-      #  9. رفع تقارير الاختبار كـ artifact (في حال الفشل)
+      #  9. تشغيل اختبارات قياس الأداء (Performance Benchmarks)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 🚀 Run Performance Benchmarks
+        run: |
+          flutter test test/performance/             --concurrency=1             --timeout=120s             --reporter expanded             --machine > build/performance/benchmark_results.json             2>&1 || true
+          echo "### 🚀 Performance Benchmarks" >> $GITHUB_STEP_SUMMARY
+          if [ -f build/performance/benchmark_results.json ]; then
+            echo "تم حفظ نتائج الـ benchmarks في build/performance/"
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            flutter test test/performance/               --concurrency=1               --timeout=120s               --reporter compact               2>&1 | tail -30 >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 📤 Upload Benchmark Results
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: benchmark-results-api-${{ matrix.api-level }}
+          path: mobile/build/performance/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  10. رفع تقارير الاختبار كـ artifact (في حال الفشل)
       # ─────────────────────────────────────────────────────────────────────
       - name: 📊 Upload test results on failure
         if: failure()

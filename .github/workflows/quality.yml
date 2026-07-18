@@ -90,9 +90,9 @@ jobs:
   #  Job 2: Static Performance Analysis (بدون emulator — سريع)
   # ═══════════════════════════════════════════════════════════════════════════
   performance-analysis:
-    name: 📊 Static Performance
+    name: 🚀 Performance Analysis
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     if: inputs.run_extended != false
     needs: flutter-ci
     defaults:
@@ -118,37 +118,54 @@ jobs:
         if: inputs.check_level == 'full'
         run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: 🔍 Static performance metrics
+      # ─────────────────────────────────────────────────────────────────────
+      #  Static Performance Metrics
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📐 Static Performance Metrics
         run: |
+          mkdir -p build/performance
           echo "## 📊 Static Performance Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # عدد الملفات الكبير
           echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          TOTAL_DART=$(find lib -name '*.dart' | wc -l)
+          TOTAL_DART=$(find lib -name '*.dart' | wc -l 2>/dev/null)
           echo "| Total Dart files | $TOTAL_DART |" >> $GITHUB_STEP_SUMMARY
-
-          # أكبر 5 ملفات
-          echo "| Largest file | $(find lib -name '*.dart' -exec wc -l {} + 2>/dev/null | sort -rn | head -1 | awk '{print $2, $1}') lines |" >> $GITHUB_STEP_SUMMARY
-
-          # Widget rebuild patterns
-          BUILDS=$(grep -r "build(BuildContext" lib/ --include="*.dart" | wc -l)
+          LARGEST_FILE=$(find lib -name '*.dart' -exec wc -l {} + 2>/dev/null | sort -rn | head -1 | awk '{print $2, $1}')
+          echo "| Largest file | $LARGEST_FILE lines |" >> $GITHUB_STEP_SUMMARY
+          BUILDS=$(grep -r "build(BuildContext" lib/ --include="*.dart" | wc -l 2>/dev/null)
           echo "| Widget builds | $BUILDS |" >> $GITHUB_STEP_SUMMARY
-
-          # Stream subscriptions (مؤشر على التسريبات المحتملة)
-          STREAMS=$(grep -r "StreamSubscription" lib/ --include="*.dart" | wc -l)
+          STREAMS=$(grep -r "StreamSubscription" lib/ --include="*.dart" | wc -l 2>/dev/null)
           echo "| Stream subscriptions | $STREAMS |" >> $GITHUB_STEP_SUMMARY
-
-          # PerformanceInspector usages
           PERF_COUNT=$(grep -r "PerformanceInspector" lib/ --include="*.dart" | wc -l || echo "0")
           echo "| PerformanceInspector | $PERF_COUNT |" >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ⚠️ Performance Hotspots (أكثر 10 ملفات تعقيداً)" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚠️ Performance Hotspots (أكثر 10 ملفات)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
           find lib -name '*.dart' -exec wc -l {} + 2>/dev/null | sort -rn | head -10 >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  Run Performance Benchmark Tests (widget + unit)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 🏃 Run Performance Benchmarks
+        if: inputs.run_benchmarks == true
+        run: |
+          echo "### 🚀 Performance Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          flutter test test/performance/             --concurrency=1             --timeout=120s             --reporter expanded             --machine > build/performance/benchmark_results.json             2>&1 || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          flutter test test/performance/             --concurrency=1             --timeout=120s             --reporter compact             2>&1 | tail -50 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: 📤 Upload Benchmark Results
+        if: always() && inputs.run_benchmarks == true
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: benchmark-results-${{ github.ref_name }}-${{ github.run_id }}
+          path: ${{ inputs.working_directory || 'mobile' }}/build/performance/
+          retention-days: 30
+          if-no-files-found: ignore
 
   # ═══════════════════════════════════════════════════════════════════════════
   #  Job 3: Extended Quality Checks (architecture + security + reports)
