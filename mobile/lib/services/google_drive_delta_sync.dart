@@ -42,7 +42,7 @@ class GoogleDriveDeltaSync {
   Future<void> initialize(GoogleDriveBackupService driveService, AppDatabase db) async {
     _driveService = driveService;
     _database = db;
-    _adapterRegistry = AdapterRegistry(db);
+    _adapterRegistry = AdapterRegistry.instance;
     _deltaSyncService = DeltaSyncService(db);
     await _initializeDeviceId();
     debugPrint('✅ تم تهيئة خدمة المزامنة التفاضلية لـ Google Drive');

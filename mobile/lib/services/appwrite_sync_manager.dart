@@ -105,7 +105,7 @@ class AppwriteSyncManager {
 
   AppwriteSyncManager._internal({required this.appwriteService, required this.database})
     : outboxDao = OutboxDao(database) {
-    _adapterRegistry = AdapterRegistry(database);
+    _adapterRegistry = AdapterRegistry.instance;
     _bookingsRepository = BookingsRepository(database);
     _roomsRepository = RoomsRepository(database);
     _ancestorCacheDao = AncestorCacheDao(database);

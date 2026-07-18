@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 
 import '../../utils/id.dart';
-import '../../utils/time.dart';
+import '../../utils/time.dart'
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 import '../appwrite_sync_manager.dart';
@@ -17,7 +17,7 @@ part 'bookings_dao.g.dart';
 @DriftAccessor(tables: [Bookings])
 class BookingsDao extends DatabaseAccessor<AppDatabase>
     with _$BookingsDaoMixin, OptimisticLockDaoMixin<Bookings, Booking> {
-  BookingsDao(super.db, this.outboxDao) : adapters = AdapterRegistry(db);
+  BookingsDao(super.db, this.outboxDao, this.adapters);
   final OutboxDao outboxDao;
   final AdapterRegistry adapters;
 
@@ -133,11 +133,17 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(bookings)..where((t) => t.id.equals(id))).write(comp);
-      if (rows > 0 && !originIsServer) {
-        await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
+
+      await update(bookings).replace(comp);
+      if (!originIsServer) {
+        await _mergeOutbox(
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: comp.serverId.present ? comp.serverId.value : existing.serverId,
+          clientTs: now,
+        );
       }
-      return rows;
+      return 1;
     });
   }
 
@@ -148,44 +154,122 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       if (existing == null) {
         return 0;
       }
-      final rows = await (update(bookings)..where((t) => t.id.equals(id))).write(
-        BookingsCompanion(deletedAt: Value(now), updatedAt: Value(now), lastModified: Value(now)),
+      await (update(bookings)..where((t) => t.id.equals(id))).write(
+        BookingsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+          version: Value(existing.version + 1),
+        ),
       );
-      if (rows > 0 && !originIsServer) {
-        // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
-        // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
-        await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
+      if (!originIsServer) {
+        await _mergeOutbox(
+          op: 'delete',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          clientTs: now,
+        );
       }
-      return rows;
+      return 1;
     });
   }
 
-  Future<int> deleteById(int id, {bool originIsServer = false}) => softDelete(id, originIsServer: originIsServer);
+  Future<int> restore(int id) async {
+    return db.transaction(() async {
+      final existing = await getById(id);
+      if (existing == null) {
+        return 0;
+      }
+      await (update(bookings)..where((t) => t.id.equals(id))).write(
+        BookingsCompanion(
+          deletedAt: const Value.absent(),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+          version: Value(existing.version + 1),
+        ),
+      );
+      return 1;
+    });
+  }
 
-  Future<List<Booking>> getAll({bool includeDeleted = false}) {
-    final query = select(bookings);
+  Future<void> deletePermanently(int id) async {
+    await (delete(bookings)..where((t) => t.id.equals(id))).go();
+  }
+
+  /// الحصول على حجز حسب localUuid
+  Future<Booking?> getByLocalUuid(String localUuid) async {
+    return (select(bookings)..where((t) => t.localUuid.equals(localUuid))..limit(1)).getSingleOrNull();
+  }
+
+  /// الحصول على حجز حسب serverBookingId
+  Future<Booking?> getByServerId(int serverId) async {
+    return (select(bookings)..where((t) => t.serverBookingId.equals(serverId))..limit(1)).getSingleOrNull();
+  }
+
+  /// تحديث serverBookingId لحجز موجود
+  Future<int> updateServerBookingId(String localUuid, int serverBookingId) async {
+    return (update(bookings)..where((t) => t.localUuid.equals(localUuid))).write(
+      BookingsCompanion(serverBookingId: Value(serverBookingId)),
+    );
+  }
+
+  /// عدد الحجوزات حسب الحالة
+  Future<int> countByStatus(String status, {bool includeDeleted = false}) async {
+    final query = selectOnly(bookings)..addColumns([bookings.id.count()])..where(bookings.status.equals(status));
     if (!includeDeleted) {
-      query.where((t) => t.deletedAt.isNull());
+      query.where(bookings.deletedAt.isNull());
+    }
+    final result = await query.getSingle();
+    return result.read(bookings.id.count()) ?? 0;
+  }
+
+  /// حجوزات نشطة لغرفة معينة
+  Future<List<Booking>> getActiveBookingsForRoom(String roomNumber) async {
+    return (select(bookings)
+          ..where((t) => t.roomNumber.equals(roomNumber) & t.deletedAt.isNull() & t.status.equals('نشط'))
+          ..orderBy([(t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)]))
+        .get();
+  }
+
+  /// حجوزات قادمة (checkinDate >= today)
+  Future<List<Booking>> getUpcomingBookings({int? limit}) async {
+    final today = DateTime.now().toIso8601String().split('T').first;
+    final query = select(bookings)
+      ..where((t) => t.deletedAt.isNull() & t.checkinDate.isBiggerOrEqualValue(today) & t.status.equals('نشط'))
+      ..orderBy([(t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.asc)]);
+    if (limit != null) {
+      query.limit(limit);
     }
     return query.get();
   }
 
-  Future<List<Booking>> getByRoomNumber(String roomNumber, {bool includeDeleted = false}) {
-    final query = select(bookings)..where((t) => t.roomNumber.equals(roomNumber));
+  /// البحث عن حجوزات حسب نص (اسم الضيف، رقم الهاتف، رقم الغرفة)
+  Future<List<Booking>> search(String query, {bool includeDeleted = false, int? limit}) async {
+    final q = select(bookings);
     if (!includeDeleted) {
-      query.where((t) => t.deletedAt.isNull());
+      q.where((t) => t.deletedAt.isNull());
     }
-    return query.get();
+    if (query.trim().isNotEmpty) {
+      final s = '%${query.trim()}%';
+      q.where((t) => t.guestName.like(s) | t.guestPhone.like(s) | t.roomNumber.like(s));
+    }
+    q.orderBy([(t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)]);
+    if (limit != null) {
+      q.limit(limit);
+    }
+    return q.get();
   }
 
-  Future<List<Booking>> getByStatus(String status, {bool includeDeleted = false}) {
-    final query = select(bookings)..where((t) => t.status.equals(status));
-    if (!includeDeleted) {
-      query.where((t) => t.deletedAt.isNull());
+  /// جميع الحجوزات المحذوفة
+  Future<List<Booking>> getDeletedBookings({int? limit}) async {
+    final q = select(bookings)..where((t) => t.deletedAt.isNotNull())..orderBy([(t) => OrderingTerm(expression: t.deletedAt, mode: OrderingMode.desc)]);
+    if (limit != null) {
+      q.limit(limit);
     }
-    return query.get();
+    return q.get();
   }
 
+  /// الحصول على bookingWithNights (للنسخ الاحتياطي/المزامنة)
   Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
     final row =
         await (select(bookings)

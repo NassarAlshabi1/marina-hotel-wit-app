@@ -14,6 +14,7 @@ import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/bookings_repository.dart';
 import '../services/repositories/cash_repository.dart';
 import '../services/repositories/debts_repository.dart';
+import '../adapters/adapter_registry.dart';
 import '../services/repositories/employees_repository.dart';
 import '../services/repositories/expenses_repository.dart';
 import '../services/repositories/guest_infos_repository.dart';
@@ -44,20 +45,21 @@ final syncHealthProvider = StreamProvider<SyncHealthSnapshot>((ref) => ref.watch
 final diagnosticsLoggerProvider = ChangeNotifierProvider<DiagnosticsLogger>((ref) => DiagnosticsLogger.instance);
 
 final databaseProvider = Provider<AppDatabase>((ref) => DatabaseManager.instance);
+final adapterRegistryProvider = Provider<AdapterRegistry>((ref) => AdapterRegistry.instance);
 
-final outboxDaoProvider = Provider<OutboxDao>((ref) => OutboxDao(ref.read(databaseProvider)));
+final outboxDaoProvider = Provider<OutboxDao>((ref) => OutboxDao(ref.read(databaseProvider), ref.read(adapterRegistryProvider)));
 final bookingsDaoProvider = Provider<BookingsDao>(
-  (ref) => BookingsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+  (ref) => BookingsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
 final paymentsDaoProvider = Provider<PaymentsDao>(
-  (ref) => PaymentsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+  (ref) => PaymentsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
 final expensesDaoProvider = Provider<ExpensesDao>(
-  (ref) => ExpensesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+  (ref) => ExpensesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
-final debtsDaoProvider = Provider<DebtsDao>((ref) => DebtsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)));
+final debtsDaoProvider = Provider<DebtsDao>((ref) => DebtsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)));
 final employeesDaoProvider = Provider<EmployeesDao>(
-  (ref) => EmployeesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+  (ref) => EmployeesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
 
 final roomsRepoProvider = Provider<RoomsRepository>((ref) => RoomsRepository(ref.read(databaseProvider)));

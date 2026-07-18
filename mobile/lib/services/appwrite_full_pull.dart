@@ -19,7 +19,7 @@ class AppwriteFullPull {
 
   AppwriteService? _appwriteService;
   AppDatabase? _database;
-  AdapterRegistry? _adapterRegistry;
+  _adapterRegistry = AdapterRegistry.instance;
   final _logger = AppwriteLogger();
 
   /// حجم الدفعة الواحدة
@@ -32,7 +32,7 @@ class AppwriteFullPull {
   Future<void> initialize(AppwriteService service, AppDatabase db) async {
     _appwriteService = service;
     _database = db;
-    _adapterRegistry = AdapterRegistry(db);
+    _adapterRegistry = AdapterRegistry.instance;
     _logger.info('تم تهيئة خدمة السحب الشامل', tag: 'FULL_PULL');
   }
 
