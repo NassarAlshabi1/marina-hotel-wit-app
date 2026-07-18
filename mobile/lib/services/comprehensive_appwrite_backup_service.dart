@@ -259,8 +259,8 @@ class ComprehensiveAppwriteBackupService {
             String? documentId;
             if (docData.containsKey('localUuid')) {
               documentId = docData['localUuid'] as String?;
-            } else if (docData.containsKey('\$id')) {
-              documentId = docData['\$id'] as String?;
+            } else if (docData.containsKey(r'$id')) {
+              documentId = docData[r'$id'] as String?;
             } else {
               documentId = ID.unique();
             }
@@ -317,12 +317,12 @@ class ComprehensiveAppwriteBackupService {
     final clean = Map<String, dynamic>.from(data);
 
     // إزالة الحقول التي يضيفها Appwrite تلقائياً
-    clean.remove('\$id');
-    clean.remove('\$createdAt');
-    clean.remove('\$updatedAt');
-    clean.remove('\$permissions');
-    clean.remove('\$collectionId');
-    clean.remove('\$databaseId');
+    clean.remove(r'$id');
+    clean.remove(r'$createdAt');
+    clean.remove(r'$updatedAt');
+    clean.remove(r'$permissions');
+    clean.remove(r'$collectionId');
+    clean.remove(r'$databaseId');
 
     // إزالة الحقول الخاصة بـ Drift/SQLite
     clean.remove('id');

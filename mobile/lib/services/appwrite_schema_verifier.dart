@@ -518,7 +518,7 @@ class AppwriteSchemaVerifier {
     }
 
     debugPrint('# إنشاء Collection: $collectionId');
-    debugPrint('appwrite databases createCollection \\');
+    debugPrint(r'appwrite databases createCollection \');
     debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
     debugPrint('  --collectionId $collectionId \\');
     debugPrint('  --name "${schema['name']}"');
@@ -526,7 +526,7 @@ class AppwriteSchemaVerifier {
 
     debugPrint('# إنشاء Attributes:');
     final includeSyncFields = schema['includeSyncFields'] != false;
-    final allAttributes = [...(schema['attributes'] as List), if (includeSyncFields) ..._syncFields];
+    final allAttributes = [...(schema['attributes']! as List), if (includeSyncFields) ..._syncFields];
 
     for (final attr in allAttributes) {
       final key = attr['key'];
@@ -535,26 +535,26 @@ class AppwriteSchemaVerifier {
 
       if (type == 'string') {
         final size = attr['size'] ?? 255;
-        debugPrint('appwrite databases createStringAttribute \\');
+        debugPrint(r'appwrite databases createStringAttribute \');
         debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
         debugPrint('  --collectionId $collectionId \\');
         debugPrint('  --key $key \\');
         debugPrint('  --size $size \\');
         debugPrint('  --required $required');
       } else if (type == 'integer') {
-        debugPrint('appwrite databases createIntegerAttribute \\');
+        debugPrint(r'appwrite databases createIntegerAttribute \');
         debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
         debugPrint('  --collectionId $collectionId \\');
         debugPrint('  --key $key \\');
         debugPrint('  --required $required');
       } else if (type == 'double') {
-        debugPrint('appwrite databases createFloatAttribute \\');
+        debugPrint(r'appwrite databases createFloatAttribute \');
         debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
         debugPrint('  --collectionId $collectionId \\');
         debugPrint('  --key $key \\');
         debugPrint('  --required $required');
       } else if (type == 'boolean') {
-        debugPrint('appwrite databases createBooleanAttribute \\');
+        debugPrint(r'appwrite databases createBooleanAttribute \');
         debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
         debugPrint('  --collectionId $collectionId \\');
         debugPrint('  --key $key \\');

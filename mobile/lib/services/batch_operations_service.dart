@@ -74,9 +74,9 @@ class BatchOperationsService {
       // معالجة النتائج
       for (final result in results) {
         if (result['success'] == true) {
-          successfulItems.add(result['id'] as String);
+          successfulItems.add(result['id']! as String);
         } else {
-          errors[result['id'] as String] = result['error'] as String;
+          errors[result['id']! as String] = result['error']! as String;
         }
       }
     } else {
@@ -143,9 +143,9 @@ class BatchOperationsService {
       // معالجة النتائج
       for (final result in results) {
         if (result['success'] == true) {
-          successfulItems.add(result['document'] as models.Document);
+          successfulItems.add(result['document']! as models.Document);
         } else {
-          errors['document_${result['index']}'] = result['error'] as String;
+          errors['document_${result['index']}'] = result['error']! as String;
         }
       }
     } else {
@@ -212,9 +212,9 @@ class BatchOperationsService {
       // معالجة النتائج
       for (final result in results) {
         if (result['success'] == true) {
-          successfulItems.add(result['document'] as models.Document);
+          successfulItems.add(result['document']! as models.Document);
         } else {
-          errors[result['id'] as String] = result['error'] as String;
+          errors[result['id']! as String] = result['error']! as String;
         }
       }
     } else {

@@ -217,7 +217,7 @@ class HotelDayKeyFixService {
         await db.customStatement(
           'UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) '
           "WHERE reason LIKE 'exp_%' "
-          "AND reason NOT LIKE 'exp_%\\_%' ESCAPE '\\' "
+          r"AND reason NOT LIKE 'exp_%\_%' ESCAPE '\' "
           'AND expense_id IS NULL '
           'AND deleted_at IS NULL',
         );

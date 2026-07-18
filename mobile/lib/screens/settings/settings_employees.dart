@@ -1272,7 +1272,6 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         status: newStatus,
       );
 
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('تم ${newStatus == 'نشط' ? 'تفعيل' : 'إيقاف'} الموظف')));

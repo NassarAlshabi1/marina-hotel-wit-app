@@ -176,7 +176,7 @@ class ConflictDetector {
     if (ancestor == null) return current.keys.toSet();
     final changed = <String>{};
     for (final key in current.keys) {
-      if (key.startsWith('\$')) continue;
+      if (key.startsWith(r'$')) continue;
       if (key == 'lastModified' ||
           key == 'updatedAt' ||
           key == 'version' ||

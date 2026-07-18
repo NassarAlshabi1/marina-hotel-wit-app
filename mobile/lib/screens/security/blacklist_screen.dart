@@ -497,7 +497,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                 if (!mounted) {
                   return;
                 }
-                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(
                   context,
                 ).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red));

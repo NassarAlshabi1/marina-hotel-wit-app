@@ -156,7 +156,7 @@ class AppwriteService {
         // جميع الصفحات وإلا فاشل Appwrite بـ "cursor requires consistent
         // sort order" أو يُرجع نتائج خاطئة. pagedQueries يُعاد بناؤه
         // من queries (بدون الترتيب) في كل تكرار، لذا يجب إعادة إضافته.
-        pagedQueries.add(Query.orderAsc('\$id'));
+        pagedQueries.add(Query.orderAsc(r'$id'));
         pagedQueries.add(Query.limit(pageSize));
         // ✅ P1-4: استخدام cursorAfter بدل offset
         if (cursorAfterId != null) {

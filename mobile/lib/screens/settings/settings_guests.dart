@@ -569,7 +569,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('فشل حذف الحجز: $e'), backgroundColor: Colors.red));
@@ -858,7 +857,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('تعذر تعديل تاريخ الدخول: $e'), backgroundColor: Colors.red));
@@ -1017,7 +1015,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       if (!mounted) {
         return;
       }
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('تم حذف الضيف وجميع البيانات المرتبطة مع checkout للحجوزات النشطة')));

@@ -450,16 +450,16 @@ class AppwriteFullPull {
   /// هذه الحقول يضيفها Appwrite تلقائياً ولا يجب تخزينها محلياً
   void _cleanDataFromAppwrite(Map<String, dynamic> data, String docId) {
     // إزالة حقول Appwrite الخاصة
-    data.remove('\$id');
-    data.remove('\$createdAt');
-    data.remove('\$updatedAt');
-    data.remove('\$permissions');
-    data.remove('\$collectionId');
-    data.remove('\$databaseId');
+    data.remove(r'$id');
+    data.remove(r'$createdAt');
+    data.remove(r'$updatedAt');
+    data.remove(r'$permissions');
+    data.remove(r'$collectionId');
+    data.remove(r'$databaseId');
 
     // أيضاً إزالة الحقول بأسماء بديلة
-    data.remove('createdAt_\$');
-    data.remove('updatedAt_\$');
+    data.remove(r'createdAt_$');
+    data.remove(r'updatedAt_$');
 
     // الاحتفاظ بـ document ID كـ reference إذا لزم الأمر
     // يمكن استخدامه لاحقاً للتحديثات

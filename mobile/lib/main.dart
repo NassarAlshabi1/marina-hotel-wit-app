@@ -320,7 +320,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       dlog('ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية');
     }
 
-    // ignore: deprecated_member_use_from_same_package
     await SyncQueueService.instance.initialize();
 
     _startEngineMonitoring(autoSyncEngine);
@@ -769,8 +768,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     } catch (e) {
       dwarn(() => 'Error disposing BatteryOptimizer: $e');
     }
-    // ignore: deprecated_member_use_from_same_package
     try {
+      // ignore: deprecated_member_use_from_same_package
       await AppwriteRealtimeService.disposeInstance();
     } catch (e) {
       dwarn(() => 'Error disposing AppwriteRealtimeService: $e');
@@ -815,7 +814,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     } catch (e) {
       dwarn(() => 'Error disposing CentralSyncCoordinator: $e');
     }
-    // ignore: deprecated_member_use_from_same_package
     try {
       BackgroundSyncService.disposeInstance();
     } catch (e) {

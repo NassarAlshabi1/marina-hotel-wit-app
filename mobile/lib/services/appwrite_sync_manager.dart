@@ -1,4 +1,4 @@
-// ignore_for_file: unused_field, use_late_for_private_fields_and_variables, duplicate_ignore, avoid_redundant_argument_values, no_leading_underscores_for_local_identifiers, unused_local_variable, directives_ordering
+// ignore_for_file: unused_field, avoid_redundant_argument_values, no_leading_underscores_for_local_identifiers, unused_local_variable, directives_ordering
 
 import 'dart:async';
 import 'dart:convert';
@@ -4207,7 +4207,7 @@ class AppwriteSyncManager {
             await _updateLastPullTs(newPullTs);
             if (_maxUpdatedAtInPull != null) {
               _logger.debug(
-                '📍 pullRemoteChanges: مؤشر السحب مشتق من max(\$updatedAt) = '
+                r'📍 pullRemoteChanges: مؤشر السحب مشتق من max($updatedAt) = '
                 '$_maxUpdatedAtInPull (سلطة الخادم)',
                 tag: 'SYNC',
               );

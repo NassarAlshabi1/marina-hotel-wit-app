@@ -1063,7 +1063,7 @@ class GeminiService {
       }
 
       // المدفوعات المعلقة (غير مُطابقة)
-      final pendingPayments = todayPayments.where((p) => p.isPendingBalance == true).toList();
+      final pendingPayments = todayPayments.where((p) => p.isPendingBalance).toList();
       if (pendingPayments.isNotEmpty) {
         s.writeln('مدفوعات معلقة (غير مُطابقة): ${pendingPayments.length}');
         for (final p in pendingPayments) {

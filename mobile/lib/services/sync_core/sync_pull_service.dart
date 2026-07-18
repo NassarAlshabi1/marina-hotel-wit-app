@@ -1,4 +1,4 @@
-// ignore_for_file: unused_element, deprecated_member_use, directives_ordering
+// ignore_for_file: unused_element, deprecated_member_use
 import 'dart:async';
 
 import 'package:appwrite/appwrite.dart';
@@ -125,7 +125,7 @@ class SyncPullService {
     // تحويل cutoff إلى ISO 8601 (Appwrite $updatedAt بصيغة ISO string)
     final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
     // الاستعلام الأساسي: $updatedAt (زمن الخادم)
-    return [Query.greaterThan('\$updatedAt', cutoffIso)];
+    return [Query.greaterThan(r'$updatedAt', cutoffIso)];
   }
 
   /// ✅ إصلاح جوهري: يبني delta queries خاصة بـ booking_nights بنفس النهج
@@ -140,7 +140,7 @@ class SyncPullService {
       final cutoffSeconds = lastPullTs - 60;
       final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
       // الاستعلام الأساسي: $updatedAt (زمن الخادم)
-      return [Query.greaterThan('\$updatedAt', cutoffIso)];
+      return [Query.greaterThan(r'$updatedAt', cutoffIso)];
     }
     return []; // full fetch
   }

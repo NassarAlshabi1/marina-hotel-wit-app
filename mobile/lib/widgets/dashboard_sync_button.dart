@@ -157,7 +157,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
     // ✅ P2-4 fix: تحذير قبل السحب عند وجود تغييرات محلية غير مرفوعة
     if (_pendingChangesCount > 0) {
       if (!mounted) return;
-      // ignore: use_build_context_synchronously
       final shouldContinue = await showDialog<bool>(
         // ignore: use_build_context_synchronously
         context: context,
@@ -219,7 +218,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       if (!appwriteConnected) {
         _isPulling = false;
         if (mounted) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('لا يوجد اتصال بـ Appwrite'), backgroundColor: Colors.red));

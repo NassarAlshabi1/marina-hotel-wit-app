@@ -2317,7 +2317,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final hasRemaining = effectiveRemaining > 0;
 
     // 3. عرض نافذة التأكيد العادية
-    // ignore: use_build_context_synchronously
     unawaited(
       showDialog<void>(
         context: context,

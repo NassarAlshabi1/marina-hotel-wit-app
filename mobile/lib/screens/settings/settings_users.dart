@@ -294,7 +294,6 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                             if (mounted) {
                               // ignore: use_build_context_synchronously
                               Navigator.pop(dialogContext);
-                              // ignore: use_build_context_synchronously
                               ScaffoldMessenger.of(
                                 context,
                               ).showSnackBar(const SnackBar(content: Text('تم إضافة المستخدم بنجاح')));

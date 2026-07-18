@@ -281,7 +281,6 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
               child: ElevatedButton.icon(
                 onPressed: () async {
                   await ref.read(autoSyncEngineProvider).resetFailedAttempts();
-                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(
                     context,
                   ).showSnackBar(const SnackBar(content: Text('✅ تم إعادة تعيين المحاولات')));
@@ -766,7 +765,6 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
                           Navigator.pop(context);
                         }
                         if (mounted) {
-                          // ignore: use_build_context_synchronously
                           ScaffoldMessenger.of(
                             context,
                           ).showSnackBar(SnackBar(content: Text('✅ تم تعيين Debounce إلى $value ثانية')));
@@ -815,7 +813,6 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
                           Navigator.pop(context);
                         }
                         if (mounted) {
-                          // ignore: use_build_context_synchronously
                           ScaffoldMessenger.of(
                             context,
                           ).showSnackBar(SnackBar(content: Text('✅ تم تعيين Pull Interval إلى $value دقيقة')));

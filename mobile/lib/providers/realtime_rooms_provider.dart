@@ -19,7 +19,6 @@ import '../utils/status_utils.dart';
 class RealTimeRoomsProvider extends ChangeNotifier {
   RealTimeRoomsProvider({
     required RoomRepository repository,
-    // ignore: deprecated_member_use_from_same_package
     required AppwriteRealtimeService realtimeService,
   }) : _repository = repository,
        _realtimeService = realtimeService;
@@ -132,7 +131,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
 
   /// معالجة حذف غرفة
   void _handleRoomDeleted(Map<String, dynamic> payload) {
-    final roomId = payload['\$id'] as String?;
+    final roomId = payload[r'$id'] as String?;
     if (roomId != null) {
       final intId = int.tryParse(roomId);
       if (intId != null) {

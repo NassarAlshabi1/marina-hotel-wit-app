@@ -271,7 +271,7 @@ class Receipt {
                 decoration: pw.BoxDecoration(color: PdfColors.secondary, borderRadius: pw.BorderRadius.circular(8)),
                 child: pw.Center(
                   child: pw.Text(
-                    '\$',
+                    r'$',
                     style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
                   ),
                 ),

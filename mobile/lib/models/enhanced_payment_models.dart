@@ -171,8 +171,8 @@ class EnhancedPaymentReceipt {
   }
 
   pw.Widget _buildPaymentStatusBadge(ArabicPdfFonts fonts) {
-    final isVoided = payment.isVoided == true;
-    final isPending = payment.isPendingBalance == true;
+    final isVoided = payment.isVoided;
+    final isPending = payment.isPendingBalance;
     final String statusText;
     final PdfColor statusColor;
 
