@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
@@ -186,7 +187,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                           if (!mounted) {
                                             return;
                                           }
-                                          // ignore: use_build_context_synchronously
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
                                               content: Text(e.active ? 'تم تعطيل: ${e.name}' : 'تم تفعيل: ${e.name}'),
@@ -197,7 +197,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                           if (!mounted) {
                                             return;
                                           }
-                                          // ignore: use_build_context_synchronously
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
                                               content: Text('فشل تحديث الحالة: $err'),
@@ -213,7 +212,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                             if (!mounted) {
                                               return;
                                             }
-                                            // ignore: use_build_context_synchronously
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(content: Text('تم حذف: ${e.name}'), backgroundColor: Colors.red),
                                             );
@@ -221,7 +219,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                             if (!mounted) {
                                               return;
                                             }
-                                            // ignore: use_build_context_synchronously
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
                                                 content: Text('فشل الحذف: $err'),
@@ -486,7 +483,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                 if (!mounted) {
                   return;
                 }
-                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(isEdit ? 'تم تعديل: ${nameCtrl.text}' : 'تمت الإضافة: ${nameCtrl.text}'),

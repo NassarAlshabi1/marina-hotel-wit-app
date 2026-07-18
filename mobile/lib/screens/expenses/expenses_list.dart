@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -747,7 +748,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
       int? selectedEmployeeId = existing?.relatedId;
 
       final ok = await showDialog<bool>(
-        // ignore: use_build_context_synchronously
         context: context,
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, setState) {

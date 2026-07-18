@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:io';
 
@@ -741,7 +742,6 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
                 if (result.isEmpty) {
                   _showSnack('لا توجد مدفوعات تراكمية معلقة', color: Colors.blue);
                 } else if (mounted) {
-                  // ignore: use_build_context_synchronously
                   _showProcessingResultDialog(context, result);
                 }
               } catch (e) {

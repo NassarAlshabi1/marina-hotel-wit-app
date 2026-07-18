@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -488,7 +489,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     ).push<bool>(MaterialPageRoute<bool>(builder: (_) => BookingEditScreen(existing: booking)));
     if ((result ?? false) && mounted) {
       ref.invalidate(bookingsListProvider);
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الحجز')));
     }
   }
@@ -563,7 +563,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
       if (!mounted) return;
       ref.invalidate(bookingsListProvider);
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم حذف الحجز وكل البيانات المرتبطة به'), backgroundColor: Colors.green),
       );
@@ -847,7 +846,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       }
 
       if (hasChanges && mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('تم تعديل تاريخ الدخول وإعادة حساب المبالغ بنجاح'),
@@ -904,7 +902,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     ).push<bool>(MaterialPageRoute<bool>(builder: (_) => GuestEditScreen(guest: guest)));
     if ((result ?? false) && mounted) {
       ScaffoldMessenger.of(
-        // ignore: use_build_context_synchronously
         context,
       ).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الضيف')));
     }
@@ -1022,7 +1019,6 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       if (!mounted) {
         return;
       }
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحذف: $e'), backgroundColor: Colors.red));
     }
   }

@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:convert';
 import 'dart:io';
 
@@ -26,11 +27,16 @@ final fixLogsProvider = FutureProvider.autoDispose<List<RestoreFixLogData>>((ref
 final fixServiceLoadingProvider = StateProvider<bool>((ref) => false);
 
 /// شاشة إعدادات الإصلاح التلقائي
-class RestoreFixScreen extends ConsumerWidget {
+class RestoreFixScreen extends ConsumerStatefulWidget {
   const RestoreFixScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RestoreFixScreen> createState() => _RestoreFixScreenState();
+}
+
+class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
+  @override
+  Widget build(BuildContext context) {
     final lastReport = ref.watch(lastFixReportProvider);
     final fixLogsAsyncValue = ref.watch(fixLogsProvider);
     final isLoading = ref.watch(fixServiceLoadingProvider);
@@ -48,14 +54,14 @@ class RestoreFixScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // بطاقة التحكم الرئيسية
-            _buildMainControlCard(context, ref, isLoading),
+            _buildMainControlCard(context, isLoading),
             const SizedBox(height: 20),
 
             // بطاقة التقرير الأخير
             if (lastReport != null) ...[_buildLastReportCard(context, lastReport), const SizedBox(height: 20)],
 
             // بطاقة سجلات الإصلاح
-            _buildFixLogsCard(context, ref, fixLogsAsyncValue),
+            _buildFixLogsCard(context, fixLogsAsyncValue),
           ],
         ),
       ),
@@ -64,7 +70,7 @@ class RestoreFixScreen extends ConsumerWidget {
   }
 
   /// بطاقة التحكم الرئيسية
-  Widget _buildMainControlCard(BuildContext context, WidgetRef ref, bool isLoading) {
+  Widget _buildMainControlCard(BuildContext context, bool isLoading) {
     return Card(
       elevation: 4,
       child: Padding(
@@ -87,7 +93,7 @@ class RestoreFixScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: isLoading ? null : () => _runManualFix(context, ref),
+              onPressed: isLoading ? null : () => _runManualFix(context),
               icon: isLoading
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.play_arrow),
@@ -185,7 +191,7 @@ class RestoreFixScreen extends ConsumerWidget {
   }
 
   /// بطاقة سجلات الإصلاح
-  Widget _buildFixLogsCard(BuildContext context, WidgetRef ref, AsyncValue<List<RestoreFixLogData>> fixLogsAsyncValue) {
+  Widget _buildFixLogsCard(BuildContext context, AsyncValue<List<RestoreFixLogData>> fixLogsAsyncValue) {
     return Card(
       elevation: 4,
       child: Padding(
@@ -198,7 +204,7 @@ class RestoreFixScreen extends ConsumerWidget {
               children: [
                 const Text('سجلات الإصلاح', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 IconButton(
-                  onPressed: () => _exportLogsAsJson(context, ref),
+                  onPressed: () => _exportLogsAsJson(context),
                   icon: const Icon(Icons.download),
                   tooltip: 'تصدير كـ JSON',
                 ),
@@ -341,7 +347,7 @@ class RestoreFixScreen extends ConsumerWidget {
   }
 
   /// تشغيل الإصلاح يدوياً
-  Future<void> _runManualFix(BuildContext context, WidgetRef ref) async {
+  Future<void> _runManualFix(BuildContext context) async {
     final service = ref.read(restoreFixServiceProvider);
     ref.read(fixServiceLoadingProvider.notifier).state = true;
 
@@ -360,9 +366,10 @@ class RestoreFixScreen extends ConsumerWidget {
       // تحديث السجلات
       ref.invalidate(fixLogsProvider);
 
+      if (!mounted) return;
+
       // إظهار النتيجة
       if (report.success) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ اكتمل الإصلاح بنجاح: ${report.bookingsFixed} حجز، ${report.roomsUpdated} غرفة'),
@@ -375,6 +382,7 @@ class RestoreFixScreen extends ConsumerWidget {
         ).showSnackBar(SnackBar(content: Text('❌ فشل الإصلاح: ${report.error}'), backgroundColor: Colors.red));
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('خطأ غير متوقع: $e'), backgroundColor: Colors.red));
@@ -384,7 +392,7 @@ class RestoreFixScreen extends ConsumerWidget {
   }
 
   /// تصدير السجلات كـ JSON
-  Future<void> _exportLogsAsJson(BuildContext context, WidgetRef ref) async {
+  Future<void> _exportLogsAsJson(BuildContext context) async {
     try {
       final service = ref.read(restoreFixServiceProvider);
       final jsonData = await service.exportFixLogsAsJson();
@@ -395,6 +403,8 @@ class RestoreFixScreen extends ConsumerWidget {
       final file = File('${directory.path}/$fileName');
 
       await file.writeAsString(jsonEncode(jsonData));
+
+      if (!mounted) return;
 
       // مشاركة الملف
       await Share.shareXFiles(
@@ -407,6 +417,7 @@ class RestoreFixScreen extends ConsumerWidget {
         context,
       ).showSnackBar(const SnackBar(content: Text('✅ تم تصدير السجلات بنجاح'), backgroundColor: Colors.green));
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('خطأ في التصدير: $e'), backgroundColor: Colors.red));

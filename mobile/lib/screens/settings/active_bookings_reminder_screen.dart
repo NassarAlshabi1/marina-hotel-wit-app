@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:ui' as ui;
 
@@ -844,7 +845,6 @@ class _ActiveBookingsReminderScreenState extends ConsumerState<ActiveBookingsRem
     final message = await _buildReminderMessage(booking);
 
     final confirmed = await showDialog<bool>(
-      // ignore: use_build_context_synchronously
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,

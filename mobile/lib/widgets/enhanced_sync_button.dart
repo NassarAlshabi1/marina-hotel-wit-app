@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -431,12 +432,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
 
     try {
       final checks = await SyncOrchestrator.instance.verifyDataIntegrity();
-      // ignore: use_build_context_synchronously
       Navigator.pop(context);
 
       unawaited(
         showDialog<void>(
-          // ignore: use_build_context_synchronously
           context: context,
           builder: (context) => AlertDialog(
             title: const Row(

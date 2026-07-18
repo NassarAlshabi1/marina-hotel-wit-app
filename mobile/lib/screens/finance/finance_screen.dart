@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -855,7 +856,6 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SyncOnExitMi
       unawaited(_sendPaymentWhatsAppNotification(amount: parsedAmount, method: dbMethod, notes: notes.trim()));
 
       if (mounted) {
-        // ignore: use_build_context_synchronously
         Navigator.pop(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -866,7 +866,6 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SyncOnExitMi
       }
     } catch (e) {
       if (mounted) {
-        // ignore: use_build_context_synchronously
         Navigator.pop(dialogContext);
         ScaffoldMessenger.of(
           context,

@@ -68,7 +68,7 @@ analyzer:
     use_truncating_division: ignore
     # Phase 2 migration — requires structural changes in many files:
     always_put_required_named_parameters_first: warning
-    use_build_context_synchronously: ignore  # 28 files need mounted checks — Phase 2
+    use_build_context_synchronously: warning
     parameter_assignments: ignore  # Refactor needed — Phase 2
     avoid_positional_boolean_parameters: ignore
     prefer_int_literals: ignore

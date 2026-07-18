@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 // ignore_for_file: unused_element
 
 import 'dart:async';
@@ -1830,7 +1831,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       revenueType: 'room', // رسوم غرفة للليالي الإضافية
     );
 
-    // ignore: use_build_context_synchronously
     Navigator.pop(context);
 
     // حساب المتبقي الجديد
@@ -2009,7 +2009,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         final double rmRate = room?.price ?? 0;
 
         if (rmRate <= 0) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('لا يمكن حساب الليالي الإضافية — سعر الغرفة غير محدد'),
@@ -2021,14 +2020,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
         extraNights = (surplus / rmRate).ceil();
         if (extraNights <= 0) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا يمكن حساب الليالي الإضافية')));
           return;
         }
 
         // تأكيد التمديد من المستخدم
         final confirmed = await showDialog<bool>(
-          // ignore: use_build_context_synchronously
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Row(
@@ -2146,7 +2143,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         await _sendPaymentConfirmation(amount, newRemaining, cleanedPhone);
       }
 
-      // ignore: use_build_context_synchronously
       Navigator.pop(context);
 
       if (mounted) {

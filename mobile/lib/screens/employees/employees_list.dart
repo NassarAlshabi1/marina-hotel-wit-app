@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -411,7 +412,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> with 
       await repo.reactivate(id: employee.id);
       markDataChanged();
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('تم إعادة تفعيل الموظف بنجاح'),
@@ -422,7 +422,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> with 
       }
     } catch (e) {
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل إعادة التفعيل: $e'),
@@ -482,7 +481,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> with 
       await repo.delete(employee.id);
       markDataChanged();
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('تم حذف الموظف بنجاح'),
@@ -493,7 +491,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> with 
       }
     } catch (e) {
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل حذف الموظف: $e'),
@@ -764,7 +761,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> with 
           status: status,
         );
         if (mounted) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('تمت إضافة الموظف بنجاح'),
@@ -784,7 +780,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> with 
           status: status,
         );
         if (mounted) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('تم تعديل بيانات الموظف بنجاح'),
@@ -799,7 +794,6 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> with 
       if (!mounted) {
         return;
       }
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ الموظف: $e'),

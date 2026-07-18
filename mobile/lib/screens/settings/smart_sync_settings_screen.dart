@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -31,9 +32,9 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setEnabled(enabled);
 
+
       ref.invalidate(smartSyncStatusProvider);
 
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(enabled ? '✅ تم تفعيل المزامنة التلقائية' : '⏸️ تم إيقاف المزامنة التلقائية'),
@@ -56,9 +57,9 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setSyncInterval(minutes);
 
+
       ref.invalidate(smartSyncStatusProvider);
 
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('⏰ تم تغيير فترة المزامنة إلى $minutes دقائق'), backgroundColor: Colors.green),
       );
@@ -77,6 +78,7 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setConflictResolution(resolution);
+
 
       ref.invalidate(smartSyncStatusProvider);
 
@@ -99,6 +101,7 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final manager = ref.read(smartSyncManagerProvider);
       await manager.forceSyncNow();
 
+
       ref.invalidate(smartSyncStatusProvider);
 
       ScaffoldMessenger.of(
@@ -119,7 +122,6 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final guardian = ref.read(syncGuardianProvider);
       await guardian.forceSync();
       ref.invalidate(syncHealthProvider);
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('⚡ تم تشغيل مزامنة WorkManager فوراً'), backgroundColor: Colors.green),
       );
@@ -137,7 +139,6 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final guardian = ref.read(syncGuardianProvider);
       await guardian.setDevicePriority(enabled ? 200 : 100);
       ref.invalidate(syncHealthProvider);
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(enabled ? '🏅 هذا الجهاز أصبح صاحب الأولوية' : '↩︎ تم العودة للأولوية الافتراضية'),

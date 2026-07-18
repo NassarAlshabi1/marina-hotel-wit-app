@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -537,15 +538,12 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       status: status,
                     );
                   }
-                  // ignore: use_build_context_synchronously
                   Navigator.pop(context);
-                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(employee == null ? 'تم إضافة الموظف بنجاح' : 'تم تحديث بيانات الموظف')),
                   );
                 } catch (e) {
                   ScaffoldMessenger.of(
-                    // ignore: use_build_context_synchronously
                     context,
                   ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
                 }
@@ -1272,12 +1270,13 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         status: newStatus,
       );
 
+      if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('تم ${newStatus == 'نشط' ? 'تفعيل' : 'إيقاف'} الموظف')));
     } catch (e) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(
-        // ignore: use_build_context_synchronously
         context,
       ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
     }

@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -374,7 +375,6 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     }
 
     return showDialog<bool>(
-      // ignore: use_build_context_synchronously
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد تغيير الغرفة'),

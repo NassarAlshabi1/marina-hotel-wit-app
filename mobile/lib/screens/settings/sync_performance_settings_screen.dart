@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -34,7 +35,6 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
       await SyncPerformanceSettings.applyProfile(profileKey);
       setState(() => _currentProfile = profileKey);
 
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('✅ تم تطبيق ملف التعريف: ${SyncPerformanceSettings.predefinedProfiles[profileKey]!['name']}'),
@@ -372,6 +372,7 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
   Future<Map<String, dynamic>> _loadPerformanceStats() async {
     final performanceStats = ref.read(syncPerformanceOptimizerProvider).getPerformanceStatus();
     final usageStats = await ref.read(dataUsageManagerProvider).getUsageStats();
+
 
     return {...performanceStats, ...usageStats};
   }

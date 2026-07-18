@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -44,7 +45,6 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
             onPressed: () async {
               final deleted = await _conflictManager.deleteResolvedConflicts();
               if (mounted) {
-                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حذف $deleted تعارضاً محلولاً')));
               }
             },

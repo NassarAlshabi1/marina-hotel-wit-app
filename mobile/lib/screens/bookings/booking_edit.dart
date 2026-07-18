@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
@@ -579,9 +580,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                                 },
                               ),
                             );
-                            // ignore: use_build_context_synchronously
                             ScaffoldMessenger.of(context).clearSnackBars();
-                            // ignore: use_build_context_synchronously
                             ScaffoldMessenger.of(context).showSnackBar(snackBar);
                             // لا نوقف الحجز — نعرض التحذير فقط
                           }
@@ -673,7 +672,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                                 } catch (e) {
                                   debugPrint('⚠️ خطأ في حفظ الدفعة المقدمة: $e');
                                   if (mounted) {
-                                    // ignore: use_build_context_synchronously
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text('تم حفظ الحجز لكن فشل حفظ الدفعة المقدمة: $e'),
@@ -692,13 +690,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
 
                             await syncNow();
                             if (mounted) {
-                              // ignore: use_build_context_synchronously
                               Navigator.pop(context);
                             }
                           } on StateError catch (e) {
                             // خطأ منطقي (مثل: حجز مزدوج لنفس الغرفة)
                             if (mounted) {
-                              // ignore: use_build_context_synchronously
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(e.message),
@@ -710,7 +706,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                           } catch (e) {
                             // أي خطأ آخر (قاعدة بيانات، شبكة، إلخ)
                             if (mounted) {
-                              // ignore: use_build_context_synchronously
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('فشل حفظ الحجز: $e'),
@@ -787,7 +782,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
       return;
     }
     final time = await showTimePicker(
-      // ignore: use_build_context_synchronously
       context: context,
       initialTime: TimeOfDay.fromDateTime(initial),
     );
@@ -976,7 +970,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                 Navigator.pop(ctx);
                 await syncNow();
                 if (mounted) {
-                  // ignore: use_build_context_synchronously
                   Navigator.pop(context);
                 }
               },

@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
@@ -1415,7 +1416,6 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnEx
 
       if (mounted) {
         ScaffoldMessenger.of(
-          // ignore: use_build_context_synchronously
           context,
         ).showSnackBar(SnackBar(content: Text('تم حذف دين ${debt.guestName}')));
       }

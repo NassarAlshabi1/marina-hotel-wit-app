@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -116,7 +117,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       task: () => _pullChangesInner(context),
     );
     if (!executed && mounted) {
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -158,7 +158,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
     if (_pendingChangesCount > 0) {
       if (!mounted) return;
       final shouldContinue = await showDialog<bool>(
-        // ignore: use_build_context_synchronously
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('⚠️ تغييرات محلية غير مرفوعة'),
@@ -181,7 +180,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         // رفع ثم سحب — نخرج مؤقتاً من البوّابة الحالية لأن _pushChanges
         // سيحاول دخولها بنفسه. البوّابة تُحرَّر هنا ويُعاد دخولها في الـ push.
         if (!mounted) return;
-        // ignore: use_build_context_synchronously
         await _pushChanges(context);
       }
     }
@@ -201,7 +199,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       if (!appwriteEnabled) {
         _isPulling = false;
         if (mounted) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('مزامنة Appwrite معطلة - يرجى تفعيلها من الإعدادات'),
@@ -240,7 +237,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
 
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       if (mounted) {
-        // ignore: use_build_context_synchronously
         loading = LoadingSnackBar.show(context, message: '⬇️ جاري سحب التغييرات من السيرفر...');
       }
 
@@ -272,7 +268,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         });
         // ✅ إغلاق إشعار "جاري" فوراً قبل إظهار النتيجة
         loading?.close();
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Column(
@@ -318,7 +313,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       } catch (_) {}
 
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -369,7 +363,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       task: () => _pushChangesInner(context),
     );
     if (!executed && mounted) {
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -414,7 +407,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
     if (_pendingChangesCount == 0) {
       _isPushing = false;
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Row(
@@ -456,7 +448,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
 
       if (!smartEnabled && !appwriteEnabled) {
         if (mounted) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Row(
@@ -490,7 +481,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
 
       if (targets.isEmpty) {
         if (mounted) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('لا توجد وجهات مزامنة متاحة حالياً'), backgroundColor: Colors.orange),
           );
@@ -502,7 +492,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       LoadingSnackBar? pushLoading;
       if (mounted) {
-        // ignore: use_build_context_synchronously
         pushLoading = LoadingSnackBar.show(context, message: '⬆️ جاري رفع التغييرات إلى ${targets.join(' + ')}...');
       }
 
@@ -585,7 +574,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         if (failedTargets.isEmpty) {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً قبل إظهار النتيجة
           pushLoading?.close();
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Column(
@@ -612,7 +600,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         } else if (successTargets.isEmpty) {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً عند الفشل
           pushLoading?.close();
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Row(
@@ -629,7 +616,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         } else {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً للنتيجة الجزئية
           pushLoading?.close();
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Column(
@@ -672,7 +658,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       );
 
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Row(

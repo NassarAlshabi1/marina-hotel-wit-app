@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -512,7 +513,6 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
           imageUrl: imageUrl,
         );
         if (mounted) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('تمت إضافة الغرفة ${roomNumberCtrl.text.trim()}'),
@@ -681,7 +681,6 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
         appliedBy: userName,
       );
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم تحديث أسعار الحجوزات بنجاح'), backgroundColor: AppColors.successColor),
         );
