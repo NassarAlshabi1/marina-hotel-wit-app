@@ -336,6 +336,7 @@ class SmartConflictResolver {
         mergedData: localData!,
         strategy: ResolutionStrategy.localWins,
         warnings: const ['حذف محلي له أولوية على تعديل بعيد'],
+        pushedToRemote: true,
       );
     }
 

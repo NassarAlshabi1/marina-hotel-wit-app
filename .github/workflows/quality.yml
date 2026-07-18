@@ -234,20 +234,10 @@ jobs:
           python3 ../scripts/complexity-report.py ./lib || true
           echo "### 🧩 Complexity Analysis" >> $GITHUB_STEP_SUMMARY
           if [ -f reports/complexity.json ]; then
-            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
-            python3 -c "
-import json
-with open('reports/complexity.json') as f:
-    data = json.load(f)
-print('Deep nesting (>5 levels):', data.get('deep_nesting', 0))
-print('Total if/switch:', data.get('total_if_switch', 0))
-print('Complex files:')
-for cf in data.get('complex_files', []):
-    print(f'  - {cf[\"file\"]}: {cf[\"ifs\"]} ifs, nesting {cf[\"max_nesting\"]}, {cf[\"lines\"]} lines')
-" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: 🩺 Dead Code Analysis
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            python3 -c "print(open('reports/complexity.json').read())" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi      - name: 🩺 Dead Code Analysis
         run: |
           python3 ../scripts/dead-code-report.py || true
 
