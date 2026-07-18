@@ -20,9 +20,9 @@ const _uuid = Uuid();
 
 @DriftAccessor(tables: [Outbox])
 class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
-  OutboxDao(super.db, [this.adapters]);
+  OutboxDao(super.db, [AdapterRegistry? a]) : adapters = a ?? AdapterRegistry.instance;
 
-  final AdapterRegistry? adapters;
+  final AdapterRegistry adapters;
 
   /// مشاهدة عدد عناصر outbox المعلقة/الفاشلة
   /// [sources] — إذا حُدد، يقتصر العد على هذه المصادر فقط

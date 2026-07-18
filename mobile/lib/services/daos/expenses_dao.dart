@@ -18,9 +18,9 @@ part 'expenses_dao.g.dart';
 @DriftAccessor(tables: [Expenses])
 class ExpensesDao extends DatabaseAccessor<AppDatabase>
     with _$ExpensesDaoMixin, OptimisticLockDaoMixin<Expenses, Expense> {
-  ExpensesDao(super.db, this.outboxDao, [this.adapters]);
+  ExpensesDao(super.db, this.outboxDao, [AdapterRegistry? a]) : adapters = a ?? AdapterRegistry.instance;
   final OutboxDao outboxDao;
-  final AdapterRegistry? adapters;
+  final AdapterRegistry adapters;
 
   Future<List<Expense>> list({
     String? search,

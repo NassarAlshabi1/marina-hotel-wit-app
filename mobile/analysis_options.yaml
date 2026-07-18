@@ -24,6 +24,12 @@ analyzer:
     - "test/**"
     - "build/**"
     - "integration_test/**"
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
   language:
     strict-casts: true

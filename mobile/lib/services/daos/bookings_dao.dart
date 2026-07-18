@@ -17,9 +17,9 @@ part 'bookings_dao.g.dart';
 @DriftAccessor(tables: [Bookings])
 class BookingsDao extends DatabaseAccessor<AppDatabase>
     with _$BookingsDaoMixin, OptimisticLockDaoMixin<Bookings, Booking> {
-  BookingsDao(super.db, this.outboxDao, [this.adapters]);
+  BookingsDao(super.db, this.outboxDao, [AdapterRegistry? a]) : adapters = a ?? AdapterRegistry.instance;
   final OutboxDao outboxDao;
-  final AdapterRegistry? adapters;
+  final AdapterRegistry adapters;
 
   Future<List<Booking>> list({
     String? search,
