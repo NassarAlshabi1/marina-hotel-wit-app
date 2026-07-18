@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/repository_providers.dart';
-import '../screens/notes/notes_screen.dart';
+import '../screens/notes/notes_screen.dart' deferred as notes;
 import '../utils/performance_monitor.dart';
 import 'widgets/sync_action_button.dart';
 
@@ -85,7 +85,7 @@ class AppScaffold extends ConsumerWidget {
           actions: [
             IconButton(
               onPressed: () {
-                Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => const NotesScreen()));
+Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => const notes.NotesScreen()));
               },
               tooltip: 'التنبيهات',
               icon: Stack(
