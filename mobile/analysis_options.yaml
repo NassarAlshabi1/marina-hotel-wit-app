@@ -96,7 +96,7 @@ linter:
     omit_local_variable_types: false       # 457 موضع — نُفضّل التصريح بالأنواع للوضوح
     cascade_invocations: false             # 554 موضع — cascade قد يقلل الوضوح
     avoid_catches_without_on_clauses: false # 1084 موضع — catch عام مقبول في services
-    document_igores: false                 # 270 موضع — توثيق الـ ignore comments
+    document_ignores: false                 # 270 موضع — توثيق الـ ignore comments
     always_put_required_named_parameters_first: false # 193 موضع — ترتيب البناء الحالي مهم
     specify_nonobvious_property_types: false # 46 موضع
     use_raw_strings: false                 # 45 موضع
@@ -109,6 +109,8 @@ linter:
     avoid_escaping_inner_quotes: false     # 7 مواضع
     combinators_ordering: false            # 6 مواضع
     deprecated_consistency: false          # 3 مواضع
+    cast_nullable_to_non_nullable: false   # 9 مواضع — تحويل nullable في Drift
+    avoid_setters_without_getters: false   # 1 موضع
 
     # === قواعد Performance الحرجة (مُفعّلة) ===
     avoid_unnecessary_containers: true
