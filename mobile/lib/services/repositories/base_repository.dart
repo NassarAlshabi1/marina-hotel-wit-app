@@ -225,7 +225,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
   }
 
   String _targetLabel(List<Column> target) {
-    return target.map((c) => c.$name).join(',');
+    return target.map((c) => c.toString()).join(',');
   }
 
   /// ✅ N+1 FIX: Batch UUID lookup for external callers
