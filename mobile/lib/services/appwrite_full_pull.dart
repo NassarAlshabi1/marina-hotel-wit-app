@@ -118,7 +118,7 @@ class AppwriteFullPull {
         repo: reg.cashTransactions,
       ),
       // 5. ليالي الحجز (تعتمد على الحجوزات)
-      _PullEntity(name: 'booking_nights', collectionId: AppwriteConfig.bookingNightsCollectionId, repo: reg.nights),
+      _PullEntity(name: 'booking_nights', collectionId: AppwriteConfig.bookingNightsCollectionId, repo: reg.nights, maxRecords: 1000),
       // 6. ملاحظات الحجز (تعتمد على الحجوزات)
       _PullEntity(name: 'booking_notes', collectionId: AppwriteConfig.bookingNotesCollectionId, repo: reg.bookingNotes),
       // 7. المدفوعات (تعتمد على الحجوزات والمعاملات النقدية)
@@ -179,6 +179,7 @@ class AppwriteFullPull {
     _logger.info('📥 بدء سحب ${entity.name} من collection: ${entity.collectionId}', tag: 'FULL_PULL');
 
     // حلقة لجلب جميع السجلات على دفعات
+    _pullLoop:
     while (true) {
       try {
         // ✅ استعلام بسيط - بدون أي فلترة بالوقت
@@ -250,6 +251,15 @@ class AppwriteFullPull {
                 totalCount++;
                 continue;
               }
+            }
+
+            // ✅ Full Pull: الحد الأقصى للسجلات المسحوبة (مثل booking_nights)
+            if (entity.maxRecords != null && totalCount >= entity.maxRecords!) {
+              _logger.info(
+                '⏹️ تم الوصول للحد الأقصى (${entity.maxRecords}) لـ ${entity.name}',
+                tag: 'FULL_PULL',
+              );
+              break _pullLoop;
             }
 
             // حفظ السجل (upsert)
@@ -536,10 +546,13 @@ class AppwriteFullPull {
 class _PullEntity {
   // BaseRepository<dynamic, dynamic>
 
-  _PullEntity({required this.name, this.collectionId, this.repo});
+  _PullEntity({required this.name, this.collectionId, this.repo, this.maxRecords});
   final String name;
   final String? collectionId;
   final dynamic repo;
+
+  /// الحد الأقصى للسجلات المسحوبة (null = غير محدود)
+  final int? maxRecords;
 }
 
 /// نتيجة السحب الشامل
