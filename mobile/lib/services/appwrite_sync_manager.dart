@@ -1774,6 +1774,18 @@ class AppwriteSyncManager {
   Future<int> _syncRooms(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+
+    // ✅ تحسين أداء: batch lookup — جلب كل الغرف المحلية مرة واحدة بدل N استعلام
+    final uuids = documents.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data);
+      data['localUuid'] ??= doc.$id;
+      return (data['localUuid'] as String?) ?? '';
+    }).where((u) => u.isNotEmpty).toList();
+
+    final existingRooms = uuids.isNotEmpty
+        ? {for (final r in await (database.select(database.rooms)..where((r) => r.localUuid.isIn(uuids))).get()) r.localUuid: r}
+        : <String, Room>{};
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -1781,11 +1793,7 @@ class AppwriteSyncManager {
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existingRoom =
-            await (database.select(database.rooms)
-                  ..where((r) => r.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
+        final existingRoom = existingRooms[localUuid];
 
         if (!(await _isRemoteDataNewer(
           data,
@@ -1997,6 +2005,18 @@ class AppwriteSyncManager {
   Future<int> _syncEmployees(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+
+    // ✅ تحسين أداء: batch lookup — جلب كل الموظفين المحليين مرة واحدة
+    final uuids = documents.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data);
+      data['localUuid'] ??= doc.$id;
+      return (data['localUuid'] as String?) ?? '';
+    }).where((u) => u.isNotEmpty).toList();
+
+    final existingEmployees = uuids.isNotEmpty
+        ? {for (final e in await (database.select(database.employees)..where((e) => e.localUuid.isIn(uuids))).get()) e.localUuid: e}
+        : <String, Employee>{};
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -2004,11 +2024,7 @@ class AppwriteSyncManager {
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existing =
-            await (database.select(database.employees)
-                  ..where((e) => e.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
+        final existing = existingEmployees[localUuid];
         if (!(await _isRemoteDataNewer(
           data,
           existing?.lastModified,
@@ -2042,6 +2058,18 @@ class AppwriteSyncManager {
   Future<int> _syncExpenses(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+
+    // ✅ تحسين أداء: batch lookup
+    final uuids = documents.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data);
+      data['localUuid'] ??= doc.$id;
+      return (data['localUuid'] as String?) ?? '';
+    }).where((u) => u.isNotEmpty).toList();
+
+    final existingExpenses = uuids.isNotEmpty
+        ? {for (final e in await (database.select(database.expenses)..where((e) => e.localUuid.isIn(uuids))).get()) e.localUuid: e}
+        : <String, Expense>{};
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -2049,11 +2077,7 @@ class AppwriteSyncManager {
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existing =
-            await (database.select(database.expenses)
-                  ..where((e) => e.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
+        final existing = existingExpenses[localUuid];
         if (!(await _isRemoteDataNewer(
           data,
           existing?.lastModified,
@@ -2955,6 +2979,18 @@ class AppwriteSyncManager {
   Future<int> _syncGuestInfos(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+
+    // ✅ تحسين أداء: batch lookup
+    final uuids = documents.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data);
+      data['localUuid'] ??= doc.$id;
+      return (data['localUuid'] as String?) ?? '';
+    }).where((u) => u.isNotEmpty).toList();
+
+    final existingGuestInfos = uuids.isNotEmpty
+        ? {for (final g in await (database.select(database.guestInfos)..where((t) => t.localUuid.isIn(uuids))).get()) g.localUuid: g}
+        : <String, GuestInfo>{};
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -2962,11 +2998,7 @@ class AppwriteSyncManager {
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existing =
-            await (database.select(database.guestInfos)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
+        final existing = existingGuestInfos[localUuid];
         if (!(await _isRemoteDataNewer(
           data,
           existing?.lastModified,

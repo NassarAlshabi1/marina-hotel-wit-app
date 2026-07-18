@@ -312,15 +312,18 @@ class BookingsRepository {
         );
 
     // ─── إنشاء outbox entries لمزامنة التعديلات المُلغاة ───
+    // ✅ تحسين أداء: استبدال N × merge() بـ mergeBatch() — معاملة واحدة بدل N
     // بدون هذا، إلغاء legacy_discount لن يُزامن إلى الأجهزة الأخرى
-    final outboxDao = OutboxDao(db);
-    for (final orphan in orphans) {
-      await outboxDao.merge(
-        entity: 'booking_price_adjustments',
-        op: 'update',
-        localUuid: orphan.localUuid,
-        payload: {'isActive': false, 'cancelledAt': nowIso, 'cancelledBy': 'auto_cleanup'},
-        clientTs: now,
+    if (orphans.isNotEmpty) {
+      final outboxDao = OutboxDao(db);
+      await outboxDao.mergeBatch(
+        orphans.map((orphan) => <String, dynamic>{
+          'entity': 'booking_price_adjustments',
+          'op': 'update',
+          'localUuid': orphan.localUuid,
+          'payload': <String, dynamic>{'isActive': false, 'cancelledAt': nowIso, 'cancelledBy': 'auto_cleanup'},
+          'clientTs': now,
+        }).toList(),
       );
     }
   }

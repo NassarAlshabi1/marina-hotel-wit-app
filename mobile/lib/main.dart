@@ -820,6 +820,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     } catch (e) {
       dwarn(() => 'Error disposing BackgroundSyncService: $e');
     }
+    // ✅ تنظيف خدمات إضافية كانت تتسرب StreamController
+    try {
+      SyncConflictEventBus.instance.dispose();
+    } catch (e) {
+      dwarn(() => 'Error disposing SyncConflictEventBus: $e');
+    }
     dlog('✅ All singleton services disposed');
   }
 
@@ -835,15 +841,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           .read(backupStatusProvider.notifier)
           .refreshSignInStatus()
           .catchError((Object e, StackTrace s) => derr(() => 'Error in refreshSignInStatus: $e\n$s'));
-      // ✅ استهلاك أي عمليات مزامنة معلّقة من WorkManager
-      // قبل بدء مزامنة جديدة لتجنب التضارب
-      unawaited(
-        SyncContinuationService.consumePendingAndSync().catchError(
-          (Object e, StackTrace s) => derr(() => 'Error in consumePendingAndSync: $e\n$s'),
-        ),
-      );
-      // رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة
+      // ✅ تحسين أداء: تقليل تكرار المزامنة عند العودة — مزامنة واحدة فقط
+      // سابقاً: 4 عمليات مزامنة متوازية (consumePendingAndSync + _syncOnResume +
+      // UnifiedSyncOrchestrator.onAppForeground + SyncGuardian.onAppForeground)
+      // الآن: _syncOnResume كعملية أساسية + إشعار UnifiedSyncOrchestrator بدون مزامنة مستقلة
       unawaited(_syncOnResume());
+      // إشعار خدمات المزامنة بالعودة — بدون بدء مزامنة مستقلة (ستكتفي بالتحقق)
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
         (Object e, StackTrace s) => derr(() => 'Error in UnifiedSync onAppForeground: $e\n$s'),
       );

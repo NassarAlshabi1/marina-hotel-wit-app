@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
+import '../utils/debug_log.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
@@ -426,34 +427,35 @@ class BookingPriceAdjustmentService {
     }
 
     final now = Time.nowEpoch();
+
+    // ✅ تحسين أداء: تحديث جميع التعديلات في معاملة واحدة + mergeBatch
+    // سابقاً: N × (update + merge) = 2N معاملة منفصلة
+    // الآن: 1 معاملة للتحديث + 1 معاملة لـ mergeBatch = 2 معاملة فقط
+    await db.transaction(() async {
+      for (final adj in adjustments) {
+        await (db.update(db.bookingPriceAdjustments)..where((a) => a.localUuid.equals(adj.localUuid))).write(
+          BookingPriceAdjustmentsCompanion(
+            roomNumber: Value(newRoomNumber),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+            version: Value(adj.version + 1),
+          ),
+        );
+      }
+    });
+
     final outboxDao = OutboxDao(db);
-
-    for (final adj in adjustments) {
-      // تحديث رقم الغرفة مع timestamps للمزامنة
-      await (db.update(db.bookingPriceAdjustments)..where((a) => a.localUuid.equals(adj.localUuid))).write(
-        BookingPriceAdjustmentsCompanion(
-          roomNumber: Value(newRoomNumber),
-          updatedAt: Value(now),
-          lastModified: Value(now),
-          // ✅ bump version لتفعيل OCC عند الدفع لاحقاً
-          version: Value(adj.version + 1),
-        ),
-      );
-
-      // إنشاء outbox entry للمزامنة (نفس نمط cancelAdjustment)
-      await outboxDao.merge(
-        entity: 'booking_price_adjustments',
-        op: 'update',
-        localUuid: adj.localUuid,
-        payload: {'roomNumber': newRoomNumber},
-        clientTs: now,
-      );
-    }
-
-    debugPrint(
-      'تم نقل ${adjustments.length} تعديل(ات) سعر للغرفة $newRoomNumber '
-      'للحجز #$bookingId',
+    await outboxDao.mergeBatch(
+      adjustments.map((adj) => <String, dynamic>{
+        'entity': 'booking_price_adjustments',
+        'op': 'update',
+        'localUuid': adj.localUuid,
+        'payload': <String, dynamic>{'roomNumber': newRoomNumber},
+        'clientTs': now,
+      }).toList(),
     );
+
+    dlog(() => 'تم نقل ${adjustments.length} تعديل(ات) سعر للغرفة $newRoomNumber للحجز #$bookingId');
   }
 
   Future<void> _recalculateBookingNights(int bookingId) async {
@@ -485,16 +487,18 @@ class BookingPriceAdjustmentService {
 
     final result = <Booking>[];
 
-    for (final booking in bookings) {
-      final hasSurcharge =
-          await (db.select(db.bookingPriceAdjustments)
-                ..where((a) => a.bookingLocalId.equals(booking.id))
-                ..where((a) => a.adjustmentType.equals(AdjustmentType.surcharge.value))
-                ..where((a) => a.isActive.equals(true))
-                ..where((a) => a.deletedAt.isNull()))
-              .get();
+    // ✅ تحسين أداء: batch lookup بدل N+1 — جلب كل التعديلات مرة واحدة
+    final bookingIds = bookings.map((b) => b.id).toSet();
+    final allSurcharges = await (db.select(db.bookingPriceAdjustments)
+          ..where((a) => a.bookingLocalId.isIn(bookingIds))
+          ..where((a) => a.adjustmentType.equals(AdjustmentType.surcharge.value))
+          ..where((a) => a.isActive.equals(true))
+          ..where((a) => a.deletedAt.isNull()))
+        .get();
+    final surchargeBookingIds = allSurcharges.map((a) => a.bookingLocalId).whereType<int>().toSet();
 
-      if (hasSurcharge.isEmpty) {
+    for (final booking in bookings) {
+      if (!surchargeBookingIds.contains(booking.id)) {
         result.add(booking);
       }
     }
@@ -522,22 +526,32 @@ class BookingPriceAdjustmentService {
     double totalGainedRevenue = 0;
     final bookingDetails = <BookingLostRevenue>[];
 
+    // ✅ تحسين أداء: batch lookup بدل N+1 — جلب كل الحجوزات والغرف والليالي مرة واحدة
+    final bookingList = await (db.select(db.bookings)..where((b) => b.id.isIn(bookingIds))).get();
+    final bookingMap = {for (final b in bookingList) b.id: b};
+
+    final roomNumbers = bookingList.map((b) => b.roomNumber).toSet();
+    final roomList = await (db.select(db.rooms)..where((r) => r.roomNumber.isIn(roomNumbers))).get();
+    final roomMap = {for (final r in roomList) r.roomNumber: r};
+
+    final nightsList = await (db.select(db.bookingNights)..where((n) => n.bookingLocalId.isIn(bookingIds))).get();
+    final nightsMap = <int, List<BookingNight>>{};
+    for (final night in nightsList) {
+      nightsMap.putIfAbsent(night.bookingLocalId, () => []).add(night);
+    }
+
     for (final bookingId in bookingIds) {
-      final booking = await (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+      final booking = bookingMap[bookingId];
       if (booking == null) {
         continue;
       }
 
-      final room = await (db.select(db.rooms)..where((r) => r.roomNumber.equals(booking.roomNumber))).getSingleOrNull();
+      final room = roomMap[booking.roomNumber];
       if (room == null) {
         continue;
       }
 
-      final nights =
-          await (db.select(db.bookingNights)
-                ..where((n) => n.bookingLocalId.equals(bookingId))
-                ..where((n) => n.deletedAt.isNull()))
-              .get();
+      final nights = nightsMap[bookingId] ?? const [];
 
       final bookingAdjustments = adjustments.where((a) => a.bookingLocalId == bookingId).toList();
 
