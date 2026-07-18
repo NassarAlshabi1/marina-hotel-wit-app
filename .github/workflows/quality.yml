@@ -200,7 +200,7 @@ jobs:
       - name: 👯 Find Duplicate Code
         run: |
           mkdir -p reports
-          jscpd ./mobile/lib \
+          jscpd ./lib \
             --format dart \
             --reporters json \
             --output ./reports || true
@@ -210,10 +210,10 @@ jobs:
       # ─────────────────────────────────────────────────────────────────────
       - name: 🏗️ Architecture Validation
         run: |
-          python3 scripts/architecture-validator.py --project-root mobile
+          python3 ../scripts/architecture-validator.py --project-root .
           echo "### 🏗️ Architecture Validation" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          python3 scripts/architecture-validator.py --project-root mobile 2>&1 >> $GITHUB_STEP_SUMMARY
+          python3 ../scripts/architecture-validator.py --project-root . 2>&1 >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       # ─────────────────────────────────────────────────────────────────────
@@ -221,7 +221,7 @@ jobs:
       # ─────────────────────────────────────────────────────────────────────
       - name: 📊 Performance Report
         run: |
-          python3 scripts/performance-report.py mobile/lib || true
+          python3 ../scripts/performance-report.py ./lib || true
           echo "### 📊 Performance Report" >> $GITHUB_STEP_SUMMARY
           if [ -f reports/performance.json ]; then
             echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
@@ -231,7 +231,7 @@ jobs:
 
       - name: 🧩 Complexity Analysis
         run: |
-          python3 scripts/complexity-report.py mobile/lib || true
+          python3 ../scripts/complexity-report.py ./lib || true
           echo "### 🧩 Complexity Analysis" >> $GITHUB_STEP_SUMMARY
           if [ -f reports/complexity.json ]; then
             echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
@@ -249,11 +249,11 @@ for cf in data.get('complex_files', []):
 
       - name: 🩺 Dead Code Analysis
         run: |
-          python3 scripts/dead-code-report.py || true
+          python3 ../scripts/dead-code-report.py || true
 
       - name: 🔐 Security Scan
         run: |
-          bash scripts/security-scan.sh mobile/lib || true
+          bash ../scripts/security-scan.sh ./lib || true
           echo "### 🔐 Security Scan" >> $GITHUB_STEP_SUMMARY
           if [ -f reports/security_report.txt ]; then
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
@@ -266,7 +266,7 @@ for cf in data.get('complex_files', []):
       # ─────────────────────────────────────────────────────────────────────
       - name: 📝 Generate Quality Dashboard
         run: |
-          python3 scripts/quality-summary.py || true
+          python3 ../scripts/quality-summary.py || true
           echo "### 🏆 Quality Dashboard" >> $GITHUB_STEP_SUMMARY
           if [ -f reports/quality_summary.md ]; then
             cat reports/quality_summary.md >> $GITHUB_STEP_SUMMARY
