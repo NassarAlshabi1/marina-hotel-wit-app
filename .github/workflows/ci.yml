@@ -10,8 +10,11 @@ permissions:
 on:
   push:
     branches:
-      - main
       - marina
+      - yy
+      - refactor/clean-v2
+      - refactor/performance-fixes-v1
+      - refactor/performance-fixes-v1
   pull_request:
     branches:
       - main
