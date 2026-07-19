@@ -2,8 +2,14 @@ name: Enterprise Quality Gate
 
 # ═══════════════════════════════════════════════════════════════
 # Marina Hotel — Professional Quality Gate Pipeline
-# Manual Run Only — مع اختيار الفرع عند التشغيل
-# ═══════════════════════════════════════════════════════════════
+# Refactored with Very Good Workflows patterns (VGV)
+#
+#  يستخدم flutter_ci.yml كـ reusable workflow للتحليل والاختبارات
+#  ويضيف فحوصات إضافية في وضع full:
+#    - Duplicate code detection (jscpd)
+#    - Architecture validation
+#    - Custom reports (performance, complexity, dead-code, security)
+#    - Quality dashboard generation
 #
 #  للتشغيل:
 #    1. اذهب لـ Actions tab في GitHub
@@ -13,10 +19,12 @@ name: Enterprise Quality Gate
 #    5. اختر مستوى الفحص (full / quick)
 # ═══════════════════════════════════════════════════════════════
 on:
-  pull_request:
-    branches: [ main, develop, 'refactor/**', 'feature/**' ]
   push:
-    branches: [ main, develop ]
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
   workflow_dispatch:
     inputs:
       check_level:
@@ -48,119 +56,59 @@ permissions:
   checks: write
 
 jobs:
-  quality_gate:
-    name: 🛡️ Quality & Security Gate (${{ inputs.check_level || 'quick' }})
+  # ═══════════════════════════════════════════════════════════════
+  #  Job 1: Flutter CI (reusable — format + analyze + test)
+  #  يُستدعى من flutter_ci.yml بمعايير VGV
+  # ═══════════════════════════════════════════════════════════════
+  flutter-ci:
+    name: Flutter CI
+    uses: ./.github/workflows/flutter_ci.yml
+    with:
+      flutter_version: '3.44.4'
+      working_directory: 'mobile'
+      analyze_directories: 'lib'
+      format_directories: 'lib test'
+      format_line_length: '120'
+      min_coverage: ${{ inputs.check_level == 'full' && 60 || 0 }}
+      coverage_excludes: '**/*.g.dart **/*.freezed.dart **/generated_plugin_registrant.dart'
+      run_build_runner: true
+      run_tests: ${{ inputs.run_tests != false }}
+      test_concurrency: 4
+      test_timeout: ${{ inputs.check_level == 'full' && '120s' || '60s' }}
+      run_benchmarks: ${{ inputs.run_tests != false }}
+
+  # ═══════════════════════════════════════════════════════════════
+  #  Job 2: Extended Quality Checks (full mode only)
+  #  فحوصات إضافية لا يُغطيها الـ reusable workflow
+  # ═══════════════════════════════════════════════════════════════
+  extended-quality:
+    name: 🛡️ Extended Quality (${{ inputs.check_level || 'quick' }})
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ inputs.check_level == 'full' && 20 || 8 }}
+    timeout-minutes: ${{ inputs.check_level == 'full' && 15 || 3 }}
+    if: inputs.check_level == 'full'
+    needs: flutter-ci
 
     steps:
       - name: 📚 Checkout Code
         uses: actions/checkout@v5
-        with:
-          ref: ${{ github.ref_name }}
-
-      - name: 🐦 Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.44.6'
-          cache: true
 
       - name: 🐍 Setup Python
-        if: inputs.check_level == 'full'
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
       - name: 🟢 Setup Node.js
-        if: inputs.check_level == 'full'
         uses: actions/setup-node@v4
         with:
           node-version: "24"
 
-      # ─────────────────────────────────────────────────────────────────────
-      #  1. تثبيت dependencies (مع caching قوي)
-      # ─────────────────────────────────────────────────────────────────────
-      - name: 📦 Install Dependencies
-        working-directory: mobile
-        run: |
-          flutter pub get
-          if [ "${{ inputs.check_level }}" = "full" ]; then
-            npm install -g jscpd
-          fi
+      - name: 📦 Install Tools
+        run: npm install -g jscpd
 
       # ─────────────────────────────────────────────────────────────────────
-      #  2. Build Runner — ضروري قبل analyze (لأن drift/freezed يُولِّد ملفات)
-      # ─────────────────────────────────────────────────────────────────────
-      - name: 🏗️ Run Build Runner
-        working-directory: mobile
-        run: dart run build_runner build --delete-conflicting-outputs
-
-      # ─────────────────────────────────────────────────────────────────────
-      #  3. Check Formatting (سريع)
-      # ─────────────────────────────────────────────────────────────────────
-      - name: 🎨 Check Formatting
-        working-directory: mobile
-        run: dart format --line-length 120 --set-exit-if-changed lib test || true
-
-      # ─────────────────────────────────────────────────────────────────────
-      #  4. Flutter Analyze (سريع — بدون fatal warnings لتفادي الإيقاف)
-      # ─────────────────────────────────────────────────────────────────────
-      - name: 🔍 Flutter Analyze
-        working-directory: mobile
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
-
-      # ─────────────────────────────────────────────────────────────────────
-      #  5. Tests — مُسرَّع عبر:
-      #     - parallelism (--concurrency=4)
-      #     - timeout محدود
-      #     - exclusion of slow integration tests
-      #     - coverage مُعطَّل في quick mode (يستهلك وقت)
-      # ─────────────────────────────────────────────────────────────────────
-      - name: 🧪 Run Tests (Quick)
-        if: inputs.run_tests == true && inputs.check_level != 'full'
-        working-directory: mobile
-        run: |
-          flutter test \
-            --concurrency=4 \
-            --timeout=60s \
-            --exclude-tags slow,integration \
-            --reporter compact \
-            2>&1 | tee test_results.log
-          exit ${PIPESTATUS[0]}
-        continue-on-error: true
-
-      - name: 🧪 Run Tests & Coverage (Full)
-        if: inputs.run_tests == true && inputs.check_level == 'full'
-        working-directory: mobile
-        run: |
-          flutter test \
-            --coverage \
-            --concurrency=4 \
-            --timeout=120s \
-            --reporter compact \
-            2>&1 | tee test_results.log
-          exit ${PIPESTATUS[0]}
-        continue-on-error: true
-
-      # ─────────────────────────────────────────────────────────────────────
-      #  6. Performance Benchmarks (سريع — بدون emulator)
-      # ─────────────────────────────────────────────────────────────────────
-      - name: 🚀 Run Performance Benchmarks
-        if: inputs.run_tests == true
-        working-directory: mobile
-        run: |
-          flutter test test/performance/ \
-            --concurrency=2 \
-            --timeout=120s \
-            --reporter compact \
-            2>&1 | tee perf_benchmarks.log || true
-
-      # ─────────────────────────────────────────────────────────────────────
-      #  7. Full-only: Find Duplicate Code + Architecture Validation + Reports
+      #  Full-only: Find Duplicate Code + Architecture Validation + Reports
       # ─────────────────────────────────────────────────────────────────────
       - name: 👯 Find Duplicate Code
-        if: inputs.check_level == 'full'
         run: |
           mkdir -p reports
           jscpd ./mobile/lib \
@@ -169,11 +117,9 @@ jobs:
             --output ./reports || true
 
       - name: 🏗️ Architecture Validation
-        if: inputs.check_level == 'full'
         run: python3 scripts/architecture-validator.py --project-root mobile || true
 
       - name: 📊 Run Custom Reports
-        if: inputs.check_level == 'full'
         run: |
           mkdir -p reports
           python3 scripts/performance-report.py mobile/lib || true
@@ -182,49 +128,30 @@ jobs:
           bash scripts/security-scan.sh mobile/lib || true
 
       - name: 📝 Generate Quality Dashboard
-        if: inputs.check_level == 'full'
         run: python3 scripts/quality-summary.py || true
 
       # ─────────────────────────────────────────────────────────────────────
-      #  8. ملخص النتائج في PR/UI
+      #  ملخص النتائج
       # ─────────────────────────────────────────────────────────────────────
-      - name: 📊 Generate Summary
+      - name: 📊 Extended Quality Summary
         if: always()
         working-directory: mobile
         run: |
-          echo "### 🛡️ Quality Gate Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Check level:** \`${{ inputs.check_level || 'quick' }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tests run:** ${{ inputs.run_tests }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # استخراج ملخص الاختبارات
-          if [ -f "test_results.log" ]; then
-            echo "#### نتائج الاختبارات" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -20 test_results.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          # استخراج ملخص الـ benchmarks
-          if [ -f "perf_benchmarks.log" ]; then
-            echo "#### Performance Benchmarks" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -15 perf_benchmarks.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
-
-          # عدد PerformanceInspector في الكود
-          PERF_COUNT=$(grep -r "PerformanceInspector" lib/ | wc -l)
-          SCREENS_COUNT=$(find lib/screens -name "*.dart" | wc -l)
-          echo "#### إحصائيات الكود" >> $GITHUB_STEP_SUMMARY
-          echo "- **PerformanceInspector usages:** $PERF_COUNT" >> $GITHUB_STEP_SUMMARY
-          echo "- **Total screen files:** $SCREENS_COUNT" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### 🛡️ Extended Quality Gate Results"
+            echo ""
+            echo "- **Branch:** \`${{ github.ref_name }}\`"
+            echo "- **Check level:** \`${{ inputs.check_level || 'quick' }}\`"
+            echo ""
+            echo "#### إحصائيات الكود"
+            PERF_COUNT=$(grep -r "PerformanceInspector" lib/ | wc -l || echo "0")
+            SCREENS_COUNT=$(find lib/screens -name "*.dart" | wc -l || echo "0")
+            echo "- **PerformanceInspector usages:** $PERF_COUNT"
+            echo "- **Total screen files:** $SCREENS_COUNT"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # ─────────────────────────────────────────────────────────────────────
-      #  9. رفع التقارير (optional)
+      #  رفع التقارير (optional)
       # ─────────────────────────────────────────────────────────────────────
       - name: 📦 Upload Reports
         if: always() && inputs.upload_reports == true
@@ -233,7 +160,5 @@ jobs:
           name: quality-reports-${{ github.ref_name }}-${{ github.run_id }}
           path: |
             reports/
-            mobile/test_results.log
-            mobile/perf_benchmarks.log
           retention-days: 14
           if-no-files-found: ignore
