@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
@@ -537,6 +539,14 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       status: status,
                     );
                   }
+                  // ✅ مزامنة فورية بعد الحفظ
+                  unawaited(
+                    ref
+                        .read(appwriteSyncManagerProvider)
+                        .pushLocalChanges()
+                        .then((n) => debugPrint('📤 [Employee] push: $n records'))
+                        .catchError((Object e) => debugPrint('⚠️ [Employee] push failed: $e')),
+                  );
                   // ignore: use_build_context_synchronously
                   Navigator.pop(context);
                   // ignore: use_build_context_synchronously
@@ -1160,6 +1170,15 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     description: noteController.text.trim().isNotEmpty ? noteController.text.trim() : null,
                   );
 
+                  // ✅ مزامنة فورية بعد الحفظ
+                  unawaited(
+                    ref
+                        .read(appwriteSyncManagerProvider)
+                        .pushLocalChanges()
+                        .then((n) => debugPrint('📤 [SalaryWithdraw] push: $n records'))
+                        .catchError((Object e) => debugPrint('⚠️ [SalaryWithdraw] push failed: $e')),
+                  );
+
                   if (ctx.mounted) {
                     Navigator.pop(ctx);
                   }
@@ -1235,6 +1254,14 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     try {
       final repo = ref.read(employeesRepoProvider);
       await repo.delete(employee.id);
+      // ✅ مزامنة فورية بعد الحفظ
+      unawaited(
+        ref
+            .read(appwriteSyncManagerProvider)
+            .pushLocalChanges()
+            .then((n) => debugPrint('📤 [EmployeeDelete] push: $n records'))
+            .catchError((Object e) => debugPrint('⚠️ [EmployeeDelete] push failed: $e')),
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1270,6 +1297,15 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         phone: employee.phone,
         hireDate: employee.hireDate,
         status: newStatus,
+      );
+
+      // ✅ مزامنة فورية بعد الحفظ
+      unawaited(
+        ref
+            .read(appwriteSyncManagerProvider)
+            .pushLocalChanges()
+            .then((n) => debugPrint('📤 [EmployeeToggle] push: $n records'))
+            .catchError((Object e) => debugPrint('⚠️ [EmployeeToggle] push failed: $e')),
       );
 
       // ignore: use_build_context_synchronously

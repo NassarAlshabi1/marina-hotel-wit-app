@@ -956,6 +956,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnEx
       );
 
       markDataChanged();
+      // ✅ مزامنة فورية بعد الحفظ
+      unawaited(syncNow());
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1273,6 +1275,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnEx
         );
       }
       markDataChanged();
+      // ✅ مزامنة فورية بعد الحفظ
+      unawaited(syncNow());
 
       if (mounted) {
         // ignore: use_build_context_synchronously
@@ -1415,6 +1419,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnEx
       final repo = ref.read(debtsRepoProvider);
       await repo.delete(debt.id);
       markDataChanged();
+      // ✅ مزامنة فورية بعد الحفظ
+      unawaited(syncNow());
 
       if (mounted) {
         ScaffoldMessenger.of(

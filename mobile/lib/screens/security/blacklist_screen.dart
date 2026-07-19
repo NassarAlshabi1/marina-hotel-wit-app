@@ -1,6 +1,10 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/repositories/blacklist_repository.dart';
 import '../../services/sync_service.dart';
@@ -183,6 +187,14 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                       case 'toggle':
                                         try {
                                           await repo.updateActive(e.id, !e.active);
+                                          // ✅ مزامنة فورية بعد الحفظ
+                                          unawaited(
+                                            ref
+                                                .read(appwriteSyncManagerProvider)
+                                                .pushLocalChanges()
+                                                .then((n) => debugPrint('📤 [BlacklistToggle] push: $n records'))
+                                                .catchError((Object err) => debugPrint('⚠️ [BlacklistToggle] push failed: $err')),
+                                          );
                                           if (!mounted) {
                                             return;
                                           }
@@ -210,6 +222,14 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                         if (confirmed ?? false) {
                                           try {
                                             await repo.delete(e.id);
+                                            // ✅ مزامنة فورية بعد الحفظ
+                                            unawaited(
+                                              ref
+                                                  .read(appwriteSyncManagerProvider)
+                                                  .pushLocalChanges()
+                                                  .then((n) => debugPrint('📤 [BlacklistDelete] push: $n records'))
+                                                  .catchError((Object err) => debugPrint('⚠️ [BlacklistDelete] push failed: $err')),
+                                            );
                                             if (!mounted) {
                                               return;
                                             }
@@ -482,6 +502,14 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                     notes: notesCtrl.text,
                   );
                 }
+                // ✅ مزامنة فورية بعد الحفظ
+                unawaited(
+                  ref
+                      .read(appwriteSyncManagerProvider)
+                      .pushLocalChanges()
+                      .then((n) => debugPrint('📤 [BlacklistSave] push: $n records'))
+                      .catchError((Object err) => debugPrint('⚠️ [BlacklistSave] push failed: $err')),
+                );
                 navigator.pop();
                 if (!mounted) {
                   return;
