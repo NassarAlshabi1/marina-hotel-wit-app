@@ -19,6 +19,7 @@ import 'dart:async';
 import 'dart:convert' show jsonDecode;
 import 'dart:io' show Directory, File;
 
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter_test/flutter_test.dart';
 
