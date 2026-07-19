@@ -158,10 +158,11 @@ class SalaryWithdrawalsRepository {
     // جمع السجلات القديمة غير المطابقة لمنع التكرار عند التعديل
     final staleRecords = <SalaryWithdrawal>[];
     if (matched != null) {
+      final matchedId = matched.id; // ✅ متغير محلي non-null
       // البحث عن سجلات أخرى بنفس expense_id أو exp_XX
       final allExisting = await (_db.select(
         _db.salaryWithdrawals,
-      )..where((t) => t.deletedAt.isNull() & t.id.equals(matched.id).not())).get();
+      )..where((t) => t.deletedAt.isNull() & t.id.equals(matchedId).not())).get();
       for (final w in allExisting) {
         if (matchesExpenseRef(w.reason, expenseId)) {
           staleRecords.add(w);
@@ -199,8 +200,12 @@ class SalaryWithdrawalsRepository {
 
       // ─── إنشاء أو تحديث السجل الرئيسي ───
       if (matched != null) {
+        final matchedId = matched.id; // ✅ متغير محلي non-null
+        final matchedLocalUuid = matched.localUuid;
+        final matchedServerId = matched.serverId;
+        final matchedVersion = matched.version;
         // تحديث السجل الموجود
-        await (_db.update(_db.salaryWithdrawals)..where((t) => t.id.equals(matched.id))).write(
+        await (_db.update(_db.salaryWithdrawals)..where((t) => t.id.equals(matchedId))).write(
           SalaryWithdrawalsCompanion(
             employeeId: d.Value(employeeId),
             amount: d.Value(amount),
@@ -211,19 +216,19 @@ class SalaryWithdrawalsRepository {
             hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
-            version: d.Value(matched.version + 1),
+            version: d.Value(matchedVersion + 1),
           ),
         );
 
         // ✅ تحديث expense_id في العمود الخام
-        await _setExpenseIdRaw(matched.id, expenseId);
+        await _setExpenseIdRaw(matchedId, expenseId);
 
         if (!originIsServer) {
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
             op: 'update',
-            localUuid: matched.localUuid,
-            serverId: matched.serverId,
+            localUuid: matchedLocalUuid,
+            serverId: matchedServerId,
             payload: {
               'employeeId': employeeId,
               'amount': amount,
