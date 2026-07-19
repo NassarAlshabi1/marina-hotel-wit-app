@@ -114,7 +114,7 @@ jobs:
           echo "- **print() in screens:** $PRINT_IN_SCREENS" >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📊 **الحالة:** ${BLUR_OVER_0=0} blur violations, ${SPREAD_OVER_0=0} spread violations" >> $GITHUB_STEP_SUMMARY
+          echo "📊 **الحالة:** ${BLUR_OVER_4=0} blur violations, ${SPREAD_OVER_0=0} spread violations" >> $GITHUB_STEP_SUMMARY
 
   # ═════════════════════════════════════════════════════════════════════════
   #  Job 2: تشغيل Benchmark Tests

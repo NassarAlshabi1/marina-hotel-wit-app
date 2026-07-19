@@ -155,7 +155,7 @@ jobs:
             echo ""
             if [ "${{ steps.coverage_check.outputs.has_coverage }}" = "true" ]; then
               echo "### Test Results (last 15 lines)"
-              echo '```'"
+              echo '```'
               tail -15 test_results.log 2>/dev/null || echo 'No test log'
               echo '```'
               echo ""
