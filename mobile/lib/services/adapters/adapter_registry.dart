@@ -1,3 +1,5 @@
+// ignore_for_file: sort_constructors_first, sort_unnamed_constructors_first
+
 import '../local_db.dart';
 import '../repositories/base_repository.dart';
 import 'audit_logs_adapter.dart';
