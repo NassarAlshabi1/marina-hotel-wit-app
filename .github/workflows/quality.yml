@@ -1,60 +1,53 @@
-name: 🔬 Enterprise Quality Gate
+name: Enterprise Quality Gate
 
-# ════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 # Marina Hotel — Professional Quality Gate Pipeline
 # Refactored with Very Good Workflows patterns (VGV)
 #
 #  يستخدم flutter_ci.yml كـ reusable workflow للتحليل والاختبارات
-#  ويضيف فحوصات إضافية:
+#  ويضيف فحوصات إضافية في وضع full:
 #    - Duplicate code detection (jscpd)
 #    - Architecture validation
-#    - Static performance metrics
-#    - Custom reports (complexity, dead-code, security)
+#    - Custom reports (performance, complexity, dead-code, security)
 #    - Quality dashboard generation
 #
-#  للتشغيل اليدوي:
+#  للتشغيل:
 #    1. اذهب لـ Actions tab في GitHub
 #    2. اختر "Enterprise Quality Gate" workflow
-#    3. اضغط "Run workflow" ← اختر الفرع ومستوى الفحص
-# ════════════════════════════════════════════════════════════════════════════
+#    3. اضغط "Run workflow"
+#    4. اختر الفرع المراد فحصه (default: الحالي)
+#    5. اختر مستوى الفحص (full / quick)
+# ═══════════════════════════════════════════════════════════════
 on:
-  pull_request:
-    branches: [ main, develop, 'refactor/**', 'feature/**' ]
   push:
-    branches: [ main, develop, 'refactor/**', 'feature/**' ]
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
   workflow_dispatch:
     inputs:
       check_level:
-        description: '🧪 مستوى الفحص والعمق'
+        description: 'مستوى الفحص'
         required: true
         type: choice
-        default: 'full'
+        default: 'quick'
         options:
-          - quick    # فحص سريع: analyze + tests (~5 دقائق)
+          - quick    # فحص سريع: analyze + tests فقط (~5 دقائق)
           - full     # فحص شامل: كل الفحوصات + reports (~15 دقيقة)
       run_tests:
-        description: '🧪 تشغيل الاختبارات؟'
+        description: 'تشغيل الاختبارات؟'
         required: false
         type: boolean
         default: true
-      run_extended:
-        description: '🔬 فحوصات إضافية (architecture, security, reports)؟'
-        required: false
-        type: boolean
-        default: true
-      run_benchmarks:
-        description: '🚀 اختبارات قياس الأداء؟'
-        required: false
-        type: boolean
-        default: false
       upload_reports:
-        description: '📦 رفع التقارير كـ artifact؟'
+        description: 'رفع التقارير كـ artifact؟'
         required: false
         type: boolean
         default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.check_level) || 'full' }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.check_level || 'default' }}
   cancel-in-progress: true
 
 permissions:
@@ -62,119 +55,37 @@ permissions:
   pull-requests: write
   checks: write
 
-env:
-  FLUTTER_VERSION: '3.44.4'
-
 jobs:
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ═══════════════════════════════════════════════════════════════
   #  Job 1: Flutter CI (reusable — format + analyze + test)
-  # ═══════════════════════════════════════════════════════════════════════════
+  #  يُستدعى من flutter_ci.yml بمعايير VGV
+  # ═══════════════════════════════════════════════════════════════
   flutter-ci:
-    name: 🎯 Flutter CI
+    name: Flutter CI
     uses: ./.github/workflows/flutter_ci.yml
     with:
-      flutter_version: ${{ env.FLUTTER_VERSION }}
+      flutter_version: '3.44.4'
       working_directory: 'mobile'
       analyze_directories: 'lib'
       format_directories: 'lib test'
       format_line_length: '120'
-      min_coverage: ${{ (github.event_name == 'workflow_dispatch' && inputs.check_level == 'full') && 50 || 0 }}
+      min_coverage: ${{ inputs.check_level == 'full' && 60 || 0 }}
       coverage_excludes: '**/*.g.dart **/*.freezed.dart **/generated_plugin_registrant.dart'
       run_build_runner: true
-      run_tests: ${{ github.event_name != 'workflow_dispatch' || inputs.run_tests != false }}
+      run_tests: ${{ inputs.run_tests != false }}
       test_concurrency: 4
-      test_timeout: ${{ (github.event_name == 'workflow_dispatch' && inputs.check_level == 'full') && '120s' || '60s' }}
-      run_benchmarks: ${{ github.event_name == 'workflow_dispatch' && inputs.run_benchmarks == true }}
+      test_timeout: ${{ inputs.check_level == 'full' && '120s' || '60s' }}
+      run_benchmarks: ${{ inputs.run_tests != false }}
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  Job 2: Static Performance Analysis (بدون emulator — سريع)
-  # ═══════════════════════════════════════════════════════════════════════════
-  performance-analysis:
-    name: 🚀 Performance Analysis
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_extended != false }}
-    needs: flutter-ci
-    defaults:
-      run:
-        working-directory: mobile
-
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v5
-
-      - name: 🐦 Set up Flutter
-        uses: subosito/flutter-action@v2.23.0
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
-
-      - name: 📦 Install dependencies
-        run: flutter pub get
-
-      - name: 🔧 Generate build_runner files
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.check_level == 'full' }}
-        run: dart run build_runner build --delete-conflicting-outputs
-
-      # ─────────────────────────────────────────────────────────────────────
-      #  Static Performance Metrics
-      # ─────────────────────────────────────────────────────────────────────
-      - name: 📐 Static Performance Metrics
-        run: |
-          mkdir -p build/performance
-          echo "## 📊 Static Performance Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          TOTAL_DART=$(find lib -name '*.dart' | wc -l 2>/dev/null)
-          echo "| Total Dart files | $TOTAL_DART |" >> $GITHUB_STEP_SUMMARY
-          LARGEST_FILE=$(find lib -name '*.dart' -exec wc -l {} + 2>/dev/null | sort -rn | head -1 | awk '{print $2, $1}')
-          echo "| Largest file | $LARGEST_FILE lines |" >> $GITHUB_STEP_SUMMARY
-          BUILDS=$(grep -r "build(BuildContext" lib/ --include="*.dart" | wc -l 2>/dev/null)
-          echo "| Widget builds | $BUILDS |" >> $GITHUB_STEP_SUMMARY
-          STREAMS=$(grep -r "StreamSubscription" lib/ --include="*.dart" | wc -l 2>/dev/null)
-          echo "| Stream subscriptions | $STREAMS |" >> $GITHUB_STEP_SUMMARY
-          PERF_COUNT=$(grep -r "PerformanceInspector" lib/ --include="*.dart" | wc -l || echo "0")
-          echo "| PerformanceInspector | $PERF_COUNT |" >> $GITHUB_STEP_SUMMARY
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ⚠️ Performance Hotspots (أكثر 10 ملفات)" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          find lib -name '*.dart' -exec wc -l {} + 2>/dev/null | sort -rn | head -10 >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-      # ─────────────────────────────────────────────────────────────────────
-      #  Run Performance Benchmark Tests (widget + unit)
-      # ─────────────────────────────────────────────────────────────────────
-      - name: 🏃 Run Performance Benchmarks
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_benchmarks == true }}
-        run: |
-          echo "### 🚀 Performance Benchmark Results" >> $GITHUB_STEP_SUMMARY
-          flutter test test/performance/             --concurrency=1             --timeout=120s             --reporter expanded             --machine > build/performance/benchmark_results.json             2>&1 || true
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          flutter test test/performance/             --concurrency=1             --timeout=120s             --reporter compact             2>&1 | tail -50 >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-      - name: 📤 Upload Benchmark Results
-        if: always() && (github.event_name == 'workflow_dispatch' && inputs.run_benchmarks == true)
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: benchmark-results-${{ github.ref_name }}-${{ github.run_id }}
-          path: ${{ (github.event_name == 'workflow_dispatch' && inputs.working_directory) || 'mobile' }}/build/performance/
-          retention-days: 30
-          if-no-files-found: ignore
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  #  Job 3: Extended Quality Checks (architecture + security + reports)
-  # ═══════════════════════════════════════════════════════════════════════════
+  # ═══════════════════════════════════════════════════════════════
+  #  Job 2: Extended Quality Checks (full mode only)
+  #  فحوصات إضافية لا يُغطيها الـ reusable workflow
+  # ═══════════════════════════════════════════════════════════════
   extended-quality:
-    name: 🛡️ Extended Quality
+    name: 🛡️ Extended Quality (${{ inputs.check_level || 'quick' }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_extended != false }}
+    timeout-minutes: ${{ inputs.check_level == 'full' && 15 || 3 }}
+    if: inputs.check_level == 'full'
     needs: flutter-ci
 
     steps:
@@ -195,83 +106,59 @@ jobs:
         run: npm install -g jscpd
 
       # ─────────────────────────────────────────────────────────────────────
-      #  1. Duplicate Code Detection (jscpd)
+      #  Full-only: Find Duplicate Code + Architecture Validation + Reports
       # ─────────────────────────────────────────────────────────────────────
       - name: 👯 Find Duplicate Code
         run: |
           mkdir -p reports
-          jscpd ./lib \
+          jscpd ./mobile/lib \
             --format dart \
             --reporters json \
             --output ./reports || true
 
-      # ─────────────────────────────────────────────────────────────────────
-      #  2. Architecture Validation - Clean Architecture + Riverpod
-      # ─────────────────────────────────────────────────────────────────────
       - name: 🏗️ Architecture Validation
-        run: |
-          python3 ../scripts/architecture-validator.py --project-root .
-          echo "### 🏗️ Architecture Validation" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          python3 ../scripts/architecture-validator.py --project-root . 2>&1 >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        run: python3 scripts/architecture-validator.py --project-root mobile || true
 
-      # ─────────────────────────────────────────────────────────────────────
-      #  3. Performance + Complexity + Security Reports
-      # ─────────────────────────────────────────────────────────────────────
-      - name: 📊 Performance Report
+      - name: 📊 Run Custom Reports
         run: |
-          python3 ../scripts/performance-report.py ./lib || true
-          echo "### 📊 Performance Report" >> $GITHUB_STEP_SUMMARY
-          if [ -f reports/performance.json ]; then
-            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
-            cat reports/performance.json >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          fi
+          mkdir -p reports
+          python3 scripts/performance-report.py mobile/lib || true
+          python3 scripts/complexity-report.py mobile/lib || true
+          python3 scripts/dead-code-report.py || true
+          bash scripts/security-scan.sh mobile/lib || true
 
-      - name: 🧩 Complexity Analysis
-        run: |
-          python3 ../scripts/complexity-report.py ./lib || true
-          echo "### 🧩 Complexity Analysis" >> $GITHUB_STEP_SUMMARY
-          if [ -f reports/complexity.json ]; then
-            echo '```json' >> $GITHUB_STEP_SUMMARY
-            python3 -c "print(open('reports/complexity.json').read())" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi      - name: 🩺 Dead Code Analysis
-        run: |
-          python3 ../scripts/dead-code-report.py || true
-
-      - name: 🔐 Security Scan
-        run: |
-          bash ../scripts/security-scan.sh ./lib || true
-          echo "### 🔐 Security Scan" >> $GITHUB_STEP_SUMMARY
-          if [ -f reports/security_report.txt ]; then
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            cat reports/security_report.txt >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      # ─────────────────────────────────────────────────────────────────────
-      #  4. Generate Quality Dashboard
-      # ─────────────────────────────────────────────────────────────────────
       - name: 📝 Generate Quality Dashboard
+        run: python3 scripts/quality-summary.py || true
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  ملخص النتائج
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📊 Extended Quality Summary
+        if: always()
+        working-directory: mobile
         run: |
-          python3 ../scripts/quality-summary.py || true
-          echo "### 🏆 Quality Dashboard" >> $GITHUB_STEP_SUMMARY
-          if [ -f reports/quality_summary.md ]; then
-            cat reports/quality_summary.md >> $GITHUB_STEP_SUMMARY
-          fi
+          {
+            echo "### 🛡️ Extended Quality Gate Results"
+            echo ""
+            echo "- **Branch:** \`${{ github.ref_name }}\`"
+            echo "- **Check level:** \`${{ inputs.check_level || 'quick' }}\`"
+            echo ""
+            echo "#### إحصائيات الكود"
+            PERF_COUNT=$(grep -r "PerformanceInspector" lib/ | wc -l || echo "0")
+            SCREENS_COUNT=$(find lib/screens -name "*.dart" | wc -l || echo "0")
+            echo "- **PerformanceInspector usages:** $PERF_COUNT"
+            echo "- **Total screen files:** $SCREENS_COUNT"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # ─────────────────────────────────────────────────────────────────────
       #  رفع التقارير (optional)
       # ─────────────────────────────────────────────────────────────────────
       - name: 📦 Upload Reports
-        if: always() && (github.event_name == 'workflow_dispatch' && inputs.upload_reports == true)
+        if: always() && inputs.upload_reports == true
         uses: actions/upload-artifact@v4.6.2
         with:
           name: quality-reports-${{ github.ref_name }}-${{ github.run_id }}
           path: |
             reports/
-            ${{ github.workspace }}/${{ env.GITHUB_STEP_SUMMARY }}
-          retention-days: 30
+          retention-days: 14
           if-no-files-found: ignore
