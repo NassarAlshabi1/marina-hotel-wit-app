@@ -666,6 +666,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
       await repo.delete(expense.id);
 
       markDataChanged();
+      // ✅ مزامنة فورية بعد الحفظ (مثل booking_payment_screen)
+      // بدلاً من انتظار debounce 15 ثانية
+      unawaited(syncNow());
 
       if (mounted) {
         _refreshExpensesStream();
@@ -1001,6 +1004,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
         }
 
         markDataChanged();
+        // ✅ مزامنة فورية بعد الحفظ (مثل booking_payment_screen)
+        unawaited(syncNow());
 
         // ✅ إصلاح: توسيع الفلتر تلقائياً إذا كان hotelDayKey للمصروف المحفوظ
         // يختلف عن نطاق الفلتر الحالي — لضمان ظهور المصروف الجديد دائماً

@@ -614,6 +614,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           revenueType: selectedType,
         );
         markDataChanged();
+        // ✅ مزامنة فورية بعد الحفظ
+        unawaited(syncNow());
 
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
@@ -694,6 +696,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         // تحديث حالة الغرفة إلى شاغرة عبر المستودع الموحد
         await roomsRepo.refreshAllRoomOccupancy();
         markDataChanged();
+        // ✅ مزامنة فورية بعد الحفظ
+        unawaited(syncNow());
 
         if (mounted) {
           // ignore: use_build_context_synchronously

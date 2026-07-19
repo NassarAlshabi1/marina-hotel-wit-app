@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
@@ -389,6 +392,23 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
         paidAmount: 0,
         paymentDate: _formatDate(now),
         note: _notesController.text.isNotEmpty ? _notesController.text : null,
+      );
+
+      // ✅ مزامنة فورية بعد إنشاء الدين (مثل booking_payment_screen)
+      // بدلاً من انتظار debounce 15 ثانية
+      unawaited(
+        ref
+            .read(appwriteSyncManagerProvider)
+            .pushLocalChanges()
+            .then((pushedCount) {
+              debugPrint(
+                '📤 [CreateDebt] push-only to Appwrite Cloud: '
+                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
+              );
+            })
+            .catchError((Object e) {
+              debugPrint('⚠️ [CreateDebt] push failed: $e — will retry via outbox');
+            }),
       );
 
       if (mounted) {

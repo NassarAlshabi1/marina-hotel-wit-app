@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -544,6 +546,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
         }
       }
       markDataChanged();
+      // ✅ مزامنة فورية بعد الحفظ
+      unawaited(syncNow());
     } catch (e) {
       if (!mounted) {
         return;

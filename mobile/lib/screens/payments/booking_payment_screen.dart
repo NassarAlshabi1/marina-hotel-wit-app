@@ -3183,6 +3183,22 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       // ✅ تسجيل تغيير المزامنة (نفس النمط الموجود في _processCheckout)
       markDataChanged();
 
+      // ✅ رفع التغييرات إلى Appwrite Cloud فوراً (push-only)
+      unawaited(
+        ref
+            .read(appwriteSyncManagerProvider)
+            .pushLocalChanges()
+            .then((pushedCount) {
+              debugPrint(
+                '📤 [CancelTodayPayments] push-only to Appwrite Cloud: '
+                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
+              );
+            })
+            .catchError((Object e) {
+              debugPrint('⚠️ [CancelTodayPayments] push failed: $e — will retry via outbox');
+            }),
+      );
+
       if (!mounted) {
         return;
       }

@@ -670,6 +670,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnEx
           paymentDate: Time.nowDateString(),
         );
         markDataChanged();
+        // ✅ مزامنة فورية بعد الحفظ
+        unawaited(syncNow());
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تسجيل سداد دين ${debt.guestName}')));
