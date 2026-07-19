@@ -36,7 +36,8 @@
 # Drift / SQLite runtime (reflection-based)
 -keep class **.g.** { *; }
 -keep class **.freezed.** { *; }
--keep class _\$** { *; }
+# ✅ تم إزالة "-keep class _\$** { *; }" — غير صالحة لـ R8 (تسبب Build failure)
+# ملفات Drift/Freezed مغطاة بالقواعد أعلاه
 -dontwarn java.lang.ClassValue
 
 # Suppress warnings for optional dependencies
