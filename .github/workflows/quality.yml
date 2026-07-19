@@ -1,4 +1,4 @@
- name: Enterprise Quality Gate
+name: Enterprise Quality Gate
 
 # ═══════════════════════════════════════════════════════════════
 # Marina Hotel — Professional Quality Gate Pipeline
@@ -19,10 +19,12 @@
 #    5. اختر مستوى الفحص (full / quick)
 # ═══════════════════════════════════════════════════════════════
 on:
-  pull_request:
-    branches: [ main, develop, 'refactor/**', 'feature/**' ]
   push:
-    branches: [ main, develop ]
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
   workflow_dispatch:
     inputs:
       check_level:
