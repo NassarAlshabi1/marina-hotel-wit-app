@@ -14,7 +14,7 @@ on:
       - yy
       - refactor/clean-v2
       - refactor/performance-fixes-v1
-      - refactor/performance-fixes-v1
+      - refactor/performance-fixes-v2
   pull_request:
     branches:
       - main
