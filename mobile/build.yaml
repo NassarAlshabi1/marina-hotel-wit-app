@@ -1,11 +1,8 @@
 targets:
   $default:
     builders:
-      build_verify|build_verify:
-        enabled: false
       drift_dev:
         options:
-          use_experimental_inference: true
           sqlite_modules:
             - json1
             - fts5
